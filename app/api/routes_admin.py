@@ -70,21 +70,39 @@ async def test_crm_connection():
         return result
 
     try:
-        client = RecruitCRMClient()
-        # Versuche, die erste Seite der Kandidaten abzurufen
-        response = await client.get_candidates(page=1, per_page=1)
+        import httpx
 
-        result["connection_test"] = "ERFOLGREICH"
-        result["candidates_count"] = response.get("meta", {}).get("total", 0)
-        result["first_candidate"] = response.get("data", [{}])[0] if response.get("data") else None
+        # Direkter API-Test ohne den CRM-Client
+        async with httpx.AsyncClient() as http_client:
+            # Test 1: Einfacher Request ohne Parameter
+            test_response = await http_client.get(
+                f"{settings.recruit_crm_base_url}/candidates",
+                headers={
+                    "Authorization": f"Bearer {settings.recruit_crm_api_key}",
+                    "Accept": "application/json",
+                },
+                timeout=15.0,
+            )
 
-        await client.close()
-    except CRMError as e:
-        result["connection_test"] = "FEHLGESCHLAGEN"
-        result["error"] = f"CRM-Fehler: {e.message} (Status: {e.status_code})"
+            result["raw_status_code"] = test_response.status_code
+            result["raw_response_preview"] = test_response.text[:500] if test_response.text else "Leer"
+
+            if test_response.status_code == 200:
+                result["connection_test"] = "ERFOLGREICH"
+                data = test_response.json()
+                result["candidates_count"] = data.get("total", len(data.get("data", [])))
+                result["response_keys"] = list(data.keys()) if isinstance(data, dict) else "Keine Dict-Antwort"
+                if data.get("data"):
+                    first = data["data"][0]
+                    result["first_candidate_keys"] = list(first.keys()) if isinstance(first, dict) else None
+                    result["first_candidate_name"] = f"{first.get('first_name', '')} {first.get('last_name', '')}"
+            else:
+                result["connection_test"] = "FEHLGESCHLAGEN"
+                result["error"] = f"HTTP {test_response.status_code}"
+
     except Exception as e:
         result["connection_test"] = "FEHLGESCHLAGEN"
-        result["error"] = f"Unerwarteter Fehler: {str(e)}"
+        result["error"] = f"Fehler: {str(e)}"
 
     return result
 
