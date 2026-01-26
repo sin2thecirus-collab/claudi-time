@@ -76,17 +76,25 @@ async def _run_crm_sync(db: AsyncSession, job_run_id: UUID, full_sync: bool):
     job_runner = JobRunnerService(db)
     sync_service = CRMSyncService(db)
 
+    async def update_progress(processed: int, total: int):
+        """Callback für Fortschrittsupdates."""
+        await job_runner.update_progress(
+            job_run_id,
+            items_processed=processed,
+            items_total=total,
+        )
+
     try:
         if full_sync:
-            result = await sync_service.initial_sync()
+            result = await sync_service.initial_sync(progress_callback=update_progress)
         else:
-            result = await sync_service.sync_all()
+            result = await sync_service.sync_all(progress_callback=update_progress)
 
         await job_runner.complete_job(
             job_run_id,
-            items_total=result.total_candidates,
+            items_total=result.total_processed,
             items_successful=result.created + result.updated,
-            items_failed=result.errors,
+            items_failed=result.failed,
         )
     except Exception as e:
         logger.error(f"CRM-Sync fehlgeschlagen: {e}")
