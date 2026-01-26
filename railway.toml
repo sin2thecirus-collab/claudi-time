@@ -1,0 +1,32 @@
+# Railway Deployment Konfiguration
+# Dokumentation: https://docs.railway.app/reference/config-as-code
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+startCommand = "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+# Cron-Jobs für Background-Prozesse
+# Diese müssen in Railway unter "Cron" konfiguriert werden:
+#
+# Geocoding (täglich 03:00 UTC):
+#   Schedule: 0 3 * * *
+#   Command: curl -X POST $RAILWAY_PUBLIC_DOMAIN/api/admin/geocoding/trigger?source=cron -H "Authorization: Bearer $CRON_SECRET"
+#
+# CRM-Sync (täglich 03:30 UTC):
+#   Schedule: 30 3 * * *
+#   Command: curl -X POST $RAILWAY_PUBLIC_DOMAIN/api/admin/crm-sync/trigger?source=cron -H "Authorization: Bearer $CRON_SECRET"
+#
+# Matching/Vorfilter (täglich 04:00 UTC):
+#   Schedule: 0 4 * * *
+#   Command: curl -X POST $RAILWAY_PUBLIC_DOMAIN/api/admin/matching/trigger?source=cron -H "Authorization: Bearer $CRON_SECRET"
+#
+# Cleanup (sonntags 05:00 UTC):
+#   Schedule: 0 5 * * 0
+#   Command: curl -X POST $RAILWAY_PUBLIC_DOMAIN/api/admin/cleanup/trigger?source=cron -H "Authorization: Bearer $CRON_SECRET"
