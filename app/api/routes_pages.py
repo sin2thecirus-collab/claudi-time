@@ -341,3 +341,145 @@ async def active_alerts_partial(
             "alerts": alerts
         }
     )
+
+
+# ============================================================================
+# Admin Job Status Partials (HTMX)
+# ============================================================================
+
+@router.get("/api/admin/geocoding/status", response_class=HTMLResponse)
+async def geocoding_status_partial(
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """Partial: Geocoding-Status fuer Admin-Seite."""
+    from app.models.job_run import JobType
+    from app.services.job_runner_service import JobRunnerService
+
+    job_runner = JobRunnerService(db)
+    status_data = await job_runner.get_status(JobType.GEOCODING)
+
+    # Hole aktuellen oder letzten Job
+    current_job = status_data.get("current_job")
+    last_job = status_data.get("last_job")
+
+    # Konvertiere zu Objekt-artigem Dict fuer Template
+    status = None
+    if current_job:
+        status = type("JobStatus", (), current_job)()
+    elif last_job:
+        status = type("JobStatus", (), last_job)()
+
+    return templates.TemplateResponse(
+        "components/admin_job_row.html",
+        {
+            "request": request,
+            "job_type": "geocoding",
+            "label": "Geocoding",
+            "description": "Koordinaten fuer Jobs und Kandidaten ermitteln",
+            "status": status,
+            "trigger_url": "/api/admin/geocoding/trigger",
+        }
+    )
+
+
+@router.get("/api/admin/crm-sync/status", response_class=HTMLResponse)
+async def crm_sync_status_partial(
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """Partial: CRM-Sync-Status fuer Admin-Seite."""
+    from app.models.job_run import JobType
+    from app.services.job_runner_service import JobRunnerService
+
+    job_runner = JobRunnerService(db)
+    status_data = await job_runner.get_status(JobType.CRM_SYNC)
+
+    current_job = status_data.get("current_job")
+    last_job = status_data.get("last_job")
+
+    status = None
+    if current_job:
+        status = type("JobStatus", (), current_job)()
+    elif last_job:
+        status = type("JobStatus", (), last_job)()
+
+    return templates.TemplateResponse(
+        "components/admin_job_row.html",
+        {
+            "request": request,
+            "job_type": "crm-sync",
+            "label": "CRM-Sync",
+            "description": "Kandidaten aus Recruit CRM synchronisieren",
+            "status": status,
+            "trigger_url": "/api/admin/crm-sync/trigger",
+        }
+    )
+
+
+@router.get("/api/admin/matching/status", response_class=HTMLResponse)
+async def matching_status_partial(
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """Partial: Matching-Status fuer Admin-Seite."""
+    from app.models.job_run import JobType
+    from app.services.job_runner_service import JobRunnerService
+
+    job_runner = JobRunnerService(db)
+    status_data = await job_runner.get_status(JobType.MATCHING)
+
+    current_job = status_data.get("current_job")
+    last_job = status_data.get("last_job")
+
+    status = None
+    if current_job:
+        status = type("JobStatus", (), current_job)()
+    elif last_job:
+        status = type("JobStatus", (), last_job)()
+
+    return templates.TemplateResponse(
+        "components/admin_job_row.html",
+        {
+            "request": request,
+            "job_type": "matching",
+            "label": "Matching",
+            "description": "Kandidaten-Job-Matches berechnen",
+            "status": status,
+            "trigger_url": "/api/admin/matching/trigger",
+        }
+    )
+
+
+@router.get("/api/admin/cleanup/status", response_class=HTMLResponse)
+async def cleanup_status_partial(
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """Partial: Cleanup-Status fuer Admin-Seite."""
+    from app.models.job_run import JobType
+    from app.services.job_runner_service import JobRunnerService
+
+    job_runner = JobRunnerService(db)
+    status_data = await job_runner.get_status(JobType.CLEANUP)
+
+    current_job = status_data.get("current_job")
+    last_job = status_data.get("last_job")
+
+    status = None
+    if current_job:
+        status = type("JobStatus", (), current_job)()
+    elif last_job:
+        status = type("JobStatus", (), last_job)()
+
+    return templates.TemplateResponse(
+        "components/admin_job_row.html",
+        {
+            "request": request,
+            "job_type": "cleanup",
+            "label": "Cleanup",
+            "description": "Abgelaufene Jobs und verwaiste Matches bereinigen",
+            "status": status,
+            "trigger_url": "/api/admin/cleanup/trigger",
+        }
+    )

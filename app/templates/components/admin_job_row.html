@@ -39,13 +39,13 @@
 
                 {% if status.started_at %}
                 <span class="text-gray-500">
-                    Gestartet: {{ status.started_at.strftime('%d.%m.%Y %H:%M') }}
+                    Gestartet: {{ status.started_at[:16].replace('T', ' ') if status.started_at is string else status.started_at.strftime('%d.%m.%Y %H:%M') }}
                 </span>
                 {% endif %}
 
                 {% if status.completed_at %}
                 <span class="text-gray-500">
-                    Beendet: {{ status.completed_at.strftime('%d.%m.%Y %H:%M') }}
+                    Beendet: {{ status.completed_at[:16].replace('T', ' ') if status.completed_at is string else status.completed_at.strftime('%d.%m.%Y %H:%M') }}
                 </span>
                 {% endif %}
 

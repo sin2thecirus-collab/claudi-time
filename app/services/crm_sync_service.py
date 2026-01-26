@@ -113,10 +113,16 @@ class CRMSyncService:
         count = result.scalar_one()
         return count > 0
 
-    async def sync_all(self) -> SyncResult:
+    async def sync_all(
+        self,
+        progress_callback: callable | None = None,
+    ) -> SyncResult:
         """Führt einen vollständigen Sync durch.
 
         Entscheidet automatisch zwischen Initial- und Incremental-Sync.
+
+        Args:
+            progress_callback: Optional callback(processed, total) für Fortschrittsupdates
 
         Returns:
             SyncResult mit Statistiken
@@ -126,16 +132,22 @@ class CRMSyncService:
 
         if not has_existing:
             logger.info("Kein Kandidat vorhanden, starte Initial-Sync")
-            return await self.initial_sync()
+            return await self.initial_sync(progress_callback=progress_callback)
         elif last_sync:
             logger.info(f"Letzter Sync: {last_sync}, starte Incremental-Sync")
-            return await self.incremental_sync(since=last_sync)
+            return await self.incremental_sync(since=last_sync, progress_callback=progress_callback)
         else:
             logger.info("Kein Sync-Zeitpunkt bekannt, starte Initial-Sync")
-            return await self.initial_sync()
+            return await self.initial_sync(progress_callback=progress_callback)
 
-    async def initial_sync(self) -> SyncResult:
+    async def initial_sync(
+        self,
+        progress_callback: callable | None = None,
+    ) -> SyncResult:
         """Führt einen Initial-Sync durch (alle Kandidaten).
+
+        Args:
+            progress_callback: Optional callback(processed, total) für Fortschrittsupdates
 
         Returns:
             SyncResult mit Statistiken
@@ -177,6 +189,13 @@ class CRMSyncService:
                 # Commit nach jeder Seite
                 await self.db.commit()
 
+                # Fortschritts-Callback aufrufen
+                if progress_callback:
+                    try:
+                        await progress_callback(result.total_processed, total)
+                    except Exception as e:
+                        logger.warning(f"Progress callback fehlgeschlagen: {e}")
+
         except CRMRateLimitError as e:
             logger.error(f"Rate-Limit erreicht: {e}")
             result.errors.append({"error": str(e), "type": "rate_limit"})
@@ -197,11 +216,16 @@ class CRMSyncService:
 
         return result
 
-    async def incremental_sync(self, since: datetime | None = None) -> SyncResult:
+    async def incremental_sync(
+        self,
+        since: datetime | None = None,
+        progress_callback: callable | None = None,
+    ) -> SyncResult:
         """Führt einen Incremental-Sync durch (nur Änderungen).
 
         Args:
             since: Zeitpunkt, ab dem geänderte Kandidaten abgerufen werden
+            progress_callback: Optional callback(processed, total) für Fortschrittsupdates
 
         Returns:
             SyncResult mit Statistiken
@@ -250,6 +274,13 @@ class CRMSyncService:
                         logger.error(f"Fehler bei Kandidat {crm_data.get('id')}: {e}")
 
                 await self.db.commit()
+
+                # Fortschritts-Callback aufrufen
+                if progress_callback:
+                    try:
+                        await progress_callback(result.total_processed, total)
+                    except Exception as e:
+                        logger.warning(f"Progress callback fehlgeschlagen: {e}")
 
         except CRMRateLimitError as e:
             logger.error(f"Rate-Limit erreicht: {e}")
