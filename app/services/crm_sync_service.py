@@ -10,6 +10,7 @@ Dieser Service:
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from typing import Callable
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -115,7 +116,7 @@ class CRMSyncService:
 
     async def sync_all(
         self,
-        progress_callback: callable | None = None,
+        progress_callback: Callable[[int, int], None] | None = None,
     ) -> SyncResult:
         """Führt einen vollständigen Sync durch.
 
@@ -142,7 +143,7 @@ class CRMSyncService:
 
     async def initial_sync(
         self,
-        progress_callback: callable | None = None,
+        progress_callback: Callable[[int, int], None] | None = None,
     ) -> SyncResult:
         """Führt einen Initial-Sync durch (alle Kandidaten).
 
@@ -219,7 +220,7 @@ class CRMSyncService:
     async def incremental_sync(
         self,
         since: datetime | None = None,
-        progress_callback: callable | None = None,
+        progress_callback: Callable[[int, int], None] | None = None,
     ) -> SyncResult:
         """Führt einen Incremental-Sync durch (nur Änderungen).
 
