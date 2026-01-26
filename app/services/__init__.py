@@ -24,6 +24,18 @@ from app.services.crm_client import (
 from app.services.crm_sync_service import CRMSyncService, SyncResult
 from app.services.cv_parser_service import CVParserService, ParseResult
 from app.services.openai_service import OpenAIService, MatchEvaluation, OpenAIUsage
+from app.services.keyword_matcher import (
+    KeywordMatcher,
+    KeywordMatchResult,
+    keyword_matcher,
+    ACCOUNTING_KEYWORDS,
+    TECHNICAL_KEYWORDS,
+)
+from app.services.matching_service import (
+    MatchingService,
+    MatchingResult,
+    BatchMatchingResult,
+)
 
 __all__ = [
     # CSV
@@ -56,4 +68,14 @@ __all__ = [
     "OpenAIService",
     "MatchEvaluation",
     "OpenAIUsage",
+    # Keyword-Matching
+    "KeywordMatcher",
+    "KeywordMatchResult",
+    "keyword_matcher",
+    "ACCOUNTING_KEYWORDS",
+    "TECHNICAL_KEYWORDS",
+    # Matching
+    "MatchingService",
+    "MatchingResult",
+    "BatchMatchingResult",
 ]

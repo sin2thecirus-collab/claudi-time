@@ -2,7 +2,7 @@
 
 **Erstellt:** 26. Januar 2026
 **Aktualisiert:** 26. Januar 2026
-**Status:** Phase 3 abgeschlossen
+**Status:** Phase 4 abgeschlossen
 
 ---
 
@@ -110,7 +110,7 @@ Alle Spezifikationen liegen im Downloads-Ordner:
 - [x] Phase 1: Projekt-Setup & Datenbank ✅ (26. Jan 2026)
 - [x] Phase 2: CSV-Import & Geocoding ✅ (26. Jan 2026)
 - [x] Phase 3: CRM-Sync & CV-Parsing ✅ (26. Jan 2026)
-- [ ] Phase 4: Matching-Logik
+- [x] Phase 4: Matching-Logik ✅ (26. Jan 2026)
 - [ ] Phase 5: API-Endpoints
 - [ ] Phase 6: Frontend
 - [ ] Phase 7: KI-Integration
@@ -231,9 +231,49 @@ ENVIRONMENT=development
 
 ---
 
-## 12. Nächster Schritt
+## 12. Phase 4: Was wurde implementiert
 
-**Phase 4: Matching-Logik**
+### Keyword-Matching (`app/services/`)
+- `keyword_matcher.py` - KeywordMatcher mit:
+  - Branchen-spezifische Keyword-Listen (Buchhaltung + Technische Berufe)
+  - Software-Keywords (SAP, DATEV, Lexware, etc.)
+  - Tätigkeits-Keywords (Buchhaltung, Finanzbuchhaltung, etc.)
+  - Qualifikations-Keywords (Bilanzbuchhalter, Elektriker, etc.)
+  - Technische Keywords (SPS, Elektrotechnik, SHK, etc.)
+  - `extract_keywords_from_text()` - Extrahiert relevante Keywords aus Text
+  - `find_matching_keywords()` - Findet übereinstimmende Skills im Job-Text
+  - `calculate_score()` - Berechnet Score (0.0-1.0)
+  - `match()` - Vollständiges Keyword-Matching
+  - `extract_job_requirements()` - Kategorisierte Extraktion (Software, Tasks, Qualifications, Technical)
+
+### Matching-Service (`app/services/`)
+- `matching_service.py` - MatchingService mit:
+  - `calculate_matches_for_job()` - Findet Kandidaten im 25km Radius mit PostGIS
+  - `calculate_matches_for_candidate()` - Findet Jobs für einen Kandidaten
+  - `recalculate_all_matches()` - Batch-Matching für alle Jobs (Cron)
+  - `get_matches_for_job()` - Matches mit Filter + Pagination
+  - `update_match_status()` - Status ändern (NEW, AI_CHECKED, PRESENTED, REJECTED, PLACED)
+  - `mark_as_placed()` - Als vermittelt markieren mit Notizen
+  - `delete_match()` / `batch_delete_matches()` - Löschen
+  - `get_excellent_matches()` - Findet Top-Matches (≤5km + ≥3 Keywords)
+  - `cleanup_orphaned_matches()` - Entfernt verwaiste Matches
+  - `get_match_statistics()` - Statistiken pro Job
+
+### Datenstrukturen
+- `KeywordMatchResult` - Ergebnis eines Keyword-Matchings
+- `MatchingResult` - Ergebnis einer Job-Matching-Operation
+- `BatchMatchingResult` - Ergebnis einer Batch-Operation
+
+### PostGIS-Integration
+- `ST_DWithin()` - Radius-Filter (25km)
+- `ST_Distance()` - Exakte Distanzberechnung in Metern
+- Spheroid-basierte Berechnung für Genauigkeit
+
+---
+
+## 13. Nächster Schritt
+
+**Phase 5: API-Endpoints**
 
 Neuen Chat starten mit:
 ```
@@ -244,7 +284,7 @@ claude
 Dann eingeben:
 ```
 Wir bauen das Matching-Tool für Recruiter.
-Phase 3 ist fertig. Starte mit Phase 4: Matching-Logik.
+Phase 4 ist fertig. Starte mit Phase 5: API-Endpoints.
 
 Lies zuerst diese Dateien:
 1. /Users/miladhamdard/Desktop/Claudi Time/matching-tool/docs/PROJEKT_KONTEXT.md
@@ -257,7 +297,7 @@ WICHTIG: Am Ende der Phase einen Git-Commit machen!
 
 ---
 
-## 13. Regeln für die Implementierung
+## 14. Regeln für die Implementierung
 
 ### MUSS beachten
 1. Jeder API-Endpoint MUSS Error-Handling haben
@@ -276,7 +316,7 @@ WICHTIG: Am Ende der Phase einen Git-Commit machen!
 
 ---
 
-## 14. Git-Workflow
+## 15. Git-Workflow
 
 ### Nach jeder größeren Änderung:
 ```
@@ -308,7 +348,7 @@ chore: Dependencies in pyproject.toml hinzugefügt
 
 ---
 
-## 15. Kontakt-Info
+## 16. Kontakt-Info
 
 - **CRM:** Recruit CRM
 - **Deployment:** Railway (Account vorhanden)
