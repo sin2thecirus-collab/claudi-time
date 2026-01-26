@@ -498,10 +498,13 @@ async def _run_crm_sync(db_unused: AsyncSession, job_run_id: UUID, full_sync: bo
             logger.info(f"CV-Parsing Fortschritt: {parsed}/{total}")
 
         try:
+            logger.info(f"=== CRM-SYNC START === full_sync={full_sync}, parse_cvs={parse_cvs}")
+
             sync_service = CRMSyncService(db, enable_cv_parsing=parse_cvs)
 
             if parse_cvs:
                 # Sync mit integriertem CV-Parsing
+                logger.info("Starte sync_with_cv_parsing...")
                 result = await sync_service.sync_with_cv_parsing(
                     full_sync=full_sync,
                     progress_callback=update_progress,
@@ -516,6 +519,7 @@ async def _run_crm_sync(db_unused: AsyncSession, job_run_id: UUID, full_sync: bo
             else:
                 # Nur Sync ohne CV-Parsing
                 if full_sync:
+                    logger.info("Starte initial_sync (full_sync=True, parse_cvs=False)...")
                     result = await sync_service.initial_sync(progress_callback=update_progress)
                 else:
                     result = await sync_service.sync_all(progress_callback=update_progress)

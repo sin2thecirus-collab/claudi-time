@@ -221,7 +221,9 @@ class RecruitCRMClient:
             # Format: ISO 8601
             params["updated_on_start"] = updated_since.isoformat()
 
+        logger.info(f"CRM get_candidates aufgerufen: page={page}, params={params}")
         response = await self._request("GET", "/candidates", params=params if params else None)
+        logger.info(f"CRM Response erhalten: {len(response.get('data', []))} Kandidaten, next_page={response.get('next_page_url')}")
 
         # Recruit CRM gibt Pagination-Felder direkt in der Response zurück (nicht in "meta")
         # Felder: current_page, data, first_page_url, from, next_page_url, path, per_page, prev_page_url, to
