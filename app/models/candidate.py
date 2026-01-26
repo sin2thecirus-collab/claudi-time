@@ -1,0 +1,117 @@
+"""Candidate Model - Kandidaten aus CRM-Sync."""
+
+import uuid
+from datetime import date, datetime
+
+from geoalchemy2 import Geography
+from sqlalchemy import ARRAY, Boolean, Date, DateTime, Index, String, Text, func
+from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.database import Base
+
+
+class Candidate(Base):
+    """Model für Kandidaten aus dem CRM."""
+
+    __tablename__ = "candidates"
+
+    # Primärschlüssel
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+
+    # CRM-Referenz
+    crm_id: Mapped[str | None] = mapped_column(String(100), unique=True)
+
+    # Persönliche Daten
+    first_name: Mapped[str | None] = mapped_column(String(100))
+    last_name: Mapped[str | None] = mapped_column(String(100))
+    email: Mapped[str | None] = mapped_column(String(255))
+    phone: Mapped[str | None] = mapped_column(String(50))
+    birth_date: Mapped[date | None] = mapped_column(Date)
+
+    # Berufliche Daten
+    current_position: Mapped[str | None] = mapped_column(String(255))
+    current_company: Mapped[str | None] = mapped_column(String(255))
+    skills: Mapped[list[str] | None] = mapped_column(ARRAY(String))
+
+    # Berufserfahrung und Ausbildung (aus CV-Parsing)
+    work_history: Mapped[dict | None] = mapped_column(JSONB)
+    education: Mapped[dict | None] = mapped_column(JSONB)
+
+    # Adresse
+    street_address: Mapped[str | None] = mapped_column(String(255))
+    postal_code: Mapped[str | None] = mapped_column(String(10))
+    city: Mapped[str | None] = mapped_column(String(100))
+
+    # Koordinaten (PostGIS Geography)
+    address_coords: Mapped[str | None] = mapped_column(
+        Geography(geometry_type="POINT", srid=4326),
+    )
+
+    # CV-Daten
+    cv_text: Mapped[str | None] = mapped_column(Text)
+    cv_url: Mapped[str | None] = mapped_column(String(500))
+    cv_parsed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    # Status
+    hidden: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # Sync-Tracking
+    crm_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+    # Relationships
+    matches: Mapped[list["Match"]] = relationship(
+        "Match",
+        back_populates="candidate",
+        cascade="all, delete-orphan",
+    )
+
+    # Indizes
+    __table_args__ = (
+        Index("ix_candidates_crm_id", "crm_id"),
+        Index("ix_candidates_city", "city"),
+        Index("ix_candidates_hidden", "hidden"),
+        Index("ix_candidates_created_at", "created_at"),
+        Index("ix_candidates_current_position", "current_position"),
+        Index("ix_candidates_skills", "skills", postgresql_using="gin"),
+    )
+
+    @property
+    def full_name(self) -> str:
+        """Generiert den vollständigen Namen."""
+        parts = [self.first_name, self.last_name]
+        return " ".join(p for p in parts if p) or "Unbekannt"
+
+    @property
+    def age(self) -> int | None:
+        """Berechnet das Alter aus dem Geburtsdatum."""
+        if not self.birth_date:
+            return None
+        today = date.today()
+        age = today.year - self.birth_date.year
+        if (today.month, today.day) < (self.birth_date.month, self.birth_date.day):
+            age -= 1
+        return age
+
+    @property
+    def is_active(self) -> bool:
+        """Prüft, ob der Kandidat als aktiv gilt (≤30 Tage alt)."""
+        if not self.created_at:
+            return False
+        days_since_creation = (datetime.now(self.created_at.tzinfo) - self.created_at).days
+        return days_since_creation <= 30 and not self.hidden
