@@ -38,6 +38,57 @@ class JobTriggerResponse(BaseModel):
     source: str
 
 
+# ==================== Debug: CRM-Verbindungstest ====================
+
+@router.get(
+    "/test-crm",
+    summary="CRM-Verbindung testen",
+)
+async def test_crm_connection():
+    """
+    Testet die Verbindung zur Recruit CRM API.
+
+    Gibt detaillierte Informationen über:
+    - API-Key Status
+    - Base-URL
+    - API-Antwort
+    """
+    from app.services.crm_client import RecruitCRMClient, CRMError
+
+    result = {
+        "api_key_configured": bool(settings.recruit_crm_api_key),
+        "api_key_length": len(settings.recruit_crm_api_key) if settings.recruit_crm_api_key else 0,
+        "api_key_prefix": settings.recruit_crm_api_key[:10] + "..." if len(settings.recruit_crm_api_key) > 10 else "zu kurz",
+        "base_url": settings.recruit_crm_base_url,
+        "connection_test": None,
+        "candidates_count": None,
+        "error": None,
+    }
+
+    if not settings.recruit_crm_api_key:
+        result["error"] = "RECRUIT_CRM_API_KEY ist nicht konfiguriert!"
+        return result
+
+    try:
+        client = RecruitCRMClient()
+        # Versuche, die erste Seite der Kandidaten abzurufen
+        response = await client.get_candidates(page=1, per_page=1)
+
+        result["connection_test"] = "ERFOLGREICH"
+        result["candidates_count"] = response.get("meta", {}).get("total", 0)
+        result["first_candidate"] = response.get("data", [{}])[0] if response.get("data") else None
+
+        await client.close()
+    except CRMError as e:
+        result["connection_test"] = "FEHLGESCHLAGEN"
+        result["error"] = f"CRM-Fehler: {e.message} (Status: {e.status_code})"
+    except Exception as e:
+        result["connection_test"] = "FEHLGESCHLAGEN"
+        result["error"] = f"Unerwarteter Fehler: {str(e)}"
+
+    return result
+
+
 # ==================== Cron-Authentifizierung ====================
 
 async def verify_cron_secret(
