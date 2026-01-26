@@ -1,7 +1,8 @@
 # Projekt-Kontext: Matching-Tool für Recruiter
 
 **Erstellt:** 26. Januar 2026
-**Status:** Planung abgeschlossen, Implementierung steht bevor
+**Aktualisiert:** 26. Januar 2026
+**Status:** Phase 2 abgeschlossen
 
 ---
 
@@ -107,7 +108,7 @@ Alle Spezifikationen liegen im Downloads-Ordner:
 
 ### Implementierung
 - [x] Phase 1: Projekt-Setup & Datenbank ✅ (26. Jan 2026)
-- [ ] Phase 2: CSV-Import & Geocoding
+- [x] Phase 2: CSV-Import & Geocoding ✅ (26. Jan 2026)
 - [ ] Phase 3: CRM-Sync & CV-Parsing
 - [ ] Phase 4: Matching-Logik
 - [ ] Phase 5: API-Endpoints
@@ -162,9 +163,32 @@ ENVIRONMENT=development
 
 ---
 
-## 10. Nächster Schritt
+## 10. Phase 2: Was wurde implementiert
 
-**Phase 2: CSV-Import & Geocoding**
+### Pydantic Schemas (`app/schemas/`)
+- `pagination.py` - PaginationParams, PaginatedResponse
+- `errors.py` - ErrorCode (Enum), ErrorResponse, ValidationErrorDetail
+- `validators.py` - PostalCode, CityName, SearchTerm, BatchDeleteRequest
+- `job.py` - JobCreate, JobUpdate, JobResponse, JobImportRow, ImportJobResponse
+- `candidate.py` - CandidateCreate, CandidateResponse, CandidateWithMatch, CVParseResult
+- `match.py` - MatchResponse, AICheckRequest, AICheckResponse
+- `filters.py` - JobFilterParams, CandidateFilterParams, FilterPresetResponse
+
+### Error-Handling (`app/api/`)
+- `exception_handlers.py` - AppException, NotFoundException, ConflictException, etc.
+- `rate_limiter.py` - InMemoryRateLimiter mit RateLimitTier (STANDARD, WRITE, AI, IMPORT, ADMIN)
+
+### Services (`app/services/`)
+- `csv_validator.py` - CSVValidator mit Encoding-Erkennung, Header-/Zeilen-Validierung
+- `csv_import_service.py` - CSVImportService mit Duplikaterkennung (content_hash)
+- `geocoding_service.py` - GeocodingService mit Nominatim, Rate-Limiting, Caching
+- `job_service.py` - JobService mit CRUD, Soft-Delete, Prio-Städte-Sortierung
+
+---
+
+## 11. Nächster Schritt
+
+**Phase 3: CRM-Sync & CV-Parsing**
 
 Neuen Chat starten mit:
 ```
@@ -175,7 +199,7 @@ claude
 Dann eingeben:
 ```
 Wir bauen das Matching-Tool für Recruiter.
-Phase 1 ist fertig. Starte mit Phase 2: CSV-Import & Geocoding.
+Phase 2 ist fertig. Starte mit Phase 3: CRM-Sync & CV-Parsing.
 
 Lies zuerst diese Dateien:
 1. /Users/miladhamdard/Desktop/Claudi Time/matching-tool/docs/PROJEKT_KONTEXT.md
@@ -188,7 +212,7 @@ WICHTIG: Am Ende der Phase einen Git-Commit machen!
 
 ---
 
-## 11. Regeln für die Implementierung
+## 12. Regeln für die Implementierung
 
 ### MUSS beachten
 1. Jeder API-Endpoint MUSS Error-Handling haben
@@ -207,7 +231,7 @@ WICHTIG: Am Ende der Phase einen Git-Commit machen!
 
 ---
 
-## 12. Git-Workflow
+## 13. Git-Workflow
 
 ### Nach jeder größeren Änderung:
 ```
@@ -239,7 +263,7 @@ chore: Dependencies in pyproject.toml hinzugefügt
 
 ---
 
-## 13. Kontakt-Info
+## 14. Kontakt-Info
 
 - **CRM:** Recruit CRM
 - **Deployment:** Railway (Account vorhanden)
