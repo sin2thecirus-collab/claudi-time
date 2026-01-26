@@ -307,9 +307,10 @@ class RecruitCRMClient:
             Tuple (page_number, candidates_list, total_count)
         """
         page = 1
-        total_pages = 1
+        has_more = True
+        estimated_total = 0
 
-        while page <= total_pages:
+        while has_more:
             if max_pages and page > max_pages:
                 break
 
@@ -320,10 +321,15 @@ class RecruitCRMClient:
             )
 
             meta = result["meta"]
-            total_pages = meta["last_page"]
-            total = meta["total"]
+            has_more = meta.get("has_next", False)
+            estimated_total = meta.get("total", estimated_total)
+            candidates = result["data"]
 
-            yield page, result["data"], total
+            # Keine Daten? Abbrechen
+            if not candidates:
+                break
+
+            yield page, candidates, estimated_total
 
             page += 1
 
