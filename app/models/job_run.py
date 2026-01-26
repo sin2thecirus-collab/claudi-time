@@ -50,16 +50,19 @@ class JobRun(Base):
         default=uuid.uuid4,
     )
 
-    # Job-Typ und Quelle
-    job_type: Mapped[JobType] = mapped_column(Enum(JobType), nullable=False)
+    # Job-Typ und Quelle - use values_callable to ensure lowercase values are sent
+    job_type: Mapped[JobType] = mapped_column(
+        Enum(JobType, values_callable=lambda x: [e.value for e in x]),
+        nullable=False,
+    )
     source: Mapped[JobSource] = mapped_column(
-        Enum(JobSource),
+        Enum(JobSource, values_callable=lambda x: [e.value for e in x]),
         default=JobSource.MANUAL,
     )
 
     # Status
     status: Mapped[JobRunStatus] = mapped_column(
-        Enum(JobRunStatus),
+        Enum(JobRunStatus, values_callable=lambda x: [e.value for e in x]),
         default=JobRunStatus.PENDING,
     )
 

@@ -41,9 +41,12 @@ class Alert(Base):
     )
 
     # Alert-Daten
-    alert_type: Mapped[AlertType] = mapped_column(Enum(AlertType), nullable=False)
+    alert_type: Mapped[AlertType] = mapped_column(
+        Enum(AlertType, values_callable=lambda x: [e.value for e in x]),
+        nullable=False,
+    )
     priority: Mapped[AlertPriority] = mapped_column(
-        Enum(AlertPriority),
+        Enum(AlertPriority, values_callable=lambda x: [e.value for e in x]),
         default=AlertPriority.MEDIUM,
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False)

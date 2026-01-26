@@ -70,7 +70,7 @@ class Match(Base):
 
     # Status
     status: Mapped[MatchStatus] = mapped_column(
-        Enum(MatchStatus),
+        Enum(MatchStatus, values_callable=lambda x: [e.value for e in x]),
         default=MatchStatus.NEW,
     )
 
