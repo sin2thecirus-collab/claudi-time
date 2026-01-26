@@ -36,6 +36,8 @@ from app.services.matching_service import (
     MatchingResult,
     BatchMatchingResult,
 )
+from app.services.statistics_service import StatisticsService, DashboardStats, TopFilter
+from app.services.alert_service import AlertService
 
 __all__ = [
     # CSV
@@ -78,4 +80,10 @@ __all__ = [
     "MatchingService",
     "MatchingResult",
     "BatchMatchingResult",
+    # Statistics
+    "StatisticsService",
+    "DashboardStats",
+    "TopFilter",
+    # Alerts
+    "AlertService",
 ]

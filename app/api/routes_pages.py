@@ -13,6 +13,8 @@ from app.database import get_db
 from app.services.job_service import JobService
 from app.services.candidate_service import CandidateService
 from app.services.filter_service import FilterService
+from app.services.statistics_service import StatisticsService
+from app.services.alert_service import AlertService
 
 router = APIRouter(tags=["Pages"])
 templates = Jinja2Templates(directory="app/templates")
@@ -232,20 +234,29 @@ async def statistics_partial(
     db: AsyncSession = Depends(get_db)
 ):
     """Partial: Statistiken-Inhalt fuer HTMX."""
-    # TODO: StatisticsService implementieren
-    # Fuer jetzt: Dummy-Daten
+    statistics_service = StatisticsService(db)
+    dashboard_stats = await statistics_service.get_dashboard_stats(days=days)
+
+    # Konvertiere zu Dict fuer Template
     stats = {
-        "jobs_active": 0,
-        "candidates_active": 0,
-        "candidates_total": 0,
-        "ai_checks_count": 0,
-        "ai_checks_cost_usd": 0.0,
-        "avg_ai_score": 0.0,
-        "matches_presented": 0,
-        "matches_placed": 0,
-        "top_filters": [],
-        "jobs_without_matches": 0,
-        "candidates_without_address": 0
+        "jobs_active": dashboard_stats.jobs_active,
+        "candidates_active": dashboard_stats.candidates_active,
+        "candidates_total": dashboard_stats.candidates_total,
+        "ai_checks_count": dashboard_stats.ai_checks_count,
+        "ai_checks_cost_usd": dashboard_stats.ai_checks_cost_usd,
+        "avg_ai_score": dashboard_stats.avg_ai_score,
+        "matches_presented": dashboard_stats.matches_presented,
+        "matches_placed": dashboard_stats.matches_placed,
+        "top_filters": [
+            {
+                "filter_type": f.filter_type,
+                "filter_value": f.filter_value,
+                "usage_count": f.usage_count,
+            }
+            for f in dashboard_stats.top_filters
+        ],
+        "jobs_without_matches": dashboard_stats.jobs_without_matches,
+        "candidates_without_address": dashboard_stats.candidates_without_address,
     }
 
     return templates.TemplateResponse(
@@ -321,8 +332,8 @@ async def active_alerts_partial(
     db: AsyncSession = Depends(get_db)
 ):
     """Partial: Aktive Alerts fuer Banner."""
-    # TODO: AlertService implementieren
-    alerts = []
+    alert_service = AlertService(db)
+    alerts = await alert_service.get_active_alerts(limit=5)
 
     return templates.TemplateResponse(
         "components/alert_banner.html",

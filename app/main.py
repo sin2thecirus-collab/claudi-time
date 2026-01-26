@@ -115,6 +115,8 @@ from app.api.routes_filters import router as filters_router
 from app.api.routes_settings import router as settings_router
 from app.api.routes_admin import router as admin_router
 from app.api.routes_pages import router as pages_router
+from app.api.routes_statistics import router as statistics_router
+from app.api.routes_alerts import router as alerts_router
 
 # Custom Exception Handlers registrieren
 register_exception_handlers(app)
@@ -129,3 +131,5 @@ app.include_router(matches_router, prefix="/api")
 app.include_router(filters_router, prefix="/api")
 app.include_router(settings_router, prefix="/api")
 app.include_router(admin_router, prefix="/api")
+app.include_router(statistics_router, prefix="/api")
+app.include_router(alerts_router, prefix="/api")

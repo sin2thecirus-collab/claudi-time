@@ -113,8 +113,8 @@ Alle Spezifikationen liegen im Downloads-Ordner:
 - [x] Phase 4: Matching-Logik ✅ (26. Jan 2026)
 - [x] Phase 5: API-Endpoints ✅ (26. Jan 2026)
 - [x] Phase 6: Frontend ✅ (26. Jan 2026)
-- [ ] Phase 7: KI-Integration
-- [ ] Phase 8: Statistiken & Alerts
+- [x] Phase 7: KI-Integration ✅ (26. Jan 2026)
+- [x] Phase 8: Statistiken & Alerts ✅ (26. Jan 2026)
 - [ ] Phase 9: Testing & Deployment
 
 ---
@@ -438,9 +438,67 @@ ENVIRONMENT=development
 
 ---
 
-## 15. Nächster Schritt
+## 15. Phase 7: Was wurde implementiert
 
-**Phase 7: KI-Integration**
+### KI-Integration (OpenAI Service)
+- Bugfix in `routes_matches.py`: Job- und Kandidaten-Daten werden korrekt für OpenAI aufbereitet
+- KI-Check-Panel im Frontend funktioniert mit echten OpenAI-Aufrufen
+- Kosten-Tracking (Token-Verbrauch und USD-Kosten)
+- Fallback bei Fehlern (Keyword-basierter Score)
+
+### Statistics Service (`app/services/statistics_service.py`)
+- `get_dashboard_stats()` - Aggregiert alle Dashboard-Statistiken
+- `record_filter_usage()` - Trackt Filter-Nutzung
+- `record_ai_check()` - Trackt KI-Check-Kosten
+- `aggregate_daily_stats()` - Tägliche Aggregation (Cron-Job)
+- `get_jobs_without_matches()` - Problem-Erkennung
+- `get_candidates_without_address()` - Problem-Erkennung
+
+### Statistics API (`app/api/routes_statistics.py`)
+- `GET /api/statistics/dashboard` - Dashboard-Statistiken mit Zeitraum
+- `GET /api/statistics/jobs-without-matches` - Jobs ohne Kandidaten
+- `GET /api/statistics/candidates-without-address` - Kandidaten ohne Adresse
+- `POST /api/statistics/aggregate` - Manuelle Aggregation
+
+---
+
+## 16. Phase 8: Was wurde implementiert
+
+### Alert Service (`app/services/alert_service.py`)
+- `get_active_alerts()` - Aktive Alerts abrufen (sortiert nach Priorität)
+- `get_all_alerts()` - Alle Alerts mit Pagination
+- `mark_as_read()` - Alert als gelesen markieren
+- `dismiss()` - Alert verwerfen
+- `dismiss_all()` - Alle Alerts verwerfen
+- `create_alert()` - Neuen Alert erstellen
+- `check_for_excellent_matches()` - Prüft auf exzellente Matches (≤5km, ≥3 Keywords)
+- `check_for_expiring_jobs()` - Prüft auf ablaufende Jobs
+- `create_sync_error_alert()` - Alert bei Sync-Fehler
+- `create_import_complete_alert()` - Alert nach Import
+- `cleanup_old_alerts()` - Alte Alerts löschen
+- `run_all_checks()` - Alle Checks ausführen (Cron-Job)
+
+### Alerts API (`app/api/routes_alerts.py`)
+- `GET /api/alerts` - Alle Alerts (paginiert)
+- `GET /api/alerts/active` - Nur aktive Alerts
+- `GET /api/alerts/{id}` - Alert-Details
+- `PUT /api/alerts/{id}/read` - Als gelesen markieren
+- `PUT /api/alerts/{id}/dismiss` - Alert verwerfen
+- `PUT /api/alerts/dismiss-all` - Alle verwerfen
+- `PUT /api/alerts/read-all` - Alle als gelesen markieren
+- `POST /api/alerts/check` - Alert-Checks ausführen
+- `POST /api/alerts/cleanup` - Alte Alerts löschen
+
+### UI-Integration
+- Statistiken-Seite zeigt echte Daten (via StatisticsService)
+- Alert-Banner zeigt aktive Alerts (via AlertService)
+- Enum-kompatible Template-Verarbeitung
+
+---
+
+## 17. Nächster Schritt
+
+**Phase 9: Testing & Deployment**
 
 Neuen Chat starten mit:
 ```
@@ -451,7 +509,7 @@ claude
 Dann eingeben:
 ```
 Wir bauen das Matching-Tool für Recruiter.
-Phase 6 ist fertig. Starte mit Phase 7: KI-Integration.
+Phase 8 ist fertig. Starte mit Phase 9: Testing & Deployment.
 
 Lies zuerst diese Dateien:
 1. /Users/miladhamdard/Desktop/Claudi Time/matching-tool/docs/PROJEKT_KONTEXT.md
@@ -464,7 +522,7 @@ WICHTIG: Am Ende der Phase einen Git-Commit machen!
 
 ---
 
-## 16. Regeln für die Implementierung
+## 18. Regeln für die Implementierung
 
 ### MUSS beachten
 1. Jeder API-Endpoint MUSS Error-Handling haben
@@ -483,7 +541,7 @@ WICHTIG: Am Ende der Phase einen Git-Commit machen!
 
 ---
 
-## 17. Git-Workflow
+## 19. Git-Workflow
 
 ### Nach jeder größeren Änderung:
 ```
@@ -515,7 +573,7 @@ chore: Dependencies in pyproject.toml hinzugefügt
 
 ---
 
-## 18. Kontakt-Info
+## 20. Kontakt-Info
 
 - **CRM:** Recruit CRM
 - **Deployment:** Railway (Account vorhanden)

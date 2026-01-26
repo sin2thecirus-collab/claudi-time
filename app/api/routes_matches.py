@@ -108,20 +108,37 @@ async def ai_check_candidates(
 
         # KI-Bewertung durchführen
         try:
-            evaluation = await openai_service.evaluate_match(job, candidate)
+            # Job- und Kandidaten-Daten für OpenAI aufbereiten
+            job_data = {
+                "position": job.position,
+                "company_name": job.company_name,
+                "industry": job.industry,
+                "job_text": job.job_text,
+            }
+            candidate_data = {
+                "full_name": candidate.full_name,
+                "current_position": candidate.current_position,
+                "current_company": candidate.current_company,
+                "skills": candidate.skills or [],
+                "work_history": candidate.work_history or [],
+                "education": candidate.education or [],
+            }
+
+            evaluation = await openai_service.evaluate_match(job_data, candidate_data)
 
             # Match aktualisieren
+            from datetime import datetime, timezone
             match.ai_score = evaluation.score
             match.ai_explanation = evaluation.explanation
             match.ai_strengths = evaluation.strengths
             match.ai_weaknesses = evaluation.weaknesses
-            match.ai_checked_at = evaluation.checked_at
+            match.ai_checked_at = datetime.now(timezone.utc)
             match.status = MatchStatus.AI_CHECKED
 
             await db.commit()
             await db.refresh(match)
 
-            total_cost += evaluation.cost_usd
+            total_cost += evaluation.usage.cost_usd
 
             results.append(AICheckResultItem(
                 candidate_id=candidate_id,
