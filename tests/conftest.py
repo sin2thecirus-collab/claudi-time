@@ -47,9 +47,13 @@ async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 async def setup_database():
-    """Erstellt die Datenbank-Tabellen vor jedem Test."""
+    """Erstellt die Datenbank-Tabellen vor jedem Test.
+
+    HINWEIS: Nicht autouse=True, da Unit-Tests ohne DB laufen sollen.
+    Für Integration-Tests muss dieses Fixture explizit verwendet werden.
+    """
     # Für SQLite müssen wir PostGIS-Funktionen mocken
     async with test_engine.begin() as conn:
         # SQLite unterstützt kein PostGIS, also ignorieren wir Geography-Spalten
@@ -63,8 +67,11 @@ async def setup_database():
 
 
 @pytest.fixture
-async def db_session() -> AsyncGenerator[AsyncSession, None]:
-    """Stellt eine Test-DB-Session bereit."""
+async def db_session(setup_database) -> AsyncGenerator[AsyncSession, None]:
+    """Stellt eine Test-DB-Session bereit.
+
+    Benötigt setup_database für die Datenbank-Initialisierung.
+    """
     async with TestSessionLocal() as session:
         yield session
 
