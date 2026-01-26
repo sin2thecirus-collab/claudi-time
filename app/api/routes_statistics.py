@@ -81,33 +81,64 @@ class CandidateWithoutAddressResponse(BaseModel):
 @router.get("/jobs-count", summary="Anzahl aktiver Jobs")
 async def get_jobs_count(db: AsyncSession = Depends(get_db)) -> dict:
     """Gibt die Anzahl aktiver Jobs zurück."""
-    stats_service = StatisticsService(db)
-    stats = await stats_service.get_dashboard_stats(days=30)
-    return {"count": stats.jobs_active}
+    from sqlalchemy import select, func
+    from app.models.job import Job
+    from datetime import datetime, timezone
+
+    now = datetime.now(timezone.utc)
+    query = select(func.count(Job.id)).where(
+        Job.deleted_at.is_(None),
+        (Job.expires_at.is_(None)) | (Job.expires_at > now)
+    )
+    result = await db.execute(query)
+    return {"count": result.scalar() or 0}
 
 
 @router.get("/candidates-active-count", summary="Anzahl aktiver Kandidaten")
 async def get_candidates_active_count(db: AsyncSession = Depends(get_db)) -> dict:
     """Gibt die Anzahl aktiver Kandidaten zurück."""
-    stats_service = StatisticsService(db)
-    stats = await stats_service.get_dashboard_stats(days=30)
-    return {"count": stats.candidates_active}
+    from sqlalchemy import select, func
+    from app.models.candidate import Candidate
+    from datetime import datetime, timezone, timedelta
+
+    threshold = datetime.now(timezone.utc) - timedelta(days=30)
+    query = select(func.count(Candidate.id)).where(
+        Candidate.updated_at >= threshold
+    )
+    result = await db.execute(query)
+    return {"count": result.scalar() or 0}
 
 
 @router.get("/ai-checks-count", summary="Anzahl KI-Checks")
 async def get_ai_checks_count(db: AsyncSession = Depends(get_db)) -> dict:
     """Gibt die Anzahl der KI-Checks der letzten 30 Tage zurück."""
-    stats_service = StatisticsService(db)
-    stats = await stats_service.get_dashboard_stats(days=30)
-    return {"count": stats.ai_checks_count}
+    from sqlalchemy import select, func
+    from app.models.match import Match
+    from datetime import datetime, timezone, timedelta
+
+    threshold = datetime.now(timezone.utc) - timedelta(days=30)
+    query = select(func.count(Match.id)).where(
+        Match.ai_checked_at.is_not(None),
+        Match.ai_checked_at >= threshold
+    )
+    result = await db.execute(query)
+    return {"count": result.scalar() or 0}
 
 
 @router.get("/placed-count", summary="Anzahl Vermittlungen")
 async def get_placed_count(db: AsyncSession = Depends(get_db)) -> dict:
     """Gibt die Anzahl der Vermittlungen der letzten 30 Tage zurück."""
-    stats_service = StatisticsService(db)
-    stats = await stats_service.get_dashboard_stats(days=30)
-    return {"count": stats.matches_placed}
+    from sqlalchemy import select, func
+    from app.models.match import Match
+    from datetime import datetime, timezone, timedelta
+
+    threshold = datetime.now(timezone.utc) - timedelta(days=30)
+    query = select(func.count(Match.id)).where(
+        Match.placed_at.is_not(None),
+        Match.placed_at >= threshold
+    )
+    result = await db.execute(query)
+    return {"count": result.scalar() or 0}
 
 
 @router.get(
