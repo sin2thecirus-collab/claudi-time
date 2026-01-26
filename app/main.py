@@ -1,5 +1,7 @@
 """FastAPI Hauptanwendung für das Matching-Tool."""
 
+# Build: 2026-01-26-v3 - CRM-Sync Progress Tracking Fix
+
 import logging
 import uuid
 from contextlib import asynccontextmanager
