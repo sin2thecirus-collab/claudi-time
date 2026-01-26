@@ -78,6 +78,38 @@ class CandidateWithoutAddressResponse(BaseModel):
 # ==================== Endpoints ====================
 
 
+@router.get("/jobs-count", summary="Anzahl aktiver Jobs")
+async def get_jobs_count(db: AsyncSession = Depends(get_db)) -> dict:
+    """Gibt die Anzahl aktiver Jobs zurück."""
+    stats_service = StatisticsService(db)
+    stats = await stats_service.get_dashboard_stats(days=30)
+    return {"count": stats.jobs_active}
+
+
+@router.get("/candidates-active-count", summary="Anzahl aktiver Kandidaten")
+async def get_candidates_active_count(db: AsyncSession = Depends(get_db)) -> dict:
+    """Gibt die Anzahl aktiver Kandidaten zurück."""
+    stats_service = StatisticsService(db)
+    stats = await stats_service.get_dashboard_stats(days=30)
+    return {"count": stats.candidates_active}
+
+
+@router.get("/ai-checks-count", summary="Anzahl KI-Checks")
+async def get_ai_checks_count(db: AsyncSession = Depends(get_db)) -> dict:
+    """Gibt die Anzahl der KI-Checks der letzten 30 Tage zurück."""
+    stats_service = StatisticsService(db)
+    stats = await stats_service.get_dashboard_stats(days=30)
+    return {"count": stats.ai_checks_count}
+
+
+@router.get("/placed-count", summary="Anzahl Vermittlungen")
+async def get_placed_count(db: AsyncSession = Depends(get_db)) -> dict:
+    """Gibt die Anzahl der Vermittlungen der letzten 30 Tage zurück."""
+    stats_service = StatisticsService(db)
+    stats = await stats_service.get_dashboard_stats(days=30)
+    return {"count": stats.matches_placed}
+
+
 @router.get(
     "/dashboard",
     response_model=DashboardStatsResponse,
