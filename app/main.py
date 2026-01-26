@@ -110,21 +110,22 @@ async def generic_exception_handler(request: Request, exc: Exception):
     )
 
 
-# TODO: Router hier einbinden, wenn sie erstellt sind
-# from app.api.routes_jobs import router as jobs_router
-# from app.api.routes_candidates import router as candidates_router
-# from app.api.routes_matches import router as matches_router
-# from app.api.routes_filters import router as filters_router
-# from app.api.routes_settings import router as settings_router
-# from app.api.routes_statistics import router as statistics_router
-# from app.api.routes_alerts import router as alerts_router
-# from app.api.routes_admin import router as admin_router
+# API Router einbinden
+from app.api import register_exception_handlers
+from app.api.routes_jobs import router as jobs_router
+from app.api.routes_candidates import router as candidates_router
+from app.api.routes_matches import router as matches_router
+from app.api.routes_filters import router as filters_router
+from app.api.routes_settings import router as settings_router
+from app.api.routes_admin import router as admin_router
 
-# app.include_router(jobs_router, prefix="/api", tags=["Jobs"])
-# app.include_router(candidates_router, prefix="/api", tags=["Kandidaten"])
-# app.include_router(matches_router, prefix="/api", tags=["Matches"])
-# app.include_router(filters_router, prefix="/api", tags=["Filter"])
-# app.include_router(settings_router, prefix="/api", tags=["Einstellungen"])
-# app.include_router(statistics_router, prefix="/api", tags=["Statistiken"])
-# app.include_router(alerts_router, prefix="/api", tags=["Alerts"])
-# app.include_router(admin_router, prefix="/api/admin", tags=["Admin"])
+# Custom Exception Handlers registrieren
+register_exception_handlers(app)
+
+# Router registrieren (alle mit /api Prefix)
+app.include_router(jobs_router, prefix="/api")
+app.include_router(candidates_router, prefix="/api")
+app.include_router(matches_router, prefix="/api")
+app.include_router(filters_router, prefix="/api")
+app.include_router(settings_router, prefix="/api")
+app.include_router(admin_router, prefix="/api")

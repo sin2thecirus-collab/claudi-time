@@ -19,6 +19,12 @@ from app.api.rate_limiter import (
     rate_limit,
     rate_limiter,
 )
+from app.api.routes_jobs import router as jobs_router
+from app.api.routes_candidates import router as candidates_router
+from app.api.routes_matches import router as matches_router
+from app.api.routes_filters import router as filters_router
+from app.api.routes_settings import router as settings_router
+from app.api.routes_admin import router as admin_router
 
 __all__ = [
     # Exceptions

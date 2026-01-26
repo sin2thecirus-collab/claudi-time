@@ -1,0 +1,424 @@
+"""Jobs API Routes - Endpoints für Stellenanzeigen."""
+
+import logging
+from uuid import UUID
+
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, UploadFile, File, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.exception_handlers import NotFoundException, ConflictException
+from app.api.rate_limiter import RateLimitTier, rate_limit
+from app.config import Limits
+from app.database import get_db
+from app.schemas.filters import JobFilterParams, JobSortBy, SortOrder
+from app.schemas.job import JobListResponse, JobResponse, JobUpdate, ImportJobResponse
+from app.schemas.pagination import PaginatedResponse, PaginationParams
+from app.schemas.validators import BatchDeleteRequest
+from app.services.csv_import_service import CSVImportService
+from app.services.filter_service import FilterService
+from app.services.job_service import JobService
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/jobs", tags=["Jobs"])
+
+
+# ==================== Import ====================
+
+@router.post(
+    "/import",
+    response_model=ImportJobResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="CSV-Import starten",
+    description="Startet den Import von Stellenanzeigen aus einer CSV-Datei",
+)
+@rate_limit(RateLimitTier.IMPORT)
+async def import_jobs(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(..., description="CSV-Datei (Tab-getrennt)"),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Importiert Jobs aus einer CSV-Datei.
+
+    Die Datei muss Tab-getrennt sein und folgende Pflicht-Spalten haben:
+    - Unternehmen
+    - Position
+    - Stadt oder PLZ
+
+    Der Import läuft im Hintergrund. Status kann über GET /jobs/import/{id}/status abgefragt werden.
+    """
+    # Prüfe Dateigröße
+    content = await file.read()
+    file_size_mb = len(content) / (1024 * 1024)
+
+    if file_size_mb > Limits.CSV_MAX_FILE_SIZE_MB:
+        raise ConflictException(
+            message=f"Datei zu groß. Maximum: {Limits.CSV_MAX_FILE_SIZE_MB} MB"
+        )
+
+    # Import-Job erstellen
+    import_service = CSVImportService(db)
+    import_job = await import_service.create_import_job(
+        filename=file.filename or "upload.csv",
+        content=content,
+    )
+
+    # Import im Hintergrund starten
+    background_tasks.add_task(
+        import_service.process_import,
+        import_job.id,
+        content,
+    )
+
+    return import_job
+
+
+@router.get(
+    "/import/{import_id}/status",
+    response_model=ImportJobResponse,
+    summary="Import-Status abfragen",
+)
+async def get_import_status(
+    import_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Gibt den aktuellen Status eines Imports zurück."""
+    import_service = CSVImportService(db)
+    import_job = await import_service.get_import_job(import_id)
+
+    if not import_job:
+        raise NotFoundException(message="Import-Job nicht gefunden")
+
+    return import_job
+
+
+@router.post(
+    "/import/{import_id}/cancel",
+    response_model=ImportJobResponse,
+    summary="Import abbrechen",
+)
+async def cancel_import(
+    import_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Bricht einen laufenden Import ab."""
+    import_service = CSVImportService(db)
+    import_job = await import_service.cancel_import(import_id)
+
+    if not import_job:
+        raise NotFoundException(message="Import-Job nicht gefunden")
+
+    return import_job
+
+
+# ==================== CRUD ====================
+
+@router.get(
+    "",
+    response_model=JobListResponse,
+    summary="Jobs auflisten",
+    description="Gibt eine paginierte Liste von Jobs mit Filteroptionen zurück",
+)
+async def list_jobs(
+    # Pagination
+    page: int = Query(default=1, ge=1, description="Seitennummer"),
+    per_page: int = Query(
+        default=Limits.PAGE_SIZE_DEFAULT,
+        ge=1,
+        le=Limits.PAGE_SIZE_MAX,
+        description="Einträge pro Seite",
+    ),
+    # Filter
+    search: str | None = Query(default=None, min_length=2, max_length=100),
+    cities: list[str] | None = Query(default=None, description="Filter nach Städten"),
+    industries: list[str] | None = Query(default=None, description="Filter nach Branchen"),
+    company: str | None = Query(default=None, min_length=2, max_length=100),
+    position: str | None = Query(default=None, min_length=2, max_length=100),
+    has_active_candidates: bool | None = Query(default=None),
+    include_deleted: bool = Query(default=False),
+    include_expired: bool = Query(default=False),
+    # Sortierung
+    sort_by: JobSortBy = Query(default=JobSortBy.CREATED_AT),
+    sort_order: SortOrder = Query(default=SortOrder.DESC),
+    # Prio-Städte
+    use_priority_sorting: bool = Query(
+        default=True,
+        description="Prio-Städte (Hamburg, München) zuerst",
+    ),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Listet Jobs mit umfangreichen Filteroptionen.
+
+    Jobs werden standardmäßig nach Prio-Städten sortiert (Hamburg, München zuerst),
+    dann nach dem gewählten Sortierfeld.
+    """
+    # Filter-Parameter erstellen
+    filters = JobFilterParams(
+        search=search,
+        cities=cities,
+        industries=industries,
+        company=company,
+        position=position,
+        has_active_candidates=has_active_candidates,
+        include_deleted=include_deleted,
+        include_expired=include_expired,
+        sort_by=sort_by,
+        sort_order=sort_order,
+    )
+
+    job_service = JobService(db)
+    filter_service = FilterService(db)
+
+    # Jobs laden mit Filtern
+    jobs, total = await job_service.list_jobs(
+        filters=filters,
+        page=page,
+        per_page=per_page,
+        use_priority_sorting=use_priority_sorting,
+    )
+
+    pages = (total + per_page - 1) // per_page if per_page > 0 else 0
+
+    # Response erstellen
+    return JobListResponse(
+        items=[_job_to_response(job) for job in jobs],
+        total=total,
+        page=page,
+        per_page=per_page,
+        pages=pages,
+    )
+
+
+@router.get(
+    "/{job_id}",
+    response_model=JobResponse,
+    summary="Job-Details abrufen",
+)
+async def get_job(
+    job_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Gibt die Details eines einzelnen Jobs zurück."""
+    job_service = JobService(db)
+    job = await job_service.get_job(job_id)
+
+    if not job:
+        raise NotFoundException(message="Job nicht gefunden")
+
+    return _job_to_response(job)
+
+
+@router.patch(
+    "/{job_id}",
+    response_model=JobResponse,
+    summary="Job aktualisieren",
+)
+@rate_limit(RateLimitTier.WRITE)
+async def update_job(
+    job_id: UUID,
+    data: JobUpdate,
+    db: AsyncSession = Depends(get_db),
+):
+    """Aktualisiert einen Job."""
+    job_service = JobService(db)
+    job = await job_service.update_job(job_id, data)
+
+    if not job:
+        raise NotFoundException(message="Job nicht gefunden")
+
+    return _job_to_response(job)
+
+
+@router.delete(
+    "/{job_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Job löschen (Soft-Delete)",
+)
+@rate_limit(RateLimitTier.WRITE)
+async def delete_job(
+    job_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Löscht einen Job (Soft-Delete).
+
+    Der Job wird als gelöscht markiert, kann aber wiederhergestellt werden.
+    """
+    job_service = JobService(db)
+    success = await job_service.soft_delete_job(job_id)
+
+    if not success:
+        raise NotFoundException(message="Job nicht gefunden")
+
+
+@router.delete(
+    "/batch",
+    status_code=status.HTTP_200_OK,
+    summary="Mehrere Jobs löschen",
+)
+@rate_limit(RateLimitTier.WRITE)
+async def batch_delete_jobs(
+    request: BatchDeleteRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Löscht mehrere Jobs auf einmal (Soft-Delete).
+
+    Maximal 100 Jobs pro Anfrage.
+    """
+    job_service = JobService(db)
+    deleted_count = await job_service.batch_delete(request.ids)
+
+    return {"deleted_count": deleted_count}
+
+
+@router.post(
+    "/{job_id}/restore",
+    response_model=JobResponse,
+    summary="Job wiederherstellen",
+)
+@rate_limit(RateLimitTier.WRITE)
+async def restore_job(
+    job_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Stellt einen gelöschten Job wieder her."""
+    job_service = JobService(db)
+    job = await job_service.restore_job(job_id)
+
+    if not job:
+        raise NotFoundException(message="Job nicht gefunden")
+
+    return _job_to_response(job)
+
+
+@router.put(
+    "/{job_id}/exclude-deletion",
+    response_model=JobResponse,
+    summary="Von Auto-Löschung ausnehmen",
+)
+@rate_limit(RateLimitTier.WRITE)
+async def exclude_from_deletion(
+    job_id: UUID,
+    exclude: bool = Query(default=True, description="True = von Löschung ausnehmen"),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Nimmt einen Job von der automatischen Löschung aus (oder macht dies rückgängig).
+
+    Jobs mit dieser Markierung werden beim Cleanup-Job nicht gelöscht.
+    """
+    job_service = JobService(db)
+    job = await job_service.exclude_from_deletion(job_id, exclude)
+
+    if not job:
+        raise NotFoundException(message="Job nicht gefunden")
+
+    return _job_to_response(job)
+
+
+@router.get(
+    "/{job_id}/candidates",
+    summary="Kandidaten für einen Job",
+    description="Gibt Kandidaten mit Match-Daten für einen Job zurück",
+)
+async def get_candidates_for_job(
+    job_id: UUID,
+    # Pagination
+    page: int = Query(default=1, ge=1),
+    per_page: int = Query(default=Limits.PAGE_SIZE_DEFAULT, ge=1, le=Limits.PAGE_SIZE_MAX),
+    # Filter
+    name: str | None = Query(default=None, min_length=2, max_length=100),
+    cities: list[str] | None = Query(default=None),
+    skills: list[str] | None = Query(default=None),
+    min_distance_km: float | None = Query(default=None, ge=0),
+    max_distance_km: float | None = Query(default=None, le=25),
+    only_active: bool = Query(default=True),
+    include_hidden: bool = Query(default=False),
+    only_ai_checked: bool = Query(default=False),
+    min_ai_score: float | None = Query(default=None, ge=0, le=1),
+    match_status: str | None = Query(default=None),
+    # Sortierung
+    sort_by: str = Query(default="distance_km"),
+    sort_order: SortOrder = Query(default=SortOrder.ASC),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Gibt Kandidaten für einen Job mit Match-Daten zurück.
+
+    Enthält Distanz, Keyword-Score und ggf. KI-Bewertung.
+    """
+    from app.services.candidate_service import CandidateService
+    from app.schemas.filters import CandidateFilterParams, CandidateSortBy
+
+    # Job prüfen
+    job_service = JobService(db)
+    job = await job_service.get_job(job_id)
+    if not job:
+        raise NotFoundException(message="Job nicht gefunden")
+
+    # Filter erstellen
+    filters = CandidateFilterParams(
+        name=name,
+        cities=cities,
+        skills=skills,
+        min_distance_km=min_distance_km,
+        max_distance_km=max_distance_km,
+        only_active=only_active,
+        include_hidden=include_hidden,
+        only_ai_checked=only_ai_checked,
+        min_ai_score=min_ai_score,
+        status=match_status,
+    )
+
+    candidate_service = CandidateService(db)
+    candidates, total = await candidate_service.get_candidates_for_job(
+        job_id=job_id,
+        filters=filters,
+        page=page,
+        per_page=per_page,
+        sort_by=sort_by,
+        sort_order=sort_order.value,
+    )
+
+    pages = (total + per_page - 1) // per_page if per_page > 0 else 0
+
+    return {
+        "items": candidates,
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "pages": pages,
+    }
+
+
+# ==================== Hilfsfunktionen ====================
+
+def _job_to_response(job) -> JobResponse:
+    """Konvertiert ein Job-Model zu einem Response-Schema."""
+    return JobResponse(
+        id=job.id,
+        company_name=job.company_name,
+        position=job.position,
+        street_address=job.street_address,
+        postal_code=job.postal_code,
+        city=job.city,
+        work_location_city=job.work_location_city,
+        display_city=job.display_city,
+        job_url=job.job_url,
+        job_text=job.job_text,
+        employment_type=job.employment_type,
+        industry=job.industry,
+        company_size=job.company_size,
+        has_coordinates=job.location_coords is not None,
+        expires_at=job.expires_at,
+        excluded_from_deletion=job.excluded_from_deletion,
+        is_deleted=job.is_deleted,
+        is_expired=job.is_expired,
+        created_at=job.created_at,
+        updated_at=job.updated_at,
+        match_count=getattr(job, "match_count", None),
+        active_candidate_count=getattr(job, "active_candidate_count", None),
+    )

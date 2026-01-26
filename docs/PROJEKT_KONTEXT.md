@@ -2,7 +2,7 @@
 
 **Erstellt:** 26. Januar 2026
 **Aktualisiert:** 26. Januar 2026
-**Status:** Phase 4 abgeschlossen
+**Status:** Phase 5 abgeschlossen
 
 ---
 
@@ -111,7 +111,7 @@ Alle Spezifikationen liegen im Downloads-Ordner:
 - [x] Phase 2: CSV-Import & Geocoding ✅ (26. Jan 2026)
 - [x] Phase 3: CRM-Sync & CV-Parsing ✅ (26. Jan 2026)
 - [x] Phase 4: Matching-Logik ✅ (26. Jan 2026)
-- [ ] Phase 5: API-Endpoints
+- [x] Phase 5: API-Endpoints ✅ (26. Jan 2026)
 - [ ] Phase 6: Frontend
 - [ ] Phase 7: KI-Integration
 - [ ] Phase 8: Statistiken & Alerts
@@ -271,9 +271,107 @@ ENVIRONMENT=development
 
 ---
 
-## 13. Nächster Schritt
+## 13. Phase 5: Was wurde implementiert
 
-**Phase 5: API-Endpoints**
+### Filter Service (`app/services/`)
+- `filter_service.py` - FilterService mit:
+  - `get_available_cities()` - Alle Städte aus Jobs + Kandidaten
+  - `get_available_skills()` - Alle Skills aus Kandidaten
+  - `get_available_industries()` - Alle Branchen aus Jobs
+  - `get_available_employment_types()` - Alle Beschäftigungsarten
+  - `get_priority_cities()` / `add_priority_city()` / `remove_priority_city()` - Prio-Städte-Verwaltung
+  - `get_filter_presets()` / `create_filter_preset()` / `delete_filter_preset()` - Filter-Presets
+  - `set_default_preset()` - Standard-Preset festlegen
+
+### Job Runner Service (`app/services/`)
+- `job_runner_service.py` - JobRunnerService mit:
+  - `is_running()` - Prüft ob Job-Typ läuft
+  - `start_job()` - Startet einen neuen Background-Job
+  - `update_progress()` - Aktualisiert Fortschritt
+  - `complete_job()` - Markiert Job als abgeschlossen
+  - `fail_job()` - Markiert Job als fehlgeschlagen
+  - `get_latest_run()` - Letzter Run eines Job-Typs
+  - `get_running_jobs()` - Alle laufenden Jobs
+  - `get_job_history()` - Job-Historie
+
+### API Routes (`app/api/`)
+
+#### Jobs API (`routes_jobs.py`)
+- `POST /api/jobs/import` - CSV-Import mit Background-Verarbeitung
+- `GET /api/jobs` - Jobs auflisten mit Filtern und Pagination
+- `GET /api/jobs/{job_id}` - Job-Details
+- `PATCH /api/jobs/{job_id}` - Job aktualisieren
+- `DELETE /api/jobs/{job_id}` - Job löschen (Soft-Delete)
+- `DELETE /api/jobs/batch` - Mehrere Jobs löschen (max 100)
+- `GET /api/jobs/{job_id}/candidates` - Kandidaten für Job mit Match-Daten
+
+#### Candidates API (`routes_candidates.py`)
+- `POST /api/candidates/sync` - CRM-Sync starten
+- `GET /api/candidates` - Kandidaten auflisten mit Filtern
+- `GET /api/candidates/{id}` - Kandidaten-Details
+- `PATCH /api/candidates/{id}` - Kandidat aktualisieren
+- `PUT /api/candidates/{id}/hide` - Kandidat ausblenden
+- `PUT /api/candidates/{id}/unhide` - Kandidat wieder einblenden
+- `PUT /api/candidates/batch/hide` - Mehrere ausblenden (max 100)
+- `PUT /api/candidates/batch/unhide` - Mehrere wieder einblenden
+- `POST /api/candidates/{id}/parse-cv` - CV neu parsen
+- `GET /api/candidates/{id}/jobs` - Passende Jobs für Kandidat
+
+#### Matches API (`routes_matches.py`)
+- `POST /api/matches/ai-check` - KI-Bewertung (max 50 Kandidaten)
+- `GET /api/matches/ai-check/estimate` - Kosten-Schätzung
+- `GET /api/matches/job/{job_id}` - Matches für einen Job
+- `GET /api/matches/{match_id}` - Match-Details
+- `PUT /api/matches/{id}/status` - Status ändern
+- `PUT /api/matches/{id}/placed` - Als vermittelt markieren
+- `DELETE /api/matches/{id}` - Match löschen
+- `DELETE /api/matches/batch` - Mehrere löschen
+- `GET /api/matches/job/{id}/statistics` - Statistiken
+- `GET /api/matches/excellent` - Top-Matches
+
+#### Filters API (`routes_filters.py`)
+- `GET /api/filters/options` - Alle Filter-Optionen (Dropdowns)
+- `GET /api/filters/cities` - Verfügbare Städte
+- `GET /api/filters/skills` - Verfügbare Skills
+- `GET /api/filters/industries` - Verfügbare Branchen
+- `GET /api/filters/employment-types` - Beschäftigungsarten
+- `GET /api/filters/presets` - Filter-Presets
+- `GET /api/filters/presets/{id}` - Preset-Details
+- `POST /api/filters/presets` - Preset erstellen
+- `DELETE /api/filters/presets/{id}` - Preset löschen
+- `PUT /api/filters/presets/{id}/default` - Als Standard setzen
+
+#### Settings API (`routes_settings.py`)
+- `GET /api/settings/priority-cities` - Prio-Städte auflisten
+- `POST /api/settings/priority-cities` - Prio-Stadt hinzufügen
+- `PUT /api/settings/priority-cities` - Alle Prio-Städte aktualisieren
+- `DELETE /api/settings/priority-cities/{id}` - Prio-Stadt entfernen
+- `GET /api/settings/limits` - System-Limits anzeigen
+
+#### Admin API (`routes_admin.py`)
+- `POST /api/admin/geocoding/trigger` - Geocoding starten
+- `GET /api/admin/geocoding/status` - Geocoding-Status
+- `POST /api/admin/crm-sync/trigger` - CRM-Sync starten
+- `GET /api/admin/crm-sync/status` - CRM-Sync-Status
+- `POST /api/admin/matching/trigger` - Matching starten
+- `GET /api/admin/matching/status` - Matching-Status
+- `POST /api/admin/cleanup/trigger` - Cleanup starten
+- `GET /api/admin/cleanup/status` - Cleanup-Status
+- `GET /api/admin/jobs/history` - Job-Historie
+- `GET /api/admin/status` - Übersicht aller Jobs
+
+### Rate Limiting
+- STANDARD: 100/Min - Lese-Operationen
+- WRITE: 30/Min - Schreib-Operationen
+- AI: 10/Min - KI-Aufrufe
+- IMPORT: 5/Min - Importe
+- ADMIN: 20/Min - Admin-Operationen
+
+---
+
+## 14. Nächster Schritt
+
+**Phase 6: Frontend**
 
 Neuen Chat starten mit:
 ```
@@ -284,7 +382,7 @@ claude
 Dann eingeben:
 ```
 Wir bauen das Matching-Tool für Recruiter.
-Phase 4 ist fertig. Starte mit Phase 5: API-Endpoints.
+Phase 5 ist fertig. Starte mit Phase 6: Frontend.
 
 Lies zuerst diese Dateien:
 1. /Users/miladhamdard/Desktop/Claudi Time/matching-tool/docs/PROJEKT_KONTEXT.md
@@ -297,7 +395,7 @@ WICHTIG: Am Ende der Phase einen Git-Commit machen!
 
 ---
 
-## 14. Regeln für die Implementierung
+## 15. Regeln für die Implementierung
 
 ### MUSS beachten
 1. Jeder API-Endpoint MUSS Error-Handling haben
@@ -316,7 +414,7 @@ WICHTIG: Am Ende der Phase einen Git-Commit machen!
 
 ---
 
-## 15. Git-Workflow
+## 16. Git-Workflow
 
 ### Nach jeder größeren Änderung:
 ```
@@ -348,7 +446,7 @@ chore: Dependencies in pyproject.toml hinzugefügt
 
 ---
 
-## 16. Kontakt-Info
+## 17. Kontakt-Info
 
 - **CRM:** Recruit CRM
 - **Deployment:** Railway (Account vorhanden)
