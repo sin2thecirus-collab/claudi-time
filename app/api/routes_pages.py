@@ -4,12 +4,14 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.models.job_run import JobSource, JobType
+from app.services.job_runner_service import JobRunnerService
 from app.schemas.filters import JobFilterParams
 from app.services.job_service import JobService
 from app.services.candidate_service import CandidateService
@@ -535,3 +537,90 @@ async def cleanup_status_partial(
             "trigger_url": "/api/admin/cleanup/trigger",
         }
     )
+
+
+# ============================================================================
+# Admin Job Trigger Endpoints (HTML Response fuer HTMX)
+# ============================================================================
+
+@router.post("/api/admin/geocoding/trigger", response_class=HTMLResponse)
+async def trigger_geocoding_html(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db)
+):
+    """Startet Geocoding und gibt HTML-Status zurueck."""
+    from app.api.routes_admin import _run_geocoding
+
+    job_runner = JobRunnerService(db)
+
+    if await job_runner.is_running(JobType.GEOCODING):
+        # Bereits laufend - zeige aktuellen Status
+        return await geocoding_status_partial(request, db)
+
+    job_run = await job_runner.start_job(JobType.GEOCODING, JobSource.MANUAL)
+    background_tasks.add_task(_run_geocoding, db, job_run.id)
+
+    # Gebe sofort den neuen Status zurueck
+    return await geocoding_status_partial(request, db)
+
+
+@router.post("/api/admin/crm-sync/trigger", response_class=HTMLResponse)
+async def trigger_crm_sync_html(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db)
+):
+    """Startet CRM-Sync und gibt HTML-Status zurueck."""
+    from app.api.routes_admin import _run_crm_sync
+
+    job_runner = JobRunnerService(db)
+
+    if await job_runner.is_running(JobType.CRM_SYNC):
+        return await crm_sync_status_partial(request, db)
+
+    job_run = await job_runner.start_job(JobType.CRM_SYNC, JobSource.MANUAL)
+    # parse_cvs=True als Standard
+    background_tasks.add_task(_run_crm_sync, db, job_run.id, False, True)
+
+    return await crm_sync_status_partial(request, db)
+
+
+@router.post("/api/admin/matching/trigger", response_class=HTMLResponse)
+async def trigger_matching_html(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db)
+):
+    """Startet Matching und gibt HTML-Status zurueck."""
+    from app.api.routes_admin import _run_matching
+
+    job_runner = JobRunnerService(db)
+
+    if await job_runner.is_running(JobType.MATCHING):
+        return await matching_status_partial(request, db)
+
+    job_run = await job_runner.start_job(JobType.MATCHING, JobSource.MANUAL)
+    background_tasks.add_task(_run_matching, db, job_run.id)
+
+    return await matching_status_partial(request, db)
+
+
+@router.post("/api/admin/cleanup/trigger", response_class=HTMLResponse)
+async def trigger_cleanup_html(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db)
+):
+    """Startet Cleanup und gibt HTML-Status zurueck."""
+    from app.api.routes_admin import _run_cleanup
+
+    job_runner = JobRunnerService(db)
+
+    if await job_runner.is_running(JobType.CLEANUP):
+        return await cleanup_status_partial(request, db)
+
+    job_run = await job_runner.start_job(JobType.CLEANUP, JobSource.MANUAL)
+    background_tasks.add_task(_run_cleanup, db, job_run.id)
+
+    return await cleanup_status_partial(request, db)
