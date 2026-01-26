@@ -209,26 +209,52 @@ class RecruitCRMClient:
         Returns:
             Dictionary mit 'data' (Liste der Kandidaten) und 'meta' (Pagination-Info)
         """
-        params = {
-            "page": page,
-            "per_page": min(per_page, 100),  # API-Limit
-            "sort_by": "updated_on",
-            "sort_order": "desc",
-        }
+        # HINWEIS: Recruit CRM API akzeptiert keine sort_by/sort_order Parameter!
+        # Diese wurden entfernt, da sie HTTP 422 verursachen.
+        params: dict[str, Any] = {}
+
+        # Pagination - nur wenn explizit gesetzt
+        if page > 1:
+            params["page"] = page
 
         if updated_since:
             # Format: ISO 8601
             params["updated_on_start"] = updated_since.isoformat()
 
-        response = await self._request("GET", "/candidates", params=params)
+        response = await self._request("GET", "/candidates", params=params if params else None)
+
+        # Recruit CRM gibt Pagination-Felder direkt in der Response zurück (nicht in "meta")
+        # Felder: current_page, data, first_page_url, from, next_page_url, path, per_page, prev_page_url, to
+        data = response.get("data", [])
+
+        # Berechne total und last_page aus den verfügbaren Feldern
+        # "to" ist der Index des letzten Elements auf dieser Seite
+        # "from" ist der Index des ersten Elements auf dieser Seite
+        current_page = response.get("current_page", page)
+        items_per_page = response.get("per_page", per_page)
+        to_index = response.get("to", len(data))
+
+        # Wenn next_page_url null ist, sind wir auf der letzten Seite
+        has_next = response.get("next_page_url") is not None
+
+        # Schätze total basierend auf aktueller Seite und ob es weitere gibt
+        if has_next:
+            # Es gibt mehr Seiten - schätze total als mindestens aktuelle Position + 1 Seite
+            estimated_total = to_index + items_per_page
+            estimated_last_page = current_page + 1
+        else:
+            # Letzte Seite
+            estimated_total = to_index if to_index else len(data)
+            estimated_last_page = current_page
 
         return {
-            "data": response.get("data", []),
+            "data": data,
             "meta": {
-                "current_page": response.get("current_page", page),
-                "per_page": response.get("per_page", per_page),
-                "total": response.get("total", 0),
-                "last_page": response.get("last_page", 1),
+                "current_page": current_page,
+                "per_page": items_per_page,
+                "total": estimated_total,
+                "last_page": estimated_last_page,
+                "has_next": has_next,
             },
         }
 
@@ -302,9 +328,12 @@ class RecruitCRMClient:
     def map_to_candidate_data(self, crm_data: dict[str, Any]) -> dict[str, Any]:
         """Mappt CRM-Daten auf das interne Kandidaten-Format.
 
-        WICHTIG: Aus CRM werden nur Basisdaten + Adresse geholt!
-        - Position, Werdegang (work_history) und Ausbildung (education)
-          werden aus dem CV/Resume via OpenAI extrahiert.
+        Basierend auf der tatsächlichen Recruit CRM API Response-Struktur:
+        - id, first_name, last_name, email, contact_number
+        - city, postal_code, address (direkte Felder)
+        - position, current_organization
+        - skill (Array von Skill-Objekten)
+        - resume (Objekt mit file_link)
 
         Args:
             crm_data: Rohdaten aus der CRM API
@@ -312,49 +341,55 @@ class RecruitCRMClient:
         Returns:
             Dictionary mit gemappten Feldern für CandidateCreate
         """
-        # Adresse aus CRM-Feld "full_address" extrahieren
-        full_address = (
-            crm_data.get("full_address") or
-            crm_data.get("address") or
-            crm_data.get("location") or
-            ""
-        )
-        address_parts = self._parse_address(full_address)
+        # Adresse - Recruit CRM hat separate Felder
+        street_address = crm_data.get("address") or None
+        postal_code = crm_data.get("postal_code") or None
+        city = crm_data.get("city") or crm_data.get("locality") or None
 
-        # Skills aus CRM (kann String oder Liste sein)
-        skills = crm_data.get("skills", [])
-        if isinstance(skills, str):
-            skills = [s.strip() for s in skills.split(",") if s.strip()]
+        # Skills aus CRM - API liefert "skill" als Array von Objekten oder String
+        skills_data = crm_data.get("skill", [])
+        skills = []
+        if isinstance(skills_data, list):
+            for s in skills_data:
+                if isinstance(s, dict):
+                    skills.append(s.get("name", str(s)))
+                elif isinstance(s, str):
+                    skills.append(s)
+        elif isinstance(skills_data, str) and skills_data:
+            skills = [s.strip() for s in skills_data.split(",") if s.strip()]
 
-        # CV/Resume URL - für späteres Parsing mit OpenAI
+        # CV/Resume URL - Recruit CRM verwendet "resume.file_link"
         resume_data = crm_data.get("resume")
         cv_url = None
         if isinstance(resume_data, dict):
-            cv_url = resume_data.get("url")
+            cv_url = resume_data.get("file_link") or resume_data.get("url")
         elif isinstance(resume_data, str):
             cv_url = resume_data
-        if not cv_url:
-            cv_url = crm_data.get("resume_url") or crm_data.get("cv_url")
+
+        # Position und Firma direkt aus CRM (falls vorhanden)
+        current_position = crm_data.get("position") or None
+        current_company = crm_data.get("current_organization") or None
+
+        # CRM-ID: Verwende "slug" als eindeutige ID (z.B. "17694407523800116635EqN")
+        crm_id = crm_data.get("slug") or str(crm_data.get("id", ""))
 
         return {
-            "crm_id": str(crm_data.get("id", crm_data.get("slug", ""))),
+            "crm_id": crm_id,
             "first_name": crm_data.get("first_name"),
             "last_name": crm_data.get("last_name"),
             "email": crm_data.get("email"),
-            "phone": crm_data.get("phone") or crm_data.get("mobile") or crm_data.get("contact_number"),
-            # Adresse aus CRM "full_address" Feld
-            "street_address": address_parts.get("street"),
-            "postal_code": address_parts.get("postal_code"),
-            "city": crm_data.get("locality") or crm_data.get("city") or address_parts.get("city"),
+            "phone": crm_data.get("contact_number") or crm_data.get("phone") or crm_data.get("mobile"),
+            # Adresse direkt aus CRM-Feldern
+            "street_address": street_address,
+            "postal_code": postal_code,
+            "city": city,
+            # Position und Firma aus CRM (kann durch CV-Parsing überschrieben werden)
+            "current_position": current_position,
+            "current_company": current_company,
             # Skills aus CRM
             "skills": skills if skills else None,
-            # CV URL für OpenAI Parsing (Position, Werdegang, Ausbildung)
+            # CV URL für optionales OpenAI Parsing
             "cv_url": cv_url,
-            # NICHT aus CRM - wird aus CV via OpenAI extrahiert:
-            # - current_position (aus CV)
-            # - current_company (aus CV)
-            # - work_history (aus CV)
-            # - education (aus CV)
         }
 
     def _parse_address(self, full_address: str) -> dict[str, str | None]:
