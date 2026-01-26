@@ -416,6 +416,7 @@ class CRMSyncService:
 
     async def sync_with_cv_parsing(
         self,
+        full_sync: bool = True,
         progress_callback: Callable[[int, int], None] | None = None,
         cv_parsing_callback: Callable[[int, int], None] | None = None,
     ) -> SyncResult:
@@ -429,6 +430,7 @@ class CRMSyncService:
            - Ausbildung & Qualifikationen
 
         Args:
+            full_sync: True für ALLE Kandidaten, False für nur Änderungen
             progress_callback: Callback für Sync-Fortschritt
             cv_parsing_callback: Callback für CV-Parsing-Fortschritt
 
@@ -436,7 +438,10 @@ class CRMSyncService:
             SyncResult mit Sync- und CV-Parsing-Statistiken
         """
         # Phase 1: CRM-Sync (Basisdaten + Adresse aus CRM)
-        result = await self.sync_all(progress_callback=progress_callback)
+        if full_sync:
+            result = await self.initial_sync(progress_callback=progress_callback)
+        else:
+            result = await self.sync_all(progress_callback=progress_callback)
 
         # Phase 2: CV-Parsing für alle neuen Kandidaten mit Resume
         if self._enable_cv_parsing and result.new_candidate_ids:

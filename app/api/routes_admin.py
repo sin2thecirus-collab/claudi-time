@@ -418,6 +418,7 @@ async def _run_crm_sync(db: AsyncSession, job_run_id: UUID, full_sync: bool, par
         if parse_cvs:
             # Sync mit integriertem CV-Parsing
             result = await sync_service.sync_with_cv_parsing(
+                full_sync=full_sync,
                 progress_callback=update_progress,
                 cv_parsing_callback=update_cv_progress,
             )

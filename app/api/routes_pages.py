@@ -580,8 +580,9 @@ async def trigger_crm_sync_html(
         return await crm_sync_status_partial(request, db)
 
     job_run = await job_runner.start_job(JobType.CRM_SYNC, JobSource.MANUAL)
-    # parse_cvs=True als Standard
-    background_tasks.add_task(_run_crm_sync, db, job_run.id, False, True)
+    # full_sync=True um ALLE Kandidaten zu holen (nicht nur Änderungen)
+    # parse_cvs=True um CVs mit OpenAI zu parsen
+    background_tasks.add_task(_run_crm_sync, db, job_run.id, True, True)
 
     return await crm_sync_status_partial(request, db)
 
