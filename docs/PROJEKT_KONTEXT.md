@@ -106,7 +106,7 @@ Alle Spezifikationen liegen im Downloads-Ordner:
 - [x] Implementierungsplan erstellt
 
 ### Implementierung
-- [ ] Phase 1: Projekt-Setup & Datenbank
+- [x] Phase 1: Projekt-Setup & Datenbank ✅ (26. Jan 2026)
 - [ ] Phase 2: CSV-Import & Geocoding
 - [ ] Phase 3: CRM-Sync & CV-Parsing
 - [ ] Phase 4: Matching-Logik
@@ -164,7 +164,7 @@ ENVIRONMENT=development
 
 ## 10. Nächster Schritt
 
-**Phase 1: Projekt-Setup & Datenbank**
+**Phase 2: CSV-Import & Geocoding**
 
 Neuen Chat starten mit:
 ```
@@ -175,11 +175,13 @@ claude
 Dann eingeben:
 ```
 Wir bauen das Matching-Tool für Recruiter.
-Starte mit Phase 1: Projekt-Setup & Datenbank.
+Phase 1 ist fertig. Starte mit Phase 2: CSV-Import & Geocoding.
 
 Lies zuerst diese Dateien:
 1. /Users/miladhamdard/Desktop/Claudi Time/matching-tool/docs/PROJEKT_KONTEXT.md
 2. /Users/miladhamdard/Downloads/implementierungsplan_matching_tool.md
+
+Dann schau dir die existierende Projektstruktur an.
 ```
 
 ---
