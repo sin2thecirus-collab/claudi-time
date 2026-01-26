@@ -182,6 +182,8 @@ Lies zuerst diese Dateien:
 2. /Users/miladhamdard/Downloads/implementierungsplan_matching_tool.md
 
 Dann schau dir die existierende Projektstruktur an.
+
+WICHTIG: Am Ende der Phase einen Git-Commit machen!
 ```
 
 ---
