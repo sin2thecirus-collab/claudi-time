@@ -2,7 +2,7 @@
 
 **Erstellt:** 26. Januar 2026
 **Aktualisiert:** 26. Januar 2026
-**Status:** Phase 2 abgeschlossen
+**Status:** Phase 3 abgeschlossen
 
 ---
 
@@ -109,7 +109,7 @@ Alle Spezifikationen liegen im Downloads-Ordner:
 ### Implementierung
 - [x] Phase 1: Projekt-Setup & Datenbank ✅ (26. Jan 2026)
 - [x] Phase 2: CSV-Import & Geocoding ✅ (26. Jan 2026)
-- [ ] Phase 3: CRM-Sync & CV-Parsing
+- [x] Phase 3: CRM-Sync & CV-Parsing ✅ (26. Jan 2026)
 - [ ] Phase 4: Matching-Logik
 - [ ] Phase 5: API-Endpoints
 - [ ] Phase 6: Frontend
@@ -186,9 +186,54 @@ ENVIRONMENT=development
 
 ---
 
-## 11. Nächster Schritt
+## 11. Phase 3: Was wurde implementiert
 
-**Phase 3: CRM-Sync & CV-Parsing**
+### CRM-Integration (`app/services/`)
+- `crm_client.py` - RecruitCRMClient mit:
+  - Authentifizierung (Bearer Token)
+  - Rate-Limiting (60 Requests/Minute)
+  - Retry bei Timeouts
+  - Kandidaten-Abruf (paginiert + einzeln)
+  - Adress-Parsing
+  - Fehlerbehandlung (CRMError, CRMRateLimitError, CRMAuthenticationError)
+
+- `crm_sync_service.py` - CRMSyncService mit:
+  - Initial-Sync (alle Kandidaten)
+  - Incremental-Sync (nur geänderte seit letztem Sync)
+  - Einzelner Kandidat-Sync
+  - Automatische Erkennung des Sync-Modus
+  - SyncResult mit Statistiken
+
+### CV-Parsing (`app/services/`)
+- `cv_parser_service.py` - CVParserService mit:
+  - PDF-Download von URL
+  - Text-Extraktion mit PyMuPDF
+  - OpenAI-basiertes Parsing (gpt-4o-mini)
+  - Strukturierte Extraktion: Name, Adresse, Skills, Berufserfahrung, Ausbildung
+  - Geburtsdatum-Parsing (verschiedene Formate)
+  - Fehler-Fallback
+
+### Kandidaten-Service (`app/services/`)
+- `candidate_service.py` - CandidateService mit:
+  - CRUD-Operationen
+  - Filterung (Name, Stadt, Skills, Position)
+  - Pagination
+  - Hide/Unhide (einzeln + Batch)
+  - Kandidaten für Job mit Match-Daten
+
+### OpenAI-Service (`app/services/`)
+- `openai_service.py` - OpenAIService mit:
+  - Match-Bewertung (Kandidat-Job-Passung)
+  - Kosten-Tracking (Token-Verbrauch)
+  - Retry bei Timeouts
+  - Fallback bei Fehlern (Keyword-basiert)
+  - Kosten-Schätzung
+
+---
+
+## 12. Nächster Schritt
+
+**Phase 4: Matching-Logik**
 
 Neuen Chat starten mit:
 ```
@@ -199,7 +244,7 @@ claude
 Dann eingeben:
 ```
 Wir bauen das Matching-Tool für Recruiter.
-Phase 2 ist fertig. Starte mit Phase 3: CRM-Sync & CV-Parsing.
+Phase 3 ist fertig. Starte mit Phase 4: Matching-Logik.
 
 Lies zuerst diese Dateien:
 1. /Users/miladhamdard/Desktop/Claudi Time/matching-tool/docs/PROJEKT_KONTEXT.md
@@ -212,7 +257,7 @@ WICHTIG: Am Ende der Phase einen Git-Commit machen!
 
 ---
 
-## 12. Regeln für die Implementierung
+## 13. Regeln für die Implementierung
 
 ### MUSS beachten
 1. Jeder API-Endpoint MUSS Error-Handling haben
@@ -231,7 +276,7 @@ WICHTIG: Am Ende der Phase einen Git-Commit machen!
 
 ---
 
-## 13. Git-Workflow
+## 14. Git-Workflow
 
 ### Nach jeder größeren Änderung:
 ```
@@ -263,7 +308,7 @@ chore: Dependencies in pyproject.toml hinzugefügt
 
 ---
 
-## 14. Kontakt-Info
+## 15. Kontakt-Info
 
 - **CRM:** Recruit CRM
 - **Deployment:** Railway (Account vorhanden)

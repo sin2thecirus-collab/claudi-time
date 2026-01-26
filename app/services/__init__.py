@@ -13,6 +13,17 @@ from app.services.geocoding_service import (
     ProcessResult,
 )
 from app.services.job_service import JobService
+from app.services.candidate_service import CandidateService
+from app.services.crm_client import (
+    RecruitCRMClient,
+    CRMError,
+    CRMRateLimitError,
+    CRMAuthenticationError,
+    CRMNotFoundError,
+)
+from app.services.crm_sync_service import CRMSyncService, SyncResult
+from app.services.cv_parser_service import CVParserService, ParseResult
+from app.services.openai_service import OpenAIService, MatchEvaluation, OpenAIUsage
 
 __all__ = [
     # CSV
@@ -28,4 +39,21 @@ __all__ = [
     "ProcessResult",
     # Job
     "JobService",
+    # Candidate
+    "CandidateService",
+    # CRM
+    "RecruitCRMClient",
+    "CRMError",
+    "CRMRateLimitError",
+    "CRMAuthenticationError",
+    "CRMNotFoundError",
+    "CRMSyncService",
+    "SyncResult",
+    # CV-Parsing
+    "CVParserService",
+    "ParseResult",
+    # OpenAI
+    "OpenAIService",
+    "MatchEvaluation",
+    "OpenAIUsage",
 ]
