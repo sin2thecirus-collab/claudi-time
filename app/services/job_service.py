@@ -328,19 +328,19 @@ class JobService:
 
         if priority_cities:
             # CASE-Statement für Prio-Städte Sortierung
-            city_order_cases = []
+            from sqlalchemy import case, literal
+            case_whens = {}
             for i, pc in enumerate(priority_cities):
-                city_order_cases.append(
-                    (or_(Job.city == pc.city_name, Job.work_location_city == pc.city_name), i)
+                case_whens[pc.city_name] = i
+
+            # Nutze CASE WHEN für Stadt-Sortierung
+            if case_whens:
+                city_order = case(
+                    case_whens,
+                    value=func.coalesce(Job.work_location_city, Job.city),
+                    else_=len(priority_cities) + 1
                 )
-
-            # Fallback: Andere Städte ganz hinten
-            city_order = func.coalesce(
-                func.case(*city_order_cases),
-                len(priority_cities) + 1,  # Nicht-Prio Städte nach den Prio-Städten
-            )
-
-            query = query.order_by(city_order)
+                query = query.order_by(city_order)
 
         # Sekundäre Sortierung nach gewähltem Feld
         sort_column = getattr(Job, filters.sort_by.value, Job.created_at)
