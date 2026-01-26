@@ -80,6 +80,15 @@ async def job_detail(
     )
 
 
+@router.get("/kandidaten", response_class=HTMLResponse)
+async def candidates_list_page(request: Request):
+    """Kandidaten-Uebersichtsseite."""
+    return templates.TemplateResponse(
+        "candidates.html",
+        {"request": request}
+    )
+
+
 @router.get("/kandidaten/{candidate_id}", response_class=HTMLResponse)
 async def candidate_detail(
     request: Request,
@@ -300,6 +309,49 @@ async def filter_presets_partial(
         {
             "request": request,
             "presets": presets
+        }
+    )
+
+
+@router.get("/partials/candidates-list", response_class=HTMLResponse)
+async def candidates_list_partial(
+    request: Request,
+    page: int = 1,
+    per_page: int = 20,
+    search: Optional[str] = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """Partial: Kandidaten-Liste fuer HTMX."""
+    from app.schemas.filters import CandidateFilterParams
+    from app.schemas.pagination import PaginationParams
+
+    candidate_service = CandidateService(db)
+
+    # Filter aufbauen - only_active=False um alle Kandidaten anzuzeigen
+    filters = CandidateFilterParams(
+        name=search if search else None,
+        include_hidden=False,
+        only_active=False,
+    )
+
+    pagination = PaginationParams(page=page, per_page=per_page)
+
+    # Kandidaten laden
+    result = await candidate_service.list_candidates(
+        filters=filters,
+        pagination=pagination,
+    )
+
+    return templates.TemplateResponse(
+        "partials/candidates_list_page.html",
+        {
+            "request": request,
+            "candidates": result.items,
+            "total": result.total,
+            "page": result.page,
+            "per_page": result.per_page,
+            "total_pages": result.pages,
+            "search": search,
         }
     )
 

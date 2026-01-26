@@ -1,0 +1,209 @@
+{# Kandidaten-Liste Partial fuer HTMX #}
+
+{% if candidates | length == 0 %}
+<div class="p-8 text-center">
+    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+    </svg>
+    <h3 class="mt-2 text-sm font-semibold text-gray-900">Keine Kandidaten gefunden</h3>
+    <p class="mt-1 text-sm text-gray-500">
+        {% if search %}
+        Keine Kandidaten fuer "{{ search }}" gefunden.
+        {% else %}
+        Starten Sie einen CRM-Sync um Kandidaten zu importieren.
+        {% endif %}
+    </p>
+</div>
+{% else %}
+<table class="min-w-full divide-y divide-gray-200">
+    <thead class="bg-gray-50">
+        <tr>
+            <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Name</th>
+            <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Position</th>
+            <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Adresse</th>
+            <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Status</th>
+            <th scope="col" class="relative py-3.5 pl-3 pr-4 sm:pr-6">
+                <span class="sr-only">Aktionen</span>
+            </th>
+        </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-200 bg-white">
+        {% for candidate in candidates %}
+        <tr class="hover:bg-gray-50 cursor-pointer transition-colors"
+            onclick="window.location='/kandidaten/{{ candidate.id }}'">
+            {# Name #}
+            <td class="whitespace-nowrap py-4 pl-4 pr-3 sm:pl-6">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 h-10 w-10">
+                        <span class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary-100">
+                            <span class="text-sm font-medium text-primary-700">
+                                {{ (candidate.first_name or 'X')[0] | upper }}{{ (candidate.last_name or 'X')[0] | upper }}
+                            </span>
+                        </span>
+                    </div>
+                    <div class="ml-4">
+                        <div class="font-medium text-gray-900">
+                            {{ candidate.first_name or '' }} {{ candidate.last_name or '' }}
+                        </div>
+                        {% if candidate.email %}
+                        <div class="text-sm text-gray-500">{{ candidate.email }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </td>
+
+            {# Position #}
+            <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
+                {% if candidate.current_position %}
+                <div class="font-medium">{{ candidate.current_position }}</div>
+                {% if candidate.current_company %}
+                <div class="text-gray-500">{{ candidate.current_company }}</div>
+                {% endif %}
+                {% else %}
+                <span class="text-gray-400">Keine Position</span>
+                {% endif %}
+            </td>
+
+            {# Adresse #}
+            <td class="px-3 py-4 text-sm text-gray-500">
+                {% if candidate.street_address or candidate.postal_code or candidate.city %}
+                <div>
+                    {% if candidate.street_address %}
+                    {{ candidate.street_address }}<br>
+                    {% endif %}
+                    {% if candidate.postal_code or candidate.city %}
+                    {{ candidate.postal_code or '' }} {{ candidate.city or '' }}
+                    {% endif %}
+                </div>
+                {% else %}
+                <span class="text-gray-400">Keine Adresse</span>
+                {% endif %}
+            </td>
+
+            {# Status #}
+            <td class="whitespace-nowrap px-3 py-4 text-sm">
+                <div class="flex flex-col space-y-1">
+                    {% if candidate.hidden %}
+                    <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
+                        Ausgeblendet
+                    </span>
+                    {% elif candidate.is_active %}
+                    <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
+                        Aktiv
+                    </span>
+                    {% else %}
+                    <span class="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-700">
+                        Inaktiv
+                    </span>
+                    {% endif %}
+
+                    {% if candidate.work_history and candidate.work_history | length > 0 %}
+                    <span class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+                        {{ candidate.work_history | length }} Stationen
+                    </span>
+                    {% endif %}
+                </div>
+            </td>
+
+            {# Aktionen #}
+            <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                <a href="/kandidaten/{{ candidate.id }}"
+                   class="text-primary-600 hover:text-primary-900"
+                   onclick="event.stopPropagation()">
+                    Details
+                    <span class="sr-only">, {{ candidate.first_name }} {{ candidate.last_name }}</span>
+                </a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{# Pagination #}
+{% if total_pages > 1 %}
+<div class="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
+    <div class="flex items-center justify-between">
+        <div class="flex-1 flex justify-between sm:hidden">
+            {% if page > 1 %}
+            <button hx-get="/partials/candidates-list?page={{ page - 1 }}{% if search %}&search={{ search }}{% endif %}"
+                    hx-target="#candidates-list"
+                    hx-swap="innerHTML"
+                    class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                Zurueck
+            </button>
+            {% endif %}
+            {% if page < total_pages %}
+            <button hx-get="/partials/candidates-list?page={{ page + 1 }}{% if search %}&search={{ search }}{% endif %}"
+                    hx-target="#candidates-list"
+                    hx-swap="innerHTML"
+                    class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                Weiter
+            </button>
+            {% endif %}
+        </div>
+        <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+            <div>
+                <p class="text-sm text-gray-700">
+                    Zeige
+                    <span class="font-medium">{{ ((page - 1) * per_page) + 1 }}</span>
+                    bis
+                    <span class="font-medium">{{ [page * per_page, total] | min }}</span>
+                    von
+                    <span class="font-medium">{{ total }}</span>
+                    Kandidaten
+                </p>
+            </div>
+            <div>
+                <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                    {# Zurueck #}
+                    {% if page > 1 %}
+                    <button hx-get="/partials/candidates-list?page={{ page - 1 }}{% if search %}&search={{ search }}{% endif %}"
+                            hx-target="#candidates-list"
+                            hx-swap="innerHTML"
+                            class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                        <span class="sr-only">Zurueck</span>
+                        <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                    {% endif %}
+
+                    {# Seitenzahlen #}
+                    {% for p in range(1, total_pages + 1) %}
+                        {% if p == page %}
+                        <span class="relative z-10 inline-flex items-center px-4 py-2 border border-primary-500 bg-primary-50 text-sm font-medium text-primary-600">
+                            {{ p }}
+                        </span>
+                        {% elif p == 1 or p == total_pages or (p >= page - 1 and p <= page + 1) %}
+                        <button hx-get="/partials/candidates-list?page={{ p }}{% if search %}&search={{ search }}{% endif %}"
+                                hx-target="#candidates-list"
+                                hx-swap="innerHTML"
+                                class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
+                            {{ p }}
+                        </button>
+                        {% elif p == 2 or p == total_pages - 1 %}
+                        <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
+                            ...
+                        </span>
+                        {% endif %}
+                    {% endfor %}
+
+                    {# Weiter #}
+                    {% if page < total_pages %}
+                    <button hx-get="/partials/candidates-list?page={{ page + 1 }}{% if search %}&search={{ search }}{% endif %}"
+                            hx-target="#candidates-list"
+                            hx-swap="innerHTML"
+                            class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                        <span class="sr-only">Weiter</span>
+                        <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5-4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                    {% endif %}
+                </nav>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endif %}

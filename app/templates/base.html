@@ -119,6 +119,10 @@
                                class="{% if request.url.path == '/' %}border-primary-500 text-gray-900{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium">
                                 Dashboard
                             </a>
+                            <a href="/kandidaten"
+                               class="{% if request.url.path.startswith('/kandidaten') %}border-primary-500 text-gray-900{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium">
+                                Kandidaten
+                            </a>
                             <a href="/statistiken"
                                class="{% if request.url.path == '/statistiken' %}border-primary-500 text-gray-900{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium">
                                 Statistiken
@@ -173,6 +177,10 @@
                     <a href="/"
                        class="{% if request.url.path == '/' %}border-primary-500 bg-primary-50 text-primary-700{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-700{% endif %} block border-l-4 py-2 pl-3 pr-4 text-base font-medium">
                         Dashboard
+                    </a>
+                    <a href="/kandidaten"
+                       class="{% if request.url.path.startswith('/kandidaten') %}border-primary-500 bg-primary-50 text-primary-700{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-700{% endif %} block border-l-4 py-2 pl-3 pr-4 text-base font-medium">
+                        Kandidaten
                     </a>
                     <a href="/statistiken"
                        class="{% if request.url.path == '/statistiken' %}border-primary-500 bg-primary-50 text-primary-700{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-700{% endif %} block border-l-4 py-2 pl-3 pr-4 text-base font-medium">
