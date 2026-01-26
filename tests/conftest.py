@@ -1,5 +1,6 @@
 """Test-Konfiguration und Fixtures für das Matching-Tool."""
 
+import os
 import uuid
 from datetime import date, datetime, timezone
 from typing import AsyncGenerator
@@ -18,8 +19,14 @@ from app.models.candidate import Candidate
 from app.models.job import Job
 from app.models.match import Match, MatchStatus
 
-# Test-Datenbank-URL (SQLite für schnelle Tests)
-TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+# Test-Datenbank-URL: PostgreSQL für Geo-Tests, SQLite als Fallback
+TEST_DATABASE_URL = os.getenv(
+    "TEST_DATABASE_URL",
+    "postgresql+asyncpg://test:test@localhost:5433/matching_tool_test"
+)
+
+# Prüfen ob PostgreSQL verfügbar
+USE_POSTGRES = TEST_DATABASE_URL.startswith("postgresql")
 
 
 @pytest.fixture
@@ -54,10 +61,10 @@ async def setup_database():
     HINWEIS: Nicht autouse=True, da Unit-Tests ohne DB laufen sollen.
     Für Integration-Tests muss dieses Fixture explizit verwendet werden.
     """
-    # Für SQLite müssen wir PostGIS-Funktionen mocken
     async with test_engine.begin() as conn:
-        # SQLite unterstützt kein PostGIS, also ignorieren wir Geography-Spalten
-        # Für echte Geo-Tests würde man PostgreSQL verwenden
+        # PostGIS Extension aktivieren (nur PostgreSQL)
+        if USE_POSTGRES:
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
         await conn.run_sync(Base.metadata.create_all)
 
     yield
@@ -88,6 +95,24 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     app.dependency_overrides.clear()
 
 
+# ==================== GEO-KOORDINATEN ====================
+
+# Echte Koordinaten für Geo-Tests
+GEO_COORDS = {
+    "hamburg_zentrum": (53.5511, 9.9937),      # Hamburg Rathaus
+    "hamburg_altona": (53.5503, 9.9356),       # ~4km entfernt
+    "hamburg_wandsbek": (53.5725, 10.0856),    # ~7km entfernt
+    "luebeck": (53.8655, 10.6866),             # ~65km entfernt
+    "bremen": (53.0793, 8.8017),               # ~95km entfernt
+    "berlin": (52.5200, 13.4050),              # ~290km entfernt
+}
+
+
+def make_point_wkt(lat: float, lon: float) -> str:
+    """Erstellt WKT POINT String für Geography."""
+    return f"SRID=4326;POINT({lon} {lat})"
+
+
 # ==================== FACTORIES ====================
 
 
@@ -110,9 +135,11 @@ class JobFactory:
         expires_at: datetime | None = None,
         deleted_at: datetime | None = None,
         content_hash: str | None = None,
+        latitude: float | None = None,
+        longitude: float | None = None,
     ) -> Job:
         """Erstellt ein Job-Objekt für Tests."""
-        return Job(
+        job = Job(
             id=id or uuid.uuid4(),
             company_name=company_name,
             position=position,
@@ -128,6 +155,11 @@ class JobFactory:
             deleted_at=deleted_at,
             content_hash=content_hash or str(uuid.uuid4()),
         )
+        # Geo-Location setzen wenn Koordinaten angegeben
+        if latitude is not None and longitude is not None:
+            job.latitude = latitude
+            job.longitude = longitude
+        return job
 
 
 class CandidateFactory:
@@ -151,9 +183,11 @@ class CandidateFactory:
         cv_text: str | None = None,
         work_history: dict | None = None,
         education: dict | None = None,
+        latitude: float | None = None,
+        longitude: float | None = None,
     ) -> Candidate:
         """Erstellt ein Candidate-Objekt für Tests."""
-        return Candidate(
+        candidate = Candidate(
             id=id or uuid.uuid4(),
             crm_id=crm_id or f"CRM-{uuid.uuid4().hex[:8]}",
             first_name=first_name,
@@ -171,6 +205,11 @@ class CandidateFactory:
             work_history=work_history or [],
             education=education or [],
         )
+        # Geo-Location setzen wenn Koordinaten angegeben
+        if latitude is not None and longitude is not None:
+            candidate.latitude = latitude
+            candidate.longitude = longitude
+        return candidate
 
 
 class MatchFactory:
