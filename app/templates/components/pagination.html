@@ -1,0 +1,106 @@
+{# Pagination - Seitennavigation #}
+{# Verwendung: {% include 'components/pagination.html' %} #}
+{# Parameter: page, total_pages, total_items, per_page, base_url, hx_target (optional) #}
+{% set page = page | default(1) %}
+{% set total_pages = total_pages | default(1) %}
+{% set total_items = total_items | default(0) %}
+{% set per_page = per_page | default(20) %}
+{% set hx_target = hx_target | default('#content') %}
+
+{% if total_pages > 1 %}
+<nav class="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6" aria-label="Pagination">
+    <div class="hidden sm:block">
+        <p class="text-sm text-gray-700">
+            Zeige
+            <span class="font-medium">{{ ((page - 1) * per_page) + 1 }}</span>
+            bis
+            <span class="font-medium">{{ [page * per_page, total_items] | min }}</span>
+            von
+            <span class="font-medium">{{ total_items }}</span>
+            Ergebnissen
+        </p>
+    </div>
+    <div class="flex flex-1 justify-between sm:justify-end">
+        {% if page > 1 %}
+        <a href="{{ base_url }}?page={{ page - 1 }}"
+           hx-get="{{ base_url }}?page={{ page - 1 }}"
+           hx-target="{{ hx_target }}"
+           hx-push-url="true"
+           class="relative inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+            Zurueck
+        </a>
+        {% else %}
+        <span class="relative inline-flex items-center rounded-md bg-gray-100 px-3 py-2 text-sm font-semibold text-gray-400 cursor-not-allowed">
+            Zurueck
+        </span>
+        {% endif %}
+
+        {% if page < total_pages %}
+        <a href="{{ base_url }}?page={{ page + 1 }}"
+           hx-get="{{ base_url }}?page={{ page + 1 }}"
+           hx-target="{{ hx_target }}"
+           hx-push-url="true"
+           class="relative ml-3 inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+            Weiter
+        </a>
+        {% else %}
+        <span class="relative ml-3 inline-flex items-center rounded-md bg-gray-100 px-3 py-2 text-sm font-semibold text-gray-400 cursor-not-allowed">
+            Weiter
+        </span>
+        {% endif %}
+    </div>
+</nav>
+
+{# Kompakte Seitenzahlen fuer Desktop #}
+<div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-center mt-4">
+    <nav class="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+        {# Erste Seite #}
+        {% if page > 3 %}
+        <a href="{{ base_url }}?page=1"
+           hx-get="{{ base_url }}?page=1"
+           hx-target="{{ hx_target }}"
+           hx-push-url="true"
+           class="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+            <span class="sr-only">Erste</span>
+            <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M15.79 14.77a.75.75 0 01-1.06.02l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 111.04 1.08L11.832 10l3.938 3.71a.75.75 0 01.02 1.06zm-6 0a.75.75 0 01-1.06.02l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 111.04 1.08L5.832 10l3.938 3.71a.75.75 0 01.02 1.06z" clip-rule="evenodd" />
+            </svg>
+        </a>
+        {% endif %}
+
+        {# Seitenzahlen #}
+        {% set start_page = [1, page - 2] | max %}
+        {% set end_page = [total_pages, page + 2] | min %}
+
+        {% for p in range(start_page, end_page + 1) %}
+        {% if p == page %}
+        <span class="relative z-10 inline-flex items-center bg-primary-600 px-4 py-2 text-sm font-semibold text-white focus:z-20">
+            {{ p }}
+        </span>
+        {% else %}
+        <a href="{{ base_url }}?page={{ p }}"
+           hx-get="{{ base_url }}?page={{ p }}"
+           hx-target="{{ hx_target }}"
+           hx-push-url="true"
+           class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20">
+            {{ p }}
+        </a>
+        {% endif %}
+        {% endfor %}
+
+        {# Letzte Seite #}
+        {% if page < total_pages - 2 %}
+        <a href="{{ base_url }}?page={{ total_pages }}"
+           hx-get="{{ base_url }}?page={{ total_pages }}"
+           hx-target="{{ hx_target }}"
+           hx-push-url="true"
+           class="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+            <span class="sr-only">Letzte</span>
+            <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M4.21 5.23a.75.75 0 011.06-.02l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.04-1.08L8.168 10 4.23 6.29a.75.75 0 01-.02-1.06zm6 0a.75.75 0 011.06-.02l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.04-1.08L14.168 10l-3.938-3.71a.75.75 0 01-.02-1.06z" clip-rule="evenodd" />
+            </svg>
+        </a>
+        {% endif %}
+    </nav>
+</div>
+{% endif %}

@@ -1,0 +1,81 @@
+{# Job List Partial - Wird via HTMX geladen #}
+{# Parameter: jobs (Liste von Job-Objekten), priority_cities (Liste) #}
+
+{% if jobs and jobs | length > 0 %}
+    {# Prio-Staedte Sektionen #}
+    {% if priority_cities and priority_cities | length > 0 %}
+        {% for prio_city in priority_cities %}
+            {% set city_jobs = jobs | selectattr('work_location_city', 'equalto', prio_city.city_name) | list %}
+            {% if city_jobs | length == 0 %}
+                {% set city_jobs = jobs | selectattr('city', 'equalto', prio_city.city_name) | list %}
+            {% endif %}
+
+            {% if city_jobs | length > 0 %}
+            <div x-data="{ open: true }" class="border-b border-gray-200 last:border-b-0">
+                <button @click="open = !open"
+                        type="button"
+                        class="w-full flex items-center justify-between px-4 py-3 bg-yellow-50 hover:bg-yellow-100 transition-colors">
+                    <div class="flex items-center">
+                        <svg class="h-5 w-5 text-yellow-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                        </svg>
+                        <span class="font-medium text-gray-900">{{ prio_city.city_name }}</span>
+                        <span class="ml-2 text-sm text-gray-500">({{ city_jobs | length }} Jobs)</span>
+                    </div>
+                    <svg :class="{ 'rotate-180': open }"
+                         class="h-5 w-5 text-gray-400 transition-transform"
+                         fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                    </svg>
+                </button>
+                <div x-show="open" x-transition class="divide-y divide-gray-100 p-4 space-y-3">
+                    {% for job in city_jobs %}
+                        {% include 'components/job_card.html' %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+
+    {# Andere Staedte #}
+    {% set prio_city_names = priority_cities | map(attribute='city_name') | list if priority_cities else [] %}
+    {% set other_jobs = jobs | rejectattr('work_location_city', 'in', prio_city_names) | rejectattr('city', 'in', prio_city_names) | list %}
+
+    {% if other_jobs | length > 0 %}
+    <div x-data="{ open: {{ 'true' if not priority_cities else 'false' }} }">
+        <button @click="open = !open"
+                type="button"
+                class="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors border-b border-gray-200">
+            <div class="flex items-center">
+                <svg class="h-5 w-5 text-gray-400 mr-2" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+                </svg>
+                <span class="font-medium text-gray-900">Weitere Staedte</span>
+                <span class="ml-2 text-sm text-gray-500">({{ other_jobs | length }} Jobs)</span>
+            </div>
+            <svg :class="{ 'rotate-180': open }"
+                 class="h-5 w-5 text-gray-400 transition-transform"
+                 fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+            </svg>
+        </button>
+        <div x-show="open" x-transition class="divide-y divide-gray-100 p-4 space-y-3">
+            {% for job in other_jobs %}
+                {% include 'components/job_card.html' %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+{% else %}
+    {# Empty State #}
+    <div class="p-8">
+        {% set title = 'Keine Jobs gefunden' %}
+        {% set message = 'Es wurden keine Jobs gefunden. Importiere neue Jobs oder aendere die Filter.' %}
+        {% set action_url = '#' %}
+        {% set action_label = 'Jobs importieren' %}
+        {% include 'components/empty_state.html' %}
+    </div>
+{% endif %}

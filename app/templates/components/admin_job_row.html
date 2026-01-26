@@ -1,0 +1,126 @@
+{# Admin Job Row - Background-Job Status in Einstellungen #}
+{# Verwendung: {% include 'components/admin_job_row.html' %} #}
+{# Parameter: job_type, label, description, status (JobRun-Objekt oder None), trigger_url #}
+
+{% set status_colors = {
+    'pending': 'bg-yellow-100 text-yellow-800',
+    'running': 'bg-blue-100 text-blue-800',
+    'completed': 'bg-green-100 text-green-800',
+    'failed': 'bg-red-100 text-red-800',
+    'cancelled': 'bg-gray-100 text-gray-800'
+} %}
+
+{% set status_labels = {
+    'pending': 'Ausstehend',
+    'running': 'Laeuft',
+    'completed': 'Abgeschlossen',
+    'failed': 'Fehlgeschlagen',
+    'cancelled': 'Abgebrochen'
+} %}
+
+<div class="bg-white border border-gray-200 rounded-lg p-4"
+     id="admin-job-{{ job_type }}"
+     {% if status and status.status == 'running' %}
+     hx-get="/api/admin/{{ job_type }}/status"
+     hx-trigger="every 5s"
+     hx-swap="outerHTML"
+     {% endif %}>
+    <div class="flex items-center justify-between">
+        <div class="flex-1">
+            <h3 class="text-base font-medium text-gray-900">{{ label }}</h3>
+            <p class="text-sm text-gray-500">{{ description }}</p>
+
+            {# Status-Info #}
+            {% if status %}
+            <div class="mt-2 flex items-center space-x-4 text-sm">
+                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {{ status_colors[status.status] | default('bg-gray-100 text-gray-800') }}">
+                    {{ status_labels[status.status] | default(status.status) }}
+                </span>
+
+                {% if status.started_at %}
+                <span class="text-gray-500">
+                    Gestartet: {{ status.started_at.strftime('%d.%m.%Y %H:%M') }}
+                </span>
+                {% endif %}
+
+                {% if status.completed_at %}
+                <span class="text-gray-500">
+                    Beendet: {{ status.completed_at.strftime('%d.%m.%Y %H:%M') }}
+                </span>
+                {% endif %}
+
+                {% if status.status == 'running' and status.items_total > 0 %}
+                <span class="text-gray-500">
+                    {{ status.items_processed }} / {{ status.items_total }}
+                </span>
+                {% endif %}
+            </div>
+
+            {# Progress Bar fuer laufende Jobs #}
+            {% if status.status == 'running' and status.items_total > 0 %}
+            <div class="mt-2">
+                {% set progress = (status.items_processed / status.items_total * 100) | int %}
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div class="bg-primary-600 h-2 rounded-full transition-all duration-300"
+                         style="width: {{ progress }}%"></div>
+                </div>
+            </div>
+            {% endif %}
+
+            {# Fehler-Info #}
+            {% if status.status == 'failed' and status.error_message %}
+            <div class="mt-2 text-sm text-red-600">
+                Fehler: {{ status.error_message }}
+            </div>
+            {% endif %}
+
+            {# Ergebnis-Info #}
+            {% if status.status == 'completed' %}
+            <div class="mt-2 text-sm text-gray-600">
+                {% if status.items_successful is defined %}
+                Erfolgreich: {{ status.items_successful }}
+                {% endif %}
+                {% if status.items_failed is defined and status.items_failed > 0 %}
+                &middot; Fehlgeschlagen: {{ status.items_failed }}
+                {% endif %}
+            </div>
+            {% endif %}
+            {% else %}
+            <div class="mt-2 text-sm text-gray-400">
+                Noch nie ausgefuehrt
+            </div>
+            {% endif %}
+        </div>
+
+        {# Aktions-Button #}
+        <div class="ml-4">
+            {% if status and status.status == 'running' %}
+            <button type="button"
+                    hx-post="/api/admin/jobs/{{ status.id }}/cancel"
+                    hx-swap="outerHTML"
+                    hx-target="#admin-job-{{ job_type }}"
+                    class="inline-flex items-center rounded-md bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-100">
+                <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Abbrechen
+            </button>
+            {% else %}
+            <button type="button"
+                    hx-post="{{ trigger_url }}"
+                    hx-swap="outerHTML"
+                    hx-target="#admin-job-{{ job_type }}"
+                    class="inline-flex items-center rounded-md bg-primary-50 px-3 py-2 text-sm font-semibold text-primary-700 hover:bg-primary-100">
+                <svg class="h-4 w-4 mr-1 htmx-indicator" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
+                </svg>
+                Starten
+            </button>
+            {% endif %}
+        </div>
+    </div>
+</div>

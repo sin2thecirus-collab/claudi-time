@@ -2,7 +2,7 @@
 
 **Erstellt:** 26. Januar 2026
 **Aktualisiert:** 26. Januar 2026
-**Status:** Phase 5 abgeschlossen
+**Status:** Phase 6 abgeschlossen
 
 ---
 
@@ -112,7 +112,7 @@ Alle Spezifikationen liegen im Downloads-Ordner:
 - [x] Phase 3: CRM-Sync & CV-Parsing ✅ (26. Jan 2026)
 - [x] Phase 4: Matching-Logik ✅ (26. Jan 2026)
 - [x] Phase 5: API-Endpoints ✅ (26. Jan 2026)
-- [ ] Phase 6: Frontend
+- [x] Phase 6: Frontend ✅ (26. Jan 2026)
 - [ ] Phase 7: KI-Integration
 - [ ] Phase 8: Statistiken & Alerts
 - [ ] Phase 9: Testing & Deployment
@@ -369,9 +369,78 @@ ENVIRONMENT=development
 
 ---
 
-## 14. Nächster Schritt
+## 14. Phase 6: Was wurde implementiert
 
-**Phase 6: Frontend**
+### Base Template (`app/templates/base.html`)
+- Grundlegendes Layout mit Navigation
+- Tailwind CSS via CDN
+- HTMX via CDN für partielle Updates
+- Alpine.js für leichte Interaktionen
+- Toast-Container für Benachrichtigungen
+- Modal-Container für Dialoge
+- Globale JavaScript-Funktionen
+
+### UI-Komponenten (`app/templates/components/`)
+| Komponente | Beschreibung |
+|------------|--------------|
+| `loading_spinner.html` | Ladeanimation |
+| `progress_bar.html` | Fortschrittsbalken für lange Prozesse |
+| `skeleton_list.html` | Platzhalter während Listen laden |
+| `empty_state.html` | Leere-Daten-Anzeige |
+| `toast.html` | Erfolgs-/Fehler-Benachrichtigungen |
+| `error_banner.html` | Fehleranzeige in Bereichen |
+| `undo_toast.html` | Toast mit Rückgängig-Option |
+| `delete_dialog.html` | Lösch-Bestätigungsdialog |
+| `alert_banner.html` | Wichtige Hinweise oben auf Seiten |
+| `pagination.html` | Seitennavigation |
+| `filter_panel.html` | Ausklappbares Filter-UI |
+| `job_card.html` | Job-Element in Listen |
+| `candidate_row.html` | Kandidaten-Element mit Match-Daten |
+| `match_card.html` | KI-Bewertungsergebnis |
+| `admin_job_row.html` | Background-Job-Status |
+| `import_dialog.html` | CSV-Import-Modal |
+| `import_progress.html` | Import-Fortschrittsanzeige |
+| `health_indicator.html` | System-Status in Navigation |
+
+### Hauptseiten (`app/templates/`)
+| Seite | Route | Beschreibung |
+|-------|-------|--------------|
+| `dashboard.html` | `/` | Job-Liste mit Filtern, Statistiken, Import |
+| `job_detail.html` | `/jobs/{job_id}` | Job-Details mit Kandidatenliste + KI-Check |
+| `candidate_detail.html` | `/kandidaten/{id}` | Kandidaten-Profil mit Skills und Jobs |
+| `statistics.html` | `/statistiken` | Statistik-Übersicht |
+| `settings.html` | `/einstellungen` | Manuelle Aktionen + Prio-Städte |
+
+### Partials für HTMX (`app/templates/partials/`)
+| Partial | Beschreibung |
+|---------|--------------|
+| `job_list.html` | Job-Liste gruppiert nach Prio-Städten |
+| `candidate_list.html` | Kandidaten für einen Job |
+| `statistics_content.html` | Statistik-Karten |
+| `priority_cities.html` | Prio-Städte-Verwaltung |
+| `filter_presets.html` | Filter-Presets-Verwaltung |
+
+### Page Routes (`app/api/routes_pages.py`)
+- Dashboard: `GET /`
+- Job-Detail: `GET /jobs/{job_id}`
+- Kandidaten-Detail: `GET /kandidaten/{candidate_id}`
+- Statistiken: `GET /statistiken`
+- Einstellungen: `GET /einstellungen`
+- HTMX-Partials: `/partials/*`
+
+### Features
+- **HTMX-Integration:** Partielle Seitenaktualisierungen ohne vollständiges Neuladen
+- **Alpine.js:** Leichte Interaktionen (Dropdowns, Toggles)
+- **Responsive Design:** Tailwind CSS Mobile-First
+- **Deutsche UI:** Alle Texte auf Deutsch
+- **Prio-Städte-Sortierung:** Hamburg/München immer oben
+- **Batch-Aktionen:** Mehrfachauswahl für Jobs/Kandidaten
+
+---
+
+## 15. Nächster Schritt
+
+**Phase 7: KI-Integration**
 
 Neuen Chat starten mit:
 ```
@@ -382,7 +451,7 @@ claude
 Dann eingeben:
 ```
 Wir bauen das Matching-Tool für Recruiter.
-Phase 5 ist fertig. Starte mit Phase 6: Frontend.
+Phase 6 ist fertig. Starte mit Phase 7: KI-Integration.
 
 Lies zuerst diese Dateien:
 1. /Users/miladhamdard/Desktop/Claudi Time/matching-tool/docs/PROJEKT_KONTEXT.md
@@ -395,7 +464,7 @@ WICHTIG: Am Ende der Phase einen Git-Commit machen!
 
 ---
 
-## 15. Regeln für die Implementierung
+## 16. Regeln für die Implementierung
 
 ### MUSS beachten
 1. Jeder API-Endpoint MUSS Error-Handling haben
@@ -414,7 +483,7 @@ WICHTIG: Am Ende der Phase einen Git-Commit machen!
 
 ---
 
-## 16. Git-Workflow
+## 17. Git-Workflow
 
 ### Nach jeder größeren Änderung:
 ```
@@ -446,7 +515,7 @@ chore: Dependencies in pyproject.toml hinzugefügt
 
 ---
 
-## 17. Kontakt-Info
+## 18. Kontakt-Info
 
 - **CRM:** Recruit CRM
 - **Deployment:** Railway (Account vorhanden)

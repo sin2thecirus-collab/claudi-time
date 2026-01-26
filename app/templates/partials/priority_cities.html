@@ -1,0 +1,60 @@
+{# Priority Cities Partial - Liste der Prio-Staedte #}
+{# Parameter: cities (Liste von PriorityCity-Objekten) #}
+
+<div class="space-y-4">
+    {# Liste der Staedte #}
+    {% if cities and cities | length > 0 %}
+    <ul class="divide-y divide-gray-200 border border-gray-200 rounded-lg">
+        {% for city in cities %}
+        <li class="flex items-center justify-between px-4 py-3" id="priority-city-{{ city.id }}">
+            <div class="flex items-center">
+                <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-yellow-100 text-yellow-700 text-xs font-medium mr-3">
+                    {{ city.priority_order }}
+                </span>
+                <span class="text-sm font-medium text-gray-900">{{ city.city_name }}</span>
+            </div>
+            <button type="button"
+                    hx-delete="/api/settings/priority-cities/{{ city.id }}"
+                    hx-target="#priority-city-{{ city.id }}"
+                    hx-swap="outerHTML"
+                    class="text-gray-400 hover:text-red-600">
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-sm text-gray-500">Keine Prioritaets-Staedte konfiguriert.</p>
+    {% endif %}
+
+    {# Neue Stadt hinzufuegen #}
+    {% if not cities or cities | length < 10 %}
+    <form hx-post="/api/settings/priority-cities"
+          hx-target="#priority-cities"
+          hx-swap="innerHTML"
+          class="flex items-center space-x-3">
+        <div class="flex-1">
+            <label for="new-city" class="sr-only">Neue Stadt</label>
+            <input type="text"
+                   name="city_name"
+                   id="new-city"
+                   placeholder="Stadt hinzufuegen..."
+                   required
+                   minlength="2"
+                   maxlength="100"
+                   class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+        </div>
+        <button type="submit"
+                class="inline-flex items-center rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500">
+            <svg class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            Hinzufuegen
+        </button>
+    </form>
+    {% else %}
+    <p class="text-xs text-gray-400">Maximal 10 Prioritaets-Staedte erlaubt.</p>
+    {% endif %}
+</div>

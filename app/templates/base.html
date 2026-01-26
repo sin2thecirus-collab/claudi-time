@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="de" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Matching-Tool{% endblock %}</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            200: '#bfdbfe',
+                            300: '#93c5fd',
+                            400: '#60a5fa',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            800: '#1e40af',
+                            900: '#1e3a8a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+
+    <!-- Alpine.js (leichtgewichtig für UI-Interaktionen) -->
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <style>
+        /* HTMX Loading-Indikator */
+        .htmx-request .htmx-indicator {
+            display: inline-block;
+        }
+        .htmx-indicator {
+            display: none;
+        }
+
+        /* Skeleton Animation */
+        @keyframes skeleton-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .animate-skeleton {
+            animation: skeleton-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        /* Toast Animation */
+        @keyframes toast-in {
+            from { transform: translateY(-100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes toast-out {
+            from { transform: translateY(0); opacity: 1; }
+            to { transform: translateY(-100%); opacity: 0; }
+        }
+        .toast-enter {
+            animation: toast-in 0.3s ease-out;
+        }
+        .toast-leave {
+            animation: toast-out 0.3s ease-in forwards;
+        }
+
+        /* Modal Animation */
+        @keyframes modal-in {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .modal-enter {
+            animation: modal-in 0.2s ease-out;
+        }
+
+        /* Scrollbar Style */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+
+    {% block head %}{% endblock %}
+</head>
+<body class="h-full bg-gray-50" x-data="{ sidebarOpen: false }">
+    <div class="min-h-full">
+        <!-- Navigation -->
+        <nav class="bg-white shadow-sm border-b border-gray-200">
+            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <div class="flex h-16 justify-between">
+                    <!-- Logo & Desktop-Navigation -->
+                    <div class="flex">
+                        <div class="flex flex-shrink-0 items-center">
+                            <a href="/" class="flex items-center space-x-2">
+                                <svg class="h-8 w-8 text-primary-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+                                </svg>
+                                <span class="text-xl font-bold text-gray-900">Matching-Tool</span>
+                            </a>
+                        </div>
+                        <div class="hidden sm:ml-8 sm:flex sm:space-x-4">
+                            <a href="/"
+                               class="{% if request.url.path == '/' %}border-primary-500 text-gray-900{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium">
+                                Dashboard
+                            </a>
+                            <a href="/statistiken"
+                               class="{% if request.url.path == '/statistiken' %}border-primary-500 text-gray-900{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium">
+                                Statistiken
+                            </a>
+                            <a href="/einstellungen"
+                               class="{% if request.url.path == '/einstellungen' %}border-primary-500 text-gray-900{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium">
+                                Einstellungen
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Health-Indikator -->
+                    <div class="hidden sm:ml-6 sm:flex sm:items-center">
+                        <div id="health-indicator"
+                             hx-get="/api/health"
+                             hx-trigger="load, every 30s"
+                             hx-swap="innerHTML"
+                             class="flex items-center space-x-2 text-sm text-gray-500">
+                            <span class="inline-block h-2 w-2 rounded-full bg-gray-300"></span>
+                            <span>Laden...</span>
+                        </div>
+                    </div>
+
+                    <!-- Mobile Menu Button -->
+                    <div class="-mr-2 flex items-center sm:hidden">
+                        <button @click="sidebarOpen = !sidebarOpen"
+                                type="button"
+                                class="inline-flex items-center justify-center rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-500">
+                            <span class="sr-only">Menu</span>
+                            <svg x-show="!sidebarOpen" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                            </svg>
+                            <svg x-show="sidebarOpen" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="display: none;">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mobile Navigation -->
+            <div x-show="sidebarOpen"
+                 x-transition:enter="transition ease-out duration-200"
+                 x-transition:enter-start="opacity-0 -translate-y-1"
+                 x-transition:enter-end="opacity-100 translate-y-0"
+                 x-transition:leave="transition ease-in duration-150"
+                 x-transition:leave-start="opacity-100 translate-y-0"
+                 x-transition:leave-end="opacity-0 -translate-y-1"
+                 class="sm:hidden"
+                 style="display: none;">
+                <div class="space-y-1 pb-3 pt-2">
+                    <a href="/"
+                       class="{% if request.url.path == '/' %}border-primary-500 bg-primary-50 text-primary-700{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-700{% endif %} block border-l-4 py-2 pl-3 pr-4 text-base font-medium">
+                        Dashboard
+                    </a>
+                    <a href="/statistiken"
+                       class="{% if request.url.path == '/statistiken' %}border-primary-500 bg-primary-50 text-primary-700{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-700{% endif %} block border-l-4 py-2 pl-3 pr-4 text-base font-medium">
+                        Statistiken
+                    </a>
+                    <a href="/einstellungen"
+                       class="{% if request.url.path == '/einstellungen' %}border-primary-500 bg-primary-50 text-primary-700{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-700{% endif %} block border-l-4 py-2 pl-3 pr-4 text-base font-medium">
+                        Einstellungen
+                    </a>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Toast Container -->
+        <div id="toast-container"
+             class="fixed top-4 right-4 z-50 flex flex-col space-y-2 pointer-events-none">
+        </div>
+
+        <!-- Alert Banner Container -->
+        <div id="alert-banner-container"
+             hx-get="/api/alerts/active"
+             hx-trigger="load, alertsChanged from:body"
+             hx-swap="innerHTML">
+        </div>
+
+        <!-- Main Content -->
+        <main class="py-6">
+            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="bg-white border-t border-gray-200 mt-auto">
+            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4">
+                <p class="text-center text-sm text-gray-500">
+                    Matching-Tool v1.0 &middot; Recruiter-Plattform
+                </p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Modal Container -->
+    <div id="modal-container"
+         x-data="{ open: false }"
+         @open-modal.window="open = true"
+         @close-modal.window="open = false"
+         x-show="open"
+         x-transition:enter="ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="relative z-50"
+         style="display: none;">
+        <!-- Backdrop -->
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+
+        <!-- Modal Content Container -->
+        <div class="fixed inset-0 z-10 overflow-y-auto">
+            <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+                <div id="modal-content"
+                     @click.away="$dispatch('close-modal')"
+                     class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg modal-enter">
+                    <!-- Modal content will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Global Scripts -->
+    <script>
+        // HTMX Konfiguration
+        document.body.addEventListener('htmx:configRequest', function(evt) {
+            // Request-ID Header hinzufuegen
+            evt.detail.headers['X-Request-ID'] = crypto.randomUUID();
+        });
+
+        // Error-Handling fuer HTMX
+        document.body.addEventListener('htmx:responseError', function(evt) {
+            const status = evt.detail.xhr.status;
+            let message = 'Ein Fehler ist aufgetreten';
+
+            if (status === 404) {
+                message = 'Ressource nicht gefunden';
+            } else if (status === 422) {
+                message = 'Validierungsfehler';
+            } else if (status === 429) {
+                message = 'Zu viele Anfragen - bitte warten';
+            } else if (status >= 500) {
+                message = 'Serverfehler - bitte spaeter erneut versuchen';
+            }
+
+            showToast(message, 'error');
+        });
+
+        // Toast anzeigen
+        function showToast(message, type = 'success', duration = 5000) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+
+            const colors = {
+                success: 'bg-green-50 text-green-800 border-green-200',
+                error: 'bg-red-50 text-red-800 border-red-200',
+                warning: 'bg-yellow-50 text-yellow-800 border-yellow-200',
+                info: 'bg-blue-50 text-blue-800 border-blue-200'
+            };
+
+            const icons = {
+                success: `<svg class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" /></svg>`,
+                error: `<svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" /></svg>`,
+                warning: `<svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" /></svg>`,
+                info: `<svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd" /></svg>`
+            };
+
+            toast.className = `pointer-events-auto flex items-center space-x-3 rounded-lg border p-4 shadow-lg toast-enter ${colors[type]}`;
+            toast.innerHTML = `
+                ${icons[type]}
+                <p class="text-sm font-medium">${message}</p>
+                <button onclick="this.parentElement.remove()" class="ml-auto -mx-1.5 -my-1.5 rounded-lg p-1.5 inline-flex h-8 w-8 hover:bg-gray-100">
+                    <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z"/>
+                    </svg>
+                </button>
+            `;
+
+            container.appendChild(toast);
+
+            // Auto-Remove
+            setTimeout(() => {
+                toast.classList.remove('toast-enter');
+                toast.classList.add('toast-leave');
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        }
+
+        // Modal oeffnen
+        function openModal(url) {
+            htmx.ajax('GET', url, {target: '#modal-content', swap: 'innerHTML'}).then(() => {
+                window.dispatchEvent(new CustomEvent('open-modal'));
+            });
+        }
+
+        // Modal schliessen
+        function closeModal() {
+            window.dispatchEvent(new CustomEvent('close-modal'));
+        }
+
+        // HTMX Events fuer Toasts
+        document.body.addEventListener('showToast', function(evt) {
+            showToast(evt.detail.message, evt.detail.type || 'success');
+        });
+
+        // Health-Check Response verarbeiten
+        document.body.addEventListener('htmx:afterSwap', function(evt) {
+            if (evt.detail.target.id === 'health-indicator') {
+                // Wird durch das Partial Template behandelt
+            }
+        });
+    </script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}Einstellungen - Matching-Tool{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    {# Header #}
+    <div>
+        <h1 class="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
+            Einstellungen
+        </h1>
+        <p class="mt-1 text-sm text-gray-500">
+            System-Konfiguration und manuelle Aktionen
+        </p>
+    </div>
+
+    {# Manuelle Aktionen #}
+    <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg">
+        <div class="px-4 py-5 sm:px-6">
+            <h2 class="text-base font-semibold leading-6 text-gray-900">Manuelle Aktionen</h2>
+            <p class="mt-1 text-sm text-gray-500">
+                Background-Jobs manuell starten. Diese laufen normalerweise automatisch nachts.
+            </p>
+        </div>
+        <div class="border-t border-gray-200 px-4 py-5 sm:px-6">
+            <div class="space-y-4">
+                {# Geocoding #}
+                <div id="admin-job-geocoding"
+                     hx-get="/api/admin/geocoding/status"
+                     hx-trigger="load"
+                     hx-swap="innerHTML">
+                    {% include 'components/loading_spinner.html' %}
+                </div>
+
+                {# CRM-Sync #}
+                <div id="admin-job-crm-sync"
+                     hx-get="/api/admin/crm-sync/status"
+                     hx-trigger="load"
+                     hx-swap="innerHTML">
+                    {% include 'components/loading_spinner.html' %}
+                </div>
+
+                {# Matching #}
+                <div id="admin-job-matching"
+                     hx-get="/api/admin/matching/status"
+                     hx-trigger="load"
+                     hx-swap="innerHTML">
+                    {% include 'components/loading_spinner.html' %}
+                </div>
+
+                {# Cleanup #}
+                <div id="admin-job-cleanup"
+                     hx-get="/api/admin/cleanup/status"
+                     hx-trigger="load"
+                     hx-swap="innerHTML">
+                    {% include 'components/loading_spinner.html' %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Prio-Staedte #}
+    <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg">
+        <div class="px-4 py-5 sm:px-6">
+            <h2 class="text-base font-semibold leading-6 text-gray-900">Prioritaets-Staedte</h2>
+            <p class="mt-1 text-sm text-gray-500">
+                Jobs aus diesen Staedten werden in der Liste oben angezeigt.
+            </p>
+        </div>
+        <div class="border-t border-gray-200 px-4 py-5 sm:px-6">
+            <div id="priority-cities"
+                 hx-get="/partials/priority-cities"
+                 hx-trigger="load"
+                 hx-swap="innerHTML">
+                {% include 'components/loading_spinner.html' %}
+            </div>
+        </div>
+    </div>
+
+    {# Filter-Presets #}
+    <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg">
+        <div class="px-4 py-5 sm:px-6">
+            <h2 class="text-base font-semibold leading-6 text-gray-900">Gespeicherte Filter</h2>
+            <p class="mt-1 text-sm text-gray-500">
+                Haeufig verwendete Filter-Kombinationen fuer schnellen Zugriff.
+            </p>
+        </div>
+        <div class="border-t border-gray-200 px-4 py-5 sm:px-6">
+            <div id="filter-presets"
+                 hx-get="/partials/filter-presets"
+                 hx-trigger="load"
+                 hx-swap="innerHTML">
+                {% include 'components/loading_spinner.html' %}
+            </div>
+        </div>
+    </div>
+
+    {# System-Limits #}
+    <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg">
+        <div class="px-4 py-5 sm:px-6">
+            <h2 class="text-base font-semibold leading-6 text-gray-900">System-Limits</h2>
+            <p class="mt-1 text-sm text-gray-500">
+                Aktuelle Konfiguration des Systems.
+            </p>
+        </div>
+        <div class="border-t border-gray-200 px-4 py-5 sm:px-6">
+            <div id="system-limits"
+                 hx-get="/api/settings/limits"
+                 hx-trigger="load"
+                 hx-swap="innerHTML">
+                {% include 'components/loading_spinner.html' %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,14 @@
+{# Health Indicator - System-Status in Navigation #}
+{# Wird von /api/health geladen #}
+{# Parameter: status ('healthy', 'degraded', 'unhealthy') #}
+
+{% if status == 'healthy' %}
+<span class="inline-block h-2 w-2 rounded-full bg-green-500"></span>
+<span class="text-green-600">System OK</span>
+{% elif status == 'degraded' %}
+<span class="inline-block h-2 w-2 rounded-full bg-yellow-500"></span>
+<span class="text-yellow-600">Eingeschraenkt</span>
+{% else %}
+<span class="inline-block h-2 w-2 rounded-full bg-red-500"></span>
+<span class="text-red-600">Offline</span>
+{% endif %}

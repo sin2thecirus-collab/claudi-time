@@ -1,0 +1,21 @@
+{# Progress Bar - Langer Prozess #}
+{# Verwendung: {% include 'components/progress_bar.html' with context %} #}
+{# Parameter: progress (0-100), label (optional), show_percentage (bool, default True) #}
+{% set progress = progress | default(0) %}
+{% set label = label | default('') %}
+{% set show_percentage = show_percentage | default(True) %}
+
+<div class="w-full">
+    {% if label %}
+    <div class="flex justify-between mb-1">
+        <span class="text-sm font-medium text-gray-700">{{ label }}</span>
+        {% if show_percentage %}
+        <span class="text-sm font-medium text-gray-500">{{ progress | int }}%</span>
+        {% endif %}
+    </div>
+    {% endif %}
+    <div class="w-full bg-gray-200 rounded-full h-2.5">
+        <div class="bg-primary-600 h-2.5 rounded-full transition-all duration-300"
+             style="width: {{ progress | int }}%"></div>
+    </div>
+</div>

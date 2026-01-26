@@ -1,0 +1,57 @@
+{# Alert Banner - Wichtige Hinweise oben auf der Seite #}
+{# Verwendung: {% include 'components/alert_banner.html' %} #}
+{# Parameter: alerts (Liste von Alert-Objekten) #}
+
+{% if alerts and alerts | length > 0 %}
+<div class="bg-white border-b border-gray-200">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-3">
+        <div class="space-y-2">
+            {% for alert in alerts %}
+            {% set colors = {
+                'high': 'bg-red-50 text-red-800 border-red-200',
+                'medium': 'bg-yellow-50 text-yellow-800 border-yellow-200',
+                'low': 'bg-blue-50 text-blue-800 border-blue-200'
+            } %}
+            {% set icons = {
+                'high': '<svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" /></svg>',
+                'medium': '<svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" /></svg>',
+                'low': '<svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd" /></svg>'
+            } %}
+            <div class="flex items-center justify-between rounded-lg border px-4 py-3 {{ colors[alert.priority] | default(colors['low']) }}">
+                <div class="flex items-center">
+                    {{ icons[alert.priority] | default(icons['low']) | safe }}
+                    <div class="ml-3">
+                        <p class="text-sm font-medium">{{ alert.title }}</p>
+                        {% if alert.message %}
+                        <p class="text-sm opacity-75">{{ alert.message }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2">
+                    {% if alert.job_id %}
+                    <a href="/jobs/{{ alert.job_id }}"
+                       class="text-sm font-medium hover:underline">
+                        Ansehen
+                    </a>
+                    {% elif alert.candidate_id %}
+                    <a href="/kandidaten/{{ alert.candidate_id }}"
+                       class="text-sm font-medium hover:underline">
+                        Ansehen
+                    </a>
+                    {% endif %}
+                    <button type="button"
+                            hx-put="/api/alerts/{{ alert.id }}/dismiss"
+                            hx-swap="none"
+                            hx-on::after-request="htmx.trigger(document.body, 'alertsChanged')"
+                            class="ml-2 rounded-md p-1.5 hover:bg-white hover:bg-opacity-50">
+                        <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}

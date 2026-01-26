@@ -87,11 +87,7 @@ async def health_check():
     }
 
 
-# Root-Redirect zum Dashboard
-@app.get("/", tags=["System"])
-async def root():
-    """Weiterleitung zur Startseite."""
-    return {"message": "Matching-Tool API", "docs": "/docs"}
+# Root wird jetzt vom Pages Router gehandhabt (Dashboard)
 
 
 # Exception Handler
@@ -118,11 +114,15 @@ from app.api.routes_matches import router as matches_router
 from app.api.routes_filters import router as filters_router
 from app.api.routes_settings import router as settings_router
 from app.api.routes_admin import router as admin_router
+from app.api.routes_pages import router as pages_router
 
 # Custom Exception Handlers registrieren
 register_exception_handlers(app)
 
-# Router registrieren (alle mit /api Prefix)
+# Page Router registrieren (ohne Prefix fuer HTML-Seiten)
+app.include_router(pages_router)
+
+# API Router registrieren (alle mit /api Prefix)
 app.include_router(jobs_router, prefix="/api")
 app.include_router(candidates_router, prefix="/api")
 app.include_router(matches_router, prefix="/api")

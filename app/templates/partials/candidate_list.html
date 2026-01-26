@@ -1,0 +1,52 @@
+{# Candidate List Partial - Kandidaten fuer einen Job #}
+{# Parameter: candidates (Liste mit Match-Daten), job_id #}
+
+{% if candidates and candidates | length > 0 %}
+    {# Aktive Kandidaten (letzte 30 Tage) #}
+    {% set active_candidates = candidates | selectattr('is_active', 'equalto', true) | list if candidates[0].is_active is defined else candidates %}
+
+    {% if active_candidates | length > 0 %}
+    <div class="p-4 space-y-3">
+        {% for candidate in active_candidates %}
+            {% include 'components/candidate_row.html' %}
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {# Aeltere Kandidaten (falls vorhanden) #}
+    {% set older_candidates = candidates | selectattr('is_active', 'equalto', false) | list if candidates[0].is_active is defined else [] %}
+
+    {% if older_candidates | length > 0 %}
+    <div x-data="{ open: false }" class="border-t border-gray-200">
+        <button @click="open = !open"
+                type="button"
+                class="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors">
+            <div class="flex items-center">
+                <svg class="h-5 w-5 text-gray-400 mr-2" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span class="text-sm font-medium text-gray-700">Aeltere Kandidaten</span>
+                <span class="ml-2 text-sm text-gray-500">({{ older_candidates | length }})</span>
+            </div>
+            <svg :class="{ 'rotate-180': open }"
+                 class="h-5 w-5 text-gray-400 transition-transform"
+                 fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+            </svg>
+        </button>
+        <div x-show="open" x-transition class="p-4 space-y-3 bg-gray-50">
+            {% for candidate in older_candidates %}
+                {% include 'components/candidate_row.html' %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+{% else %}
+    {# Empty State #}
+    <div class="p-8">
+        {% set title = 'Keine passenden Kandidaten' %}
+        {% set message = 'Es wurden keine Kandidaten im Umkreis von 25km gefunden.' %}
+        {% include 'components/empty_state.html' %}
+    </div>
+{% endif %}
