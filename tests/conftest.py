@@ -19,14 +19,35 @@ from app.models.candidate import Candidate
 from app.models.job import Job
 from app.models.match import Match, MatchStatus
 
-# Test-Datenbank-URL: PostgreSQL für Geo-Tests, SQLite als Fallback
+# Test-Datenbank-URL: PostgreSQL erforderlich (wegen ARRAY und PostGIS)
+# Starte Test-DB mit: docker-compose -f docker-compose.test.yml up -d
 TEST_DATABASE_URL = os.getenv(
     "TEST_DATABASE_URL",
     "postgresql+asyncpg://test:test@localhost:5433/matching_tool_test"
 )
 
-# Prüfen ob PostgreSQL verfügbar
+# PostgreSQL ist für diese Tests erforderlich
 USE_POSTGRES = TEST_DATABASE_URL.startswith("postgresql")
+
+
+def is_postgres_available() -> bool:
+    """Prüft ob PostgreSQL Test-DB verfügbar ist."""
+    import socket
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(1)
+        result = sock.connect_ex(("localhost", 5433))
+        sock.close()
+        return result == 0
+    except Exception:
+        return False
+
+
+# Skip-Marker für Tests die PostgreSQL benötigen
+requires_postgres = pytest.mark.skipif(
+    not is_postgres_available(),
+    reason="PostgreSQL Test-DB nicht verfügbar (starte mit: docker-compose -f docker-compose.test.yml up -d)"
+)
 
 
 @pytest.fixture
@@ -60,7 +81,11 @@ async def setup_database():
 
     HINWEIS: Nicht autouse=True, da Unit-Tests ohne DB laufen sollen.
     Für Integration-Tests muss dieses Fixture explizit verwendet werden.
+    Benötigt PostgreSQL Test-DB (docker-compose -f docker-compose.test.yml up -d).
     """
+    if not is_postgres_available():
+        pytest.skip("PostgreSQL Test-DB nicht verfügbar")
+
     async with test_engine.begin() as conn:
         # PostGIS Extension aktivieren (nur PostgreSQL)
         if USE_POSTGRES:

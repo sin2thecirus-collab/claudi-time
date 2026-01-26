@@ -64,7 +64,7 @@ async def verify_cron_secret(
 @rate_limit(RateLimitTier.ADMIN)
 async def trigger_geocoding(
     background_tasks: BackgroundTasks,
-    source: str = Query(default="manual", regex="^(manual|cron)$"),
+    source: str = Query(default="manual", pattern="^(manual|cron)$"),
     db: AsyncSession = Depends(get_db),
     cron_secret: str | None = Depends(verify_cron_secret),
 ):
@@ -116,7 +116,7 @@ async def get_geocoding_status(
 @rate_limit(RateLimitTier.ADMIN)
 async def trigger_crm_sync(
     background_tasks: BackgroundTasks,
-    source: str = Query(default="manual", regex="^(manual|cron)$"),
+    source: str = Query(default="manual", pattern="^(manual|cron)$"),
     full_sync: bool = Query(default=False),
     db: AsyncSession = Depends(get_db),
     cron_secret: str | None = Depends(verify_cron_secret),
@@ -169,7 +169,7 @@ async def get_crm_sync_status(
 @rate_limit(RateLimitTier.ADMIN)
 async def trigger_matching(
     background_tasks: BackgroundTasks,
-    source: str = Query(default="manual", regex="^(manual|cron)$"),
+    source: str = Query(default="manual", pattern="^(manual|cron)$"),
     db: AsyncSession = Depends(get_db),
     cron_secret: str | None = Depends(verify_cron_secret),
 ):
@@ -220,7 +220,7 @@ async def get_matching_status(
 @rate_limit(RateLimitTier.ADMIN)
 async def trigger_cleanup(
     background_tasks: BackgroundTasks,
-    source: str = Query(default="manual", regex="^(manual|cron)$"),
+    source: str = Query(default="manual", pattern="^(manual|cron)$"),
     db: AsyncSession = Depends(get_db),
     cron_secret: str | None = Depends(verify_cron_secret),
 ):
