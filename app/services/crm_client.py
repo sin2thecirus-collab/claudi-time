@@ -302,33 +302,59 @@ class RecruitCRMClient:
     def map_to_candidate_data(self, crm_data: dict[str, Any]) -> dict[str, Any]:
         """Mappt CRM-Daten auf das interne Kandidaten-Format.
 
+        WICHTIG: Aus CRM werden nur Basisdaten + Adresse geholt!
+        - Position, Werdegang (work_history) und Ausbildung (education)
+          werden aus dem CV/Resume via OpenAI extrahiert.
+
         Args:
             crm_data: Rohdaten aus der CRM API
 
         Returns:
             Dictionary mit gemappten Feldern für CandidateCreate
         """
-        # Adresse extrahieren
-        address_parts = self._parse_address(crm_data.get("full_address", ""))
+        # Adresse aus CRM-Feld "full_address" extrahieren
+        full_address = (
+            crm_data.get("full_address") or
+            crm_data.get("address") or
+            crm_data.get("location") or
+            ""
+        )
+        address_parts = self._parse_address(full_address)
 
-        # Skills extrahieren (kann String oder Liste sein)
+        # Skills aus CRM (kann String oder Liste sein)
         skills = crm_data.get("skills", [])
         if isinstance(skills, str):
             skills = [s.strip() for s in skills.split(",") if s.strip()]
+
+        # CV/Resume URL - für späteres Parsing mit OpenAI
+        resume_data = crm_data.get("resume")
+        cv_url = None
+        if isinstance(resume_data, dict):
+            cv_url = resume_data.get("url")
+        elif isinstance(resume_data, str):
+            cv_url = resume_data
+        if not cv_url:
+            cv_url = crm_data.get("resume_url") or crm_data.get("cv_url")
 
         return {
             "crm_id": str(crm_data.get("id", crm_data.get("slug", ""))),
             "first_name": crm_data.get("first_name"),
             "last_name": crm_data.get("last_name"),
             "email": crm_data.get("email"),
-            "phone": crm_data.get("phone") or crm_data.get("mobile"),
-            "current_position": crm_data.get("current_job_title") or crm_data.get("position"),
-            "current_company": crm_data.get("current_employer") or crm_data.get("company"),
-            "skills": skills if skills else None,
+            "phone": crm_data.get("phone") or crm_data.get("mobile") or crm_data.get("contact_number"),
+            # Adresse aus CRM "full_address" Feld
             "street_address": address_parts.get("street"),
             "postal_code": address_parts.get("postal_code"),
-            "city": crm_data.get("locality") or address_parts.get("city"),
-            "cv_url": crm_data.get("resume_url") or crm_data.get("resume", {}).get("url"),
+            "city": crm_data.get("locality") or crm_data.get("city") or address_parts.get("city"),
+            # Skills aus CRM
+            "skills": skills if skills else None,
+            # CV URL für OpenAI Parsing (Position, Werdegang, Ausbildung)
+            "cv_url": cv_url,
+            # NICHT aus CRM - wird aus CV via OpenAI extrahiert:
+            # - current_position (aus CV)
+            # - current_company (aus CV)
+            # - work_history (aus CV)
+            # - education (aus CV)
         }
 
     def _parse_address(self, full_address: str) -> dict[str, str | None]:

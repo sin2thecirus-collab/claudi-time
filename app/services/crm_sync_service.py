@@ -3,10 +3,12 @@
 Dieser Service:
 - Führt Initial-Sync (alle Kandidaten) durch
 - Führt Incremental-Sync (nur geänderte) durch
-- Triggert CV-Parsing für neue Kandidaten
+- Triggert CV-Parsing für neue/aktualisierte Kandidaten (OpenAI)
+- Extrahiert Position, Werdegang und Adresse aus CVs
 - Trackt den Sync-Status
 """
 
+import asyncio
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -25,6 +27,7 @@ from app.services.crm_client import (
     CRMRateLimitError,
     RecruitCRMClient,
 )
+from app.services.cv_parser_service import CVParserService
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +45,9 @@ class SyncResult:
     duration_seconds: float = 0.0
     is_initial_sync: bool = False
     new_candidate_ids: list[UUID] = field(default_factory=list)
+    # CV-Parsing Statistiken
+    cvs_parsed: int = 0
+    cvs_failed: int = 0
 
     @property
     def success_rate(self) -> float:
@@ -58,18 +64,27 @@ class CRMSyncService:
     - Initial-Sync: Alle Kandidaten importieren
     - Incremental-Sync: Nur Änderungen seit letztem Sync
     - Einzelner Kandidat: Manueller Sync
+    - Automatisches CV-Parsing bei Sync (OpenAI)
     """
 
-    def __init__(self, db: AsyncSession, crm_client: RecruitCRMClient | None = None):
+    def __init__(
+        self,
+        db: AsyncSession,
+        crm_client: RecruitCRMClient | None = None,
+        enable_cv_parsing: bool = True,
+    ):
         """Initialisiert den Sync-Service.
 
         Args:
             db: Datenbank-Session
             crm_client: Optional CRM-Client (wird sonst erstellt)
+            enable_cv_parsing: CV-Parsing mit OpenAI aktivieren (Standard: True)
         """
         self.db = db
         self._crm_client = crm_client
         self._owns_client = crm_client is None
+        self._enable_cv_parsing = enable_cv_parsing
+        self._cv_parser: CVParserService | None = None
 
     async def _get_client(self) -> RecruitCRMClient:
         """Gibt den CRM-Client zurück."""
@@ -77,10 +92,18 @@ class CRMSyncService:
             self._crm_client = RecruitCRMClient()
         return self._crm_client
 
+    async def _get_cv_parser(self) -> CVParserService:
+        """Gibt den CV-Parser zurück."""
+        if self._cv_parser is None:
+            self._cv_parser = CVParserService(self.db)
+        return self._cv_parser
+
     async def close(self) -> None:
         """Schließt Ressourcen."""
         if self._owns_client and self._crm_client:
             await self._crm_client.close()
+        if self._cv_parser:
+            await self._cv_parser.close()
 
     async def get_last_sync_time(self) -> datetime | None:
         """Ermittelt den Zeitpunkt des letzten erfolgreichen Syncs.
@@ -302,11 +325,12 @@ class CRMSyncService:
 
         return result
 
-    async def sync_single_candidate(self, crm_id: str) -> Candidate:
+    async def sync_single_candidate(self, crm_id: str, parse_cv: bool = True) -> Candidate:
         """Synchronisiert einen einzelnen Kandidaten.
 
         Args:
             crm_id: CRM-ID des Kandidaten
+            parse_cv: CV mit OpenAI parsen wenn Daten fehlen (Standard: True)
 
         Returns:
             Aktualisierter Kandidat
@@ -317,10 +341,151 @@ class CRMSyncService:
         client = await self._get_client()
         crm_data = await client.get_candidate(crm_id)
 
-        candidate, _ = await self._upsert_candidate(crm_data)
+        candidate, created = await self._upsert_candidate(crm_data)
         await self.db.commit()
 
+        # CV-Parsing wenn aktiviert und Daten fehlen
+        if parse_cv and self._enable_cv_parsing:
+            if self._needs_cv_parsing(candidate):
+                await self._parse_candidate_cv(candidate)
+                await self.db.commit()
+
         return candidate
+
+    def _needs_cv_parsing(self, candidate: Candidate) -> bool:
+        """Prüft ob CV-Parsing nötig ist.
+
+        CV-Parsing wird durchgeführt wenn:
+        - Kandidat hat eine CV-URL (Resume im CRM)
+        - CV wurde noch nicht geparst (cv_parsed_at ist NULL)
+
+        Aus dem CV werden extrahiert:
+        - Aktuelle Position (Beruflicher Titel)
+        - VOLLSTÄNDIGER Werdegang (alle beruflichen Stationen)
+        - Ausbildung & Qualifikationen
+        """
+        # Kein CV vorhanden?
+        if not candidate.cv_url:
+            return False
+
+        # Bereits geparst?
+        if candidate.cv_parsed_at:
+            return False
+
+        # CV vorhanden und noch nicht geparst -> Parsen!
+        return True
+
+    async def _parse_candidate_cv(self, candidate: Candidate) -> bool:
+        """Parst das CV eines Kandidaten mit OpenAI.
+
+        Extrahiert aus dem Lebenslauf (Resume PDF):
+        - Aktuelle Position (Beruflicher Titel)
+        - VOLLSTÄNDIGER beruflicher Werdegang (alle Stationen mit Zeiten und Tätigkeiten)
+        - Ausbildung & Qualifikationen (Schule, Ausbildung, Studium, Weiterbildungen)
+        - Skills/Kenntnisse
+
+        Args:
+            candidate: Kandidat mit cv_url
+
+        Returns:
+            True wenn erfolgreich geparst
+        """
+        if not candidate.cv_url:
+            return False
+
+        try:
+            cv_parser = await self._get_cv_parser()
+            candidate_updated, parse_result = await cv_parser.parse_candidate_cv(candidate.id)
+
+            if parse_result.success:
+                logger.info(
+                    f"CV erfolgreich geparst für Kandidat {candidate.crm_id}: "
+                    f"Position={candidate_updated.current_position}, "
+                    f"Work History={len(candidate_updated.work_history or [])} Einträge"
+                )
+                return True
+            else:
+                logger.warning(
+                    f"CV-Parsing fehlgeschlagen für {candidate.crm_id}: {parse_result.error}"
+                )
+                return False
+
+        except Exception as e:
+            logger.error(f"CV-Parsing Fehler für {candidate.crm_id}: {e}")
+            return False
+
+    async def sync_with_cv_parsing(
+        self,
+        progress_callback: Callable[[int, int], None] | None = None,
+        cv_parsing_callback: Callable[[int, int], None] | None = None,
+    ) -> SyncResult:
+        """Führt Sync durch und parst CVs für alle Kandidaten mit Resume.
+
+        Dies ist ein zwei-Phasen-Prozess:
+        1. CRM-Sync: Kandidaten aus CRM importieren (Basisdaten + Adresse)
+        2. CV-Parsing: Für alle Kandidaten mit CV (Resume PDF) via OpenAI:
+           - Aktuelle Position (Beruflicher Titel)
+           - VOLLSTÄNDIGER Werdegang (alle beruflichen Stationen)
+           - Ausbildung & Qualifikationen
+
+        Args:
+            progress_callback: Callback für Sync-Fortschritt
+            cv_parsing_callback: Callback für CV-Parsing-Fortschritt
+
+        Returns:
+            SyncResult mit Sync- und CV-Parsing-Statistiken
+        """
+        # Phase 1: CRM-Sync (Basisdaten + Adresse aus CRM)
+        result = await self.sync_all(progress_callback=progress_callback)
+
+        # Phase 2: CV-Parsing für alle neuen Kandidaten mit Resume
+        if self._enable_cv_parsing and result.new_candidate_ids:
+            logger.info(f"Starte CV-Parsing für {len(result.new_candidate_ids)} neue Kandidaten")
+
+            candidates_to_parse = []
+            for candidate_id in result.new_candidate_ids:
+                query_result = await self.db.execute(
+                    select(Candidate).where(Candidate.id == candidate_id)
+                )
+                candidate = query_result.scalar_one_or_none()
+                if candidate and self._needs_cv_parsing(candidate):
+                    candidates_to_parse.append(candidate)
+
+            total_to_parse = len(candidates_to_parse)
+            logger.info(f"{total_to_parse} Kandidaten haben CV/Resume zum Parsen")
+
+            for i, candidate in enumerate(candidates_to_parse):
+                try:
+                    success = await self._parse_candidate_cv(candidate)
+                    if success:
+                        result.cvs_parsed += 1
+                    else:
+                        result.cvs_failed += 1
+                except Exception as e:
+                    result.cvs_failed += 1
+                    result.errors.append({
+                        "candidate_id": str(candidate.id),
+                        "crm_id": candidate.crm_id,
+                        "error": f"CV-Parsing: {str(e)}",
+                        "type": "cv_parsing"
+                    })
+
+                # CV-Parsing Progress Callback
+                if cv_parsing_callback:
+                    try:
+                        await cv_parsing_callback(i + 1, total_to_parse)
+                    except Exception as e:
+                        logger.warning(f"CV parsing progress callback fehlgeschlagen: {e}")
+
+                # Commit nach jedem CV
+                await self.db.commit()
+
+            logger.info(
+                f"CV-Parsing abgeschlossen: {result.cvs_parsed} erfolgreich, "
+                f"{result.cvs_failed} fehlgeschlagen"
+            )
+
+        return result
 
     async def _upsert_candidate(self, crm_data: dict) -> tuple[Candidate, bool]:
         """Erstellt oder aktualisiert einen Kandidaten.
@@ -347,16 +512,22 @@ class CRMSyncService:
         now = datetime.now(timezone.utc)
 
         if existing:
-            # Update
+            # Update - alle gemappten Felder übernehmen
             for key, value in mapped_data.items():
                 if key != "crm_id" and value is not None:
                     setattr(existing, key, value)
             existing.crm_synced_at = now
             existing.updated_at = now
 
+            logger.debug(
+                f"Kandidat {crm_id} aktualisiert: "
+                f"Position={mapped_data.get('current_position')}, "
+                f"Work History={len(mapped_data.get('work_history') or [])} Einträge"
+            )
+
             return existing, False
         else:
-            # Create
+            # Create - alle Felder inkl. work_history und education
             candidate = Candidate(
                 crm_id=crm_id,
                 first_name=mapped_data.get("first_name"),
@@ -366,6 +537,8 @@ class CRMSyncService:
                 current_position=mapped_data.get("current_position"),
                 current_company=mapped_data.get("current_company"),
                 skills=mapped_data.get("skills"),
+                work_history=mapped_data.get("work_history"),
+                education=mapped_data.get("education"),
                 street_address=mapped_data.get("street_address"),
                 postal_code=mapped_data.get("postal_code"),
                 city=mapped_data.get("city"),
@@ -374,6 +547,13 @@ class CRMSyncService:
             )
             self.db.add(candidate)
             await self.db.flush()  # Um die ID zu erhalten
+
+            logger.debug(
+                f"Kandidat {crm_id} erstellt: "
+                f"Position={mapped_data.get('current_position')}, "
+                f"Work History={len(mapped_data.get('work_history') or [])} Einträge, "
+                f"Education={len(mapped_data.get('education') or [])} Einträge"
+            )
 
             return candidate, True
 

@@ -40,56 +40,82 @@ WICHTIG:
 
 Extrahiere folgende Informationen:
 
-1. Persönliche Daten:
-   - first_name: Vorname
-   - last_name: Nachname
-   - birth_date: Geburtsdatum (Format: "DD.MM.YYYY" oder "YYYY")
-   - street_address: Straße und Hausnummer
-   - postal_code: Postleitzahl (5 Ziffern in Deutschland)
-   - city: Stadt/Ort
+1. Aktuelle Position (current_position):
+   - Die AKTUELLE/LETZTE Berufsbezeichnung des Kandidaten
+   - z.B. "Finanzbuchhalter", "Bilanzbuchhalter", "Elektriker", "IT-Techniker"
 
-2. Aktuelle Position:
-   - current_position: Aktuelle Berufsbezeichnung
-
-3. IT-Kenntnisse/Skills:
-   - skills: Liste relevanter Fähigkeiten (SAP, DATEV, Excel, etc.)
-   - Fokus auf: Buchhaltung, Finanzen, IT-Systeme, Technik
-
-4. Berufserfahrung (work_history):
-   - Jede Station mit: company, position, start_date, end_date, description
+2. VOLLSTÄNDIGER Beruflicher Werdegang (work_history):
+   - Extrahiere ALLE beruflichen Stationen - KEINE auslassen!
+   - Für JEDE Station: company, position, start_date, end_date, description
+   - description: Welche Tätigkeiten wurden ausgeübt? Was waren die Aufgaben?
    - Chronologisch sortiert (neueste zuerst)
+   - Auch Praktika, Werkstudentenjobs, Nebenjobs erfassen
 
-5. Ausbildung (education):
-   - Jede Ausbildung mit: institution, degree, field_of_study, start_date, end_date
+3. VOLLSTÄNDIGE Ausbildung & Qualifikationen (education):
+   - ALLE Abschlüsse: Schule, Ausbildung, Studium, Weiterbildungen, Zertifikate
+   - Für JEDEN Eintrag: institution, degree, field_of_study, start_date, end_date
+   - Auch IHK-Prüfungen, Meisterbrief, Fortbildungen erfassen
 
-Antworte NUR mit einem validen JSON-Objekt im folgenden Format:
+4. Skills/Kenntnisse:
+   - Liste aller relevanten Fähigkeiten
+   - Software: SAP, DATEV, Excel, Word, etc.
+   - Fachkenntnisse: Buchhaltung, Bilanzierung, Technik, etc.
+   - Sprachen, Führerschein, etc.
+
+5. Persönliche Daten (falls im CV vorhanden):
+   - first_name, last_name
+   - birth_date (Format: "DD.MM.YYYY")
+   - street_address, postal_code, city
+
+Antworte NUR mit einem validen JSON-Objekt:
 {
-  "first_name": "Max",
-  "last_name": "Mustermann",
-  "birth_date": "15.03.1985",
-  "street_address": "Musterstraße 123",
-  "postal_code": "12345",
-  "city": "Berlin",
-  "current_position": "Buchhalter",
-  "skills": ["SAP", "DATEV", "Excel", "Buchhaltung"],
+  "current_position": "Finanzbuchhalter",
   "work_history": [
     {
-      "company": "Muster GmbH",
-      "position": "Buchhalter",
-      "start_date": "01/2020",
+      "company": "ABC GmbH",
+      "position": "Finanzbuchhalter",
+      "start_date": "03/2020",
       "end_date": "heute",
-      "description": "Verantwortlich für Debitoren- und Kreditorenbuchhaltung"
+      "description": "Debitoren-/Kreditorenbuchhaltung, Monatsabschlüsse, Mahnwesen"
+    },
+    {
+      "company": "XYZ AG",
+      "position": "Buchhalter",
+      "start_date": "01/2015",
+      "end_date": "02/2020",
+      "description": "Kontierung, Rechnungsprüfung, Zahlungsverkehr"
+    },
+    {
+      "company": "Musterfirma",
+      "position": "Kaufmännischer Mitarbeiter",
+      "start_date": "08/2012",
+      "end_date": "12/2014",
+      "description": "Allgemeine Bürotätigkeiten, Rechnungsstellung"
     }
   ],
   "education": [
     {
-      "institution": "IHK Berlin",
+      "institution": "IHK München",
+      "degree": "Bilanzbuchhalter (IHK)",
+      "field_of_study": "Finanz- und Rechnungswesen",
+      "start_date": "2018",
+      "end_date": "2019"
+    },
+    {
+      "institution": "Berufsschule München",
       "degree": "Kaufmann für Büromanagement",
-      "field_of_study": "Buchhaltung",
-      "start_date": "2015",
-      "end_date": "2018"
+      "field_of_study": "Kaufmännische Ausbildung",
+      "start_date": "2009",
+      "end_date": "2012"
     }
-  ]
+  ],
+  "skills": ["SAP FI", "DATEV", "Excel", "Word", "Buchhaltung", "Bilanzierung", "Englisch B2"],
+  "first_name": "Max",
+  "last_name": "Mustermann",
+  "birth_date": "15.03.1990",
+  "street_address": "Musterstraße 123",
+  "postal_code": "80331",
+  "city": "München"
 }"""
 
 
@@ -256,10 +282,10 @@ class CVParserService:
                     "model": "gpt-4o-mini",
                     "messages": [
                         {"role": "system", "content": CV_PARSING_SYSTEM_PROMPT},
-                        {"role": "user", "content": f"Analysiere diesen Lebenslauf:\n\n{cv_text}"},
+                        {"role": "user", "content": f"Analysiere diesen Lebenslauf und extrahiere den VOLLSTÄNDIGEN beruflichen Werdegang mit ALLEN Stationen:\n\n{cv_text}"},
                     ],
                     "temperature": 0.1,
-                    "max_tokens": 2000,
+                    "max_tokens": 4000,  # Erhöht für vollständigen Werdegang
                     "response_format": {"type": "json_object"},
                 },
                 timeout=limits.TIMEOUT_OPENAI,

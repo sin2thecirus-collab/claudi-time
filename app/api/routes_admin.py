@@ -118,6 +118,10 @@ async def trigger_crm_sync(
     background_tasks: BackgroundTasks,
     source: str = Query(default="manual", pattern="^(manual|cron)$"),
     full_sync: bool = Query(default=False),
+    parse_cvs: bool = Query(
+        default=True,
+        description="CVs mit OpenAI parsen für fehlende Daten (Position, Werdegang, Adresse)"
+    ),
     db: AsyncSession = Depends(get_db),
     cron_secret: str | None = Depends(verify_cron_secret),
 ):
@@ -126,6 +130,10 @@ async def trigger_crm_sync(
 
     - full_sync=False: Nur seit letztem Sync geänderte Kandidaten
     - full_sync=True: Alle Kandidaten (Initial-Sync)
+    - parse_cvs=True: CVs mit OpenAI analysieren für:
+        - Aktuelle Position
+        - Beruflicher Werdegang (Work History)
+        - Vollständige Adresse (Straße, PLZ, Ort)
     """
     job_runner = JobRunnerService(db)
 
@@ -135,10 +143,10 @@ async def trigger_crm_sync(
     job_source = JobSource.CRON if source == "cron" else JobSource.MANUAL
     job_run = await job_runner.start_job(JobType.CRM_SYNC, job_source)
 
-    background_tasks.add_task(_run_crm_sync, db, job_run.id, full_sync)
+    background_tasks.add_task(_run_crm_sync, db, job_run.id, full_sync, parse_cvs)
 
     return JobTriggerResponse(
-        message="CRM-Sync gestartet",
+        message=f"CRM-Sync gestartet{' mit CV-Parsing' if parse_cvs else ''}",
         job_run_id=str(job_run.id),
         job_type=JobType.CRM_SYNC.value,
         source=job_source.value,
@@ -378,8 +386,15 @@ async def _run_geocoding(db: AsyncSession, job_run_id: UUID):
         await job_runner.fail_job(job_run_id, str(e))
 
 
-async def _run_crm_sync(db: AsyncSession, job_run_id: UUID, full_sync: bool):
-    """Führt CRM-Sync im Hintergrund aus."""
+async def _run_crm_sync(db: AsyncSession, job_run_id: UUID, full_sync: bool, parse_cvs: bool = True):
+    """Führt CRM-Sync im Hintergrund aus.
+
+    Args:
+        db: Datenbank-Session
+        job_run_id: ID des Job-Runs für Progress-Tracking
+        full_sync: True für Initial-Sync (alle Kandidaten)
+        parse_cvs: True um CVs mit OpenAI zu parsen für fehlende Daten
+    """
     from app.services.crm_sync_service import CRMSyncService
 
     job_runner = JobRunnerService(db)
@@ -392,19 +407,38 @@ async def _run_crm_sync(db: AsyncSession, job_run_id: UUID, full_sync: bool):
             items_total=total,
         )
 
-    try:
-        sync_service = CRMSyncService(db)
+    async def update_cv_progress(parsed: int, total: int):
+        """Callback für CV-Parsing-Fortschritt."""
+        # Progress-Message aktualisieren
+        logger.info(f"CV-Parsing Fortschritt: {parsed}/{total}")
 
-        if full_sync:
-            result = await sync_service.initial_sync(progress_callback=update_progress)
+    try:
+        sync_service = CRMSyncService(db, enable_cv_parsing=parse_cvs)
+
+        if parse_cvs:
+            # Sync mit integriertem CV-Parsing
+            result = await sync_service.sync_with_cv_parsing(
+                progress_callback=update_progress,
+                cv_parsing_callback=update_cv_progress,
+            )
+
+            # Erfolgsmeldung mit CV-Parsing-Stats
+            logger.info(
+                f"CRM-Sync abgeschlossen: {result.created} erstellt, {result.updated} aktualisiert, "
+                f"CVs geparst: {result.cvs_parsed}, CV-Parsing fehlgeschlagen: {result.cvs_failed}"
+            )
         else:
-            result = await sync_service.sync_all(progress_callback=update_progress)
+            # Nur Sync ohne CV-Parsing
+            if full_sync:
+                result = await sync_service.initial_sync(progress_callback=update_progress)
+            else:
+                result = await sync_service.sync_all(progress_callback=update_progress)
 
         await job_runner.complete_job(
             job_run_id,
             items_total=result.total_processed,
-            items_successful=result.created + result.updated,
-            items_failed=result.failed,
+            items_successful=result.created + result.updated + result.cvs_parsed,
+            items_failed=result.failed + result.cvs_failed,
         )
     except Exception as e:
         logger.error(f"CRM-Sync fehlgeschlagen: {e}")
