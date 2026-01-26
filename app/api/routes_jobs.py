@@ -169,25 +169,21 @@ async def list_jobs(
     )
 
     job_service = JobService(db)
-    filter_service = FilterService(db)
 
     # Jobs laden mit Filtern
-    jobs, total = await job_service.list_jobs(
+    result = await job_service.list_jobs(
         filters=filters,
         page=page,
         per_page=per_page,
-        use_priority_sorting=use_priority_sorting,
     )
-
-    pages = (total + per_page - 1) // per_page if per_page > 0 else 0
 
     # Response erstellen
     return JobListResponse(
-        items=[_job_to_response(job) for job in jobs],
-        total=total,
-        page=page,
-        per_page=per_page,
-        pages=pages,
+        items=[_job_to_response(job) for job in result.items],
+        total=result.total,
+        page=result.page,
+        per_page=result.per_page,
+        pages=result.pages,
     )
 
 

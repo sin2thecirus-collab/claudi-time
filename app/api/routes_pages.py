@@ -10,6 +10,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.schemas.filters import JobFilterParams
 from app.services.job_service import JobService
 from app.services.candidate_service import CandidateService
 from app.services.filter_service import FilterService
@@ -141,22 +142,19 @@ async def job_list_partial(
     filter_service = FilterService(db)
 
     # Filter aufbauen
-    filters = {}
-    if search:
-        filters["search"] = search
-    if cities:
-        filters["cities"] = cities.split(",")
-    if industry:
-        filters["industry"] = industry
-    if has_active_candidates:
-        filters["has_active_candidates"] = True
+    filters = JobFilterParams(
+        search=search if search else None,
+        cities=cities.split(",") if cities else None,
+        industries=[industry] if industry else None,
+        has_active_candidates=has_active_candidates if has_active_candidates else False,
+        sort_by=sort_by if sort_by else "created_at",
+    )
 
     # Jobs laden
     result = await job_service.list_jobs(
         filters=filters,
         page=page,
         per_page=per_page,
-        sort_by=sort_by
     )
 
     # Prio-Staedte laden
@@ -182,14 +180,15 @@ async def job_pagination_partial(
 ):
     """Partial: Job-Pagination fuer HTMX."""
     job_service = JobService(db)
-    result = await job_service.list_jobs(page=page, per_page=per_page)
+    filters = JobFilterParams()
+    result = await job_service.list_jobs(filters=filters, page=page, per_page=per_page)
 
     return templates.TemplateResponse(
         "components/pagination.html",
         {
             "request": request,
             "page": result.page,
-            "total_pages": result.total_pages,
+            "total_pages": result.pages,
             "total_items": result.total,
             "per_page": result.per_page,
             "base_url": "/partials/job-list",

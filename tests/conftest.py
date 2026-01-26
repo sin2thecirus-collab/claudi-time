@@ -14,10 +14,16 @@ from sqlalchemy.orm import sessionmaker
 from app.config import Limits
 from app.database import Base, get_db
 from app.main import app
+
+# WICHTIG: Alle Models importieren BEVOR Base.metadata.create_all aufgerufen wird
 from app.models.alert import Alert, AlertPriority, AlertType
 from app.models.candidate import Candidate
+from app.models.import_job import ImportJob
 from app.models.job import Job
+from app.models.job_run import JobRun
 from app.models.match import Match, MatchStatus
+from app.models.settings import FilterPreset, PriorityCity
+from app.models.statistics import DailyStatistics, FilterUsage
 
 # Test-Datenbank-URL: PostgreSQL erforderlich (wegen ARRAY und PostGIS)
 # Starte Test-DB mit: docker-compose -f docker-compose.test.yml up -d
@@ -75,7 +81,7 @@ async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 async def setup_database():
     """Erstellt die Datenbank-Tabellen vor jedem Test.
 
@@ -86,16 +92,21 @@ async def setup_database():
     if not is_postgres_available():
         pytest.skip("PostgreSQL Test-DB nicht verfügbar")
 
-    async with test_engine.begin() as conn:
+    # Neue Engine pro Test um "another operation in progress" zu vermeiden
+    local_engine = create_async_engine(TEST_DATABASE_URL, echo=False)
+
+    async with local_engine.begin() as conn:
         # PostGIS Extension aktivieren (nur PostgreSQL)
         if USE_POSTGRES:
             await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
         await conn.run_sync(Base.metadata.create_all)
 
-    yield
+    yield local_engine
 
-    async with test_engine.begin() as conn:
+    async with local_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+
+    await local_engine.dispose()
 
 
 @pytest.fixture
@@ -104,7 +115,10 @@ async def db_session(setup_database) -> AsyncGenerator[AsyncSession, None]:
 
     Benötigt setup_database für die Datenbank-Initialisierung.
     """
-    async with TestSessionLocal() as session:
+    local_engine = setup_database
+    LocalSession = sessionmaker(local_engine, class_=AsyncSession, expire_on_commit=False)
+
+    async with LocalSession() as session:
         yield session
 
 
@@ -187,6 +201,10 @@ class JobFactory:
         return job
 
 
+# Sentinel-Wert für optionale Parameter mit Default
+_UNSET = object()
+
+
 class CandidateFactory:
     """Factory für Candidate-Testdaten."""
 
@@ -198,7 +216,7 @@ class CandidateFactory:
         last_name: str = "Mustermann",
         email: str = "max@example.com",
         phone: str = "+49 40 12345678",
-        birth_date: date | None = None,
+        birth_date: date | None | object = _UNSET,
         current_position: str = "Buchhalter",
         skills: list[str] | None = None,
         city: str = "Hamburg",
@@ -212,6 +230,9 @@ class CandidateFactory:
         longitude: float | None = None,
     ) -> Candidate:
         """Erstellt ein Candidate-Objekt für Tests."""
+        # birth_date: verwende Default nur wenn nicht explizit gesetzt
+        actual_birth_date = date(1985, 5, 15) if birth_date is _UNSET else birth_date
+
         candidate = Candidate(
             id=id or uuid.uuid4(),
             crm_id=crm_id or f"CRM-{uuid.uuid4().hex[:8]}",
@@ -219,7 +240,7 @@ class CandidateFactory:
             last_name=last_name,
             email=email,
             phone=phone,
-            birth_date=birth_date or date(1985, 5, 15),
+            birth_date=actual_birth_date,
             current_position=current_position,
             skills=skills or ["SAP", "DATEV", "Buchhaltung"],
             city=city,
@@ -245,9 +266,9 @@ class MatchFactory:
         id: uuid.UUID | None = None,
         job_id: uuid.UUID | None = None,
         candidate_id: uuid.UUID | None = None,
-        distance_km: float = 5.0,
+        distance_km: float | None = 5.0,
         keyword_score: float = 0.75,
-        matched_keywords: list[str] | None = None,
+        matched_keywords: list[str] | None | object = _UNSET,
         ai_score: float | None = None,
         ai_explanation: str | None = None,
         ai_strengths: list[str] | None = None,
@@ -258,13 +279,16 @@ class MatchFactory:
         placed_notes: str | None = None,
     ) -> Match:
         """Erstellt ein Match-Objekt für Tests."""
+        # matched_keywords: verwende Default nur wenn nicht explizit gesetzt
+        actual_keywords = ["SAP", "DATEV", "Buchhaltung"] if matched_keywords is _UNSET else matched_keywords
+
         return Match(
             id=id or uuid.uuid4(),
             job_id=job_id or uuid.uuid4(),
             candidate_id=candidate_id or uuid.uuid4(),
             distance_km=distance_km,
             keyword_score=keyword_score,
-            matched_keywords=matched_keywords or ["SAP", "DATEV", "Buchhaltung"],
+            matched_keywords=actual_keywords,
             ai_score=ai_score,
             ai_explanation=ai_explanation,
             ai_strengths=ai_strengths,

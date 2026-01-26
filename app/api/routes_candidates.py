@@ -11,7 +11,8 @@ from app.api.rate_limiter import RateLimitTier, rate_limit
 from app.config import Limits
 from app.database import get_db
 from app.schemas.candidate import CandidateListResponse, CandidateResponse, CandidateUpdate
-from app.schemas.filters import SortOrder
+from app.schemas.filters import CandidateFilterParams, SortOrder
+from app.schemas.pagination import PaginationParams
 from app.schemas.validators import BatchHideRequest
 from app.services.candidate_service import CandidateService
 from app.services.crm_sync_service import CRMSyncService
@@ -122,7 +123,8 @@ async def list_candidates(
     """
     candidate_service = CandidateService(db)
 
-    candidates, total = await candidate_service.list_candidates(
+    # Filter- und Pagination-Objekte erstellen
+    filters = CandidateFilterParams(
         name=name,
         cities=cities,
         skills=skills,
@@ -131,18 +133,20 @@ async def list_candidates(
         include_hidden=include_hidden,
         sort_by=sort_by,
         sort_order=sort_order.value,
-        page=page,
-        per_page=per_page,
+    )
+    pagination = PaginationParams(page=page, per_page=per_page)
+
+    result = await candidate_service.list_candidates(
+        filters=filters,
+        pagination=pagination,
     )
 
-    pages = (total + per_page - 1) // per_page if per_page > 0 else 0
-
     return CandidateListResponse(
-        items=[_candidate_to_response(c) for c in candidates],
-        total=total,
-        page=page,
-        per_page=per_page,
-        pages=pages,
+        items=result.items,
+        total=result.total,
+        page=result.page,
+        per_page=result.per_page,
+        pages=result.pages,
     )
 
 

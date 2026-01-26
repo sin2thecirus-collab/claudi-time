@@ -77,7 +77,7 @@ class TestDistanceCalculation:
         assert 6.0 <= distance_km <= 9.0
 
     async def test_distance_hamburg_to_luebeck(self, db_session: AsyncSession):
-        """Distanz Hamburg zu Lübeck (~65km) - außerhalb 25km Radius."""
+        """Distanz Hamburg zu Lübeck (~57km) - außerhalb 25km Radius."""
         lat1, lon1 = GEO_COORDS["hamburg_zentrum"]
         lat2, lon2 = GEO_COORDS["luebeck"]
 
@@ -92,12 +92,12 @@ class TestDistanceCalculation:
         )
         distance_km = result.scalar()
 
-        # Lübeck ist ca. 65km entfernt - außerhalb des 25km Radius
+        # Lübeck ist ca. 57km entfernt - außerhalb des 25km Radius
         assert distance_km > 25
-        assert 60 <= distance_km <= 70
+        assert 55 <= distance_km <= 65
 
     async def test_distance_hamburg_to_berlin(self, db_session: AsyncSession):
-        """Distanz Hamburg zu Berlin (~290km)."""
+        """Distanz Hamburg zu Berlin (~256km)."""
         lat1, lon1 = GEO_COORDS["hamburg_zentrum"]
         lat2, lon2 = GEO_COORDS["berlin"]
 
@@ -112,8 +112,8 @@ class TestDistanceCalculation:
         )
         distance_km = result.scalar()
 
-        # Berlin ist ca. 290km entfernt
-        assert 280 <= distance_km <= 300
+        # Berlin ist ca. 256km entfernt
+        assert 250 <= distance_km <= 270
 
 
 class TestRadiusSearch:
