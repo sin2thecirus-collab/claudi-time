@@ -272,10 +272,10 @@ async def get_geocoding_status(
 async def trigger_crm_sync(
     background_tasks: BackgroundTasks,
     source: str = Query(default="manual", pattern="^(manual|cron)$"),
-    full_sync: bool = Query(default=False),
+    full_sync: bool = Query(default=True, description="Alle Kandidaten importieren (True) oder nur Änderungen (False)"),
     parse_cvs: bool = Query(
-        default=True,
-        description="CVs mit OpenAI parsen für fehlende Daten (Position, Werdegang, Adresse)"
+        default=False,
+        description="CVs mit OpenAI parsen für fehlende Daten (aktuell deaktiviert)"
     ),
     db: AsyncSession = Depends(get_db),
     cron_secret: str | None = Depends(verify_cron_secret),
@@ -553,74 +553,135 @@ async def _run_geocoding(db_unused: AsyncSession, job_run_id: UUID):
 async def _run_crm_sync(db_unused: AsyncSession, job_run_id: UUID, full_sync: bool, parse_cvs: bool = True):
     """Führt CRM-Sync im Hintergrund aus.
 
-    WICHTIG: db_unused wird nicht verwendet! Background Tasks müssen ihre eigene
-    DB-Session erstellen, da die Request-Session bereits geschlossen sein könnte.
+    Importiert Kandidaten direkt aus der Recruit CRM API in die Datenbank.
+    Verwendet den bewährten direkten Import-Ansatz (ohne CRMSyncService),
+    da dieser nachweislich funktioniert.
 
     Args:
         db_unused: Nicht verwenden - wird aus Kompatibilitätsgründen beibehalten
         job_run_id: ID des Job-Runs für Progress-Tracking
         full_sync: True für Initial-Sync (alle Kandidaten)
-        parse_cvs: True um CVs mit OpenAI zu parsen für fehlende Daten
+        parse_cvs: Aktuell ignoriert (CV-Parsing wird separat implementiert)
     """
-    from app.database import async_session_maker
-    from app.services.crm_sync_service import CRMSyncService
+    from datetime import datetime, timezone
 
-    # Eigene DB-Session für Background Task erstellen
+    from sqlalchemy import select
+
+    from app.database import async_session_maker
+    from app.models.candidate import Candidate
+    from app.services.crm_client import RecruitCRMClient
+
     async with async_session_maker() as db:
         job_runner = JobRunnerService(db)
 
-        async def update_progress(processed: int, total: int):
-            """Callback für Fortschrittsupdates."""
-            await job_runner.update_progress(
-                job_run_id,
-                items_processed=processed,
-                items_total=total,
-            )
-            await db.commit()
-
-        async def update_cv_progress(parsed: int, total: int):
-            """Callback für CV-Parsing-Fortschritt."""
-            # Progress-Message aktualisieren
-            logger.info(f"CV-Parsing Fortschritt: {parsed}/{total}")
-
         try:
-            logger.info(f"=== CRM-SYNC START === full_sync={full_sync}, parse_cvs={parse_cvs}")
+            logger.info(f"=== CRM-SYNC START === full_sync={full_sync}")
 
-            sync_service = CRMSyncService(db, enable_cv_parsing=parse_cvs)
+            client = RecruitCRMClient()
+            created_count = 0
+            updated_count = 0
+            failed_count = 0
+            total_processed = 0
 
-            if parse_cvs:
-                # Sync mit integriertem CV-Parsing
-                logger.info("Starte sync_with_cv_parsing...")
-                result = await sync_service.sync_with_cv_parsing(
-                    full_sync=full_sync,
-                    progress_callback=update_progress,
-                    cv_parsing_callback=update_cv_progress,
-                )
-
-                # Erfolgsmeldung mit CV-Parsing-Stats
+            async for page_num, candidates, estimated_total in client.get_all_candidates_paginated(
+                per_page=100
+            ):
                 logger.info(
-                    f"CRM-Sync abgeschlossen: {result.created} erstellt, {result.updated} aktualisiert, "
-                    f"CVs geparst: {result.cvs_parsed}, CV-Parsing fehlgeschlagen: {result.cvs_failed}"
+                    f"CRM-Sync: Seite {page_num}, {len(candidates)} Kandidaten "
+                    f"(geschätzt gesamt: {estimated_total})"
                 )
-            else:
-                # Nur Sync ohne CV-Parsing
-                if full_sync:
-                    logger.info("Starte initial_sync (full_sync=True, parse_cvs=False)...")
-                    result = await sync_service.initial_sync(progress_callback=update_progress)
-                else:
-                    result = await sync_service.sync_all(progress_callback=update_progress)
 
+                for crm_data in candidates:
+                    try:
+                        mapped = client.map_to_candidate_data(crm_data)
+                        crm_id = mapped.get("crm_id")
+
+                        if not crm_id:
+                            failed_count += 1
+                            continue
+
+                        # Prüfe ob Kandidat bereits existiert
+                        result = await db.execute(
+                            select(Candidate).where(Candidate.crm_id == crm_id)
+                        )
+                        existing = result.scalar_one_or_none()
+
+                        now = datetime.now(timezone.utc)
+
+                        if existing:
+                            # Update vorhandenen Kandidaten
+                            for key, value in mapped.items():
+                                if key != "crm_id" and value is not None:
+                                    setattr(existing, key, value)
+                            existing.crm_synced_at = now
+                            existing.updated_at = now
+                            updated_count += 1
+                        else:
+                            # Neuen Kandidaten erstellen
+                            candidate = Candidate(
+                                crm_id=crm_id,
+                                first_name=mapped.get("first_name"),
+                                last_name=mapped.get("last_name"),
+                                email=mapped.get("email"),
+                                phone=mapped.get("phone"),
+                                current_position=mapped.get("current_position"),
+                                current_company=mapped.get("current_company"),
+                                skills=mapped.get("skills"),
+                                street_address=mapped.get("street_address"),
+                                postal_code=mapped.get("postal_code"),
+                                city=mapped.get("city"),
+                                cv_url=mapped.get("cv_url"),
+                                crm_synced_at=now,
+                            )
+                            db.add(candidate)
+
+                        total_processed += 1
+
+                    except Exception as e:
+                        failed_count += 1
+                        logger.error(
+                            f"Fehler bei Kandidat {crm_data.get('slug', crm_data.get('id'))}: {e}"
+                        )
+
+                # Commit nach jeder Seite
+                await db.commit()
+
+                # Fortschritt aktualisieren
+                try:
+                    await job_runner.update_progress(
+                        job_run_id,
+                        items_processed=total_processed,
+                        items_total=estimated_total,
+                    )
+                    await db.commit()
+                except Exception as e:
+                    logger.warning(f"Progress-Update fehlgeschlagen: {e}")
+
+            # Job abschließen
             await job_runner.complete_job(
                 job_run_id,
-                items_total=result.total_processed,
-                items_successful=result.created + result.updated + result.cvs_parsed,
-                items_failed=result.failed + result.cvs_failed,
+                items_total=total_processed,
+                items_successful=created_count + updated_count,
+                items_failed=failed_count,
             )
             await db.commit()
+
+            # CRM-Client schließen
+            await client.close()
+
+            logger.info(
+                f"=== CRM-SYNC FERTIG === {created_count} erstellt, "
+                f"{updated_count} aktualisiert, {failed_count} fehlgeschlagen, "
+                f"{total_processed} gesamt"
+            )
+
         except Exception as e:
             logger.error(f"CRM-Sync fehlgeschlagen: {e}", exc_info=True)
-            await job_runner.fail_job(job_run_id, str(e))
-            await db.commit()
+            try:
+                await job_runner.fail_job(job_run_id, str(e))
+                await db.commit()
+            except Exception:
+                logger.error("Konnte Job-Fehler nicht speichern")
 
 
 async def _run_matching(db_unused: AsyncSession, job_run_id: UUID):
