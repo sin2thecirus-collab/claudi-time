@@ -358,6 +358,38 @@ async def candidates_list_partial(
     )
 
 
+@router.get("/partials/candidate-jobs/{candidate_id}", response_class=HTMLResponse)
+async def candidate_matching_jobs_partial(
+    request: Request,
+    candidate_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Partial: Passende Jobs fuer einen Kandidaten (HTMX)."""
+    candidate_service = CandidateService(db)
+
+    try:
+        jobs, total = await candidate_service.get_jobs_for_candidate(
+            candidate_id=candidate_id,
+            page=1,
+            per_page=20,
+            sort_by="distance_km",
+            sort_order="asc",
+        )
+    except Exception:
+        jobs = []
+        total = 0
+
+    return templates.TemplateResponse(
+        "partials/candidate_matching_jobs.html",
+        {
+            "request": request,
+            "jobs": jobs,
+            "total": total,
+            "candidate_id": str(candidate_id),
+        }
+    )
+
+
 @router.get("/partials/import-dialog", response_class=HTMLResponse)
 async def import_dialog_partial(request: Request):
     """Partial: Import-Dialog fuer Modal."""
