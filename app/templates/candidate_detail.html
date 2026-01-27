@@ -247,7 +247,7 @@
                                     {% if job.end_date %} - {{ job.end_date }}{% elif job.start_date %} - heute{% endif %}
                                 </div>
                             </div>
-                            {% if job.description %}
+                            {% if job.description and job.description != 'null' %}
                             <p class="mt-2 text-sm text-gray-600">{{ job.description }}</p>
                             {% endif %}
                         </li>

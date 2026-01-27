@@ -34,7 +34,7 @@ Deine Aufgabe ist es, strukturierte Informationen aus dem CV-Text zu extrahieren
 WICHTIG:
 - Extrahiere NUR Informationen, die EXPLIZIT im Text stehen
 - Uebernimm Texte GENAU SO wie sie im Lebenslauf stehen (nicht umformulieren!)
-- Wenn eine Information nicht vorhanden ist, setze den Wert auf null
+- Wenn eine Information nicht vorhanden ist, setze den Wert auf null (JSON null, NICHT den String "null"!)
 - Alle Texte auf DEUTSCH
 - Datumsformate: "MM/YYYY" oder "YYYY" fuer Start/Ende
 - Bei "heute" oder "aktuell" als Enddatum: "heute" verwenden
@@ -48,7 +48,9 @@ Extrahiere folgende Informationen:
 2. VOLLSTAENDIGER Beruflicher Werdegang (work_history):
    - Extrahiere ALLE beruflichen Stationen - KEINE auslassen!
    - Fuer JEDE Station: company, position, start_date, end_date, description
-   - description: Welche Taetigkeiten wurden ausgeubt? GENAU aus dem CV uebernehmen!
+   - description: Welche Taetigkeiten/Aufgaben wurden ausgeubt? GENAU aus dem CV uebernehmen!
+   - Wenn Aufzaehlungspunkte/Bulletpoints vorhanden: als kommaseparierten Text zusammenfassen
+   - Wenn keine Taetigkeiten beschrieben: null (nicht den String "null"!)
    - Chronologisch sortiert (neueste zuerst)
    - Auch Praktika, Werkstudentenjobs, Nebenjobs erfassen
 
@@ -333,17 +335,26 @@ class CVParserService:
                 raw_text=cv_text,
             )
 
+    @staticmethod
+    def _clean_null(value: str | None) -> str | None:
+        """Konvertiert den String 'null' zu echtem None."""
+        if value is None:
+            return None
+        if isinstance(value, str) and value.strip().lower() == "null":
+            return None
+        return value
+
     def _map_to_cv_result(self, data: dict) -> CVParseResult:
         """Mappt OpenAI-Response auf CVParseResult."""
         work_history = None
         if data.get("work_history"):
             work_history = [
                 WorkHistoryEntry(
-                    company=entry.get("company"),
-                    position=entry.get("position"),
-                    start_date=entry.get("start_date"),
-                    end_date=entry.get("end_date"),
-                    description=entry.get("description"),
+                    company=self._clean_null(entry.get("company")),
+                    position=self._clean_null(entry.get("position")),
+                    start_date=self._clean_null(entry.get("start_date")),
+                    end_date=self._clean_null(entry.get("end_date")),
+                    description=self._clean_null(entry.get("description")),
                 )
                 for entry in data["work_history"]
                 if isinstance(entry, dict)
