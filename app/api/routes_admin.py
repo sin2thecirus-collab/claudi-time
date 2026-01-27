@@ -38,7 +38,46 @@ class JobTriggerResponse(BaseModel):
     source: str
 
 
-# ==================== Debug: CRM-Verbindungstest ====================
+# ==================== Debug: Verbindungstests ====================
+
+@router.get(
+    "/test-openai",
+    summary="OpenAI-Verbindung testen",
+)
+async def test_openai_connection():
+    """Testet ob der OpenAI API-Key gültig ist."""
+    import httpx
+
+    key = settings.openai_api_key
+    result = {
+        "configured": bool(key),
+        "key_length": len(key) if key else 0,
+        "key_prefix": key[:8] + "..." if key and len(key) > 8 else "zu kurz oder leer",
+    }
+
+    if not key:
+        result["error"] = "OPENAI_API_KEY nicht konfiguriert"
+        return result
+
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                "https://api.openai.com/v1/models",
+                headers={"Authorization": f"Bearer {key}"},
+                timeout=10.0,
+            )
+            result["status_code"] = resp.status_code
+            if resp.status_code == 200:
+                result["connection_test"] = "ERFOLGREICH"
+            else:
+                result["connection_test"] = "FEHLGESCHLAGEN"
+                result["error"] = resp.text[:200]
+    except Exception as e:
+        result["connection_test"] = "FEHLGESCHLAGEN"
+        result["error"] = str(e)
+
+    return result
+
 
 @router.get(
     "/test-crm",
