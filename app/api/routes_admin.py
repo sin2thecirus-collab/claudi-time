@@ -146,28 +146,48 @@ async def test_crm_connection():
     return result
 
 
+# Globaler Status für CV-Parsing Background Task
+_cv_parsing_status: dict = {
+    "running": False,
+    "parsed": 0,
+    "failed": 0,
+    "total_to_parse": 0,
+    "total_tokens": 0,
+    "errors": [],
+    "started_at": None,
+    "finished_at": None,
+    "current_candidate": None,
+}
+
+
 @router.post(
     "/parse-all-cvs",
-    summary="Alle CVs parsen (Batch)",
+    summary="Alle CVs parsen (Background Task)",
 )
 async def parse_all_cvs(
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     batch_size: int = Query(default=10, description="Kandidaten pro Batch"),
     max_candidates: int = Query(default=5000, description="Maximale Anzahl"),
 ):
     """
-    Parst alle CVs der Kandidaten, die noch nicht geparst wurden.
-    Lädt PDFs herunter, extrahiert Text, sendet an OpenAI.
+    Startet CV-Parsing als Background Task.
+    Gibt sofort eine Antwort zurück. Status über GET /parse-all-cvs/status abrufen.
     """
-    import traceback
-    from datetime import datetime, timezone
-
     from sqlalchemy import select, func
 
     from app.models.candidate import Candidate
-    from app.services.cv_parser_service import CVParserService
 
-    # Kandidaten mit cv_url aber ohne cv_parsed_at finden
+    global _cv_parsing_status
+
+    if _cv_parsing_status["running"]:
+        return {
+            "success": False,
+            "message": "CV-Parsing läuft bereits",
+            "status": _cv_parsing_status,
+        }
+
+    # Anzahl zu parsender Kandidaten ermitteln
     count_result = await db.execute(
         select(func.count(Candidate.id)).where(
             Candidate.cv_url.isnot(None),
@@ -180,97 +200,128 @@ async def parse_all_cvs(
     if total_to_parse == 0:
         return {"success": True, "message": "Keine CVs zum Parsen", "total": 0}
 
-    parsed = 0
-    failed = 0
-    skipped = 0
-    errors = []
-    total_tokens = 0
+    # Background Task starten
+    background_tasks.add_task(
+        _run_cv_parsing, batch_size, min(total_to_parse, max_candidates)
+    )
+
+    return {
+        "success": True,
+        "message": f"CV-Parsing gestartet für {min(total_to_parse, max_candidates)} Kandidaten",
+        "total_to_parse": total_to_parse,
+        "max_candidates": max_candidates,
+        "status_url": "/api/admin/parse-all-cvs/status",
+    }
+
+
+@router.get(
+    "/parse-all-cvs/status",
+    summary="CV-Parsing Status abfragen",
+)
+async def get_cv_parsing_status():
+    """Gibt den aktuellen Status des CV-Parsing Background Tasks zurück."""
+    return _cv_parsing_status
+
+
+async def _run_cv_parsing(batch_size: int, max_candidates: int):
+    """Background Task für CV-Parsing. Verwendet eigene DB-Session."""
+    from datetime import datetime, timezone
+
+    from sqlalchemy import select, func
+
+    from app.database import async_session_maker
+    from app.models.candidate import Candidate
+    from app.services.cv_parser_service import CVParserService
+
+    global _cv_parsing_status
+
+    _cv_parsing_status = {
+        "running": True,
+        "parsed": 0,
+        "failed": 0,
+        "total_to_parse": max_candidates,
+        "total_tokens": 0,
+        "errors": [],
+        "started_at": datetime.now(timezone.utc).isoformat(),
+        "finished_at": None,
+        "current_candidate": None,
+    }
 
     try:
-        parser = CVParserService(db)
+        async with async_session_maker() as db:
+            parser = CVParserService(db)
 
-        # In Batches verarbeiten
-        offset = 0
-        while offset < min(total_to_parse, max_candidates):
-            result = await db.execute(
-                select(Candidate)
-                .where(
-                    Candidate.cv_url.isnot(None),
-                    Candidate.cv_url != "",
-                    Candidate.cv_parsed_at.is_(None),
-                )
-                .limit(batch_size)
-                .offset(0)  # Immer 0, da geparste aus dem Query rausfallen
-            )
-            candidates = result.scalars().all()
-
-            if not candidates:
-                break
-
-            for candidate in candidates:
-                try:
-                    # PDF herunterladen
-                    pdf_bytes = await parser.download_cv(candidate.cv_url)
-
-                    # Text extrahieren
-                    cv_text = parser.extract_text_from_pdf(pdf_bytes)
-
-                    # Mit OpenAI parsen
-                    parse_result = await parser.parse_cv_text(cv_text)
-
-                    if parse_result.success and parse_result.data:
-                        await parser._update_candidate_from_cv(
-                            candidate, parse_result.data, cv_text
-                        )
-                        total_tokens += parse_result.tokens_used
-                        parsed += 1
-                    else:
-                        # Markiere als geparst (mit Fehler), damit wir nicht nochmal versuchen
-                        candidate.cv_parsed_at = datetime.now(timezone.utc)
-                        candidate.cv_text = f"FEHLER: {parse_result.error}"
-                        failed += 1
-                        errors.append(
-                            f"{candidate.first_name} {candidate.last_name}: {parse_result.error}"
-                        )
-
-                except Exception as e:
-                    failed += 1
-                    # Markiere auch bei Exception als versucht
-                    candidate.cv_parsed_at = datetime.now(timezone.utc)
-                    candidate.cv_text = f"FEHLER: {str(e)}"
-                    errors.append(
-                        f"{candidate.first_name} {candidate.last_name}: {e}"
+            offset = 0
+            while offset < max_candidates:
+                result = await db.execute(
+                    select(Candidate)
+                    .where(
+                        Candidate.cv_url.isnot(None),
+                        Candidate.cv_url != "",
+                        Candidate.cv_parsed_at.is_(None),
                     )
+                    .limit(batch_size)
+                    .offset(0)
+                )
+                candidates = result.scalars().all()
 
-            # Commit nach jedem Batch
-            await db.commit()
-            offset += batch_size
-            logger.info(
-                f"CV-Parsing Batch: {parsed} geparst, {failed} fehlgeschlagen "
-                f"({offset}/{min(total_to_parse, max_candidates)})"
-            )
+                if not candidates:
+                    break
 
-        await parser.close()
+                for candidate in candidates:
+                    _cv_parsing_status["current_candidate"] = (
+                        f"{candidate.first_name} {candidate.last_name}"
+                    )
+                    try:
+                        pdf_bytes = await parser.download_cv(candidate.cv_url)
+                        cv_text = parser.extract_text_from_pdf(pdf_bytes)
+                        parse_result = await parser.parse_cv_text(cv_text)
 
-        return {
-            "success": True,
-            "total_to_parse": total_to_parse,
-            "parsed": parsed,
-            "failed": failed,
-            "skipped": skipped,
-            "total_tokens": total_tokens,
-            "estimated_cost_usd": round(total_tokens * 0.00000015 + total_tokens * 0.0000006, 4),
-            "errors": errors[:50],
-        }
+                        if parse_result.success and parse_result.data:
+                            await parser._update_candidate_from_cv(
+                                candidate, parse_result.data, cv_text
+                            )
+                            _cv_parsing_status["total_tokens"] += parse_result.tokens_used
+                            _cv_parsing_status["parsed"] += 1
+                        else:
+                            candidate.cv_parsed_at = datetime.now(timezone.utc)
+                            candidate.cv_text = f"FEHLER: {parse_result.error}"
+                            _cv_parsing_status["failed"] += 1
+                            _cv_parsing_status["errors"].append(
+                                f"{candidate.first_name} {candidate.last_name}: {parse_result.error}"
+                            )
+
+                    except Exception as e:
+                        _cv_parsing_status["failed"] += 1
+                        candidate.cv_parsed_at = datetime.now(timezone.utc)
+                        candidate.cv_text = f"FEHLER: {str(e)}"
+                        _cv_parsing_status["errors"].append(
+                            f"{candidate.first_name} {candidate.last_name}: {e}"
+                        )
+
+                await db.commit()
+                offset += batch_size
+                logger.info(
+                    f"CV-Parsing: {_cv_parsing_status['parsed']} geparst, "
+                    f"{_cv_parsing_status['failed']} fehlgeschlagen ({offset}/{max_candidates})"
+                )
+
+            await parser.close()
 
     except Exception as e:
-        return {
-            "success": False,
-            "error": str(e),
-            "traceback": traceback.format_exc(),
-            "parsed": parsed,
-            "failed": failed,
-        }
+        logger.error(f"CV-Parsing Background Task fehlgeschlagen: {e}", exc_info=True)
+        _cv_parsing_status["errors"].append(f"FATAL: {e}")
+
+    _cv_parsing_status["running"] = False
+    _cv_parsing_status["finished_at"] = datetime.now(timezone.utc).isoformat()
+    _cv_parsing_status["current_candidate"] = None
+    # Nur die letzten 50 Fehler behalten
+    _cv_parsing_status["errors"] = _cv_parsing_status["errors"][-50:]
+
+    logger.info(
+        f"=== CV-PARSING FERTIG === {_cv_parsing_status['parsed']} geparst, "
+        f"{_cv_parsing_status['failed']} fehlgeschlagen"
+    )
 
 
 @router.post(
