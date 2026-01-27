@@ -231,6 +231,10 @@ class CVParserService:
 
             full_text = "\n\n".join(text_parts)
 
+            # Null-Bytes und andere Kontrollzeichen entfernen (PostgreSQL-kompatibel)
+            import re
+            full_text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", full_text)
+
             if not full_text.strip():
                 raise ValueError("PDF enthält keinen extrahierbaren Text")
 
@@ -471,8 +475,8 @@ class CVParserService:
                 entry.model_dump() for entry in cv_data.education
             ]
 
-        # CV-Text und Timestamp
-        candidate.cv_text = cv_text
+        # CV-Text und Timestamp (Null-Bytes entfernen für PostgreSQL)
+        candidate.cv_text = cv_text.replace("\x00", "") if cv_text else cv_text
         candidate.cv_parsed_at = now
         candidate.updated_at = now
 
