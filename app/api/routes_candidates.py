@@ -10,7 +10,7 @@ from app.api.exception_handlers import NotFoundException, ConflictException
 from app.api.rate_limiter import RateLimitTier, rate_limit
 from app.config import Limits
 from app.database import get_db
-from app.schemas.candidate import CandidateListResponse, CandidateResponse, CandidateUpdate
+from app.schemas.candidate import CandidateListResponse, CandidateResponse, CandidateUpdate, LanguageEntry
 from app.schemas.filters import CandidateFilterParams, SortOrder
 from app.schemas.pagination import PaginationParams
 from app.schemas.validators import BatchHideRequest
@@ -150,7 +150,7 @@ async def list_candidates(
     )
 
     return CandidateListResponse(
-        items=result.items,
+        items=[_candidate_to_response(c) for c in result.items],
         total=result.total,
         page=result.page,
         per_page=result.per_page,
@@ -383,7 +383,10 @@ def _candidate_to_response(candidate) -> CandidateResponse:
         current_position=candidate.current_position,
         current_company=candidate.current_company,
         skills=candidate.skills,
-        languages=candidate.languages,
+        languages=[
+            LanguageEntry(**lang) if isinstance(lang, dict) else lang
+            for lang in (candidate.languages or [])
+        ] or None,
         it_skills=candidate.it_skills,
         work_history=candidate.work_history,
         education=candidate.education,
