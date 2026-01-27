@@ -53,11 +53,19 @@ Extrahiere folgende Informationen:
    - Wenn keine Taetigkeiten beschrieben: null (nicht den String "null"!)
    - Chronologisch sortiert (neueste zuerst)
    - Auch Praktika, Werkstudentenjobs, Nebenjobs erfassen
+   - ACHTUNG: Folgendes gehoert NICHT in work_history sondern in education:
+     * IHK-Pruefungen, IHK-Weiterbildungen (z.B. "Bilanzbuchhalter IHK")
+     * Meisterschulen, Meisterbrief
+     * Weiterbildungsinstitute (z.B. Steuerfachschule Endriss, DAA, TA Bildungszentrum)
+     * Zertifizierungen, Lehrgaenge, Umschulungen
+     * Alles was eine AUSBILDUNG/WEITERBILDUNG ist, auch wenn es im CV unter "Berufserfahrung" steht
 
 3. VOLLSTAENDIGE Ausbildung & Qualifikationen (education):
    - ALLE Abschluesse: Schule, Ausbildung, Studium, Weiterbildungen, Zertifikate
    - Fuer JEDEN Eintrag: institution, degree, field_of_study, start_date, end_date
-   - Auch IHK-Pruefungen, Meisterbrief, Fortbildungen, Schulungen erfassen
+   - IHK-Pruefungen (z.B. "Bilanzbuchhalter IHK", "Fachwirt IHK") gehoeren IMMER hierher!
+   - Meisterbrief, Fortbildungen, Schulungen, Lehrgaenge gehoeren IMMER hierher!
+   - Auch wenn diese im CV unter "Berufserfahrung" stehen - sie gehoeren in education!
 
 4. IT-Kenntnisse (it_skills) - SEPARATES Feld:
    - NUR Software, Tools und technische Systeme
