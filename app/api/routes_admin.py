@@ -108,6 +108,133 @@ async def test_crm_connection():
 
 
 @router.post(
+    "/parse-all-cvs",
+    summary="Alle CVs parsen (Batch)",
+)
+async def parse_all_cvs(
+    db: AsyncSession = Depends(get_db),
+    batch_size: int = Query(default=10, description="Kandidaten pro Batch"),
+    max_candidates: int = Query(default=5000, description="Maximale Anzahl"),
+):
+    """
+    Parst alle CVs der Kandidaten, die noch nicht geparst wurden.
+    Lädt PDFs herunter, extrahiert Text, sendet an OpenAI.
+    """
+    import traceback
+    from datetime import datetime, timezone
+
+    from sqlalchemy import select, func
+
+    from app.models.candidate import Candidate
+    from app.services.cv_parser_service import CVParserService
+
+    # Kandidaten mit cv_url aber ohne cv_parsed_at finden
+    count_result = await db.execute(
+        select(func.count(Candidate.id)).where(
+            Candidate.cv_url.isnot(None),
+            Candidate.cv_url != "",
+            Candidate.cv_parsed_at.is_(None),
+        )
+    )
+    total_to_parse = count_result.scalar() or 0
+
+    if total_to_parse == 0:
+        return {"success": True, "message": "Keine CVs zum Parsen", "total": 0}
+
+    parsed = 0
+    failed = 0
+    skipped = 0
+    errors = []
+    total_tokens = 0
+
+    try:
+        parser = CVParserService(db)
+
+        # In Batches verarbeiten
+        offset = 0
+        while offset < min(total_to_parse, max_candidates):
+            result = await db.execute(
+                select(Candidate)
+                .where(
+                    Candidate.cv_url.isnot(None),
+                    Candidate.cv_url != "",
+                    Candidate.cv_parsed_at.is_(None),
+                )
+                .limit(batch_size)
+                .offset(0)  # Immer 0, da geparste aus dem Query rausfallen
+            )
+            candidates = result.scalars().all()
+
+            if not candidates:
+                break
+
+            for candidate in candidates:
+                try:
+                    # PDF herunterladen
+                    pdf_bytes = await parser.download_cv(candidate.cv_url)
+
+                    # Text extrahieren
+                    cv_text = parser.extract_text_from_pdf(pdf_bytes)
+
+                    # Mit OpenAI parsen
+                    parse_result = await parser.parse_cv_text(cv_text)
+
+                    if parse_result.success and parse_result.data:
+                        await parser._update_candidate_from_cv(
+                            candidate, parse_result.data, cv_text
+                        )
+                        total_tokens += parse_result.tokens_used
+                        parsed += 1
+                    else:
+                        # Markiere als geparst (mit Fehler), damit wir nicht nochmal versuchen
+                        candidate.cv_parsed_at = datetime.now(timezone.utc)
+                        candidate.cv_text = f"FEHLER: {parse_result.error}"
+                        failed += 1
+                        errors.append(
+                            f"{candidate.first_name} {candidate.last_name}: {parse_result.error}"
+                        )
+
+                except Exception as e:
+                    failed += 1
+                    # Markiere auch bei Exception als versucht
+                    candidate.cv_parsed_at = datetime.now(timezone.utc)
+                    candidate.cv_text = f"FEHLER: {str(e)}"
+                    errors.append(
+                        f"{candidate.first_name} {candidate.last_name}: {e}"
+                    )
+
+            # Commit nach jedem Batch
+            await db.commit()
+            offset += batch_size
+            logger.info(
+                f"CV-Parsing Batch: {parsed} geparst, {failed} fehlgeschlagen "
+                f"({offset}/{min(total_to_parse, max_candidates)})"
+            )
+
+        await parser.close()
+
+        return {
+            "success": True,
+            "total_to_parse": total_to_parse,
+            "parsed": parsed,
+            "failed": failed,
+            "skipped": skipped,
+            "total_tokens": total_tokens,
+            "estimated_cost_usd": round(total_tokens * 0.00000015 + total_tokens * 0.0000006, 4),
+            "errors": errors[:50],
+        }
+
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc(),
+            "parsed": parsed,
+            "failed": failed,
+        }
+
+
+@router.post(
     "/import-all",
     summary="Alle Kandidaten direkt importieren (kein Background Task)",
 )
