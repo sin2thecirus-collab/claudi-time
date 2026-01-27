@@ -107,6 +107,92 @@ async def test_crm_connection():
     return result
 
 
+@router.post(
+    "/test-import-one",
+    summary="Einen einzelnen Kandidaten importieren (Debug)",
+)
+async def test_import_one_candidate(
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Importiert den ERSTEN Kandidaten aus dem CRM direkt in die DB.
+    Zeigt jeden Schritt detailliert an.
+    """
+    import httpx
+    import traceback
+    from app.services.crm_client import RecruitCRMClient
+    from app.models.candidate import Candidate
+
+    steps = []
+
+    try:
+        # Schritt 1: CRM-Client erstellen
+        steps.append("1. CRM-Client erstellt")
+        client = RecruitCRMClient()
+
+        # Schritt 2: Ersten Kandidaten laden
+        steps.append("2. Lade Kandidaten von API...")
+        response = await client.get_candidates(page=1, per_page=1)
+        candidates = response.get("data", [])
+        steps.append(f"   -> {len(candidates)} Kandidaten geladen")
+
+        if not candidates:
+            steps.append("FEHLER: Keine Kandidaten von API erhalten!")
+            await client.close()
+            return {"steps": steps, "success": False}
+
+        crm_data = candidates[0]
+        steps.append(f"   -> Erster Kandidat: {crm_data.get('first_name')} {crm_data.get('last_name')}")
+
+        # Schritt 3: Mapping
+        steps.append("3. Mappe CRM-Daten...")
+        mapped = client.map_to_candidate_data(crm_data)
+        steps.append(f"   -> crm_id: {mapped.get('crm_id')}")
+        steps.append(f"   -> Name: {mapped.get('first_name')} {mapped.get('last_name')}")
+        steps.append(f"   -> Email: {mapped.get('email')}")
+        steps.append(f"   -> Stadt: {mapped.get('city')}")
+        steps.append(f"   -> Position: {mapped.get('current_position')}")
+        steps.append(f"   -> CV-URL: {'Ja' if mapped.get('cv_url') else 'Nein'}")
+
+        # Schritt 4: In DB speichern
+        steps.append("4. Speichere in Datenbank...")
+        candidate = Candidate(
+            crm_id=mapped["crm_id"],
+            first_name=mapped.get("first_name"),
+            last_name=mapped.get("last_name"),
+            email=mapped.get("email"),
+            phone=mapped.get("phone"),
+            current_position=mapped.get("current_position"),
+            current_company=mapped.get("current_company"),
+            skills=mapped.get("skills"),
+            street_address=mapped.get("street_address"),
+            postal_code=mapped.get("postal_code"),
+            city=mapped.get("city"),
+            cv_url=mapped.get("cv_url"),
+        )
+        db.add(candidate)
+        await db.flush()
+        steps.append(f"   -> DB-ID: {candidate.id}")
+
+        # Schritt 5: Commit
+        await db.commit()
+        steps.append("5. Commit erfolgreich!")
+
+        await client.close()
+
+        return {
+            "steps": steps,
+            "success": True,
+            "candidate_id": str(candidate.id),
+            "candidate_name": f"{candidate.first_name} {candidate.last_name}",
+        }
+
+    except Exception as e:
+        steps.append(f"FEHLER: {type(e).__name__}: {str(e)}")
+        steps.append(f"Traceback: {traceback.format_exc()}")
+        return {"steps": steps, "success": False, "error": str(e)}
+
+
 # ==================== Cron-Authentifizierung ====================
 
 async def verify_cron_secret(
