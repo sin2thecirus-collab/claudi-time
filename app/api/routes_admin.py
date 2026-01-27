@@ -218,9 +218,50 @@ async def parse_all_cvs(
     "/parse-all-cvs/status",
     summary="CV-Parsing Status abfragen",
 )
-async def get_cv_parsing_status():
-    """Gibt den aktuellen Status des CV-Parsing Background Tasks zurück."""
-    return _cv_parsing_status
+async def get_cv_parsing_status(db: AsyncSession = Depends(get_db)):
+    """Gibt den aktuellen Status des CV-Parsing Background Tasks zurück,
+    inklusive tatsächlicher DB-Werte."""
+    from sqlalchemy import select, func
+
+    from app.models.candidate import Candidate
+
+    # Tatsächliche DB-Werte abfragen
+    total_result = await db.execute(select(func.count(Candidate.id)))
+    total_candidates = total_result.scalar() or 0
+
+    parsed_result = await db.execute(
+        select(func.count(Candidate.id)).where(
+            Candidate.cv_parsed_at.isnot(None),
+        )
+    )
+    parsed_in_db = parsed_result.scalar() or 0
+
+    with_cv_url_result = await db.execute(
+        select(func.count(Candidate.id)).where(
+            Candidate.cv_url.isnot(None),
+            Candidate.cv_url != "",
+        )
+    )
+    with_cv_url = with_cv_url_result.scalar() or 0
+
+    unparsed_result = await db.execute(
+        select(func.count(Candidate.id)).where(
+            Candidate.cv_url.isnot(None),
+            Candidate.cv_url != "",
+            Candidate.cv_parsed_at.is_(None),
+        )
+    )
+    unparsed = unparsed_result.scalar() or 0
+
+    return {
+        **_cv_parsing_status,
+        "db_stats": {
+            "total_candidates": total_candidates,
+            "parsed_in_db": parsed_in_db,
+            "with_cv_url": with_cv_url,
+            "unparsed_with_cv_url": unparsed,
+        },
+    }
 
 
 async def _run_cv_parsing(batch_size: int, max_candidates: int):
