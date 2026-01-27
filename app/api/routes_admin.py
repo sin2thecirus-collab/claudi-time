@@ -108,89 +108,106 @@ async def test_crm_connection():
 
 
 @router.post(
-    "/test-import-one",
-    summary="Einen einzelnen Kandidaten importieren (Debug)",
+    "/import-all",
+    summary="Alle Kandidaten direkt importieren (kein Background Task)",
 )
-async def test_import_one_candidate(
+async def import_all_candidates(
     db: AsyncSession = Depends(get_db),
+    max_pages: int = Query(default=100, description="Maximale Seitenzahl"),
 ):
     """
-    Importiert den ERSTEN Kandidaten aus dem CRM direkt in die DB.
-    Zeigt jeden Schritt detailliert an.
+    Importiert ALLE Kandidaten direkt in der Request-Session.
+    Kein Background Task — verwendet die bewährte DB-Session aus get_db.
     """
-    import httpx
     import traceback
-    from app.services.crm_client import RecruitCRMClient
-    from app.models.candidate import Candidate
+    from datetime import datetime, timezone
 
-    steps = []
+    from sqlalchemy import select
+
+    from app.models.candidate import Candidate
+    from app.services.crm_client import RecruitCRMClient
+
+    created = 0
+    updated = 0
+    failed = 0
+    errors = []
 
     try:
-        # Schritt 1: CRM-Client erstellen
-        steps.append("1. CRM-Client erstellt")
         client = RecruitCRMClient()
 
-        # Schritt 2: Ersten Kandidaten laden
-        steps.append("2. Lade Kandidaten von API...")
-        response = await client.get_candidates(page=1, per_page=1)
-        candidates = response.get("data", [])
-        steps.append(f"   -> {len(candidates)} Kandidaten geladen")
+        async for page_num, candidates, estimated_total in client.get_all_candidates_paginated(
+            per_page=100, max_pages=max_pages
+        ):
+            logger.info(f"Import Seite {page_num}: {len(candidates)} Kandidaten")
 
-        if not candidates:
-            steps.append("FEHLER: Keine Kandidaten von API erhalten!")
-            await client.close()
-            return {"steps": steps, "success": False}
+            for crm_data in candidates:
+                try:
+                    mapped = client.map_to_candidate_data(crm_data)
+                    crm_id = mapped.get("crm_id")
+                    if not crm_id:
+                        failed += 1
+                        continue
 
-        crm_data = candidates[0]
-        steps.append(f"   -> Erster Kandidat: {crm_data.get('first_name')} {crm_data.get('last_name')}")
+                    result = await db.execute(
+                        select(Candidate).where(Candidate.crm_id == crm_id)
+                    )
+                    existing = result.scalar_one_or_none()
+                    now = datetime.now(timezone.utc)
 
-        # Schritt 3: Mapping
-        steps.append("3. Mappe CRM-Daten...")
-        mapped = client.map_to_candidate_data(crm_data)
-        steps.append(f"   -> crm_id: {mapped.get('crm_id')}")
-        steps.append(f"   -> Name: {mapped.get('first_name')} {mapped.get('last_name')}")
-        steps.append(f"   -> Email: {mapped.get('email')}")
-        steps.append(f"   -> Stadt: {mapped.get('city')}")
-        steps.append(f"   -> Position: {mapped.get('current_position')}")
-        steps.append(f"   -> CV-URL: {'Ja' if mapped.get('cv_url') else 'Nein'}")
+                    if existing:
+                        for key, value in mapped.items():
+                            if key != "crm_id" and value is not None:
+                                setattr(existing, key, value)
+                        existing.crm_synced_at = now
+                        existing.updated_at = now
+                        updated += 1
+                    else:
+                        candidate = Candidate(
+                            crm_id=crm_id,
+                            first_name=mapped.get("first_name"),
+                            last_name=mapped.get("last_name"),
+                            email=mapped.get("email"),
+                            phone=mapped.get("phone"),
+                            current_position=mapped.get("current_position"),
+                            current_company=mapped.get("current_company"),
+                            skills=mapped.get("skills"),
+                            street_address=mapped.get("street_address"),
+                            postal_code=mapped.get("postal_code"),
+                            city=mapped.get("city"),
+                            cv_url=mapped.get("cv_url"),
+                            crm_synced_at=now,
+                        )
+                        db.add(candidate)
+                        created += 1
 
-        # Schritt 4: In DB speichern
-        steps.append("4. Speichere in Datenbank...")
-        candidate = Candidate(
-            crm_id=mapped["crm_id"],
-            first_name=mapped.get("first_name"),
-            last_name=mapped.get("last_name"),
-            email=mapped.get("email"),
-            phone=mapped.get("phone"),
-            current_position=mapped.get("current_position"),
-            current_company=mapped.get("current_company"),
-            skills=mapped.get("skills"),
-            street_address=mapped.get("street_address"),
-            postal_code=mapped.get("postal_code"),
-            city=mapped.get("city"),
-            cv_url=mapped.get("cv_url"),
-        )
-        db.add(candidate)
-        await db.flush()
-        steps.append(f"   -> DB-ID: {candidate.id}")
+                except Exception as e:
+                    failed += 1
+                    errors.append(f"{crm_data.get('slug')}: {e}")
 
-        # Schritt 5: Commit
-        await db.commit()
-        steps.append("5. Commit erfolgreich!")
+            # Commit nach jeder Seite
+            await db.commit()
+            logger.info(f"Seite {page_num} committed: {created} erstellt, {updated} aktualisiert")
 
         await client.close()
 
         return {
-            "steps": steps,
             "success": True,
-            "candidate_id": str(candidate.id),
-            "candidate_name": f"{candidate.first_name} {candidate.last_name}",
+            "created": created,
+            "updated": updated,
+            "failed": failed,
+            "total": created + updated + failed,
+            "errors": errors[:20],
         }
 
     except Exception as e:
-        steps.append(f"FEHLER: {type(e).__name__}: {str(e)}")
-        steps.append(f"Traceback: {traceback.format_exc()}")
-        return {"steps": steps, "success": False, "error": str(e)}
+        return {
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc(),
+            "created": created,
+            "updated": updated,
+            "failed": failed,
+        }
 
 
 # ==================== Cron-Authentifizierung ====================
