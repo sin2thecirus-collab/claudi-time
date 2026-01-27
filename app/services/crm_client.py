@@ -349,10 +349,18 @@ class RecruitCRMClient:
         Returns:
             Dictionary mit gemappten Feldern für CandidateCreate
         """
-        # Adresse - Recruit CRM hat separate Felder
-        street_address = crm_data.get("address") or None
+        # Adresse - Recruit CRM liefert "address" als Volltext
+        # plus separate Felder "postal_code" und "city"/"locality".
+        # Das address-Feld enthält oft die komplette Adresse inkl. Stadt, PLZ, Land
+        # → Wir extrahieren nur die Straße daraus.
+        raw_address = crm_data.get("address") or ""
         postal_code = crm_data.get("postal_code") or None
         city = crm_data.get("city") or crm_data.get("locality") or None
+
+        # Straße aus dem address-Feld extrahieren (Land/Stadt/PLZ entfernen)
+        street_address = self._extract_street_from_address(
+            raw_address, postal_code, city
+        )
 
         # Skills aus CRM - API liefert "skill" als Array von Objekten oder String
         skills_data = crm_data.get("skill", [])
@@ -399,6 +407,79 @@ class RecruitCRMClient:
             # CV URL für optionales OpenAI Parsing
             "cv_url": cv_url,
         }
+
+    # Länder-Keywords zum Rausfiltern aus Adressen
+    _COUNTRY_KEYWORDS = {
+        "germany", "deutschland", "austria", "österreich", "switzerland",
+        "schweiz", "france", "frankreich", "netherlands", "niederlande",
+        "belgium", "belgien", "italy", "italien", "spain", "spanien",
+        "poland", "polen", "czech republic", "tschechien",
+    }
+
+    def _extract_street_from_address(
+        self,
+        full_address: str,
+        known_postal_code: str | None,
+        known_city: str | None,
+    ) -> str | None:
+        """Extrahiert nur die Straße+Hausnummer aus einem vollen Adress-String.
+
+        Entfernt PLZ, Stadt, Land aus dem address-Feld, damit nur
+        "Straße Hausnummer" übrig bleibt.
+
+        Args:
+            full_address: Vollständige Adresse aus CRM (z.B. "Musterstr. 5, München, Germany, 80331")
+            known_postal_code: Separat gelieferter PLZ-Wert aus CRM
+            known_city: Separat gelieferter Stadt-Wert aus CRM
+
+        Returns:
+            Nur der Straßen-Teil oder None
+        """
+        if not full_address or not full_address.strip():
+            return None
+
+        parts = [p.strip() for p in full_address.split(",")]
+        street_parts = []
+
+        for part in parts:
+            part_lower = part.lower().strip()
+
+            # Land rausfiltern
+            if part_lower in self._COUNTRY_KEYWORDS:
+                continue
+
+            # Bekannte Stadt rausfiltern (case-insensitive)
+            if known_city and part_lower == known_city.lower().strip():
+                continue
+
+            # Bekannte PLZ rausfiltern
+            if known_postal_code and part.strip() == known_postal_code.strip():
+                continue
+
+            # 5-stellige PLZ erkennen und rausfiltern (auch wenn nicht separat geliefert)
+            stripped = part.strip()
+            if stripped.isdigit() and len(stripped) == 5:
+                continue
+
+            # Kombination "PLZ Stadt" erkennen (z.B. "85662 Hohenbrunn")
+            words = stripped.split()
+            if len(words) >= 2 and words[0].isdigit() and len(words[0]) == 5:
+                continue
+
+            # Teil behalten (gehört zur Straße)
+            if part.strip():
+                street_parts.append(part.strip())
+
+        result = ", ".join(street_parts) if street_parts else None
+
+        # Falls Ergebnis identisch mit der vollen Adresse ist und wir
+        # keine PLZ/Stadt separat haben, die _parse_address Methode nutzen
+        if result and not known_postal_code and not known_city:
+            parsed = self._parse_address(full_address)
+            if parsed.get("street"):
+                return parsed["street"]
+
+        return result
 
     def _parse_address(self, full_address: str) -> dict[str, str | None]:
         """Parst eine vollständige Adresse in Komponenten.

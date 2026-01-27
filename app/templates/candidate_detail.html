@@ -153,11 +153,11 @@
                         </div>
                         {% endif %}
 
-                        {% if candidate.street_address %}
+                        {% if candidate.street_address or candidate.postal_code or candidate.city %}
                         <div class="sm:col-span-2">
                             <dt class="text-sm font-medium text-gray-500">Adresse</dt>
                             <dd class="mt-1 text-sm text-gray-900">
-                                {{ candidate.street_address }}{% if candidate.postal_code or candidate.city %}, {{ candidate.postal_code }} {{ candidate.city }}{% endif %}
+                                {% if candidate.street_address %}{{ candidate.street_address }}{% endif %}{% if candidate.postal_code or candidate.city %}{% if candidate.street_address %}, {% endif %}{{ candidate.postal_code }} {{ candidate.city }}{% endif %}
                             </dd>
                         </div>
                         {% endif %}
