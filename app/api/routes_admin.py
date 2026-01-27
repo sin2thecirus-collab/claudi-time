@@ -210,6 +210,22 @@ async def import_all_candidates(
         }
 
 
+@router.post(
+    "/migrate-cv-url",
+    summary="Einmalige DB-Migration: cv_url Spalte vergrößern",
+)
+async def migrate_cv_url(db: AsyncSession = Depends(get_db)):
+    """Ändert cv_url von VARCHAR(500) auf TEXT."""
+    from sqlalchemy import text
+
+    try:
+        await db.execute(text("ALTER TABLE candidates ALTER COLUMN cv_url TYPE TEXT"))
+        await db.commit()
+        return {"success": True, "message": "cv_url auf TEXT geändert"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 # ==================== Cron-Authentifizierung ====================
 
 async def verify_cron_secret(

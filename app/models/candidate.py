@@ -54,7 +54,7 @@ class Candidate(Base):
 
     # CV-Daten
     cv_text: Mapped[str | None] = mapped_column(Text)
-    cv_url: Mapped[str | None] = mapped_column(String(500))
+    cv_url: Mapped[str | None] = mapped_column(Text)
     cv_parsed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     # Status
