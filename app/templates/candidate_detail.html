@@ -61,7 +61,7 @@
                                 <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
                                 </svg>
-                                Im System seit {{ candidate.created_at.strftime('%d.%m.%Y') }}
+                                Im System seit {{ candidate.created_at.strftime('%d.%m.%Y') if candidate.created_at else 'Unbekannt' }}
                             </span>
                         </div>
                     </div>
@@ -184,7 +184,7 @@
             {% endif %}
 
             {# Berufserfahrung #}
-            {% if candidate.work_history and candidate.work_history | length > 0 %}
+            {% if candidate.work_history and candidate.work_history is iterable and candidate.work_history is not string and candidate.work_history | length > 0 %}
             <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg">
                 <div class="px-4 py-5 sm:px-6">
                     <h3 class="text-base font-semibold leading-6 text-gray-900">Berufserfahrung</h3>
@@ -192,10 +192,11 @@
                 <div class="border-t border-gray-200">
                     <ul class="divide-y divide-gray-200">
                         {% for job in candidate.work_history %}
+                        {% if job is mapping %}
                         <li class="px-4 py-4 sm:px-6">
                             <div class="flex items-start justify-between">
                                 <div>
-                                    <p class="text-sm font-medium text-gray-900">{{ job.position | default('Unbekannte Position') }}</p>
+                                    <p class="text-sm font-medium text-gray-900">{{ job.position | default(job.title | default('Unbekannte Position')) }}</p>
                                     <p class="text-sm text-gray-500">{{ job.company | default('Unbekanntes Unternehmen') }}</p>
                                 </div>
                                 <div class="text-sm text-gray-400 text-right">
@@ -207,6 +208,7 @@
                             <p class="mt-2 text-sm text-gray-600">{{ job.description }}</p>
                             {% endif %}
                         </li>
+                        {% endif %}
                         {% endfor %}
                     </ul>
                 </div>
@@ -214,7 +216,7 @@
             {% endif %}
 
             {# Ausbildung #}
-            {% if candidate.education and candidate.education | length > 0 %}
+            {% if candidate.education and candidate.education is iterable and candidate.education is not string and candidate.education | length > 0 %}
             <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg">
                 <div class="px-4 py-5 sm:px-6">
                     <h3 class="text-base font-semibold leading-6 text-gray-900">Ausbildung</h3>
@@ -222,6 +224,7 @@
                 <div class="border-t border-gray-200">
                     <ul class="divide-y divide-gray-200">
                         {% for edu in candidate.education %}
+                        {% if edu is mapping %}
                         <li class="px-4 py-4 sm:px-6">
                             <div class="flex items-start justify-between">
                                 <div>
@@ -233,6 +236,7 @@
                                 </div>
                             </div>
                         </li>
+                        {% endif %}
                         {% endfor %}
                     </ul>
                 </div>
