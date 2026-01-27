@@ -211,19 +211,35 @@ async def import_all_candidates(
 
 
 @router.post(
-    "/migrate-cv-url",
-    summary="Einmalige DB-Migration: cv_url Spalte vergrößern",
+    "/migrate-columns",
+    summary="DB-Migration: Spalten vergrößern für CRM-Daten",
 )
-async def migrate_cv_url(db: AsyncSession = Depends(get_db)):
-    """Ändert cv_url von VARCHAR(500) auf TEXT."""
+async def migrate_columns(db: AsyncSession = Depends(get_db)):
+    """Ändert zu kurze VARCHAR-Spalten auf TEXT oder größere Werte."""
     from sqlalchemy import text
 
-    try:
-        await db.execute(text("ALTER TABLE candidates ALTER COLUMN cv_url TYPE TEXT"))
-        await db.commit()
-        return {"success": True, "message": "cv_url auf TEXT geändert"}
-    except Exception as e:
-        return {"success": False, "error": str(e)}
+    migrations = [
+        ("cv_url", "ALTER TABLE candidates ALTER COLUMN cv_url TYPE TEXT"),
+        ("street_address", "ALTER TABLE candidates ALTER COLUMN street_address TYPE TEXT"),
+        ("postal_code", "ALTER TABLE candidates ALTER COLUMN postal_code TYPE VARCHAR(50)"),
+        ("city", "ALTER TABLE candidates ALTER COLUMN city TYPE VARCHAR(255)"),
+        ("current_position", "ALTER TABLE candidates ALTER COLUMN current_position TYPE TEXT"),
+        ("current_company", "ALTER TABLE candidates ALTER COLUMN current_company TYPE TEXT"),
+        ("phone", "ALTER TABLE candidates ALTER COLUMN phone TYPE VARCHAR(100)"),
+        ("email", "ALTER TABLE candidates ALTER COLUMN email TYPE VARCHAR(500)"),
+        ("crm_id", "ALTER TABLE candidates ALTER COLUMN crm_id TYPE VARCHAR(255)"),
+    ]
+
+    results = []
+    for name, sql in migrations:
+        try:
+            await db.execute(text(sql))
+            results.append({"column": name, "status": "ok"})
+        except Exception as e:
+            results.append({"column": name, "status": "error", "error": str(e)})
+
+    await db.commit()
+    return {"success": True, "migrations": results}
 
 
 # ==================== Cron-Authentifizierung ====================

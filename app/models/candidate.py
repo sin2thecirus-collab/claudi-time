@@ -24,18 +24,18 @@ class Candidate(Base):
     )
 
     # CRM-Referenz
-    crm_id: Mapped[str | None] = mapped_column(String(100), unique=True)
+    crm_id: Mapped[str | None] = mapped_column(String(255), unique=True)
 
     # Persönliche Daten
     first_name: Mapped[str | None] = mapped_column(String(100))
     last_name: Mapped[str | None] = mapped_column(String(100))
-    email: Mapped[str | None] = mapped_column(String(255))
-    phone: Mapped[str | None] = mapped_column(String(50))
+    email: Mapped[str | None] = mapped_column(String(500))
+    phone: Mapped[str | None] = mapped_column(String(100))
     birth_date: Mapped[date | None] = mapped_column(Date)
 
     # Berufliche Daten
-    current_position: Mapped[str | None] = mapped_column(String(255))
-    current_company: Mapped[str | None] = mapped_column(String(255))
+    current_position: Mapped[str | None] = mapped_column(Text)
+    current_company: Mapped[str | None] = mapped_column(Text)
     skills: Mapped[list[str] | None] = mapped_column(ARRAY(String))
 
     # Berufserfahrung und Ausbildung (aus CV-Parsing)
@@ -43,9 +43,9 @@ class Candidate(Base):
     education: Mapped[dict | None] = mapped_column(JSONB)
 
     # Adresse
-    street_address: Mapped[str | None] = mapped_column(String(255))
-    postal_code: Mapped[str | None] = mapped_column(String(10))
-    city: Mapped[str | None] = mapped_column(String(100))
+    street_address: Mapped[str | None] = mapped_column(Text)
+    postal_code: Mapped[str | None] = mapped_column(String(50))
+    city: Mapped[str | None] = mapped_column(String(255))
 
     # Koordinaten (PostGIS Geography)
     address_coords: Mapped[str | None] = mapped_column(
