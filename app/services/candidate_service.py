@@ -24,6 +24,7 @@ from app.schemas.candidate import (
     CandidateResponse,
     CandidateUpdate,
     CandidateWithMatch,
+    LanguageEntry,
 )
 from app.schemas.filters import CandidateFilterParams
 from app.schemas.pagination import PaginatedResponse, PaginationParams
@@ -521,6 +522,11 @@ class CandidateService:
             current_position=candidate.current_position,
             current_company=candidate.current_company,
             skills=candidate.skills,
+            languages=[
+                LanguageEntry(**lang) if isinstance(lang, dict) else lang
+                for lang in (candidate.languages or [])
+            ] or None,
+            it_skills=candidate.it_skills,
             work_history=candidate.work_history,
             education=candidate.education,
             street_address=candidate.street_address,

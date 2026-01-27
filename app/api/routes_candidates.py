@@ -105,6 +105,7 @@ async def _run_crm_sync(db: AsyncSession, job_run_id: UUID, full_sync: bool):
 
 @router.get(
     "",
+    response_model=CandidateListResponse,
     summary="Kandidaten auflisten",
 )
 async def list_candidates(
@@ -143,22 +144,18 @@ async def list_candidates(
     )
     pagination = PaginationParams(page=page, per_page=per_page)
 
-    try:
-        result = await candidate_service.list_candidates(
-            filters=filters,
-            pagination=pagination,
-        )
+    result = await candidate_service.list_candidates(
+        filters=filters,
+        pagination=pagination,
+    )
 
-        return CandidateListResponse(
-            items=[_candidate_to_response(c) for c in result.items],
-            total=result.total,
-            page=result.page,
-            per_page=result.per_page,
-            pages=result.pages,
-        )
-    except Exception as e:
-        import traceback
-        return {"debug_error": f"{type(e).__name__}: {e}", "traceback": traceback.format_exc()}
+    return CandidateListResponse(
+        items=result.items,
+        total=result.total,
+        page=result.page,
+        per_page=result.per_page,
+        pages=result.pages,
+    )
 
 
 @router.get(
