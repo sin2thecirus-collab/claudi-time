@@ -383,6 +383,8 @@ def _candidate_to_response(candidate) -> CandidateResponse:
         current_position=candidate.current_position,
         current_company=candidate.current_company,
         skills=candidate.skills,
+        languages=candidate.languages,
+        it_skills=candidate.it_skills,
         work_history=candidate.work_history,
         education=candidate.education,
         street_address=candidate.street_address,

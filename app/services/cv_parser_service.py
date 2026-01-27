@@ -21,7 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import limits, settings
 from app.models.candidate import Candidate
-from app.schemas.candidate import CVParseResult, EducationEntry, WorkHistoryEntry
+from app.schemas.candidate import CVParseResult, EducationEntry, LanguageEntry, WorkHistoryEntry
 
 logger = logging.getLogger(__name__)
 
@@ -33,36 +33,48 @@ Deine Aufgabe ist es, strukturierte Informationen aus dem CV-Text zu extrahieren
 
 WICHTIG:
 - Extrahiere NUR Informationen, die EXPLIZIT im Text stehen
+- Uebernimm Texte GENAU SO wie sie im Lebenslauf stehen (nicht umformulieren!)
 - Wenn eine Information nicht vorhanden ist, setze den Wert auf null
 - Alle Texte auf DEUTSCH
-- Datumsformate: "MM/YYYY" oder "YYYY" für Start/Ende
+- Datumsformate: "MM/YYYY" oder "YYYY" fuer Start/Ende
 - Bei "heute" oder "aktuell" als Enddatum: "heute" verwenden
 
 Extrahiere folgende Informationen:
 
 1. Aktuelle Position (current_position):
    - Die AKTUELLE/LETZTE Berufsbezeichnung des Kandidaten
-   - z.B. "Finanzbuchhalter", "Bilanzbuchhalter", "Elektriker", "IT-Techniker"
+   - GENAU so uebernehmen wie im CV geschrieben
 
-2. VOLLSTÄNDIGER Beruflicher Werdegang (work_history):
+2. VOLLSTAENDIGER Beruflicher Werdegang (work_history):
    - Extrahiere ALLE beruflichen Stationen - KEINE auslassen!
-   - Für JEDE Station: company, position, start_date, end_date, description
-   - description: Welche Tätigkeiten wurden ausgeübt? Was waren die Aufgaben?
+   - Fuer JEDE Station: company, position, start_date, end_date, description
+   - description: Welche Taetigkeiten wurden ausgeubt? GENAU aus dem CV uebernehmen!
    - Chronologisch sortiert (neueste zuerst)
    - Auch Praktika, Werkstudentenjobs, Nebenjobs erfassen
 
-3. VOLLSTÄNDIGE Ausbildung & Qualifikationen (education):
-   - ALLE Abschlüsse: Schule, Ausbildung, Studium, Weiterbildungen, Zertifikate
-   - Für JEDEN Eintrag: institution, degree, field_of_study, start_date, end_date
-   - Auch IHK-Prüfungen, Meisterbrief, Fortbildungen erfassen
+3. VOLLSTAENDIGE Ausbildung & Qualifikationen (education):
+   - ALLE Abschluesse: Schule, Ausbildung, Studium, Weiterbildungen, Zertifikate
+   - Fuer JEDEN Eintrag: institution, degree, field_of_study, start_date, end_date
+   - Auch IHK-Pruefungen, Meisterbrief, Fortbildungen, Schulungen erfassen
 
-4. Skills/Kenntnisse:
-   - Liste aller relevanten Fähigkeiten
-   - Software: SAP, DATEV, Excel, Word, etc.
-   - Fachkenntnisse: Buchhaltung, Bilanzierung, Technik, etc.
-   - Sprachen, Führerschein, etc.
+4. IT-Kenntnisse (it_skills) - SEPARATES Feld:
+   - NUR Software, Tools und technische Systeme
+   - z.B. SAP, DATEV, Lexware, Microsoft Office, Excel, ERP-Systeme, CRM-Systeme
+   - Programmiersprachen, Datenbanken, Betriebssysteme
+   - KEINE allgemeinen Fachkenntnisse hier (die gehoeren in skills)
 
-5. Persönliche Daten (falls im CV vorhanden):
+5. Sprachkenntnisse (languages) - SEPARATES Feld:
+   - JEDE Sprache als eigenes Objekt mit language und level
+   - Level GENAU so uebernehmen wie im CV (z.B. "B2", "Muttersprache", "Grundkenntnisse", "fliessend", "verhandlungssicher")
+   - Wenn kein Level angegeben: level auf null setzen
+
+6. Sonstige Skills/Kenntnisse (skills):
+   - Fachliche Kenntnisse: Buchhaltung, Bilanzierung, Schweissen, etc.
+   - KEINE IT-Kenntnisse hier (die gehoeren in it_skills)
+   - KEINE Sprachen hier (die gehoeren in languages)
+   - Fuehrerschein, Zertifikate etc.
+
+7. Persoenliche Daten (falls im CV vorhanden):
    - first_name, last_name
    - birth_date (Format: "DD.MM.YYYY")
    - street_address, postal_code, city
@@ -76,46 +88,31 @@ Antworte NUR mit einem validen JSON-Objekt:
       "position": "Finanzbuchhalter",
       "start_date": "03/2020",
       "end_date": "heute",
-      "description": "Debitoren-/Kreditorenbuchhaltung, Monatsabschlüsse, Mahnwesen"
-    },
-    {
-      "company": "XYZ AG",
-      "position": "Buchhalter",
-      "start_date": "01/2015",
-      "end_date": "02/2020",
-      "description": "Kontierung, Rechnungsprüfung, Zahlungsverkehr"
-    },
-    {
-      "company": "Musterfirma",
-      "position": "Kaufmännischer Mitarbeiter",
-      "start_date": "08/2012",
-      "end_date": "12/2014",
-      "description": "Allgemeine Bürotätigkeiten, Rechnungsstellung"
+      "description": "Debitoren-/Kreditorenbuchhaltung, Monatsabschluesse, Mahnwesen"
     }
   ],
   "education": [
     {
-      "institution": "IHK München",
+      "institution": "IHK Muenchen",
       "degree": "Bilanzbuchhalter (IHK)",
       "field_of_study": "Finanz- und Rechnungswesen",
       "start_date": "2018",
       "end_date": "2019"
-    },
-    {
-      "institution": "Berufsschule München",
-      "degree": "Kaufmann für Büromanagement",
-      "field_of_study": "Kaufmännische Ausbildung",
-      "start_date": "2009",
-      "end_date": "2012"
     }
   ],
-  "skills": ["SAP FI", "DATEV", "Excel", "Word", "Buchhaltung", "Bilanzierung", "Englisch B2"],
+  "it_skills": ["SAP FI", "DATEV", "Microsoft Excel", "Lexware"],
+  "languages": [
+    {"language": "Deutsch", "level": "Muttersprache"},
+    {"language": "Englisch", "level": "B2"},
+    {"language": "Franzoesisch", "level": "Grundkenntnisse"}
+  ],
+  "skills": ["Buchhaltung", "Bilanzierung", "Steuererklarung", "Fuehrerschein Klasse B"],
   "first_name": "Max",
   "last_name": "Mustermann",
   "birth_date": "15.03.1990",
-  "street_address": "Musterstraße 123",
+  "street_address": "Musterstrasse 123",
   "postal_code": "80331",
-  "city": "München"
+  "city": "Muenchen"
 }"""
 
 
@@ -366,6 +363,18 @@ class CVParserService:
                 if isinstance(entry, dict)
             ]
 
+        # Sprachen parsen
+        languages = None
+        if data.get("languages"):
+            languages = [
+                LanguageEntry(
+                    language=entry.get("language", ""),
+                    level=entry.get("level"),
+                )
+                for entry in data["languages"]
+                if isinstance(entry, dict) and entry.get("language")
+            ]
+
         return CVParseResult(
             first_name=data.get("first_name"),
             last_name=data.get("last_name"),
@@ -375,6 +384,8 @@ class CVParserService:
             city=data.get("city"),
             current_position=data.get("current_position"),
             skills=data.get("skills"),
+            languages=languages,
+            it_skills=data.get("it_skills"),
             work_history=work_history,
             education=education,
         )
@@ -465,7 +476,19 @@ class CVParserService:
             new_skills = set(cv_data.skills)
             candidate.skills = list(existing_skills | new_skills)
 
-        # Work History und Education (immer überschreiben aus CV)
+        # Sprachen (immer ueberschreiben aus CV)
+        if cv_data.languages:
+            candidate.languages = [
+                entry.model_dump() for entry in cv_data.languages
+            ]
+
+        # IT-Kenntnisse (erweitern, nicht ueberschreiben)
+        if cv_data.it_skills:
+            existing_it = set(candidate.it_skills or [])
+            new_it = set(cv_data.it_skills)
+            candidate.it_skills = list(existing_it | new_it)
+
+        # Work History und Education (immer ueberschreiben aus CV)
         if cv_data.work_history:
             candidate.work_history = [
                 entry.model_dump() for entry in cv_data.work_history

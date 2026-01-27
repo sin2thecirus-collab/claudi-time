@@ -28,6 +28,13 @@ class EducationEntry(BaseModel):
     end_date: str | None = Field(default=None, description="Enddatum")
 
 
+class LanguageEntry(BaseModel):
+    """Schema für eine Sprachkenntnis."""
+
+    language: str = Field(description="Sprache (z.B. Englisch, Deutsch)")
+    level: str | None = Field(default=None, description="Niveau (z.B. B2, Muttersprache, Grundkenntnisse)")
+
+
 class CandidateBase(BaseModel):
     """Basis-Schema für Kandidaten."""
 
@@ -86,6 +93,8 @@ class CandidateResponse(BaseModel):
     current_position: str | None
     current_company: str | None
     skills: list[str] | None
+    languages: list[LanguageEntry] | None
+    it_skills: list[str] | None
     work_history: list[WorkHistoryEntry] | None
     education: list[EducationEntry] | None
     street_address: str | None
@@ -139,5 +148,7 @@ class CVParseResult(BaseModel):
     city: str | None = None
     current_position: str | None = None
     skills: list[str] | None = None
+    languages: list[LanguageEntry] | None = None
+    it_skills: list[str] | None = None
     work_history: list[WorkHistoryEntry] | None = None
     education: list[EducationEntry] | None = None
