@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import limits
 from app.models.candidate import Candidate
+from app.models.job import Job
 from app.models.match import Match
 from app.schemas.candidate import (
     CandidateCreate,
@@ -336,6 +337,70 @@ class CandidateService:
 
         logger.info(f"{count} Kandidaten eingeblendet")
         return count
+
+    async def get_jobs_for_candidate(
+        self,
+        candidate_id: UUID,
+        page: int = 1,
+        per_page: int = 20,
+        sort_by: str = "distance_km",
+        sort_order: str = "asc",
+    ) -> tuple[list[dict], int]:
+        """Gibt passende Jobs für einen Kandidaten zurück.
+
+        Args:
+            candidate_id: ID des Kandidaten
+            page: Seitennummer
+            per_page: Einträge pro Seite
+            sort_by: Sortierfeld
+            sort_order: Sortierrichtung (asc/desc)
+
+        Returns:
+            Tuple aus (Liste von Job-Dicts mit Match-Daten, Gesamtanzahl)
+        """
+        # Matches für diesen Kandidaten mit Job-Daten laden
+        query = (
+            select(Job, Match)
+            .join(Match, Match.job_id == Job.id)
+            .where(Match.candidate_id == candidate_id)
+            .where(Job.deleted_at.is_(None))
+        )
+
+        # Sortierung
+        if sort_by == "distance_km":
+            order = Match.distance_km.asc() if sort_order == "asc" else Match.distance_km.desc()
+        elif sort_by == "keyword_score":
+            order = Match.keyword_score.desc() if sort_order == "desc" else Match.keyword_score.asc()
+        else:
+            order = Match.distance_km.asc()
+        query = query.order_by(order)
+
+        # Total zählen
+        count_query = select(func.count()).select_from(query.subquery())
+        total_result = await self.db.execute(count_query)
+        total = total_result.scalar_one()
+
+        # Pagination
+        offset = (page - 1) * per_page
+        query = query.offset(offset).limit(per_page)
+
+        result = await self.db.execute(query)
+        rows = result.all()
+
+        items = []
+        for job, match in rows:
+            items.append({
+                "job_id": str(job.id),
+                "company_name": job.company_name,
+                "position": job.position,
+                "city": job.city or job.work_location_city,
+                "distance_km": round(match.distance_km, 1) if match.distance_km else None,
+                "keyword_score": match.keyword_score,
+                "matched_keywords": match.matched_keywords,
+                "ai_score": match.ai_score,
+            })
+
+        return items, total
 
     async def get_candidates_without_coordinates(self) -> list[Candidate]:
         """Ruft Kandidaten ohne Koordinaten ab (für Geocoding)."""
