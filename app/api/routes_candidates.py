@@ -105,7 +105,6 @@ async def _run_crm_sync(db: AsyncSession, job_run_id: UUID, full_sync: bool):
 
 @router.get(
     "",
-    response_model=CandidateListResponse,
     summary="Kandidaten auflisten",
 )
 async def list_candidates(
