@@ -274,6 +274,29 @@ async def parse_all_cvs(
 
 
 @router.post(
+    "/reset-failed-cvs",
+    summary="Fehlgeschlagene CV-Parsing-Einträge zurücksetzen",
+)
+async def reset_failed_cvs(db: AsyncSession = Depends(get_db)):
+    """Setzt cv_parsed_at und cv_text für alle Kandidaten zurück, deren cv_text mit 'FEHLER:' beginnt."""
+    from sqlalchemy import update
+
+    from app.models.candidate import Candidate
+
+    result = await db.execute(
+        update(Candidate)
+        .where(Candidate.cv_text.like("FEHLER:%"))
+        .values(cv_parsed_at=None, cv_text=None)
+    )
+    await db.commit()
+
+    return {
+        "success": True,
+        "reset_count": result.rowcount,
+    }
+
+
+@router.post(
     "/import-all",
     summary="Alle Kandidaten direkt importieren (kein Background Task)",
 )
