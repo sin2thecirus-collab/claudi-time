@@ -161,6 +161,32 @@ _cv_parsing_status: dict = {
 
 
 @router.post(
+    "/reset-cv-parsing",
+    summary="CV-Parsing zurücksetzen (alle erneut parsen)",
+)
+async def reset_cv_parsing(
+    db: AsyncSession = Depends(get_db),
+):
+    """Setzt cv_parsed_at auf NULL für alle Kandidaten, damit sie erneut geparst werden."""
+    from sqlalchemy import update
+
+    from app.models.candidate import Candidate
+
+    result = await db.execute(
+        update(Candidate)
+        .where(Candidate.cv_parsed_at.isnot(None))
+        .values(cv_parsed_at=None)
+    )
+    await db.commit()
+
+    return {
+        "success": True,
+        "message": f"CV-Parsing zurückgesetzt für {result.rowcount} Kandidaten",
+        "reset_count": result.rowcount,
+    }
+
+
+@router.post(
     "/parse-all-cvs",
     summary="Alle CVs parsen (Background Task)",
 )
