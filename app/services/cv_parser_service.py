@@ -50,7 +50,7 @@ Extrahiere folgende Informationen:
    - Extrahiere ALLE beruflichen Stationen - KEINE auslassen!
    - Fuer JEDE Station: company, position, start_date, end_date, description
    - description: Welche Taetigkeiten/Aufgaben wurden ausgeubt? GENAU aus dem CV uebernehmen!
-   - Wenn Aufzaehlungspunkte/Bulletpoints vorhanden: als kommaseparierten Text zusammenfassen
+   - Wenn Aufzaehlungspunkte/Bulletpoints vorhanden: jeden Punkt mit "• " (Bullet) am Anfang und "\\n" zwischen den Punkten formatieren. Inhalt 1:1 uebernehmen!
    - Wenn keine Taetigkeiten beschrieben: null (nicht den String "null"!)
    - Chronologisch sortiert (neueste zuerst)
    - Auch Praktika, Werkstudentenjobs, Nebenjobs erfassen
