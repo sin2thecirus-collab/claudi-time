@@ -380,17 +380,15 @@ async def _run_cv_parsing(batch_size: int, max_candidates: int):
                             )
                             _cv_parsing_status["recently_parsed"] = _cv_parsing_status["recently_parsed"][-10:]
                         else:
-                            candidate.cv_parsed_at = datetime.now(timezone.utc)
-                            candidate.cv_text = f"FEHLER: {parse_result.error}"
+                            # Nicht als geparst markieren - wird beim nächsten Mal erneut versucht
                             _cv_parsing_status["failed"] += 1
                             _cv_parsing_status["errors"].append(
                                 f"{candidate.first_name} {candidate.last_name}: {parse_result.error}"
                             )
 
                     except Exception as e:
+                        # Nicht als geparst markieren - wird beim nächsten Mal erneut versucht
                         _cv_parsing_status["failed"] += 1
-                        candidate.cv_parsed_at = datetime.now(timezone.utc)
-                        candidate.cv_text = f"FEHLER: {str(e)}"
                         _cv_parsing_status["errors"].append(
                             f"{candidate.first_name} {candidate.last_name}: {e}"
                         )
