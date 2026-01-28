@@ -448,13 +448,14 @@ class CandidateService:
 
     def _apply_filters(self, query, filters: CandidateFilterParams):
         """Wendet Filter auf die Query an."""
-        # Name-Suche
+        # Name-Suche (auch Vor- + Nachname kombiniert)
         if filters.name:
             search_term = f"%{filters.name}%"
             query = query.where(
                 or_(
                     Candidate.first_name.ilike(search_term),
                     Candidate.last_name.ilike(search_term),
+                    (Candidate.first_name + " " + Candidate.last_name).ilike(search_term),
                 )
             )
 
