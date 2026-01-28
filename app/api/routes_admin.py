@@ -188,6 +188,27 @@ async def reset_cv_parsing(
 
 
 @router.post(
+    "/parse-all-cvs/force-reset",
+    summary="CV-Parsing Status zurücksetzen",
+)
+async def force_reset_parsing_status():
+    """Setzt den globalen Parsing-Status zurück (falls nach Neustart hängengeblieben)."""
+    global _cv_parsing_status
+    _cv_parsing_status = {
+        "running": False,
+        "parsed": 0,
+        "failed": 0,
+        "total_to_parse": 0,
+        "total_tokens": 0,
+        "errors": [],
+        "started_at": None,
+        "finished_at": None,
+        "current_candidate": None,
+    }
+    return {"success": True, "message": "Parsing-Status zurückgesetzt"}
+
+
+@router.post(
     "/parse-all-cvs",
     summary="Alle CVs parsen (Background Task)",
 )
