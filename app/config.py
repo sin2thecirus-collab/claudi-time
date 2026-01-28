@@ -1,5 +1,6 @@
 """Konfiguration für das Matching-Tool."""
 
+import os
 from functools import lru_cache
 
 from pydantic import Field
@@ -34,7 +35,7 @@ class Limits:
     PAGE_SIZE_MAX: int = 100
 
     # Timeouts (in Sekunden)
-    TIMEOUT_OPENAI: int = 30
+    TIMEOUT_OPENAI: int = int(os.getenv("OPENAI_TIMEOUT", "90"))
     TIMEOUT_GEOCODING: int = 10
     TIMEOUT_CRM: int = 15
 

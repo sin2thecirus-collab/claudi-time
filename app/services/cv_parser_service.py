@@ -7,6 +7,7 @@ Dieser Service:
 - Aktualisiert Kandidaten in der DB
 """
 
+import asyncio
 import json
 import logging
 import re
@@ -192,7 +193,7 @@ class CVParserService:
         """Gibt den HTTP-Client zurück."""
         if self._http_client is None or self._http_client.is_closed:
             self._http_client = httpx.AsyncClient(
-                timeout=httpx.Timeout(30.0),
+                timeout=httpx.Timeout(float(limits.TIMEOUT_OPENAI)),
                 follow_redirects=True,
             )
         return self._http_client
@@ -309,66 +310,88 @@ class CVParserService:
 
         client = await self._get_http_client()
 
-        try:
-            response = await client.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {self.api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": "gpt-4o-mini",
-                    "messages": [
-                        {"role": "system", "content": CV_PARSING_SYSTEM_PROMPT},
-                        {"role": "user", "content": f"Analysiere diesen Lebenslauf und extrahiere den VOLLSTÄNDIGEN beruflichen Werdegang mit ALLEN Stationen:\n\n{cv_text}"},
-                    ],
-                    "temperature": 0.1,
-                    "max_tokens": 4000,  # Erhöht für vollständigen Werdegang
-                    "response_format": {"type": "json_object"},
-                },
-                timeout=limits.TIMEOUT_OPENAI,
-            )
+        max_attempts = 3
+        last_error = None
 
-            response.raise_for_status()
-            result = response.json()
+        for attempt in range(max_attempts):
+            try:
+                response = await client.post(
+                    "https://api.openai.com/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {self.api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": "gpt-4o-mini",
+                        "messages": [
+                            {"role": "system", "content": CV_PARSING_SYSTEM_PROMPT},
+                            {"role": "user", "content": f"Analysiere diesen Lebenslauf und extrahiere den VOLLSTÄNDIGEN beruflichen Werdegang mit ALLEN Stationen:\n\n{cv_text}"},
+                        ],
+                        "temperature": 0.1,
+                        "max_tokens": 4000,  # Erhöht für vollständigen Werdegang
+                        "response_format": {"type": "json_object"},
+                    },
+                    timeout=limits.TIMEOUT_OPENAI,
+                )
 
-            # Token-Verbrauch
-            tokens = result.get("usage", {}).get("total_tokens", 0)
+                response.raise_for_status()
+                result = response.json()
 
-            # Response parsen
-            content = result["choices"][0]["message"]["content"]
-            parsed_data = json.loads(content)
+                # Token-Verbrauch
+                tokens = result.get("usage", {}).get("total_tokens", 0)
 
-            # In Pydantic-Schema konvertieren
-            cv_result = self._map_to_cv_result(parsed_data)
+                # Response parsen
+                content = result["choices"][0]["message"]["content"]
+                parsed_data = json.loads(content)
 
-            return ParseResult(
-                success=True,
-                data=cv_result,
-                raw_text=cv_text,
-                tokens_used=tokens,
-            )
+                # In Pydantic-Schema konvertieren
+                cv_result = self._map_to_cv_result(parsed_data)
 
-        except httpx.TimeoutException:
-            return ParseResult(
-                success=False,
-                error="OpenAI Timeout - bitte später erneut versuchen",
-                raw_text=cv_text,
-            )
-        except json.JSONDecodeError as e:
-            logger.error(f"JSON-Parse-Fehler: {e}")
-            return ParseResult(
-                success=False,
-                error="Ungültige Antwort von OpenAI",
-                raw_text=cv_text,
-            )
-        except Exception as e:
-            logger.exception(f"CV-Parsing-Fehler: {e}")
-            return ParseResult(
-                success=False,
-                error=f"Parsing-Fehler: {str(e)}",
-                raw_text=cv_text,
-            )
+                return ParseResult(
+                    success=True,
+                    data=cv_result,
+                    raw_text=cv_text,
+                    tokens_used=tokens,
+                )
+
+            except httpx.TimeoutException:
+                last_error = "OpenAI Timeout - bitte später erneut versuchen"
+                if attempt < max_attempts - 1:
+                    wait_time = 5 * (attempt + 1)  # 5s, 10s
+                    logger.warning(
+                        f"OpenAI Timeout (Versuch {attempt + 1}/{max_attempts}), "
+                        f"Retry in {wait_time}s..."
+                    )
+                    await asyncio.sleep(wait_time)
+                    continue
+                # Letzter Versuch fehlgeschlagen
+                return ParseResult(
+                    success=False,
+                    error=last_error,
+                    raw_text=cv_text,
+                )
+
+            except json.JSONDecodeError as e:
+                logger.error(f"JSON-Parse-Fehler: {e}")
+                return ParseResult(
+                    success=False,
+                    error="Ungültige Antwort von OpenAI",
+                    raw_text=cv_text,
+                )
+            except Exception as e:
+                logger.exception(f"CV-Parsing-Fehler: {e}")
+                return ParseResult(
+                    success=False,
+                    error=f"Parsing-Fehler: {str(e)}",
+                    raw_text=cv_text,
+                )
+
+        # Sollte nicht erreicht werden, aber sicherheitshalber
+        return ParseResult(
+            success=False,
+            error=last_error or "Unbekannter Fehler nach allen Versuchen",
+            raw_text=cv_text,
+        )
 
     @staticmethod
     def _clean_null(value: str | None) -> str | None:
