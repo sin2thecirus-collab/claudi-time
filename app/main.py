@@ -32,8 +32,7 @@ async def lifespan(app: FastAPI):
         await init_db()
         logger.info("Datenbankverbindung erfolgreich hergestellt")
     except Exception as e:
-        logger.error(f"Datenbankverbindung fehlgeschlagen: {e}")
-        raise
+        logger.warning(f"DB-Migration teilweise fehlgeschlagen (App startet trotzdem): {e}")
 
     yield
 

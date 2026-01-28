@@ -61,39 +61,29 @@ async def init_db() -> None:
         await conn.run_sync(lambda _: None)
 
     # Automatische Migrationen für neue Spalten
-    async with engine.begin() as conn:
-        # Prüfe ob languages-Spalte existiert
-        result = await conn.execute(
-            text(
-                "SELECT column_name FROM information_schema.columns "
-                "WHERE table_name = 'candidates' AND column_name = 'languages'"
-            )
-        )
-        if not result.fetchone():
-            logger.info("Migration: Füge 'languages' Spalte hinzu...")
-            await conn.execute(text("ALTER TABLE candidates ADD COLUMN languages JSONB"))
-            logger.info("Migration: 'languages' Spalte hinzugefügt.")
-
-        # Prüfe ob it_skills-Spalte existiert
-        result = await conn.execute(
-            text(
-                "SELECT column_name FROM information_schema.columns "
-                "WHERE table_name = 'candidates' AND column_name = 'it_skills'"
-            )
-        )
-        if not result.fetchone():
-            logger.info("Migration: Füge 'it_skills' Spalte hinzu...")
-            await conn.execute(text("ALTER TABLE candidates ADD COLUMN it_skills VARCHAR[]"))
-            logger.info("Migration: 'it_skills' Spalte hinzugefügt.")
-
-        # Prüfe ob further_education-Spalte existiert
-        result = await conn.execute(
-            text(
-                "SELECT column_name FROM information_schema.columns "
-                "WHERE table_name = 'candidates' AND column_name = 'further_education'"
-            )
-        )
-        if not result.fetchone():
-            logger.info("Migration: Füge 'further_education' Spalte hinzu...")
-            await conn.execute(text("ALTER TABLE candidates ADD COLUMN further_education JSONB"))
-            logger.info("Migration: 'further_education' Spalte hinzugefügt.")
+    # Lock-Timeout setzen damit ALTER TABLE nicht ewig blockiert
+    migrations = [
+        ("languages", "JSONB"),
+        ("it_skills", "VARCHAR[]"),
+        ("further_education", "JSONB"),
+    ]
+    for col_name, col_type in migrations:
+        try:
+            async with engine.begin() as conn:
+                # Lock-Timeout auf 5 Sekunden setzen
+                await conn.execute(text("SET lock_timeout = '5s'"))
+                result = await conn.execute(
+                    text(
+                        "SELECT column_name FROM information_schema.columns "
+                        "WHERE table_name = 'candidates' AND column_name = :col"
+                    ),
+                    {"col": col_name},
+                )
+                if not result.fetchone():
+                    logger.info(f"Migration: Füge '{col_name}' Spalte hinzu...")
+                    await conn.execute(
+                        text(f"ALTER TABLE candidates ADD COLUMN {col_name} {col_type}")
+                    )
+                    logger.info(f"Migration: '{col_name}' Spalte hinzugefügt.")
+        except Exception as e:
+            logger.warning(f"Migration für '{col_name}' übersprungen: {e}")
