@@ -351,9 +351,10 @@ async def _run_cv_parsing(batch_size: int, max_candidates: int):
                         Candidate.cv_url.isnot(None),
                         Candidate.cv_url != "",
                         Candidate.cv_parsed_at.is_(None),
+                        Candidate.cv_parse_failed.is_(False),  # Überspringe fehlgeschlagene PDFs
                     )
+                    .order_by(Candidate.id)
                     .limit(batch_size)
-                    .offset(0)
                 )
                 candidates = result.scalars().all()
 
@@ -380,14 +381,16 @@ async def _run_cv_parsing(batch_size: int, max_candidates: int):
                             )
                             _cv_parsing_status["recently_parsed"] = _cv_parsing_status["recently_parsed"][-10:]
                         else:
-                            # Nicht als geparst markieren - wird beim nächsten Mal erneut versucht
+                            # Als fehlgeschlagen markieren - wird übersprungen bis neuer CV hochgeladen
+                            candidate.cv_parse_failed = True
                             _cv_parsing_status["failed"] += 1
                             _cv_parsing_status["errors"].append(
                                 f"{candidate.first_name} {candidate.last_name}: {parse_result.error}"
                             )
 
                     except Exception as e:
-                        # Nicht als geparst markieren - wird beim nächsten Mal erneut versucht
+                        # Als fehlgeschlagen markieren - wird übersprungen bis neuer CV hochgeladen
+                        candidate.cv_parse_failed = True
                         _cv_parsing_status["failed"] += 1
                         _cv_parsing_status["errors"].append(
                             f"{candidate.first_name} {candidate.last_name}: {e}"

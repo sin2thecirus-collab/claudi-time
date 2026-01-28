@@ -63,6 +63,7 @@ class Candidate(Base):
     cv_text: Mapped[str | None] = mapped_column(Text)
     cv_url: Mapped[str | None] = mapped_column(Text)
     cv_parsed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    cv_parse_failed: Mapped[bool] = mapped_column(Boolean, default=False)  # True wenn PDF nicht lesbar (z.B. Bild-PDF)
 
     # Status
     hidden: Mapped[bool] = mapped_column(Boolean, default=False)

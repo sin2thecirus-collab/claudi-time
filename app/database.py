@@ -66,6 +66,7 @@ async def init_db() -> None:
         ("languages", "JSONB"),
         ("it_skills", "VARCHAR[]"),
         ("further_education", "JSONB"),
+        ("cv_parse_failed", "BOOLEAN DEFAULT FALSE"),
     ]
     for col_name, col_type in migrations:
         try:
