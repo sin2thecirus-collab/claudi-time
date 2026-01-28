@@ -63,10 +63,10 @@ KATEGORIEN:
 
 7. skills: Fachkenntnisse (NICHT IT, NICHT Sprachen), Fuehrerschein
 
-8. Persoenlich: first_name, last_name, birth_date (DD.MM.YYYY), street_address, postal_code, city
+8. Persoenlich: first_name, last_name, birth_date (DD.MM.YYYY)
 
 JSON-Ausgabe:
-{"current_position":"...","work_history":[{"company":"...","position":"...","start_date":"...","end_date":"...","description":"• Task1\\n• Task2"}],"education":[{"institution":"...","degree":"...","field_of_study":"...","start_date":"...","end_date":"..."}],"further_education":[...],"it_skills":["..."],"languages":[{"language":"...","level":"..."}],"skills":["..."],"first_name":"...","last_name":"...","birth_date":"...","street_address":"...","postal_code":"...","city":"..."}"""
+{"current_position":"...","work_history":[{"company":"...","position":"...","start_date":"...","end_date":"...","description":"• Task1\\n• Task2"}],"education":[{"institution":"...","degree":"...","field_of_study":"...","start_date":"...","end_date":"..."}],"further_education":[...],"it_skills":["..."],"languages":[{"language":"...","level":"..."}],"skills":["..."],"first_name":"...","last_name":"...","birth_date":"..."}"""
 
 
 @dataclass
@@ -457,13 +457,7 @@ class CVParserService:
         if cv_data.birth_date:
             candidate.birth_date = self._parse_birth_date(cv_data.birth_date)
 
-        # Adresse (nur wenn nicht bereits vorhanden)
-        if not candidate.street_address and cv_data.street_address:
-            candidate.street_address = cv_data.street_address
-        if not candidate.postal_code and cv_data.postal_code:
-            candidate.postal_code = cv_data.postal_code
-        if not candidate.city and cv_data.city:
-            candidate.city = cv_data.city
+        # Adresse kommt aus CRM API, nicht aus CV
 
         # Position
         if not candidate.current_position and cv_data.current_position:
