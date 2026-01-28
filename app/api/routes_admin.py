@@ -1,5 +1,6 @@
 """Admin API Routes - Endpoints für Background-Jobs und System-Verwaltung."""
 
+import asyncio
 import logging
 from uuid import UUID
 
@@ -366,12 +367,17 @@ async def _run_cv_parsing(batch_size: int, max_candidates: int):
                             f"{candidate.first_name} {candidate.last_name}: {e}"
                         )
 
+                    # Kurze Pause zwischen Kandidaten - gibt DB-Pool frei
+                    await asyncio.sleep(0.3)
+
                 await db.commit()
                 offset += batch_size
                 logger.info(
                     f"CV-Parsing: {_cv_parsing_status['parsed']} geparst, "
                     f"{_cv_parsing_status['failed']} fehlgeschlagen ({offset}/{max_candidates})"
                 )
+                # Pause zwischen Batches damit DB-Pool für API-Requests frei bleibt
+                await asyncio.sleep(1.0)
 
             await parser.close()
 
