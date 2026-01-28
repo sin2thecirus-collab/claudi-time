@@ -453,8 +453,8 @@ class CVParserService:
         if not candidate.last_name and cv_data.last_name:
             candidate.last_name = cv_data.last_name
 
-        # Geburtsdatum parsen
-        if not candidate.birth_date and cv_data.birth_date:
+        # Geburtsdatum parsen (immer aus CV übernehmen wenn vorhanden)
+        if cv_data.birth_date:
             candidate.birth_date = self._parse_birth_date(cv_data.birth_date)
 
         # Adresse (nur wenn nicht bereits vorhanden)
