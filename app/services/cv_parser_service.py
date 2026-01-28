@@ -63,14 +63,24 @@ Extrahiere folgende Informationen:
      * Alles was eine AUSBILDUNG/WEITERBILDUNG ist, auch wenn es im CV unter "Berufserfahrung" steht
 
 3. Ausbildung (education) - NUR formale Bildungsabschluesse:
-   - Schulabschluesse (Hauptschule, Realschule, Abitur, Fachhochschulreife)
+   - Schulabschluesse mit KORREKTEM degree:
+     * Berufsoberschule/FOS -> degree = "Hochschulreife" oder "Fachhochschulreife"
+     * Wirtschaftsschule -> degree = "Wirtschaftsschulabschluss" oder "Mittlere Reife"
+     * Realschule -> degree = "Mittlere Reife" oder "Realschulabschluss"
+     * Gymnasium -> degree = "Abitur"
+     * Hauptschule -> degree = "Hauptschulabschluss"
    - BERUFSAUSBILDUNGEN: "Ausbildung zum/zur Kaufmann/-frau", "Ausbildung zum Industriekaufmann", etc.
      * degree = der Beruf (z.B. "Kaufmann im Einzelhandel", "Industriekaufmann", "Mechatroniker")
      * institution = der Ausbildungsbetrieb
      * field_of_study = kann leer bleiben oder Fachrichtung
+     * WICHTIG: Auch wenn im CV unter "Berufserfahrung" gelistet -> gehoert in education!
    - Studium (Bachelor, Master, Diplom, MBA, Doktor)
+     * Abgebrochenes Studium ohne Abschluss: degree = null (korrekt!)
    - Fuer JEDEN Eintrag: institution, degree, field_of_study, start_date, end_date
-   - WICHTIG: degree darf NIEMALS "None" oder null sein wenn ein Abschluss existiert! Immer den Abschluss/Beruf eintragen!
+   - WICHTIG: degree MUSS den Abschluss enthalten wenn einer im CV steht!
+     * Suche nach Woertern wie "Abschluss:", "Hochschulreife", "Bachelor", "Master", etc.
+     * Wenn CV sagt "Abschluss: Hochschulreife" -> degree = "Hochschulreife"
+     * Wenn CV sagt "Abschluss: Wirtschaftsschulabschluss" -> degree = "Wirtschaftsschulabschluss"
    - KEINE Weiterbildungen, Seminare oder Zertifikate hier! Die gehoeren in further_education!
 
 4. Weiterbildungen (further_education) - SEPARATES Feld:
