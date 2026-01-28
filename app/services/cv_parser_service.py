@@ -59,13 +59,18 @@ Extrahiere folgende Informationen:
      * Meisterschulen, Meisterbrief
      * Weiterbildungsinstitute (z.B. Steuerfachschule Endriss, DAA, TA Bildungszentrum)
      * Zertifizierungen, Lehrgaenge, Umschulungen
+     * BERUFSAUSBILDUNGEN wie "Ausbildung zum/zur ..." gehoeren in education, NICHT in work_history!
      * Alles was eine AUSBILDUNG/WEITERBILDUNG ist, auch wenn es im CV unter "Berufserfahrung" steht
 
 3. Ausbildung (education) - NUR formale Bildungsabschluesse:
    - Schulabschluesse (Hauptschule, Realschule, Abitur, Fachhochschulreife)
-   - Berufsausbildungen (z.B. Industriekaufmann, Elektroniker, Mechatroniker)
+   - BERUFSAUSBILDUNGEN: "Ausbildung zum/zur Kaufmann/-frau", "Ausbildung zum Industriekaufmann", etc.
+     * degree = der Beruf (z.B. "Kaufmann im Einzelhandel", "Industriekaufmann", "Mechatroniker")
+     * institution = der Ausbildungsbetrieb
+     * field_of_study = kann leer bleiben oder Fachrichtung
    - Studium (Bachelor, Master, Diplom, MBA, Doktor)
    - Fuer JEDEN Eintrag: institution, degree, field_of_study, start_date, end_date
+   - WICHTIG: degree darf NIEMALS "None" oder null sein wenn ein Abschluss existiert! Immer den Abschluss/Beruf eintragen!
    - KEINE Weiterbildungen, Seminare oder Zertifikate hier! Die gehoeren in further_education!
 
 4. Weiterbildungen (further_education) - SEPARATES Feld:
