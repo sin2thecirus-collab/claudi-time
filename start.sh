@@ -1,6 +1,6 @@
 #!/bin/sh
 # Railway Startup Script
-# Build: 2026-01-28-v5
+# Build: 2026-01-28-v6
 
 echo "Starting Railway deployment..."
 echo "Running alembic migrations..."
