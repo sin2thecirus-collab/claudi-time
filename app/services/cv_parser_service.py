@@ -66,6 +66,11 @@ Extrahiere folgende Informationen:
    - IHK-Pruefungen (z.B. "Bilanzbuchhalter IHK", "Fachwirt IHK") gehoeren IMMER hierher!
    - Meisterbrief, Fortbildungen, Schulungen, Lehrgaenge gehoeren IMMER hierher!
    - Auch wenn diese im CV unter "Berufserfahrung" stehen - sie gehoeren in education!
+   - WICHTIG: Viele CVs haben einen SEPARATEN Abschnitt "Weiterbildungen" oder "Fortbildungen"
+     oder "Zertifikate" oder "Seminare" - diese Eintraege gehoeren ALLE in education!
+     Beispiele: Leadership-Seminare, SAP-Schulungen, IHK-Sachkundepruefungen,
+     AdA-Schein (Ausbildung der Ausbilder), Sprachkurse, Softwareschulungen
+   - Durchsuche den GESAMTEN CV nach Bildungs-/Weiterbildungseintraegen, nicht nur den Abschnitt "Bildung"!
 
 4. IT-Kenntnisse (it_skills) - SEPARATES Feld:
    - NUR Software, Tools und technische Systeme
