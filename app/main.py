@@ -73,6 +73,9 @@ async def add_request_id(request: Request, call_next):
     return response
 
 
+# Static Files konfigurieren
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
 # Templates konfigurieren
 templates = Jinja2Templates(directory="app/templates")
 
