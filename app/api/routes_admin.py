@@ -188,7 +188,7 @@ async def reset_cv_parsing(
 
 
 @router.post(
-    "/parse-all-cvs/force-reset",
+    "/reset-parsing-status",
     summary="CV-Parsing Status zurücksetzen",
 )
 async def force_reset_parsing_status():
