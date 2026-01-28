@@ -97,6 +97,7 @@ class CandidateResponse(BaseModel):
     it_skills: list[str] | None
     work_history: list[WorkHistoryEntry] | None
     education: list[EducationEntry] | None
+    further_education: list[EducationEntry] | None
     street_address: str | None
     postal_code: str | None
     city: str | None
@@ -152,3 +153,4 @@ class CVParseResult(BaseModel):
     it_skills: list[str] | None = None
     work_history: list[WorkHistoryEntry] | None = None
     education: list[EducationEntry] | None = None
+    further_education: list[EducationEntry] | None = None

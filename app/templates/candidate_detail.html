@@ -285,6 +285,34 @@
                 </div>
             </div>
             {% endif %}
+
+            {# Weiterbildungen #}
+            {% if candidate.further_education and candidate.further_education is iterable and candidate.further_education is not string and candidate.further_education | length > 0 %}
+            <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg">
+                <div class="px-4 py-5 sm:px-6">
+                    <h3 class="text-base font-semibold leading-6 text-gray-900">Weiterbildungen</h3>
+                </div>
+                <div class="border-t border-gray-200">
+                    <ul class="divide-y divide-gray-200">
+                        {% for wb in candidate.further_education %}
+                        {% if wb is mapping %}
+                        <li class="px-4 py-4 sm:px-6">
+                            <div class="flex items-start justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-900">{{ wb.degree | default(wb.qualification | default('Weiterbildung')) }}</p>
+                                    <p class="text-sm text-gray-500">{{ wb.institution | default('Unbekannter Anbieter') }}</p>
+                                </div>
+                                <div class="text-sm text-gray-400 text-right">
+                                    {% if wb.year %}{{ wb.year }}{% elif wb.end_date %}{{ wb.end_date }}{% endif %}
+                                </div>
+                            </div>
+                        </li>
+                        {% endif %}
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            {% endif %}
         </div>
 
         {# Seitenleiste (1/3) #}

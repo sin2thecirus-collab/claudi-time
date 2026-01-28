@@ -85,3 +85,15 @@ async def init_db() -> None:
             logger.info("Migration: Füge 'it_skills' Spalte hinzu...")
             await conn.execute(text("ALTER TABLE candidates ADD COLUMN it_skills VARCHAR[]"))
             logger.info("Migration: 'it_skills' Spalte hinzugefügt.")
+
+        # Prüfe ob further_education-Spalte existiert
+        result = await conn.execute(
+            text(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_name = 'candidates' AND column_name = 'further_education'"
+            )
+        )
+        if not result.fetchone():
+            logger.info("Migration: Füge 'further_education' Spalte hinzu...")
+            await conn.execute(text("ALTER TABLE candidates ADD COLUMN further_education JSONB"))
+            logger.info("Migration: 'further_education' Spalte hinzugefügt.")

@@ -529,6 +529,7 @@ class CandidateService:
             it_skills=candidate.it_skills,
             work_history=candidate.work_history,
             education=candidate.education,
+            further_education=candidate.further_education,
             street_address=candidate.street_address,
             postal_code=candidate.postal_code,
             city=candidate.city,

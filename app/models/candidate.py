@@ -42,6 +42,9 @@ class Candidate(Base):
     work_history: Mapped[dict | None] = mapped_column(JSONB)
     education: Mapped[dict | None] = mapped_column(JSONB)
 
+    # Weiterbildungen (aus CV-Parsing, separat von education)
+    further_education: Mapped[dict | None] = mapped_column(JSONB)
+
     # Sprachen und IT-Kenntnisse (aus CV-Parsing, separat von skills)
     languages: Mapped[dict | None] = mapped_column(JSONB)
     it_skills: Mapped[list[str] | None] = mapped_column(ARRAY(String))

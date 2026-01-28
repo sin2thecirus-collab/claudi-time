@@ -60,36 +60,42 @@ Extrahiere folgende Informationen:
      * Zertifizierungen, Lehrgaenge, Umschulungen
      * Alles was eine AUSBILDUNG/WEITERBILDUNG ist, auch wenn es im CV unter "Berufserfahrung" steht
 
-3. VOLLSTAENDIGE Ausbildung & Qualifikationen (education):
-   - ALLE Abschluesse: Schule, Ausbildung, Studium, Weiterbildungen, Zertifikate
+3. Ausbildung (education) - NUR formale Bildungsabschluesse:
+   - Schulabschluesse (Hauptschule, Realschule, Abitur, Fachhochschulreife)
+   - Berufsausbildungen (z.B. Industriekaufmann, Elektroniker, Mechatroniker)
+   - Studium (Bachelor, Master, Diplom, MBA, Doktor)
    - Fuer JEDEN Eintrag: institution, degree, field_of_study, start_date, end_date
-   - IHK-Pruefungen (z.B. "Bilanzbuchhalter IHK", "Fachwirt IHK") gehoeren IMMER hierher!
-   - Meisterbrief, Fortbildungen, Schulungen, Lehrgaenge gehoeren IMMER hierher!
-   - Auch wenn diese im CV unter "Berufserfahrung" stehen - sie gehoeren in education!
-   - WICHTIG: Viele CVs haben einen SEPARATEN Abschnitt "Weiterbildungen" oder "Fortbildungen"
-     oder "Zertifikate" oder "Seminare" - diese Eintraege gehoeren ALLE in education!
-     Beispiele: Leadership-Seminare, SAP-Schulungen, IHK-Sachkundepruefungen,
-     AdA-Schein (Ausbildung der Ausbilder), Sprachkurse, Softwareschulungen
-   - Durchsuche den GESAMTEN CV nach Bildungs-/Weiterbildungseintraegen, nicht nur den Abschnitt "Bildung"!
+   - KEINE Weiterbildungen, Seminare oder Zertifikate hier! Die gehoeren in further_education!
 
-4. IT-Kenntnisse (it_skills) - SEPARATES Feld:
+4. Weiterbildungen (further_education) - SEPARATES Feld:
+   - IHK-Pruefungen (z.B. "Bilanzbuchhalter IHK", "Fachwirt IHK", "Sachkundepruefung")
+   - Meisterbrief, AdA-Schein (Ausbildung der Ausbilder)
+   - Seminare, Schulungen, Lehrgaenge (z.B. Leadership-Seminar, SAP-Schulung)
+   - Zertifizierungen (z.B. PMP, ITIL, Scrum Master, Six Sigma)
+   - Weiterbildungsinstitute (Steuerfachschule Endriss, DAA, TA Bildungszentrum, IHK-Akademie)
+   - Fuer JEDEN Eintrag: institution, degree, field_of_study, start_date, end_date
+   - WICHTIG: Viele CVs haben einen SEPARATEN Abschnitt "Weiterbildungen" oder "Fortbildungen"
+     - Durchsuche den GESAMTEN CV danach, nicht nur den Abschnitt "Bildung"!
+   - Auch wenn Weiterbildungen im CV unter "Bildung" oder "Berufserfahrung" stehen
+
+5. IT-Kenntnisse (it_skills) - SEPARATES Feld:
    - NUR Software, Tools und technische Systeme
    - z.B. SAP, DATEV, Lexware, Microsoft Office, Excel, ERP-Systeme, CRM-Systeme
    - Programmiersprachen, Datenbanken, Betriebssysteme
    - KEINE allgemeinen Fachkenntnisse hier (die gehoeren in skills)
 
-5. Sprachkenntnisse (languages) - SEPARATES Feld:
+6. Sprachkenntnisse (languages) - SEPARATES Feld:
    - JEDE Sprache als eigenes Objekt mit language und level
    - Level GENAU so uebernehmen wie im CV (z.B. "B2", "Muttersprache", "Grundkenntnisse", "fliessend", "verhandlungssicher")
    - Wenn kein Level angegeben: level auf null setzen
 
-6. Sonstige Skills/Kenntnisse (skills):
+7. Sonstige Skills/Kenntnisse (skills):
    - Fachliche Kenntnisse: Buchhaltung, Bilanzierung, Schweissen, etc.
    - KEINE IT-Kenntnisse hier (die gehoeren in it_skills)
    - KEINE Sprachen hier (die gehoeren in languages)
    - Fuehrerschein, Zertifikate etc.
 
-7. Persoenliche Daten (falls im CV vorhanden):
+8. Persoenliche Daten (falls im CV vorhanden):
    - first_name, last_name
    - birth_date (Format: "DD.MM.YYYY")
    - street_address, postal_code, city
@@ -108,11 +114,27 @@ Antworte NUR mit einem validen JSON-Objekt:
   ],
   "education": [
     {
+      "institution": "Universitaet Muenchen",
+      "degree": "Bachelor of Science",
+      "field_of_study": "Betriebswirtschaftslehre",
+      "start_date": "2010",
+      "end_date": "2013"
+    }
+  ],
+  "further_education": [
+    {
       "institution": "IHK Muenchen",
       "degree": "Bilanzbuchhalter (IHK)",
       "field_of_study": "Finanz- und Rechnungswesen",
       "start_date": "2018",
       "end_date": "2019"
+    },
+    {
+      "institution": "Formel D, Muenchen",
+      "degree": "Leadership Essentials",
+      "field_of_study": "Fuehrungskraefteentwicklung",
+      "start_date": "09/2022",
+      "end_date": "10/2022"
     }
   ],
   "it_skills": ["SAP FI", "DATEV", "Microsoft Excel", "Lexware"],
@@ -387,6 +409,20 @@ class CVParserService:
                 if isinstance(entry, dict)
             ]
 
+        further_education = None
+        if data.get("further_education"):
+            further_education = [
+                EducationEntry(
+                    institution=entry.get("institution"),
+                    degree=entry.get("degree"),
+                    field_of_study=entry.get("field_of_study"),
+                    start_date=entry.get("start_date"),
+                    end_date=entry.get("end_date"),
+                )
+                for entry in data["further_education"]
+                if isinstance(entry, dict)
+            ]
+
         # Sprachen parsen
         languages = None
         if data.get("languages"):
@@ -412,6 +448,7 @@ class CVParserService:
             it_skills=data.get("it_skills"),
             work_history=work_history,
             education=education,
+            further_education=further_education,
         )
 
     async def parse_candidate_cv(self, candidate_id: UUID) -> tuple[Candidate, ParseResult]:
@@ -520,6 +557,10 @@ class CVParserService:
         if cv_data.education:
             candidate.education = [
                 entry.model_dump() for entry in cv_data.education
+            ]
+        if cv_data.further_education:
+            candidate.further_education = [
+                entry.model_dump() for entry in cv_data.further_education
             ]
 
         # CV-Text und Timestamp (Null-Bytes entfernen für PostgreSQL)
