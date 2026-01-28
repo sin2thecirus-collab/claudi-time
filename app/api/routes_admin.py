@@ -155,6 +155,7 @@ _cv_parsing_status: dict = {
     "total_to_parse": 0,
     "total_tokens": 0,
     "errors": [],
+    "recently_parsed": [],
     "started_at": None,
     "finished_at": None,
     "current_candidate": None,
@@ -201,6 +202,7 @@ async def force_reset_parsing_status():
         "total_to_parse": 0,
         "total_tokens": 0,
         "errors": [],
+        "recently_parsed": [],
         "started_at": None,
         "finished_at": None,
         "current_candidate": None,
@@ -331,6 +333,7 @@ async def _run_cv_parsing(batch_size: int, max_candidates: int):
         "total_to_parse": max_candidates,
         "total_tokens": 0,
         "errors": [],
+        "recently_parsed": [],
         "started_at": datetime.now(timezone.utc).isoformat(),
         "finished_at": None,
         "current_candidate": None,
@@ -372,6 +375,10 @@ async def _run_cv_parsing(batch_size: int, max_candidates: int):
                             )
                             _cv_parsing_status["total_tokens"] += parse_result.tokens_used
                             _cv_parsing_status["parsed"] += 1
+                            _cv_parsing_status["recently_parsed"].append(
+                                f"{candidate.first_name} {candidate.last_name}"
+                            )
+                            _cv_parsing_status["recently_parsed"] = _cv_parsing_status["recently_parsed"][-10:]
                         else:
                             candidate.cv_parsed_at = datetime.now(timezone.utc)
                             candidate.cv_text = f"FEHLER: {parse_result.error}"
