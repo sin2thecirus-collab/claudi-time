@@ -44,6 +44,7 @@
                     <div class="ml-4">
                         <div class="font-medium text-gray-900">
                             {{ candidate.first_name or '' }} {{ candidate.last_name or '' }}
+                            {% if candidate.age %}<span class="text-gray-400 font-normal">({{ candidate.age }})</span>{% endif %}
                         </div>
                         {% if candidate.email %}
                         <div class="text-sm text-gray-500">{{ candidate.email }}</div>

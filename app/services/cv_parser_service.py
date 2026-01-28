@@ -44,16 +44,17 @@ KATEGORIEN:
    - description: Taetigkeiten als Bullets oder null
    - NICHT hier: Ausbildungen, Weiterbildungen, IHK, Zertifikate -> education/further_education
 
-3. education: Schulen, Berufsausbildungen, Studium
+3. education: Schulen, Berufsausbildungen (NICHT IHK!), Studium
    - {institution, degree, field_of_study, start_date, end_date}
    - degree extrahieren aus "Abschluss:" oder Schultyp:
      * Berufsoberschule/FOS = "Hochschulreife", Gymnasium = "Abitur"
      * Wirtschaftsschule = "Wirtschaftsschulabschluss", Realschule = "Mittlere Reife"
-   - "Ausbildung zum/zur X" -> degree = Beruf (z.B. "Kaufmann im Einzelhandel"), auch wenn unter Berufserfahrung gelistet!
+   - "Ausbildung zum/zur X" -> degree = Beruf, ABER: IHK-Pruefungen (Bilanzbuchhalter, Fachwirt, etc.) -> further_education!
    - Studium ohne Abschluss: degree = null
 
-4. further_education: IHK-Pruefungen, Meister, Seminare, Zertifikate (PMP, ITIL, etc.)
+4. further_education: IHK-Pruefungen (Bilanzbuchhalter, Fachwirt, Betriebswirt IHK), Meister, Seminare, Zertifikate
    - {institution, degree, field_of_study, start_date, end_date}
+   - WICHTIG: Auch wenn im CV unter "Ausbildung" gelistet - IHK = immer further_education!
    - Gesamten CV durchsuchen!
 
 5. it_skills: Software/Tools (SAP, DATEV, Excel, ERP, CRM, Programmiersprachen)
