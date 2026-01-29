@@ -168,23 +168,39 @@ _cv_parsing_status: dict = {
 )
 async def reset_cv_parsing(
     db: AsyncSession = Depends(get_db),
+    before: str | None = Query(
+        default=None,
+        description="Nur CVs zurücksetzen die VOR diesem Zeitpunkt geparst wurden (ISO-Format, z.B. 2026-01-28T18:08:50Z)",
+    ),
 ):
-    """Setzt cv_parsed_at auf NULL für alle Kandidaten, damit sie erneut geparst werden."""
+    """Setzt cv_parsed_at auf NULL für Kandidaten, damit sie erneut geparst werden.
+
+    - Ohne 'before': ALLE geparsten CVs zurücksetzen
+    - Mit 'before': Nur CVs die VOR dem Stichtag geparst wurden (für Re-Parsing mit neuem Prompt)
+    """
+    from datetime import datetime, timezone
     from sqlalchemy import update
 
     from app.models.candidate import Candidate
 
-    result = await db.execute(
-        update(Candidate)
-        .where(Candidate.cv_parsed_at.isnot(None))
-        .values(cv_parsed_at=None)
+    query = update(Candidate).where(
+        Candidate.cv_parsed_at.isnot(None),
+        Candidate.cv_parse_failed.is_(False),
     )
+
+    if before:
+        cutoff = datetime.fromisoformat(before.replace("Z", "+00:00"))
+        query = query.where(Candidate.cv_parsed_at < cutoff)
+
+    result = await db.execute(query.values(cv_parsed_at=None))
     await db.commit()
 
     return {
         "success": True,
-        "message": f"CV-Parsing zurückgesetzt für {result.rowcount} Kandidaten",
+        "message": f"CV-Parsing zurückgesetzt für {result.rowcount} Kandidaten"
+                   + (f" (geparst vor {before})" if before else " (alle)"),
         "reset_count": result.rowcount,
+        "cutoff": before,
     }
 
 
