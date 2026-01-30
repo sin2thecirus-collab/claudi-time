@@ -53,8 +53,8 @@ class CSVImportService:
         """
         Erstellt einen Import-Job aus Bytes-Content.
 
-        Schnelle Header-Pruefung und Zeilenzaehlung (ohne volle Validierung
-        jeder einzelnen Zeile — das passiert erst in process_import).
+        Schnelle Header-Pruefung (nur erste Zeile) und Zeilenzaehlung
+        auf Byte-Ebene (kein volles Decode der Datei).
 
         Args:
             filename: Original-Dateiname
@@ -65,36 +65,38 @@ class CSVImportService:
         """
         errors: list[dict] = []
 
-        # Schnell: Encoding + Delimiter erkennen (nur Sample)
-        encoding = self.validator.detect_encoding(content[:10000])
+        # Zeilenanzahl auf Byte-Ebene zaehlen (schnell, kein Decode)
+        total_rows = content.count(b"\n")
+        if total_rows > 0:
+            total_rows -= 1  # Minus Header-Zeile
+        if total_rows < 0:
+            total_rows = 0
+
+        # Nur die ersten 5000 Bytes dekodieren fuer Header-Check
+        sample = content[:5000]
+        encoding = self.validator.detect_encoding(sample)
         try:
-            text_content = content.decode(encoding)
+            text_sample = sample.decode(encoding)
         except UnicodeDecodeError:
             encoding = "iso-8859-1"
-            text_content = content.decode(encoding, errors="replace")
+            text_sample = sample.decode(encoding, errors="replace")
 
-        delimiter = self.validator.detect_delimiter(text_content[:5000])
+        delimiter = self.validator.detect_delimiter(text_sample)
 
-        # Header pruefen
-        reader = csv.DictReader(io.StringIO(text_content), delimiter=delimiter)
-        if not reader.fieldnames:
+        # Header pruefen (nur erste Zeile)
+        first_line = text_sample.split("\n")[0] if text_sample else ""
+        headers = [h.strip() for h in first_line.split(delimiter)]
+        if not headers or not headers[0]:
             errors.append({
                 "row": None, "column": None,
                 "message": "CSV-Header fehlt oder ist leer", "value": None,
             })
-        else:
-            header_set = {col.strip() for col in reader.fieldnames}
-            if "Unternehmen" not in header_set:
-                errors.append({
-                    "row": None, "column": "Unternehmen",
-                    "message": "Pflicht-Spalte 'Unternehmen' fehlt im Header",
-                    "value": None,
-                })
-
-        # Zeilenanzahl schnell zaehlen (ohne Validierung jeder Zeile)
-        total_rows = text_content.count("\n") - 1  # Minus Header
-        if total_rows < 0:
-            total_rows = 0
+        elif "Unternehmen" not in headers:
+            errors.append({
+                "row": None, "column": "Unternehmen",
+                "message": "Pflicht-Spalte 'Unternehmen' fehlt im Header",
+                "value": None,
+            })
 
         # ImportJob erstellen
         import_job = ImportJob(
