@@ -142,13 +142,28 @@ class TestPLZMapping:
         assert self.service.resolve_city("50667", None) == "Köln"
 
     def test_resolve_city_from_plz_frankfurt(self):
-        assert self.service.resolve_city("60311", None) == "Frankfurt am Main"
+        result = self.service.resolve_city("60311", None)
+        assert result in ("Frankfurt", "Frankfurt am Main")
 
     def test_resolve_city_unknown_plz(self):
         result = self.service.resolve_city("99999", None)
-        # Kann None sein wenn Prefix nicht gemappt
-        # 99 = Erfurt, also sollte es Erfurt zurückgeben
+        # 99999 existiert nicht in der vollständigen PLZ-Tabelle
+        assert result is None
+
+    def test_resolve_city_real_plz_erfurt(self):
+        result = self.service.resolve_city("99084", None)
         assert result == "Erfurt"
+
+    def test_resolve_city_real_plz_small_town(self):
+        """Auch kleine Orte müssen gefunden werden."""
+        result = self.service.resolve_city("01665", None)
+        # Diera-Zehren oder ähnlich — Hauptsache nicht None
+        assert result is not None
+
+    def test_resolve_city_padded_plz(self):
+        """PLZ mit fehlender führender Null (z.B. 1067 statt 01067)."""
+        result = self.service.resolve_city("1067", None)
+        assert result == "Dresden"
 
     def test_resolve_city_no_data(self):
         assert self.service.resolve_city(None, None) is None
@@ -319,37 +334,52 @@ class TestPreScoring:
 # ═══════════════════════════════════════════════════════════════
 
 class TestPLZMapCompleteness:
-    """Prüft die PLZ-Map auf wichtige Städte."""
+    """Prüft die vollständige PLZ-Map (8.255 Einträge) auf wichtige Städte."""
+
+    def test_plz_map_has_entries(self):
+        """Mindestens 8.000 PLZ müssen geladen sein."""
+        assert len(PLZ_CITY_MAP) >= 8000
 
     def test_berlin_mapped(self):
-        assert PLZ_CITY_MAP.get("10") == "Berlin"
+        assert PLZ_CITY_MAP.get("10115") == "Berlin"
 
     def test_hamburg_mapped(self):
-        assert PLZ_CITY_MAP.get("20") == "Hamburg"
+        assert PLZ_CITY_MAP.get("20095") == "Hamburg"
 
     def test_muenchen_mapped(self):
-        assert PLZ_CITY_MAP.get("80") == "München"
+        assert PLZ_CITY_MAP.get("80331") == "München"
 
     def test_koeln_mapped(self):
-        assert PLZ_CITY_MAP.get("50") == "Köln"
+        assert PLZ_CITY_MAP.get("50667") == "Köln"
 
     def test_frankfurt_mapped(self):
-        assert PLZ_CITY_MAP.get("60") == "Frankfurt am Main"
+        result = PLZ_CITY_MAP.get("60311")
+        assert result in ("Frankfurt", "Frankfurt am Main")
 
     def test_stuttgart_mapped(self):
-        assert PLZ_CITY_MAP.get("70") == "Stuttgart"
+        assert PLZ_CITY_MAP.get("70173") == "Stuttgart"
 
     def test_duesseldorf_mapped(self):
-        assert PLZ_CITY_MAP.get("40") == "Düsseldorf"
+        assert PLZ_CITY_MAP.get("40213") == "Düsseldorf"
 
     def test_hannover_mapped(self):
-        assert PLZ_CITY_MAP.get("30") == "Hannover"
+        assert PLZ_CITY_MAP.get("30159") == "Hannover"
 
     def test_nuernberg_mapped(self):
-        assert PLZ_CITY_MAP.get("90") == "Nürnberg"
+        assert PLZ_CITY_MAP.get("90402") == "Nürnberg"
 
     def test_dresden_mapped(self):
-        assert PLZ_CITY_MAP.get("01") == "Dresden"
+        assert PLZ_CITY_MAP.get("01067") == "Dresden"
 
     def test_leipzig_mapped(self):
-        assert PLZ_CITY_MAP.get("04") == "Leipzig"
+        assert PLZ_CITY_MAP.get("04109") == "Leipzig"
+
+    def test_small_town_mapped(self):
+        """Auch kleine Orte wie Aach bei Trier müssen enthalten sein."""
+        assert PLZ_CITY_MAP.get("54298") == "Aach"
+
+    def test_aachen_mapped(self):
+        assert PLZ_CITY_MAP.get("52062") == "Aachen"
+
+    def test_freiburg_mapped(self):
+        assert PLZ_CITY_MAP.get("79098") == "Freiburg"

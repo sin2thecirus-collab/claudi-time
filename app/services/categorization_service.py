@@ -8,10 +8,13 @@ Ordnet Kandidaten und Jobs einer Kategorie zu:
 Zusätzlich: PLZ → Stadt-Mapping, Job-Title-Normalisierung.
 """
 
+import json
 import logging
+import os
 import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from pathlib import Path
 
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -101,70 +104,31 @@ _ENGINEERING_PATTERNS: list[re.Pattern] = [
 
 
 # ═══════════════════════════════════════════════════════════════
-# PLZ → STADT MAPPING (Top-Bereiche Deutschland)
+# PLZ → STADT MAPPING (vollständig, 8.255 Einträge)
 # ═══════════════════════════════════════════════════════════════
 
-# PLZ-Prefix (2-stellig) → Standard-Stadt
-PLZ_CITY_MAP: dict[str, str] = {
-    # Berlin
-    "10": "Berlin", "12": "Berlin", "13": "Berlin", "14": "Berlin",
-    # Hamburg
-    "20": "Hamburg", "21": "Hamburg", "22": "Hamburg",
-    # München
-    "80": "München", "81": "München", "82": "München", "83": "München", "85": "München",
-    # Köln / Bonn
-    "50": "Köln", "51": "Köln", "53": "Bonn",
-    # Frankfurt
-    "60": "Frankfurt am Main", "61": "Frankfurt am Main", "63": "Offenbach",
-    # Stuttgart
-    "70": "Stuttgart", "71": "Stuttgart", "73": "Esslingen",
-    # Düsseldorf
-    "40": "Düsseldorf", "41": "Düsseldorf",
-    # Dortmund / Essen / Ruhrgebiet
-    "44": "Dortmund", "45": "Essen", "46": "Oberhausen", "47": "Duisburg",
-    # Hannover
-    "30": "Hannover", "31": "Hannover",
-    # Nürnberg
-    "90": "Nürnberg", "91": "Nürnberg",
-    # Dresden / Leipzig
-    "01": "Dresden", "04": "Leipzig",
-    # Bremen
-    "28": "Bremen",
-    # Mannheim / Heidelberg
-    "68": "Mannheim", "69": "Heidelberg",
-    # Wiesbaden / Mainz
-    "55": "Mainz", "65": "Wiesbaden",
-    # Karlsruhe
-    "76": "Karlsruhe",
-    # Augsburg
-    "86": "Augsburg",
-    # Freiburg
-    "79": "Freiburg",
-    # Kassel
-    "34": "Kassel",
-    # Kiel
-    "24": "Kiel",
-    # Rostock
-    "18": "Rostock",
-    # Erfurt
-    "99": "Erfurt",
-    # Magdeburg
-    "39": "Magdeburg",
-    # Potsdam
-    "14": "Potsdam",
-    # Saarbrücken
-    "66": "Saarbrücken",
-    # Bielefeld
-    "33": "Bielefeld",
-    # Wuppertal
-    "42": "Wuppertal",
-    # Aachen
-    "52": "Aachen",
-    # Münster
-    "48": "Münster",
-    # Braunschweig
-    "38": "Braunschweig",
-}
+def _load_plz_map() -> dict[str, str]:
+    """Lädt die vollständige PLZ→Stadt-Zuordnung aus der JSON-Datei.
+
+    Enthält alle 8.255 deutschen 5-stelligen Postleitzahlen mit zugehörigem Ort.
+    Quelle: OpenData (CC BY 4.0)
+    """
+    data_path = Path(__file__).parent.parent / "data" / "plz_ort.json"
+    try:
+        with open(data_path, "r", encoding="utf-8") as f:
+            plz_map = json.load(f)
+        logger.info(f"PLZ-Tabelle geladen: {len(plz_map)} Einträge")
+        return plz_map
+    except FileNotFoundError:
+        logger.warning(f"PLZ-Tabelle nicht gefunden: {data_path}")
+        return {}
+    except Exception as e:
+        logger.error(f"Fehler beim Laden der PLZ-Tabelle: {e}")
+        return {}
+
+
+# Einmal beim Import laden (Singleton)
+PLZ_CITY_MAP: dict[str, str] = _load_plz_map()
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -307,14 +271,21 @@ class CategorizationService:
 
         Priorität:
         1. Vorhandenes city-Feld (wenn nicht leer)
-        2. PLZ → Stadt-Mapping (erste 2 Stellen)
+        2. PLZ → Stadt-Mapping (vollständige 5-stellige PLZ, 8.255 Einträge)
         """
         if city and city.strip():
             return city.strip()
 
-        if postal_code and len(postal_code) >= 2:
-            prefix = postal_code[:2]
-            return PLZ_CITY_MAP.get(prefix)
+        if postal_code and postal_code.strip():
+            plz = postal_code.strip()
+            # Erst exakte 5-stellige PLZ suchen
+            if plz in PLZ_CITY_MAP:
+                return PLZ_CITY_MAP[plz]
+            # Fallback: mit führender Null auffüllen (z.B. "1067" → "01067")
+            if len(plz) == 4:
+                padded = "0" + plz
+                if padded in PLZ_CITY_MAP:
+                    return PLZ_CITY_MAP[padded]
 
         return None
 
