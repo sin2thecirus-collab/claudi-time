@@ -1082,6 +1082,64 @@ async def _run_crm_sync(db_unused: AsyncSession, job_run_id: UUID, full_sync: bo
                 f"{total_processed} gesamt"
             )
 
+            # === AUTO CV-PARSING nach CRM-Sync ===
+            # Alle ungeparsten CVs sofort parsen (finaler Prompt aus cv_parser_service.py)
+            from app.services.cv_parser_service import CVParserService
+
+            unparsed_result = await db.execute(
+                select(Candidate)
+                .where(
+                    Candidate.cv_url.isnot(None),
+                    Candidate.cv_url != "",
+                    Candidate.cv_parsed_at.is_(None),
+                    Candidate.cv_parse_failed.is_(False),
+                )
+                .order_by(Candidate.id)
+            )
+            unparsed_candidates = unparsed_result.scalars().all()
+
+            if unparsed_candidates:
+                logger.info(f"=== AUTO CV-PARSING START === {len(unparsed_candidates)} ungeparste CVs")
+                parser = CVParserService(db)
+                cv_parsed = 0
+                cv_failed = 0
+
+                for candidate in unparsed_candidates:
+                    try:
+                        pdf_bytes = await parser.download_cv(candidate.cv_url)
+                        cv_text = parser.extract_text_from_pdf(pdf_bytes)
+                        parse_result = await parser.parse_cv_text(cv_text)
+
+                        if parse_result.success and parse_result.data:
+                            await parser._update_candidate_from_cv(
+                                candidate, parse_result.data, cv_text
+                            )
+                            cv_parsed += 1
+                        else:
+                            candidate.cv_parse_failed = True
+                            cv_failed += 1
+                            logger.warning(
+                                f"CV-Parsing fehlgeschlagen: {candidate.first_name} {candidate.last_name}: {parse_result.error}"
+                            )
+
+                    except Exception as e:
+                        candidate.cv_parse_failed = True
+                        cv_failed += 1
+                        logger.warning(
+                            f"CV-Parsing Fehler: {candidate.first_name} {candidate.last_name}: {e}"
+                        )
+
+                    # Sofort nach jedem Kandidaten committen
+                    await db.commit()
+                    await asyncio.sleep(0.3)
+
+                await parser.close()
+                logger.info(
+                    f"=== AUTO CV-PARSING FERTIG === {cv_parsed} geparst, {cv_failed} fehlgeschlagen"
+                )
+            else:
+                logger.info("=== AUTO CV-PARSING === Keine ungeparsten CVs vorhanden")
+
         except Exception as e:
             logger.error(f"CRM-Sync fehlgeschlagen: {e}", exc_info=True)
             try:
