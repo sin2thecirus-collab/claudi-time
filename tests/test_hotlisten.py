@@ -186,8 +186,8 @@ class TestJobTitleNormalization:
         assert self.service.normalize_job_title("Buchhalter (m/w/d)") == "Buchhalter/in"
 
     def test_normalize_bilanzbuchhalter(self):
-        # "bilanzbuchhalterin" matched vor "buchhalterin" weil es zuerst im Dict steht
-        assert self.service.normalize_job_title("Bilanzbuchhalterin IHK") == "Buchhalter/in"  # "buchhalterin" matcht zuerst
+        # "bilanzbuchhalterin" steht jetzt VOR "buchhalterin" → korrekt spezifisch
+        assert self.service.normalize_job_title("Bilanzbuchhalterin IHK") == "Bilanzbuchhalter/in"
 
     def test_normalize_controller(self):
         assert self.service.normalize_job_title("Senior Controller") == "Controller/in"
@@ -758,12 +758,12 @@ class TestJobTitleNormalizationExtended:
         self.service = CategorizationService(db=MagicMock())
 
     def test_normalize_finanzbuchhalter(self):
-        # "buchhalter" matcht zuerst im Dict (Iteration Order)
-        assert self.service.normalize_job_title("Finanzbuchhalter (m/w/d)") == "Buchhalter/in"
+        # Spezifischer Titel matcht jetzt korrekt (steht VOR "buchhalter" im Dict)
+        assert self.service.normalize_job_title("Finanzbuchhalter (m/w/d)") == "Finanzbuchhalter/in"
 
     def test_normalize_lohnbuchhalter(self):
-        # "buchhalter" matcht zuerst im Dict (Iteration Order)
-        assert self.service.normalize_job_title("Lohnbuchhalter gesucht") == "Buchhalter/in"
+        # Spezifischer Titel matcht jetzt korrekt (steht VOR "buchhalter" im Dict)
+        assert self.service.normalize_job_title("Lohnbuchhalter gesucht") == "Lohnbuchhalter/in"
 
     def test_normalize_steuerfachangestellte(self):
         assert self.service.normalize_job_title("Steuerfachangestellte Kanzlei") == "Steuerfachangestellte/r"
@@ -800,6 +800,22 @@ class TestJobTitleNormalizationExtended:
 
     def test_normalize_metallbauer(self):
         assert self.service.normalize_job_title("Metallbauer Konstruktion") == "Metallbauer/in"
+
+    def test_normalize_accountant_is_finanzbuchhalter(self):
+        """Accountant = Finanzbuchhalter auf Englisch → gleiche Normalisierung"""
+        assert self.service.normalize_job_title("Senior Accountant IFRS") == "Finanzbuchhalter/in"
+
+    def test_normalize_accountant_lowercase(self):
+        assert self.service.normalize_job_title("accountant") == "Finanzbuchhalter/in"
+
+    def test_normalize_debitorenbuchhalter(self):
+        assert self.service.normalize_job_title("Debitorenbuchhalter (m/w/d)") == "Debitorenbuchhalter/in"
+
+    def test_normalize_kreditorenbuchhalter(self):
+        assert self.service.normalize_job_title("Kreditorenbuchhalterin Vollzeit") == "Kreditorenbuchhalter/in"
+
+    def test_normalize_hauptbuchhalter(self):
+        assert self.service.normalize_job_title("Hauptbuchhalter Konzern") == "Hauptbuchhalter/in"
 
     def test_normalize_empty_string(self):
         assert self.service.normalize_job_title("") is None

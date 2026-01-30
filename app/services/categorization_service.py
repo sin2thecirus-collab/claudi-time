@@ -146,16 +146,26 @@ PLZ_CITY_MAP: dict[str, str] = _load_plz_map()
 # ═══════════════════════════════════════════════════════════════
 
 # Mapping: Keyword im Titel → normalisierter Job-Title
+# WICHTIG: Spezifischere Titel MÜSSEN vor allgemeineren stehen!
+# "finanzbuchhalter" muss VOR "buchhalter" kommen, weil Substring-Match.
 JOB_TITLE_NORMALIZATION: dict[str, str] = {
-    # FINANCE
-    "buchhalter": "Buchhalter/in",
-    "buchhalterin": "Buchhalter/in",
+    # FINANCE — spezifische Buchhalter-Typen ZUERST
     "finanzbuchhalter": "Finanzbuchhalter/in",
     "finanzbuchhalterin": "Finanzbuchhalter/in",
     "bilanzbuchhalter": "Bilanzbuchhalter/in",
     "bilanzbuchhalterin": "Bilanzbuchhalter/in",
     "lohnbuchhalter": "Lohnbuchhalter/in",
     "lohnbuchhalterin": "Lohnbuchhalter/in",
+    "debitorenbuchhalter": "Debitorenbuchhalter/in",
+    "debitorenbuchhalterin": "Debitorenbuchhalter/in",
+    "kreditorenbuchhalter": "Kreditorenbuchhalter/in",
+    "kreditorenbuchhalterin": "Kreditorenbuchhalter/in",
+    "hauptbuchhalter": "Hauptbuchhalter/in",
+    "hauptbuchhalterin": "Hauptbuchhalter/in",
+    "accountant": "Finanzbuchhalter/in",  # Accountant = Finanzbuchhalter auf Englisch
+    # FINANCE — allgemeiner Buchhalter ZULETZT (fängt alles auf was nicht spezifischer ist)
+    "buchhalter": "Buchhalter/in",
+    "buchhalterin": "Buchhalter/in",
     "controller": "Controller/in",
     "controllerin": "Controller/in",
     "steuerfachangestellte": "Steuerfachangestellte/r",
@@ -164,7 +174,6 @@ JOB_TITLE_NORMALIZATION: dict[str, str] = {
     "steuerberaterin": "Steuerberater/in",
     "wirtschaftsprüfer": "Wirtschaftsprüfer/in",
     "wirtschaftsprüferin": "Wirtschaftsprüfer/in",
-    "accountant": "Accountant",
     # ENGINEERING
     "servicetechniker": "Servicetechniker/in",
     "servicetechnikerin": "Servicetechniker/in",
