@@ -8,127 +8,159 @@
     <div>
         <nav class="flex mb-2" aria-label="Breadcrumb">
             <ol class="flex items-center space-x-2 text-sm text-gray-500">
-                <li><a href="/hotlisten" class="hover:text-gray-700">Hotlisten</a></li>
+                <li><a href="/hotlisten" class="hover:text-primary-600 transition-colors">Hotlisten</a></li>
                 <li><span class="mx-1">/</span></li>
                 <li class="font-medium text-gray-900">{{ category_label }}</li>
             </ol>
         </nav>
         <div class="flex items-center justify-between">
-            <h1 class="text-2xl font-bold text-gray-900">Match-Bereiche: {{ category_label }}</h1>
-            <div class="flex gap-3">
+            <div class="flex items-center gap-3">
+                <a href="/hotlisten" class="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 transition-colors">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+                    </svg>
+                    Zurueck
+                </a>
+                <h1 class="text-2xl font-bold text-gray-900">Match-Bereiche: {{ category_label }}</h1>
+            </div>
+            <div class="flex gap-2">
                 <a href="/match-bereiche?category=FINANCE"
-                   class="rounded-lg px-3 py-1.5 text-sm font-medium {% if category == 'FINANCE' %}bg-blue-100 text-blue-700{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %} transition-colors">
+                   class="rounded-lg px-4 py-2 text-sm font-medium {% if category == 'FINANCE' %}bg-blue-600 text-white shadow-sm{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %} transition-all">
                     Finance
                 </a>
                 <a href="/match-bereiche?category=ENGINEERING"
-                   class="rounded-lg px-3 py-1.5 text-sm font-medium {% if category == 'ENGINEERING' %}bg-green-100 text-green-700{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %} transition-colors">
+                   class="rounded-lg px-4 py-2 text-sm font-medium {% if category == 'ENGINEERING' %}bg-green-600 text-white shadow-sm{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %} transition-all">
                     Engineering
                 </a>
             </div>
         </div>
     </div>
 
-    {# Nach Stadt #}
+    {# Stadt x Beruf Kombinationen #}
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-200">
-            <h2 class="text-lg font-semibold text-gray-900">Nach Stadt</h2>
-            <p class="text-sm text-gray-500">Kandidaten und Jobs pro Stadt</p>
+            <h2 class="text-lg font-semibold text-gray-900">Stadt x Beruf</h2>
+            <p class="text-sm text-gray-500">Kombinierte Ansicht — klicke auf "DeepMatch starten" um die KI-Bewertung zu starten</p>
         </div>
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stadt</th>
-                        <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Kandidaten</th>
-                        <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Jobs</th>
-                        <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Aktion</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                    {% for city in city_data %}
-                    <tr class="hover:bg-gray-50 transition-colors">
-                        <td class="px-6 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {{ city.name }}
-                        </td>
-                        <td class="px-6 py-3 whitespace-nowrap text-center">
-                            <span class="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
-                                {{ city.candidates }}
-                            </span>
-                        </td>
-                        <td class="px-6 py-3 whitespace-nowrap text-center">
-                            <span class="inline-flex items-center rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-700">
-                                {{ city.jobs }}
-                            </span>
-                        </td>
-                        <td class="px-6 py-3 whitespace-nowrap text-center">
-                            <a href="/deepmatch?category={{ category }}&city={{ city.name }}"
-                               class="text-sm text-primary-600 hover:text-primary-800 font-medium">
-                                DeepMatch &rarr;
+
+        {% if combo_data %}
+        <div class="divide-y divide-gray-200">
+            {% for city_name, titles in combo_data %}
+            <div class="px-6 py-4">
+                {# Stadt-Header #}
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="text-lg">📍</span>
+                    <h3 class="text-base font-semibold text-gray-900">{{ city_name }}</h3>
+                </div>
+
+                {# Beruf-Zeilen fuer diese Stadt #}
+                <div class="space-y-2 ml-7">
+                    {% for t in titles %}
+                    <div class="flex items-center justify-between py-2 px-3 rounded-lg {% if t.can_match %}hover:bg-blue-50{% else %}bg-gray-50{% endif %} transition-colors group">
+                        <div class="flex items-center gap-4 min-w-0">
+                            <span class="text-sm font-medium text-gray-900 truncate">{{ t.title }}</span>
+                            <div class="flex items-center gap-2 text-xs">
+                                <span class="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-blue-700 font-medium">
+                                    {{ t.candidates }} Kandidaten
+                                </span>
+                                <span class="text-gray-300">x</span>
+                                <span class="inline-flex items-center rounded-full bg-green-50 px-2 py-0.5 text-green-700 font-medium">
+                                    {{ t.jobs }} Jobs
+                                </span>
+                            </div>
+                        </div>
+                        <div class="flex-shrink-0 ml-4">
+                            {% if t.can_match %}
+                            <a href="/deepmatch?category={{ category }}&city={{ city_name }}&job_title={{ t.title }}"
+                               class="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-700 shadow-sm hover:shadow transition-all">
+                                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                                </svg>
+                                DeepMatch starten
                             </a>
-                        </td>
-                    </tr>
+                            {% else %}
+                            <span class="text-xs text-gray-400">—</span>
+                            {% endif %}
+                        </div>
+                    </div>
                     {% endfor %}
-                    {% if not city_data %}
-                    <tr>
-                        <td colspan="4" class="px-6 py-8 text-center text-sm text-gray-500">
-                            Keine Daten vorhanden. Bitte zuerst die Kategorisierung starten.
-                        </td>
-                    </tr>
-                    {% endif %}
-                </tbody>
-            </table>
+                </div>
+            </div>
+            {% endfor %}
         </div>
+        {% else %}
+        <div class="px-6 py-12 text-center">
+            <svg class="mx-auto h-12 w-12 text-gray-300" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            </svg>
+            <p class="mt-2 text-sm text-gray-500">Keine Daten vorhanden.</p>
+            <p class="text-xs text-gray-400 mt-1">Bitte zuerst die Kategorisierung starten.</p>
+        </div>
+        {% endif %}
     </div>
 
-    {# Nach Beruf/Titel #}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div class="px-6 py-4 border-b border-gray-200">
-            <h2 class="text-lg font-semibold text-gray-900">Nach Beruf</h2>
-            <p class="text-sm text-gray-500">Kandidaten und Jobs pro normalisiertem Berufstitel</p>
+    {# Uebersicht nach Stadt #}
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {# Nach Stadt #}
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-semibold text-gray-900">Nach Stadt</h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stadt</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Kand.</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Jobs</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        {% for city in city_data[:15] %}
+                        <tr class="hover:bg-gray-50 transition-colors">
+                            <td class="px-6 py-2 text-sm font-medium text-gray-900">{{ city.name }}</td>
+                            <td class="px-6 py-2 text-center">
+                                <span class="text-xs font-medium text-blue-700">{{ city.candidates }}</span>
+                            </td>
+                            <td class="px-6 py-2 text-center">
+                                <span class="text-xs font-medium text-green-700">{{ city.jobs }}</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Beruf</th>
-                        <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Kandidaten</th>
-                        <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Jobs</th>
-                        <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Aktion</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                    {% for title in title_data %}
-                    <tr class="hover:bg-gray-50 transition-colors">
-                        <td class="px-6 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {{ title.name }}
-                        </td>
-                        <td class="px-6 py-3 whitespace-nowrap text-center">
-                            <span class="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
-                                {{ title.candidates }}
-                            </span>
-                        </td>
-                        <td class="px-6 py-3 whitespace-nowrap text-center">
-                            <span class="inline-flex items-center rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-700">
-                                {{ title.jobs }}
-                            </span>
-                        </td>
-                        <td class="px-6 py-3 whitespace-nowrap text-center">
-                            <a href="/deepmatch?category={{ category }}&job_title={{ title.name }}"
-                               class="text-sm text-primary-600 hover:text-primary-800 font-medium">
-                                DeepMatch &rarr;
-                            </a>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                    {% if not title_data %}
-                    <tr>
-                        <td colspan="4" class="px-6 py-8 text-center text-sm text-gray-500">
-                            Keine Daten vorhanden. Bitte zuerst die Kategorisierung starten.
-                        </td>
-                    </tr>
-                    {% endif %}
-                </tbody>
-            </table>
+
+        {# Nach Beruf #}
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-semibold text-gray-900">Nach Beruf</h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Beruf</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Kand.</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Jobs</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        {% for title in title_data %}
+                        <tr class="hover:bg-gray-50 transition-colors">
+                            <td class="px-6 py-2 text-sm font-medium text-gray-900">{{ title.name }}</td>
+                            <td class="px-6 py-2 text-center">
+                                <span class="text-xs font-medium text-blue-700">{{ title.candidates }}</span>
+                            </td>
+                            <td class="px-6 py-2 text-center">
+                                <span class="text-xs font-medium text-green-700">{{ title.jobs }}</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>

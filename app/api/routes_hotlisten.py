@@ -93,8 +93,8 @@ async def hotlisten_page(
         {
             "request": request,
             "categories": categories,
-            "uncategorized_candidates": total_uncategorized_candidates,
-            "uncategorized_jobs": total_uncategorized_jobs,
+            "sonstige_candidates": total_uncategorized_candidates,
+            "sonstige_jobs": total_uncategorized_jobs,
         },
     )
 
@@ -211,6 +211,67 @@ async def match_bereiche_page(
         for title in all_titles
     ]
 
+    # Stadt × Beruf Kombinationen — Kandidaten
+    combo_candidates_q = await db.execute(
+        select(
+            Candidate.hotlist_city,
+            Candidate.hotlist_job_title,
+            func.count(Candidate.id),
+        )
+        .where(
+            and_(
+                Candidate.hotlist_category == category,
+                Candidate.deleted_at.is_(None),
+                Candidate.hotlist_city.isnot(None),
+                Candidate.hotlist_job_title.isnot(None),
+            )
+        )
+        .group_by(Candidate.hotlist_city, Candidate.hotlist_job_title)
+        .order_by(Candidate.hotlist_city, Candidate.hotlist_job_title)
+    )
+    combo_cand = {(r[0], r[1]): r[2] for r in combo_candidates_q.all()}
+
+    # Stadt × Beruf Kombinationen — Jobs
+    combo_jobs_q = await db.execute(
+        select(
+            Job.hotlist_city,
+            Job.hotlist_job_title,
+            func.count(Job.id),
+        )
+        .where(
+            and_(
+                Job.hotlist_category == category,
+                Job.deleted_at.is_(None),
+                Job.hotlist_city.isnot(None),
+                Job.hotlist_job_title.isnot(None),
+            )
+        )
+        .group_by(Job.hotlist_city, Job.hotlist_job_title)
+        .order_by(Job.hotlist_city, Job.hotlist_job_title)
+    )
+    combo_jobs = {(r[0], r[1]): r[2] for r in combo_jobs_q.all()}
+
+    # Alle Kombinationen sammeln, nach Stadt gruppiert
+    all_combos = sorted(set(combo_cand.keys()) | set(combo_jobs.keys()))
+    combo_by_city = {}
+    for city, title in all_combos:
+        if city not in combo_by_city:
+            combo_by_city[city] = []
+        cand_count = combo_cand.get((city, title), 0)
+        jobs_count = combo_jobs.get((city, title), 0)
+        combo_by_city[city].append({
+            "title": title,
+            "candidates": cand_count,
+            "jobs": jobs_count,
+            "can_match": cand_count > 0 and jobs_count > 0,
+        })
+    # Nach Kandidaten-Summe sortieren (größte Stadt zuerst)
+    combo_data = sorted(
+        combo_by_city.items(),
+        key=lambda x: sum(t["candidates"] for t in x[1]),
+        reverse=True,
+    )
+
     return templates.TemplateResponse(
         "match_bereiche.html",
         {
@@ -219,6 +280,7 @@ async def match_bereiche_page(
             "category_label": "Finance & Accounting" if category == "FINANCE" else "Engineering & Technik",
             "city_data": city_data,
             "title_data": title_data,
+            "combo_data": combo_data,
         },
     )
 
