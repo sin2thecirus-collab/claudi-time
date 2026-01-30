@@ -4,6 +4,7 @@ import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -78,9 +79,9 @@ class CandidateWithoutAddressResponse(BaseModel):
 # ==================== Endpoints ====================
 
 
-@router.get("/jobs-count", summary="Anzahl aktiver Jobs")
-async def get_jobs_count(db: AsyncSession = Depends(get_db)) -> dict:
-    """Gibt die Anzahl aktiver Jobs zurück."""
+@router.get("/jobs-count", summary="Anzahl aktiver Jobs", response_class=PlainTextResponse)
+async def get_jobs_count(db: AsyncSession = Depends(get_db)):
+    """Gibt die Anzahl aktiver Jobs zurück (als Plain Text für HTMX)."""
     from sqlalchemy import select, func
     from app.models.job import Job
     from datetime import datetime, timezone
@@ -91,12 +92,12 @@ async def get_jobs_count(db: AsyncSession = Depends(get_db)) -> dict:
         (Job.expires_at.is_(None)) | (Job.expires_at > now)
     )
     result = await db.execute(query)
-    return {"count": result.scalar() or 0}
+    return str(result.scalar() or 0)
 
 
-@router.get("/candidates-active-count", summary="Anzahl aktiver Kandidaten")
-async def get_candidates_active_count(db: AsyncSession = Depends(get_db)) -> dict:
-    """Gibt die Anzahl aktiver Kandidaten zurück."""
+@router.get("/candidates-active-count", summary="Anzahl aktiver Kandidaten", response_class=PlainTextResponse)
+async def get_candidates_active_count(db: AsyncSession = Depends(get_db)):
+    """Gibt die Anzahl aktiver Kandidaten zurück (als Plain Text für HTMX)."""
     from sqlalchemy import select, func
     from app.models.candidate import Candidate
     from datetime import datetime, timezone, timedelta
@@ -106,12 +107,12 @@ async def get_candidates_active_count(db: AsyncSession = Depends(get_db)) -> dic
         Candidate.updated_at >= threshold
     )
     result = await db.execute(query)
-    return {"count": result.scalar() or 0}
+    return str(result.scalar() or 0)
 
 
-@router.get("/ai-checks-count", summary="Anzahl KI-Checks")
-async def get_ai_checks_count(db: AsyncSession = Depends(get_db)) -> dict:
-    """Gibt die Anzahl der KI-Checks der letzten 30 Tage zurück."""
+@router.get("/ai-checks-count", summary="Anzahl KI-Checks", response_class=PlainTextResponse)
+async def get_ai_checks_count(db: AsyncSession = Depends(get_db)):
+    """Gibt die Anzahl der KI-Checks der letzten 30 Tage zurück (als Plain Text für HTMX)."""
     from sqlalchemy import select, func
     from app.models.match import Match
     from datetime import datetime, timezone, timedelta
@@ -122,12 +123,12 @@ async def get_ai_checks_count(db: AsyncSession = Depends(get_db)) -> dict:
         Match.ai_checked_at >= threshold
     )
     result = await db.execute(query)
-    return {"count": result.scalar() or 0}
+    return str(result.scalar() or 0)
 
 
-@router.get("/placed-count", summary="Anzahl Vermittlungen")
-async def get_placed_count(db: AsyncSession = Depends(get_db)) -> dict:
-    """Gibt die Anzahl der Vermittlungen der letzten 30 Tage zurück."""
+@router.get("/placed-count", summary="Anzahl Vermittlungen", response_class=PlainTextResponse)
+async def get_placed_count(db: AsyncSession = Depends(get_db)):
+    """Gibt die Anzahl der Vermittlungen der letzten 30 Tage zurück (als Plain Text für HTMX)."""
     from sqlalchemy import select, func
     from app.models.match import Match
     from datetime import datetime, timezone, timedelta
@@ -138,7 +139,7 @@ async def get_placed_count(db: AsyncSession = Depends(get_db)) -> dict:
         Match.placed_at >= threshold
     )
     result = await db.execute(query)
-    return {"count": result.scalar() or 0}
+    return str(result.scalar() or 0)
 
 
 @router.get(
