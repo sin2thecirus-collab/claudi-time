@@ -71,8 +71,12 @@ class Candidate(Base):
     # Hotlist-Kategorisierung
     hotlist_category: Mapped[str | None] = mapped_column(String(50))
     hotlist_city: Mapped[str | None] = mapped_column(String(255))
-    hotlist_job_title: Mapped[str | None] = mapped_column(String(255))
+    hotlist_job_title: Mapped[str | None] = mapped_column(String(255))  # Primary Role
+    hotlist_job_titles: Mapped[list[str] | None] = mapped_column(ARRAY(String))  # Alle Rollen
     categorized_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    # Finance-Klassifizierung (OpenAI-Trainingsdaten)
+    classification_data: Mapped[dict | None] = mapped_column(JSONB)  # {"source", "roles", "reasoning", "classified_at"}
 
     # Status
     hidden: Mapped[bool] = mapped_column(Boolean, default=False)

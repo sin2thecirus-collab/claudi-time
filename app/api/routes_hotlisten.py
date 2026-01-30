@@ -20,9 +20,12 @@ from app.database import get_db
 from app.models.candidate import Candidate
 from app.models.job import Job
 from app.models.match import Match
+from sqlalchemy import text as sa_text, literal_column
+
 from app.services.categorization_service import CategorizationService, HotlistCategory
 from app.services.pre_scoring_service import PreScoringService
 from app.services.deepmatch_service import DeepMatchService
+from app.services.finance_classifier_service import FinanceClassifierService
 
 logger = logging.getLogger(__name__)
 
@@ -146,41 +149,39 @@ async def match_bereiche_page(
     )
     job_city_counts = dict(jobs_by_city.all())
 
-    # Kandidaten nach Job-Title gruppiert
-    candidates_by_title = await db.execute(
-        select(
-            Candidate.hotlist_job_title,
-            func.count(Candidate.id),
-        )
-        .where(
-            and_(
-                Candidate.hotlist_category == category,
-                Candidate.deleted_at.is_(None),
-                Candidate.hotlist_job_title.isnot(None),
-            )
-        )
-        .group_by(Candidate.hotlist_job_title)
-        .order_by(func.count(Candidate.id).desc())
+    # Kandidaten nach Job-Title gruppiert (UNNEST für Multi-Titel-Array)
+    candidates_by_title_q = await db.execute(
+        sa_text("""
+            SELECT unnested_title, COUNT(DISTINCT id)
+            FROM candidates, LATERAL unnest(
+                COALESCE(hotlist_job_titles, ARRAY[hotlist_job_title])
+            ) AS unnested_title
+            WHERE hotlist_category = :category
+              AND deleted_at IS NULL
+              AND (hotlist_job_titles IS NOT NULL OR hotlist_job_title IS NOT NULL)
+            GROUP BY unnested_title
+            ORDER BY COUNT(DISTINCT id) DESC
+        """),
+        {"category": category},
     )
-    candidate_title_counts = dict(candidates_by_title.all())
+    candidate_title_counts = dict(candidates_by_title_q.all())
 
-    # Jobs nach Job-Title gruppiert
-    jobs_by_title = await db.execute(
-        select(
-            Job.hotlist_job_title,
-            func.count(Job.id),
-        )
-        .where(
-            and_(
-                Job.hotlist_category == category,
-                Job.deleted_at.is_(None),
-                Job.hotlist_job_title.isnot(None),
-            )
-        )
-        .group_by(Job.hotlist_job_title)
-        .order_by(func.count(Job.id).desc())
+    # Jobs nach Job-Title gruppiert (UNNEST für Multi-Titel-Array)
+    jobs_by_title_q = await db.execute(
+        sa_text("""
+            SELECT unnested_title, COUNT(DISTINCT id)
+            FROM jobs, LATERAL unnest(
+                COALESCE(hotlist_job_titles, ARRAY[hotlist_job_title])
+            ) AS unnested_title
+            WHERE hotlist_category = :category
+              AND deleted_at IS NULL
+              AND (hotlist_job_titles IS NOT NULL OR hotlist_job_title IS NOT NULL)
+            GROUP BY unnested_title
+            ORDER BY COUNT(DISTINCT id) DESC
+        """),
+        {"category": category},
     )
-    job_title_counts = dict(jobs_by_title.all())
+    job_title_counts = dict(jobs_by_title_q.all())
 
     # Alle Städte sammeln (Union von Kandidaten und Jobs)
     all_cities = sorted(
@@ -211,43 +212,39 @@ async def match_bereiche_page(
         for title in all_titles
     ]
 
-    # Stadt × Beruf Kombinationen — Kandidaten
+    # Stadt × Beruf Kombinationen — Kandidaten (UNNEST für Multi-Titel)
     combo_candidates_q = await db.execute(
-        select(
-            Candidate.hotlist_city,
-            Candidate.hotlist_job_title,
-            func.count(Candidate.id),
-        )
-        .where(
-            and_(
-                Candidate.hotlist_category == category,
-                Candidate.deleted_at.is_(None),
-                Candidate.hotlist_city.isnot(None),
-                Candidate.hotlist_job_title.isnot(None),
-            )
-        )
-        .group_by(Candidate.hotlist_city, Candidate.hotlist_job_title)
-        .order_by(Candidate.hotlist_city, Candidate.hotlist_job_title)
+        sa_text("""
+            SELECT hotlist_city, unnested_title, COUNT(DISTINCT id)
+            FROM candidates, LATERAL unnest(
+                COALESCE(hotlist_job_titles, ARRAY[hotlist_job_title])
+            ) AS unnested_title
+            WHERE hotlist_category = :category
+              AND deleted_at IS NULL
+              AND hotlist_city IS NOT NULL
+              AND (hotlist_job_titles IS NOT NULL OR hotlist_job_title IS NOT NULL)
+            GROUP BY hotlist_city, unnested_title
+            ORDER BY hotlist_city, unnested_title
+        """),
+        {"category": category},
     )
     combo_cand = {(r[0], r[1]): r[2] for r in combo_candidates_q.all()}
 
-    # Stadt × Beruf Kombinationen — Jobs
+    # Stadt × Beruf Kombinationen — Jobs (UNNEST für Multi-Titel)
     combo_jobs_q = await db.execute(
-        select(
-            Job.hotlist_city,
-            Job.hotlist_job_title,
-            func.count(Job.id),
-        )
-        .where(
-            and_(
-                Job.hotlist_category == category,
-                Job.deleted_at.is_(None),
-                Job.hotlist_city.isnot(None),
-                Job.hotlist_job_title.isnot(None),
-            )
-        )
-        .group_by(Job.hotlist_city, Job.hotlist_job_title)
-        .order_by(Job.hotlist_city, Job.hotlist_job_title)
+        sa_text("""
+            SELECT hotlist_city, unnested_title, COUNT(DISTINCT id)
+            FROM jobs, LATERAL unnest(
+                COALESCE(hotlist_job_titles, ARRAY[hotlist_job_title])
+            ) AS unnested_title
+            WHERE hotlist_category = :category
+              AND deleted_at IS NULL
+              AND hotlist_city IS NOT NULL
+              AND (hotlist_job_titles IS NOT NULL OR hotlist_job_title IS NOT NULL)
+            GROUP BY hotlist_city, unnested_title
+            ORDER BY hotlist_city, unnested_title
+        """),
+        {"category": category},
     )
     combo_jobs = {(r[0], r[1]): r[2] for r in combo_jobs_q.all()}
 
@@ -316,7 +313,10 @@ async def deepmatch_page(
     if city:
         query = query.where(Candidate.hotlist_city == city)
     if job_title:
-        query = query.where(Candidate.hotlist_job_title == job_title)
+        # ANY() für Array-Match: Kandidat hat job_title in seinen hotlist_job_titles
+        query = query.where(
+            func.coalesce(Candidate.hotlist_job_titles, func.array([Candidate.hotlist_job_title])).any(job_title)
+        )
 
     # Sortierung: pre_score DESC (beste zuerst), dann ai_score
     query = query.order_by(
@@ -375,6 +375,47 @@ async def trigger_categorization(
     cat_service = CategorizationService(db)
     result = await cat_service.categorize_all(force=force)
     return result
+
+
+@router.post("/api/hotlisten/classify-finance", tags=["Hotlisten API"])
+async def trigger_finance_classification(
+    force: bool = Query(default=False),
+    target: str = Query(default="candidates"),  # "candidates", "jobs", "both"
+    db: AsyncSession = Depends(get_db),
+):
+    """Klassifiziert FINANCE-Kandidaten/Jobs via OpenAI (einmalig für Training)."""
+    service = FinanceClassifierService(db)
+    results = {}
+
+    if target in ("candidates", "both"):
+        cand_result = await service.classify_all_finance_candidates(force=force)
+        results["candidates"] = {
+            "total": cand_result.total,
+            "classified": cand_result.classified,
+            "skipped_leadership": cand_result.skipped_leadership,
+            "skipped_no_cv": cand_result.skipped_no_cv,
+            "skipped_no_role": cand_result.skipped_no_role,
+            "skipped_error": cand_result.skipped_error,
+            "multi_title_count": cand_result.multi_title_count,
+            "roles_distribution": cand_result.roles_distribution,
+            "cost_usd": cand_result.cost_usd,
+            "duration_seconds": cand_result.duration_seconds,
+        }
+
+    if target in ("jobs", "both"):
+        job_result = await service.classify_all_finance_jobs(force=force)
+        results["jobs"] = {
+            "total": job_result.total,
+            "classified": job_result.classified,
+            "skipped_no_role": job_result.skipped_no_role,
+            "skipped_error": job_result.skipped_error,
+            "multi_title_count": job_result.multi_title_count,
+            "roles_distribution": job_result.roles_distribution,
+            "cost_usd": job_result.cost_usd,
+            "duration_seconds": job_result.duration_seconds,
+        }
+
+    return results
 
 
 @router.post("/api/hotlisten/pre-score", tags=["Hotlisten API"])

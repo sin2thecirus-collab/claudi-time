@@ -400,14 +400,43 @@ class CategorizationService:
         candidate.hotlist_category = result.category
         candidate.hotlist_city = result.city
         candidate.hotlist_job_title = result.job_title
+        # Array mit einzelnem Titel setzen (wird später durch RulesEngine/OpenAI überschrieben)
+        if result.job_title:
+            candidate.hotlist_job_titles = [result.job_title]
         candidate.categorized_at = datetime.now(timezone.utc)
+
+        # FINANCE-Kandidaten: Versuche lokale Feinklassifizierung via RulesEngine
+        if result.category == HotlistCategory.FINANCE:
+            try:
+                from app.services.finance_rules_engine import FinanceRulesEngine
+                engine = FinanceRulesEngine()
+                classification = engine.classify_candidate(candidate)
+                if classification.roles and not classification.is_leadership:
+                    candidate.hotlist_job_title = classification.primary_role
+                    candidate.hotlist_job_titles = classification.roles
+            except Exception:
+                pass  # Fallback auf normalize_job_title
 
     def apply_to_job(self, job: Job, result: CategorizationResult) -> None:
         """Setzt die Hotlist-Felder auf dem Job-Model."""
         job.hotlist_category = result.category
         job.hotlist_city = result.city
         job.hotlist_job_title = result.job_title
+        if result.job_title:
+            job.hotlist_job_titles = [result.job_title]
         job.categorized_at = datetime.now(timezone.utc)
+
+        # FINANCE-Jobs: Versuche lokale Feinklassifizierung via RulesEngine
+        if result.category == HotlistCategory.FINANCE:
+            try:
+                from app.services.finance_rules_engine import FinanceRulesEngine
+                engine = FinanceRulesEngine()
+                classification = engine.classify_job(job)
+                if classification.roles:
+                    job.hotlist_job_title = classification.primary_role
+                    job.hotlist_job_titles = classification.roles
+            except Exception:
+                pass  # Fallback auf normalize_job_title
 
     # ──────────────────────────────────────────────────
     # Batch-Kategorisierung (alle)

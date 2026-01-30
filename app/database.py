@@ -75,11 +75,14 @@ async def init_db() -> None:
         ("candidates", "hotlist_category", "VARCHAR(50)"),
         ("candidates", "hotlist_city", "VARCHAR(255)"),
         ("candidates", "hotlist_job_title", "VARCHAR(255)"),
+        ("candidates", "hotlist_job_titles", "VARCHAR[]"),
         ("candidates", "categorized_at", "TIMESTAMPTZ"),
+        ("candidates", "classification_data", "JSONB"),
         # Jobs: Hotlist-Felder
         ("jobs", "hotlist_category", "VARCHAR(50)"),
         ("jobs", "hotlist_city", "VARCHAR(255)"),
         ("jobs", "hotlist_job_title", "VARCHAR(255)"),
+        ("jobs", "hotlist_job_titles", "VARCHAR[]"),
         ("jobs", "categorized_at", "TIMESTAMPTZ"),
         # Matches: DeepMatch-Felder
         ("matches", "pre_score", "FLOAT"),

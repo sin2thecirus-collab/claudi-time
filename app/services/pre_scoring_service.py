@@ -121,10 +121,14 @@ class PreScoringService:
             if candidate.hotlist_city.lower() == job.hotlist_city.lower():
                 city_score = WEIGHT_CITY
 
-        # 3. Job-Title-Ähnlichkeit (20 Punkte)
+        # 3. Job-Title-Ähnlichkeit (20 Punkte) — Array-Intersection
         job_title_score = 0.0
-        if candidate.hotlist_job_title and job.hotlist_job_title:
-            if candidate.hotlist_job_title.lower() == job.hotlist_job_title.lower():
+        cand_titles = candidate.hotlist_job_titles or ([candidate.hotlist_job_title] if candidate.hotlist_job_title else [])
+        job_titles = job.hotlist_job_titles or ([job.hotlist_job_title] if job.hotlist_job_title else [])
+        if cand_titles and job_titles:
+            cand_set = {t.lower() for t in cand_titles if t}
+            job_set = {t.lower() for t in job_titles if t}
+            if cand_set & job_set:  # Mindestens 1 gemeinsamer Titel
                 job_title_score = WEIGHT_JOB_TITLE
 
         # 4. Keyword-Score (15 Punkte, aus bestehendem Matching)
