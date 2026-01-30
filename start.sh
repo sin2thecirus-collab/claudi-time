@@ -9,4 +9,4 @@ echo "Running alembic migrations..."
 alembic upgrade head || echo "Warning: Alembic migration failed, continuing anyway..."
 
 echo "Starting uvicorn server..."
-exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
+exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --timeout-keep-alive 120

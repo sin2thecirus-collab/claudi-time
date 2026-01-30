@@ -53,7 +53,8 @@ class CSVImportService:
         """
         Erstellt einen Import-Job aus Bytes-Content.
 
-        Validiert die CSV-Datei und erstellt einen ImportJob in der Datenbank.
+        Schnelle Header-Pruefung und Zeilenzaehlung (ohne volle Validierung
+        jeder einzelnen Zeile — das passiert erst in process_import).
 
         Args:
             filename: Original-Dateiname
@@ -62,44 +63,62 @@ class CSVImportService:
         Returns:
             ImportJob-Objekt (Status PENDING oder FAILED)
         """
-        # Validieren mit BinaryIO-Wrapper
-        file_obj = io.BytesIO(content)
-        validation = self.validator.validate(file_obj)
+        errors: list[dict] = []
+
+        # Schnell: Encoding + Delimiter erkennen (nur Sample)
+        encoding = self.validator.detect_encoding(content[:10000])
+        try:
+            text_content = content.decode(encoding)
+        except UnicodeDecodeError:
+            encoding = "iso-8859-1"
+            text_content = content.decode(encoding, errors="replace")
+
+        delimiter = self.validator.detect_delimiter(text_content[:5000])
+
+        # Header pruefen
+        reader = csv.DictReader(io.StringIO(text_content), delimiter=delimiter)
+        if not reader.fieldnames:
+            errors.append({
+                "row": None, "column": None,
+                "message": "CSV-Header fehlt oder ist leer", "value": None,
+            })
+        else:
+            header_set = {col.strip() for col in reader.fieldnames}
+            if "Unternehmen" not in header_set:
+                errors.append({
+                    "row": None, "column": "Unternehmen",
+                    "message": "Pflicht-Spalte 'Unternehmen' fehlt im Header",
+                    "value": None,
+                })
+
+        # Zeilenanzahl schnell zaehlen (ohne Validierung jeder Zeile)
+        total_rows = text_content.count("\n") - 1  # Minus Header
+        if total_rows < 0:
+            total_rows = 0
 
         # ImportJob erstellen
         import_job = ImportJob(
             filename=filename,
-            total_rows=validation.total_rows,
+            total_rows=total_rows,
             status=ImportStatus.PENDING,
         )
 
-        if not validation.is_valid:
+        if errors:
             import_job.status = ImportStatus.FAILED
             import_job.error_message = "Validierung fehlgeschlagen"
             import_job.errors_detail = {
-                "validation_errors": [
-                    {
-                        "row": e.row,
-                        "column": e.column,
-                        "message": e.message,
-                        "value": e.value,
-                    }
-                    for e in validation.errors[:50]
-                ],
-                "warnings": validation.warnings,
+                "validation_errors": errors,
+                "warnings": [],
             }
 
         self.db.add(import_job)
         await self.db.commit()
         await self.db.refresh(import_job)
 
-        # Validierungsergebnis cachen fuer spaetere Verwendung
-        self._last_validation = validation
-
         logger.info(
             f"Import-Job erstellt: {import_job.id}, "
             f"Datei: {filename}, "
-            f"Zeilen: {validation.total_rows}, "
+            f"Zeilen: ~{total_rows}, "
             f"Status: {import_job.status}"
         )
 
@@ -259,7 +278,10 @@ class CSVImportService:
             processed = 0
             successful = 0
             failed = 0
+            duplicates = 0
             errors_detail: list[dict] = []
+            batch: list[Job] = []
+            BATCH_SIZE = 500
 
             # Bestehende content_hashes laden (für Duplikaterkennung)
             logger.info("Lade bestehende Content-Hashes...")
@@ -270,18 +292,22 @@ class CSVImportService:
                 processed += 1
 
                 try:
+                    # Pflichtfeld: Unternehmen muss vorhanden sein
+                    if not row.get("Unternehmen", "").strip():
+                        failed += 1
+                        if len(errors_detail) < 50:
+                            errors_detail.append({
+                                "row": row_num,
+                                "message": "Pflichtfeld 'Unternehmen' ist leer",
+                            })
+                        continue
+
                     # Content-Hash berechnen
                     content_hash = calculate_content_hash(row)
 
                     # Duplikat prüfen
                     if content_hash in existing_hashes:
-                        logger.debug(f"Zeile {row_num}: Duplikat übersprungen")
-                        failed += 1
-                        if len(errors_detail) < 50:
-                            errors_detail.append({
-                                "row": row_num,
-                                "message": "Duplikat - bereits vorhanden",
-                            })
+                        duplicates += 1
                         continue
 
                     # Job erstellen
@@ -290,36 +316,48 @@ class CSVImportService:
                     # Hotlist-Kategorisierung direkt nach Erstellung
                     self._categorize_job(job)
 
-                    self.db.add(job)
+                    batch.append(job)
                     existing_hashes.add(content_hash)
                     successful += 1
 
                 except Exception as e:
                     failed += 1
-                    logger.warning(f"Zeile {row_num}: Fehler - {e}")
                     if len(errors_detail) < 50:
                         errors_detail.append({
                             "row": row_num,
                             "message": str(e),
                         })
 
-                # Fortschritt alle 100 Zeilen speichern
-                if processed % 100 == 0:
+                # Batch in DB schreiben alle BATCH_SIZE Zeilen
+                if len(batch) >= BATCH_SIZE:
+                    self.db.add_all(batch)
                     import_job.processed_rows = processed
                     import_job.successful_rows = successful
-                    import_job.failed_rows = failed
+                    import_job.failed_rows = failed + duplicates
                     await self.db.commit()
-                    logger.debug(f"Import-Fortschritt: {processed}/{import_job.total_rows}")
+                    batch = []
+                    logger.info(
+                        f"Import-Fortschritt: {processed}/{import_job.total_rows} "
+                        f"({successful} OK, {duplicates} Duplikate, {failed} Fehler)"
+                    )
+
+            # Restliche Jobs in DB schreiben
+            if batch:
+                self.db.add_all(batch)
 
             # Finale Werte setzen
             import_job.processed_rows = processed
             import_job.successful_rows = successful
-            import_job.failed_rows = failed
+            import_job.failed_rows = failed + duplicates
             import_job.status = ImportStatus.COMPLETED
             import_job.completed_at = datetime.now(timezone.utc)
 
             if errors_detail:
                 import_job.errors_detail = {"import_errors": errors_detail}
+            if duplicates > 0:
+                if not import_job.errors_detail:
+                    import_job.errors_detail = {}
+                import_job.errors_detail["duplicates_skipped"] = duplicates
 
             await self.db.commit()
 
