@@ -355,6 +355,96 @@ async def match_bereiche_page(
 
 
 # ════════════════════════════════════════════════════════════════
+# KANDIDATEN-LISTE — HTMX-Fragment für Match-Bereiche
+# ════════════════════════════════════════════════════════════════
+
+@router.get("/api/hotlisten/candidates-list", response_class=HTMLResponse)
+async def candidates_list_fragment(
+    request: Request,
+    category: str = Query(default="FINANCE"),
+    city: str = Query(default=""),
+    job_title: str = Query(default=""),
+    db: AsyncSession = Depends(get_db),
+):
+    """Gibt eine HTML-Liste der Kandidaten für eine Stadt×Beruf-Kombination zurück (HTMX-Fragment)."""
+    query = (
+        select(Candidate)
+        .where(
+            and_(
+                Candidate.hotlist_category == category,
+                Candidate.deleted_at.is_(None),
+            )
+        )
+    )
+
+    if city:
+        query = query.where(Candidate.hotlist_city == city)
+
+    if job_title:
+        # ANY() für Array-Match
+        query = query.where(
+            func.coalesce(
+                Candidate.hotlist_job_titles,
+                func.array([Candidate.hotlist_job_title]),
+            ).any(job_title)
+        )
+
+    query = query.order_by(Candidate.last_name, Candidate.first_name).limit(200)
+    result = await db.execute(query)
+    candidates = result.scalars().all()
+
+    # HTML-Fragment generieren
+    if not candidates:
+        return HTMLResponse(
+            '<div class="px-6 py-10 text-center text-gray-400 text-base">'
+            'Keine Kandidaten gefunden.</div>'
+        )
+
+    rows = []
+    for c in candidates:
+        titles_html = ""
+        if c.hotlist_job_titles:
+            badges = []
+            for t in c.hotlist_job_titles:
+                if t == job_title:
+                    badges.append(
+                        f'<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-700">{t}</span>'
+                    )
+                else:
+                    badges.append(
+                        f'<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-600">{t}</span>'
+                    )
+            titles_html = f'<div class="flex flex-wrap gap-1 mt-1">{"".join(badges)}</div>'
+
+        position = c.current_position or ""
+        company = c.current_company or ""
+        subtitle = f"{position}" if position else ""
+        if company:
+            subtitle += f" · {company}" if subtitle else company
+
+        rows.append(
+            f'<div class="flex items-center justify-between px-6 py-3.5 border-b border-gray-50 hover:bg-gray-50 transition-colors">'
+            f'  <div class="min-w-0 flex-1">'
+            f'    <div class="text-base font-medium text-gray-900">{c.full_name}</div>'
+            f'    <div class="text-sm text-gray-500 truncate">{subtitle}</div>'
+            f'    {titles_html}'
+            f'  </div>'
+            f'  <div class="flex-shrink-0 text-right ml-4">'
+            f'    <div class="text-sm text-gray-500">{c.hotlist_city or ""}</div>'
+            f'  </div>'
+            f'</div>'
+        )
+
+    count_text = f'{len(candidates)} Kandidat{"en" if len(candidates) != 1 else ""}'
+    header = (
+        f'<div class="px-6 py-3 bg-gray-50 border-b border-gray-200 text-sm font-medium text-gray-600">'
+        f'{count_text} gefunden</div>'
+    )
+
+    return HTMLResponse(header + "".join(rows))
+
+
+# ════════════════════════════════════════════════════════════════
 # STUFE 3: DEEPMATCH — Kandidaten-Auswahl + KI-Bewertung
 # ════════════════════════════════════════════════════════════════
 

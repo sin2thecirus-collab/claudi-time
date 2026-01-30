@@ -22,7 +22,7 @@
                 </a>
                 <div>
                     <h1 class="text-2xl font-bold text-gray-900">Match-Bereiche</h1>
-                    <p class="text-base text-gray-500 mt-0.5">Stadt &times; Beruf &mdash; klicke auf eine Kombination um DeepMatch zu starten</p>
+                    <p class="text-base text-gray-500 mt-0.5">Stadt &times; Beruf &mdash; klicke auf einen Beruf um Kandidaten zu sehen</p>
                 </div>
             </div>
             <div class="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
@@ -166,10 +166,10 @@
                 <div class="divide-y divide-gray-50">
                     {% for t in titles %}
                     {% if t.can_match %}
-                    {# Matchbare Zeile — hervorgehoben mit Link #}
-                    <a href="/deepmatch?category={{ category }}&city={{ city_name }}&job_title={{ t.title }}"
-                       class="flex items-center justify-between px-6 py-4 pl-20 hover:bg-blue-50/50 transition-colors group"
-                       x-show="rowVisible('{{ t.title }}')">
+                    {# Matchbare Zeile — klickbar fuer Kandidaten-Liste + DeepMatch Link #}
+                    <div class="flex items-center justify-between px-6 py-4 pl-20 hover:bg-blue-50/50 transition-colors group cursor-pointer"
+                         x-show="rowVisible('{{ t.title }}')"
+                         @click="openPanel('{{ city_name }}', '{{ t.title }}', {{ t.candidates }}, {{ t.jobs }})">
                         <div class="flex items-center gap-3 min-w-0">
                             <span class="text-base font-medium text-gray-900 group-hover:text-primary-700 transition-colors">{{ t.title }}</span>
                         </div>
@@ -185,19 +185,22 @@
                                     {{ t.jobs }} Jobs
                                 </span>
                             </div>
-                            <span class="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm group-hover:bg-primary-700 group-hover:shadow transition-all opacity-0 group-hover:opacity-100">
+                            <a href="/deepmatch?category={{ category }}&city={{ city_name }}&job_title={{ t.title }}"
+                               @click.stop
+                               class="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 hover:shadow transition-all opacity-0 group-hover:opacity-100">
                                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
                                 </svg>
                                 DeepMatch
-                            </span>
+                            </a>
                         </div>
-                    </a>
+                    </div>
                     {% else %}
-                    {# Nicht matchbare Zeile — gedaempft #}
-                    <div class="flex items-center justify-between px-6 py-3.5 pl-20"
-                         x-show="!hideEmpty && rowVisible('{{ t.title }}')">
-                        <span class="text-base text-gray-400">{{ t.title }}</span>
+                    {# Nicht matchbare Zeile — klickbar fuer Kandidaten-Liste #}
+                    <div class="flex items-center justify-between px-6 py-3.5 pl-20 hover:bg-gray-50 transition-colors cursor-pointer"
+                         x-show="!hideEmpty && rowVisible('{{ t.title }}')"
+                         @click="openPanel('{{ city_name }}', '{{ t.title }}', {{ t.candidates }}, {{ t.jobs }})">
+                        <span class="text-base text-gray-400 hover:text-gray-600 transition-colors">{{ t.title }}</span>
                         <div class="flex items-center gap-4 text-sm text-gray-300">
                             {% if t.candidates > 0 %}
                             <span class="text-blue-400">{{ t.candidates }} Kand.</span>
@@ -294,6 +297,70 @@
             </div>
         </div>
     </div>
+
+    {# ═══ Slide-Over Panel fuer Kandidaten-Liste ═══ #}
+    <div x-show="panelOpen" x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50" style="display: none;">
+
+        {# Overlay #}
+        <div class="absolute inset-0 bg-gray-900/30 backdrop-blur-sm" @click="closePanel()"></div>
+
+        {# Panel #}
+        <div class="absolute right-0 top-0 h-full w-full max-w-xl bg-white shadow-2xl flex flex-col"
+             x-show="panelOpen"
+             x-transition:enter="transition ease-out duration-300 transform"
+             x-transition:enter-start="translate-x-full"
+             x-transition:enter-end="translate-x-0"
+             x-transition:leave="transition ease-in duration-200 transform"
+             x-transition:leave-start="translate-x-0"
+             x-transition:leave-end="translate-x-full"
+             @click.stop>
+
+            {# Panel Header #}
+            <div class="flex items-center justify-between px-6 py-5 border-b border-gray-200 bg-white flex-shrink-0">
+                <div class="min-w-0 flex-1">
+                    <h2 class="text-lg font-bold text-gray-900 truncate" x-text="panelTitle"></h2>
+                    <div class="flex items-center gap-3 mt-1">
+                        <span class="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-sm font-medium text-blue-700"
+                              x-text="panelCandidates + ' Kand.'"></span>
+                        <span class="inline-flex items-center rounded-full bg-green-50 px-2.5 py-0.5 text-sm font-medium text-green-700"
+                              x-text="panelJobs + ' Jobs'"></span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 ml-4 flex-shrink-0">
+                    <a :href="'/deepmatch?category={{ category }}&city=' + encodeURIComponent(panelCity) + '&job_title=' + encodeURIComponent(panelJobTitle)"
+                       x-show="panelJobs > 0"
+                       class="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 transition-colors">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                        </svg>
+                        DeepMatch
+                    </a>
+                    <button @click="closePanel()" class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all">
+                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            {# Panel Content (HTMX geladen) #}
+            <div class="flex-1 overflow-y-auto" id="panel-content">
+                <div class="flex items-center justify-center py-16">
+                    <div class="flex items-center gap-3 text-gray-400">
+                        <svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span class="text-base">Lade Kandidaten...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
@@ -303,6 +370,12 @@ function matchBereiche() {
     return {
         searchQuery: '',
         hideEmpty: false,
+        panelOpen: false,
+        panelCity: '',
+        panelJobTitle: '',
+        panelTitle: '',
+        panelCandidates: 0,
+        panelJobs: 0,
         openCities: [
             // Die ersten 3 Staedte standardmaessig offen
             {% for city_name, titles in combo_data[:3] %}
@@ -317,6 +390,36 @@ function matchBereiche() {
             } else {
                 this.openCities.push(city);
             }
+        },
+
+        openPanel(city, jobTitle, candidates, jobs) {
+            this.panelCity = city;
+            this.panelJobTitle = jobTitle;
+            this.panelTitle = jobTitle + ' in ' + city;
+            this.panelCandidates = candidates;
+            this.panelJobs = jobs;
+            this.panelOpen = true;
+
+            // Kandidaten per fetch laden
+            const url = '/api/hotlisten/candidates-list?category={{ category }}'
+                + '&city=' + encodeURIComponent(city)
+                + '&job_title=' + encodeURIComponent(jobTitle);
+
+            const content = document.getElementById('panel-content');
+            content.innerHTML = '<div class="flex items-center justify-center py-16"><div class="flex items-center gap-3 text-gray-400"><svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span class="text-base">Lade Kandidaten...</span></div></div>';
+
+            fetch(url)
+                .then(r => r.text())
+                .then(html => {
+                    content.innerHTML = html;
+                })
+                .catch(() => {
+                    content.innerHTML = '<div class="px-6 py-10 text-center text-red-500 text-base">Fehler beim Laden der Kandidaten.</div>';
+                });
+        },
+
+        closePanel() {
+            this.panelOpen = false;
         },
 
         cityVisible(city, titlesStr, hasMatchable) {
