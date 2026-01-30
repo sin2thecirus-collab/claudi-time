@@ -409,6 +409,9 @@ def _make_progress_callback(key: str):
             "multi_title_count": batch_result.multi_title_count,
             "roles_distribution": dict(batch_result.roles_distribution),
             "cost_usd": batch_result.cost_usd,
+            "unclassified_candidates": list(batch_result.unclassified_candidates),
+            "leadership_candidates_count": len(batch_result.leadership_candidates),
+            "error_candidates": list(batch_result.error_candidates),
         }
     return callback
 
@@ -425,10 +428,13 @@ def _finalize_result(batch_result, include_leadership: bool = False) -> dict:
         "roles_distribution": dict(batch_result.roles_distribution),
         "cost_usd": batch_result.cost_usd,
         "duration_seconds": batch_result.duration_seconds,
+        "unclassified_candidates": list(batch_result.unclassified_candidates),
+        "error_candidates": list(batch_result.error_candidates),
     }
     if include_leadership:
         d["skipped_leadership"] = batch_result.skipped_leadership
         d["skipped_no_cv"] = batch_result.skipped_no_cv
+        d["leadership_candidates"] = list(batch_result.leadership_candidates)
     return d
 
 

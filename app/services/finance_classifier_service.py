@@ -265,6 +265,10 @@ class BatchClassificationResult:
     total_input_tokens: int = 0
     total_output_tokens: int = 0
     duration_seconds: float = 0.0
+    # Listen für Analyse: Kandidaten ohne erkannte Rolle / Leadership / Fehler
+    unclassified_candidates: list[dict] = field(default_factory=list)
+    leadership_candidates: list[dict] = field(default_factory=list)
+    error_candidates: list[dict] = field(default_factory=list)
 
     @property
     def cost_usd(self) -> float:
@@ -578,16 +582,34 @@ class FinanceClassifierService:
                         batch_result.skipped_no_cv += 1
                     else:
                         batch_result.skipped_error += 1
+                        batch_result.error_candidates.append({
+                            "id": str(candidate.id),
+                            "name": candidate.full_name,
+                            "position": candidate.current_position,
+                            "error": classification.error,
+                        })
                     continue
 
                 if classification.is_leadership:
                     batch_result.skipped_leadership += 1
+                    batch_result.leadership_candidates.append({
+                        "id": str(candidate.id),
+                        "name": candidate.full_name,
+                        "position": candidate.current_position,
+                        "reasoning": classification.reasoning,
+                    })
                     # Trotzdem Trainingsdaten speichern
                     self.apply_to_candidate(candidate, classification)
                     continue
 
                 if not classification.roles:
                     batch_result.skipped_no_role += 1
+                    batch_result.unclassified_candidates.append({
+                        "id": str(candidate.id),
+                        "name": candidate.full_name,
+                        "position": candidate.current_position,
+                        "reasoning": classification.reasoning,
+                    })
                     self.apply_to_candidate(candidate, classification)
                     continue
 
