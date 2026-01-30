@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select, func, and_, case
+from sqlalchemy import select, func, and_, or_, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db, async_session_maker
@@ -381,12 +381,15 @@ async def candidates_list_fragment(
         query = query.where(Candidate.hotlist_city == city)
 
     if job_title:
-        # ANY() für Array-Match
+        # Kandidaten die den job_title im Array ODER als single-String haben
         query = query.where(
-            func.coalesce(
-                Candidate.hotlist_job_titles,
-                func.array([Candidate.hotlist_job_title]),
-            ).any(job_title)
+            or_(
+                Candidate.hotlist_job_titles.any(job_title),
+                and_(
+                    Candidate.hotlist_job_titles.is_(None),
+                    Candidate.hotlist_job_title == job_title,
+                ),
+            )
         )
 
     query = query.order_by(Candidate.last_name, Candidate.first_name).limit(200)
