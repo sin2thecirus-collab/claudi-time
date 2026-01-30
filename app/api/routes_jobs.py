@@ -1,6 +1,7 @@
 """Jobs API Routes - Endpoints für Stellenanzeigen."""
 
 import logging
+from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request, UploadFile, File, status
@@ -147,14 +148,32 @@ async def cancel_import(
 async def _run_import_background(import_job_id: UUID, content: bytes):
     """Background-Task fuer CSV-Import mit eigener DB-Session."""
     from app.database import async_session_maker
+    from app.models.import_job import ImportStatus
+
+    logger.info(f"Background-Import gestartet: {import_job_id}, Content-Size: {len(content)} bytes")
 
     async with async_session_maker() as session:
         try:
             service = CSVImportService(session)
-            await service.process_import(import_job_id, content)
+            result = await service.process_import(import_job_id, content)
+            logger.info(
+                f"Background-Import abgeschlossen: {import_job_id}, "
+                f"Status: {result.status}, "
+                f"Erfolgreich: {result.successful_rows}/{result.total_rows}"
+            )
         except Exception as e:
             logger.error(f"Background-Import fehlgeschlagen: {e}", exc_info=True)
-            await session.rollback()
+            try:
+                await session.rollback()
+                # Import-Job als FAILED markieren
+                import_job = await session.get(ImportJob, import_job_id)
+                if import_job and not import_job.is_complete:
+                    import_job.status = ImportStatus.FAILED
+                    import_job.error_message = f"Background-Task Fehler: {str(e)[:500]}"
+                    import_job.completed_at = datetime.now(timezone.utc)
+                    await session.commit()
+            except Exception as inner_e:
+                logger.error(f"Konnte Import-Job {import_job_id} nicht als FAILED markieren: {inner_e}")
 
 
 # ==================== CRUD ====================

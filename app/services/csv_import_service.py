@@ -207,15 +207,24 @@ class CSVImportService:
 
         # Wenn Content vorhanden, direkt verarbeiten
         if content:
-            # Encoding und Delimiter erkennen
-            file_obj = io.BytesIO(content)
-            validation = self.validator.validate(file_obj)
+            # Encoding und Delimiter schnell erkennen (ohne volle Validierung)
+            encoding = self.validator.detect_encoding(content[:10000])  # Nur Sample
+            try:
+                text_sample = content[:5000].decode(encoding)
+            except UnicodeDecodeError:
+                encoding = "iso-8859-1"
+                text_sample = content[:5000].decode(encoding, errors="replace")
+            delimiter = self.validator.detect_delimiter(text_sample)
+
+            logger.info(
+                f"Import {import_job_id}: Encoding={encoding}, Delimiter='{delimiter}'"
+            )
 
             import_job = await self.process_csv_content(
                 import_job=import_job,
                 content=content,
-                encoding=validation.encoding,
-                delimiter=validation.delimiter,
+                encoding=encoding,
+                delimiter=delimiter,
             )
 
         return import_job
@@ -241,8 +250,11 @@ class CSVImportService:
         """
         try:
             # Dekodieren
+            logger.info(f"Dekodiere Content ({len(content)} bytes) mit {encoding}")
             text_content = content.decode(encoding)
             reader = csv.DictReader(io.StringIO(text_content), delimiter=delimiter)
+
+            logger.info(f"CSV-Header: {reader.fieldnames}")
 
             processed = 0
             successful = 0
@@ -250,7 +262,9 @@ class CSVImportService:
             errors_detail: list[dict] = []
 
             # Bestehende content_hashes laden (für Duplikaterkennung)
+            logger.info("Lade bestehende Content-Hashes...")
             existing_hashes = await self._get_existing_hashes()
+            logger.info(f"{len(existing_hashes)} bestehende Hashes geladen")
 
             for row_num, row in enumerate(reader, start=2):
                 processed += 1
