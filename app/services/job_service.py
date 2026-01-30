@@ -327,18 +327,16 @@ class JobService:
         priority_cities = prio_result.scalars().all()
 
         if priority_cities:
-            # CASE-Statement für Prio-Städte Sortierung
-            from sqlalchemy import case, literal
-            case_whens = {}
-            for i, pc in enumerate(priority_cities):
-                case_whens[pc.city_name] = i
+            # CASE-Statement fuer Prio-Staedte Sortierung (SQLAlchemy 2.x Syntax)
+            from sqlalchemy import case
 
-            # Nutze CASE WHEN für Stadt-Sortierung
-            if case_whens:
+            city_col = func.coalesce(Job.work_location_city, Job.city)
+            whens = {pc.city_name: i for i, pc in enumerate(priority_cities)}
+
+            if whens:
                 city_order = case(
-                    case_whens,
-                    value=func.coalesce(Job.work_location_city, Job.city),
-                    else_=len(priority_cities) + 1
+                    *[(city_col == city_name, priority) for city_name, priority in whens.items()],
+                    else_=len(priority_cities) + 1,
                 )
                 query = query.order_by(city_order)
 
