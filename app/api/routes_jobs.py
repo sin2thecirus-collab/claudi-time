@@ -16,6 +16,7 @@ from app.schemas.filters import JobFilterParams, JobSortBy, SortOrder
 from app.schemas.job import JobListResponse, JobResponse, JobUpdate, ImportJobResponse
 from app.schemas.pagination import PaginatedResponse, PaginationParams
 from app.schemas.validators import BatchDeleteRequest
+from app.models.import_job import ImportStatus
 from app.services.csv_import_service import CSVImportService
 from app.services.filter_service import FilterService
 from app.services.job_service import JobService
@@ -36,7 +37,6 @@ router = APIRouter(prefix="/jobs", tags=["Jobs"])
 @rate_limit(RateLimitTier.IMPORT)
 async def import_jobs(
     request: Request,
-    background_tasks: BackgroundTasks,
     file: UploadFile = File(..., description="CSV-Datei (Tab-getrennt)"),
     db: AsyncSession = Depends(get_db),
 ):
@@ -66,13 +66,16 @@ async def import_jobs(
         content=content,
     )
 
-    # Import im Hintergrund starten (nur wenn Validierung OK)
+    # Import direkt ausfuehren (synchron) — zuverlaessiger als Background-Task
     if import_job.status.value == "pending":
-        background_tasks.add_task(
-            _run_import_background,
-            import_job.id,
-            content,
-        )
+        try:
+            import_job = await import_service.process_import(import_job.id, content)
+        except Exception as e:
+            logger.error(f"Import fehlgeschlagen: {e}", exc_info=True)
+            import_job.status = ImportStatus.FAILED
+            import_job.error_message = f"Import-Fehler: {str(e)[:500]}"
+            import_job.completed_at = datetime.now(timezone.utc)
+            await db.commit()
 
     # HTMX-Request: HTML zurueckgeben
     is_htmx = request.headers.get("HX-Request") == "true"
