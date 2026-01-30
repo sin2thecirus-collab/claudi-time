@@ -332,11 +332,10 @@ class CSVImportService:
 
                 # Batch in DB schreiben alle BATCH_SIZE Zeilen
                 if len(batch) >= BATCH_SIZE:
-                    self.db.add_all(batch)
-                    import_job.processed_rows = processed
-                    import_job.successful_rows = successful
-                    import_job.failed_rows = failed + duplicates
-                    await self.db.commit()
+                    batch_ok = await self._flush_batch(batch, import_job, processed, successful, failed, duplicates, errors_detail)
+                    if not batch_ok:
+                        failed += len(batch)
+                        successful -= len(batch)
                     batch = []
                     logger.info(
                         f"Import-Fortschritt: {processed}/{import_job.total_rows} "
@@ -345,7 +344,10 @@ class CSVImportService:
 
             # Restliche Jobs in DB schreiben
             if batch:
-                self.db.add_all(batch)
+                batch_ok = await self._flush_batch(batch, import_job, processed, successful, failed, duplicates, errors_detail)
+                if not batch_ok:
+                    failed += len(batch)
+                    successful -= len(batch)
 
             # Finale Werte setzen
             import_job.processed_rows = processed
@@ -416,6 +418,40 @@ class CSVImportService:
         """
         return await self.db.get(ImportJob, import_job_id)
 
+    async def _flush_batch(
+        self,
+        batch: list[Job],
+        import_job: ImportJob,
+        processed: int,
+        successful: int,
+        failed: int,
+        duplicates: int,
+        errors_detail: list[dict],
+    ) -> bool:
+        """Schreibt einen Batch in die DB. Bei Fehler: Rollback + Warnung.
+
+        Returns:
+            True wenn Batch erfolgreich, False bei Fehler
+        """
+        try:
+            self.db.add_all(batch)
+            import_job.processed_rows = processed
+            import_job.successful_rows = successful
+            import_job.failed_rows = failed + duplicates
+            await self.db.commit()
+            return True
+        except Exception as e:
+            logger.error(f"Batch-Insert fehlgeschlagen ({len(batch)} Jobs): {e}")
+            await self.db.rollback()
+            # ImportJob neu laden nach Rollback (Session-State ist verloren)
+            await self.db.refresh(import_job)
+            if len(errors_detail) < 50:
+                errors_detail.append({
+                    "row": None,
+                    "message": f"Batch mit {len(batch)} Jobs fehlgeschlagen: {str(e)[:200]}",
+                })
+            return False
+
     async def _get_existing_hashes(self) -> set[str]:
         """
         Lädt alle bestehenden content_hashes aus der Datenbank.
@@ -483,7 +519,7 @@ class CSVImportService:
             work_location_city=self._get_field(
                 row, "Arbeitsort", "Einsatzort", "Ort", "Stadt", max_len=100,
             ),
-            job_url=self._get_field(row, "URL", "Anzeigenlink", "Link", max_len=2000),
+            job_url=self._get_field(row, "URL", "Anzeigenlink", "Link", max_len=500),
             job_text=self._get_field(
                 row, "Beschreibung", "Stellenbeschreibung", "Anzeigen-Text",
             ),
@@ -492,7 +528,7 @@ class CSVImportService:
             company_size=self._get_field(
                 row, "Unternehmensgröße", "Unternehmensgroesse",
                 "Mitarbeiter (MA) / Unternehmensgröße", "Mitarbeiter",
-                max_len=100,
+                max_len=50,
             ),
             content_hash=content_hash,
         )
