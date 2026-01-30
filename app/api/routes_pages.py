@@ -136,32 +136,6 @@ async def settings_page(request: Request):
 # ============================================================================
 
 
-@router.get("/debug/job-list-error")
-async def debug_job_list_error(request: Request, db: AsyncSession = Depends(get_db)):
-    """Temporaerer Debug-Endpoint um den Fehler in job-list zu sehen."""
-    import traceback
-    try:
-        job_service = JobService(db)
-        filter_service = FilterService(db)
-        filters = JobFilterParams()
-        result = await job_service.list_jobs(filters=filters, page=1, per_page=5)
-        priority_cities = await filter_service.get_priority_cities()
-
-        # Versuche das Template zu rendern
-        html = templates.TemplateResponse(
-            "partials/job_list.html",
-            {
-                "request": request,
-                "jobs": result.items,
-                "priority_cities": priority_cities,
-                "now": datetime.now
-            }
-        )
-        return {"status": "ok", "total": result.total, "rendered": True}
-    except Exception as e:
-        return {"status": "error", "error": str(e), "traceback": traceback.format_exc()}
-
-
 @router.get("/partials/job-list", response_class=HTMLResponse)
 async def job_list_partial(
     request: Request,
