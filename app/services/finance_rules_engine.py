@@ -38,7 +38,7 @@ LEADERSHIP_TITLE_KEYWORDS = [
     # Englisch
     "head of", "director", "cfo", "chief financial",
     "vice president", "vp ", "finance manager", "accounting manager",
-    "manager controlling", "manager finance", "supervisor",
+    # NICHT: "supervisor", "manager controlling", "manager finance" — zu generisch
 ]
 
 LEADERSHIP_ACTIVITY_KEYWORDS = [
@@ -47,7 +47,8 @@ LEADERSHIP_ACTIVITY_KEYWORDS = [
     "leitung des teams", "aufbau eines teams", "leitung eines teams",
     "führung von mitarbeitern", "teamführung", "mitarbeiterführung",
     "führung eines teams", "verantwortliche leitung",
-    "führung von", "leitung von",
+    # NICHT "führung von" oder "leitung von" allein — zu generisch!
+    # "Führung von Konten" oder "Leitung von Projekten" ist kein Leadership
 ]
 
 # Bilanzbuchhalter: Erstellung von Abschlüssen
@@ -241,28 +242,30 @@ class FinanceRulesEngine:
     def _is_leadership(self, candidate: Candidate) -> bool:
         """Prüft ob die aktuelle Position eine Führungsposition ist.
 
-        Prüft current_position UND alle work_history Jobtitel auf Leadership-Keywords.
-        OpenAI-Training zeigt: viele haben Leadership-Titel in früheren Positionen.
+        Leadership-TITEL: current_position + erste work_history Position (= aktuelle).
+        Leadership-AKTIVITÄTEN: Nur in erster/aktueller Position.
+        Alte Positionen zählen NICHT — jemand kann von Teamleiter zu Buchhalter gewechselt haben.
         """
         title = (candidate.current_position or "").lower()
         for kw in LEADERSHIP_TITLE_KEYWORDS:
             if kw in title:
                 return True
 
-        # Alle work_history Positionen UND Beschreibungen prüfen
+        # Nur aktuelle/erste work_history Position prüfen
         if candidate.work_history and isinstance(candidate.work_history, list):
-            for entry in candidate.work_history:
+            for entry in candidate.work_history[:2]:  # Nur die 2 aktuellsten Positionen
                 if isinstance(entry, dict):
                     # Jobtitel prüfen
                     pos = (entry.get("position") or "").lower()
                     for kw in LEADERSHIP_TITLE_KEYWORDS:
                         if kw in pos:
                             return True
-                    # Tätigkeiten prüfen
-                    desc = (entry.get("description") or "").lower()
-                    for kw in LEADERSHIP_ACTIVITY_KEYWORDS:
-                        if kw in desc:
-                            return True
+                    # Tätigkeiten prüfen (nur erste Position)
+            if candidate.work_history and isinstance(candidate.work_history[0], dict):
+                desc = (candidate.work_history[0].get("description") or "").lower()
+                for kw in LEADERSHIP_ACTIVITY_KEYWORDS:
+                    if kw in desc:
+                        return True
         return False
 
     def _is_leadership_job(self, job: Job) -> bool:
