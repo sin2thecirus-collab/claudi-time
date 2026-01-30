@@ -16,11 +16,29 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "candidates",
-        sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
+    # Spalte nur hinzufügen wenn sie nicht existiert (init_db könnte sie schon angelegt haben)
+    conn = op.get_bind()
+    result = conn.execute(
+        sa.text(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_name = 'candidates' AND column_name = 'deleted_at'"
+        )
     )
-    op.create_index("ix_candidates_deleted_at", "candidates", ["deleted_at"])
+    if not result.fetchone():
+        op.add_column(
+            "candidates",
+            sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
+        )
+
+    # Index nur erstellen wenn er nicht existiert
+    result = conn.execute(
+        sa.text(
+            "SELECT indexname FROM pg_indexes "
+            "WHERE tablename = 'candidates' AND indexname = 'ix_candidates_deleted_at'"
+        )
+    )
+    if not result.fetchone():
+        op.create_index("ix_candidates_deleted_at", "candidates", ["deleted_at"])
 
 
 def downgrade() -> None:
