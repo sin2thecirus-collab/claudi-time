@@ -284,6 +284,16 @@ async def match_bereiche_page(
         reverse=True,
     )
 
+    # Gesamtstatistiken für Dashboard-Cards
+    total_candidates = sum(candidate_city_counts.values())
+    total_jobs = sum(job_city_counts.values())
+    total_cities = len(all_cities)
+    matchable_combos = sum(
+        1 for city_titles in combo_by_city.values()
+        for t in city_titles
+        if t["can_match"]
+    )
+
     return templates.TemplateResponse(
         "match_bereiche.html",
         {
@@ -293,6 +303,10 @@ async def match_bereiche_page(
             "city_data": city_data,
             "title_data": title_data,
             "combo_data": combo_data,
+            "total_candidates": total_candidates,
+            "total_jobs": total_jobs,
+            "total_cities": total_cities,
+            "matchable_combos": matchable_combos,
         },
     )
 
