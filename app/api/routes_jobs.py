@@ -38,18 +38,15 @@ router = APIRouter(prefix="/jobs", tags=["Jobs"])
 async def import_jobs(
     request: Request,
     file: UploadFile = File(..., description="CSV-Datei (Tab-getrennt)"),
-    db: AsyncSession = Depends(get_db),
 ):
     """
     Importiert Jobs aus einer CSV-Datei.
 
-    Die Datei muss Tab-getrennt sein und folgende Pflicht-Spalten haben:
-    - Unternehmen
-    - Position
-
-    Der Import laeuft im Hintergrund. Status kann ueber GET /jobs/import/{id}/status abgefragt werden.
+    Die Datei muss Tab-getrennt sein und die Pflicht-Spalte 'Unternehmen' haben.
     Bei HTMX-Requests wird HTML (import_progress.html) zurueckgegeben.
     """
+    from app.database import async_session_maker
+
     # Pruefe Dateigroesse
     content = await file.read()
     file_size_mb = len(content) / (1024 * 1024)
@@ -59,23 +56,42 @@ async def import_jobs(
             message=f"Datei zu groß. Maximum: {Limits.CSV_MAX_FILE_SIZE_MB} MB"
         )
 
-    # Import-Job erstellen
-    import_service = CSVImportService(db)
-    import_job = await import_service.create_import_job(
-        filename=file.filename or "upload.csv",
-        content=content,
-    )
+    logger.info(f"CSV-Upload: {file.filename}, {file_size_mb:.1f} MB")
 
-    # Import direkt ausfuehren (synchron) — zuverlaessiger als Background-Task
-    if import_job.status.value == "pending":
+    # Eigene DB-Session fuer den Import (nicht die Request-Session)
+    async with async_session_maker() as db:
         try:
-            import_job = await import_service.process_import(import_job.id, content)
+            import_service = CSVImportService(db)
+
+            # Import-Job erstellen (schnelle Header-Pruefung)
+            import_job = await import_service.create_import_job(
+                filename=file.filename or "upload.csv",
+                content=content,
+            )
+
+            # Import direkt ausfuehren
+            if import_job.status.value == "pending":
+                import_job = await import_service.process_import(import_job.id, content)
+
         except Exception as e:
             logger.error(f"Import fehlgeschlagen: {e}", exc_info=True)
-            import_job.status = ImportStatus.FAILED
-            import_job.error_message = f"Import-Fehler: {str(e)[:500]}"
-            import_job.completed_at = datetime.now(timezone.utc)
-            await db.commit()
+            await db.rollback()
+            # Versuche Import-Job als FAILED zu markieren
+            try:
+                if import_job:
+                    import_job.status = ImportStatus.FAILED
+                    import_job.error_message = f"Import-Fehler: {str(e)[:500]}"
+                    import_job.completed_at = datetime.now(timezone.utc)
+                    await db.commit()
+            except Exception:
+                pass
+            raise
+
+    logger.info(
+        f"Import abgeschlossen: {import_job.id}, "
+        f"Status: {import_job.status}, "
+        f"Erfolgreich: {import_job.successful_rows}/{import_job.total_rows}"
+    )
 
     # HTMX-Request: HTML zurueckgeben
     is_htmx = request.headers.get("HX-Request") == "true"
