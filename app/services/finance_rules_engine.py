@@ -109,18 +109,20 @@ FIBU_ACTIVITY_KEYWORDS = [
 
 # Nur-Kreditoren Keywords
 KREDITOR_ONLY_KEYWORDS = [
-    "kreditorenbuchhaltung", "kreditoren", "accounts payable",
+    "kreditorenbuchhaltung", "kreditoren", "kreditorbuchhalter",
+    "accounts payable", "ap-buchhaltung",
     "eingangsrechnungsprüfung", "eingangsrechnungen",
     "zahlungsverkehr lieferanten", "lieferantenrechnungen",
-    "kreditorenstammdaten",
+    "kreditorenstammdaten", "rechnungsprüfung",
 ]
 
 # Nur-Debitoren Keywords
 DEBITOR_ONLY_KEYWORDS = [
-    "debitorenbuchhaltung", "debitoren", "accounts receivable",
+    "debitorenbuchhaltung", "debitoren", "debitorbuchhalter",
+    "accounts receivable", "ar-buchhaltung",
     "fakturierung", "mahnwesen", "forderungsmanagement",
     "ausgangsrechnungen", "debitorenstammdaten",
-    "offene posten debitoren",
+    "offene posten debitoren", "offene posten",
 ]
 
 # Lohnbuchhalter Keywords
@@ -135,7 +137,8 @@ LOHN_KEYWORDS = [
 # Steuerfachangestellte Keywords
 STEUFA_KEYWORDS = [
     "steuerfachangestellte", "steuerfachangestellter",
-    "steuerkanzlei", "steuerberatung",
+    "steuerfachgehilfin", "steuerfachgehilfe", "steuerfachwirt",
+    "steuerkanzlei", "steuerberatung", "steuerberatungsgesellschaft",
     "steuerberater", "steuerberaterin",
     "steuererklärungen", "finanzbehörde",
     "mandantenbetreuung", "mandanten",
@@ -236,17 +239,27 @@ class FinanceRulesEngine:
     # ──────────────────────────────────────────────────
 
     def _is_leadership(self, candidate: Candidate) -> bool:
-        """Prüft ob die aktuelle Position eine Führungsposition ist."""
+        """Prüft ob die aktuelle Position eine Führungsposition ist.
+
+        Prüft current_position UND alle work_history Jobtitel auf Leadership-Keywords.
+        OpenAI-Training zeigt: viele haben Leadership-Titel in früheren Positionen.
+        """
         title = (candidate.current_position or "").lower()
         for kw in LEADERSHIP_TITLE_KEYWORDS:
             if kw in title:
                 return True
 
-        # Aktuelle Position Tätigkeiten prüfen (nur erste/aktuelle)
+        # Alle work_history Positionen UND Beschreibungen prüfen
         if candidate.work_history and isinstance(candidate.work_history, list):
-            for entry in candidate.work_history[:1]:  # Nur aktuelle Position
-                if isinstance(entry, dict) and entry.get("description"):
-                    desc = entry["description"].lower()
+            for entry in candidate.work_history:
+                if isinstance(entry, dict):
+                    # Jobtitel prüfen
+                    pos = (entry.get("position") or "").lower()
+                    for kw in LEADERSHIP_TITLE_KEYWORDS:
+                        if kw in pos:
+                            return True
+                    # Tätigkeiten prüfen
+                    desc = (entry.get("description") or "").lower()
                     for kw in LEADERSHIP_ACTIVITY_KEYWORDS:
                         if kw in desc:
                             return True
@@ -314,12 +327,12 @@ class FinanceRulesEngine:
     def _has_both_kredi_debi(self, text: str) -> bool:
         """Prüft ob sowohl Kreditoren als auch Debitoren vorkommen.
 
-        Beide müssen mindestens 2x vorkommen um als eigenständige Rollen zu gelten.
-        Einfaches Erwähnen beider in einem FiBu-Job reicht NICHT.
+        Lockerer als Standalone: Mindestens 1 Keyword von jedem reicht,
+        weil beide zusammen → FiBu + Kredi + Debi als Multi-Rollen.
         """
         kredi_count = self._count_keywords(text, KREDITOR_ONLY_KEYWORDS)
         debi_count = self._count_keywords(text, DEBITOR_ONLY_KEYWORDS)
-        return kredi_count >= 2 and debi_count >= 2
+        return kredi_count >= 1 and debi_count >= 1
 
     def _has_lohn_activities(self, text: str) -> bool:
         """Prüft ob Lohnbuchhalter-Tätigkeiten vorkommen."""
@@ -373,8 +386,9 @@ class FinanceRulesEngine:
             roles.append("Finanzbuchhalter/in")
             reasons.append("Erstellung von Abschlüssen ohne Bilanzbuchhalter-Qualifikation")
 
-        # 2b. Finanzbuchhalter (wenn nicht schon durch Bilanz erkannt)
-        if "Finanzbuchhalter/in" not in roles and "Bilanzbuchhalter/in" not in roles:
+        # 2b. Finanzbuchhalter
+        # OpenAI vergibt FiBu auch ZUSÄTZLICH zu Bilanz wenn FiBu-Tätigkeiten vorhanden
+        if "Finanzbuchhalter/in" not in roles:
             if self._has_fibu_activities(all_text):
                 roles.append("Finanzbuchhalter/in")
                 reasons.append("Finanzbuchhalter-Tätigkeiten erkannt")
