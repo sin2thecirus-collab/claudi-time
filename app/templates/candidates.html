@@ -11,8 +11,21 @@
             <p class="mt-1 text-base text-gray-500">Alle synchronisierten Kandidaten aus dem CRM</p>
         </div>
 
-        {# Suche #}
+        {# Suche + Seitengroesse #}
         <div class="flex items-center space-x-4">
+            {# Seitengroesse #}
+            <div class="flex items-center space-x-2">
+                <label for="per-page-select" class="text-sm text-gray-500 whitespace-nowrap">Anzeigen:</label>
+                <select id="per-page-select"
+                        name="per_page"
+                        onchange="changePerPage(this.value)"
+                        class="block rounded-md border-0 py-2 pl-3 pr-8 text-sm text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-primary-600">
+                    <option value="25" selected>25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+            </div>
+            {# Suche #}
             <div class="relative">
                 <input type="text"
                        id="candidate-search"
@@ -21,7 +34,7 @@
                        hx-get="/partials/candidates-list"
                        hx-trigger="keyup changed delay:300ms"
                        hx-target="#candidates-list"
-                       hx-include="[name='search']"
+                       hx-include="[name='search'], [name='per_page']"
                        class="block w-72 rounded-md border-0 py-2.5 pl-10 pr-3 text-base text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-primary-600 leading-6">
                 <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                     <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
@@ -35,7 +48,7 @@
     {# Kandidaten-Tabelle #}
     <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg overflow-hidden">
         <div id="candidates-list"
-             hx-get="/partials/candidates-list"
+             hx-get="/partials/candidates-list?per_page=25"
              hx-trigger="load"
              hx-swap="innerHTML">
             {# Loading State #}
@@ -51,4 +64,16 @@
         </div>
     </div>
 </div>
+
+<script>
+function changePerPage(perPage) {
+    var search = document.getElementById('candidate-search');
+    var searchVal = search ? search.value : '';
+    var url = '/partials/candidates-list?page=1&per_page=' + perPage;
+    if (searchVal) {
+        url += '&search=' + encodeURIComponent(searchVal);
+    }
+    htmx.ajax('GET', url, {target:'#candidates-list', swap:'innerHTML'});
+}
+</script>
 {% endblock %}

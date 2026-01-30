@@ -13,7 +13,7 @@ from app.database import get_db
 from app.schemas.candidate import CandidateListResponse, CandidateResponse, CandidateUpdate, LanguageEntry
 from app.schemas.filters import CandidateFilterParams, SortOrder
 from app.schemas.pagination import PaginationParams
-from app.schemas.validators import BatchHideRequest
+from app.schemas.validators import BatchDeleteRequest, BatchHideRequest
 from app.services.candidate_service import CandidateService
 from app.services.crm_sync_service import CRMSyncService
 from app.services.job_runner_service import JobRunnerService
@@ -286,6 +286,28 @@ async def batch_unhide_candidates(
 
 
 # ==================== Delete (Soft-Delete) ====================
+
+@router.delete(
+    "/batch/delete",
+    summary="Mehrere Kandidaten löschen (Soft-Delete)",
+)
+@rate_limit(RateLimitTier.WRITE)
+async def batch_delete_candidates(
+    request: BatchDeleteRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Löscht mehrere Kandidaten auf einmal (Soft-Delete).
+
+    Maximal 100 Kandidaten pro Anfrage.
+    Gelöschte Kandidaten werden beim CRM-Sync ignoriert.
+    """
+    candidate_service = CandidateService(db)
+    deleted_count = await candidate_service.batch_delete(request.ids)
+    await db.commit()
+
+    return {"deleted_count": deleted_count}
+
 
 @router.delete(
     "/{candidate_id}",

@@ -319,7 +319,7 @@ async def filter_presets_partial(
 async def candidates_list_partial(
     request: Request,
     page: int = 1,
-    per_page: int = 20,
+    per_page: int = 25,
     search: Optional[str] = None,
     db: AsyncSession = Depends(get_db)
 ):

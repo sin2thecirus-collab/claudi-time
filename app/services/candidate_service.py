@@ -283,6 +283,26 @@ class CandidateService:
         logger.info(f"Kandidat gelöscht (soft-delete): {candidate_id}")
         return True
 
+    async def batch_delete(self, candidate_ids: list[UUID]) -> int:
+        """Löscht mehrere Kandidaten (Soft-Delete).
+
+        Args:
+            candidate_ids: Liste von Kandidaten-IDs (max. 100)
+
+        Returns:
+            Anzahl der gelöschten Kandidaten
+        """
+        if len(candidate_ids) > limits.BATCH_DELETE_MAX:
+            raise ValueError(f"Maximal {limits.BATCH_DELETE_MAX} Kandidaten pro Batch")
+
+        count = 0
+        for candidate_id in candidate_ids:
+            if await self.delete_candidate(candidate_id):
+                count += 1
+
+        logger.info(f"{count} Kandidaten gelöscht (batch soft-delete)")
+        return count
+
     async def hide_candidate(self, candidate_id: UUID) -> bool:
         """Blendet einen Kandidaten aus.
 

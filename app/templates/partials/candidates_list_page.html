@@ -15,10 +15,33 @@
     </p>
 </div>
 {% else %}
+{# Batch-Aktionsleiste (erscheint wenn Kandidaten ausgewaehlt sind) #}
+<div id="batch-actions" class="hidden bg-red-50 border-b border-red-200 px-4 py-3 sm:px-6">
+    <div class="flex items-center justify-between">
+        <span class="text-sm font-medium text-red-800">
+            <span id="selected-count">0</span> Kandidat(en) ausgewaehlt
+        </span>
+        <button type="button"
+                onclick="batchDeleteSelected()"
+                class="inline-flex items-center rounded-md bg-red-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-red-500 transition-colors">
+            <svg class="h-4 w-4 mr-1.5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clip-rule="evenodd" />
+            </svg>
+            Ausgewaehlte loeschen
+        </button>
+    </div>
+</div>
+
 <table class="min-w-full divide-y divide-gray-200">
     <thead class="bg-gray-50">
         <tr>
-            <th scope="col" class="py-4 pl-4 pr-3 text-left text-base font-semibold text-gray-900 sm:pl-6">Name</th>
+            <th scope="col" class="py-4 pl-4 pr-1 w-10">
+                <input type="checkbox"
+                       id="select-all-candidates"
+                       onchange="toggleAllCandidates(this)"
+                       class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-600 cursor-pointer">
+            </th>
+            <th scope="col" class="py-4 pl-2 pr-3 text-left text-base font-semibold text-gray-900">Name</th>
             <th scope="col" class="px-3 py-4 text-left text-base font-semibold text-gray-900">Position</th>
             <th scope="col" class="px-3 py-4 text-left text-base font-semibold text-gray-900">Adresse</th>
             <th scope="col" class="px-3 py-4 text-left text-base font-semibold text-gray-900">Status</th>
@@ -31,8 +54,15 @@
         {% for candidate in candidates %}
         <tr class="hover:bg-gray-50 cursor-pointer transition-colors"
             onclick="window.location='/kandidaten/{{ candidate.id }}'">
+            {# Checkbox #}
+            <td class="whitespace-nowrap py-4 pl-4 pr-1 w-10" onclick="event.stopPropagation()">
+                <input type="checkbox"
+                       class="candidate-checkbox h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-600 cursor-pointer"
+                       value="{{ candidate.id }}"
+                       onchange="updateBatchActions()">
+            </td>
             {# Name #}
-            <td class="whitespace-nowrap py-4 pl-4 pr-3 sm:pl-6">
+            <td class="whitespace-nowrap py-4 pl-2 pr-3">
                 <div class="flex items-center">
                     <div class="flex-shrink-0 h-11 w-11">
                         <span class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-primary-100">
@@ -140,7 +170,7 @@
     <div class="flex items-center justify-between">
         <div class="flex-1 flex justify-between sm:hidden">
             {% if page > 1 %}
-            <button hx-get="/partials/candidates-list?page={{ page - 1 }}{% if search %}&search={{ search }}{% endif %}"
+            <button hx-get="/partials/candidates-list?page={{ page - 1 }}{% if search %}&search={{ search }}{% endif %}&per_page={{ per_page }}"
                     hx-target="#candidates-list"
                     hx-swap="innerHTML"
                     class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
@@ -148,7 +178,7 @@
             </button>
             {% endif %}
             {% if page < total_pages %}
-            <button hx-get="/partials/candidates-list?page={{ page + 1 }}{% if search %}&search={{ search }}{% endif %}"
+            <button hx-get="/partials/candidates-list?page={{ page + 1 }}{% if search %}&search={{ search }}{% endif %}&per_page={{ per_page }}"
                     hx-target="#candidates-list"
                     hx-swap="innerHTML"
                     class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
@@ -172,7 +202,7 @@
                 <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
                     {# Zurueck #}
                     {% if page > 1 %}
-                    <button hx-get="/partials/candidates-list?page={{ page - 1 }}{% if search %}&search={{ search }}{% endif %}"
+                    <button hx-get="/partials/candidates-list?page={{ page - 1 }}{% if search %}&search={{ search }}{% endif %}&per_page={{ per_page }}"
                             hx-target="#candidates-list"
                             hx-swap="innerHTML"
                             class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
@@ -190,7 +220,7 @@
                             {{ p }}
                         </span>
                         {% elif p == 1 or p == total_pages or (p >= page - 1 and p <= page + 1) %}
-                        <button hx-get="/partials/candidates-list?page={{ p }}{% if search %}&search={{ search }}{% endif %}"
+                        <button hx-get="/partials/candidates-list?page={{ p }}{% if search %}&search={{ search }}{% endif %}&per_page={{ per_page }}"
                                 hx-target="#candidates-list"
                                 hx-swap="innerHTML"
                                 class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
@@ -205,7 +235,7 @@
 
                     {# Weiter #}
                     {% if page < total_pages %}
-                    <button hx-get="/partials/candidates-list?page={{ page + 1 }}{% if search %}&search={{ search }}{% endif %}"
+                    <button hx-get="/partials/candidates-list?page={{ page + 1 }}{% if search %}&search={{ search }}{% endif %}&per_page={{ per_page }}"
                             hx-target="#candidates-list"
                             hx-swap="innerHTML"
                             class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
@@ -222,3 +252,67 @@
 </div>
 {% endif %}
 {% endif %}
+
+{# JavaScript fuer Multi-Select und Batch-Delete #}
+<script>
+function toggleAllCandidates(selectAllCheckbox) {
+    var checkboxes = document.querySelectorAll('.candidate-checkbox');
+    checkboxes.forEach(function(cb) {
+        cb.checked = selectAllCheckbox.checked;
+    });
+    updateBatchActions();
+}
+
+function updateBatchActions() {
+    var checkboxes = document.querySelectorAll('.candidate-checkbox:checked');
+    var batchActions = document.getElementById('batch-actions');
+    var countSpan = document.getElementById('selected-count');
+    var selectAll = document.getElementById('select-all-candidates');
+
+    if (batchActions) {
+        if (checkboxes.length > 0) {
+            batchActions.classList.remove('hidden');
+            countSpan.textContent = checkboxes.length;
+        } else {
+            batchActions.classList.add('hidden');
+        }
+    }
+
+    // Update "Select All" checkbox state
+    if (selectAll) {
+        var allCheckboxes = document.querySelectorAll('.candidate-checkbox');
+        selectAll.checked = allCheckboxes.length > 0 && checkboxes.length === allCheckboxes.length;
+        selectAll.indeterminate = checkboxes.length > 0 && checkboxes.length < allCheckboxes.length;
+    }
+}
+
+function batchDeleteSelected() {
+    var checkboxes = document.querySelectorAll('.candidate-checkbox:checked');
+    if (checkboxes.length === 0) return;
+
+    var count = checkboxes.length;
+    if (!confirm(count + ' Kandidat(en) wirklich loeschen? Die Kandidaten werden beim naechsten CRM-Sync ignoriert.')) {
+        return;
+    }
+
+    var ids = [];
+    checkboxes.forEach(function(cb) {
+        ids.push(cb.value);
+    });
+
+    fetch('/api/candidates/batch/delete', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: ids })
+    })
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
+        if (data.deleted_count !== undefined) {
+            // Liste neu laden
+            var perPage = document.getElementById('per-page-select');
+            var perPageVal = perPage ? perPage.value : '{{ per_page }}';
+            htmx.ajax('GET', '/partials/candidates-list?page={{ page }}{% if search %}&search={{ search }}{% endif %}&per_page=' + perPageVal, {target:'#candidates-list', swap:'innerHTML'});
+        }
+    });
+}
+</script>
