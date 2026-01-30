@@ -517,6 +517,11 @@ class CRMSyncService:
         now = datetime.now(timezone.utc)
 
         if existing:
+            # Gelöschter Kandidat → komplett überspringen
+            if existing.deleted_at is not None:
+                logger.debug(f"Kandidat {crm_id} ist gelöscht, überspringe Sync")
+                return existing, False
+
             # Update - alle gemappten Felder übernehmen
             for key, value in mapped_data.items():
                 if key != "crm_id" and value is not None:

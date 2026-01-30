@@ -285,6 +285,34 @@ async def batch_unhide_candidates(
     return {"unhidden_count": unhidden_count}
 
 
+# ==================== Delete (Soft-Delete) ====================
+
+@router.delete(
+    "/{candidate_id}",
+    summary="Kandidaten löschen (Soft-Delete)",
+)
+@rate_limit(RateLimitTier.WRITE)
+async def delete_candidate(
+    candidate_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Löscht einen Kandidaten (Soft-Delete).
+
+    Der Kandidat wird als gelöscht markiert und beim nächsten
+    CRM-Sync komplett ignoriert (kein Update, kein Neu-Erstellen).
+    """
+    candidate_service = CandidateService(db)
+    success = await candidate_service.delete_candidate(candidate_id)
+
+    if not success:
+        raise NotFoundException(message="Kandidat nicht gefunden")
+
+    await db.commit()
+
+    return {"success": True, "message": "Kandidat gelöscht"}
+
+
 # ==================== CV-Parsing ====================
 
 @router.post(

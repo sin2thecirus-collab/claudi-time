@@ -261,6 +261,28 @@ class CandidateService:
             pages=pages,
         )
 
+    async def delete_candidate(self, candidate_id: UUID) -> bool:
+        """Löscht einen Kandidaten (Soft-Delete).
+
+        Setzt deleted_at auf den aktuellen Zeitpunkt.
+        Der Kandidat wird beim CRM-Sync ignoriert.
+
+        Args:
+            candidate_id: ID des Kandidaten
+
+        Returns:
+            True bei Erfolg
+        """
+        candidate = await self.get_candidate(candidate_id)
+        if not candidate:
+            return False
+
+        candidate.deleted_at = datetime.now(timezone.utc)
+        candidate.updated_at = datetime.now(timezone.utc)
+
+        logger.info(f"Kandidat gelöscht (soft-delete): {candidate_id}")
+        return True
+
     async def hide_candidate(self, candidate_id: UUID) -> bool:
         """Blendet einen Kandidaten aus.
 
@@ -429,25 +451,30 @@ class CandidateService:
         return list(result.scalars().all())
 
     async def count_active_candidates(self) -> int:
-        """Zählt aktive Kandidaten (≤30 Tage, nicht hidden)."""
+        """Zählt aktive Kandidaten (≤30 Tage, nicht hidden, nicht gelöscht)."""
         cutoff = datetime.now(timezone.utc) - timedelta(days=limits.ACTIVE_CANDIDATE_DAYS)
         result = await self.db.execute(
             select(func.count(Candidate.id))
             .where(Candidate.hidden == False)
+            .where(Candidate.deleted_at.is_(None))
             .where(Candidate.created_at >= cutoff)
         )
         return result.scalar_one()
 
     async def count_total_candidates(self) -> int:
-        """Zählt alle Kandidaten (nicht hidden)."""
+        """Zählt alle Kandidaten (nicht hidden, nicht gelöscht)."""
         result = await self.db.execute(
             select(func.count(Candidate.id))
             .where(Candidate.hidden == False)
+            .where(Candidate.deleted_at.is_(None))
         )
         return result.scalar_one()
 
     def _apply_filters(self, query, filters: CandidateFilterParams):
         """Wendet Filter auf die Query an."""
+        # Gelöschte Kandidaten IMMER ausfiltern
+        query = query.where(Candidate.deleted_at.is_(None))
+
         # Name-Suche (auch Vor- + Nachname kombiniert)
         if filters.name:
             search_term = f"%{filters.name}%"

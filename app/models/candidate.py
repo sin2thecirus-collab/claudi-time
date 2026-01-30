@@ -67,6 +67,7 @@ class Candidate(Base):
 
     # Status
     hidden: Mapped[bool] = mapped_column(Boolean, default=False)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     # Sync-Tracking
     crm_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -94,6 +95,7 @@ class Candidate(Base):
         Index("ix_candidates_crm_id", "crm_id"),
         Index("ix_candidates_city", "city"),
         Index("ix_candidates_hidden", "hidden"),
+        Index("ix_candidates_deleted_at", "deleted_at"),
         Index("ix_candidates_created_at", "created_at"),
         Index("ix_candidates_current_position", "current_position"),
         Index("ix_candidates_skills", "skills", postgresql_using="gin"),

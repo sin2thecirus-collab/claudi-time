@@ -1016,6 +1016,12 @@ async def _run_crm_sync(db_unused: AsyncSession, job_run_id: UUID, full_sync: bo
                         now = datetime.now(timezone.utc)
 
                         if existing:
+                            # Gelöschter Kandidat → komplett überspringen
+                            if existing.deleted_at is not None:
+                                logger.debug(f"Kandidat {crm_id} ist gelöscht, überspringe Sync")
+                                total_processed += 1
+                                continue
+
                             # Update vorhandenen Kandidaten
                             for key, value in mapped.items():
                                 if key != "crm_id" and value is not None:
