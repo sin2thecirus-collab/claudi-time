@@ -246,10 +246,9 @@
         <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
 
         <!-- Modal Content Container -->
-        <div class="fixed inset-0 z-10 overflow-y-auto">
-            <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+        <div class="fixed inset-0 z-10 overflow-y-auto" @click.self="$dispatch('close-modal')">
+            <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0" @click.self="$dispatch('close-modal')">
                 <div id="modal-content"
-                     @click.away="$dispatch('close-modal')"
                      class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg modal-enter">
                     <!-- Modal content will be loaded here -->
                 </div>
@@ -325,9 +324,13 @@
 
         // Modal oeffnen
         function openModal(url) {
-            htmx.ajax('GET', url, {target: '#modal-content', swap: 'innerHTML'}).then(() => {
-                window.dispatchEvent(new CustomEvent('open-modal'));
-            });
+            // Erst schliessen (falls noch offen), dann neu oeffnen
+            window.dispatchEvent(new CustomEvent('close-modal'));
+            setTimeout(() => {
+                htmx.ajax('GET', url, {target: '#modal-content', swap: 'innerHTML'}).then(() => {
+                    window.dispatchEvent(new CustomEvent('open-modal'));
+                });
+            }, 50);
         }
 
         // Modal schliessen
