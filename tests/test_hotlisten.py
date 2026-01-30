@@ -142,8 +142,7 @@ class TestPLZMapping:
         assert self.service.resolve_city("50667", None) == "Köln"
 
     def test_resolve_city_from_plz_frankfurt(self):
-        result = self.service.resolve_city("60311", None)
-        assert result in ("Frankfurt", "Frankfurt am Main")
+        assert self.service.resolve_city("60311", None) == "Frankfurt am Main"
 
     def test_resolve_city_unknown_plz(self):
         result = self.service.resolve_city("99999", None)
@@ -353,8 +352,7 @@ class TestPLZMapCompleteness:
         assert PLZ_CITY_MAP.get("50667") == "Köln"
 
     def test_frankfurt_mapped(self):
-        result = PLZ_CITY_MAP.get("60311")
-        assert result in ("Frankfurt", "Frankfurt am Main")
+        assert PLZ_CITY_MAP.get("60311") == "Frankfurt am Main"
 
     def test_stuttgart_mapped(self):
         assert PLZ_CITY_MAP.get("70173") == "Stuttgart"
@@ -382,4 +380,4 @@ class TestPLZMapCompleteness:
         assert PLZ_CITY_MAP.get("52062") == "Aachen"
 
     def test_freiburg_mapped(self):
-        assert PLZ_CITY_MAP.get("79098") == "Freiburg"
+        assert PLZ_CITY_MAP.get("79098") == "Freiburg im Breisgau"

@@ -114,9 +114,19 @@ def _load_plz_map() -> dict[str, str]:
     Quelle: OpenData (CC BY 4.0)
     """
     data_path = Path(__file__).parent.parent / "data" / "plz_ort.json"
+    # Korrekturen: Datenquelle hat teilweise verkürzte Namen
+    CITY_NAME_FIXES = {
+        "Frankfurt": "Frankfurt am Main",
+        "Freiburg": "Freiburg im Breisgau",
+        "Offenbach": "Offenbach am Main",
+    }
     try:
         with open(data_path, "r", encoding="utf-8") as f:
             plz_map = json.load(f)
+        # Städtenamen korrigieren
+        for plz, city in plz_map.items():
+            if city in CITY_NAME_FIXES:
+                plz_map[plz] = CITY_NAME_FIXES[city]
         logger.info(f"PLZ-Tabelle geladen: {len(plz_map)} Einträge")
         return plz_map
     except FileNotFoundError:
