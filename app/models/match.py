@@ -68,6 +68,12 @@ class Match(Base):
     ai_weaknesses: Mapped[list[str] | None] = mapped_column(ARRAY(String))
     ai_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
+    # Pre-Scoring & DeepMatch
+    pre_score: Mapped[float | None] = mapped_column(Float)
+    user_feedback: Mapped[str | None] = mapped_column(String(50))
+    feedback_note: Mapped[str | None] = mapped_column(Text)
+    feedback_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
     # Status
     status: Mapped[MatchStatus] = mapped_column(
         Enum(MatchStatus, values_callable=lambda x: [e.value for e in x]),
@@ -102,6 +108,7 @@ class Match(Base):
         Index("ix_matches_ai_score", "ai_score"),
         Index("ix_matches_distance_km", "distance_km"),
         Index("ix_matches_created_at", "created_at"),
+        Index("ix_matches_pre_score", "pre_score"),
     )
 
     @property

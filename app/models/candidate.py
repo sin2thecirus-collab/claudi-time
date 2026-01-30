@@ -68,6 +68,12 @@ class Candidate(Base):
     # Manuelle Overrides (Felder die manuell bearbeitet wurden und nicht per Sync/Parsing ueberschrieben werden)
     manual_overrides: Mapped[dict | None] = mapped_column(JSONB)
 
+    # Hotlist-Kategorisierung
+    hotlist_category: Mapped[str | None] = mapped_column(String(50))
+    hotlist_city: Mapped[str | None] = mapped_column(String(255))
+    hotlist_job_title: Mapped[str | None] = mapped_column(String(255))
+    categorized_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
     # Status
     hidden: Mapped[bool] = mapped_column(Boolean, default=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -102,6 +108,7 @@ class Candidate(Base):
         Index("ix_candidates_created_at", "created_at"),
         Index("ix_candidates_current_position", "current_position"),
         Index("ix_candidates_skills", "skills", postgresql_using="gin"),
+        Index("ix_candidates_hotlist_category", "hotlist_category"),
     )
 
     @property

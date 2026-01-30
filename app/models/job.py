@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 
 from geoalchemy2 import Geography
-from sqlalchemy import Boolean, DateTime, Index, String, Text, func
+from sqlalchemy import Boolean, DateTime, Float, Index, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -45,6 +45,12 @@ class Job(Base):
     industry: Mapped[str | None] = mapped_column(String(100))
     company_size: Mapped[str | None] = mapped_column(String(50))
 
+    # Hotlist-Kategorisierung
+    hotlist_category: Mapped[str | None] = mapped_column(String(50))
+    hotlist_city: Mapped[str | None] = mapped_column(String(255))
+    hotlist_job_title: Mapped[str | None] = mapped_column(String(255))
+    categorized_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
     # Duplikaterkennung
     content_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
 
@@ -82,6 +88,7 @@ class Job(Base):
         Index("ix_jobs_expires_at", "expires_at"),
         Index("ix_jobs_deleted_at", "deleted_at"),
         Index("ix_jobs_content_hash", "content_hash"),
+        Index("ix_jobs_hotlist_category", "hotlist_category"),
     )
 
     @property

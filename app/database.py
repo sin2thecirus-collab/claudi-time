@@ -62,15 +62,32 @@ async def init_db() -> None:
 
     # Automatische Migrationen für neue Spalten
     # Lock-Timeout setzen damit ALTER TABLE nicht ewig blockiert
+    # Format: (table, column_name, column_type)
     migrations = [
-        ("languages", "JSONB"),
-        ("it_skills", "VARCHAR[]"),
-        ("further_education", "JSONB"),
-        ("cv_parse_failed", "BOOLEAN DEFAULT FALSE"),
-        ("deleted_at", "TIMESTAMPTZ"),
-        ("manual_overrides", "JSONB"),
+        # Candidates: bestehende Felder
+        ("candidates", "languages", "JSONB"),
+        ("candidates", "it_skills", "VARCHAR[]"),
+        ("candidates", "further_education", "JSONB"),
+        ("candidates", "cv_parse_failed", "BOOLEAN DEFAULT FALSE"),
+        ("candidates", "deleted_at", "TIMESTAMPTZ"),
+        ("candidates", "manual_overrides", "JSONB"),
+        # Candidates: Hotlist-Felder
+        ("candidates", "hotlist_category", "VARCHAR(50)"),
+        ("candidates", "hotlist_city", "VARCHAR(255)"),
+        ("candidates", "hotlist_job_title", "VARCHAR(255)"),
+        ("candidates", "categorized_at", "TIMESTAMPTZ"),
+        # Jobs: Hotlist-Felder
+        ("jobs", "hotlist_category", "VARCHAR(50)"),
+        ("jobs", "hotlist_city", "VARCHAR(255)"),
+        ("jobs", "hotlist_job_title", "VARCHAR(255)"),
+        ("jobs", "categorized_at", "TIMESTAMPTZ"),
+        # Matches: DeepMatch-Felder
+        ("matches", "pre_score", "FLOAT"),
+        ("matches", "user_feedback", "VARCHAR(50)"),
+        ("matches", "feedback_note", "TEXT"),
+        ("matches", "feedback_at", "TIMESTAMPTZ"),
     ]
-    for col_name, col_type in migrations:
+    for table_name, col_name, col_type in migrations:
         try:
             async with engine.begin() as conn:
                 # Lock-Timeout auf 5 Sekunden setzen
@@ -78,15 +95,15 @@ async def init_db() -> None:
                 result = await conn.execute(
                     text(
                         "SELECT column_name FROM information_schema.columns "
-                        "WHERE table_name = 'candidates' AND column_name = :col"
+                        "WHERE table_name = :table AND column_name = :col"
                     ),
-                    {"col": col_name},
+                    {"table": table_name, "col": col_name},
                 )
                 if not result.fetchone():
-                    logger.info(f"Migration: Füge '{col_name}' Spalte hinzu...")
+                    logger.info(f"Migration: Füge '{table_name}.{col_name}' Spalte hinzu...")
                     await conn.execute(
-                        text(f"ALTER TABLE candidates ADD COLUMN {col_name} {col_type}")
+                        text(f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_type}")
                     )
-                    logger.info(f"Migration: '{col_name}' Spalte hinzugefügt.")
+                    logger.info(f"Migration: '{table_name}.{col_name}' Spalte hinzugefügt.")
         except Exception as e:
-            logger.warning(f"Migration für '{col_name}' übersprungen: {e}")
+            logger.warning(f"Migration für '{table_name}.{col_name}' übersprungen: {e}")
