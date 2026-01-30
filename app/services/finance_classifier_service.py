@@ -265,7 +265,8 @@ class BatchClassificationResult:
     total_input_tokens: int = 0
     total_output_tokens: int = 0
     duration_seconds: float = 0.0
-    # Listen für Analyse: Kandidaten ohne erkannte Rolle / Leadership / Fehler
+    # Listen für Analyse — ALLE Kandidaten nach Kategorie
+    classified_candidates: list[dict] = field(default_factory=list)
     unclassified_candidates: list[dict] = field(default_factory=list)
     leadership_candidates: list[dict] = field(default_factory=list)
     error_candidates: list[dict] = field(default_factory=list)
@@ -616,6 +617,14 @@ class FinanceClassifierService:
                 # Ergebnis anwenden
                 self.apply_to_candidate(candidate, classification)
                 batch_result.classified += 1
+                batch_result.classified_candidates.append({
+                    "id": str(candidate.id),
+                    "name": candidate.full_name,
+                    "position": candidate.current_position,
+                    "roles": classification.roles,
+                    "primary_role": classification.primary_role,
+                    "reasoning": classification.reasoning,
+                })
 
                 if len(classification.roles) > 1:
                     batch_result.multi_title_count += 1

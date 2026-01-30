@@ -409,6 +409,7 @@ def _make_progress_callback(key: str):
             "multi_title_count": batch_result.multi_title_count,
             "roles_distribution": dict(batch_result.roles_distribution),
             "cost_usd": batch_result.cost_usd,
+            "classified_candidates": list(batch_result.classified_candidates),
             "unclassified_candidates": list(batch_result.unclassified_candidates),
             "leadership_candidates_count": len(batch_result.leadership_candidates),
             "error_candidates": list(batch_result.error_candidates),
@@ -428,6 +429,7 @@ def _finalize_result(batch_result, include_leadership: bool = False) -> dict:
         "roles_distribution": dict(batch_result.roles_distribution),
         "cost_usd": batch_result.cost_usd,
         "duration_seconds": batch_result.duration_seconds,
+        "classified_candidates": list(batch_result.classified_candidates),
         "unclassified_candidates": list(batch_result.unclassified_candidates),
         "error_candidates": list(batch_result.error_candidates),
     }
