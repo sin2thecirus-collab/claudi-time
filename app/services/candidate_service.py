@@ -166,7 +166,7 @@ class CandidateService:
         query = self._apply_filters(query, filters)
 
         # Sortierung
-        sort_column = getattr(Candidate, filters.sort_by, Candidate.crm_synced_at)
+        sort_column = getattr(Candidate, filters.sort_by, Candidate.created_at)
         if filters.sort_order == "asc":
             query = query.order_by(sort_column.asc().nullslast())
         else:

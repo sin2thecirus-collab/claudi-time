@@ -124,7 +124,7 @@ class CandidateFilterParams(BaseModel):
 
     # Sortierung
     sort_by: CandidateSortBy = Field(
-        default=CandidateSortBy.CRM_SYNCED_AT, description="Sortierfeld"
+        default=CandidateSortBy.CREATED_AT, description="Sortierfeld"
     )
     sort_order: SortOrder = Field(default=SortOrder.DESC, description="Sortierreihenfolge")
 
