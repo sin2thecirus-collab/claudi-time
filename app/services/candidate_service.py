@@ -166,11 +166,11 @@ class CandidateService:
         query = self._apply_filters(query, filters)
 
         # Sortierung
-        sort_column = getattr(Candidate, filters.sort_by, Candidate.created_at)
+        sort_column = getattr(Candidate, filters.sort_by, Candidate.crm_synced_at)
         if filters.sort_order == "asc":
-            query = query.order_by(sort_column.asc())
+            query = query.order_by(sort_column.asc().nullslast())
         else:
-            query = query.order_by(sort_column.desc())
+            query = query.order_by(sort_column.desc().nullslast())
 
         # Total zählen
         count_query = select(func.count()).select_from(query.subquery())

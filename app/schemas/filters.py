@@ -32,6 +32,7 @@ class CandidateSortBy(str, Enum):
     """Sortierfelder für Kandidaten."""
 
     CREATED_AT = "created_at"
+    CRM_SYNCED_AT = "crm_synced_at"
     FULL_NAME = "full_name"
     CITY = "city"
     DISTANCE_KM = "distance_km"
@@ -123,9 +124,9 @@ class CandidateFilterParams(BaseModel):
 
     # Sortierung
     sort_by: CandidateSortBy = Field(
-        default=CandidateSortBy.DISTANCE_KM, description="Sortierfeld"
+        default=CandidateSortBy.CRM_SYNCED_AT, description="Sortierfeld"
     )
-    sort_order: SortOrder = Field(default=SortOrder.ASC, description="Sortierreihenfolge")
+    sort_order: SortOrder = Field(default=SortOrder.DESC, description="Sortierreihenfolge")
 
 
 class FilterPresetCreate(BaseModel):
