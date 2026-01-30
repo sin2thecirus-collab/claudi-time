@@ -441,11 +441,19 @@ class CSVImportService:
         except Exception as e:
             logger.warning(f"Kategorisierung fehlgeschlagen für Job '{job.position}': {e}")
 
-    def _get_field(self, row: dict[str, str], *keys: str) -> str | None:
-        """Liest ein Feld mit mehreren moeglichen Spaltennamen (Alias-Support)."""
+    def _get_field(self, row: dict[str, str], *keys: str, max_len: int = 0) -> str | None:
+        """Liest ein Feld mit mehreren moeglichen Spaltennamen (Alias-Support).
+
+        Args:
+            row: CSV-Zeile als Dictionary
+            *keys: Moegliche Spaltennamen (erster Treffer gewinnt)
+            max_len: Maximale Laenge (0 = kein Limit)
+        """
         for key in keys:
             value = row.get(key, "").strip()
             if value:
+                if max_len and len(value) > max_len:
+                    value = value[:max_len]
                 return value
         return None
 
@@ -463,24 +471,28 @@ class CSVImportService:
         Returns:
             Job-Objekt
         """
+        # DB-Limits: company_name/position=VARCHAR(255), city/work_location_city/
+        # employment_type/industry=VARCHAR(100), company_size=VARCHAR(100)
         return Job(
-            company_name=row.get("Unternehmen", "").strip(),
-            position=self._get_field(row, "Position", "Funktion - AP Firma") or "Keine Position angegeben",
-            street_address=self._get_field(row, "Straße", "Straße und Hausnummer"),
-            postal_code=self._get_field(row, "PLZ"),
-            city=self._get_field(row, "Stadt", "Ort"),
+            company_name=row.get("Unternehmen", "").strip()[:255],
+            position=(self._get_field(row, "Position", "Funktion - AP Firma")
+                      or "Keine Position angegeben")[:255],
+            street_address=self._get_field(row, "Straße", "Straße und Hausnummer", max_len=255),
+            postal_code=self._get_field(row, "PLZ", max_len=10),
+            city=self._get_field(row, "Stadt", "Ort", max_len=100),
             work_location_city=self._get_field(
-                row, "Arbeitsort", "Einsatzort", "Ort", "Stadt",
+                row, "Arbeitsort", "Einsatzort", "Ort", "Stadt", max_len=100,
             ),
-            job_url=self._get_field(row, "URL", "Anzeigenlink", "Link"),
+            job_url=self._get_field(row, "URL", "Anzeigenlink", "Link", max_len=2000),
             job_text=self._get_field(
                 row, "Beschreibung", "Stellenbeschreibung", "Anzeigen-Text",
             ),
-            employment_type=self._get_field(row, "Beschäftigungsart", "Art"),
-            industry=self._get_field(row, "Branche"),
+            employment_type=self._get_field(row, "Beschäftigungsart", "Art", max_len=100),
+            industry=self._get_field(row, "Branche", max_len=100),
             company_size=self._get_field(
                 row, "Unternehmensgröße", "Unternehmensgroesse",
                 "Mitarbeiter (MA) / Unternehmensgröße", "Mitarbeiter",
+                max_len=100,
             ),
             content_hash=content_hash,
         )

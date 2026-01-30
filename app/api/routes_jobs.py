@@ -4,7 +4,7 @@ import logging
 from datetime import datetime, timezone
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request, UploadFile, File, status
+from fastapi import APIRouter, Depends, Query, Request, UploadFile, File, status
 from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -74,9 +74,7 @@ async def import_jobs(
                 import_job = await import_service.process_import(import_job.id, content)
 
         except Exception as e:
-            import traceback
-            error_tb = traceback.format_exc()
-            logger.error(f"Import fehlgeschlagen: {e}\n{error_tb}")
+            logger.error(f"Import fehlgeschlagen: {e}", exc_info=True)
             try:
                 await db.rollback()
             except Exception:
@@ -90,15 +88,10 @@ async def import_jobs(
                     await db.commit()
             except Exception:
                 pass
-            # Fehler als JSON zurueckgeben statt re-raise
             from fastapi.responses import JSONResponse
             return JSONResponse(
                 status_code=500,
-                content={
-                    "status": "failed",
-                    "error": str(e)[:1000],
-                    "traceback": error_tb[-2000:],
-                },
+                content={"status": "failed", "error": "Import fehlgeschlagen"},
             )
 
     logger.info(
@@ -176,37 +169,6 @@ async def cancel_import(
         )
 
     return ImportJobResponse.model_validate(import_job)
-
-
-async def _run_import_background(import_job_id: UUID, content: bytes):
-    """Background-Task fuer CSV-Import mit eigener DB-Session."""
-    from app.database import async_session_maker
-    from app.models.import_job import ImportStatus
-
-    logger.info(f"Background-Import gestartet: {import_job_id}, Content-Size: {len(content)} bytes")
-
-    async with async_session_maker() as session:
-        try:
-            service = CSVImportService(session)
-            result = await service.process_import(import_job_id, content)
-            logger.info(
-                f"Background-Import abgeschlossen: {import_job_id}, "
-                f"Status: {result.status}, "
-                f"Erfolgreich: {result.successful_rows}/{result.total_rows}"
-            )
-        except Exception as e:
-            logger.error(f"Background-Import fehlgeschlagen: {e}", exc_info=True)
-            try:
-                await session.rollback()
-                # Import-Job als FAILED markieren
-                import_job = await session.get(ImportJob, import_job_id)
-                if import_job and not import_job.is_complete:
-                    import_job.status = ImportStatus.FAILED
-                    import_job.error_message = f"Background-Task Fehler: {str(e)[:500]}"
-                    import_job.completed_at = datetime.now(timezone.utc)
-                    await session.commit()
-            except Exception as inner_e:
-                logger.error(f"Konnte Import-Job {import_job_id} nicht als FAILED markieren: {inner_e}")
 
 
 # ==================== CRUD ====================
