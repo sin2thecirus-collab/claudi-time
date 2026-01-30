@@ -208,24 +208,32 @@ async def match_bereiche_page(
         set(candidate_title_counts.keys()) | set(job_title_counts.keys())
     )
 
-    # Grid-Daten aufbauen
-    city_data = [
-        {
-            "name": city,
-            "candidates": candidate_city_counts.get(city, 0),
-            "jobs": job_city_counts.get(city, 0),
-        }
-        for city in all_cities
-    ]
+    # Grid-Daten aufbauen — nach Kandidaten-Anzahl sortiert (Top zuerst)
+    city_data = sorted(
+        [
+            {
+                "name": city,
+                "candidates": candidate_city_counts.get(city, 0),
+                "jobs": job_city_counts.get(city, 0),
+            }
+            for city in all_cities
+        ],
+        key=lambda x: x["candidates"],
+        reverse=True,
+    )
 
-    title_data = [
-        {
-            "name": title,
-            "candidates": candidate_title_counts.get(title, 0),
-            "jobs": job_title_counts.get(title, 0),
-        }
-        for title in all_titles
-    ]
+    title_data = sorted(
+        [
+            {
+                "name": title,
+                "candidates": candidate_title_counts.get(title, 0),
+                "jobs": job_title_counts.get(title, 0),
+            }
+            for title in all_titles
+        ],
+        key=lambda x: x["candidates"],
+        reverse=True,
+    )
 
     # Stadt × Beruf Kombinationen — Kandidaten (UNNEST für Multi-Titel)
     combo_candidates_q = await db.execute(
