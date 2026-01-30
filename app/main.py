@@ -121,12 +121,14 @@ from app.api.routes_admin import router as admin_router
 from app.api.routes_pages import router as pages_router
 from app.api.routes_statistics import router as statistics_router
 from app.api.routes_alerts import router as alerts_router
+from app.api.routes_hotlisten import router as hotlisten_router
 
 # Custom Exception Handlers registrieren
 register_exception_handlers(app)
 
 # Page Router registrieren (ohne Prefix fuer HTML-Seiten)
 app.include_router(pages_router)
+app.include_router(hotlisten_router)  # Hotlisten-Seiten + API (/hotlisten, /match-bereiche, /deepmatch)
 
 # API Router registrieren (alle mit /api Prefix)
 app.include_router(jobs_router, prefix="/api")

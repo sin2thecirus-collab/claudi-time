@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}Match-Bereiche {{ category_label }} — Pulspoint{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    {# Breadcrumb + Header #}
+    <div>
+        <nav class="flex mb-2" aria-label="Breadcrumb">
+            <ol class="flex items-center space-x-2 text-sm text-gray-500">
+                <li><a href="/hotlisten" class="hover:text-gray-700">Hotlisten</a></li>
+                <li><span class="mx-1">/</span></li>
+                <li class="font-medium text-gray-900">{{ category_label }}</li>
+            </ol>
+        </nav>
+        <div class="flex items-center justify-between">
+            <h1 class="text-2xl font-bold text-gray-900">Match-Bereiche: {{ category_label }}</h1>
+            <div class="flex gap-3">
+                <a href="/match-bereiche?category=FINANCE"
+                   class="rounded-lg px-3 py-1.5 text-sm font-medium {% if category == 'FINANCE' %}bg-blue-100 text-blue-700{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %} transition-colors">
+                    Finance
+                </a>
+                <a href="/match-bereiche?category=ENGINEERING"
+                   class="rounded-lg px-3 py-1.5 text-sm font-medium {% if category == 'ENGINEERING' %}bg-green-100 text-green-700{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %} transition-colors">
+                    Engineering
+                </a>
+            </div>
+        </div>
+    </div>
+
+    {# Nach Stadt #}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-lg font-semibold text-gray-900">Nach Stadt</h2>
+            <p class="text-sm text-gray-500">Kandidaten und Jobs pro Stadt</p>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stadt</th>
+                        <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Kandidaten</th>
+                        <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Jobs</th>
+                        <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Aktion</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for city in city_data %}
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="px-6 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {{ city.name }}
+                        </td>
+                        <td class="px-6 py-3 whitespace-nowrap text-center">
+                            <span class="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+                                {{ city.candidates }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-3 whitespace-nowrap text-center">
+                            <span class="inline-flex items-center rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-700">
+                                {{ city.jobs }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-3 whitespace-nowrap text-center">
+                            <a href="/deepmatch?category={{ category }}&city={{ city.name }}"
+                               class="text-sm text-primary-600 hover:text-primary-800 font-medium">
+                                DeepMatch &rarr;
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% if not city_data %}
+                    <tr>
+                        <td colspan="4" class="px-6 py-8 text-center text-sm text-gray-500">
+                            Keine Daten vorhanden. Bitte zuerst die Kategorisierung starten.
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {# Nach Beruf/Titel #}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-lg font-semibold text-gray-900">Nach Beruf</h2>
+            <p class="text-sm text-gray-500">Kandidaten und Jobs pro normalisiertem Berufstitel</p>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Beruf</th>
+                        <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Kandidaten</th>
+                        <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Jobs</th>
+                        <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Aktion</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for title in title_data %}
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="px-6 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {{ title.name }}
+                        </td>
+                        <td class="px-6 py-3 whitespace-nowrap text-center">
+                            <span class="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+                                {{ title.candidates }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-3 whitespace-nowrap text-center">
+                            <span class="inline-flex items-center rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-700">
+                                {{ title.jobs }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-3 whitespace-nowrap text-center">
+                            <a href="/deepmatch?category={{ category }}&job_title={{ title.name }}"
+                               class="text-sm text-primary-600 hover:text-primary-800 font-medium">
+                                DeepMatch &rarr;
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% if not title_data %}
+                    <tr>
+                        <td colspan="4" class="px-6 py-8 text-center text-sm text-gray-500">
+                            Keine Daten vorhanden. Bitte zuerst die Kategorisierung starten.
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

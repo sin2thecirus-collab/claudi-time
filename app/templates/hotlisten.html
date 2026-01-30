@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Hotlisten — Pulspoint{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    {# Header #}
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Hotlisten</h1>
+            <p class="mt-1 text-sm text-gray-500">Kategorisierte Kandidaten und Jobs für gezieltes Matching</p>
+        </div>
+        <button hx-post="/api/hotlisten/categorize?force=false"
+                hx-swap="none"
+                hx-on::after-request="showToast('Kategorisierung gestartet', 'success'); setTimeout(() => location.reload(), 2000)"
+                class="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 transition-colors">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+            </svg>
+            Neu kategorisieren
+        </button>
+    </div>
+
+    {# Kategorie-Karten #}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {% for cat in categories %}
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+            <div class="p-6">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <span class="text-3xl">{{ cat.icon }}</span>
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-900">{{ cat.label }}</h2>
+                            <p class="text-sm text-gray-500">{{ cat.description }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                {# Statistiken #}
+                <div class="mt-6 grid grid-cols-2 gap-4">
+                    <div class="bg-gray-50 rounded-lg p-4 text-center">
+                        <p class="text-3xl font-bold text-{{ cat.color }}-600">{{ cat.candidates }}</p>
+                        <p class="text-sm text-gray-500 mt-1">Kandidaten</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-4 text-center">
+                        <p class="text-3xl font-bold text-{{ cat.color }}-600">{{ cat.jobs }}</p>
+                        <p class="text-sm text-gray-500 mt-1">Jobs</p>
+                    </div>
+                </div>
+
+                {# Aktionen #}
+                <div class="mt-6 flex gap-3">
+                    <a href="/match-bereiche?category={{ cat.name }}"
+                       class="flex-1 text-center rounded-lg bg-{{ cat.color }}-50 px-4 py-2.5 text-sm font-medium text-{{ cat.color }}-700 hover:bg-{{ cat.color }}-100 transition-colors">
+                        Match-Bereiche ansehen
+                    </a>
+                    <a href="/deepmatch?category={{ cat.name }}"
+                       class="flex-1 text-center rounded-lg bg-{{ cat.color }}-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-{{ cat.color }}-700 transition-colors">
+                        DeepMatch starten
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {# Sonstige Info #}
+    {% if uncategorized_candidates > 0 or uncategorized_jobs > 0 %}
+    <div class="bg-gray-50 rounded-lg border border-gray-200 p-4">
+        <div class="flex items-center space-x-2 text-sm text-gray-500">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+            </svg>
+            <span>
+                <strong>{{ uncategorized_candidates }}</strong> Kandidaten und
+                <strong>{{ uncategorized_jobs }}</strong> Jobs sind als "Sonstige" kategorisiert
+                (kein automatisches Matching).
+            </span>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
