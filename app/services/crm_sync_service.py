@@ -27,6 +27,7 @@ from app.services.crm_client import (
     CRMRateLimitError,
     RecruitCRMClient,
 )
+from app.services.categorization_service import CategorizationService
 from app.services.cv_parser_service import CVParserService
 
 logger = logging.getLogger(__name__)
@@ -352,6 +353,19 @@ class CRMSyncService:
 
         return candidate
 
+    def _categorize_candidate(self, candidate: Candidate) -> None:
+        """Kategorisiert einen Kandidaten für die Hotlist (synchron, kein DB-Commit)."""
+        try:
+            cat_service = CategorizationService(self.db)
+            result = cat_service.categorize_candidate(candidate)
+            cat_service.apply_to_candidate(candidate, result)
+            logger.debug(
+                f"Kandidat {candidate.crm_id} kategorisiert: "
+                f"{result.category} ({result.job_title}, {result.city})"
+            )
+        except Exception as e:
+            logger.warning(f"Kategorisierung fehlgeschlagen für {candidate.crm_id}: {e}")
+
     def _needs_cv_parsing(self, candidate: Candidate) -> bool:
         """Prüft ob CV-Parsing nötig ist.
 
@@ -534,6 +548,9 @@ class CRMSyncService:
             existing.crm_synced_at = now
             existing.updated_at = now
 
+            # Hotlist-Kategorisierung bei jedem Update (Position kann sich ändern)
+            self._categorize_candidate(existing)
+
             logger.debug(
                 f"Kandidat {crm_id} aktualisiert: "
                 f"Position={mapped_data.get('current_position')}, "
@@ -569,6 +586,9 @@ class CRMSyncService:
                 f"Work History={len(mapped_data.get('work_history') or [])} Einträge, "
                 f"Education={len(mapped_data.get('education') or [])} Einträge"
             )
+
+            # Hotlist-Kategorisierung direkt nach Erstellung
+            self._categorize_candidate(candidate)
 
             return candidate, True
 

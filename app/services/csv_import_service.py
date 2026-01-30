@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import ImportJob, Job
 from app.models.import_job import ImportStatus
+from app.services.categorization_service import CategorizationService
 from app.services.csv_validator import (
     CSVValidator,
     ValidationResult,
@@ -190,6 +191,10 @@ class CSVImportService:
 
                     # Job erstellen
                     job = self._row_to_job(row, content_hash)
+
+                    # Hotlist-Kategorisierung direkt nach Erstellung
+                    self._categorize_job(job)
+
                     self.db.add(job)
                     existing_hashes.add(content_hash)
                     successful += 1
@@ -287,6 +292,19 @@ class CSVImportService:
             select(Job.content_hash).where(Job.content_hash.isnot(None))
         )
         return {row[0] for row in result.all()}
+
+    def _categorize_job(self, job: Job) -> None:
+        """Kategorisiert einen Job für die Hotlist (synchron, kein DB-Commit)."""
+        try:
+            cat_service = CategorizationService(self.db)
+            result = cat_service.categorize_job(job)
+            cat_service.apply_to_job(job, result)
+            logger.debug(
+                f"Job '{job.position}' kategorisiert: "
+                f"{result.category} ({result.job_title}, {result.city})"
+            )
+        except Exception as e:
+            logger.warning(f"Kategorisierung fehlgeschlagen für Job '{job.position}': {e}")
 
     def _row_to_job(self, row: dict[str, str], content_hash: str) -> Job:
         """
