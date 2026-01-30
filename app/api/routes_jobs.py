@@ -74,18 +74,32 @@ async def import_jobs(
                 import_job = await import_service.process_import(import_job.id, content)
 
         except Exception as e:
-            logger.error(f"Import fehlgeschlagen: {e}", exc_info=True)
-            await db.rollback()
+            import traceback
+            error_tb = traceback.format_exc()
+            logger.error(f"Import fehlgeschlagen: {e}\n{error_tb}")
+            try:
+                await db.rollback()
+            except Exception:
+                pass
             # Versuche Import-Job als FAILED zu markieren
             try:
-                if import_job:
+                if 'import_job' in locals() and import_job:
                     import_job.status = ImportStatus.FAILED
                     import_job.error_message = f"Import-Fehler: {str(e)[:500]}"
                     import_job.completed_at = datetime.now(timezone.utc)
                     await db.commit()
             except Exception:
                 pass
-            raise
+            # Fehler als JSON zurueckgeben statt re-raise
+            from fastapi.responses import JSONResponse
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "status": "failed",
+                    "error": str(e)[:1000],
+                    "traceback": error_tb[-2000:],
+                },
+            )
 
     logger.info(
         f"Import abgeschlossen: {import_job.id}, "
