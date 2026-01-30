@@ -121,7 +121,7 @@
     <div class="space-y-4">
         {% for city_name, titles in combo_data %}
         <div class="bg-white rounded-xl border border-gray-200 overflow-hidden"
-             x-show="cityVisible('{{ city_name }}', {{ titles | tojson }})"
+             x-show="cityVisible('{{ city_name }}', '{{ titles | map(attribute='title') | join(',') }}', {{ 'true' if titles | selectattr('can_match') | list | length > 0 else 'false' }})"
              x-transition>
 
             {# Stadt-Header als Accordion #}
@@ -319,18 +319,18 @@ function matchBereiche() {
             }
         },
 
-        cityVisible(city, titles) {
+        cityVisible(city, titlesStr, hasMatchable) {
             const q = this.searchQuery.toLowerCase().trim();
             if (!q && !this.hideEmpty) return true;
 
             // Suchfilter: Stadt oder einer der Berufstitel matcht
             const matchesSearch = !q || city.toLowerCase().includes(q) ||
-                titles.some(t => t.title.toLowerCase().includes(q));
+                titlesStr.toLowerCase().includes(q);
 
             // "Nur matchbare": Mindestens ein matchbarer Beruf in der Stadt
-            const hasMatchable = !this.hideEmpty || titles.some(t => t.can_match);
+            const matchableOk = !this.hideEmpty || hasMatchable;
 
-            return matchesSearch && hasMatchable;
+            return matchesSearch && matchableOk;
         },
 
         rowVisible(title) {
