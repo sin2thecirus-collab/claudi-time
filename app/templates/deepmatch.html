@@ -124,12 +124,31 @@
                     <div class="text-xs text-gray-500 mt-0.5">
                         {{ m.candidate_position }} &middot; {{ m.candidate_city }}
                     </div>
+                    {% if m.candidate_job_titles %}
+                    <div class="flex flex-wrap gap-1 mt-1">
+                        {% for title in m.candidate_job_titles %}
+                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium
+                            {% if title == job_title %}bg-primary-100 text-primary-700 ring-1 ring-primary-300{% else %}bg-gray-100 text-gray-600{% endif %}">
+                            {{ title }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
                 </div>
 
                 {# Job-Info #}
                 <div class="hidden sm:block text-right min-w-0 flex-shrink-0">
                     <div class="text-xs font-medium text-gray-700 truncate max-w-48">{{ m.job_position }}</div>
                     <div class="text-xs text-gray-400 truncate max-w-48">{{ m.job_company }} &middot; {{ m.job_city }}</div>
+                    {% if m.job_job_titles %}
+                    <div class="flex flex-wrap justify-end gap-1 mt-1">
+                        {% for title in m.job_job_titles %}
+                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-green-50 text-green-700">
+                            {{ title }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
                 </div>
 
                 {# Pre-Score #}
