@@ -16,15 +16,15 @@
 </div>
 {% else %}
 {# Batch-Aktionsleiste (erscheint wenn Kandidaten ausgewaehlt sind) #}
-<div id="batch-actions" class="hidden bg-red-50 border-b border-red-200 px-4 py-3 sm:px-6">
+<div id="batch-actions" class="hidden bg-red-50 border-b border-red-200 px-5 py-4 sm:px-8">
     <div class="flex items-center justify-between">
-        <span class="text-sm font-medium text-red-800">
+        <span class="text-base font-medium text-red-800">
             <span id="selected-count">0</span> Kandidat(en) ausgewaehlt
         </span>
         <button type="button"
                 onclick="batchDeleteSelected()"
-                class="inline-flex items-center rounded-md bg-red-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-red-500 transition-colors">
-            <svg class="h-4 w-4 mr-1.5" viewBox="0 0 20 20" fill="currentColor">
+                class="inline-flex items-center rounded-md bg-red-600 px-4 py-2 text-base font-semibold text-white shadow-sm hover:bg-red-500 transition-colors">
+            <svg class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clip-rule="evenodd" />
             </svg>
             Ausgewaehlte loeschen
@@ -35,18 +35,18 @@
 <table class="min-w-full divide-y divide-gray-200">
     <thead class="bg-gray-50">
         <tr>
-            <th scope="col" class="selection-col hidden py-4 pl-4 pr-1 w-10">
+            <th scope="col" class="selection-col hidden py-5 pl-5 pr-2 w-12">
                 <input type="checkbox"
                        id="select-all-candidates"
                        onchange="toggleAllCandidates(this)"
-                       class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-600 cursor-pointer">
+                       class="h-5 w-5 rounded border-gray-300 text-primary-600 focus:ring-primary-600 cursor-pointer">
             </th>
-            <th scope="col" class="py-4 pl-2 pr-3 text-left text-base font-semibold text-gray-900">Name</th>
-            <th scope="col" class="px-3 py-4 text-left text-base font-semibold text-gray-900">Position</th>
-            <th scope="col" class="px-3 py-4 text-left text-base font-semibold text-gray-900">Unternehmen</th>
-            <th scope="col" class="px-3 py-4 text-left text-base font-semibold text-gray-900">Adresse</th>
-            <th scope="col" class="px-3 py-4 text-left text-base font-semibold text-gray-900">Status</th>
-            <th scope="col" class="relative py-4 pl-3 pr-4 sm:pr-6">
+            <th scope="col" class="py-5 pl-4 pr-4 text-left text-xl font-semibold text-gray-900">Name</th>
+            <th scope="col" class="px-4 py-5 text-left text-xl font-semibold text-gray-900">Position</th>
+            <th scope="col" class="px-4 py-5 text-left text-xl font-semibold text-gray-900">Unternehmen</th>
+            <th scope="col" class="px-4 py-5 text-left text-xl font-semibold text-gray-900">Adresse</th>
+            <th scope="col" class="px-4 py-5 text-left text-xl font-semibold text-gray-900">Status</th>
+            <th scope="col" class="relative py-5 pl-4 pr-5 sm:pr-8">
                 <span class="sr-only">Aktionen</span>
             </th>
         </tr>
@@ -56,42 +56,42 @@
         <tr class="hover:bg-gray-50 cursor-pointer transition-colors"
             onclick="window.location='/kandidaten/{{ candidate.id }}'">
             {# Checkbox (nur sichtbar im Auswahl-Modus) #}
-            <td class="selection-col hidden whitespace-nowrap py-4 pl-4 pr-1 w-10" onclick="event.stopPropagation()">
+            <td class="selection-col hidden whitespace-nowrap py-5 pl-5 pr-2 w-12" onclick="event.stopPropagation()">
                 <input type="checkbox"
-                       class="candidate-checkbox h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-600 cursor-pointer"
+                       class="candidate-checkbox h-5 w-5 rounded border-gray-300 text-primary-600 focus:ring-primary-600 cursor-pointer"
                        value="{{ candidate.id }}"
                        onchange="updateBatchActions()">
             </td>
             {# Name #}
-            <td class="whitespace-nowrap py-4 pl-2 pr-3">
+            <td class="whitespace-nowrap py-5 pl-4 pr-4">
                 <div class="flex items-center">
-                    <div class="flex-shrink-0 h-11 w-11">
-                        <span class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-primary-100">
-                            <span class="text-base font-medium text-primary-700">
+                    <div class="flex-shrink-0 h-14 w-14">
+                        <span class="inline-flex h-14 w-14 items-center justify-center rounded-full bg-primary-100">
+                            <span class="text-lg font-medium text-primary-700">
                                 {{ (candidate.first_name or 'X')[0] | upper }}{{ (candidate.last_name or 'X')[0] | upper }}
                             </span>
                         </span>
                     </div>
-                    <div class="ml-4">
-                        <div class="text-base font-medium text-gray-900">
+                    <div class="ml-5">
+                        <div class="text-lg font-medium text-gray-900">
                             {{ candidate.first_name or '' }} {{ candidate.last_name or '' }}
                             {% if candidate.age %}<span class="text-gray-400 font-normal">({{ candidate.age }})</span>{% endif %}
                         </div>
                         {% if candidate.email %}
-                        <div class="text-sm text-gray-500">{{ candidate.email }}</div>
+                        <div class="text-base text-gray-500">{{ candidate.email }}</div>
                         {% endif %}
                     </div>
                 </div>
             </td>
 
             {# Position (editierbar) #}
-            <td class="px-3 py-4 text-base text-gray-900" onclick="event.stopPropagation()">
+            <td class="px-4 py-5 text-lg text-gray-900" onclick="event.stopPropagation()">
                 <div class="inline-edit-wrapper group" data-candidate-id="{{ candidate.id }}" data-field="current_position">
-                    <span class="inline-edit-display cursor-pointer hover:bg-yellow-50 hover:ring-1 hover:ring-yellow-300 rounded px-1 py-0.5 transition-all {% if not candidate.current_position %}text-gray-400 italic{% else %}font-medium{% endif %}"
+                    <span class="inline-edit-display cursor-pointer hover:bg-yellow-50 hover:ring-1 hover:ring-yellow-300 rounded px-1.5 py-1 transition-all {% if not candidate.current_position %}text-gray-400 italic{% else %}font-medium{% endif %}"
                           onclick="startInlineEdit(this)"
                           title="Klicken zum Bearbeiten">{{ candidate.current_position or 'Keine Position' }}</span>
                     <input type="text"
-                           class="inline-edit-input hidden w-full rounded-md border-0 py-1 px-2 text-sm text-gray-900 ring-1 ring-inset ring-primary-400 focus:ring-2 focus:ring-primary-600"
+                           class="inline-edit-input hidden w-full rounded-md border-0 py-1.5 px-2.5 text-base text-gray-900 ring-1 ring-inset ring-primary-400 focus:ring-2 focus:ring-primary-600"
                            value="{{ candidate.current_position or '' }}"
                            onblur="saveInlineEdit(this)"
                            onkeydown="handleInlineEditKey(event, this)">
@@ -99,13 +99,13 @@
             </td>
 
             {# Unternehmen (editierbar) #}
-            <td class="px-3 py-4 text-base text-gray-500" onclick="event.stopPropagation()">
+            <td class="px-4 py-5 text-lg text-gray-500" onclick="event.stopPropagation()">
                 <div class="inline-edit-wrapper group" data-candidate-id="{{ candidate.id }}" data-field="current_company">
-                    <span class="inline-edit-display cursor-pointer hover:bg-yellow-50 hover:ring-1 hover:ring-yellow-300 rounded px-1 py-0.5 transition-all {% if not candidate.current_company %}text-gray-400 italic{% endif %}"
+                    <span class="inline-edit-display cursor-pointer hover:bg-yellow-50 hover:ring-1 hover:ring-yellow-300 rounded px-1.5 py-1 transition-all {% if not candidate.current_company %}text-gray-400 italic{% endif %}"
                           onclick="startInlineEdit(this)"
                           title="Klicken zum Bearbeiten">{{ candidate.current_company or 'Kein Unternehmen' }}</span>
                     <input type="text"
-                           class="inline-edit-input hidden w-full rounded-md border-0 py-1 px-2 text-sm text-gray-900 ring-1 ring-inset ring-primary-400 focus:ring-2 focus:ring-primary-600"
+                           class="inline-edit-input hidden w-full rounded-md border-0 py-1.5 px-2.5 text-base text-gray-900 ring-1 ring-inset ring-primary-400 focus:ring-2 focus:ring-primary-600"
                            value="{{ candidate.current_company or '' }}"
                            onblur="saveInlineEdit(this)"
                            onkeydown="handleInlineEditKey(event, this)">
@@ -113,7 +113,7 @@
             </td>
 
             {# Adresse #}
-            <td class="px-3 py-4 text-base text-gray-500">
+            <td class="px-4 py-5 text-lg text-gray-500">
                 {% if candidate.street_address or candidate.postal_code or candidate.city %}
                 <div>
                     {% if candidate.street_address %}
@@ -129,24 +129,24 @@
             </td>
 
             {# Status #}
-            <td class="whitespace-nowrap px-3 py-4 text-sm">
-                <div class="flex flex-col space-y-1.5">
+            <td class="whitespace-nowrap px-4 py-5 text-base">
+                <div class="flex flex-col space-y-2">
                     {% if candidate.hidden %}
-                    <span class="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-600">
+                    <span class="inline-flex items-center rounded-full bg-gray-100 px-4 py-1.5 text-base font-medium text-gray-600">
                         Ausgeblendet
                     </span>
                     {% elif candidate.is_active %}
-                    <span class="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-700">
+                    <span class="inline-flex items-center rounded-full bg-green-100 px-4 py-1.5 text-base font-medium text-green-700">
                         Aktiv
                     </span>
                     {% else %}
-                    <span class="inline-flex items-center rounded-full bg-yellow-100 px-3 py-1 text-sm font-medium text-yellow-700">
+                    <span class="inline-flex items-center rounded-full bg-yellow-100 px-4 py-1.5 text-base font-medium text-yellow-700">
                         Inaktiv
                     </span>
                     {% endif %}
 
                     {% if candidate.work_history and candidate.work_history | length > 0 %}
-                    <span class="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-700">
+                    <span class="inline-flex items-center rounded-full bg-blue-100 px-4 py-1.5 text-base font-medium text-blue-700">
                         {{ candidate.work_history | length }} Stationen
                     </span>
                     {% endif %}
@@ -154,8 +154,8 @@
             </td>
 
             {# Aktionen #}
-            <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-base font-medium sm:pr-6">
-                <div class="flex items-center justify-end space-x-3">
+            <td class="relative whitespace-nowrap py-5 pl-4 pr-5 text-right text-lg font-medium sm:pr-8">
+                <div class="flex items-center justify-end space-x-4">
                     <a href="/kandidaten/{{ candidate.id }}"
                        class="text-primary-600 hover:text-primary-900"
                        onclick="event.stopPropagation()">
@@ -169,7 +169,7 @@
                             class="text-red-500 hover:text-red-700 transition-colors"
                             onclick="event.stopPropagation()"
                             title="Kandidat loeschen">
-                        <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <svg class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
                             <path fill-rule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clip-rule="evenodd" />
                         </svg>
                         <span class="sr-only">Loeschen, {{ candidate.first_name }} {{ candidate.last_name }}</span>
@@ -183,14 +183,14 @@
 
 {# Pagination #}
 {% if total_pages > 1 %}
-<div class="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
+<div class="bg-white px-5 py-4 border-t border-gray-200 sm:px-8">
     <div class="flex items-center justify-between">
         <div class="flex-1 flex justify-between sm:hidden">
             {% if page > 1 %}
             <button hx-get="/partials/candidates-list?page={{ page - 1 }}{% if search %}&search={{ search }}{% endif %}&per_page={{ per_page }}"
                     hx-target="#candidates-list"
                     hx-swap="innerHTML"
-                    class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                    class="relative inline-flex items-center px-5 py-2.5 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
                 Zurueck
             </button>
             {% endif %}
@@ -198,14 +198,14 @@
             <button hx-get="/partials/candidates-list?page={{ page + 1 }}{% if search %}&search={{ search }}{% endif %}&per_page={{ per_page }}"
                     hx-target="#candidates-list"
                     hx-swap="innerHTML"
-                    class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                    class="ml-3 relative inline-flex items-center px-5 py-2.5 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
                 Weiter
             </button>
             {% endif %}
         </div>
         <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
             <div>
-                <p class="text-sm text-gray-700">
+                <p class="text-base text-gray-700">
                     Zeige
                     <span class="font-medium">{{ ((page - 1) * per_page) + 1 }}</span>
                     bis
@@ -222,9 +222,9 @@
                     <button hx-get="/partials/candidates-list?page={{ page - 1 }}{% if search %}&search={{ search }}{% endif %}&per_page={{ per_page }}"
                             hx-target="#candidates-list"
                             hx-swap="innerHTML"
-                            class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                            class="relative inline-flex items-center px-3 py-2.5 rounded-l-md border border-gray-300 bg-white text-base font-medium text-gray-500 hover:bg-gray-50">
                         <span class="sr-only">Zurueck</span>
-                        <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <svg class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
                             <path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clip-rule="evenodd" />
                         </svg>
                     </button>
@@ -233,18 +233,18 @@
                     {# Seitenzahlen #}
                     {% for p in range(1, total_pages + 1) %}
                         {% if p == page %}
-                        <span class="relative z-10 inline-flex items-center px-4 py-2 border border-primary-500 bg-primary-50 text-sm font-medium text-primary-600">
+                        <span class="relative z-10 inline-flex items-center px-5 py-2.5 border border-primary-500 bg-primary-50 text-base font-medium text-primary-600">
                             {{ p }}
                         </span>
                         {% elif p == 1 or p == total_pages or (p >= page - 1 and p <= page + 1) %}
                         <button hx-get="/partials/candidates-list?page={{ p }}{% if search %}&search={{ search }}{% endif %}&per_page={{ per_page }}"
                                 hx-target="#candidates-list"
                                 hx-swap="innerHTML"
-                                class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                class="relative inline-flex items-center px-5 py-2.5 border border-gray-300 bg-white text-base font-medium text-gray-700 hover:bg-gray-50">
                             {{ p }}
                         </button>
                         {% elif p == 2 or p == total_pages - 1 %}
-                        <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
+                        <span class="relative inline-flex items-center px-5 py-2.5 border border-gray-300 bg-white text-base font-medium text-gray-700">
                             ...
                         </span>
                         {% endif %}
@@ -255,9 +255,9 @@
                     <button hx-get="/partials/candidates-list?page={{ page + 1 }}{% if search %}&search={{ search }}{% endif %}&per_page={{ per_page }}"
                             hx-target="#candidates-list"
                             hx-swap="innerHTML"
-                            class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                            class="relative inline-flex items-center px-3 py-2.5 rounded-r-md border border-gray-300 bg-white text-base font-medium text-gray-500 hover:bg-gray-50">
                         <span class="sr-only">Weiter</span>
-                        <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <svg class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
                             <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5-4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
                         </svg>
                     </button>
