@@ -136,6 +136,19 @@ async def settings_page(request: Request):
 # ============================================================================
 
 
+@router.get("/debug/job-list-error")
+async def debug_job_list_error(db: AsyncSession = Depends(get_db)):
+    """Temporaerer Debug-Endpoint um den Fehler in job-list zu sehen."""
+    import traceback
+    try:
+        job_service = JobService(db)
+        filters = JobFilterParams()
+        result = await job_service.list_jobs(filters=filters, page=1, per_page=5)
+        return {"status": "ok", "total": result.total, "items_count": len(result.items)}
+    except Exception as e:
+        return {"status": "error", "error": str(e), "traceback": traceback.format_exc()}
+
+
 @router.get("/partials/job-list", response_class=HTMLResponse)
 async def job_list_partial(
     request: Request,
