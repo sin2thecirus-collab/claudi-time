@@ -509,6 +509,150 @@ async def classification_status():
     return _classification_status
 
 
+@router.get("/api/hotlisten/classify-finance/compare", tags=["Hotlisten API"])
+async def compare_openai_vs_rules(
+    db: AsyncSession = Depends(get_db),
+    limit_count: int = Query(default=0, alias="limit"),
+):
+    """Vergleicht OpenAI-Ergebnisse mit RulesEngine für alle FINANCE-Kandidaten.
+
+    Zeigt: Übereinstimmungen, Abweichungen, fehlende Keywords.
+    Dient zum Training des lokalen Algorithmus.
+    """
+    from app.services.finance_rules_engine import FinanceRulesEngine
+
+    # Alle Kandidaten mit OpenAI classification_data laden
+    query = (
+        select(Candidate)
+        .where(
+            and_(
+                Candidate.hotlist_category == "FINANCE",
+                Candidate.deleted_at.is_(None),
+                Candidate.classification_data.isnot(None),
+            )
+        )
+    )
+    if limit_count > 0:
+        query = query.limit(limit_count)
+
+    result = await db.execute(query)
+    candidates = list(result.scalars().all())
+
+    engine = FinanceRulesEngine()
+
+    # Statistiken
+    total = 0
+    exact_match = 0
+    partial_match = 0
+    no_match = 0
+    openai_only_roles = {}      # Rollen die nur OpenAI erkennt
+    rules_only_roles = {}       # Rollen die nur RulesEngine erkennt
+    mismatches = []             # Detaillierte Abweichungen
+    missing_keywords = []       # Was der RulesEngine fehlt
+
+    for candidate in candidates:
+        cd = candidate.classification_data
+        if not cd or not isinstance(cd, dict):
+            continue
+
+        openai_roles = set(cd.get("roles", []))
+        openai_leadership = cd.get("is_leadership", False)
+
+        # RulesEngine laufen lassen
+        rules_result = engine.classify_candidate(candidate)
+        rules_roles = set(rules_result.roles)
+        rules_leadership = rules_result.is_leadership
+
+        # Nur zählen wenn OpenAI eine echte Klassifizierung hatte
+        if openai_leadership and rules_leadership:
+            exact_match += 1
+            total += 1
+            continue
+        if openai_leadership and not rules_leadership:
+            total += 1
+            mismatches.append({
+                "id": str(candidate.id),
+                "name": candidate.full_name,
+                "position": candidate.current_position,
+                "type": "leadership_missed",
+                "openai": {"is_leadership": True, "reasoning": cd.get("reasoning", "")},
+                "rules": {"is_leadership": False, "roles": list(rules_roles)},
+            })
+            no_match += 1
+            continue
+        if not openai_leadership and rules_leadership:
+            total += 1
+            mismatches.append({
+                "id": str(candidate.id),
+                "name": candidate.full_name,
+                "position": candidate.current_position,
+                "type": "leadership_false_positive",
+                "openai": {"roles": list(openai_roles), "reasoning": cd.get("reasoning", "")},
+                "rules": {"is_leadership": True},
+            })
+            no_match += 1
+            continue
+
+        total += 1
+
+        if openai_roles == rules_roles:
+            exact_match += 1
+        elif openai_roles & rules_roles:
+            # Teilweise Übereinstimmung
+            partial_match += 1
+            only_openai = openai_roles - rules_roles
+            only_rules = rules_roles - openai_roles
+            for r in only_openai:
+                openai_only_roles[r] = openai_only_roles.get(r, 0) + 1
+            for r in only_rules:
+                rules_only_roles[r] = rules_only_roles.get(r, 0) + 1
+            mismatches.append({
+                "id": str(candidate.id),
+                "name": candidate.full_name,
+                "position": candidate.current_position,
+                "type": "partial",
+                "openai_roles": sorted(openai_roles),
+                "rules_roles": sorted(rules_roles),
+                "only_openai": sorted(only_openai),
+                "only_rules": sorted(only_rules),
+                "openai_reasoning": cd.get("reasoning", ""),
+            })
+        else:
+            no_match += 1
+            for r in openai_roles:
+                openai_only_roles[r] = openai_only_roles.get(r, 0) + 1
+            for r in rules_roles:
+                rules_only_roles[r] = rules_only_roles.get(r, 0) + 1
+            mismatches.append({
+                "id": str(candidate.id),
+                "name": candidate.full_name,
+                "position": candidate.current_position,
+                "type": "complete_mismatch",
+                "openai_roles": sorted(openai_roles),
+                "rules_roles": sorted(rules_roles),
+                "openai_reasoning": cd.get("reasoning", ""),
+                "rules_reasoning": rules_result.reasoning,
+            })
+
+    accuracy_exact = round(exact_match / total * 100, 1) if total else 0
+    accuracy_partial = round((exact_match + partial_match) / total * 100, 1) if total else 0
+
+    return {
+        "summary": {
+            "total_compared": total,
+            "exact_match": exact_match,
+            "partial_match": partial_match,
+            "no_match": no_match,
+            "accuracy_exact": f"{accuracy_exact}%",
+            "accuracy_with_partial": f"{accuracy_partial}%",
+        },
+        "roles_only_openai_sees": dict(sorted(openai_only_roles.items(), key=lambda x: -x[1])),
+        "roles_only_rules_sees": dict(sorted(rules_only_roles.items(), key=lambda x: -x[1])),
+        "mismatches_count": len(mismatches),
+        "mismatches": mismatches[:100],  # Max 100 Detaileinträge
+    }
+
+
 @router.post("/api/hotlisten/pre-score", tags=["Hotlisten API"])
 async def trigger_pre_scoring(
     category: str = Query(default="FINANCE"),
