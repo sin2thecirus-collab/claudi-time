@@ -82,6 +82,36 @@ async def hotlisten_page(
     )
     job_counts = dict(jobs_q.all())
 
+    # Gesamtzahlen (alle Kandidaten/Jobs, auch ohne Kategorie)
+    total_candidates_q = await db.execute(
+        select(func.count(Candidate.id)).where(Candidate.deleted_at.is_(None))
+    )
+    total_candidates = total_candidates_q.scalar() or 0
+
+    total_jobs_q = await db.execute(
+        select(func.count(Job.id)).where(Job.deleted_at.is_(None))
+    )
+    total_jobs = total_jobs_q.scalar() or 0
+
+    # Anzahl Städte (FINANCE + ENGINEERING)
+    cities_q = await db.execute(
+        select(func.count(func.distinct(Candidate.hotlist_city)))
+        .where(Candidate.deleted_at.is_(None))
+        .where(Candidate.hotlist_city.isnot(None))
+        .where(Candidate.hotlist_category.in_([HotlistCategory.FINANCE, HotlistCategory.ENGINEERING]))
+    )
+    total_cities = cities_q.scalar() or 0
+
+    # Kategorisierte Kandidaten gesamt
+    categorized_candidates = sum(
+        v for k, v in candidate_counts.items()
+        if k in (HotlistCategory.FINANCE, HotlistCategory.ENGINEERING)
+    )
+    categorized_jobs = sum(
+        v for k, v in job_counts.items()
+        if k in (HotlistCategory.FINANCE, HotlistCategory.ENGINEERING)
+    )
+
     categories = [
         {
             "name": "FINANCE",
@@ -113,6 +143,11 @@ async def hotlisten_page(
             "categories": categories,
             "sonstige_candidates": total_uncategorized_candidates,
             "sonstige_jobs": total_uncategorized_jobs,
+            "total_candidates": total_candidates,
+            "total_jobs": total_jobs,
+            "total_cities": total_cities,
+            "categorized_candidates": categorized_candidates,
+            "categorized_jobs": categorized_jobs,
         },
     )
 
