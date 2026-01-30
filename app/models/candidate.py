@@ -65,6 +65,9 @@ class Candidate(Base):
     cv_parsed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     cv_parse_failed: Mapped[bool] = mapped_column(Boolean, default=False)  # True wenn PDF nicht lesbar (z.B. Bild-PDF)
 
+    # Manuelle Overrides (Felder die manuell bearbeitet wurden und nicht per Sync/Parsing ueberschrieben werden)
+    manual_overrides: Mapped[dict | None] = mapped_column(JSONB)
+
     # Status
     hidden: Mapped[bool] = mapped_column(Boolean, default=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

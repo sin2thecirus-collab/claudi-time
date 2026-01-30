@@ -43,6 +43,7 @@
             </th>
             <th scope="col" class="py-4 pl-2 pr-3 text-left text-base font-semibold text-gray-900">Name</th>
             <th scope="col" class="px-3 py-4 text-left text-base font-semibold text-gray-900">Position</th>
+            <th scope="col" class="px-3 py-4 text-left text-base font-semibold text-gray-900">Unternehmen</th>
             <th scope="col" class="px-3 py-4 text-left text-base font-semibold text-gray-900">Adresse</th>
             <th scope="col" class="px-3 py-4 text-left text-base font-semibold text-gray-900">Status</th>
             <th scope="col" class="relative py-4 pl-3 pr-4 sm:pr-6">
@@ -83,16 +84,32 @@
                 </div>
             </td>
 
-            {# Position #}
-            <td class="whitespace-nowrap px-3 py-4 text-base text-gray-900">
-                {% if candidate.current_position %}
-                <div class="font-medium">{{ candidate.current_position }}</div>
-                {% if candidate.current_company %}
-                <div class="text-sm text-gray-500">{{ candidate.current_company }}</div>
-                {% endif %}
-                {% else %}
-                <span class="text-gray-400">Keine Position</span>
-                {% endif %}
+            {# Position (editierbar) #}
+            <td class="px-3 py-4 text-base text-gray-900" onclick="event.stopPropagation()">
+                <div class="inline-edit-wrapper group" data-candidate-id="{{ candidate.id }}" data-field="current_position">
+                    <span class="inline-edit-display cursor-pointer hover:bg-yellow-50 hover:ring-1 hover:ring-yellow-300 rounded px-1 py-0.5 transition-all {% if not candidate.current_position %}text-gray-400 italic{% else %}font-medium{% endif %}"
+                          onclick="startInlineEdit(this)"
+                          title="Klicken zum Bearbeiten">{{ candidate.current_position or 'Keine Position' }}</span>
+                    <input type="text"
+                           class="inline-edit-input hidden w-full rounded-md border-0 py-1 px-2 text-sm text-gray-900 ring-1 ring-inset ring-primary-400 focus:ring-2 focus:ring-primary-600"
+                           value="{{ candidate.current_position or '' }}"
+                           onblur="saveInlineEdit(this)"
+                           onkeydown="handleInlineEditKey(event, this)">
+                </div>
+            </td>
+
+            {# Unternehmen (editierbar) #}
+            <td class="px-3 py-4 text-base text-gray-500" onclick="event.stopPropagation()">
+                <div class="inline-edit-wrapper group" data-candidate-id="{{ candidate.id }}" data-field="current_company">
+                    <span class="inline-edit-display cursor-pointer hover:bg-yellow-50 hover:ring-1 hover:ring-yellow-300 rounded px-1 py-0.5 transition-all {% if not candidate.current_company %}text-gray-400 italic{% endif %}"
+                          onclick="startInlineEdit(this)"
+                          title="Klicken zum Bearbeiten">{{ candidate.current_company or 'Kein Unternehmen' }}</span>
+                    <input type="text"
+                           class="inline-edit-input hidden w-full rounded-md border-0 py-1 px-2 text-sm text-gray-900 ring-1 ring-inset ring-primary-400 focus:ring-2 focus:ring-primary-600"
+                           value="{{ candidate.current_company or '' }}"
+                           onblur="saveInlineEdit(this)"
+                           onkeydown="handleInlineEditKey(event, this)">
+                </div>
             </td>
 
             {# Adresse #}
@@ -313,6 +330,84 @@ function batchDeleteSelected() {
             var perPageVal = perPage ? perPage.value : '{{ per_page }}';
             htmx.ajax('GET', '/partials/candidates-list?page={{ page }}{% if search %}&search={{ search }}{% endif %}&per_page=' + perPageVal, {target:'#candidates-list', swap:'innerHTML'});
         }
+    });
+}
+
+// ==================== Inline Edit ====================
+
+function startInlineEdit(displayEl) {
+    var wrapper = displayEl.closest('.inline-edit-wrapper');
+    var input = wrapper.querySelector('.inline-edit-input');
+    displayEl.classList.add('hidden');
+    input.classList.remove('hidden');
+    input.focus();
+    input.select();
+}
+
+function handleInlineEditKey(event, input) {
+    if (event.key === 'Enter') {
+        input.blur();
+    } else if (event.key === 'Escape') {
+        // Abbrechen: Originalwert wiederherstellen
+        var wrapper = input.closest('.inline-edit-wrapper');
+        var display = wrapper.querySelector('.inline-edit-display');
+        input.classList.add('hidden');
+        display.classList.remove('hidden');
+    }
+}
+
+function saveInlineEdit(input) {
+    var wrapper = input.closest('.inline-edit-wrapper');
+    var display = wrapper.querySelector('.inline-edit-display');
+    var candidateId = wrapper.dataset.candidateId;
+    var field = wrapper.dataset.field;
+    var newValue = input.value.trim();
+    var oldValue = display.textContent.trim();
+
+    // Platzhalter-Text pruefen
+    if (oldValue === 'Keine Position' || oldValue === 'Kein Unternehmen') {
+        oldValue = '';
+    }
+
+    // Nichts geaendert
+    if (newValue === oldValue) {
+        input.classList.add('hidden');
+        display.classList.remove('hidden');
+        return;
+    }
+
+    // Speichern via API
+    var body = {};
+    body[field] = newValue || null;
+
+    fetch('/api/candidates/' + candidateId, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    })
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
+        if (data.id) {
+            // Erfolgreich gespeichert - Anzeige aktualisieren
+            display.textContent = newValue || (field === 'current_position' ? 'Keine Position' : 'Kein Unternehmen');
+            if (newValue) {
+                display.classList.remove('text-gray-400', 'italic');
+                if (field === 'current_position') {
+                    display.classList.add('font-medium');
+                }
+            } else {
+                display.classList.add('text-gray-400', 'italic');
+                display.classList.remove('font-medium');
+            }
+        }
+    })
+    .catch(function() {
+        // Bei Fehler: Originalwert wiederherstellen
+        input.value = oldValue;
+    })
+    .finally(function() {
+        input.classList.add('hidden');
+        display.classList.remove('hidden');
     });
 }
 </script>

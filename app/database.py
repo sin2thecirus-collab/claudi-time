@@ -68,6 +68,7 @@ async def init_db() -> None:
         ("further_education", "JSONB"),
         ("cv_parse_failed", "BOOLEAN DEFAULT FALSE"),
         ("deleted_at", "TIMESTAMPTZ"),
+        ("manual_overrides", "JSONB"),
     ]
     for col_name, col_type in migrations:
         try:

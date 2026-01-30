@@ -122,6 +122,15 @@ class CandidateService:
 
         update_data = data.model_dump(exclude_unset=True)
 
+        # Manuelle Overrides tracken (schuetzt vor Ueberschreiben durch Sync/Parsing)
+        override_fields = {"current_position", "current_company"}
+        changed_overrides = override_fields & set(update_data.keys())
+        if changed_overrides:
+            overrides = dict(candidate.manual_overrides or {})
+            for field in changed_overrides:
+                overrides[field] = True
+            candidate.manual_overrides = overrides
+
         # Work History und Education als JSONB speichern
         if "work_history" in update_data and update_data["work_history"]:
             update_data["work_history"] = [

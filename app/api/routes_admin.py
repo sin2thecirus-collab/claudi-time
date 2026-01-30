@@ -513,8 +513,11 @@ async def import_all_candidates(
                     now = datetime.now(timezone.utc)
 
                     if existing:
+                        manual = existing.manual_overrides or {}
                         for key, value in mapped.items():
                             if key != "crm_id" and value is not None:
+                                if key in manual:
+                                    continue
                                 setattr(existing, key, value)
                         existing.crm_synced_at = now
                         existing.updated_at = now
@@ -1023,8 +1026,12 @@ async def _run_crm_sync(db_unused: AsyncSession, job_run_id: UUID, full_sync: bo
                                 continue
 
                             # Update vorhandenen Kandidaten
+                            # Manuell bearbeitete Felder nicht ueberschreiben
+                            manual = existing.manual_overrides or {}
                             for key, value in mapped.items():
                                 if key != "crm_id" and value is not None:
+                                    if key in manual:
+                                        continue
                                     setattr(existing, key, value)
                             existing.crm_synced_at = now
                             existing.updated_at = now

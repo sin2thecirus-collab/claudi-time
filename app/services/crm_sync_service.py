@@ -523,8 +523,13 @@ class CRMSyncService:
                 return existing, False
 
             # Update - alle gemappten Felder übernehmen
+            # Manuell bearbeitete Felder nicht ueberschreiben
+            manual = existing.manual_overrides or {}
             for key, value in mapped_data.items():
                 if key != "crm_id" and value is not None:
+                    if key in manual:
+                        logger.debug(f"Kandidat {crm_id}: '{key}' manuell bearbeitet, ueberspringe Sync-Update")
+                        continue
                     setattr(existing, key, value)
             existing.crm_synced_at = now
             existing.updated_at = now

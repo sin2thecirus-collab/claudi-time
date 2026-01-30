@@ -459,8 +459,9 @@ class CVParserService:
 
         # Adresse kommt aus CRM API, nicht aus CV
 
-        # Position
-        if not candidate.current_position and cv_data.current_position:
+        # Position (nur setzen wenn nicht manuell bearbeitet und nicht vorhanden)
+        manual = candidate.manual_overrides or {}
+        if "current_position" not in manual and not candidate.current_position and cv_data.current_position:
             candidate.current_position = cv_data.current_position
 
         # Skills (erweitern, nicht überschreiben)
