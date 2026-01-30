@@ -10,13 +10,16 @@ import logging
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+import asyncio
+from datetime import datetime, timezone
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select, func, and_, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
+from app.database import get_db, async_session_maker
 from app.models.candidate import Candidate
 from app.models.job import Job
 from app.models.match import Match
@@ -28,6 +31,18 @@ from app.services.deepmatch_service import DeepMatchService
 from app.services.finance_classifier_service import FinanceClassifierService
 
 logger = logging.getLogger(__name__)
+
+# ═══════════════════════════════════════════════════════════════
+# Background-Task Status-Tracking für Finance-Klassifizierung
+# ═══════════════════════════════════════════════════════════════
+_classification_status: dict = {
+    "running": False,
+    "started_at": None,
+    "target": None,
+    "candidates": None,
+    "jobs": None,
+    "error": None,
+}
 
 router = APIRouter(tags=["Hotlisten"])
 templates = Jinja2Templates(directory="app/templates")
@@ -379,45 +394,90 @@ async def trigger_categorization(
     return result
 
 
+async def _run_classification_background(target: str, force: bool) -> None:
+    """Background-Task: Klassifiziert FINANCE-Kandidaten/Jobs via OpenAI."""
+    global _classification_status
+    try:
+        async with async_session_maker() as db:
+            service = FinanceClassifierService(db)
+
+            if target in ("candidates", "both"):
+                cand_result = await service.classify_all_finance_candidates(force=force)
+                _classification_status["candidates"] = {
+                    "total": cand_result.total,
+                    "classified": cand_result.classified,
+                    "skipped_leadership": cand_result.skipped_leadership,
+                    "skipped_no_cv": cand_result.skipped_no_cv,
+                    "skipped_no_role": cand_result.skipped_no_role,
+                    "skipped_error": cand_result.skipped_error,
+                    "multi_title_count": cand_result.multi_title_count,
+                    "roles_distribution": cand_result.roles_distribution,
+                    "cost_usd": cand_result.cost_usd,
+                    "duration_seconds": cand_result.duration_seconds,
+                }
+                logger.info(f"Finance-Klassifizierung Kandidaten fertig: {cand_result.classified}/{cand_result.total}")
+
+            if target in ("jobs", "both"):
+                job_result = await service.classify_all_finance_jobs(force=force)
+                _classification_status["jobs"] = {
+                    "total": job_result.total,
+                    "classified": job_result.classified,
+                    "skipped_no_role": job_result.skipped_no_role,
+                    "skipped_error": job_result.skipped_error,
+                    "multi_title_count": job_result.multi_title_count,
+                    "roles_distribution": job_result.roles_distribution,
+                    "cost_usd": job_result.cost_usd,
+                    "duration_seconds": job_result.duration_seconds,
+                }
+                logger.info(f"Finance-Klassifizierung Jobs fertig: {job_result.classified}/{job_result.total}")
+
+    except Exception as e:
+        logger.error(f"Finance-Klassifizierung Fehler: {e}")
+        _classification_status["error"] = str(e)
+    finally:
+        _classification_status["running"] = False
+
+
 @router.post("/api/hotlisten/classify-finance", tags=["Hotlisten API"])
 async def trigger_finance_classification(
     force: bool = Query(default=False),
     target: str = Query(default="candidates"),  # "candidates", "jobs", "both"
-    db: AsyncSession = Depends(get_db),
 ):
-    """Klassifiziert FINANCE-Kandidaten/Jobs via OpenAI (einmalig für Training)."""
-    service = FinanceClassifierService(db)
-    results = {}
+    """Startet Finance-Klassifizierung als Background-Task (kein Timeout)."""
+    global _classification_status
 
-    if target in ("candidates", "both"):
-        cand_result = await service.classify_all_finance_candidates(force=force)
-        results["candidates"] = {
-            "total": cand_result.total,
-            "classified": cand_result.classified,
-            "skipped_leadership": cand_result.skipped_leadership,
-            "skipped_no_cv": cand_result.skipped_no_cv,
-            "skipped_no_role": cand_result.skipped_no_role,
-            "skipped_error": cand_result.skipped_error,
-            "multi_title_count": cand_result.multi_title_count,
-            "roles_distribution": cand_result.roles_distribution,
-            "cost_usd": cand_result.cost_usd,
-            "duration_seconds": cand_result.duration_seconds,
+    if _classification_status["running"]:
+        return {
+            "status": "already_running",
+            "started_at": _classification_status["started_at"],
+            "target": _classification_status["target"],
+            "message": "Klassifizierung laeuft bereits. Nutze GET /api/hotlisten/classify-finance/status",
         }
 
-    if target in ("jobs", "both"):
-        job_result = await service.classify_all_finance_jobs(force=force)
-        results["jobs"] = {
-            "total": job_result.total,
-            "classified": job_result.classified,
-            "skipped_no_role": job_result.skipped_no_role,
-            "skipped_error": job_result.skipped_error,
-            "multi_title_count": job_result.multi_title_count,
-            "roles_distribution": job_result.roles_distribution,
-            "cost_usd": job_result.cost_usd,
-            "duration_seconds": job_result.duration_seconds,
-        }
+    _classification_status = {
+        "running": True,
+        "started_at": datetime.now(timezone.utc).isoformat(),
+        "target": target,
+        "candidates": None,
+        "jobs": None,
+        "error": None,
+    }
 
-    return results
+    # Background-Task starten (kein await — läuft asynchron)
+    asyncio.create_task(_run_classification_background(target, force))
+
+    return {
+        "status": "started",
+        "target": target,
+        "force": force,
+        "message": f"Klassifizierung fuer '{target}' gestartet. Nutze GET /api/hotlisten/classify-finance/status",
+    }
+
+
+@router.get("/api/hotlisten/classify-finance/status", tags=["Hotlisten API"])
+async def classification_status():
+    """Gibt den aktuellen Status der Finance-Klassifizierung zurueck."""
+    return _classification_status
 
 
 @router.post("/api/hotlisten/pre-score", tags=["Hotlisten API"])
