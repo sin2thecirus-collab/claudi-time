@@ -540,7 +540,7 @@ class FinanceClassifierService:
     # ──────────────────────────────────────────────────
 
     async def classify_all_finance_candidates(
-        self, force: bool = False
+        self, force: bool = False, progress_callback=None,
     ) -> BatchClassificationResult:
         """Klassifiziert alle FINANCE-Kandidaten via OpenAI."""
         import asyncio
@@ -603,23 +603,30 @@ class FinanceClassifierService:
                         batch_result.roles_distribution.get(role, 0) + 1
                     )
 
-                # Fortschritt loggen
-                if (i + 1) % 50 == 0:
-                    logger.info(
-                        f"Finance-Klassifizierung: {i + 1}/{len(candidates)} "
-                        f"({batch_result.classified} klassifiziert, "
-                        f"${batch_result.cost_usd:.2f})"
-                    )
+                # Fortschritt loggen + Callback
+                if (i + 1) % 10 == 0:
+                    if progress_callback:
+                        progress_callback(i + 1, len(candidates), batch_result)
+                    if (i + 1) % 50 == 0:
+                        logger.info(
+                            f"Finance-Klassifizierung: {i + 1}/{len(candidates)} "
+                            f"({batch_result.classified} klassifiziert, "
+                            f"${batch_result.cost_usd:.2f})"
+                        )
 
                 # Rate-Limiting: kurze Pause alle 10 Requests
                 if (i + 1) % 10 == 0:
                     await asyncio.sleep(0.5)
 
+                # Zwischenspeichern alle 50 Kandidaten
+                if (i + 1) % 50 == 0:
+                    await self.db.commit()
+
             except Exception as e:
                 logger.error(f"Fehler bei Kandidat {candidate.id}: {e}")
                 batch_result.skipped_error += 1
 
-        # Änderungen committen
+        # Finale Änderungen committen
         await self.db.commit()
         await self.close()
 

@@ -394,6 +394,44 @@ async def trigger_categorization(
     return result
 
 
+def _make_progress_callback(key: str):
+    """Erstellt einen Callback der den globalen Status live aktualisiert."""
+    def callback(processed: int, total: int, batch_result):
+        _classification_status[key] = {
+            "status": "in_progress",
+            "processed": processed,
+            "total": total,
+            "classified": batch_result.classified,
+            "skipped_leadership": getattr(batch_result, "skipped_leadership", 0),
+            "skipped_no_cv": getattr(batch_result, "skipped_no_cv", 0),
+            "skipped_no_role": batch_result.skipped_no_role,
+            "skipped_error": batch_result.skipped_error,
+            "multi_title_count": batch_result.multi_title_count,
+            "roles_distribution": dict(batch_result.roles_distribution),
+            "cost_usd": batch_result.cost_usd,
+        }
+    return callback
+
+
+def _finalize_result(batch_result, include_leadership: bool = False) -> dict:
+    """Konvertiert BatchClassificationResult in ein dict."""
+    d = {
+        "status": "done",
+        "total": batch_result.total,
+        "classified": batch_result.classified,
+        "skipped_no_role": batch_result.skipped_no_role,
+        "skipped_error": batch_result.skipped_error,
+        "multi_title_count": batch_result.multi_title_count,
+        "roles_distribution": dict(batch_result.roles_distribution),
+        "cost_usd": batch_result.cost_usd,
+        "duration_seconds": batch_result.duration_seconds,
+    }
+    if include_leadership:
+        d["skipped_leadership"] = batch_result.skipped_leadership
+        d["skipped_no_cv"] = batch_result.skipped_no_cv
+    return d
+
+
 async def _run_classification_background(target: str, force: bool) -> None:
     """Background-Task: Klassifiziert FINANCE-Kandidaten/Jobs via OpenAI."""
     global _classification_status
@@ -402,33 +440,16 @@ async def _run_classification_background(target: str, force: bool) -> None:
             service = FinanceClassifierService(db)
 
             if target in ("candidates", "both"):
-                cand_result = await service.classify_all_finance_candidates(force=force)
-                _classification_status["candidates"] = {
-                    "total": cand_result.total,
-                    "classified": cand_result.classified,
-                    "skipped_leadership": cand_result.skipped_leadership,
-                    "skipped_no_cv": cand_result.skipped_no_cv,
-                    "skipped_no_role": cand_result.skipped_no_role,
-                    "skipped_error": cand_result.skipped_error,
-                    "multi_title_count": cand_result.multi_title_count,
-                    "roles_distribution": cand_result.roles_distribution,
-                    "cost_usd": cand_result.cost_usd,
-                    "duration_seconds": cand_result.duration_seconds,
-                }
+                cand_result = await service.classify_all_finance_candidates(
+                    force=force,
+                    progress_callback=_make_progress_callback("candidates"),
+                )
+                _classification_status["candidates"] = _finalize_result(cand_result, include_leadership=True)
                 logger.info(f"Finance-Klassifizierung Kandidaten fertig: {cand_result.classified}/{cand_result.total}")
 
             if target in ("jobs", "both"):
                 job_result = await service.classify_all_finance_jobs(force=force)
-                _classification_status["jobs"] = {
-                    "total": job_result.total,
-                    "classified": job_result.classified,
-                    "skipped_no_role": job_result.skipped_no_role,
-                    "skipped_error": job_result.skipped_error,
-                    "multi_title_count": job_result.multi_title_count,
-                    "roles_distribution": job_result.roles_distribution,
-                    "cost_usd": job_result.cost_usd,
-                    "duration_seconds": job_result.duration_seconds,
-                }
+                _classification_status["jobs"] = _finalize_result(job_result)
                 logger.info(f"Finance-Klassifizierung Jobs fertig: {job_result.classified}/{job_result.total}")
 
     except Exception as e:
