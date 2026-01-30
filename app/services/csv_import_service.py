@@ -387,9 +387,20 @@ class CSVImportService:
         except Exception as e:
             logger.warning(f"Kategorisierung fehlgeschlagen für Job '{job.position}': {e}")
 
+    def _get_field(self, row: dict[str, str], *keys: str) -> str | None:
+        """Liest ein Feld mit mehreren moeglichen Spaltennamen (Alias-Support)."""
+        for key in keys:
+            value = row.get(key, "").strip()
+            if value:
+                return value
+        return None
+
     def _row_to_job(self, row: dict[str, str], content_hash: str) -> Job:
         """
         Konvertiert eine CSV-Zeile in ein Job-Objekt.
+
+        Unterstuetzt alternative Spaltennamen (z.B. 'Ort' statt 'Stadt',
+        'Anzeigenlink' statt 'URL', etc.)
 
         Args:
             row: CSV-Zeile als Dictionary
@@ -400,16 +411,23 @@ class CSVImportService:
         """
         return Job(
             company_name=row.get("Unternehmen", "").strip(),
-            position=row.get("Position", "").strip(),
-            street_address=row.get("Straße", "").strip() or None,
-            postal_code=row.get("PLZ", "").strip() or None,
-            city=row.get("Stadt", "").strip() or None,
-            work_location_city=row.get("Arbeitsort", "").strip() or None,
-            job_url=row.get("URL", "").strip() or None,
-            job_text=row.get("Beschreibung", "").strip() or None,
-            employment_type=row.get("Beschäftigungsart", "").strip() or None,
-            industry=row.get("Branche", "").strip() or None,
-            company_size=row.get("Unternehmensgröße", "").strip() or None,
+            position=self._get_field(row, "Position", "Funktion - AP Firma") or "Keine Position angegeben",
+            street_address=self._get_field(row, "Straße", "Straße und Hausnummer"),
+            postal_code=self._get_field(row, "PLZ"),
+            city=self._get_field(row, "Stadt", "Ort"),
+            work_location_city=self._get_field(
+                row, "Arbeitsort", "Einsatzort", "Ort", "Stadt",
+            ),
+            job_url=self._get_field(row, "URL", "Anzeigenlink", "Link"),
+            job_text=self._get_field(
+                row, "Beschreibung", "Stellenbeschreibung", "Anzeigen-Text",
+            ),
+            employment_type=self._get_field(row, "Beschäftigungsart", "Art"),
+            industry=self._get_field(row, "Branche"),
+            company_size=self._get_field(
+                row, "Unternehmensgröße", "Unternehmensgroesse",
+                "Mitarbeiter (MA) / Unternehmensgröße", "Mitarbeiter",
+            ),
             content_hash=content_hash,
         )
 

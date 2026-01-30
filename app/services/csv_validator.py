@@ -15,21 +15,64 @@ logger = logging.getLogger(__name__)
 
 
 # Pflicht-Spalten im CSV (deutsche Bezeichnungen)
-REQUIRED_COLUMNS = {"Unternehmen", "Position"}
+# Nur Unternehmen ist wirklich Pflicht — Position kann leer sein
+REQUIRED_COLUMNS = {"Unternehmen"}
 
-# Alle erwarteten Spalten (für Validierung)
+# Alle erwarteten Spalten (für Validierung) — inkl. alternative Spaltennamen
 EXPECTED_COLUMNS = {
     "Unternehmen",
     "Position",
     "Straße",
+    "Straße und Hausnummer",
+    "Hausnummer",
     "PLZ",
     "Stadt",
+    "Ort",
     "Arbeitsort",
+    "Einsatzort",
     "URL",
+    "Anzeigenlink",
+    "Link",
     "Beschreibung",
+    "Stellenbeschreibung",
+    "Anzeigen-Text",
     "Beschäftigungsart",
+    "Art",
     "Branche",
     "Unternehmensgröße",
+    "Unternehmensgroesse",
+    "Mitarbeiter (MA) / Unternehmensgröße",
+    "Mitarbeiter",
+    "Internet",
+    "E-Mail",
+    "Telefon",
+    "Land",
+    "Bundesland/Kanton",
+    "Firma Telefonnummer",
+    "Geschäftsführer-/Inhaber-Name",
+    "Ansprechperson (AP) - Firma",
+    "Anrede - AP Firma",
+    "Vorname - AP Firma",
+    "Nachname - AP Firma",
+    "Funktion - AP Firma",
+    "Telefon - AP Firma",
+    "E-Mail - AP Firma",
+}
+
+# Spalten-Aliase: Hauptname -> Alternative Namen
+# Wird verwendet für Validierung und Content-Hash
+COLUMN_ALIASES = {
+    "Position": ["Position", "Funktion - AP Firma"],
+    "Stadt": ["Stadt", "Ort"],
+    "Arbeitsort": ["Arbeitsort", "Einsatzort"],
+    "URL": ["URL", "Anzeigenlink", "Link"],
+    "Beschreibung": ["Beschreibung", "Stellenbeschreibung", "Anzeigen-Text"],
+    "Straße": ["Straße", "Straße und Hausnummer"],
+    "Unternehmensgröße": [
+        "Unternehmensgröße", "Unternehmensgroesse",
+        "Mitarbeiter (MA) / Unternehmensgröße", "Mitarbeiter",
+    ],
+    "Beschäftigungsart": ["Beschäftigungsart", "Art"],
 }
 
 
@@ -159,6 +202,26 @@ class CSVValidator:
 
         return normalized_header & REQUIRED_COLUMNS
 
+    def _get_field_with_aliases(self, row: dict[str, str], field_name: str) -> str:
+        """
+        Liest ein Feld mit Alias-Support.
+
+        Prüft zuerst den Hauptnamen, dann alle Aliase.
+        """
+        # Direkter Zugriff
+        value = row.get(field_name, "").strip()
+        if value:
+            return value
+
+        # Aliase prüfen
+        aliases = COLUMN_ALIASES.get(field_name, [])
+        for alias in aliases:
+            value = row.get(alias, "").strip()
+            if value:
+                return value
+
+        return ""
+
     def validate_row(
         self,
         row: dict[str, str],
@@ -178,9 +241,9 @@ class CSVValidator:
         """
         is_valid = True
 
-        # Pflichtfelder prüfen
+        # Pflichtfelder prüfen (mit Alias-Support)
         for col in REQUIRED_COLUMNS:
-            value = row.get(col, "").strip()
+            value = self._get_field_with_aliases(row, col)
             if not value:
                 if len(errors) < self.max_errors:
                     errors.append(
@@ -193,19 +256,10 @@ class CSVValidator:
                     )
                 is_valid = False
 
-        # PLZ validieren (falls vorhanden)
+        # PLZ validieren (falls vorhanden) — nur Warnung, blockiert nicht
         plz = row.get("PLZ", "").strip()
         if plz and not self._is_valid_plz(plz):
-            if len(errors) < self.max_errors:
-                errors.append(
-                    ValidationError(
-                        row=row_num,
-                        column="PLZ",
-                        message="PLZ muss 5 Ziffern haben",
-                        value=plz,
-                    )
-                )
-            # Keine Blockierung - nur Warnung
+            logger.debug(f"Zeile {row_num}: PLZ '{plz}' ist nicht im Format XXXXX")
 
         return is_valid
 
@@ -328,7 +382,14 @@ class CSVValidator:
                 )
                 break
 
-        is_valid = len(errors) == 0
+        # Validierung gilt als bestanden, wenn mindestens 1 gueltige Zeile existiert
+        # Einzelne fehlerhafte Zeilen blockieren NICHT den gesamten Import
+        is_valid = valid_rows > 0
+
+        if not is_valid and total_rows > 0:
+            warnings.append(
+                f"Keine gültigen Zeilen gefunden ({total_rows} Zeilen geprüft)"
+            )
 
         logger.info(
             f"CSV-Validierung: {total_rows} Zeilen, {valid_rows} gültig, "
@@ -345,11 +406,21 @@ class CSVValidator:
         )
 
 
+def _get_first_value(row: dict[str, str], *keys: str) -> str:
+    """Gibt den ersten nicht-leeren Wert aus mehreren Spaltennamen zurueck."""
+    for key in keys:
+        value = row.get(key, "").strip()
+        if value:
+            return value
+    return ""
+
+
 def calculate_content_hash(row: dict[str, str]) -> str:
     """
     Berechnet einen Hash für Duplikaterkennung.
 
-    Basiert auf: Unternehmen + Position + Stadt + PLZ
+    Basiert auf: Unternehmen + Position + Stadt/Ort + PLZ
+    Unterstuetzt alternative Spaltennamen (Aliase).
 
     Args:
         row: Zeile als Dictionary
@@ -359,8 +430,8 @@ def calculate_content_hash(row: dict[str, str]) -> str:
     """
     components = [
         row.get("Unternehmen", "").strip().lower(),
-        row.get("Position", "").strip().lower(),
-        row.get("Stadt", "").strip().lower(),
+        _get_first_value(row, "Position", "Funktion - AP Firma").lower(),
+        _get_first_value(row, "Stadt", "Ort").lower(),
         row.get("PLZ", "").strip(),
     ]
     content = "|".join(components)
