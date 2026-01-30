@@ -11,8 +11,15 @@
             <p class="mt-1 text-base text-gray-500">Alle synchronisierten Kandidaten aus dem CRM</p>
         </div>
 
-        {# Suche + Seitengroesse #}
+        {# Suche + Seitengroesse + Auswahl-Button #}
         <div class="flex items-center space-x-4">
+            {# Auswahl-Modus Toggle #}
+            <button id="btn-selection-toggle"
+                    type="button"
+                    onclick="toggleSelectionMode()"
+                    class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 transition-colors whitespace-nowrap">
+                Auswaehlen
+            </button>
             {# Seitengroesse #}
             <div class="flex items-center space-x-2">
                 <label for="per-page-select" class="text-sm text-gray-500 whitespace-nowrap">Anzeigen:</label>

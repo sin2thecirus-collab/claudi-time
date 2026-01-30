@@ -35,7 +35,7 @@
 <table class="min-w-full divide-y divide-gray-200">
     <thead class="bg-gray-50">
         <tr>
-            <th scope="col" class="py-4 pl-4 pr-1 w-10">
+            <th scope="col" class="selection-col hidden py-4 pl-4 pr-1 w-10">
                 <input type="checkbox"
                        id="select-all-candidates"
                        onchange="toggleAllCandidates(this)"
@@ -55,8 +55,8 @@
         {% for candidate in candidates %}
         <tr class="hover:bg-gray-50 cursor-pointer transition-colors"
             onclick="window.location='/kandidaten/{{ candidate.id }}'">
-            {# Checkbox #}
-            <td class="whitespace-nowrap py-4 pl-4 pr-1 w-10" onclick="event.stopPropagation()">
+            {# Checkbox (nur sichtbar im Auswahl-Modus) #}
+            <td class="selection-col hidden whitespace-nowrap py-4 pl-4 pr-1 w-10" onclick="event.stopPropagation()">
                 <input type="checkbox"
                        class="candidate-checkbox h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-600 cursor-pointer"
                        value="{{ candidate.id }}"
@@ -272,6 +272,46 @@
 
 {# JavaScript fuer Multi-Select und Batch-Delete #}
 <script>
+function toggleSelectionMode() {
+    var cols = document.querySelectorAll('.selection-col');
+    var btn = document.getElementById('btn-selection-toggle');
+    var isActive = !cols[0].classList.contains('hidden');
+
+    if (isActive) {
+        exitSelectionMode();
+    } else {
+        cols.forEach(function(el) { el.classList.remove('hidden'); });
+        if (btn) {
+            btn.textContent = 'Abbrechen';
+            btn.classList.remove('bg-white', 'text-gray-700', 'ring-gray-300', 'hover:bg-gray-50');
+            btn.classList.add('bg-gray-200', 'text-gray-900', 'ring-gray-400', 'hover:bg-gray-300');
+        }
+    }
+}
+
+function exitSelectionMode() {
+    var cols = document.querySelectorAll('.selection-col');
+    cols.forEach(function(el) { el.classList.add('hidden'); });
+
+    // Alle Checkboxen deselektieren
+    var checkboxes = document.querySelectorAll('.candidate-checkbox');
+    checkboxes.forEach(function(cb) { cb.checked = false; });
+    var selectAll = document.getElementById('select-all-candidates');
+    if (selectAll) { selectAll.checked = false; selectAll.indeterminate = false; }
+
+    // Batch-Leiste ausblenden
+    var batchActions = document.getElementById('batch-actions');
+    if (batchActions) { batchActions.classList.add('hidden'); }
+
+    // Button zuruecksetzen
+    var btn = document.getElementById('btn-selection-toggle');
+    if (btn) {
+        btn.textContent = 'Auswaehlen';
+        btn.classList.add('bg-white', 'text-gray-700', 'ring-gray-300', 'hover:bg-gray-50');
+        btn.classList.remove('bg-gray-200', 'text-gray-900', 'ring-gray-400', 'hover:bg-gray-300');
+    }
+}
+
 function toggleAllCandidates(selectAllCheckbox) {
     var checkboxes = document.querySelectorAll('.candidate-checkbox');
     checkboxes.forEach(function(cb) {
@@ -325,7 +365,8 @@ function batchDeleteSelected() {
     .then(function(response) { return response.json(); })
     .then(function(data) {
         if (data.deleted_count !== undefined) {
-            // Liste neu laden
+            // Auswahl-Modus beenden und Liste neu laden
+            exitSelectionMode();
             var perPage = document.getElementById('per-page-select');
             var perPageVal = perPage ? perPage.value : '{{ per_page }}';
             htmx.ajax('GET', '/partials/candidates-list?page={{ page }}{% if search %}&search={{ search }}{% endif %}&per_page=' + perPageVal, {target:'#candidates-list', swap:'innerHTML'});
