@@ -45,6 +45,70 @@ class CSVImportService:
         self.db = db
         self.validator = CSVValidator()
 
+    async def create_import_job(
+        self,
+        filename: str,
+        content: bytes,
+    ) -> ImportJob:
+        """
+        Erstellt einen Import-Job aus Bytes-Content.
+
+        Validiert die CSV-Datei und erstellt einen ImportJob in der Datenbank.
+
+        Args:
+            filename: Original-Dateiname
+            content: CSV-Inhalt als Bytes
+
+        Returns:
+            ImportJob-Objekt (Status PENDING oder FAILED)
+        """
+        # Validieren mit BinaryIO-Wrapper
+        file_obj = io.BytesIO(content)
+        validation = self.validator.validate(file_obj)
+
+        # ImportJob erstellen
+        import_job = ImportJob(
+            filename=filename,
+            total_rows=validation.total_rows,
+            status=ImportStatus.PENDING,
+        )
+
+        if not validation.is_valid:
+            import_job.status = ImportStatus.FAILED
+            import_job.error_message = "Validierung fehlgeschlagen"
+            import_job.errors_detail = {
+                "validation_errors": [
+                    {
+                        "row": e.row,
+                        "column": e.column,
+                        "message": e.message,
+                        "value": e.value,
+                    }
+                    for e in validation.errors[:50]
+                ],
+                "warnings": validation.warnings,
+            }
+
+        self.db.add(import_job)
+        await self.db.commit()
+        await self.db.refresh(import_job)
+
+        # Validierungsergebnis cachen fuer spaetere Verwendung
+        self._last_validation = validation
+
+        logger.info(
+            f"Import-Job erstellt: {import_job.id}, "
+            f"Datei: {filename}, "
+            f"Zeilen: {validation.total_rows}, "
+            f"Status: {import_job.status}"
+        )
+
+        return import_job
+
+    async def get_import_job(self, import_job_id: UUID) -> ImportJob | None:
+        """Holt einen Import-Job aus der Datenbank."""
+        return await self.db.get(ImportJob, import_job_id)
+
     async def validate_file(self, file: BinaryIO) -> ValidationResult:
         """
         Validiert eine CSV-Datei ohne Import.
@@ -111,12 +175,16 @@ class CSVImportService:
 
         return import_job
 
-    async def process_import(self, import_job_id: UUID) -> ImportJob:
+    async def process_import(self, import_job_id: UUID, content: bytes | None = None) -> ImportJob:
         """
         Verarbeitet einen Import-Job.
 
+        Wenn content uebergeben wird, wird die CSV direkt verarbeitet.
+        Ohne content wird nur der Status auf PROCESSING gesetzt.
+
         Args:
             import_job_id: ID des Import-Jobs
+            content: Optional - CSV-Inhalt als Bytes
 
         Returns:
             Aktualisierter ImportJob
@@ -136,6 +204,19 @@ class CSVImportService:
         await self.db.commit()
 
         logger.info(f"Starte Import-Verarbeitung: {import_job_id}")
+
+        # Wenn Content vorhanden, direkt verarbeiten
+        if content:
+            # Encoding und Delimiter erkennen
+            file_obj = io.BytesIO(content)
+            validation = self.validator.validate(file_obj)
+
+            import_job = await self.process_csv_content(
+                import_job=import_job,
+                content=content,
+                encoding=validation.encoding,
+                delimiter=validation.delimiter,
+            )
 
         return import_job
 

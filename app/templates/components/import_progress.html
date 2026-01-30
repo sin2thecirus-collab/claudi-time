@@ -91,19 +91,22 @@
                     <p>{{ import_job.error_message | default('Unbekannter Fehler') }}</p>
                 </div>
                 {% if import_job.errors_detail %}
+                {% set all_errors = import_job.errors_detail.get('validation_errors', []) + import_job.errors_detail.get('import_errors', []) %}
+                {% if all_errors | length > 0 %}
                 <details class="mt-2">
                     <summary class="text-sm font-medium text-red-600 cursor-pointer hover:text-red-500">
-                        Fehlerdetails anzeigen
+                        Fehlerdetails anzeigen ({{ all_errors | length }})
                     </summary>
                     <ul class="mt-2 list-disc list-inside text-sm text-red-600 max-h-40 overflow-y-auto">
-                        {% for error in import_job.errors_detail[:20] %}
-                        <li>Zeile {{ error.row }}: {{ error.message }}</li>
+                        {% for error in all_errors[:20] %}
+                        <li>{% if error.row %}Zeile {{ error.row }}: {% endif %}{{ error.message }}</li>
                         {% endfor %}
-                        {% if import_job.errors_detail | length > 20 %}
-                        <li>... und {{ import_job.errors_detail | length - 20 }} weitere Fehler</li>
+                        {% if all_errors | length > 20 %}
+                        <li>... und {{ all_errors | length - 20 }} weitere Fehler</li>
                         {% endif %}
                     </ul>
                 </details>
+                {% endif %}
                 {% endif %}
                 <div class="mt-3">
                     <button type="button"

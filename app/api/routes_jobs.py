@@ -3,7 +3,8 @@
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Query, UploadFile, File, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request, UploadFile, File, status
+from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.exception_handlers import NotFoundException, ConflictException
@@ -27,13 +28,13 @@ router = APIRouter(prefix="/jobs", tags=["Jobs"])
 
 @router.post(
     "/import",
-    response_model=ImportJobResponse,
     status_code=status.HTTP_202_ACCEPTED,
     summary="CSV-Import starten",
     description="Startet den Import von Stellenanzeigen aus einer CSV-Datei",
 )
 @rate_limit(RateLimitTier.IMPORT)
 async def import_jobs(
+    request: Request,
     background_tasks: BackgroundTasks,
     file: UploadFile = File(..., description="CSV-Datei (Tab-getrennt)"),
     db: AsyncSession = Depends(get_db),
@@ -44,11 +45,11 @@ async def import_jobs(
     Die Datei muss Tab-getrennt sein und folgende Pflicht-Spalten haben:
     - Unternehmen
     - Position
-    - Stadt oder PLZ
 
-    Der Import läuft im Hintergrund. Status kann über GET /jobs/import/{id}/status abgefragt werden.
+    Der Import laeuft im Hintergrund. Status kann ueber GET /jobs/import/{id}/status abgefragt werden.
+    Bei HTMX-Requests wird HTML (import_progress.html) zurueckgegeben.
     """
-    # Prüfe Dateigröße
+    # Pruefe Dateigroesse
     content = await file.read()
     file_size_mb = len(content) / (1024 * 1024)
 
@@ -64,41 +65,62 @@ async def import_jobs(
         content=content,
     )
 
-    # Import im Hintergrund starten
-    background_tasks.add_task(
-        import_service.process_import,
-        import_job.id,
-        content,
-    )
+    # Import im Hintergrund starten (nur wenn Validierung OK)
+    if import_job.status.value == "pending":
+        background_tasks.add_task(
+            _run_import_background,
+            import_job.id,
+            content,
+        )
 
-    return import_job
+    # HTMX-Request: HTML zurueckgeben
+    is_htmx = request.headers.get("HX-Request") == "true"
+    if is_htmx:
+        from fastapi.templating import Jinja2Templates
+        templates = Jinja2Templates(directory="app/templates")
+        return templates.TemplateResponse(
+            "components/import_progress.html",
+            {"request": request, "import_job": import_job},
+        )
+
+    return ImportJobResponse.model_validate(import_job)
 
 
 @router.get(
     "/import/{import_id}/status",
-    response_model=ImportJobResponse,
     summary="Import-Status abfragen",
 )
 async def get_import_status(
+    request: Request,
     import_id: UUID,
     db: AsyncSession = Depends(get_db),
 ):
-    """Gibt den aktuellen Status eines Imports zurück."""
+    """Gibt den aktuellen Status eines Imports zurueck."""
     import_service = CSVImportService(db)
     import_job = await import_service.get_import_job(import_id)
 
     if not import_job:
         raise NotFoundException(message="Import-Job nicht gefunden")
 
-    return import_job
+    # HTMX-Request: HTML zurueckgeben
+    is_htmx = request.headers.get("HX-Request") == "true"
+    if is_htmx:
+        from fastapi.templating import Jinja2Templates
+        templates = Jinja2Templates(directory="app/templates")
+        return templates.TemplateResponse(
+            "components/import_progress.html",
+            {"request": request, "import_job": import_job},
+        )
+
+    return ImportJobResponse.model_validate(import_job)
 
 
 @router.post(
     "/import/{import_id}/cancel",
-    response_model=ImportJobResponse,
     summary="Import abbrechen",
 )
 async def cancel_import(
+    request: Request,
     import_id: UUID,
     db: AsyncSession = Depends(get_db),
 ):
@@ -109,7 +131,30 @@ async def cancel_import(
     if not import_job:
         raise NotFoundException(message="Import-Job nicht gefunden")
 
-    return import_job
+    # HTMX-Request: HTML zurueckgeben
+    is_htmx = request.headers.get("HX-Request") == "true"
+    if is_htmx:
+        from fastapi.templating import Jinja2Templates
+        templates = Jinja2Templates(directory="app/templates")
+        return templates.TemplateResponse(
+            "components/import_progress.html",
+            {"request": request, "import_job": import_job},
+        )
+
+    return ImportJobResponse.model_validate(import_job)
+
+
+async def _run_import_background(import_job_id: UUID, content: bytes):
+    """Background-Task fuer CSV-Import mit eigener DB-Session."""
+    from app.database import async_session_maker
+
+    async with async_session_maker() as session:
+        try:
+            service = CSVImportService(session)
+            await service.process_import(import_job_id, content)
+        except Exception as e:
+            logger.error(f"Background-Import fehlgeschlagen: {e}", exc_info=True)
+            await session.rollback()
 
 
 # ==================== CRUD ====================
