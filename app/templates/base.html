@@ -102,7 +102,7 @@
     <div class="min-h-full">
         <!-- Navigation -->
         <nav class="bg-white shadow-sm border-b border-gray-200">
-            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div class="mx-auto w-full px-4 sm:px-6 lg:px-10">
                 <div class="flex h-16 justify-between">
                     <!-- Logo & Desktop-Navigation -->
                     <div class="flex">
@@ -111,21 +111,21 @@
                                 <img src="/static/images/pulspoint_logo.png" alt="Pulspoint" class="h-10 w-auto">
                             </a>
                         </div>
-                        <div class="hidden sm:ml-8 sm:flex sm:space-x-4">
+                        <div class="hidden sm:ml-8 sm:flex sm:space-x-6">
                             <a href="/"
-                               class="{% if request.url.path == '/' %}border-primary-500 text-gray-900{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium">
+                               class="{% if request.url.path == '/' %}border-primary-500 text-gray-900{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-base font-medium">
                                 Dashboard
                             </a>
                             <a href="/kandidaten"
-                               class="{% if request.url.path.startswith('/kandidaten') %}border-primary-500 text-gray-900{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium">
+                               class="{% if request.url.path.startswith('/kandidaten') %}border-primary-500 text-gray-900{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-base font-medium">
                                 Kandidaten
                             </a>
                             <a href="/statistiken"
-                               class="{% if request.url.path == '/statistiken' %}border-primary-500 text-gray-900{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium">
+                               class="{% if request.url.path == '/statistiken' %}border-primary-500 text-gray-900{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-base font-medium">
                                 Statistiken
                             </a>
                             <a href="/einstellungen"
-                               class="{% if request.url.path == '/einstellungen' %}border-primary-500 text-gray-900{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium">
+                               class="{% if request.url.path == '/einstellungen' %}border-primary-500 text-gray-900{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-base font-medium">
                                 Einstellungen
                             </a>
                         </div>
@@ -205,14 +205,14 @@
 
         <!-- Main Content -->
         <main class="py-6">
-            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div class="mx-auto w-full px-4 sm:px-6 lg:px-10">
                 {% block content %}{% endblock %}
             </div>
         </main>
 
         <!-- Footer -->
         <footer class="bg-white border-t border-gray-200 mt-auto">
-            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4">
+            <div class="mx-auto w-full px-4 sm:px-6 lg:px-10 py-4">
                 <p class="text-center text-sm text-gray-500">
                     Pulspoint v1.0 &middot; Recruiter-Plattform
                 </p>

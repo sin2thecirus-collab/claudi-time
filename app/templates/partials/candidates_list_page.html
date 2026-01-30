@@ -18,11 +18,11 @@
 <table class="min-w-full divide-y divide-gray-200">
     <thead class="bg-gray-50">
         <tr>
-            <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Name</th>
-            <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Position</th>
-            <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Adresse</th>
-            <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Status</th>
-            <th scope="col" class="relative py-3.5 pl-3 pr-4 sm:pr-6">
+            <th scope="col" class="py-4 pl-4 pr-3 text-left text-base font-semibold text-gray-900 sm:pl-6">Name</th>
+            <th scope="col" class="px-3 py-4 text-left text-base font-semibold text-gray-900">Position</th>
+            <th scope="col" class="px-3 py-4 text-left text-base font-semibold text-gray-900">Adresse</th>
+            <th scope="col" class="px-3 py-4 text-left text-base font-semibold text-gray-900">Status</th>
+            <th scope="col" class="relative py-4 pl-3 pr-4 sm:pr-6">
                 <span class="sr-only">Aktionen</span>
             </th>
         </tr>
@@ -34,15 +34,15 @@
             {# Name #}
             <td class="whitespace-nowrap py-4 pl-4 pr-3 sm:pl-6">
                 <div class="flex items-center">
-                    <div class="flex-shrink-0 h-10 w-10">
-                        <span class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary-100">
-                            <span class="text-sm font-medium text-primary-700">
+                    <div class="flex-shrink-0 h-11 w-11">
+                        <span class="inline-flex h-11 w-11 items-center justify-center rounded-full bg-primary-100">
+                            <span class="text-base font-medium text-primary-700">
                                 {{ (candidate.first_name or 'X')[0] | upper }}{{ (candidate.last_name or 'X')[0] | upper }}
                             </span>
                         </span>
                     </div>
                     <div class="ml-4">
-                        <div class="font-medium text-gray-900">
+                        <div class="text-base font-medium text-gray-900">
                             {{ candidate.first_name or '' }} {{ candidate.last_name or '' }}
                             {% if candidate.age %}<span class="text-gray-400 font-normal">({{ candidate.age }})</span>{% endif %}
                         </div>
@@ -54,11 +54,11 @@
             </td>
 
             {# Position #}
-            <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
+            <td class="whitespace-nowrap px-3 py-4 text-base text-gray-900">
                 {% if candidate.current_position %}
                 <div class="font-medium">{{ candidate.current_position }}</div>
                 {% if candidate.current_company %}
-                <div class="text-gray-500">{{ candidate.current_company }}</div>
+                <div class="text-sm text-gray-500">{{ candidate.current_company }}</div>
                 {% endif %}
                 {% else %}
                 <span class="text-gray-400">Keine Position</span>
@@ -66,7 +66,7 @@
             </td>
 
             {# Adresse #}
-            <td class="px-3 py-4 text-sm text-gray-500">
+            <td class="px-3 py-4 text-base text-gray-500">
                 {% if candidate.street_address or candidate.postal_code or candidate.city %}
                 <div>
                     {% if candidate.street_address %}
@@ -83,23 +83,23 @@
 
             {# Status #}
             <td class="whitespace-nowrap px-3 py-4 text-sm">
-                <div class="flex flex-col space-y-1">
+                <div class="flex flex-col space-y-1.5">
                     {% if candidate.hidden %}
-                    <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
+                    <span class="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-600">
                         Ausgeblendet
                     </span>
                     {% elif candidate.is_active %}
-                    <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
+                    <span class="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-700">
                         Aktiv
                     </span>
                     {% else %}
-                    <span class="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-700">
+                    <span class="inline-flex items-center rounded-full bg-yellow-100 px-3 py-1 text-sm font-medium text-yellow-700">
                         Inaktiv
                     </span>
                     {% endif %}
 
                     {% if candidate.work_history and candidate.work_history | length > 0 %}
-                    <span class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+                    <span class="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-700">
                         {{ candidate.work_history | length }} Stationen
                     </span>
                     {% endif %}
@@ -107,7 +107,7 @@
             </td>
 
             {# Aktionen #}
-            <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+            <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-base font-medium sm:pr-6">
                 <a href="/kandidaten/{{ candidate.id }}"
                    class="text-primary-600 hover:text-primary-900"
                    onclick="event.stopPropagation()">
