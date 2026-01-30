@@ -103,29 +103,29 @@
         <!-- Navigation -->
         <nav class="bg-white shadow-sm border-b border-gray-200">
             <div class="mx-auto w-full px-4 sm:px-6 lg:px-10">
-                <div class="flex h-16 justify-between">
+                <div class="flex h-20 justify-between">
                     <!-- Logo & Desktop-Navigation -->
                     <div class="flex">
                         <div class="flex flex-shrink-0 items-center">
                             <a href="/" class="flex items-center">
-                                <img src="/static/images/pulspoint_logo.png" alt="Pulspoint" class="h-10 w-auto">
+                                <img src="/static/images/pulspoint_logo.png" alt="Pulspoint" class="h-12 w-auto">
                             </a>
                         </div>
-                        <div class="hidden sm:ml-8 sm:flex sm:space-x-6">
+                        <div class="hidden sm:ml-10 sm:flex sm:space-x-8">
                             <a href="/"
-                               class="{% if request.url.path == '/' %}border-primary-500 text-gray-900{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-base font-medium">
+                               class="{% if request.url.path == '/' %}border-primary-500 text-gray-900{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-lg font-semibold">
                                 Dashboard
                             </a>
                             <a href="/kandidaten"
-                               class="{% if request.url.path.startswith('/kandidaten') %}border-primary-500 text-gray-900{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-base font-medium">
+                               class="{% if request.url.path.startswith('/kandidaten') %}border-primary-500 text-gray-900{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-lg font-semibold">
                                 Kandidaten
                             </a>
                             <a href="/statistiken"
-                               class="{% if request.url.path == '/statistiken' %}border-primary-500 text-gray-900{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-base font-medium">
+                               class="{% if request.url.path == '/statistiken' %}border-primary-500 text-gray-900{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-lg font-semibold">
                                 Statistiken
                             </a>
                             <a href="/einstellungen"
-                               class="{% if request.url.path == '/einstellungen' %}border-primary-500 text-gray-900{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-base font-medium">
+                               class="{% if request.url.path == '/einstellungen' %}border-primary-500 text-gray-900{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-lg font-semibold">
                                 Einstellungen
                             </a>
                         </div>
