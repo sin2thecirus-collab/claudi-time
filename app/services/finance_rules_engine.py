@@ -26,19 +26,28 @@ logger = logging.getLogger(__name__)
 # ROLLEN-DEFINITIONEN — Trainiert aus OpenAI-Ergebnissen
 # ═══════════════════════════════════════════════════════════════
 
-# Leadership-Keywords (Ausschluss)
+# Leadership-Keywords (Ausschluss) — trainiert aus OpenAI-Vergleich
 LEADERSHIP_TITLE_KEYWORDS = [
-    "leiter", "leiterin", "head of", "teamleiter", "teamleiterin",
-    "abteilungsleiter", "abteilungsleiterin", "director", "cfo",
-    "finance manager", "chief financial", "vice president finance",
-    "vp finance", "bereichsleiter", "gruppenleiter",
+    # Deutsch
+    "leiter", "leiterin", "teamleiter", "teamleiterin", "teamlead", "team lead",
+    "abteilungsleiter", "abteilungsleiterin", "bereichsleiter", "bereichsleiterin",
+    "gruppenleiter", "gruppenleiterin", "finanzleitung", "stv. finanzleitung",
+    "leitung buchhaltung", "leitung rechnungswesen", "leitung der buchhaltung",
+    "fachliche leitung", "kaufmännischer leiter", "kaufmännische leiterin",
+    "geschäftsführer", "geschäftsführerin", "unternehmensleitung",
+    # Englisch
+    "head of", "director", "cfo", "chief financial",
+    "vice president", "vp ", "finance manager", "accounting manager",
+    "manager controlling", "manager finance", "supervisor",
 ]
 
 LEADERSHIP_ACTIVITY_KEYWORDS = [
-    "disziplinarische führung", "fachliche führung",
-    "mitarbeiterverantwortung", "budgetverantwortung",
-    "leitung des teams", "aufbau eines teams", "personalverantwortung",
-    "führung von mitarbeitern", "teamführung",
+    "disziplinarische führung", "fachliche führung", "fachliche und disziplinarische",
+    "mitarbeiterverantwortung", "budgetverantwortung", "personalverantwortung",
+    "leitung des teams", "aufbau eines teams", "leitung eines teams",
+    "führung von mitarbeitern", "teamführung", "mitarbeiterführung",
+    "führung eines teams", "verantwortliche leitung",
+    "führung von", "leitung von",
 ]
 
 # Bilanzbuchhalter: Erstellung von Abschlüssen
@@ -56,30 +65,46 @@ BILANZ_CREATION_KEYWORDS = [
     "verantwortlich für die erstellung",
 ]
 
-# Bilanzbuchhalter: Qualifikation (MUSS vorhanden sein)
+# Bilanzbuchhalter: Qualifikation (MUSS vorhanden sein) — erweitert
 BILANZ_QUALIFICATION_KEYWORDS = [
     "bilanzbuchhalter", "bilanzbuchhalterin",
     "geprüfter bilanzbuchhalter", "geprüfte bilanzbuchhalterin",
+    "staatlich geprüfter bilanzbuchhalter", "staatlich geprüfte bilanzbuchhalterin",
     "bilanzbuchhalter ihk", "bilanzbuchhalter (ihk)",
     "bilanzbuchhalter lehrgang", "bilanzbuchhalter weiterbildung",
     "bilanzbuchhalter zertifikat",
+    "bilanzbuchhalter international", "bilanzbuchhalter ifrs",
+    # Auch in current_position oder work_history title prüfen
+    "bilanzbuchhalter/controller", "bilanzbuchhalter / controller",
 ]
 
-# Finanzbuchhalter: Tätigkeiten
+# Finanzbuchhalter: Tätigkeiten — erweitert aus OpenAI-Vergleich
 FIBU_ACTIVITY_KEYWORDS = [
+    # Kernbegriffe
     "kreditoren", "debitoren", "kreditorenbuchhaltung", "debitorenbuchhaltung",
-    "kontenabstimmung", "kontenabstimmungen", "kontenpflege",
+    "kontenabstimmung", "kontenabstimmungen", "kontenpflege", "kontenklärung",
     "laufende buchhaltung", "laufende finanzbuchhaltung",
-    "hauptbuchhaltung", "sachkontenbuchhaltung",
-    "umsatzsteuervoranmeldung", "umsatzsteuer",
-    "zahlungsverkehr", "bankbuchhaltung",
+    "hauptbuchhaltung", "hauptbuch", "sachkontenbuchhaltung", "sachkonten",
+    "finanzbuchhaltung", "finanzbuchhalter", "finanzbuchhalterin",
+    # Steuern / Abgaben (NICHT "steuererklärung" — das ist SteuFa-spezifisch!)
+    "umsatzsteuervoranmeldung", "umsatzsteuer", "vorsteuer",
+    "steuerliche meldungen",
+    # Zahlungsverkehr
+    "zahlungsverkehr", "bankbuchhaltung", "zahlungslauf", "bankabstimmung",
+    # Abschlüsse (vorbereitend — NICHT erstellend!)
     "vorbereitung jahresabschluss", "vorbereitung des jahresabschluss",
     "vorbereitung monatsabschluss", "vorbereitung quartalsabschluss",
     "unterstützung jahresabschluss", "unterstützung bei der erstellung",
     "zuarbeit jahresabschluss", "zuarbeit zum jahresabschluss",
     "mitwirkung jahresabschluss", "mitwirkung bei der erstellung",
-    "mitbearbeitung",
-    "accounts payable", "accounts receivable",
+    "mitwirkung bei monats", "mitwirkung bei quartals",
+    "mitbearbeitung", "mithilfe bei",
+    # Englische Begriffe
+    "accounts payable", "accounts receivable", "accountant",
+    "general ledger", "financial accounting", "bookkeeping",
+    # Allgemeine Buchhaltungsbegriffe
+    "buchhaltung", "rechnungswesen", "anlagenbuchhaltung",
+    "reisekostenabrechnung", "intercompany",
 ]
 
 # Nur-Kreditoren Keywords
@@ -237,9 +262,26 @@ class FinanceRulesEngine:
     # ──────────────────────────────────────────────────
 
     def _has_bilanz_qualification(self, candidate: Candidate) -> bool:
-        """Prüft ob Bilanzbuchhalter-Qualifikation vorhanden ist."""
+        """Prüft ob Bilanzbuchhalter-Qualifikation vorhanden ist.
+
+        Sucht in: education, further_education UND Jobtitel/Position.
+        OpenAI-Training zeigt: viele haben 'Bilanzbuchhalter' nur im Jobtitel.
+        """
         qual_text = self._extract_qualifications_text(candidate)
-        return self._has_any_keyword(qual_text, BILANZ_QUALIFICATION_KEYWORDS)
+        if self._has_any_keyword(qual_text, BILANZ_QUALIFICATION_KEYWORDS):
+            return True
+        # Auch im Jobtitel / aktueller Position prüfen
+        title = (candidate.current_position or "").lower()
+        if "bilanzbuchhalter" in title or "bilanzbuchhalterin" in title:
+            return True
+        # Work-History Jobtitel prüfen
+        if candidate.work_history and isinstance(candidate.work_history, list):
+            for entry in candidate.work_history:
+                if isinstance(entry, dict) and entry.get("position"):
+                    pos = entry["position"].lower()
+                    if "bilanzbuchhalter" in pos or "bilanzbuchhalterin" in pos:
+                        return True
+        return False
 
     def _has_bilanz_activities(self, text: str) -> bool:
         """Prüft ob Erstellung von Abschlüssen in Tätigkeiten vorkommt."""
@@ -250,22 +292,34 @@ class FinanceRulesEngine:
         return self._has_any_keyword(text, FIBU_ACTIVITY_KEYWORDS)
 
     def _has_kredi_activities(self, text: str) -> bool:
-        """Prüft ob überwiegend Kreditoren-Tätigkeiten vorkommen."""
+        """Prüft ob überwiegend Kreditoren-Tätigkeiten vorkommen.
+
+        Strenger als vorher: Mindestens 2 Kreditoren-Keywords UND keine Debitoren.
+        Nur 'kreditoren' allein reicht NICHT — das kann auch ein FiBu sein.
+        """
         kredi_count = self._count_keywords(text, KREDITOR_ONLY_KEYWORDS)
         debi_count = self._count_keywords(text, DEBITOR_ONLY_KEYWORDS)
-        return kredi_count > 0 and debi_count == 0
+        # Mindestens 2 spezifische Kreditoren-Keywords UND keine Debitoren
+        return kredi_count >= 2 and debi_count == 0
 
     def _has_debi_activities(self, text: str) -> bool:
-        """Prüft ob überwiegend Debitoren-Tätigkeiten vorkommen."""
+        """Prüft ob überwiegend Debitoren-Tätigkeiten vorkommen.
+
+        Strenger: Mindestens 2 Debitoren-Keywords UND keine Kreditoren.
+        """
         debi_count = self._count_keywords(text, DEBITOR_ONLY_KEYWORDS)
         kredi_count = self._count_keywords(text, KREDITOR_ONLY_KEYWORDS)
-        return debi_count > 0 and kredi_count == 0
+        return debi_count >= 2 and kredi_count == 0
 
     def _has_both_kredi_debi(self, text: str) -> bool:
-        """Prüft ob sowohl Kreditoren als auch Debitoren vorkommen."""
-        kredi = self._has_any_keyword(text, KREDITOR_ONLY_KEYWORDS)
-        debi = self._has_any_keyword(text, DEBITOR_ONLY_KEYWORDS)
-        return kredi and debi
+        """Prüft ob sowohl Kreditoren als auch Debitoren vorkommen.
+
+        Beide müssen mindestens 2x vorkommen um als eigenständige Rollen zu gelten.
+        Einfaches Erwähnen beider in einem FiBu-Job reicht NICHT.
+        """
+        kredi_count = self._count_keywords(text, KREDITOR_ONLY_KEYWORDS)
+        debi_count = self._count_keywords(text, DEBITOR_ONLY_KEYWORDS)
+        return kredi_count >= 2 and debi_count >= 2
 
     def _has_lohn_activities(self, text: str) -> bool:
         """Prüft ob Lohnbuchhalter-Tätigkeiten vorkommen."""
@@ -353,12 +407,17 @@ class FinanceRulesEngine:
         if self._has_steufa_qualification(candidate):
             roles.append("Steuerfachangestellte/r")
             reasons.append("Steuerfachangestellte-Qualifikation")
-            # Sonderregel: Immer mit Finanzbuchhalter oder Bilanzbuchhalter
-            if "Bilanzbuchhalter/in" not in roles and "Finanzbuchhalter/in" not in roles:
-                if has_bilanz_qual:
-                    roles.insert(0, "Bilanzbuchhalter/in")
+            # Sonderregel: Immer mit Finanzbuchhalter oder Bilanzbuchhalter pairen
+            if has_bilanz_qual and "Bilanzbuchhalter/in" not in roles:
+                # Bilanz-Qualifikation vorhanden → Bilanzbuchhalter statt Finanzbuchhalter
+                if "Finanzbuchhalter/in" in roles:
+                    # FiBu durch Bilanz ersetzen (Bilanz ist die höherwertige Rolle)
+                    idx = roles.index("Finanzbuchhalter/in")
+                    roles[idx] = "Bilanzbuchhalter/in"
                 else:
-                    roles.insert(0, "Finanzbuchhalter/in")
+                    roles.insert(0, "Bilanzbuchhalter/in")
+            elif "Bilanzbuchhalter/in" not in roles and "Finanzbuchhalter/in" not in roles:
+                roles.insert(0, "Finanzbuchhalter/in")
 
         # Duplikate entfernen, Reihenfolge beibehalten
         seen = set()

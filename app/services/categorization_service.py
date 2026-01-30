@@ -405,17 +405,25 @@ class CategorizationService:
             candidate.hotlist_job_titles = [result.job_title]
         candidate.categorized_at = datetime.now(timezone.utc)
 
-        # FINANCE-Kandidaten: Versuche lokale Feinklassifizierung via RulesEngine
+        # FINANCE-Kandidaten: Feinklassifizierung NUR wenn KEINE OpenAI-Ergebnisse vorhanden
+        # OpenAI-Ergebnisse sind die Ground-Truth und dürfen NICHT überschrieben werden.
+        # Der RulesEngine wird nur für NEUE Kandidaten eingesetzt (nach Training).
         if result.category == HotlistCategory.FINANCE:
-            try:
-                from app.services.finance_rules_engine import FinanceRulesEngine
-                engine = FinanceRulesEngine()
-                classification = engine.classify_candidate(candidate)
-                if classification.roles and not classification.is_leadership:
-                    candidate.hotlist_job_title = classification.primary_role
-                    candidate.hotlist_job_titles = classification.roles
-            except Exception:
-                pass  # Fallback auf normalize_job_title
+            # Prüfe ob OpenAI schon klassifiziert hat (classification_data.source == "openai")
+            has_openai = False
+            if hasattr(candidate, "classification_data") and candidate.classification_data:
+                if isinstance(candidate.classification_data, dict):
+                    has_openai = candidate.classification_data.get("source") == "openai"
+            if not has_openai:
+                try:
+                    from app.services.finance_rules_engine import FinanceRulesEngine
+                    engine = FinanceRulesEngine()
+                    classification = engine.classify_candidate(candidate)
+                    if classification.roles and not classification.is_leadership:
+                        candidate.hotlist_job_title = classification.primary_role
+                        candidate.hotlist_job_titles = classification.roles
+                except Exception:
+                    pass  # Fallback auf normalize_job_title
 
     def apply_to_job(self, job: Job, result: CategorizationResult) -> None:
         """Setzt die Hotlist-Felder auf dem Job-Model."""
@@ -426,17 +434,23 @@ class CategorizationService:
             job.hotlist_job_titles = [result.job_title]
         job.categorized_at = datetime.now(timezone.utc)
 
-        # FINANCE-Jobs: Versuche lokale Feinklassifizierung via RulesEngine
+        # FINANCE-Jobs: Feinklassifizierung NUR wenn KEINE OpenAI-Ergebnisse vorhanden
+        # (Jobs haben aktuell kein classification_data, aber Schutzlogik ist vorbereitet)
         if result.category == HotlistCategory.FINANCE:
-            try:
-                from app.services.finance_rules_engine import FinanceRulesEngine
-                engine = FinanceRulesEngine()
-                classification = engine.classify_job(job)
-                if classification.roles:
-                    job.hotlist_job_title = classification.primary_role
-                    job.hotlist_job_titles = classification.roles
-            except Exception:
-                pass  # Fallback auf normalize_job_title
+            has_openai = False
+            if hasattr(job, "classification_data") and job.classification_data:
+                if isinstance(job.classification_data, dict):
+                    has_openai = job.classification_data.get("source") == "openai"
+            if not has_openai:
+                try:
+                    from app.services.finance_rules_engine import FinanceRulesEngine
+                    engine = FinanceRulesEngine()
+                    classification = engine.classify_job(job)
+                    if classification.roles:
+                        job.hotlist_job_title = classification.primary_role
+                        job.hotlist_job_titles = classification.roles
+                except Exception:
+                    pass  # Fallback auf normalize_job_title
 
     # ──────────────────────────────────────────────────
     # Batch-Kategorisierung (alle)
