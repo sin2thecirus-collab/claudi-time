@@ -101,11 +101,8 @@ async def pre_match_detail_page(
     # Stats fuer diese Kombo
     total = len(matches)
     close_count = sum(1 for m in matches if m.distance_km is not None and m.distance_km <= 5)
-    avg_distance = (
-        round(sum(m.distance_km for m in matches if m.distance_km is not None) / total, 1)
-        if total > 0
-        else 0
-    )
+    distances = [m.distance_km for m in matches if m.distance_km is not None]
+    avg_distance = round(sum(distances) / len(distances), 1) if distances else 0
     ai_checked = sum(1 for m in matches if m.ai_score is not None)
 
     return templates.TemplateResponse(

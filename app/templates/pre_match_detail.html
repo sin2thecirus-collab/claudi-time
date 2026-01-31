@@ -9,7 +9,7 @@
     showAiDetails: {},
     toggleAll() {
         if (this.selectAll) {
-            this.selectedIds = {{ matches | map(attribute='match_id') | list | tojson }}.map(String);
+            this.selectedIds = [{% for m in matches %}'{{ m.match_id }}'{% if not loop.last %},{% endif %}{% endfor %}];
         } else {
             this.selectedIds = [];
         }

@@ -423,6 +423,9 @@ class PreMatchService:
                 Match.pre_score.desc().nullslast(),
             )
 
+        # Limit um Seite nicht zu ueberlasten
+        query = query.limit(500)
+
         result = await self.db.execute(query)
         rows = result.all()
 
