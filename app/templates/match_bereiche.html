@@ -227,15 +227,39 @@
                                     <span class="block text-[11px] text-green-500 font-medium uppercase tracking-wider">Jobs</span>
                                 </div>
                             </div>
-                            {# DeepMatch Button #}
-                            <a href="/deepmatch?category={{ category }}&city={{ city_name }}&job_title={{ t.title }}"
-                               @click.stop
-                               class="flex items-center justify-center gap-2 w-full rounded-lg bg-primary-50 text-primary-700 hover:bg-primary-600 hover:text-white px-3 py-2.5 text-sm font-semibold transition-all duration-200">
-                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                            {# DeepMatch Button — löst Matching + Pre-Scoring aus #}
+                            <button
+                               x-data="{ loading: false, error: false }"
+                               @click.stop="
+                                   if (loading) return;
+                                   loading = true; error = false;
+                                   fetch('/api/hotlisten/deepmatch-trigger?category={{ category }}&city={{ city_name }}&job_title={{ t.title|urlencode }}', { method: 'POST' })
+                                       .then(r => r.json())
+                                       .then(data => {
+                                           if (data.redirect_url) {
+                                               window.location.href = data.redirect_url;
+                                           } else {
+                                               loading = false; error = true;
+                                               setTimeout(() => error = false, 3000);
+                                           }
+                                       })
+                                       .catch(() => { loading = false; error = true; setTimeout(() => error = false, 3000); });
+                               "
+                               :class="loading ? 'bg-primary-600 text-white cursor-wait' : error ? 'bg-red-100 text-red-700' : 'bg-primary-50 text-primary-700 hover:bg-primary-600 hover:text-white'"
+                               class="flex items-center justify-center gap-2 w-full rounded-lg px-3 py-2.5 text-sm font-semibold transition-all duration-200">
+                                {# Sparkle Icon (normal) #}
+                                <svg x-show="!loading && !error" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
                                 </svg>
-                                DeepMatch starten
-                            </a>
+                                {# Spinner (loading) #}
+                                <svg x-show="loading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                </svg>
+                                <span x-show="!loading && !error">DeepMatch starten</span>
+                                <span x-show="loading">Matching läuft...</span>
+                                <span x-show="error">Fehler — nochmal versuchen</span>
+                            </button>
                         </div>
                     </div>
                     {% else %}

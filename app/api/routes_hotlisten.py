@@ -29,6 +29,7 @@ from app.services.categorization_service import CategorizationService, HotlistCa
 from app.services.pre_scoring_service import PreScoringService
 from app.services.deepmatch_service import DeepMatchService
 from app.services.finance_classifier_service import FinanceClassifierService
+from app.services.matching_service import MatchingService
 
 logger = logging.getLogger(__name__)
 
@@ -803,6 +804,89 @@ async def compare_openai_vs_rules(
         "roles_only_rules_sees": dict(sorted(rules_only_roles.items(), key=lambda x: -x[1])),
         "mismatches_count": len(mismatches),
         "mismatches": mismatches[:100],  # Max 100 Detaileinträge
+    }
+
+
+@router.post("/api/hotlisten/deepmatch-trigger", tags=["Hotlisten API"])
+async def trigger_deepmatch_matching(
+    category: str = Query(default="FINANCE"),
+    city: Optional[str] = None,
+    job_title: Optional[str] = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Erstellt Matches + Pre-Scores für eine Kategorie/Stadt/JobTitle-Kombi.
+
+    1. Findet alle Jobs dieser Kategorie/Stadt/JobTitle
+    2. Berechnet Matches (PostGIS Distanz + Keywords)
+    3. Berechnet Pre-Scores
+    4. Gibt Redirect-URL zurück
+    """
+    # 1. Jobs finden die zu Kategorie/Stadt/JobTitle passen
+    jobs_query = select(Job).where(
+        and_(
+            Job.hotlist_category == category,
+            Job.deleted_at.is_(None),
+            Job.location_coords.is_not(None),
+        )
+    )
+    if city:
+        jobs_query = jobs_query.where(Job.hotlist_city == city)
+    if job_title:
+        jobs_query = jobs_query.where(
+            or_(
+                Job.hotlist_job_titles.any(job_title),
+                Job.hotlist_job_title == job_title,
+            )
+        )
+
+    result = await db.execute(jobs_query)
+    jobs = result.scalars().all()
+
+    if not jobs:
+        return {"status": "no_jobs", "matches_created": 0, "scored": 0}
+
+    # 2. Matching: Für jeden Job Kandidaten im Umkreis finden
+    matching_service = MatchingService(db)
+    total_created = 0
+    total_updated = 0
+
+    for job in jobs:
+        try:
+            match_result = await matching_service.calculate_matches_for_job(job.id)
+            total_created += match_result.matches_created
+            total_updated += match_result.matches_updated
+        except Exception as e:
+            logger.error(f"Matching-Fehler für Job {job.id}: {e}")
+
+    # 3. Pre-Scoring
+    pre_service = PreScoringService(db)
+    pre_result = await pre_service.score_matches_for_category(
+        category=category,
+        city=city,
+        force=True,
+    )
+
+    logger.info(
+        f"DeepMatch-Trigger: {category}/{city}/{job_title} → "
+        f"{total_created} neue Matches, {pre_result.scored} gescort"
+    )
+
+    # 4. Redirect-URL bauen
+    redirect_url = f"/deepmatch?category={category}"
+    if city:
+        redirect_url += f"&city={city}"
+    if job_title:
+        from urllib.parse import quote
+        redirect_url += f"&job_title={quote(job_title)}"
+
+    return {
+        "status": "ok",
+        "matches_created": total_created,
+        "matches_updated": total_updated,
+        "scored": pre_result.scored,
+        "avg_score": pre_result.avg_score,
+        "redirect_url": redirect_url,
     }
 
 
