@@ -658,10 +658,16 @@ async def match_results_partial(
     if city:
         query = query.where(Candidate.hotlist_city == city)
     if job_title:
+        # Filter auf BEIDEN Seiten: Kandidat UND Job muessen zum Beruf passen
         query = query.where(
             or_(
                 Candidate.hotlist_job_titles.any(job_title),
                 Candidate.hotlist_job_title == job_title,
+            )
+        ).where(
+            or_(
+                Job.hotlist_job_titles.any(job_title),
+                Job.hotlist_job_title == job_title,
             )
         )
 
