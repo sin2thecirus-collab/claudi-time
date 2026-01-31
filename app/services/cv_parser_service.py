@@ -195,6 +195,117 @@ class CVParserService:
                 raise ValueError(f"PDF-Verarbeitung fehlgeschlagen: {e}")
             raise
 
+    def extract_images_from_pdf(self, pdf_bytes: bytes, max_pages: int = 3) -> list[bytes]:
+        """Rendert PDF-Seiten als PNG-Bilder (für Vision-Fallback).
+
+        Args:
+            pdf_bytes: PDF als Bytes
+            max_pages: Maximale Anzahl Seiten
+
+        Returns:
+            Liste von PNG-Bytes
+        """
+        try:
+            import fitz  # PyMuPDF
+        except ImportError:
+            raise ValueError("PyMuPDF (fitz) nicht installiert")
+
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        images = []
+
+        for i, page in enumerate(doc):
+            if i >= max_pages:
+                break
+            # Seite als Bild rendern (150 DPI für gute Qualität bei kleiner Größe)
+            pix = page.get_pixmap(dpi=150)
+            images.append(pix.tobytes("png"))
+
+        doc.close()
+        return images
+
+    async def parse_cv_with_vision(self, pdf_images: list[bytes]) -> ParseResult:
+        """Parst CV-Bilder mit OpenAI Vision (GPT-4o).
+
+        Für PDFs die keinen extrahierbaren Text haben (Bild-PDFs, Canva, etc.)
+
+        Args:
+            pdf_images: Liste von PNG-Bytes (je Seite ein Bild)
+
+        Returns:
+            ParseResult mit strukturierten Daten
+        """
+        import base64
+
+        if not self.api_key:
+            return ParseResult(success=False, error="OpenAI API-Key nicht konfiguriert")
+
+        if not pdf_images:
+            return ParseResult(success=False, error="Keine Bilder zum Analysieren")
+
+        # Bilder als base64 für OpenAI Vision
+        image_contents = []
+        for img_bytes in pdf_images:
+            b64 = base64.b64encode(img_bytes).decode("utf-8")
+            image_contents.append({
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:image/png;base64,{b64}",
+                    "detail": "high",
+                },
+            })
+
+        client = await self._get_http_client()
+
+        try:
+            response = await client.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": "gpt-4o",
+                    "messages": [
+                        {"role": "system", "content": CV_PARSING_SYSTEM_PROMPT},
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": "Analysiere diesen Lebenslauf (als Bild) und extrahiere den VOLLSTÄNDIGEN beruflichen Werdegang mit ALLEN Stationen:"},
+                                *image_contents,
+                            ],
+                        },
+                    ],
+                    "temperature": 0.1,
+                    "max_tokens": 4000,
+                    "response_format": {"type": "json_object"},
+                },
+                timeout=90.0,  # Vision braucht länger
+            )
+
+            response.raise_for_status()
+            result = response.json()
+
+            tokens = result.get("usage", {}).get("total_tokens", 0)
+            content = result["choices"][0]["message"]["content"]
+            parsed_data = json.loads(content)
+            cv_result = self._map_to_cv_result(parsed_data)
+
+            logger.info(f"Vision CV-Parse erfolgreich: {tokens} Tokens")
+
+            return ParseResult(
+                success=True,
+                data=cv_result,
+                raw_text=f"[Vision-Parse: {len(pdf_images)} Seite(n)]",
+                tokens_used=tokens,
+            )
+
+        except Exception as e:
+            logger.error(f"Vision CV-Parse Fehler: {e}")
+            return ParseResult(
+                success=False,
+                error=f"Vision-Parsing fehlgeschlagen: {str(e)}",
+            )
+
     async def parse_cv_text(self, cv_text: str) -> ParseResult:
         """Parst CV-Text mit OpenAI.
 
@@ -420,13 +531,25 @@ class CVParserService:
             return candidate, ParseResult(success=False, error=str(e))
 
         # Text extrahieren
+        cv_text = None
         try:
             cv_text = self.extract_text_from_pdf(pdf_bytes)
-        except ValueError as e:
-            return candidate, ParseResult(success=False, error=str(e))
+        except ValueError:
+            pass  # Kein Text → Vision-Fallback
 
-        # Mit OpenAI parsen
-        parse_result = await self.parse_cv_text(cv_text)
+        # Parsen: Text oder Vision
+        if cv_text and len(cv_text.strip()) >= 50:
+            # Standard: Text-basiertes Parsing
+            parse_result = await self.parse_cv_text(cv_text)
+        else:
+            # Fallback: Vision-Parsing (Bild-PDFs)
+            logger.info(f"Vision-Fallback für Kandidat {candidate_id} (kein extrahierbarer Text)")
+            try:
+                pdf_images = self.extract_images_from_pdf(pdf_bytes)
+                parse_result = await self.parse_cv_with_vision(pdf_images)
+                cv_text = parse_result.raw_text or "[Vision-Parse]"
+            except ValueError as e:
+                return candidate, ParseResult(success=False, error=str(e))
 
         if parse_result.success and parse_result.data:
             # Kandidat aktualisieren
