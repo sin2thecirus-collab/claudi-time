@@ -15,7 +15,7 @@ from typing import Any
 from uuid import UUID
 
 from geoalchemy2.functions import ST_Distance, ST_DWithin
-from sqlalchemy import and_, func, or_, select, text
+from sqlalchemy import ARRAY, String, and_, cast, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.candidate import Candidate
@@ -238,8 +238,8 @@ class PreMatchService:
                     PRE_MATCH_MAX_DISTANCE_KM * METERS_PER_KM,
                     True,
                 ),
-                # Beruf-Filter: mindestens 1 gemeinsamer Titel
-                Candidate.hotlist_job_titles.overlap(job_titles),
+                # Beruf-Filter: mindestens 1 gemeinsamer Titel (PostgreSQL && Operator)
+                Candidate.hotlist_job_titles.op("&&")(cast(job_titles, ARRAY(String))),
             )
         )
 
