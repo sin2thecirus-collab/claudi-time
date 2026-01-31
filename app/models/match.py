@@ -6,6 +6,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     ARRAY,
+    Boolean,
     DateTime,
     Enum,
     Float,
@@ -80,6 +81,11 @@ class Match(Base):
         default=MatchStatus.NEW,
     )
 
+    # Stale-Tracking (Match ist veraltet weil sich Kandidaten-Daten geaendert haben)
+    stale: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    stale_reason: Mapped[str | None] = mapped_column(String(255))
+    stale_since: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
     # Vermittlung
     placed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     placed_notes: Mapped[str | None] = mapped_column(Text)
@@ -109,6 +115,7 @@ class Match(Base):
         Index("ix_matches_distance_km", "distance_km"),
         Index("ix_matches_created_at", "created_at"),
         Index("ix_matches_pre_score", "pre_score"),
+        Index("ix_matches_stale", "stale"),
     )
 
     @property

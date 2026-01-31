@@ -90,6 +90,10 @@ async def init_db() -> None:
         ("matches", "user_feedback", "VARCHAR(50)"),
         ("matches", "feedback_note", "TEXT"),
         ("matches", "feedback_at", "TIMESTAMPTZ"),
+        # Matches: Stale-Tracking (Pipeline)
+        ("matches", "stale", "BOOLEAN DEFAULT FALSE"),
+        ("matches", "stale_reason", "VARCHAR(255)"),
+        ("matches", "stale_since", "TIMESTAMPTZ"),
     ]
     for table_name, col_name, col_type in migrations:
         try:

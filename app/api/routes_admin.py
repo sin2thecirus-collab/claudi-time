@@ -687,6 +687,10 @@ async def trigger_crm_sync(
         default=False,
         description="CVs mit OpenAI parsen für fehlende Daten (aktuell deaktiviert)"
     ),
+    auto_pipeline: bool = Query(
+        default=True,
+        description="Auto-Pipeline nach Sync ausfuehren (Kategorisierung → Klassifizierung → Stale-Markierung)"
+    ),
     db: AsyncSession = Depends(get_db),
     cron_secret: str | None = Depends(verify_cron_secret),
 ):
@@ -699,6 +703,7 @@ async def trigger_crm_sync(
         - Aktuelle Position
         - Beruflicher Werdegang (Work History)
         - Vollständige Adresse (Straße, PLZ, Ort)
+    - auto_pipeline=True: Nach Sync automatisch Kategorisierung → Klassifizierung → Stale-Markierung
     """
     job_runner = JobRunnerService(db)
 
@@ -708,10 +713,11 @@ async def trigger_crm_sync(
     job_source = JobSource.CRON if source == "cron" else JobSource.MANUAL
     job_run = await job_runner.start_job(JobType.CRM_SYNC, job_source)
 
-    background_tasks.add_task(_run_crm_sync, db, job_run.id, full_sync, parse_cvs)
+    background_tasks.add_task(_run_crm_sync, db, job_run.id, full_sync, parse_cvs, auto_pipeline)
 
+    pipeline_msg = " + Auto-Pipeline" if auto_pipeline else ""
     return JobTriggerResponse(
-        message=f"CRM-Sync gestartet{' mit CV-Parsing' if parse_cvs else ''}",
+        message=f"CRM-Sync gestartet{' mit CV-Parsing' if parse_cvs else ''}{pipeline_msg}",
         job_run_id=str(job_run.id),
         job_type=JobType.CRM_SYNC.value,
         source=job_source.value,
@@ -960,7 +966,13 @@ async def _run_geocoding(db_unused: AsyncSession, job_run_id: UUID):
             await db.commit()
 
 
-async def _run_crm_sync(db_unused: AsyncSession, job_run_id: UUID, full_sync: bool, parse_cvs: bool = True):
+async def _run_crm_sync(
+    db_unused: AsyncSession,
+    job_run_id: UUID,
+    full_sync: bool,
+    parse_cvs: bool = True,
+    auto_pipeline: bool = True,
+):
     """Führt CRM-Sync im Hintergrund aus.
 
     Importiert Kandidaten direkt aus der Recruit CRM API in die Datenbank.
@@ -972,6 +984,7 @@ async def _run_crm_sync(db_unused: AsyncSession, job_run_id: UUID, full_sync: bo
         job_run_id: ID des Job-Runs für Progress-Tracking
         full_sync: True für Initial-Sync (alle Kandidaten)
         parse_cvs: Aktuell ignoriert (CV-Parsing wird separat implementiert)
+        auto_pipeline: True = nach Sync automatisch Pipeline ausfuehren
     """
     from datetime import datetime, timezone
 
@@ -1152,6 +1165,21 @@ async def _run_crm_sync(db_unused: AsyncSession, job_run_id: UUID, full_sync: bo
                 )
             else:
                 logger.info("=== AUTO CV-PARSING === Keine ungeparsten CVs vorhanden")
+
+            # === AUTO PIPELINE nach CRM-Sync + CV-Parsing ===
+            if auto_pipeline:
+                try:
+                    logger.info("=== AUTO PIPELINE START ===")
+                    from app.services.pipeline_service import PipelineService
+
+                    pipeline = PipelineService(db)
+                    pipeline_result = await pipeline.run_auto_pipeline()
+                    logger.info(f"=== AUTO PIPELINE FERTIG === {pipeline_result}")
+                except Exception as pipeline_error:
+                    logger.error(f"Auto-Pipeline fehlgeschlagen: {pipeline_error}", exc_info=True)
+                    # Pipeline-Fehler soll CRM-Sync nicht als fehlgeschlagen markieren
+            else:
+                logger.info("=== AUTO PIPELINE === Deaktiviert (auto_pipeline=False)")
 
         except Exception as e:
             logger.error(f"CRM-Sync fehlgeschlagen: {e}", exc_info=True)

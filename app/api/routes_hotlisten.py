@@ -43,6 +43,20 @@ _classification_status: dict = {
     "error": None,
 }
 
+# ═══════════════════════════════════════════════════════════════
+# Background-Task Status-Tracking für Auto-Pipeline
+# ═══════════════════════════════════════════════════════════════
+_pipeline_status: dict = {
+    "running": False,
+    "started_at": None,
+    "step": None,  # "categorize" / "classify" / "mark_stale" / "done"
+    "step1_result": None,
+    "step2_result": None,
+    "step3_result": None,
+    "finished_at": None,
+    "error": None,
+}
+
 router = APIRouter(tags=["Hotlisten"])
 templates = Jinja2Templates(directory="app/templates")
 
@@ -962,6 +976,106 @@ async def trigger_finance_classification(
 async def classification_status():
     """Gibt den aktuellen Status der Finance-Klassifizierung zurueck."""
     return _classification_status
+
+
+# ════════════════════════════════════════════════════════════════
+# PIPELINE — Manueller Trigger + Status
+# ════════════════════════════════════════════════════════════════
+
+@router.post("/api/hotlisten/pipeline/trigger", tags=["Hotlisten API"])
+async def trigger_pipeline():
+    """
+    Startet die Auto-Pipeline manuell (ohne CRM-Sync).
+
+    3 Schritte:
+    1. Kategorisierung geaenderter Kandidaten/Jobs (kostenlos)
+    2. Klassifizierung geaenderter FINANCE-Kandidaten (OpenAI)
+    3. Stale-Markierung betroffener Matches (kostenlos)
+    """
+    global _pipeline_status
+
+    if _pipeline_status["running"]:
+        return {
+            "status": "already_running",
+            "started_at": _pipeline_status["started_at"],
+            "step": _pipeline_status["step"],
+        }
+
+    _pipeline_status = {
+        "running": True,
+        "started_at": datetime.now(timezone.utc).isoformat(),
+        "step": "starting",
+        "step1_result": None,
+        "step2_result": None,
+        "step3_result": None,
+        "finished_at": None,
+        "error": None,
+    }
+
+    # Background-Task starten
+    asyncio.create_task(_run_pipeline_background())
+
+    return {
+        "status": "started",
+        "message": "Pipeline gestartet. Nutze GET /api/hotlisten/pipeline/status fuer Updates.",
+    }
+
+
+@router.get("/api/hotlisten/pipeline/status", tags=["Hotlisten API"])
+async def pipeline_status():
+    """Gibt den aktuellen Status der Auto-Pipeline zurueck."""
+    return _pipeline_status
+
+
+async def _run_pipeline_background():
+    """Fuehrt die Pipeline als Background-Task aus mit eigener DB-Session."""
+    global _pipeline_status
+
+    try:
+        async with async_session_maker() as db:
+            from app.services.pipeline_service import PipelineService
+
+            pipeline = PipelineService(db)
+
+            def progress_callback(step_name: str, detail: dict):
+                global _pipeline_status
+                _pipeline_status["step"] = step_name
+                if detail.get("status") == "done":
+                    result = detail.get("result")
+                    if step_name == "categorize" and result:
+                        _pipeline_status["step1_result"] = {
+                            "candidates_categorized": result.candidates_categorized,
+                            "candidates_checked": result.candidates_checked,
+                            "jobs_categorized": result.jobs_categorized,
+                            "jobs_checked": result.jobs_checked,
+                            "errors": result.errors,
+                        }
+                    elif step_name == "classify" and result:
+                        _pipeline_status["step2_result"] = {
+                            "candidates_checked": result.candidates_checked,
+                            "classified": result.classified,
+                            "skipped_no_cv": result.skipped_no_cv,
+                            "skipped_leadership": result.skipped_leadership,
+                            "skipped_error": result.skipped_error,
+                            "changed_titles": len(result.changed_candidate_ids),
+                            "cost_usd": round(result.cost_usd, 4),
+                        }
+                    elif step_name == "mark_stale" and result:
+                        _pipeline_status["step3_result"] = {
+                            "matches_marked_stale": result.matches_marked_stale,
+                            "pre_scores_reset": result.pre_scores_reset,
+                        }
+
+            result = await pipeline.run_auto_pipeline(progress_callback=progress_callback)
+
+            _pipeline_status["step"] = "done"
+            _pipeline_status["finished_at"] = datetime.now(timezone.utc).isoformat()
+
+    except Exception as e:
+        logger.error(f"Pipeline Background-Task fehlgeschlagen: {e}", exc_info=True)
+        _pipeline_status["error"] = str(e)
+
+    _pipeline_status["running"] = False
 
 
 @router.get("/api/hotlisten/classify-finance/compare", tags=["Hotlisten API"])

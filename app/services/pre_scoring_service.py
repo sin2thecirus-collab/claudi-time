@@ -182,8 +182,12 @@ class PreScoringService:
         match, candidate, job = row
         breakdown = self.calculate_pre_score(candidate, job, match)
 
-        # Score auf Match speichern
+        # Score auf Match speichern + Stale-Flag zuruecksetzen
         match.pre_score = breakdown.total
+        if match.stale:
+            match.stale = False
+            match.stale_reason = None
+            match.stale_since = None
         await self.db.commit()
 
         return breakdown
@@ -256,6 +260,11 @@ class PreScoringService:
             try:
                 breakdown = self.calculate_pre_score(candidate, job, match)
                 match.pre_score = breakdown.total
+                # Stale-Flag zuruecksetzen wenn Match neu bewertet wird
+                if match.stale:
+                    match.stale = False
+                    match.stale_reason = None
+                    match.stale_since = None
                 score_sum += breakdown.total
                 scored += 1
             except Exception as e:
