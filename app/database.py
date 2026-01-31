@@ -78,6 +78,7 @@ async def init_db() -> None:
         ("candidates", "hotlist_job_titles", "VARCHAR[]"),
         ("candidates", "categorized_at", "TIMESTAMPTZ"),
         ("candidates", "classification_data", "JSONB"),
+        ("candidates", "cv_stored_path", "TEXT"),
         # Jobs: Hotlist-Felder
         ("jobs", "hotlist_category", "VARCHAR(50)"),
         ("jobs", "hotlist_city", "VARCHAR(255)"),

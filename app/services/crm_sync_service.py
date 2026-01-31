@@ -587,6 +587,22 @@ class CRMSyncService:
                 f"Education={len(mapped_data.get('education') or [])} Einträge"
             )
 
+            # CV in R2 speichern (wenn URL vorhanden)
+            if candidate.cv_url:
+                try:
+                    from app.services.r2_storage_service import R2StorageService
+                    r2 = R2StorageService()
+                    if r2.is_available:
+                        import httpx as _httpx
+                        async with _httpx.AsyncClient(follow_redirects=True, timeout=30.0) as _client:
+                            cv_response = await _client.get(candidate.cv_url)
+                        if cv_response.status_code == 200:
+                            key = r2.upload_cv(str(candidate.id), cv_response.content)
+                            candidate.cv_stored_path = key
+                            logger.info(f"CV fuer neuen Kandidat {crm_id} in R2 gespeichert: {key}")
+                except Exception as e:
+                    logger.warning(f"R2-Upload bei CRM-Sync fuer {crm_id} fehlgeschlagen: {e}")
+
             # Hotlist-Kategorisierung direkt nach Erstellung
             self._categorize_candidate(candidate)
 

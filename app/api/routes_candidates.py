@@ -506,35 +506,147 @@ async def cv_preview_proxy(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Proxy-Endpoint der das CV-PDF vom CRM-Server holt und durchreicht.
+    Proxy-Endpoint der das CV-PDF liefert.
 
-    Noetig weil Recruit CRM X-Frame-Options: sameorigin setzt,
-    was das Laden in einem iframe von unserer Domain blockiert.
+    Reihenfolge:
+    1. Aus R2 Object Storage (wenn cv_stored_path vorhanden)
+    2. Fallback: Vom CRM-Server holen und gleichzeitig in R2 speichern
     """
+    from app.services.r2_storage_service import R2StorageService
+
     candidate_service = CandidateService(db)
     candidate = await candidate_service.get_candidate(candidate_id)
 
     if not candidate:
         raise NotFoundException(message="Kandidat nicht gefunden")
 
+    if not candidate.cv_stored_path and not candidate.cv_url:
+        raise NotFoundException(message="Kein CV vorhanden")
+
+    r2 = R2StorageService()
+
+    # 1. Versuch: Aus R2 laden
+    if candidate.cv_stored_path and r2.is_available:
+        try:
+            content = r2.download_cv(candidate.cv_stored_path)
+            if content:
+                return StreamingResponse(
+                    iter([content]),
+                    media_type="application/pdf",
+                    headers={
+                        "Content-Disposition": "inline",
+                        "Cache-Control": "private, max-age=3600",
+                    },
+                )
+        except Exception as e:
+            logger.warning(f"R2 Download fehlgeschlagen, Fallback auf CRM: {e}")
+
+    # 2. Fallback: Vom CRM-Server holen
     if not candidate.cv_url:
         raise NotFoundException(message="Kein CV vorhanden")
 
-    # PDF vom CRM-Server holen (folgt Redirects)
     async with httpx.AsyncClient(follow_redirects=True, timeout=30.0) as client:
         response = await client.get(candidate.cv_url)
 
     if response.status_code != 200:
         raise NotFoundException(message="CV konnte nicht geladen werden")
 
+    pdf_content = response.content
+
+    # Gleichzeitig in R2 speichern (fire-and-forget)
+    if r2.is_available and not candidate.cv_stored_path:
+        try:
+            key = r2.upload_cv(str(candidate.id), pdf_content)
+            candidate.cv_stored_path = key
+            await db.commit()
+            logger.info(f"CV fuer {candidate.id} automatisch in R2 gespeichert: {key}")
+        except Exception as e:
+            logger.warning(f"R2 Auto-Upload fehlgeschlagen fuer {candidate.id}: {e}")
+
     return StreamingResponse(
-        iter([response.content]),
+        iter([pdf_content]),
         media_type="application/pdf",
         headers={
             "Content-Disposition": "inline",
             "Cache-Control": "private, max-age=300",
         },
     )
+
+
+# ==================== R2 Migration ====================
+
+@router.post(
+    "/migrate-cvs-to-r2",
+    summary="Migriert bestehende CVs von CRM-URLs nach R2",
+)
+async def migrate_cvs_to_r2(
+    batch_size: int = Query(default=20, le=100),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Migriert CVs die noch nicht in R2 gespeichert sind.
+
+    Holt PDFs von CRM-URLs und laedt sie nach R2 hoch.
+    Laeuft in Batches um Timeouts zu vermeiden.
+    """
+    from sqlalchemy import select
+    from app.models.candidate import Candidate
+    from app.services.r2_storage_service import R2StorageService
+
+    r2 = R2StorageService()
+    if not r2.is_available:
+        return {"error": "R2 Storage nicht konfiguriert", "migrated": 0}
+
+    # Kandidaten mit CV-URL aber ohne R2-Pfad finden
+    stmt = (
+        select(Candidate)
+        .where(Candidate.cv_url.isnot(None))
+        .where(Candidate.cv_stored_path.is_(None))
+        .where(Candidate.deleted_at.is_(None))
+        .limit(batch_size)
+    )
+    result = await db.execute(stmt)
+    candidates = result.scalars().all()
+
+    migrated = 0
+    errors = 0
+
+    for candidate in candidates:
+        try:
+            async with httpx.AsyncClient(follow_redirects=True, timeout=30.0) as client:
+                response = await client.get(candidate.cv_url)
+
+            if response.status_code == 200 and len(response.content) > 100:
+                key = r2.upload_cv(str(candidate.id), response.content)
+                candidate.cv_stored_path = key
+                migrated += 1
+            else:
+                errors += 1
+                logger.warning(
+                    f"CV-Migration: HTTP {response.status_code} fuer {candidate.id}"
+                )
+        except Exception as e:
+            errors += 1
+            logger.warning(f"CV-Migration fehlgeschlagen fuer {candidate.id}: {e}")
+
+    await db.commit()
+
+    # Wie viele sind noch offen?
+    count_stmt = (
+        select(Candidate)
+        .where(Candidate.cv_url.isnot(None))
+        .where(Candidate.cv_stored_path.is_(None))
+        .where(Candidate.deleted_at.is_(None))
+    )
+    remaining_result = await db.execute(count_stmt)
+    remaining = len(remaining_result.scalars().all())
+
+    return {
+        "migrated": migrated,
+        "errors": errors,
+        "remaining": remaining,
+        "message": f"{migrated} CVs nach R2 migriert, {remaining} verbleibend",
+    }
 
 
 # ==================== Hilfsfunktionen ====================

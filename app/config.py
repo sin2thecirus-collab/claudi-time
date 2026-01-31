@@ -85,6 +85,24 @@ class Settings(BaseSettings):
         description="Secret für Cron-Job-Authentifizierung",
     )
 
+    # Cloudflare R2 Object Storage
+    r2_access_key_id: str = Field(
+        default="",
+        description="Cloudflare R2 Access Key ID",
+    )
+    r2_secret_access_key: str = Field(
+        default="",
+        description="Cloudflare R2 Secret Access Key",
+    )
+    r2_endpoint_url: str = Field(
+        default="",
+        description="Cloudflare R2 S3-kompatibler Endpoint",
+    )
+    r2_bucket_name: str = Field(
+        default="pulspoint-cvs",
+        description="Cloudflare R2 Bucket-Name",
+    )
+
     # Umgebung
     environment: str = Field(
         default="development",
