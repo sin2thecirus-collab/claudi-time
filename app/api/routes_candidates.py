@@ -309,6 +309,91 @@ async def batch_delete_candidates(
     return {"deleted_count": deleted_count}
 
 
+@router.post(
+    "/batch/reparse-cv",
+    summary="CVs ausgewählter Kandidaten neu parsen (OpenAI)",
+)
+async def batch_reparse_cv(
+    request: BatchDeleteRequest,  # Gleiche Struktur: Liste von IDs
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Parst die CVs der ausgewählten Kandidaten erneut mit OpenAI.
+
+    Nützlich wenn das CRM falsche/fehlende Namen geliefert hat
+    (z.B. "Not Available") aber der CV den echten Namen enthält.
+
+    Läuft im Hintergrund, gibt sofort eine Bestätigung zurück.
+    """
+    from app.services.cv_parser_service import CVParserService
+    from app.database import async_session_maker
+    from sqlalchemy import select
+    from app.models.candidate import Candidate
+
+    if not request.ids:
+        return {"status": "error", "message": "Keine Kandidaten ausgewählt"}
+
+    if len(request.ids) > 50:
+        return {"status": "error", "message": "Maximal 50 Kandidaten pro Batch"}
+
+    # Prüfe wie viele eine CV-URL haben
+    result = await db.execute(
+        select(Candidate.id, Candidate.cv_url, Candidate.first_name, Candidate.last_name)
+        .where(Candidate.id.in_(request.ids))
+    )
+    candidates_info = result.all()
+
+    with_cv = [c for c in candidates_info if c.cv_url]
+    without_cv = [c for c in candidates_info if not c.cv_url]
+
+    if not with_cv:
+        return {
+            "status": "error",
+            "message": f"Keiner der {len(candidates_info)} Kandidaten hat eine CV-URL",
+            "without_cv": len(without_cv),
+        }
+
+    # Im Hintergrund parsen
+    candidate_ids = [c.id for c in with_cv]
+
+    async def _run_batch_parse(ids: list):
+        parsed = 0
+        errors = 0
+        names_fixed = 0
+        async with async_session_maker() as session:
+            async with CVParserService(session) as parser:
+                for cid in ids:
+                    try:
+                        candidate, parse_result = await parser.parse_candidate_cv(cid)
+                        if parse_result.success:
+                            parsed += 1
+                            # Prüfen ob Name aktualisiert wurde
+                            if candidate.first_name and candidate.first_name.lower() != "not available":
+                                names_fixed += 1
+                        else:
+                            errors += 1
+                            logger.warning(f"CV-Parse Fehler für {cid}: {parse_result.error}")
+                    except Exception as e:
+                        errors += 1
+                        logger.error(f"CV-Parse Exception für {cid}: {e}")
+
+        logger.info(
+            f"Batch CV-Parse fertig: {parsed} geparst, {errors} Fehler, "
+            f"{names_fixed} Namen korrigiert"
+        )
+
+    background_tasks.add_task(_run_batch_parse, candidate_ids)
+
+    return {
+        "status": "ok",
+        "message": f"CV-Parsing für {len(with_cv)} Kandidaten gestartet",
+        "total_selected": len(request.ids),
+        "with_cv": len(with_cv),
+        "without_cv": len(without_cv),
+    }
+
+
 @router.delete(
     "/{candidate_id}",
     summary="Kandidaten löschen (Soft-Delete)",

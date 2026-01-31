@@ -447,10 +447,15 @@ class CVParserService:
         """
         now = datetime.now(timezone.utc)
 
-        # Persönliche Daten (nur wenn nicht bereits vorhanden)
-        if not candidate.first_name and cv_data.first_name:
+        # Persönliche Daten (überschreiben wenn leer ODER "Not Available")
+        _bad_names = {"not available", "unbekannt", "n/a", "na", ""}
+        if cv_data.first_name and (
+            not candidate.first_name or candidate.first_name.strip().lower() in _bad_names
+        ):
             candidate.first_name = cv_data.first_name
-        if not candidate.last_name and cv_data.last_name:
+        if cv_data.last_name and (
+            not candidate.last_name or candidate.last_name.strip().lower() in _bad_names
+        ):
             candidate.last_name = cv_data.last_name
 
         # Geburtsdatum parsen (immer aus CV übernehmen wenn vorhanden)
