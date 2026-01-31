@@ -385,7 +385,7 @@ function openCvPreview() {
     var panel = document.getElementById('cv-preview-panel');
     var iframe = document.getElementById('cv-preview-iframe');
 
-    iframe.src = '{{ candidate.cv_url }}';
+    iframe.src = '/api/candidates/{{ candidate.id }}/cv-preview';
 
     overlay.classList.remove('hidden');
     requestAnimationFrame(function() {

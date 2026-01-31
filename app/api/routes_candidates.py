@@ -3,7 +3,9 @@
 import logging
 from uuid import UUID
 
+import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.exception_handlers import NotFoundException, ConflictException
@@ -491,6 +493,50 @@ async def get_jobs_for_candidate(
         "per_page": per_page,
         "pages": pages,
     }
+
+
+# ==================== CV-Proxy (fuer iframe-Vorschau) ====================
+
+@router.get(
+    "/{candidate_id}/cv-preview",
+    summary="CV als PDF-Proxy fuer iframe-Vorschau",
+)
+async def cv_preview_proxy(
+    candidate_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Proxy-Endpoint der das CV-PDF vom CRM-Server holt und durchreicht.
+
+    Noetig weil Recruit CRM X-Frame-Options: sameorigin setzt,
+    was das Laden in einem iframe von unserer Domain blockiert.
+    """
+    candidate_service = CandidateService(db)
+    candidate = await candidate_service.get_candidate(candidate_id)
+
+    if not candidate:
+        raise NotFoundException(message="Kandidat nicht gefunden")
+
+    if not candidate.cv_url:
+        raise NotFoundException(message="Kein CV vorhanden")
+
+    # PDF vom CRM-Server holen (folgt Redirects)
+    async with httpx.AsyncClient(follow_redirects=True, timeout=30.0) as client:
+        response = await client.get(candidate.cv_url)
+
+    if response.status_code != 200:
+        raise NotFoundException(message="CV konnte nicht geladen werden")
+
+    content_type = response.headers.get("content-type", "application/pdf")
+
+    return StreamingResponse(
+        iter([response.content]),
+        media_type=content_type,
+        headers={
+            "Content-Disposition": "inline",
+            "Cache-Control": "private, max-age=300",
+        },
+    )
 
 
 # ==================== Hilfsfunktionen ====================
