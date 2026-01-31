@@ -564,12 +564,13 @@ async def _run_quick_match(task_id: str, category: str, city: str, job_title: st
             await db.commit()
             task["matches_created"] = total_created
 
-            # 5. Pre-Scoring
+            # 5. Pre-Scoring — nur fuer den angefragten Beruf, nicht alle!
             task["phase"] = "scoring"
             pre_service = PreScoringService(db)
             pre_result = await pre_service.score_matches_for_category(
                 category=category,
                 city=city,
+                job_title=job_title,
                 force=True,
             )
 

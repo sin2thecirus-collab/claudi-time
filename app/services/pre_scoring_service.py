@@ -196,6 +196,7 @@ class PreScoringService:
         self,
         category: str,
         city: str | None = None,
+        job_title: str | None = None,
         force: bool = False,
     ) -> PreScoringResult:
         """
@@ -204,8 +205,11 @@ class PreScoringService:
         Args:
             category: FINANCE oder ENGINEERING
             city: Optional: nur Matches in dieser Stadt
+            job_title: Optional: nur Matches mit diesem Beruf (Kandidat UND Job)
             force: True = auch bereits gescorte Matches neu bewerten
         """
+        from sqlalchemy import or_
+
         # Query: Matches mit Kandidaten und Jobs der gleichen Kategorie
         query = (
             select(Match, Candidate, Job)
@@ -222,10 +226,18 @@ class PreScoringService:
         )
 
         if city:
+            query = query.where(Candidate.hotlist_city == city)
+
+        if job_title:
             query = query.where(
-                and_(
-                    Candidate.hotlist_city == city,
-                    Job.hotlist_city == city,
+                or_(
+                    Candidate.hotlist_job_titles.any(job_title),
+                    Candidate.hotlist_job_title == job_title,
+                )
+            ).where(
+                or_(
+                    Job.hotlist_job_titles.any(job_title),
+                    Job.hotlist_job_title == job_title,
                 )
             )
 

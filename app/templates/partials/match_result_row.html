@@ -52,7 +52,10 @@
 
     {# ── Position (Kandidat) ── #}
     <div class="col-span-2 min-w-0">
-        <p class="text-sm text-gray-600 truncate">{{ candidate.current_position or candidate.hotlist_job_title or '–' }}</p>
+        <p class="text-sm text-gray-900 font-medium truncate">{{ candidate.hotlist_job_title or '–' }}</p>
+        {% if candidate.current_position and candidate.current_position != candidate.hotlist_job_title %}
+        <p class="text-xs text-gray-400 truncate">{{ candidate.current_position }}</p>
+        {% endif %}
     </div>
 
     {# ── Job / Firma ── #}
