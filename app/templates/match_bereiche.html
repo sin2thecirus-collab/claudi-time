@@ -40,56 +40,56 @@
 
     {# ═══ Stats Cards ═══ #}
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div class="bg-white rounded-xl border border-gray-200 px-6 py-5">
-            <div class="flex items-center gap-4">
-                <div class="flex items-center justify-center w-12 h-12 rounded-lg bg-blue-50">
-                    <svg class="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <div class="bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl px-5 py-5 shadow-lg shadow-blue-200/50">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-blue-100 text-sm font-medium">Kandidaten</p>
+                    <p class="text-3xl font-extrabold text-white mt-1">{{ total_candidates }}</p>
+                </div>
+                <div class="flex items-center justify-center w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm">
+                    <svg class="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
                     </svg>
                 </div>
-                <div>
-                    <p class="text-3xl font-bold text-gray-900">{{ total_candidates }}</p>
-                    <p class="text-sm text-gray-500">Kandidaten</p>
-                </div>
             </div>
         </div>
-        <div class="bg-white rounded-xl border border-gray-200 px-6 py-5">
-            <div class="flex items-center gap-4">
-                <div class="flex items-center justify-center w-12 h-12 rounded-lg bg-green-50">
-                    <svg class="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <div class="bg-gradient-to-br from-green-500 to-green-700 rounded-2xl px-5 py-5 shadow-lg shadow-green-200/50">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-green-100 text-sm font-medium">Jobs</p>
+                    <p class="text-3xl font-extrabold text-white mt-1">{{ total_jobs }}</p>
+                </div>
+                <div class="flex items-center justify-center w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm">
+                    <svg class="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0" />
                     </svg>
                 </div>
-                <div>
-                    <p class="text-3xl font-bold text-gray-900">{{ total_jobs }}</p>
-                    <p class="text-sm text-gray-500">Jobs</p>
-                </div>
             </div>
         </div>
-        <div class="bg-white rounded-xl border border-gray-200 px-6 py-5">
-            <div class="flex items-center gap-4">
-                <div class="flex items-center justify-center w-12 h-12 rounded-lg bg-purple-50">
-                    <svg class="w-6 h-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <div class="bg-gradient-to-br from-purple-500 to-purple-700 rounded-2xl px-5 py-5 shadow-lg shadow-purple-200/50">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-purple-100 text-sm font-medium">Staedte</p>
+                    <p class="text-3xl font-extrabold text-white mt-1">{{ total_cities }}</p>
+                </div>
+                <div class="flex items-center justify-center w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm">
+                    <svg class="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
                         <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
                     </svg>
                 </div>
-                <div>
-                    <p class="text-3xl font-bold text-gray-900">{{ total_cities }}</p>
-                    <p class="text-sm text-gray-500">Staedte</p>
-                </div>
             </div>
         </div>
-        <div class="bg-white rounded-xl border border-gray-200 px-6 py-5">
-            <div class="flex items-center gap-4">
-                <div class="flex items-center justify-center w-12 h-12 rounded-lg bg-amber-50">
-                    <svg class="w-6 h-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <div class="bg-gradient-to-br from-amber-500 to-amber-700 rounded-2xl px-5 py-5 shadow-lg shadow-amber-200/50">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-amber-100 text-sm font-medium">Matchbare</p>
+                    <p class="text-3xl font-extrabold text-white mt-1">{{ matchable_combos }}</p>
+                </div>
+                <div class="flex items-center justify-center w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm">
+                    <svg class="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
                     </svg>
-                </div>
-                <div>
-                    <p class="text-3xl font-bold text-gray-900">{{ matchable_combos }}</p>
-                    <p class="text-sm text-gray-500">Matchbare</p>
                 </div>
             </div>
         </div>
@@ -118,101 +118,152 @@
 
     {# ═══ Stadt x Beruf Grid ═══ #}
     {% if combo_data %}
-    <div class="space-y-4">
+    <div class="space-y-6">
         {% for city_name, titles in combo_data %}
-        <div class="bg-white rounded-xl border border-gray-200 overflow-hidden"
-             x-show="cityVisible('{{ city_name }}', '{{ titles | map(attribute='title') | join(',') }}', {{ 'true' if titles | selectattr('can_match') | list | length > 0 else 'false' }})"
+        {% set city_total_candidates = titles | sum(attribute='candidates') %}
+        {% set city_total_jobs = titles | sum(attribute='jobs') %}
+        {% set matchable_titles = titles | selectattr('can_match') | list %}
+        {% set matchable_count = matchable_titles | length %}
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-300"
+             x-show="cityVisible('{{ city_name }}', '{{ titles | map(attribute='title') | join(',') }}', {{ 'true' if matchable_count > 0 else 'false' }})"
              x-transition>
 
-            {# Stadt-Header als Accordion #}
+            {# ── Stadt-Header ── #}
             <button @click="toggleCity('{{ city_name }}')"
-                    class="w-full flex items-center justify-between px-6 py-5 hover:bg-gray-50 transition-colors">
-                <div class="flex items-center gap-4">
-                    <div class="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100">
-                        <svg class="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
-                        </svg>
+                    class="w-full text-left px-6 py-5 transition-colors"
+                    :class="openCities.includes('{{ city_name }}') ? 'bg-gradient-to-r from-slate-50 to-white' : 'hover:bg-gray-50/80'">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-4 min-w-0">
+                        {# Stadt-Icon mit Farbakzent #}
+                        <div class="flex items-center justify-center w-12 h-12 rounded-xl {% if matchable_count > 0 %}bg-gradient-to-br from-primary-500 to-primary-700 shadow-lg shadow-primary-200{% else %}bg-gray-200{% endif %} flex-shrink-0">
+                            <svg class="w-6 h-6 {% if matchable_count > 0 %}text-white{% else %}text-gray-500{% endif %}" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+                            </svg>
+                        </div>
+                        <div class="min-w-0">
+                            <h3 class="text-xl font-bold text-gray-900 truncate">{{ city_name }}</h3>
+                            <div class="flex items-center gap-3 mt-1">
+                                <span class="text-sm text-gray-500">{{ titles | length }} Berufe</span>
+                                {% if matchable_count > 0 %}
+                                <span class="text-sm font-medium text-amber-600">{{ matchable_count }} matchbar</span>
+                                {% endif %}
+                            </div>
+                        </div>
                     </div>
-                    <h3 class="text-lg font-semibold text-gray-900">{{ city_name }}</h3>
-                    <div class="flex items-center gap-2.5">
-                        <span class="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700">
-                            {{ titles | sum(attribute='candidates') }} Kand.
-                        </span>
-                        <span class="inline-flex items-center rounded-full bg-green-50 px-3 py-1 text-sm font-medium text-green-700">
-                            {{ titles | sum(attribute='jobs') }} Jobs
-                        </span>
-                        {% set matchable_count = titles | selectattr('can_match') | list | length %}
-                        {% if matchable_count > 0 %}
-                        <span class="inline-flex items-center rounded-full bg-amber-50 px-3 py-1 text-sm font-medium text-amber-700">
-                            {{ matchable_count }} matchbar
-                        </span>
-                        {% endif %}
+                    <div class="flex items-center gap-4 flex-shrink-0">
+                        {# Kompakte Statistik-Badges #}
+                        <div class="hidden sm:flex items-center gap-3">
+                            <div class="flex items-center gap-2 bg-blue-50 rounded-full px-4 py-2">
+                                <svg class="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0" />
+                                </svg>
+                                <span class="text-sm font-bold text-blue-700">{{ city_total_candidates }}</span>
+                                <span class="text-xs text-blue-500">Kand.</span>
+                            </div>
+                            <div class="flex items-center gap-2 bg-green-50 rounded-full px-4 py-2">
+                                <svg class="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0" />
+                                </svg>
+                                <span class="text-sm font-bold text-green-700">{{ city_total_jobs }}</span>
+                                <span class="text-xs text-green-500">Jobs</span>
+                            </div>
+                        </div>
+                        {# Chevron #}
+                        <div class="flex items-center justify-center w-8 h-8 rounded-full"
+                             :class="openCities.includes('{{ city_name }}') ? 'bg-primary-100' : 'bg-gray-100'">
+                            <svg class="w-4 h-4 transition-transform duration-300"
+                                 :class="openCities.includes('{{ city_name }}') ? 'rotate-180 text-primary-600' : 'text-gray-400'"
+                                 fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                            </svg>
+                        </div>
                     </div>
                 </div>
-                <svg class="w-5 h-5 text-gray-400 transition-transform duration-200"
-                     :class="openCities.includes('{{ city_name }}') && 'rotate-180'"
-                     fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                </svg>
+                {# Mobile Stats (unter sm breakpoint) #}
+                <div class="flex sm:hidden items-center gap-3 mt-3 ml-16">
+                    <span class="text-sm font-semibold text-blue-600">{{ city_total_candidates }} Kand.</span>
+                    <span class="text-gray-300">|</span>
+                    <span class="text-sm font-semibold text-green-600">{{ city_total_jobs }} Jobs</span>
+                </div>
             </button>
 
-            {# Beruf-Zeilen #}
+            {# ── Beruf-Cards Grid ── #}
             <div x-show="openCities.includes('{{ city_name }}')"
-                 x-transition:enter="transition ease-out duration-200"
-                 x-transition:enter-start="opacity-0 -translate-y-2"
-                 x-transition:enter-end="opacity-100 translate-y-0"
-                 class="border-t border-gray-100">
-                <div class="divide-y divide-gray-50">
+                 x-transition:enter="transition ease-out duration-300"
+                 x-transition:enter-start="opacity-0 max-h-0"
+                 x-transition:enter-end="opacity-100 max-h-[5000px]"
+                 x-transition:leave="transition ease-in duration-200"
+                 x-transition:leave-start="opacity-100"
+                 x-transition:leave-end="opacity-0"
+                 class="border-t border-gray-100 bg-gray-50/50">
+                <div class="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                     {% for t in titles %}
                     {% if t.can_match %}
-                    {# Matchbare Zeile — klickbar fuer Kandidaten-Liste + DeepMatch Link #}
-                    <div class="flex items-center justify-between px-6 py-4 pl-20 hover:bg-blue-50/50 transition-colors group cursor-pointer"
+                    {# ── Matchbare Beruf-Card ── #}
+                    <div class="group relative bg-white rounded-xl border border-gray-200 hover:border-primary-300 hover:shadow-lg transition-all duration-200 cursor-pointer overflow-hidden"
                          x-show="rowVisible('{{ t.title }}')"
                          @click="openPanel('{{ city_name }}', '{{ t.title }}', {{ t.candidates }}, {{ t.jobs }})">
-                        <div class="flex items-center gap-3 min-w-0">
-                            <span class="text-base font-medium text-gray-900 group-hover:text-primary-700 transition-colors">{{ t.title }}</span>
-                        </div>
-                        <div class="flex items-center gap-5 flex-shrink-0">
-                            <div class="flex items-center gap-4 text-sm">
-                                <span class="inline-flex items-center gap-1.5 text-blue-700 font-semibold">
-                                    <span class="w-2.5 h-2.5 rounded-full bg-blue-400"></span>
-                                    {{ t.candidates }} Kand.
-                                </span>
-                                <span class="text-gray-300">&times;</span>
-                                <span class="inline-flex items-center gap-1.5 text-green-700 font-semibold">
-                                    <span class="w-2.5 h-2.5 rounded-full bg-green-400"></span>
-                                    {{ t.jobs }} Jobs
-                                </span>
+                        {# Farbiger Top-Akzent #}
+                        <div class="h-1 bg-gradient-to-r from-primary-400 to-primary-600 group-hover:from-primary-500 group-hover:to-primary-700 transition-colors"></div>
+                        <div class="p-4">
+                            {# Berufstitel #}
+                            <h4 class="text-base font-semibold text-gray-900 group-hover:text-primary-700 transition-colors leading-tight mb-3">
+                                {{ t.title }}
+                            </h4>
+                            {# Zahlen als Mini-Cards #}
+                            <div class="flex items-center gap-2 mb-3">
+                                <div class="flex-1 bg-blue-50 rounded-lg px-3 py-2 text-center">
+                                    <span class="block text-lg font-bold text-blue-700">{{ t.candidates }}</span>
+                                    <span class="block text-[11px] text-blue-500 font-medium uppercase tracking-wider">Kandidaten</span>
+                                </div>
+                                <div class="flex items-center text-gray-300">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+                                    </svg>
+                                </div>
+                                <div class="flex-1 bg-green-50 rounded-lg px-3 py-2 text-center">
+                                    <span class="block text-lg font-bold text-green-700">{{ t.jobs }}</span>
+                                    <span class="block text-[11px] text-green-500 font-medium uppercase tracking-wider">Jobs</span>
+                                </div>
                             </div>
+                            {# DeepMatch Button #}
                             <a href="/deepmatch?category={{ category }}&city={{ city_name }}&job_title={{ t.title }}"
                                @click.stop
-                               class="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 hover:shadow transition-all opacity-0 group-hover:opacity-100">
+                               class="flex items-center justify-center gap-2 w-full rounded-lg bg-primary-50 text-primary-700 hover:bg-primary-600 hover:text-white px-3 py-2.5 text-sm font-semibold transition-all duration-200">
                                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
                                 </svg>
-                                DeepMatch
+                                DeepMatch starten
                             </a>
                         </div>
                     </div>
                     {% else %}
-                    {# Nicht matchbare Zeile — klickbar fuer Kandidaten-Liste #}
-                    <div class="flex items-center justify-between px-6 py-3.5 pl-20 hover:bg-gray-50 transition-colors cursor-pointer"
+                    {# ── Nicht matchbare Beruf-Card (gedimmt) ── #}
+                    <div class="bg-white/60 rounded-xl border border-dashed border-gray-200 cursor-pointer hover:bg-white hover:border-gray-300 transition-all duration-200"
                          x-show="!hideEmpty && rowVisible('{{ t.title }}')"
                          @click="openPanel('{{ city_name }}', '{{ t.title }}', {{ t.candidates }}, {{ t.jobs }})">
-                        <span class="text-base text-gray-400 hover:text-gray-600 transition-colors">{{ t.title }}</span>
-                        <div class="flex items-center gap-4 text-sm text-gray-300">
-                            {% if t.candidates > 0 %}
-                            <span class="text-blue-400">{{ t.candidates }} Kand.</span>
-                            {% else %}
-                            <span>0 Kand.</span>
-                            {% endif %}
-                            <span>&times;</span>
-                            {% if t.jobs > 0 %}
-                            <span class="text-green-400">{{ t.jobs }} Jobs</span>
-                            {% else %}
-                            <span>0 Jobs</span>
-                            {% endif %}
+                        <div class="h-1 bg-gray-100"></div>
+                        <div class="p-4">
+                            <h4 class="text-base font-medium text-gray-400 leading-tight mb-3">{{ t.title }}</h4>
+                            <div class="flex items-center gap-2 mb-3">
+                                <div class="flex-1 bg-gray-50 rounded-lg px-3 py-2 text-center">
+                                    <span class="block text-lg font-bold text-gray-400">{{ t.candidates }}</span>
+                                    <span class="block text-[11px] text-gray-400 font-medium uppercase tracking-wider">Kandidaten</span>
+                                </div>
+                                <div class="flex items-center text-gray-200">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+                                    </svg>
+                                </div>
+                                <div class="flex-1 bg-gray-50 rounded-lg px-3 py-2 text-center">
+                                    <span class="block text-lg font-bold text-gray-400">{{ t.jobs }}</span>
+                                    <span class="block text-[11px] text-gray-400 font-medium uppercase tracking-wider">Jobs</span>
+                                </div>
+                            </div>
+                            <div class="text-center text-xs text-gray-400 py-1.5">
+                                Kein Matching moeglich
+                            </div>
                         </div>
                     </div>
                     {% endif %}
@@ -223,7 +274,7 @@
         {% endfor %}
     </div>
     {% else %}
-    <div class="bg-white rounded-xl border border-gray-200 px-6 py-16 text-center">
+    <div class="bg-white rounded-2xl border border-gray-200 px-6 py-16 text-center">
         <svg class="mx-auto h-12 w-12 text-gray-300" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
         </svg>
@@ -235,65 +286,74 @@
     {# ═══ Statistik-Tabellen ═══ #}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {# Nach Stadt #}
-        <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div class="px-6 py-4 border-b border-gray-100">
-                <h2 class="text-base font-semibold text-gray-900 uppercase tracking-wider">Top Staedte</h2>
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+            <div class="px-6 py-5 bg-gradient-to-r from-blue-50 to-white border-b border-gray-100">
+                <div class="flex items-center gap-3">
+                    <div class="flex items-center justify-center w-9 h-9 rounded-lg bg-blue-100">
+                        <svg class="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+                        </svg>
+                    </div>
+                    <h2 class="text-base font-bold text-gray-900">Top Staedte</h2>
+                </div>
             </div>
-            <div class="overflow-x-auto">
-                <table class="min-w-full">
-                    <thead>
-                        <tr class="border-b border-gray-100">
-                            <th class="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Stadt</th>
-                            <th class="px-6 py-3 text-right text-sm font-medium text-gray-500 uppercase tracking-wider">Kand.</th>
-                            <th class="px-6 py-3 text-right text-sm font-medium text-gray-500 uppercase tracking-wider">Jobs</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for city in city_data[:20] %}
-                        <tr class="hover:bg-gray-50 transition-colors {% if not loop.last %}border-b border-gray-50{% endif %}">
-                            <td class="px-6 py-3 text-base text-gray-900">{{ city.name }}</td>
-                            <td class="px-6 py-3 text-right">
-                                <span class="text-base font-semibold text-blue-600">{{ city.candidates }}</span>
-                            </td>
-                            <td class="px-6 py-3 text-right">
-                                <span class="text-base font-semibold text-green-600">{{ city.jobs }}</span>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <div class="divide-y divide-gray-100">
+                {% for city in city_data[:15] %}
+                <div class="flex items-center justify-between px-6 py-3.5 hover:bg-gray-50/80 transition-colors">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gray-100 text-xs font-bold text-gray-500 flex-shrink-0">{{ loop.index }}</span>
+                        <span class="text-sm font-medium text-gray-900 truncate">{{ city.name }}</span>
+                    </div>
+                    <div class="flex items-center gap-4 flex-shrink-0">
+                        <span class="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600">
+                            <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+                            {{ city.candidates }}
+                        </span>
+                        <span class="inline-flex items-center gap-1.5 text-sm font-semibold text-green-600">
+                            <span class="w-1.5 h-1.5 rounded-full bg-green-400"></span>
+                            {{ city.jobs }}
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
             </div>
         </div>
 
         {# Nach Beruf #}
-        <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div class="px-6 py-4 border-b border-gray-100">
-                <h2 class="text-base font-semibold text-gray-900 uppercase tracking-wider">Berufsgruppen</h2>
-                <p class="text-sm text-gray-400 mt-0.5">Ein Kandidat kann in mehreren Gruppen erscheinen</p>
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+            <div class="px-6 py-5 bg-gradient-to-r from-green-50 to-white border-b border-gray-100">
+                <div class="flex items-center gap-3">
+                    <div class="flex items-center justify-center w-9 h-9 rounded-lg bg-green-100">
+                        <svg class="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="text-base font-bold text-gray-900">Berufsgruppen</h2>
+                        <p class="text-xs text-gray-400 mt-0.5">Ein Kandidat kann in mehreren Gruppen erscheinen</p>
+                    </div>
+                </div>
             </div>
-            <div class="overflow-x-auto">
-                <table class="min-w-full">
-                    <thead>
-                        <tr class="border-b border-gray-100">
-                            <th class="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Beruf</th>
-                            <th class="px-6 py-3 text-right text-sm font-medium text-gray-500 uppercase tracking-wider">Kand.</th>
-                            <th class="px-6 py-3 text-right text-sm font-medium text-gray-500 uppercase tracking-wider">Jobs</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for title in title_data %}
-                        <tr class="hover:bg-gray-50 transition-colors {% if not loop.last %}border-b border-gray-50{% endif %}">
-                            <td class="px-6 py-3 text-base text-gray-900">{{ title.name }}</td>
-                            <td class="px-6 py-3 text-right">
-                                <span class="text-base font-semibold text-blue-600">{{ title.candidates }}</span>
-                            </td>
-                            <td class="px-6 py-3 text-right">
-                                <span class="text-base font-semibold text-green-600">{{ title.jobs }}</span>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <div class="divide-y divide-gray-100">
+                {% for title in title_data %}
+                <div class="flex items-center justify-between px-6 py-3.5 hover:bg-gray-50/80 transition-colors">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gray-100 text-xs font-bold text-gray-500 flex-shrink-0">{{ loop.index }}</span>
+                        <span class="text-sm font-medium text-gray-900 truncate">{{ title.name }}</span>
+                    </div>
+                    <div class="flex items-center gap-4 flex-shrink-0">
+                        <span class="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600">
+                            <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+                            {{ title.candidates }}
+                        </span>
+                        <span class="inline-flex items-center gap-1.5 text-sm font-semibold text-green-600">
+                            <span class="w-1.5 h-1.5 rounded-full bg-green-400"></span>
+                            {{ title.jobs }}
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
             </div>
         </div>
     </div>
