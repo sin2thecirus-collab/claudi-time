@@ -84,6 +84,14 @@ class Step4Result:
 
 
 @dataclass
+class Step5Result:
+    """Ergebnis der Pre-Match-Generierung."""
+    combos_processed: int = 0
+    matches_created: int = 0
+    errors_count: int = 0
+
+
+@dataclass
 class PipelineResult:
     """Gesamtergebnis der Pipeline."""
     step0: Step0Result
@@ -91,10 +99,11 @@ class PipelineResult:
     step2: Step2Result
     step3: Step3Result
     step4: Step4Result
+    step5: Step5Result | None = None
     duration_seconds: float = 0.0
 
     def to_dict(self) -> dict:
-        return {
+        result = {
             "step0_geocoding": {
                 "candidates_geocoded": self.step0.candidates_geocoded,
                 "candidates_total": self.step0.candidates_total,
@@ -131,15 +140,26 @@ class PipelineResult:
             },
             "duration_seconds": round(self.duration_seconds, 1),
         }
+        if self.step5:
+            result["step5_pre_match"] = {
+                "combos_processed": self.step5.combos_processed,
+                "matches_created": self.step5.matches_created,
+                "errors_count": self.step5.errors_count,
+            }
+        return result
 
     def __repr__(self) -> str:
+        pre_match_info = ""
+        if self.step5:
+            pre_match_info = f", {self.step5.matches_created} Pre-Matches erstellt"
         return (
             f"Pipeline: "
             f"{self.step0.candidates_geocoded}+{self.step0.jobs_geocoded} geocodiert, "
             f"{self.step1.candidates_categorized} kategorisiert, "
             f"{self.step2.classified} klassifiziert, "
             f"{self.step3.matches_deleted} Matches geloescht, "
-            f"{self.step4.matches_updated} Distanzen aktualisiert "
+            f"{self.step4.matches_updated} Distanzen aktualisiert"
+            f"{pre_match_info} "
             f"({self.duration_seconds:.1f}s)"
         )
 
@@ -201,6 +221,18 @@ class PipelineService:
         if progress_callback:
             progress_callback("update_distances", {"status": "done", "result": step4})
 
+        # Step 5: Pre-Matches generieren (FINANCE)
+        step5 = None
+        try:
+            if progress_callback:
+                progress_callback("pre_match", {"status": "running"})
+            step5 = await self._step5_generate_pre_matches(progress_callback)
+            if progress_callback:
+                progress_callback("pre_match", {"status": "done", "result": step5})
+        except Exception as e:
+            logger.error(f"Step 5 (Pre-Match) fehlgeschlagen: {e}")
+            step5 = Step5Result(errors_count=1)
+
         duration = (datetime.now(timezone.utc) - start_time).total_seconds()
 
         result = PipelineResult(
@@ -209,6 +241,7 @@ class PipelineService:
             step2=step2,
             step3=step3,
             step4=step4,
+            step5=step5,
             duration_seconds=round(duration, 1),
         )
 
@@ -673,5 +706,36 @@ class PipelineService:
         logger.info(
             f"Pipeline Step4: {result.matches_updated} Distanzen aktualisiert, "
             f"{result.matches_removed} Matches > 25km"
+        )
+        return result
+
+    # ──────────────────────────────────────────────────
+    # Step 5: Pre-Matches automatisch generieren
+    # ──────────────────────────────────────────────────
+
+    async def _step5_generate_pre_matches(self, progress_callback=None) -> Step5Result:
+        """
+        Generiert Pre-Matches fuer FINANCE-Kategorie.
+
+        Findet alle Job-Kandidat-Paare im Umkreis von 30km
+        mit passendem Berufstitel und erstellt Match-Eintraege.
+        """
+        from app.services.pre_match_service import PreMatchService
+
+        result = Step5Result()
+
+        service = PreMatchService(self.db)
+        gen_result = await service.generate_all(
+            category="FINANCE",
+            progress_callback=progress_callback,
+        )
+
+        result.combos_processed = gen_result.combos_processed
+        result.matches_created = gen_result.matches_created
+        result.errors_count = len(gen_result.errors)
+
+        logger.info(
+            f"Pipeline Step5: {result.matches_created} Pre-Matches erstellt "
+            f"({result.combos_processed} Jobs verarbeitet)"
         )
         return result

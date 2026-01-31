@@ -122,6 +122,7 @@ from app.api.routes_pages import router as pages_router
 from app.api.routes_statistics import router as statistics_router
 from app.api.routes_alerts import router as alerts_router
 from app.api.routes_hotlisten import router as hotlisten_router
+from app.api.routes_pre_match import router as pre_match_router
 
 # Custom Exception Handlers registrieren
 register_exception_handlers(app)
@@ -129,6 +130,7 @@ register_exception_handlers(app)
 # Page Router registrieren (ohne Prefix fuer HTML-Seiten)
 app.include_router(pages_router)
 app.include_router(hotlisten_router)  # Hotlisten-Seiten + API (/hotlisten, /match-bereiche, /deepmatch)
+app.include_router(pre_match_router)  # Pre-Match-Seiten + API (/pre-match, /api/pre-match)
 
 # API Router registrieren (alle mit /api Prefix)
 app.include_router(jobs_router, prefix="/api")

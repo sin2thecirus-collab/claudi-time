@@ -49,12 +49,13 @@ _classification_status: dict = {
 _pipeline_status: dict = {
     "running": False,
     "started_at": None,
-    "step": None,  # "geocoding" / "categorize" / "classify" / "mark_stale" / "update_distances" / "done"
+    "step": None,  # "geocoding" / "categorize" / "classify" / "mark_stale" / "update_distances" / "pre_match" / "done"
     "step0_result": None,
     "step1_result": None,
     "step2_result": None,
     "step3_result": None,
     "step4_result": None,
+    "step5_result": None,
     "finished_at": None,
     "error": None,
 }
@@ -1085,6 +1086,13 @@ async def _run_pipeline_background():
                             "matches_updated": result.matches_updated,
                             "matches_removed": result.matches_removed,
                         }
+                    elif step_name == "pre_match" and result:
+                        if hasattr(result, 'combos_processed'):
+                            _pipeline_status["step5_result"] = {
+                                "combos_processed": result.combos_processed,
+                                "matches_created": result.matches_created,
+                                "errors_count": result.errors_count,
+                            }
 
             result = await pipeline.run_auto_pipeline(progress_callback=progress_callback)
 
