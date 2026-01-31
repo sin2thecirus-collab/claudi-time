@@ -571,14 +571,17 @@ class CVParserService:
         now = datetime.now(timezone.utc)
 
         # Persönliche Daten (überschreiben wenn leer ODER "Not Available")
-        _bad_names = {"not available", "unbekannt", "n/a", "na", ""}
-        if cv_data.first_name and (
-            not candidate.first_name or candidate.first_name.strip().lower() in _bad_names
-        ):
+        # CRM speichert oft first_name="Not", last_name="Available"
+        _bad_names = {"not available", "unbekannt", "n/a", "na", "", "not", "available", "unknown", "none"}
+        _full_name = f"{candidate.first_name or ''} {candidate.last_name or ''}".strip().lower()
+        _is_bad_name = (
+            _full_name in _bad_names
+            or (candidate.first_name or "").strip().lower() in _bad_names
+            or (candidate.last_name or "").strip().lower() in _bad_names
+        )
+        if cv_data.first_name and (not candidate.first_name or _is_bad_name):
             candidate.first_name = cv_data.first_name
-        if cv_data.last_name and (
-            not candidate.last_name or candidate.last_name.strip().lower() in _bad_names
-        ):
+        if cv_data.last_name and (not candidate.last_name or _is_bad_name):
             candidate.last_name = cv_data.last_name
 
         # Geburtsdatum parsen (immer aus CV übernehmen wenn vorhanden)
