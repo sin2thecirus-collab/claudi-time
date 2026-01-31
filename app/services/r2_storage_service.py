@@ -1,7 +1,20 @@
-"""Cloudflare R2 Object Storage Service fuer CV-Dateien."""
+"""Cloudflare R2 Object Storage Service fuer CV-Dateien.
+
+Ordnerstruktur im Bucket:
+    finance/
+        Mueller_Thomas_a3f2b1c4/
+            Lebenslauf_Mueller_Thomas.pdf
+    engineering/
+        Weber_Klaus_b2c3d4e5/
+            Lebenslauf_Weber_Klaus.pdf
+    sonstige/
+        Doe_Jane_f6g7h8i9/
+            Lebenslauf_Doe_Jane.pdf
+"""
 
 import logging
-import uuid
+import re
+import unicodedata
 
 import boto3
 from botocore.config import Config
@@ -31,8 +44,62 @@ def _get_s3_client():
     )
 
 
+def _sanitize_name(name: str) -> str:
+    """
+    Bereinigt einen Namen fuer Dateisystem-kompatible Pfade.
+
+    - Umlaute werden aufgeloest (ä→ae, ü→ue, ö→oe, ß→ss)
+    - Sonderzeichen werden entfernt
+    - Leerzeichen werden zu Unterstrichen
+    """
+    if not name:
+        return "Unbekannt"
+
+    # Deutsche Umlaute manuell ersetzen
+    replacements = {
+        "ä": "ae", "ö": "oe", "ü": "ue", "ß": "ss",
+        "Ä": "Ae", "Ö": "Oe", "Ü": "Ue",
+    }
+    for char, replacement in replacements.items():
+        name = name.replace(char, replacement)
+
+    # Unicode-Akzente entfernen (é→e, ñ→n, etc.)
+    name = unicodedata.normalize("NFD", name)
+    name = "".join(c for c in name if unicodedata.category(c) != "Mn")
+
+    # Nur Buchstaben, Zahlen, Leerzeichen und Bindestriche behalten
+    name = re.sub(r"[^a-zA-Z0-9\s\-]", "", name)
+
+    # Mehrfache Leerzeichen zu einem
+    name = re.sub(r"\s+", " ", name).strip()
+
+    # Leerzeichen zu Unterstrichen
+    name = name.replace(" ", "_")
+
+    return name or "Unbekannt"
+
+
+def _category_to_folder(hotlist_category: str | None) -> str:
+    """Mappt die Hotlist-Kategorie auf den R2-Ordnernamen."""
+    if not hotlist_category:
+        return "sonstige"
+
+    mapping = {
+        "FINANCE": "finance",
+        "ENGINEERING": "engineering",
+    }
+    return mapping.get(hotlist_category.upper(), "sonstige")
+
+
 class R2StorageService:
-    """Service fuer Upload/Download von CVs in Cloudflare R2."""
+    """Service fuer Upload/Download von CVs in Cloudflare R2.
+
+    Ordnerstruktur:
+        {kategorie}/{Nachname}_{Vorname}_{uuid_kurz}/Lebenslauf_{Nachname}_{Vorname}.pdf
+
+    Beispiel:
+        finance/Mueller_Thomas_a3f2b1c4/Lebenslauf_Mueller_Thomas.pdf
+    """
 
     def __init__(self):
         self.client = _get_s3_client()
@@ -43,25 +110,67 @@ class R2StorageService:
         """Prueft ob R2 konfiguriert und verfuegbar ist."""
         return self.client is not None
 
-    def _build_key(self, candidate_id: str, filename: str | None = None) -> str:
+    def build_cv_key(
+        self,
+        candidate_id: str,
+        first_name: str | None = None,
+        last_name: str | None = None,
+        hotlist_category: str | None = None,
+    ) -> str:
         """
         Baut den R2-Object-Key (Pfad) fuer einen CV.
 
-        Format: cvs/{candidate_uuid}.pdf
-        """
-        ext = "pdf"
-        if filename and "." in filename:
-            ext = filename.rsplit(".", 1)[-1].lower()
-        return f"cvs/{candidate_id}.{ext}"
+        Format: {kategorie}/{Nachname}_{Vorname}_{uuid_kurz}/Lebenslauf_{Nachname}_{Vorname}.pdf
 
-    def upload_cv(self, candidate_id: str, file_content: bytes, filename: str | None = None) -> str:
+        Args:
+            candidate_id: UUID des Kandidaten
+            first_name: Vorname
+            last_name: Nachname
+            hotlist_category: FINANCE / ENGINEERING / None
+
+        Returns:
+            R2 Object Key z.B. 'finance/Mueller_Thomas_a3f2b1c4/Lebenslauf_Mueller_Thomas.pdf'
+        """
+        folder = _category_to_folder(hotlist_category)
+        safe_first = _sanitize_name(first_name or "")
+        safe_last = _sanitize_name(last_name or "")
+
+        # Kurze UUID (erste 8 Zeichen) fuer Eindeutigkeit
+        uuid_short = str(candidate_id).replace("-", "")[:8]
+
+        # Ordnername: Nachname_Vorname_uuid
+        if safe_last and safe_first:
+            candidate_folder = f"{safe_last}_{safe_first}_{uuid_short}"
+            filename = f"Lebenslauf_{safe_last}_{safe_first}.pdf"
+        elif safe_last:
+            candidate_folder = f"{safe_last}_{uuid_short}"
+            filename = f"Lebenslauf_{safe_last}.pdf"
+        elif safe_first:
+            candidate_folder = f"{safe_first}_{uuid_short}"
+            filename = f"Lebenslauf_{safe_first}.pdf"
+        else:
+            candidate_folder = f"Kandidat_{uuid_short}"
+            filename = f"Lebenslauf_{uuid_short}.pdf"
+
+        return f"{folder}/{candidate_folder}/{filename}"
+
+    def upload_cv(
+        self,
+        candidate_id: str,
+        file_content: bytes,
+        first_name: str | None = None,
+        last_name: str | None = None,
+        hotlist_category: str | None = None,
+    ) -> str:
         """
         Laedt einen CV nach R2 hoch.
 
         Args:
             candidate_id: UUID des Kandidaten
             file_content: PDF-Bytes
-            filename: Optionaler Dateiname (fuer Extension)
+            first_name: Vorname des Kandidaten
+            last_name: Nachname des Kandidaten
+            hotlist_category: FINANCE / ENGINEERING / None
 
         Returns:
             R2 Object Key (Pfad im Bucket)
@@ -69,7 +178,7 @@ class R2StorageService:
         if not self.is_available:
             raise RuntimeError("R2 Storage nicht konfiguriert")
 
-        key = self._build_key(candidate_id, filename)
+        key = self.build_cv_key(candidate_id, first_name, last_name, hotlist_category)
 
         try:
             self.client.put_object(
@@ -84,15 +193,15 @@ class R2StorageService:
             logger.error(f"R2 Upload fehlgeschlagen fuer {key}: {e}")
             raise
 
-    def download_cv(self, key: str) -> bytes:
+    def download_cv(self, key: str) -> bytes | None:
         """
         Laedt einen CV aus R2 herunter.
 
         Args:
-            key: R2 Object Key (z.B. 'cvs/{uuid}.pdf')
+            key: R2 Object Key
 
         Returns:
-            PDF-Bytes
+            PDF-Bytes oder None wenn nicht gefunden
         """
         if not self.is_available:
             raise RuntimeError("R2 Storage nicht konfiguriert")
@@ -111,15 +220,7 @@ class R2StorageService:
             raise
 
     def delete_cv(self, key: str) -> bool:
-        """
-        Loescht einen CV aus R2.
-
-        Args:
-            key: R2 Object Key
-
-        Returns:
-            True wenn erfolgreich
-        """
+        """Loescht einen CV aus R2."""
         if not self.is_available:
             return False
 

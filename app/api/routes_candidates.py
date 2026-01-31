@@ -510,7 +510,7 @@ async def cv_preview_proxy(
 
     Reihenfolge:
     1. Aus R2 Object Storage (wenn cv_stored_path vorhanden)
-    2. Fallback: Vom CRM-Server holen und gleichzeitig in R2 speichern
+    2. Fallback: Vom CRM-Server holen (EINMALIG in R2 speichern)
     """
     from app.services.r2_storage_service import R2StorageService
 
@@ -525,7 +525,7 @@ async def cv_preview_proxy(
 
     r2 = R2StorageService()
 
-    # 1. Versuch: Aus R2 laden
+    # 1. Aus R2 laden (wenn bereits gespeichert)
     if candidate.cv_stored_path and r2.is_available:
         try:
             content = r2.download_cv(candidate.cv_stored_path)
@@ -553,13 +553,19 @@ async def cv_preview_proxy(
 
     pdf_content = response.content
 
-    # Gleichzeitig in R2 speichern (fire-and-forget)
+    # EINMALIG in R2 speichern (nur wenn noch nicht vorhanden)
     if r2.is_available and not candidate.cv_stored_path:
         try:
-            key = r2.upload_cv(str(candidate.id), pdf_content)
+            key = r2.upload_cv(
+                str(candidate.id),
+                pdf_content,
+                first_name=candidate.first_name,
+                last_name=candidate.last_name,
+                hotlist_category=candidate.hotlist_category,
+            )
             candidate.cv_stored_path = key
             await db.commit()
-            logger.info(f"CV fuer {candidate.id} automatisch in R2 gespeichert: {key}")
+            logger.info(f"CV fuer {candidate.full_name} einmalig in R2 gespeichert: {key}")
         except Exception as e:
             logger.warning(f"R2 Auto-Upload fehlgeschlagen fuer {candidate.id}: {e}")
 
@@ -617,7 +623,13 @@ async def migrate_cvs_to_r2(
                 response = await client.get(candidate.cv_url)
 
             if response.status_code == 200 and len(response.content) > 100:
-                key = r2.upload_cv(str(candidate.id), response.content)
+                key = r2.upload_cv(
+                    str(candidate.id),
+                    response.content,
+                    first_name=candidate.first_name,
+                    last_name=candidate.last_name,
+                    hotlist_category=candidate.hotlist_category,
+                )
                 candidate.cv_stored_path = key
                 migrated += 1
             else:
