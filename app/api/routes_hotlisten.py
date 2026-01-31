@@ -478,9 +478,12 @@ async def deepmatch_page(
     if city:
         query = query.where(Candidate.hotlist_city == city)
     if job_title:
-        # ANY() für Array-Match: Kandidat hat job_title in seinen hotlist_job_titles
+        # Kandidat hat job_title in hotlist_job_titles ODER als hotlist_job_title
         query = query.where(
-            func.coalesce(Candidate.hotlist_job_titles, func.array([Candidate.hotlist_job_title])).any(job_title)
+            or_(
+                Candidate.hotlist_job_titles.any(job_title),
+                Candidate.hotlist_job_title == job_title,
+            )
         )
 
     # Sortierung: pre_score DESC (beste zuerst), dann ai_score
