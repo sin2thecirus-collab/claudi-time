@@ -527,11 +527,9 @@ async def cv_preview_proxy(
     if response.status_code != 200:
         raise NotFoundException(message="CV konnte nicht geladen werden")
 
-    content_type = response.headers.get("content-type", "application/pdf")
-
     return StreamingResponse(
         iter([response.content]),
-        media_type=content_type,
+        media_type="application/pdf",
         headers={
             "Content-Disposition": "inline",
             "Cache-Control": "private, max-age=300",
