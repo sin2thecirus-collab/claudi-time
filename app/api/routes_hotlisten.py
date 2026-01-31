@@ -49,10 +49,12 @@ _classification_status: dict = {
 _pipeline_status: dict = {
     "running": False,
     "started_at": None,
-    "step": None,  # "categorize" / "classify" / "mark_stale" / "done"
+    "step": None,  # "geocoding" / "categorize" / "classify" / "mark_stale" / "update_distances" / "done"
+    "step0_result": None,
     "step1_result": None,
     "step2_result": None,
     "step3_result": None,
+    "step4_result": None,
     "finished_at": None,
     "error": None,
 }
@@ -987,10 +989,12 @@ async def trigger_pipeline():
     """
     Startet die Auto-Pipeline manuell (ohne CRM-Sync).
 
-    3 Schritte:
+    5 Schritte:
+    0. Geocoding neuer Kandidaten/Jobs (kostenlos, Nominatim)
     1. Kategorisierung geaenderter Kandidaten/Jobs (kostenlos)
     2. Klassifizierung geaenderter FINANCE-Kandidaten (OpenAI)
     3. Stale-Markierung betroffener Matches (kostenlos)
+    4. Distanz-Neuberechnung fuer Matches (kostenlos, PostGIS)
     """
     global _pipeline_status
 
@@ -1005,9 +1009,11 @@ async def trigger_pipeline():
         "running": True,
         "started_at": datetime.now(timezone.utc).isoformat(),
         "step": "starting",
+        "step0_result": None,
         "step1_result": None,
         "step2_result": None,
         "step3_result": None,
+        "step4_result": None,
         "finished_at": None,
         "error": None,
     }
@@ -1042,7 +1048,16 @@ async def _run_pipeline_background():
                 _pipeline_status["step"] = step_name
                 if detail.get("status") == "done":
                     result = detail.get("result")
-                    if step_name == "categorize" and result:
+                    if step_name == "geocoding" and result:
+                        _pipeline_status["step0_result"] = {
+                            "candidates_geocoded": result.candidates_geocoded,
+                            "candidates_total": result.candidates_total,
+                            "candidates_skipped": result.candidates_skipped,
+                            "jobs_geocoded": result.jobs_geocoded,
+                            "jobs_total": result.jobs_total,
+                            "jobs_skipped": result.jobs_skipped,
+                        }
+                    elif step_name == "categorize" and result:
                         _pipeline_status["step1_result"] = {
                             "candidates_categorized": result.candidates_categorized,
                             "candidates_checked": result.candidates_checked,
@@ -1064,6 +1079,12 @@ async def _run_pipeline_background():
                         _pipeline_status["step3_result"] = {
                             "matches_marked_stale": result.matches_marked_stale,
                             "pre_scores_reset": result.pre_scores_reset,
+                        }
+                    elif step_name == "update_distances" and result:
+                        _pipeline_status["step4_result"] = {
+                            "matches_checked": result.matches_checked,
+                            "matches_updated": result.matches_updated,
+                            "matches_removed": result.matches_removed,
                         }
 
             result = await pipeline.run_auto_pipeline(progress_callback=progress_callback)

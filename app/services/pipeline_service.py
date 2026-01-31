@@ -1,14 +1,18 @@
 """Pipeline Service - Automatische Reactive Pipeline nach CRM-Sync.
 
-Fuehrt 3 Schritte sequentiell aus:
+Fuehrt 5 Schritte sequentiell aus:
+0. Geocoding neuer/geaenderter Kandidaten + Jobs (kostenlos, Nominatim)
 1. Kategorisierung geaenderter Kandidaten (kostenlos, lokal)
 2. Klassifizierung geaenderter FINANCE-Kandidaten (OpenAI, ~$0.001/Kandidat)
 3. Stale-Markierung betroffener Matches (kostenlos, lokal)
+4. Distanz-Neuberechnung fuer Matches mit neuen Koordinaten (kostenlos, PostGIS)
 
 Erkennung "geaendert":
+- Step 0: address_coords IS NULL (Kandidaten) / location_coords IS NULL (Jobs)
 - Step 1: crm_synced_at > categorized_at ODER categorized_at IS NULL
 - Step 2: categorized_at > classification_data->>'classified_at' ODER classification_data IS NULL
 - Step 3: Vergleiche hotlist_job_titles VOR und NACH Klassifizierung
+- Step 4: Matches mit distance_km IS NULL aber beide Koordinaten vorhanden
 """
 
 import asyncio
@@ -29,6 +33,19 @@ logger = logging.getLogger(__name__)
 # ═══════════════════════════════════════════════════════════════
 # DATENKLASSEN
 # ═══════════════════════════════════════════════════════════════
+
+@dataclass
+class Step0Result:
+    """Ergebnis des Geocodings."""
+    candidates_total: int = 0
+    candidates_geocoded: int = 0
+    candidates_skipped: int = 0
+    candidates_failed: int = 0
+    jobs_total: int = 0
+    jobs_geocoded: int = 0
+    jobs_skipped: int = 0
+    jobs_failed: int = 0
+
 
 @dataclass
 class Step1Result:
@@ -60,15 +77,35 @@ class Step3Result:
 
 
 @dataclass
+class Step4Result:
+    """Ergebnis der Distanz-Neuberechnung."""
+    matches_checked: int = 0
+    matches_updated: int = 0
+    matches_removed: int = 0  # Matches die jetzt > 25km sind
+
+
+@dataclass
 class PipelineResult:
     """Gesamtergebnis der Pipeline."""
+    step0: Step0Result
     step1: Step1Result
     step2: Step2Result
     step3: Step3Result
+    step4: Step4Result
     duration_seconds: float = 0.0
 
     def to_dict(self) -> dict:
         return {
+            "step0_geocoding": {
+                "candidates_geocoded": self.step0.candidates_geocoded,
+                "candidates_total": self.step0.candidates_total,
+                "candidates_skipped": self.step0.candidates_skipped,
+                "candidates_failed": self.step0.candidates_failed,
+                "jobs_geocoded": self.step0.jobs_geocoded,
+                "jobs_total": self.step0.jobs_total,
+                "jobs_skipped": self.step0.jobs_skipped,
+                "jobs_failed": self.step0.jobs_failed,
+            },
             "step1_categorize": {
                 "candidates_checked": self.step1.candidates_checked,
                 "candidates_categorized": self.step1.candidates_categorized,
@@ -89,14 +126,22 @@ class PipelineResult:
                 "matches_marked_stale": self.step3.matches_marked_stale,
                 "pre_scores_reset": self.step3.pre_scores_reset,
             },
+            "step4_distances": {
+                "matches_checked": self.step4.matches_checked,
+                "matches_updated": self.step4.matches_updated,
+                "matches_removed": self.step4.matches_removed,
+            },
             "duration_seconds": round(self.duration_seconds, 1),
         }
 
     def __repr__(self) -> str:
         return (
-            f"Pipeline: {self.step1.candidates_categorized} kategorisiert, "
+            f"Pipeline: "
+            f"{self.step0.candidates_geocoded}+{self.step0.jobs_geocoded} geocodiert, "
+            f"{self.step1.candidates_categorized} kategorisiert, "
             f"{self.step2.classified} klassifiziert, "
-            f"{self.step3.matches_marked_stale} stale markiert "
+            f"{self.step3.matches_marked_stale} stale markiert, "
+            f"{self.step4.matches_updated} Distanzen aktualisiert "
             f"({self.duration_seconds:.1f}s)"
         )
 
@@ -106,7 +151,7 @@ class PipelineResult:
 # ═══════════════════════════════════════════════════════════════
 
 class PipelineService:
-    """Automatische Pipeline: Kategorisierung → Klassifizierung → Stale-Markierung."""
+    """Automatische Pipeline: Geocoding → Kategorisierung → Klassifizierung → Stale → Distanzen."""
 
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -116,12 +161,19 @@ class PipelineService:
         progress_callback=None,
     ) -> PipelineResult:
         """
-        Fuehrt alle 3 Schritte sequentiell aus.
+        Fuehrt alle 5 Schritte sequentiell aus.
 
         Args:
             progress_callback: Optional callback(step_name, detail_dict)
         """
         start_time = datetime.now(timezone.utc)
+
+        # Step 0: Geocoding (kostenlos, Nominatim API)
+        if progress_callback:
+            progress_callback("geocoding", {"status": "running"})
+        step0 = await self._step0_geocode_pending()
+        if progress_callback:
+            progress_callback("geocoding", {"status": "done", "result": step0})
 
         # Step 1: Kategorisierung (kostenlos, lokal)
         if progress_callback:
@@ -144,16 +196,99 @@ class PipelineService:
         if progress_callback:
             progress_callback("mark_stale", {"status": "done", "result": step3})
 
+        # Step 4: Distanzen neu berechnen fuer Matches ohne distance_km
+        if progress_callback:
+            progress_callback("update_distances", {"status": "running"})
+        step4 = await self._step4_update_match_distances()
+        if progress_callback:
+            progress_callback("update_distances", {"status": "done", "result": step4})
+
         duration = (datetime.now(timezone.utc) - start_time).total_seconds()
 
         result = PipelineResult(
+            step0=step0,
             step1=step1,
             step2=step2,
             step3=step3,
+            step4=step4,
             duration_seconds=round(duration, 1),
         )
 
         logger.info(f"=== PIPELINE ABGESCHLOSSEN === {result}")
+        return result
+
+    # ──────────────────────────────────────────────────
+    # Step 0: Geocoding neuer Kandidaten/Jobs
+    # ──────────────────────────────────────────────────
+
+    async def _step0_geocode_pending(self) -> Step0Result:
+        """
+        Geocodiert Kandidaten und Jobs die noch keine Koordinaten haben.
+
+        Verwendet OpenStreetMap Nominatim (kostenlos, 1 Request/Sekunde).
+        Nur Eintraege MIT Stadt/Adresse werden verarbeitet.
+        """
+        from app.services.geocoding_service import GeocodingService
+
+        result = Step0Result()
+        geo_service = GeocodingService(self.db)
+
+        try:
+            # --- Kandidaten ohne Koordinaten ---
+            cand_query = select(Candidate).where(
+                Candidate.address_coords.is_(None),
+                Candidate.deleted_at.is_(None),
+                Candidate.city.isnot(None),
+                Candidate.city != "",
+            )
+            candidates = (await self.db.execute(cand_query)).scalars().all()
+            result.candidates_total = len(candidates)
+
+            for candidate in candidates:
+                try:
+                    success = await geo_service.geocode_candidate(candidate)
+                    if success:
+                        result.candidates_geocoded += 1
+                    else:
+                        result.candidates_skipped += 1
+                except Exception as e:
+                    result.candidates_failed += 1
+                    logger.error(f"Pipeline Step0: Geocoding Kandidat {candidate.id} fehlgeschlagen: {e}")
+
+            if candidates:
+                await self.db.commit()
+
+            # --- Jobs ohne Koordinaten ---
+            job_query = select(Job).where(
+                Job.location_coords.is_(None),
+                Job.deleted_at.is_(None),
+                Job.city.isnot(None),
+                Job.city != "",
+            )
+            jobs = (await self.db.execute(job_query)).scalars().all()
+            result.jobs_total = len(jobs)
+
+            for job in jobs:
+                try:
+                    success = await geo_service.geocode_job(job)
+                    if success:
+                        result.jobs_geocoded += 1
+                    else:
+                        result.jobs_skipped += 1
+                except Exception as e:
+                    result.jobs_failed += 1
+                    logger.error(f"Pipeline Step0: Geocoding Job {job.id} fehlgeschlagen: {e}")
+
+            if jobs:
+                await self.db.commit()
+
+        finally:
+            await geo_service.close()
+
+        logger.info(
+            f"Pipeline Step0: {result.candidates_geocoded}/{result.candidates_total} Kandidaten "
+            f"+ {result.jobs_geocoded}/{result.jobs_total} Jobs geocodiert"
+        )
         return result
 
     # ──────────────────────────────────────────────────
@@ -428,5 +563,105 @@ class PipelineService:
         logger.info(
             f"Pipeline Step3: {result.matches_marked_stale} Matches als stale markiert, "
             f"{result.pre_scores_reset} Pre-Scores zurueckgesetzt"
+        )
+        return result
+
+    # ──────────────────────────────────────────────────
+    # Step 4: Distanzen fuer Matches neu berechnen
+    # ──────────────────────────────────────────────────
+
+    async def _step4_update_match_distances(self) -> Step4Result:
+        """
+        Berechnet distance_km neu fuer alle Matches wo:
+        - distance_km IS NULL (noch nie berechnet)
+        - ABER beide Seiten Koordinaten haben
+
+        Verwendet PostGIS ST_Distance fuer genaue Erdkugel-Berechnung.
+        Entfernt Matches die jetzt > 25km sind (nach Geocoding-Korrektur).
+        """
+        from geoalchemy2.functions import ST_Distance
+
+        result = Step4Result()
+
+        MAX_DISTANCE_KM = 25
+        METERS_PER_KM = 1000
+
+        # Alle Matches wo distance_km NULL ist, aber beide Koordinaten vorhanden
+        query = (
+            select(Match, Candidate, Job)
+            .join(Candidate, Match.candidate_id == Candidate.id)
+            .join(Job, Match.job_id == Job.id)
+            .where(
+                Match.distance_km.is_(None),
+                Candidate.address_coords.isnot(None),
+                Job.location_coords.isnot(None),
+            )
+        )
+        rows = (await self.db.execute(query)).all()
+        result.matches_checked = len(rows)
+
+        if not rows:
+            logger.info("Pipeline Step4: Keine Matches ohne Distanz gefunden")
+            return result
+
+        # Distanz per SQL berechnen (effizienter als einzeln)
+        # Wir machen es in Batches per Match-ID
+        match_ids = [row[0].id for row in rows]
+
+        # Bulk-Distanzberechnung via SQL
+        dist_query = (
+            select(
+                Match.id,
+                ST_Distance(
+                    Candidate.address_coords,
+                    Job.location_coords,
+                    True,  # use_spheroid fuer genaue Berechnung
+                ).label("distance_m"),
+            )
+            .join(Candidate, Match.candidate_id == Candidate.id)
+            .join(Job, Match.job_id == Job.id)
+            .where(Match.id.in_(match_ids))
+        )
+        dist_rows = (await self.db.execute(dist_query)).all()
+
+        # Distanzen als Dict: match_id → distance_km
+        distances = {row[0]: row[1] / METERS_PER_KM for row in dist_rows}
+
+        # Matches aktualisieren
+        matches_to_remove = []
+        for match_obj, candidate, job in rows:
+            dist_km = distances.get(match_obj.id)
+            if dist_km is None:
+                continue
+
+            if dist_km > MAX_DISTANCE_KM:
+                # Match ist zu weit weg → entfernen
+                matches_to_remove.append(match_obj.id)
+                result.matches_removed += 1
+            else:
+                match_obj.distance_km = round(dist_km, 2)
+                result.matches_updated += 1
+
+        # Zu weit entfernte Matches loeschen (nur wenn keine KI-Bewertung)
+        if matches_to_remove:
+            from sqlalchemy import delete as sa_delete
+            delete_stmt = (
+                sa_delete(Match)
+                .where(
+                    Match.id.in_(matches_to_remove),
+                    Match.ai_score.is_(None),  # Nur ohne KI-Bewertung loeschen
+                )
+            )
+            del_result = await self.db.execute(delete_stmt)
+            # Matches mit KI-Bewertung behalten aber distance setzen
+            kept_count = len(matches_to_remove) - del_result.rowcount
+            if kept_count > 0:
+                logger.info(f"Pipeline Step4: {kept_count} Matches > 25km behalten (haben KI-Score)")
+
+        await self.db.commit()
+
+        logger.info(
+            f"Pipeline Step4: {result.matches_updated} Distanzen aktualisiert, "
+            f"{result.matches_removed} Matches > 25km"
         )
         return result
