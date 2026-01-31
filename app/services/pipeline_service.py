@@ -71,9 +71,8 @@ class Step2Result:
 
 @dataclass
 class Step3Result:
-    """Ergebnis der Stale-Markierung."""
-    matches_marked_stale: int = 0
-    pre_scores_reset: int = 0
+    """Ergebnis der Loeschung veralteter Matches."""
+    matches_deleted: int = 0
 
 
 @dataclass
@@ -122,9 +121,8 @@ class PipelineResult:
                 "changed_titles": len(self.step2.changed_candidate_ids),
                 "cost_usd": round(self.step2.cost_usd, 4),
             },
-            "step3_stale": {
-                "matches_marked_stale": self.step3.matches_marked_stale,
-                "pre_scores_reset": self.step3.pre_scores_reset,
+            "step3_cleanup": {
+                "matches_deleted": self.step3.matches_deleted,
             },
             "step4_distances": {
                 "matches_checked": self.step4.matches_checked,
@@ -140,7 +138,7 @@ class PipelineResult:
             f"{self.step0.candidates_geocoded}+{self.step0.jobs_geocoded} geocodiert, "
             f"{self.step1.candidates_categorized} kategorisiert, "
             f"{self.step2.classified} klassifiziert, "
-            f"{self.step3.matches_marked_stale} stale markiert, "
+            f"{self.step3.matches_deleted} Matches geloescht, "
             f"{self.step4.matches_updated} Distanzen aktualisiert "
             f"({self.duration_seconds:.1f}s)"
         )
@@ -189,12 +187,12 @@ class PipelineService:
         if progress_callback:
             progress_callback("classify", {"status": "done", "result": step2})
 
-        # Step 3: Stale-Markierung
+        # Step 3: Veraltete Matches loeschen
         if progress_callback:
-            progress_callback("mark_stale", {"status": "running"})
-        step3 = await self._step3_mark_stale_matches(step2.changed_candidate_ids)
+            progress_callback("delete_stale", {"status": "running"})
+        step3 = await self._step3_delete_stale_matches(step2.changed_candidate_ids)
         if progress_callback:
-            progress_callback("mark_stale", {"status": "done", "result": step3})
+            progress_callback("delete_stale", {"status": "done", "result": step3})
 
         # Step 4: Distanzen neu berechnen fuer Matches ohne distance_km
         if progress_callback:
@@ -542,49 +540,39 @@ class PipelineService:
         return result
 
     # ──────────────────────────────────────────────────
-    # Step 3: Stale-Markierung betroffener Matches
+    # Step 3: Veraltete Matches loeschen
     # ──────────────────────────────────────────────────
 
-    async def _step3_mark_stale_matches(
+    async def _step3_delete_stale_matches(
         self,
         changed_candidate_ids: list,
     ) -> Step3Result:
         """
-        Markiert Matches als stale fuer Kandidaten deren Titel sich geaendert haben.
+        Loescht Matches fuer Kandidaten deren Jobtitel sich geaendert haben.
 
-        Setzt auch pre_score auf NULL zurueck (wird bei naechstem Quick-Match neu berechnet).
+        Wenn sich der Jobtitel aendert sind die alten Matches wertlos
+        und werden direkt geloescht statt nur markiert.
         """
+        from sqlalchemy import delete as sa_delete
+
         result = Step3Result()
 
         if not changed_candidate_ids:
-            logger.info("Pipeline Step3: Keine geaenderten Kandidaten → keine stale Matches")
+            logger.info("Pipeline Step3: Keine geaenderten Kandidaten → nichts zu loeschen")
             return result
 
-        now = datetime.now(timezone.utc)
-
-        # Bulk-Update: Alle Matches der geaenderten Kandidaten als stale markieren
-        stale_update = (
-            update(Match)
-            .where(
-                Match.candidate_id.in_(changed_candidate_ids),
-                or_(Match.stale.is_(False), Match.stale.is_(None)),
-            )
-            .values(
-                stale=True,
-                stale_reason="Kandidaten-Jobtitel geaendert (Pipeline)",
-                stale_since=now,
-                pre_score=None,  # Reset: muss neu berechnet werden
-            )
+        # Alle Matches der geaenderten Kandidaten loeschen
+        delete_stmt = (
+            sa_delete(Match)
+            .where(Match.candidate_id.in_(changed_candidate_ids))
         )
-        stale_result = await self.db.execute(stale_update)
-        result.matches_marked_stale = stale_result.rowcount
-        result.pre_scores_reset = stale_result.rowcount
+        del_result = await self.db.execute(delete_stmt)
+        result.matches_deleted = del_result.rowcount
 
         await self.db.commit()
 
         logger.info(
-            f"Pipeline Step3: {result.matches_marked_stale} Matches als stale markiert, "
-            f"{result.pre_scores_reset} Pre-Scores zurueckgesetzt"
+            f"Pipeline Step3: {result.matches_deleted} veraltete Matches geloescht"
         )
         return result
 

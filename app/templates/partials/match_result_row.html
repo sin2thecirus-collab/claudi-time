@@ -12,16 +12,7 @@
 
     {# ── Score Badge ── #}
     <div class="col-span-1 text-center">
-        {% if match.stale %}
-        {# Stale Match: ausgegraut mit Warnung #}
-        <div class="relative">
-            <span class="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-gray-200 to-gray-300 text-gray-400 text-sm font-bold opacity-60"
-                  title="{{ match.stale_reason or 'Veraltet' }}">
-                {% if score_val > 0 %}{{ score_val }}{% else %}–{% endif %}
-            </span>
-            <span class="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 text-[8px] text-white font-bold" title="Veraltet — Score muss neu berechnet werden">!</span>
-        </div>
-        {% elif score_val >= 70 %}
+        {% if score_val >= 70 %}
         <span class="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-green-400 to-green-600 text-white text-sm font-bold shadow-sm shadow-green-200">
             {{ score_val }}
         </span>

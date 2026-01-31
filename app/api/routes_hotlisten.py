@@ -1075,10 +1075,9 @@ async def _run_pipeline_background():
                             "changed_titles": len(result.changed_candidate_ids),
                             "cost_usd": round(result.cost_usd, 4),
                         }
-                    elif step_name == "mark_stale" and result:
+                    elif step_name == "delete_stale" and result:
                         _pipeline_status["step3_result"] = {
-                            "matches_marked_stale": result.matches_marked_stale,
-                            "pre_scores_reset": result.pre_scores_reset,
+                            "matches_deleted": result.matches_deleted,
                         }
                     elif step_name == "update_distances" and result:
                         _pipeline_status["step4_result"] = {
