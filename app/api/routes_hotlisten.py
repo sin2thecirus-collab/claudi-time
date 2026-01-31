@@ -29,8 +29,6 @@ from app.services.categorization_service import CategorizationService, HotlistCa
 from app.services.pre_scoring_service import PreScoringService
 from app.services.deepmatch_service import DeepMatchService
 from app.services.finance_classifier_service import FinanceClassifierService
-from app.services.matching_service import MatchingService
-
 logger = logging.getLogger(__name__)
 
 # ═══════════════════════════════════════════════════════════════
@@ -817,17 +815,22 @@ async def trigger_deepmatch_matching(
     """
     Erstellt Matches + Pre-Scores für eine Kategorie/Stadt/JobTitle-Kombi.
 
-    1. Findet alle Jobs dieser Kategorie/Stadt/JobTitle
-    2. Berechnet Matches (PostGIS Distanz + Keywords)
+    Funktioniert auch OHNE Geo-Koordinaten: Matching basiert auf
+    Kategorie + Stadt + Job-Title Übereinstimmung.
+
+    1. Findet passende Jobs und Kandidaten
+    2. Erstellt Match-Einträge (falls noch nicht vorhanden)
     3. Berechnet Pre-Scores
     4. Gibt Redirect-URL zurück
     """
-    # 1. Jobs finden die zu Kategorie/Stadt/JobTitle passen
+    from app.models.match import Match as MatchModel, MatchStatus
+    from app.services.keyword_matcher import keyword_matcher
+
+    # 1. Jobs finden (OHNE location_coords-Pflicht)
     jobs_query = select(Job).where(
         and_(
             Job.hotlist_category == category,
             Job.deleted_at.is_(None),
-            Job.location_coords.is_not(None),
         )
     )
     if city:
@@ -843,23 +846,99 @@ async def trigger_deepmatch_matching(
     result = await db.execute(jobs_query)
     jobs = result.scalars().all()
 
-    if not jobs:
-        return {"status": "no_jobs", "matches_created": 0, "scored": 0}
+    # 2. Kandidaten finden
+    cand_query = select(Candidate).where(
+        and_(
+            Candidate.hotlist_category == category,
+            Candidate.deleted_at.is_(None),
+        )
+    )
+    if city:
+        cand_query = cand_query.where(Candidate.hotlist_city == city)
+    if job_title:
+        cand_query = cand_query.where(
+            or_(
+                Candidate.hotlist_job_titles.any(job_title),
+                Candidate.hotlist_job_title == job_title,
+            )
+        )
 
-    # 2. Matching: Für jeden Job Kandidaten im Umkreis finden
-    matching_service = MatchingService(db)
+    cand_result = await db.execute(cand_query)
+    candidates = cand_result.scalars().all()
+
+    if not jobs or not candidates:
+        return {"status": "no_data", "jobs": len(jobs) if jobs else 0,
+                "candidates": len(candidates) if candidates else 0,
+                "matches_created": 0, "scored": 0}
+
+    # 3. Matches erstellen (Kreuzprodukt: jeder Kandidat × jeder Job)
     total_created = 0
-    total_updated = 0
+    total_skipped = 0
 
     for job in jobs:
-        try:
-            match_result = await matching_service.calculate_matches_for_job(job.id)
-            total_created += match_result.matches_created
-            total_updated += match_result.matches_updated
-        except Exception as e:
-            logger.error(f"Matching-Fehler für Job {job.id}: {e}")
+        for candidate in candidates:
+            # Prüfen ob Match schon existiert
+            existing = await db.execute(
+                select(MatchModel.id).where(
+                    and_(
+                        MatchModel.job_id == job.id,
+                        MatchModel.candidate_id == candidate.id,
+                    )
+                )
+            )
+            if existing.scalar_one_or_none():
+                total_skipped += 1
+                continue
 
-    # 3. Pre-Scoring
+            # Keyword-Score berechnen (falls möglich)
+            kw_score = 0.0
+            matched_kw = []
+            try:
+                kw_result = keyword_matcher.match(
+                    candidate_skills=candidate.skills,
+                    job_text=job.job_text,
+                )
+                kw_score = round(kw_result.keyword_score, 3)
+                matched_kw = kw_result.matched_keywords
+            except Exception:
+                pass
+
+            # Distanz berechnen (falls beide Koordinaten haben)
+            distance = None
+            if job.location_coords is not None and candidate.address_coords is not None:
+                try:
+                    from geoalchemy2.functions import ST_Distance
+                    dist_result = await db.execute(
+                        select(
+                            (ST_Distance(
+                                Job.location_coords,
+                                Candidate.address_coords,
+                                True,
+                            ) / 1000.0).label("dist_km")
+                        ).where(
+                            and_(Job.id == job.id, Candidate.id == candidate.id)
+                        )
+                    )
+                    distance = dist_result.scalar()
+                    if distance is not None:
+                        distance = round(distance, 2)
+                except Exception:
+                    pass
+
+            new_match = MatchModel(
+                job_id=job.id,
+                candidate_id=candidate.id,
+                distance_km=distance,
+                keyword_score=kw_score,
+                matched_keywords=matched_kw,
+                status=MatchStatus.NEW,
+            )
+            db.add(new_match)
+            total_created += 1
+
+    await db.commit()
+
+    # 4. Pre-Scoring
     pre_service = PreScoringService(db)
     pre_result = await pre_service.score_matches_for_category(
         category=category,
@@ -869,21 +948,22 @@ async def trigger_deepmatch_matching(
 
     logger.info(
         f"DeepMatch-Trigger: {category}/{city}/{job_title} → "
-        f"{total_created} neue Matches, {pre_result.scored} gescort"
+        f"{total_created} neue Matches, {total_skipped} übersprungen, "
+        f"{pre_result.scored} gescort"
     )
 
-    # 4. Redirect-URL bauen
+    # 5. Redirect-URL bauen
+    from urllib.parse import quote
     redirect_url = f"/deepmatch?category={category}"
     if city:
-        redirect_url += f"&city={city}"
+        redirect_url += f"&city={quote(city)}"
     if job_title:
-        from urllib.parse import quote
         redirect_url += f"&job_title={quote(job_title)}"
 
     return {
         "status": "ok",
         "matches_created": total_created,
-        "matches_updated": total_updated,
+        "matches_skipped": total_skipped,
         "scored": pre_result.scored,
         "avg_score": pre_result.avg_score,
         "redirect_url": redirect_url,
