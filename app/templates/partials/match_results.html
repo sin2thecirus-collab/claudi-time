@@ -1,0 +1,76 @@
+{# ═══════════════════════════════════════════════════════════
+   HTMX Partial: Inline Match-Ergebnis-Tabelle
+   Wird per GET /partials/match-results geladen
+   Variablen: matches (list[(Match, Candidate, Job)]), category, city, job_title, total
+═══════════════════════════════════════════════════════════ #}
+
+<div class="border-t border-gray-200">
+    {# Header #}
+    <div class="px-6 py-3 bg-gradient-to-r from-primary-50/80 to-transparent flex items-center justify-between">
+        <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-primary-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+            </svg>
+            <span class="text-sm font-semibold text-gray-700">{{ total }} Match{{ 'es' if total != 1 }} gefunden</span>
+        </div>
+        <a href="/deepmatch?category={{ category }}&city={{ city | urlencode }}&job_title={{ job_title | urlencode }}"
+           class="text-xs text-gray-400 hover:text-primary-600 transition-colors flex items-center gap-1">
+            Erweiterte Ansicht
+            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+            </svg>
+        </a>
+    </div>
+
+    {# Tabellen-Header #}
+    <div class="grid grid-cols-12 gap-2 px-6 py-2 bg-gray-50/80 text-[11px] font-semibold text-gray-400 uppercase tracking-wider border-t border-gray-100">
+        <div class="col-span-1 text-center">Score</div>
+        <div class="col-span-3">Kandidat</div>
+        <div class="col-span-2">Position</div>
+        <div class="col-span-2">Job / Firma</div>
+        <div class="col-span-1 text-center">km</div>
+        <div class="col-span-1 text-center">KI</div>
+        <div class="col-span-2 text-right">Aktionen</div>
+    </div>
+
+    {# Match-Zeilen #}
+    {% for match, candidate, job in matches %}
+    <div id="match-row-{{ match.id }}" class="border-t border-gray-50">
+        {% include "partials/match_result_row.html" %}
+    </div>
+    {% endfor %}
+</div>
+
+<script>
+{# Globale Funktion fuer KI-Bewertung — einmal pro Ergebnis-Tabelle #}
+if (typeof triggerDeepMatch === 'undefined') {
+    window.triggerDeepMatch = async function(matchId) {
+        const rowEl = document.getElementById('match-row-' + matchId);
+        if (!rowEl) return;
+
+        const btn = rowEl.querySelector('button[onclick*="triggerDeepMatch"]');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<svg class="animate-spin h-4 w-4 text-primary-500" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>';
+        }
+
+        try {
+            const resp = await fetch('/partials/deepmatch-single/' + matchId, { method: 'POST' });
+            if (resp.ok) {
+                rowEl.innerHTML = await resp.text();
+            } else {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<svg class="w-4 h-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" /></svg>';
+                    btn.title = 'Fehler — erneut versuchen';
+                }
+            }
+        } catch (e) {
+            if (btn) {
+                btn.disabled = false;
+                btn.title = 'Netzwerkfehler: ' + e.message;
+            }
+        }
+    };
+}
+</script>

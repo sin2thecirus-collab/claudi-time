@@ -1,0 +1,181 @@
+{# ═══════════════════════════════════════════════════════════
+   HTMX Partial: Einzelne Match-Ergebnis-Zeile
+   Wird in match_results.html inkludiert und per POST /partials/deepmatch-single/{match_id} ersetzt
+   Variablen: match (Match), candidate (Candidate), job (Job)
+═══════════════════════════════════════════════════════════ #}
+
+{% set score = match.ai_score if match.ai_score is not none else match.pre_score %}
+{% set score_val = score | default(0, true) | round | int %}
+
+<div class="grid grid-cols-12 gap-2 items-center px-6 py-3 hover:bg-gray-50/80 transition-colors group"
+     x-data="{ showDetails: false }">
+
+    {# ── Score Badge ── #}
+    <div class="col-span-1 text-center">
+        {% if score_val >= 70 %}
+        <span class="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-green-400 to-green-600 text-white text-sm font-bold shadow-sm shadow-green-200">
+            {{ score_val }}
+        </span>
+        {% elif score_val >= 40 %}
+        <span class="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-white text-sm font-bold shadow-sm shadow-amber-200">
+            {{ score_val }}
+        </span>
+        {% else %}
+        <span class="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-gray-300 to-gray-400 text-white text-sm font-bold">
+            {{ score_val }}
+        </span>
+        {% endif %}
+    </div>
+
+    {# ── Kandidat ── #}
+    <div class="col-span-3 min-w-0">
+        <div class="flex items-center gap-2">
+            <div class="flex-shrink-0 w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-500">
+                {% if candidate.first_name and candidate.last_name %}
+                    {{ candidate.first_name[0] }}{{ candidate.last_name[0] }}
+                {% else %}
+                    ?
+                {% endif %}
+            </div>
+            <div class="min-w-0">
+                {% if candidate.first_name or candidate.last_name %}
+                <a href="/candidates/{{ candidate.id }}" class="text-sm font-semibold text-gray-900 hover:text-primary-600 transition-colors truncate block">
+                    {{ candidate.first_name or '' }} {{ candidate.last_name or '' }}
+                </a>
+                {% else %}
+                <span class="text-sm font-medium text-gray-400 italic">Unbekannt</span>
+                {% endif %}
+                <p class="text-xs text-gray-400 truncate">{{ candidate.city or '' }}</p>
+            </div>
+        </div>
+    </div>
+
+    {# ── Position (Kandidat) ── #}
+    <div class="col-span-2 min-w-0">
+        <p class="text-sm text-gray-600 truncate">{{ candidate.current_position or candidate.hotlist_job_title or '–' }}</p>
+    </div>
+
+    {# ── Job / Firma ── #}
+    <div class="col-span-2 min-w-0">
+        <p class="text-sm text-gray-900 font-medium truncate">{{ job.company_name or '–' }}</p>
+        <p class="text-xs text-gray-400 truncate">{{ job.position or '–' }}</p>
+    </div>
+
+    {# ── Distanz ── #}
+    <div class="col-span-1 text-center">
+        {% if match.distance_km is not none %}
+        <span class="text-sm font-medium {% if match.distance_km <= 5 %}text-green-600{% elif match.distance_km <= 15 %}text-amber-600{% else %}text-gray-500{% endif %}">
+            {{ match.distance_km | round(1) }}
+        </span>
+        {% else %}
+        <span class="text-xs text-gray-300">–</span>
+        {% endif %}
+    </div>
+
+    {# ── KI-Bewertung Button ── #}
+    <div class="col-span-1 text-center">
+        {% if match.ai_score is not none %}
+            {# KI wurde schon gemacht → Score + aufklappbar #}
+            <button @click="showDetails = !showDetails"
+                    class="inline-flex items-center justify-center w-8 h-8 rounded-lg transition-colors
+                    {% if match.ai_score >= 70 %}bg-green-100 text-green-600 hover:bg-green-200
+                    {% elif match.ai_score >= 40 %}bg-amber-100 text-amber-600 hover:bg-amber-200
+                    {% else %}bg-gray-100 text-gray-500 hover:bg-gray-200{% endif %}"
+                    title="KI-Score: {{ match.ai_score | round | int }} — Klicken fuer Details">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                </svg>
+            </button>
+        {% else %}
+            {# KI noch nicht gemacht → Trigger-Button #}
+            <button onclick="triggerDeepMatch('{{ match.id }}')"
+                    class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-primary-50 text-primary-500 hover:bg-primary-100 hover:text-primary-700 transition-colors"
+                    title="KI-Bewertung starten">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                </svg>
+            </button>
+        {% endif %}
+    </div>
+
+    {# ── Aktionen ── #}
+    <div class="col-span-2 text-right flex items-center justify-end gap-1.5">
+        <a href="/candidates/{{ candidate.id }}"
+           class="inline-flex items-center gap-1 rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200 px-2 py-1.5 text-xs font-medium transition-colors"
+           title="Kandidaten-Profil">
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0" />
+            </svg>
+            Profil
+        </a>
+        {% if match.matched_keywords %}
+        <span class="inline-flex items-center gap-1 rounded-md bg-blue-50 text-blue-600 px-2 py-1.5 text-xs font-medium" title="{{ match.matched_keywords | join(', ') }}">
+            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" />
+            </svg>
+            {{ match.matched_keywords | length }}
+        </span>
+        {% endif %}
+    </div>
+</div>
+
+{# ── KI-Details (aufklappbar) ── #}
+{% if match.ai_score is not none %}
+<div x-show="showDetails" x-transition:enter="transition ease-out duration-200"
+     x-transition:enter-start="opacity-0 -translate-y-1"
+     x-transition:enter-end="opacity-100 translate-y-0"
+     class="px-6 py-3 bg-gray-50 border-t border-gray-100">
+    <div class="grid grid-cols-12 gap-4">
+        {# Score-Vergleich #}
+        <div class="col-span-2">
+            <div class="flex items-center gap-3">
+                <div class="text-center">
+                    <p class="text-[10px] text-gray-400 uppercase tracking-wide">Pre</p>
+                    <p class="text-lg font-bold text-gray-400">{{ match.pre_score | default(0, true) | round | int }}</p>
+                </div>
+                <svg class="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                </svg>
+                <div class="text-center">
+                    <p class="text-[10px] text-primary-500 uppercase tracking-wide font-semibold">KI</p>
+                    <p class="text-lg font-bold {% if match.ai_score >= 70 %}text-green-600{% elif match.ai_score >= 40 %}text-amber-600{% else %}text-gray-500{% endif %}">
+                        {{ match.ai_score | round | int }}
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        {# Erklaerung #}
+        <div class="col-span-6">
+            {% if match.ai_explanation %}
+            <p class="text-xs text-gray-600 leading-relaxed">{{ match.ai_explanation }}</p>
+            {% endif %}
+        </div>
+
+        {# Staerken / Schwaechen #}
+        <div class="col-span-4">
+            {% if match.ai_strengths %}
+            <div class="flex flex-wrap gap-1 mb-1">
+                {% for s in match.ai_strengths[:3] %}
+                <span class="inline-flex items-center rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-medium text-green-700">
+                    <svg class="w-2.5 h-2.5 mr-0.5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                    {{ s }}
+                </span>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% if match.ai_weaknesses %}
+            <div class="flex flex-wrap gap-1">
+                {% for w in match.ai_weaknesses[:3] %}
+                <span class="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-medium text-red-700">
+                    <svg class="w-2.5 h-2.5 mr-0.5 text-red-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                    {{ w }}
+                </span>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}
+

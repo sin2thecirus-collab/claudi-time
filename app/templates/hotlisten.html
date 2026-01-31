@@ -149,6 +149,22 @@
                     </div>
                 </div>
 
+                {# Top-Berufe Tags #}
+                {% if cat.top_titles %}
+                <div class="mb-4">
+                    <p class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Top Berufe</p>
+                    <div class="flex flex-wrap gap-2">
+                        {% for t in cat.top_titles %}
+                        <span class="inline-flex items-center gap-1.5 rounded-full {% if cat.color == 'blue' %}bg-blue-50 text-blue-700{% else %}bg-green-50 text-green-700{% endif %} px-3 py-1.5 text-xs font-medium"
+                              title="{{ t.count }} Kandidaten">
+                            {{ t.name }}
+                            <span class="{% if cat.color == 'blue' %}text-blue-400{% else %}text-green-400{% endif %} text-[10px]">({{ t.count }})</span>
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
                 {# CTA #}
                 <div class="flex items-center justify-between pt-4 border-t border-gray-100">
                     <span class="text-sm font-medium text-{{ cat.color }}-600 group-hover:text-{{ cat.color }}-700 transition-colors">

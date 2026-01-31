@@ -1,9 +1,9 @@
-"""Hotlisten Routes - Seiten und API-Endpoints für das Hotlisten & DeepMatch System.
+"""Hotlisten Routes - Seiten und API-Endpoints fuer das Hotlisten & DeepMatch System.
 
 3-Stufen-System:
-- /hotlisten → Übersicht der Kategorien (FINANCE, ENGINEERING)
-- /match-bereiche → Stadt × Beruf Grid mit Counts
-- /deepmatch → Kandidaten-Auswahl + KI-Bewertung
+- /hotlisten → Uebersicht der Kategorien (FINANCE, ENGINEERING)
+- /match-bereiche → Beruf-zuerst Layout mit Staedte-Tabelle + Quick Match
+- /deepmatch → Erweiterte Batch-KI-Bewertung
 """
 
 import logging
@@ -111,6 +111,27 @@ async def hotlisten_page(
         if k in (HotlistCategory.FINANCE, HotlistCategory.ENGINEERING)
     )
 
+    # Top-Berufe pro Kategorie (Top 3 nach Kandidatenzahl)
+    top_titles_by_cat: dict[str, list[dict]] = {}
+    for cat_name in [HotlistCategory.FINANCE, HotlistCategory.ENGINEERING]:
+        top_q = await db.execute(
+            select(
+                func.unnest(Candidate.hotlist_job_titles).label("title"),
+                func.count(Candidate.id).label("cnt"),
+            )
+            .where(Candidate.deleted_at.is_(None))
+            .where(Candidate.hotlist_category == cat_name)
+            .where(Candidate.hotlist_job_titles.isnot(None))
+            .group_by(literal_column("title"))
+            .order_by(func.count(Candidate.id).desc())
+            .limit(5)
+        )
+        top_titles_by_cat[cat_name] = [
+            {"name": row.title, "count": row.cnt}
+            for row in top_q.all()
+            if row.title  # null/leer filtern
+        ][:3]
+
     categories = [
         {
             "name": "FINANCE",
@@ -120,6 +141,7 @@ async def hotlisten_page(
             "candidates": candidate_counts.get(HotlistCategory.FINANCE, 0),
             "jobs": job_counts.get(HotlistCategory.FINANCE, 0),
             "color": "blue",
+            "top_titles": top_titles_by_cat.get(HotlistCategory.FINANCE, []),
         },
         {
             "name": "ENGINEERING",
@@ -129,6 +151,7 @@ async def hotlisten_page(
             "candidates": candidate_counts.get(HotlistCategory.ENGINEERING, 0),
             "jobs": job_counts.get(HotlistCategory.ENGINEERING, 0),
             "color": "green",
+            "top_titles": top_titles_by_cat.get(HotlistCategory.ENGINEERING, []),
         },
     ]
 
@@ -159,46 +182,15 @@ async def hotlisten_page(
 async def match_bereiche_page(
     request: Request,
     category: str = Query(default="FINANCE"),
+    focus: Optional[str] = Query(default=None, description="Beruf automatisch aufklappen"),
     db: AsyncSession = Depends(get_db),
 ):
-    """Match-Bereiche: Stadt × Beruf Grid mit Kandidaten- und Job-Counts."""
-    # Kandidaten nach Stadt gruppiert
-    candidates_by_city = await db.execute(
-        select(
-            Candidate.hotlist_city,
-            func.count(Candidate.id),
-        )
-        .where(
-            and_(
-                Candidate.hotlist_category == category,
-                Candidate.deleted_at.is_(None),
-                Candidate.hotlist_city.isnot(None),
-            )
-        )
-        .group_by(Candidate.hotlist_city)
-        .order_by(func.count(Candidate.id).desc())
-    )
-    candidate_city_counts = dict(candidates_by_city.all())
+    """Match-Bereiche: Beruf-zuerst Layout mit Staedte-Tabelle pro Berufsgruppe.
 
-    # Jobs nach Stadt gruppiert
-    jobs_by_city = await db.execute(
-        select(
-            Job.hotlist_city,
-            func.count(Job.id),
-        )
-        .where(
-            and_(
-                Job.hotlist_category == category,
-                Job.deleted_at.is_(None),
-                Job.hotlist_city.isnot(None),
-            )
-        )
-        .group_by(Job.hotlist_city)
-        .order_by(func.count(Job.id).desc())
-    )
-    job_city_counts = dict(jobs_by_city.all())
-
-    # Kandidaten nach Job-Title gruppiert (UNNEST für Multi-Titel-Array)
+    Neues Paradigma: Beruf als Hauptgruppierung, Staedte als Zeilen darunter.
+    Nur matchbare Kombos (Kandidaten > 0 UND Jobs > 0) werden angezeigt.
+    """
+    # Kandidaten nach Beruf (Gesamt, fuer Statistik-Tabelle)
     candidates_by_title_q = await db.execute(
         sa_text("""
             SELECT unnested_title, COUNT(DISTINCT id)
@@ -215,7 +207,7 @@ async def match_bereiche_page(
     )
     candidate_title_counts = dict(candidates_by_title_q.all())
 
-    # Jobs nach Job-Title gruppiert (UNNEST für Multi-Titel-Array)
+    # Jobs nach Beruf (Gesamt, fuer Statistik-Tabelle)
     jobs_by_title_q = await db.execute(
         sa_text("""
             SELECT unnested_title, COUNT(DISTINCT id)
@@ -232,30 +224,10 @@ async def match_bereiche_page(
     )
     job_title_counts = dict(jobs_by_title_q.all())
 
-    # Alle Städte sammeln (Union von Kandidaten und Jobs)
-    all_cities = sorted(
-        set(candidate_city_counts.keys()) | set(job_city_counts.keys())
-    )
-
-    # Alle Titel sammeln
+    # Titel-Statistik fuer die Sidebar-Tabelle
     all_titles = sorted(
         set(candidate_title_counts.keys()) | set(job_title_counts.keys())
     )
-
-    # Grid-Daten aufbauen — nach Kandidaten-Anzahl sortiert (Top zuerst)
-    city_data = sorted(
-        [
-            {
-                "name": city,
-                "candidates": candidate_city_counts.get(city, 0),
-                "jobs": job_city_counts.get(city, 0),
-            }
-            for city in all_cities
-        ],
-        key=lambda x: x["candidates"],
-        reverse=True,
-    )
-
     title_data = sorted(
         [
             {
@@ -269,7 +241,8 @@ async def match_bereiche_page(
         reverse=True,
     )
 
-    # Stadt × Beruf Kombinationen — Kandidaten (UNNEST für Multi-Titel)
+    # ═══ BERUF-ZUERST: Stadt × Beruf Kombinationen ═══
+    # Kandidaten pro (Stadt, Beruf) — NUR gueltige Staedte
     combo_candidates_q = await db.execute(
         sa_text("""
             SELECT hotlist_city, unnested_title, COUNT(DISTINCT id)
@@ -279,15 +252,15 @@ async def match_bereiche_page(
             WHERE hotlist_category = :category
               AND deleted_at IS NULL
               AND hotlist_city IS NOT NULL
+              AND hotlist_city != ''
               AND (hotlist_job_titles IS NOT NULL OR hotlist_job_title IS NOT NULL)
             GROUP BY hotlist_city, unnested_title
-            ORDER BY hotlist_city, unnested_title
         """),
         {"category": category},
     )
     combo_cand = {(r[0], r[1]): r[2] for r in combo_candidates_q.all()}
 
-    # Stadt × Beruf Kombinationen — Jobs (UNNEST für Multi-Titel)
+    # Jobs pro (Stadt, Beruf) — NUR gueltige Staedte
     combo_jobs_q = await db.execute(
         sa_text("""
             SELECT hotlist_city, unnested_title, COUNT(DISTINCT id)
@@ -297,44 +270,51 @@ async def match_bereiche_page(
             WHERE hotlist_category = :category
               AND deleted_at IS NULL
               AND hotlist_city IS NOT NULL
+              AND hotlist_city != ''
               AND (hotlist_job_titles IS NOT NULL OR hotlist_job_title IS NOT NULL)
             GROUP BY hotlist_city, unnested_title
-            ORDER BY hotlist_city, unnested_title
         """),
         {"category": category},
     )
     combo_jobs = {(r[0], r[1]): r[2] for r in combo_jobs_q.all()}
 
-    # Alle Kombinationen sammeln, nach Stadt gruppiert
-    all_combos = sorted(set(combo_cand.keys()) | set(combo_jobs.keys()))
-    combo_by_city = {}
+    # ═══ BERUF-ZUERST Gruppierung (NUR matchbare Kombos) ═══
+    all_combos = set(combo_cand.keys()) | set(combo_jobs.keys())
+    combo_by_title: dict[str, list[dict]] = {}
+    total_matchable = 0
+
     for city, title in all_combos:
-        if city not in combo_by_city:
-            combo_by_city[city] = []
         cand_count = combo_cand.get((city, title), 0)
         jobs_count = combo_jobs.get((city, title), 0)
-        combo_by_city[city].append({
-            "title": title,
-            "candidates": cand_count,
-            "jobs": jobs_count,
-            "can_match": cand_count > 0 and jobs_count > 0,
-        })
-    # Nach Kandidaten-Summe sortieren (größte Stadt zuerst)
+        # NUR matchbare Kombos (beide > 0)
+        if cand_count > 0 and jobs_count > 0:
+            if title not in combo_by_title:
+                combo_by_title[title] = []
+            combo_by_title[title].append({
+                "city": city,
+                "candidates": cand_count,
+                "jobs": jobs_count,
+            })
+            total_matchable += 1
+
+    # Staedte innerhalb jeder Berufsgruppe nach Kandidaten sortieren
+    for title in combo_by_title:
+        combo_by_title[title].sort(key=lambda x: x["candidates"], reverse=True)
+
+    # Berufe nach Gesamt-Kandidaten sortieren (wichtigste zuerst)
     combo_data = sorted(
-        combo_by_city.items(),
-        key=lambda x: sum(t["candidates"] for t in x[1]),
+        [
+            (title, cities, sum(c["candidates"] for c in cities), sum(c["jobs"] for c in cities))
+            for title, cities in combo_by_title.items()
+        ],
+        key=lambda x: x[2],  # Nach Kandidaten-Summe
         reverse=True,
     )
 
-    # Gesamtstatistiken für Dashboard-Cards
-    total_candidates = sum(candidate_city_counts.values())
-    total_jobs = sum(job_city_counts.values())
-    total_cities = len(all_cities)
-    matchable_combos = sum(
-        1 for city_titles in combo_by_city.values()
-        for t in city_titles
-        if t["can_match"]
-    )
+    # Gesamtstatistiken
+    total_candidates = sum(candidate_title_counts.values())
+    total_jobs = sum(job_title_counts.values())
+    total_professions = len(combo_by_title)
 
     return templates.TemplateResponse(
         "match_bereiche.html",
@@ -342,13 +322,13 @@ async def match_bereiche_page(
             "request": request,
             "category": category,
             "category_label": "Finance & Accounting" if category == "FINANCE" else "Engineering & Technik",
-            "city_data": city_data,
             "title_data": title_data,
             "combo_data": combo_data,
             "total_candidates": total_candidates,
             "total_jobs": total_jobs,
-            "total_cities": total_cities,
-            "matchable_combos": matchable_combos,
+            "total_professions": total_professions,
+            "total_matchable": total_matchable,
+            "focus_title": focus,
         },
     )
 
@@ -447,7 +427,323 @@ async def candidates_list_fragment(
 
 
 # ════════════════════════════════════════════════════════════════
-# STUFE 3: DEEPMATCH — Kandidaten-Auswahl + KI-Bewertung
+# QUICK MATCH — Background Match-Erstellung + Inline-Ergebnisse
+# ════════════════════════════════════════════════════════════════
+
+import uuid as _uuid_mod
+
+# In-Memory Task-Tracking fuer Quick-Match Background-Tasks
+_quick_match_tasks: dict[str, dict] = {}
+
+
+async def _run_quick_match(task_id: str, category: str, city: str, job_title: str):
+    """Background-Task: Erstellt Matches + Pre-Scores fuer eine Beruf+Stadt Kombi."""
+    from app.models.match import Match as MatchModel, MatchStatus
+    from app.services.keyword_matcher import keyword_matcher
+
+    task = _quick_match_tasks[task_id]
+    try:
+        async with async_session_maker() as db:
+            # 1. Jobs finden
+            jobs_query = select(Job).where(
+                and_(
+                    Job.hotlist_category == category,
+                    Job.deleted_at.is_(None),
+                )
+            )
+            if city:
+                jobs_query = jobs_query.where(Job.hotlist_city == city)
+            if job_title:
+                jobs_query = jobs_query.where(
+                    or_(
+                        Job.hotlist_job_titles.any(job_title),
+                        Job.hotlist_job_title == job_title,
+                    )
+                )
+            result = await db.execute(jobs_query)
+            jobs = result.scalars().all()
+
+            # 2. Kandidaten finden
+            cand_query = select(Candidate).where(
+                and_(
+                    Candidate.hotlist_category == category,
+                    Candidate.deleted_at.is_(None),
+                )
+            )
+            if city:
+                cand_query = cand_query.where(Candidate.hotlist_city == city)
+            if job_title:
+                cand_query = cand_query.where(
+                    or_(
+                        Candidate.hotlist_job_titles.any(job_title),
+                        Candidate.hotlist_job_title == job_title,
+                    )
+                )
+            cand_result = await db.execute(cand_query)
+            candidates = cand_result.scalars().all()
+
+            if not jobs or not candidates:
+                task.update({"status": "done", "matches_created": 0, "scored": 0})
+                return
+
+            task["phase"] = "matches"
+            task["total_pairs"] = len(jobs) * len(candidates)
+
+            # 3. Bulk-Existenz-Check (1 Query statt N*M)
+            job_ids = [j.id for j in jobs]
+            cand_ids = [c.id for c in candidates]
+            existing_q = await db.execute(
+                select(MatchModel.job_id, MatchModel.candidate_id).where(
+                    and_(
+                        MatchModel.job_id.in_(job_ids),
+                        MatchModel.candidate_id.in_(cand_ids),
+                    )
+                )
+            )
+            existing_set = set(existing_q.all())
+
+            # 4. Bulk Insert neue Matches
+            total_created = 0
+            batch = []
+            for job in jobs:
+                for candidate in candidates:
+                    if (job.id, candidate.id) in existing_set:
+                        continue
+
+                    # Keyword-Score
+                    kw_score = 0.0
+                    matched_kw = []
+                    try:
+                        kw_result = keyword_matcher.match(
+                            candidate_skills=candidate.skills,
+                            job_text=job.job_text,
+                        )
+                        kw_score = round(kw_result.keyword_score, 3)
+                        matched_kw = kw_result.matched_keywords
+                    except Exception:
+                        pass
+
+                    # Distanz (optional)
+                    distance = None
+                    if job.location_coords is not None and candidate.address_coords is not None:
+                        try:
+                            from geoalchemy2.functions import ST_Distance
+                            dist_result = await db.execute(
+                                select(
+                                    (ST_Distance(
+                                        Job.location_coords,
+                                        Candidate.address_coords,
+                                        True,
+                                    ) / 1000.0).label("dist_km")
+                                ).where(
+                                    and_(Job.id == job.id, Candidate.id == candidate.id)
+                                )
+                            )
+                            distance = dist_result.scalar()
+                            if distance is not None:
+                                distance = round(distance, 2)
+                        except Exception:
+                            pass
+
+                    new_match = MatchModel(
+                        job_id=job.id,
+                        candidate_id=candidate.id,
+                        distance_km=distance,
+                        keyword_score=kw_score,
+                        matched_keywords=matched_kw,
+                        status=MatchStatus.NEW,
+                    )
+                    db.add(new_match)
+                    total_created += 1
+
+                    # Batch commit alle 200 Matches
+                    if total_created % 200 == 0:
+                        await db.commit()
+                        task["matches_created"] = total_created
+
+            await db.commit()
+            task["matches_created"] = total_created
+
+            # 5. Pre-Scoring
+            task["phase"] = "scoring"
+            pre_service = PreScoringService(db)
+            pre_result = await pre_service.score_matches_for_category(
+                category=category,
+                city=city,
+                force=True,
+            )
+
+            task.update({
+                "status": "done",
+                "matches_created": total_created,
+                "scored": pre_result.scored,
+                "avg_score": pre_result.avg_score,
+            })
+            logger.info(f"Quick-Match fertig: {category}/{city}/{job_title} → {total_created} Matches, {pre_result.scored} gescort")
+
+    except Exception as e:
+        logger.error(f"Quick-Match Fehler: {e}", exc_info=True)
+        task.update({"status": "error", "error": str(e)})
+
+
+@router.post("/api/hotlisten/quick-match", tags=["Hotlisten API"])
+async def trigger_quick_match(
+    category: str = Query(default="FINANCE"),
+    city: Optional[str] = None,
+    job_title: Optional[str] = None,
+):
+    """Startet Match-Erstellung + Pre-Scoring im Hintergrund. Gibt task_id zurueck."""
+    task_id = str(_uuid_mod.uuid4())[:8]
+
+    _quick_match_tasks[task_id] = {
+        "status": "running",
+        "phase": "init",
+        "category": category,
+        "city": city,
+        "job_title": job_title,
+        "matches_created": 0,
+        "scored": 0,
+        "started_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    # Alte Tasks aufraeumen (aelter als 1 Stunde)
+    cutoff = datetime.now(timezone.utc).isoformat()
+    to_remove = [
+        tid for tid, t in _quick_match_tasks.items()
+        if t.get("status") in ("done", "error") and tid != task_id
+    ]
+    # Max 50 alte Tasks behalten
+    if len(to_remove) > 50:
+        for tid in to_remove[:len(to_remove) - 50]:
+            _quick_match_tasks.pop(tid, None)
+
+    asyncio.create_task(_run_quick_match(task_id, category, city or "", job_title or ""))
+
+    return {"task_id": task_id, "status": "started"}
+
+
+@router.get("/api/hotlisten/quick-match/{task_id}/status", tags=["Hotlisten API"])
+async def quick_match_status(task_id: str):
+    """Gibt den aktuellen Status eines Quick-Match Tasks zurueck."""
+    task = _quick_match_tasks.get(task_id)
+    if not task:
+        raise HTTPException(404, "Task nicht gefunden")
+    return task
+
+
+@router.get("/partials/match-results", response_class=HTMLResponse)
+async def match_results_partial(
+    request: Request,
+    category: str = Query(default="FINANCE"),
+    city: str = Query(default=""),
+    job_title: str = Query(default=""),
+    db: AsyncSession = Depends(get_db),
+):
+    """HTMX-Partial: Rangliste der besten Matches fuer Beruf+Stadt (Inline-Ergebnisse)."""
+    # Matches mit Kandidaten und Jobs laden
+    query = (
+        select(Match, Candidate, Job)
+        .join(Candidate, Match.candidate_id == Candidate.id)
+        .join(Job, Match.job_id == Job.id)
+        .where(
+            and_(
+                Candidate.hotlist_category == category,
+                Job.hotlist_category == category,
+                Candidate.deleted_at.is_(None),
+                Job.deleted_at.is_(None),
+            )
+        )
+    )
+
+    if city:
+        query = query.where(Candidate.hotlist_city == city)
+    if job_title:
+        query = query.where(
+            or_(
+                Candidate.hotlist_job_titles.any(job_title),
+                Candidate.hotlist_job_title == job_title,
+            )
+        )
+
+    query = query.order_by(
+        Match.pre_score.desc().nullslast(),
+        Match.ai_score.desc().nullslast(),
+    ).limit(30)
+
+    result = await db.execute(query)
+    rows = result.all()
+
+    if not rows:
+        return HTMLResponse(
+            '<div class="px-4 py-8 text-center text-gray-400 text-sm">'
+            'Keine Matches gefunden. Klicke "Quick Match" um Matches zu erstellen.</div>'
+        )
+
+    return templates.TemplateResponse(
+        "partials/match_results.html",
+        {
+            "request": request,
+            "matches": rows,
+            "category": category,
+            "city": city,
+            "job_title": job_title,
+            "total": len(rows),
+        },
+    )
+
+
+@router.post("/partials/deepmatch-single/{match_id}", response_class=HTMLResponse)
+async def deepmatch_single(
+    request: Request,
+    match_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Bewertet einen einzelnen Match mit KI und gibt die aktualisierte Zeile zurueck."""
+    # Match + Kandidat + Job laden
+    result = await db.execute(
+        select(Match, Candidate, Job)
+        .join(Candidate, Match.candidate_id == Candidate.id)
+        .join(Job, Match.job_id == Job.id)
+        .where(Match.id == match_id)
+    )
+    row = result.first()
+    if not row:
+        raise HTTPException(404, "Match nicht gefunden")
+
+    match_obj, candidate, job = row
+
+    # KI-Bewertung durchfuehren
+    try:
+        async with DeepMatchService(db) as service:
+            eval_result = await service.evaluate_selected_matches([match_id])
+
+        # Match neu laden (mit KI-Ergebnis)
+        result2 = await db.execute(
+            select(Match, Candidate, Job)
+            .join(Candidate, Match.candidate_id == Candidate.id)
+            .join(Job, Match.job_id == Job.id)
+            .where(Match.id == match_id)
+        )
+        row = result2.first()
+    except Exception as e:
+        logger.error(f"DeepMatch-Single Fehler: {e}")
+        return HTMLResponse(
+            f'<div class="px-4 py-2 text-sm text-red-600">KI-Fehler: {e}</div>'
+        )
+
+    return templates.TemplateResponse(
+        "partials/match_result_row.html",
+        {
+            "request": request,
+            "match": row[0],
+            "candidate": row[1],
+            "job": row[2],
+        },
+    )
+
+
+# ════════════════════════════════════════════════════════════════
+# STUFE 3: DEEPMATCH — Erweiterte Batch-KI-Bewertung
 # ════════════════════════════════════════════════════════════════
 
 @router.get("/deepmatch", response_class=HTMLResponse)
