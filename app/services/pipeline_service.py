@@ -226,67 +226,89 @@ class PipelineService:
         Geocodiert Kandidaten und Jobs die noch keine Koordinaten haben.
 
         Verwendet OpenStreetMap Nominatim (kostenlos, 1 Request/Sekunde).
-        Nur Eintraege MIT Stadt/Adresse werden verarbeitet.
+        Batch-Commits alle 25 Eintraege damit Fortschritt sofort in DB sichtbar.
         """
         from app.services.geocoding_service import GeocodingService
 
         result = Step0Result()
-        geo_service = GeocodingService(self.db)
+        BATCH = 25  # Commit-Intervall
 
-        try:
-            # --- Kandidaten ohne Koordinaten ---
-            cand_query = select(Candidate).where(
-                Candidate.address_coords.is_(None),
-                Candidate.deleted_at.is_(None),
-                Candidate.city.isnot(None),
-                Candidate.city != "",
-            )
-            candidates = (await self.db.execute(cand_query)).scalars().all()
-            result.candidates_total = len(candidates)
+        # --- Kandidaten ohne Koordinaten ---
+        cand_query = select(Candidate).where(
+            Candidate.address_coords.is_(None),
+            Candidate.deleted_at.is_(None),
+            Candidate.city.isnot(None),
+            Candidate.city != "",
+        )
+        candidates = (await self.db.execute(cand_query)).scalars().all()
+        result.candidates_total = len(candidates)
+        logger.info(f"Pipeline Step0: {len(candidates)} Kandidaten zu geocodieren")
 
-            for candidate in candidates:
-                try:
-                    success = await geo_service.geocode_candidate(candidate)
-                    if success:
-                        result.candidates_geocoded += 1
-                    else:
-                        result.candidates_skipped += 1
-                except Exception as e:
-                    result.candidates_failed += 1
-                    logger.error(f"Pipeline Step0: Geocoding Kandidat {candidate.id} fehlgeschlagen: {e}")
+        if candidates:
+            geo = GeocodingService(self.db)
+            try:
+                for i, candidate in enumerate(candidates):
+                    try:
+                        ok = await geo.geocode_candidate(candidate)
+                        if ok:
+                            result.candidates_geocoded += 1
+                        else:
+                            result.candidates_skipped += 1
+                    except Exception as e:
+                        result.candidates_failed += 1
+                        logger.error(f"Step0 Kandidat {candidate.id}: {e}")
 
-            if candidates:
+                    # Batch-Commit + Log
+                    if (i + 1) % BATCH == 0:
+                        await self.db.commit()
+                        logger.info(
+                            f"Step0 Kandidaten: {i+1}/{len(candidates)} "
+                            f"({result.candidates_geocoded} OK, {result.candidates_skipped} skip, "
+                            f"{result.candidates_failed} fail)"
+                        )
+
                 await self.db.commit()
+            finally:
+                await geo.close()
 
-            # --- Jobs ohne Koordinaten ---
-            job_query = select(Job).where(
-                Job.location_coords.is_(None),
-                Job.deleted_at.is_(None),
-                Job.city.isnot(None),
-                Job.city != "",
-            )
-            jobs = (await self.db.execute(job_query)).scalars().all()
-            result.jobs_total = len(jobs)
+        # --- Jobs ohne Koordinaten ---
+        job_query = select(Job).where(
+            Job.location_coords.is_(None),
+            Job.deleted_at.is_(None),
+            Job.city.isnot(None),
+            Job.city != "",
+        )
+        jobs = (await self.db.execute(job_query)).scalars().all()
+        result.jobs_total = len(jobs)
+        logger.info(f"Pipeline Step0: {len(jobs)} Jobs zu geocodieren")
 
-            for job in jobs:
-                try:
-                    success = await geo_service.geocode_job(job)
-                    if success:
-                        result.jobs_geocoded += 1
-                    else:
-                        result.jobs_skipped += 1
-                except Exception as e:
-                    result.jobs_failed += 1
-                    logger.error(f"Pipeline Step0: Geocoding Job {job.id} fehlgeschlagen: {e}")
+        if jobs:
+            geo = GeocodingService(self.db)
+            try:
+                for i, job in enumerate(jobs):
+                    try:
+                        ok = await geo.geocode_job(job)
+                        if ok:
+                            result.jobs_geocoded += 1
+                        else:
+                            result.jobs_skipped += 1
+                    except Exception as e:
+                        result.jobs_failed += 1
+                        logger.error(f"Step0 Job {job.id}: {e}")
 
-            if jobs:
+                    if (i + 1) % BATCH == 0:
+                        await self.db.commit()
+                        logger.info(
+                            f"Step0 Jobs: {i+1}/{len(jobs)} "
+                            f"({result.jobs_geocoded} OK)"
+                        )
+
                 await self.db.commit()
-
-        finally:
-            await geo_service.close()
+            finally:
+                await geo.close()
 
         logger.info(
-            f"Pipeline Step0: {result.candidates_geocoded}/{result.candidates_total} Kandidaten "
+            f"Pipeline Step0 FERTIG: {result.candidates_geocoded}/{result.candidates_total} Kandidaten "
             f"+ {result.jobs_geocoded}/{result.jobs_total} Jobs geocodiert"
         )
         return result
