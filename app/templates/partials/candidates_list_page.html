@@ -66,7 +66,7 @@
     </thead>
     <tbody class="divide-y divide-gray-200 bg-white">
         {% for candidate in candidates %}
-        <tr class="hover:bg-gray-50 cursor-pointer transition-colors"
+        <tr id="row-{{ candidate.id }}" class="hover:bg-gray-50 cursor-pointer transition-colors"
             onclick="window.location='/kandidaten/{{ candidate.id }}'">
             {# Checkbox (nur sichtbar im Auswahl-Modus) #}
             <td class="selection-col hidden whitespace-nowrap py-5 pl-5 pr-2 w-12" onclick="event.stopPropagation()">
@@ -356,49 +356,100 @@ function updateBatchActions() {
     }
 }
 
-function batchParseSelected() {
+async function batchParseSelected() {
     var checkboxes = document.querySelectorAll('.candidate-checkbox:checked');
     if (checkboxes.length === 0) return;
 
     var count = checkboxes.length;
-    if (!confirm(count + ' Kandidat(en) CVs neu parsen? Das kostet ca. $0.001 pro CV (OpenAI).')) {
+    if (!confirm(count + ' Kandidat(en) CVs neu parsen?\nKostet ca. $0.001 pro CV (OpenAI).')) {
         return;
     }
 
     var ids = [];
     checkboxes.forEach(function(cb) { ids.push(cb.value); });
 
+    // Button deaktivieren
     var btn = document.getElementById('btn-batch-parse');
-    if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<svg class="h-5 w-5 mr-2 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>Wird geparst...';
+    if (btn) { btn.disabled = true; btn.textContent = 'Parsing laeuft...'; }
+
+    var parsed = 0, errors = 0, namesFixed = 0;
+
+    for (var i = 0; i < ids.length; i++) {
+        var cid = ids[i];
+        var row = document.getElementById('row-' + cid);
+        if (!row) continue;
+
+        // Zeile hervorheben: "wird geparst..."
+        row.style.transition = 'background-color 0.3s';
+        row.style.backgroundColor = '#EFF6FF'; // blue-50
+        var nameCell = row.querySelector('td:nth-child(2) .ml-5 .text-lg');
+        var origName = nameCell ? nameCell.textContent.trim() : '';
+        if (nameCell) {
+            nameCell.innerHTML = '<span class="text-primary-600"><svg class="inline w-4 h-4 mr-1 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>CV wird geparst... (' + (i+1) + '/' + ids.length + ')</span>';
+        }
+
+        // Zum aktuellen Kandidaten scrollen
+        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        try {
+            var response = await fetch('/api/candidates/' + cid + '/reparse-cv', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            var data = await response.json();
+
+            if (data.status === 'ok') {
+                parsed++;
+                if (data.name_changed) {
+                    namesFixed++;
+                    // Zeile gruen: Name geaendert
+                    row.style.backgroundColor = '#F0FDF4'; // green-50
+                    if (nameCell) {
+                        nameCell.innerHTML = '<span class="text-green-700 font-bold">' + data.new_name + '</span>' +
+                            ' <span class="text-xs text-gray-400 line-through ml-2">' + data.old_name + '</span>';
+                    }
+                    // Avatar-Initialen aktualisieren
+                    var avatar = row.querySelector('td:nth-child(2) .text-primary-700');
+                    if (avatar && data.new_name.length >= 2) {
+                        var parts = data.new_name.split(' ');
+                        avatar.textContent = (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
+                    }
+                } else {
+                    // Zeile zuruecksetzen: Name war schon ok
+                    row.style.backgroundColor = '#FEFCE8'; // yellow-50
+                    if (nameCell) {
+                        nameCell.innerHTML = '<span class="text-gray-700">' + data.new_name + '</span>' +
+                            ' <span class="text-xs text-yellow-600 ml-2">Name unveraendert</span>';
+                    }
+                }
+            } else if (data.status === 'skipped') {
+                row.style.backgroundColor = '#FEF9C3'; // yellow-100
+                if (nameCell) {
+                    nameCell.innerHTML = origName + ' <span class="text-xs text-yellow-600 ml-2">Kein CV</span>';
+                }
+            } else {
+                errors++;
+                row.style.backgroundColor = '#FEF2F2'; // red-50
+                if (nameCell) {
+                    nameCell.innerHTML = origName + ' <span class="text-xs text-red-600 ml-2">Fehler</span>';
+                }
+            }
+        } catch (e) {
+            errors++;
+            row.style.backgroundColor = '#FEF2F2';
+            if (nameCell) {
+                nameCell.innerHTML = origName + ' <span class="text-xs text-red-600 ml-2">Netzwerk-Fehler</span>';
+            }
+        }
     }
 
-    fetch('/api/candidates/batch/reparse-cv', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: ids })
-    })
-    .then(function(response) { return response.json(); })
-    .then(function(data) {
-        if (data.status === 'ok') {
-            alert('CV-Parsing gestartet fuer ' + data.with_cv + ' Kandidaten.\n'
-                + (data.without_cv > 0 ? data.without_cv + ' ohne CV-URL uebersprungen.\n' : '')
-                + 'Die Namen werden im Hintergrund aktualisiert. Seite in 1-2 Min. neu laden.');
-            exitSelectionMode();
-        } else {
-            alert('Fehler: ' + (data.message || 'Unbekannter Fehler'));
-        }
-    })
-    .catch(function() {
-        alert('Netzwerk-Fehler beim CV-Parsing');
-    })
-    .finally(function() {
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = '<svg class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m5.231 13.481L15 17.25m-4.5-15H5.625c-.621 0-1.125.504-1.125 1.125v16.5c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9zm3.75 11.625a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg>CV neu parsen';
-        }
-    });
+    // Fertig - Button aktualisieren
+    if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Fertig! ' + parsed + ' geparst, ' + namesFixed + ' Namen korrigiert';
+        btn.classList.remove('bg-primary-600', 'hover:bg-primary-500');
+        btn.classList.add('bg-green-600', 'hover:bg-green-500');
+    }
 }
 
 function batchDeleteSelected() {

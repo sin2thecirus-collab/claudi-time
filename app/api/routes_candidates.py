@@ -310,87 +310,79 @@ async def batch_delete_candidates(
 
 
 @router.post(
-    "/batch/reparse-cv",
-    summary="CVs ausgewählter Kandidaten neu parsen (OpenAI)",
+    "/{candidate_id}/reparse-cv",
+    summary="CV eines Kandidaten neu parsen (OpenAI)",
 )
-async def batch_reparse_cv(
-    request: BatchDeleteRequest,  # Gleiche Struktur: Liste von IDs
-    background_tasks: BackgroundTasks,
+async def reparse_single_cv(
+    candidate_id: UUID,
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Parst die CVs der ausgewählten Kandidaten erneut mit OpenAI.
+    Parst das CV eines einzelnen Kandidaten erneut mit OpenAI.
 
-    Nützlich wenn das CRM falsche/fehlende Namen geliefert hat
-    (z.B. "Not Available") aber der CV den echten Namen enthält.
-
-    Läuft im Hintergrund, gibt sofort eine Bestätigung zurück.
+    Gibt den alten und neuen Namen zurück, damit das Frontend
+    den Fortschritt live anzeigen kann.
     """
     from app.services.cv_parser_service import CVParserService
-    from app.database import async_session_maker
     from sqlalchemy import select
     from app.models.candidate import Candidate
 
-    if not request.ids:
-        return {"status": "error", "message": "Keine Kandidaten ausgewählt"}
-
-    if len(request.ids) > 50:
-        return {"status": "error", "message": "Maximal 50 Kandidaten pro Batch"}
-
-    # Prüfe wie viele eine CV-URL haben
+    # Kandidat laden
     result = await db.execute(
-        select(Candidate.id, Candidate.cv_url, Candidate.first_name, Candidate.last_name)
-        .where(Candidate.id.in_(request.ids))
+        select(Candidate).where(Candidate.id == candidate_id)
     )
-    candidates_info = result.all()
+    candidate = result.scalar_one_or_none()
 
-    with_cv = [c for c in candidates_info if c.cv_url]
-    without_cv = [c for c in candidates_info if not c.cv_url]
+    if not candidate:
+        return {"status": "error", "message": "Kandidat nicht gefunden"}
 
-    if not with_cv:
+    old_first = candidate.first_name or ""
+    old_last = candidate.last_name or ""
+    old_name = f"{old_first} {old_last}".strip() or "—"
+
+    if not candidate.cv_url:
         return {
-            "status": "error",
-            "message": f"Keiner der {len(candidates_info)} Kandidaten hat eine CV-URL",
-            "without_cv": len(without_cv),
+            "status": "skipped",
+            "message": "Kein CV vorhanden",
+            "candidate_id": str(candidate_id),
+            "old_name": old_name,
+            "new_name": old_name,
         }
 
-    # Im Hintergrund parsen
-    candidate_ids = [c.id for c in with_cv]
+    # CV parsen
+    async with CVParserService(db) as parser:
+        try:
+            candidate, parse_result = await parser.parse_candidate_cv(candidate_id)
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": str(e),
+                "candidate_id": str(candidate_id),
+                "old_name": old_name,
+                "new_name": old_name,
+            }
 
-    async def _run_batch_parse(ids: list):
-        parsed = 0
-        errors = 0
-        names_fixed = 0
-        async with async_session_maker() as session:
-            async with CVParserService(session) as parser:
-                for cid in ids:
-                    try:
-                        candidate, parse_result = await parser.parse_candidate_cv(cid)
-                        if parse_result.success:
-                            parsed += 1
-                            # Prüfen ob Name aktualisiert wurde
-                            if candidate.first_name and candidate.first_name.lower() != "not available":
-                                names_fixed += 1
-                        else:
-                            errors += 1
-                            logger.warning(f"CV-Parse Fehler für {cid}: {parse_result.error}")
-                    except Exception as e:
-                        errors += 1
-                        logger.error(f"CV-Parse Exception für {cid}: {e}")
+    if not parse_result.success:
+        return {
+            "status": "error",
+            "message": parse_result.error or "Parsing fehlgeschlagen",
+            "candidate_id": str(candidate_id),
+            "old_name": old_name,
+            "new_name": old_name,
+        }
 
-        logger.info(
-            f"Batch CV-Parse fertig: {parsed} geparst, {errors} Fehler, "
-            f"{names_fixed} Namen korrigiert"
-        )
-
-    background_tasks.add_task(_run_batch_parse, candidate_ids)
+    new_first = candidate.first_name or ""
+    new_last = candidate.last_name or ""
+    new_name = f"{new_first} {new_last}".strip() or "—"
+    name_changed = old_name != new_name
 
     return {
         "status": "ok",
-        "message": f"CV-Parsing für {len(with_cv)} Kandidaten gestartet",
-        "total_selected": len(request.ids),
-        "with_cv": len(with_cv),
-        "without_cv": len(without_cv),
+        "candidate_id": str(candidate_id),
+        "old_name": old_name,
+        "new_name": new_name,
+        "name_changed": name_changed,
+        "position": candidate.current_position or "—",
     }
 
 
