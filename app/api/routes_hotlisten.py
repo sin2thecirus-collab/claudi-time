@@ -499,7 +499,7 @@ async def deepmatch_page(
     for match, candidate, job in rows:
         matches_data.append({
             "match_id": str(match.id),
-            "candidate_name": candidate.full_name,
+            "candidate_name": candidate.full_name if candidate.full_name not in ("Not Available", "Unbekannt", "") else (candidate.current_position or candidate.hotlist_job_title or "Kandidat"),
             "candidate_position": candidate.current_position or "—",
             "candidate_city": candidate.hotlist_city or candidate.city or "—",
             "candidate_job_titles": candidate.hotlist_job_titles or ([candidate.hotlist_job_title] if candidate.hotlist_job_title else []),
