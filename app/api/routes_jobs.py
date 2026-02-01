@@ -376,10 +376,12 @@ async def exclude_from_deletion(
 
 @router.get(
     "/{job_id}/candidates",
-    summary="Kandidaten für einen Job",
-    description="Gibt Kandidaten mit Match-Daten für einen Job zurück",
+    response_class=HTMLResponse,
+    summary="Kandidaten für einen Job (HTMX Partial)",
+    description="Gibt Kandidaten mit Match-Daten als HTML-Partial für HTMX zurück",
 )
 async def get_candidates_for_job(
+    request: Request,
     job_id: UUID,
     # Pagination
     page: int = Query(default=1, ge=1),
@@ -401,12 +403,16 @@ async def get_candidates_for_job(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Gibt Kandidaten für einen Job mit Match-Daten zurück.
+    Gibt Kandidaten für einen Job als HTML-Partial zurück.
 
+    Wird von HTMX auf der Job-Detail-Seite geladen.
     Enthält Distanz, Keyword-Score und ggf. KI-Bewertung.
     """
+    from fastapi.templating import Jinja2Templates
     from app.services.candidate_service import CandidateService
     from app.schemas.filters import CandidateFilterParams, CandidateSortBy
+
+    templates = Jinja2Templates(directory="app/templates")
 
     # Job prüfen
     job_service = JobService(db)
@@ -414,7 +420,12 @@ async def get_candidates_for_job(
     if not job:
         raise NotFoundException(message="Job nicht gefunden")
 
-    # Filter erstellen
+    # Filter erstellen (sort_by aus Query in CandidateSortBy umwandeln)
+    try:
+        candidate_sort_by = CandidateSortBy(sort_by)
+    except ValueError:
+        candidate_sort_by = CandidateSortBy.DISTANCE_KM
+
     filters = CandidateFilterParams(
         name=name,
         cities=cities,
@@ -426,27 +437,30 @@ async def get_candidates_for_job(
         only_ai_checked=only_ai_checked,
         min_ai_score=min_ai_score,
         status=match_status,
+        sort_by=candidate_sort_by,
+        sort_order=sort_order,
     )
+
+    pagination = PaginationParams(page=page, per_page=per_page)
 
     candidate_service = CandidateService(db)
-    candidates, total = await candidate_service.get_candidates_for_job(
+    result = await candidate_service.get_candidates_for_job(
         job_id=job_id,
         filters=filters,
-        page=page,
-        per_page=per_page,
-        sort_by=sort_by,
-        sort_order=sort_order.value,
+        pagination=pagination,
     )
 
-    pages = (total + per_page - 1) // per_page if per_page > 0 else 0
-
-    return {
-        "items": candidates,
-        "total": total,
-        "page": page,
-        "per_page": per_page,
-        "pages": pages,
-    }
+    return templates.TemplateResponse(
+        "partials/candidate_list.html",
+        {
+            "request": request,
+            "candidates": result.items,
+            "total": result.total,
+            "page": result.page,
+            "pages": result.pages,
+            "job_id": str(job_id),
+        },
+    )
 
 
 # ==================== Hilfsfunktionen ====================
