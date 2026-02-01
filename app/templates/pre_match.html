@@ -79,7 +79,12 @@
                 </svg>
                 <div>
                     <p class="text-sm font-semibold text-green-800">
-                        Generierung abgeschlossen: {{ generate_status.result.matches_created }} neue Matches erstellt
+                        Generierung abgeschlossen: {{ generate_status.result.matches_created }} Matches erstellt
+                        {% if generate_status.result.matches_filtered_out %}
+                        <span class="font-normal text-green-600">
+                            ({{ generate_status.result.matches_filtered_out }} durch KI-Filterung aussortiert)
+                        </span>
+                        {% endif %}
                     </p>
                 </div>
             </div>

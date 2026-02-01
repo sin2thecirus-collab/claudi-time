@@ -1,11 +1,21 @@
-"""Pre-Match Service - Automatische Generierung von Pre-Match-Listen.
+"""Pre-Match Service v2 — Intelligente Filterung mit Kalibrierung.
 
-Unterschied zu Quick-Match:
-- Quick-Match: Stadt-basiert (Kandidat.hotlist_city == Job.hotlist_city), manuell
-- Pre-Match: Distanz-basiert (Kandidat <30km zum Job, egal welche Stadt), automatisch
+Unterschied zu v1:
+- v1: Blinder Array-Overlap (gemeinsamer Jobtitel?) + Top 15 nach Entfernung
+- v2: Kalibrierte Rollen-Similarity + Keyword-Qualitaet + Score-basiertes Cutoff
 
-Generiert Matches fuer alle Beruf+Stadt Kombinationen einer Kategorie (z.B. FINANCE).
-Verwendet PostGIS fuer praezise Distanzberechnung.
+Filterung v2:
+1. Innerhalb 30km (PostGIS, BLEIBT — harte Grenze)
+2. Gleiche Kategorie (z.B. FINANCE)
+3. Rollen-Similarity >= MIN_ROLE_SIMILARITY (kalibriert oder Matrix)
+4. Pre-Score >= MIN_PRE_SCORE (nach Berechnung)
+5. Kein hartes Kandidaten-Limit pro Job mehr — Score entscheidet
+
+Kalibrierungsdaten werden automatisch geladen und angewendet:
+- Rollen-Matrix-Overrides (AI-gelernt)
+- Power-Keywords (zaehlen doppelt)
+- Penalty-Keywords (zaehlen halb)
+- Ausschluss-Paare (Match wird gar nicht erst erstellt)
 """
 
 import logging
@@ -25,12 +35,21 @@ from app.services.keyword_matcher import keyword_matcher
 
 logger = logging.getLogger(__name__)
 
-# Maximale Distanz fuer Pre-Matches
+# Maximale Distanz fuer Pre-Matches (EINZIGE harte Grenze — User-Anforderung)
 PRE_MATCH_MAX_DISTANCE_KM = 30
 METERS_PER_KM = 1000
 
-# Max. Kandidaten pro Job (die naechsten nach Entfernung)
-MAX_CANDIDATES_PER_JOB = 15
+# Mindest-Rollen-Similarity damit ein Match erstellt wird (0.0-1.0)
+# 0.3 = z.B. Fibu→Kredi ist ok, aber Lohn→Fibu (0.05) wird ausgefiltert
+MIN_ROLE_SIMILARITY = 0.25
+
+# Mindest-Pre-Score damit ein Match gespeichert wird (0-100)
+# Unter 20 = sehr schlechte Passung, lohnt nicht gespeichert zu werden
+MIN_PRE_SCORE = 20.0
+
+# Sicherheitslimit: Max. Kandidaten pro Job (verhindert Explosion bei grossen Staedten)
+# Wird nur als Sicherheitsnetz genutzt, sortiert nach Pre-Score (nicht Entfernung!)
+MAX_CANDIDATES_PER_JOB = 50
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -98,6 +117,7 @@ class PreMatchGenerateResult:
     matches_created: int = 0
     matches_updated: int = 0
     matches_skipped: int = 0
+    matches_filtered_out: int = 0  # v2: Durch intelligente Filterung aussortiert
     errors: list[str] = field(default_factory=list)
 
 
@@ -116,6 +136,7 @@ class PreMatchService:
 
     def __init__(self, db: AsyncSession):
         self.db = db
+        self._scorer = None  # Wird in generate_all() initialisiert
 
     # ──────────────────────────────────────────────────
     # Generierung
@@ -170,16 +191,13 @@ class PreMatchService:
         """
         Generiert Pre-Matches fuer ALLE Beruf+Stadt Kombos einer Kategorie.
 
-        1. Findet alle aktiven Jobs mit Koordinaten + hotlist_job_titles
-        2. Fuer jeden Job: Finde passende Kandidaten (gefiltert!)
-        3. Erstelle Match-Eintraege (falls nicht vorhanden)
-        4. Berechne Pre-Score
-
-        Filter pro Job:
-        - Gleiche Kategorie + gleicher Berufstitel
-        - Innerhalb 30km Luftlinie
-        - Keine Fuehrungskraefte
-        - Max 15 naechste Kandidaten pro Job
+        v2 — Intelligente Filterung:
+        1. Laedt Kalibrierungsdaten (AI-gelernte Rollen-Overrides + Keywords)
+        2. Fuer jeden Job: Finde Kandidaten innerhalb 30km
+        3. Pruefe Rollen-Similarity (kalibriert!) >= Schwelle
+        4. Berechne Pre-Score sofort bei Erstellung
+        5. Nur Matches mit Pre-Score >= MIN_PRE_SCORE werden gespeichert
+        6. Sortierung nach Pre-Score (nicht Entfernung!)
 
         Args:
             category: Kategorie (z.B. "FINANCE")
@@ -190,7 +208,26 @@ class PreMatchService:
         """
         result = PreMatchGenerateResult()
 
-        # Alle aktiven Jobs der Kategorie mit Koordinaten laden
+        # ── Schritt 1: Kalibrierungsdaten laden ──
+        if progress_callback:
+            progress_callback("pre_match", "Lade Kalibrierungsdaten...")
+
+        from app.services.pre_scoring_service import PreScoringService
+        self._scorer = PreScoringService(self.db)
+        await self._scorer.load_calibration()
+
+        cal_info = "ohne Kalibrierung"
+        if self._scorer._calibration is not None:
+            n_overrides = len(self._scorer._role_overrides)
+            n_keywords = len(self._scorer._keyword_weights)
+            n_exclusions = len(self._scorer._exclusion_set)
+            cal_info = (
+                f"mit Kalibrierung: {n_overrides} Rollen-Overrides, "
+                f"{n_keywords} Keyword-Gewichte, {n_exclusions} Ausschluss-Paare"
+            )
+        logger.info(f"Pre-Match v2: Starte {cal_info}")
+
+        # ── Schritt 2: Jobs laden ──
         jobs_query = select(Job).where(
             and_(
                 Job.hotlist_category == category,
@@ -202,32 +239,19 @@ class PreMatchService:
         jobs_result = await self.db.execute(jobs_query)
         jobs = jobs_result.scalars().all()
 
-        logger.info(f"Pre-Match: {len(jobs)} Jobs in Kategorie {category}")
+        logger.info(f"Pre-Match v2: {len(jobs)} Jobs in Kategorie {category}")
 
         if progress_callback:
-            progress_callback("pre_match", f"{len(jobs)} Jobs gefunden")
+            progress_callback("pre_match", f"{len(jobs)} Jobs gefunden ({cal_info})")
 
-        # Alle Kandidaten der Kategorie mit Koordinaten vorladen
-        candidates_query = select(Candidate).where(
-            and_(
-                Candidate.hotlist_category == category,
-                Candidate.address_coords.is_not(None),
-                Candidate.hidden == False,  # noqa: E712
-                Candidate.deleted_at.is_(None),
-                Candidate.hotlist_job_titles.is_not(None),
-            )
-        )
-        candidates_result = await self.db.execute(candidates_query)
-        candidates = candidates_result.scalars().all()
-
-        logger.info(f"Pre-Match: {len(candidates)} Kandidaten in Kategorie {category}")
-
-        # Fuer jeden Job: Distanz-basierte Matches finden
+        # ── Schritt 3: Fuer jeden Job intelligente Matches generieren ──
         batch_count = 0
+        total_filtered_out = 0
         for job in jobs:
             try:
-                created = await self._generate_matches_for_job(job, category)
+                created, filtered = await self._generate_matches_for_job_v2(job, category)
                 result.matches_created += created
+                total_filtered_out += filtered
                 result.combos_processed += 1
                 batch_count += 1
 
@@ -239,7 +263,8 @@ class PreMatchService:
                         progress_callback(
                             "pre_match",
                             f"{result.combos_processed}/{len(jobs)} Jobs, "
-                            f"{result.matches_created} neue Matches",
+                            f"{result.matches_created} Matches erstellt, "
+                            f"{total_filtered_out} ausgefiltert",
                         )
 
             except Exception as e:
@@ -249,35 +274,38 @@ class PreMatchService:
         # Finaler Commit
         await self.db.commit()
 
-        # Pre-Scores berechnen fuer neue Matches ohne Score
-        scored = await self._score_unscored_matches(category)
+        result.matches_filtered_out = total_filtered_out
 
         logger.info(
-            f"Pre-Match Generierung abgeschlossen: "
-            f"{result.combos_processed} Jobs, {result.matches_created} neue Matches, "
-            f"{scored} Scores berechnet"
+            f"Pre-Match v2 Generierung abgeschlossen: "
+            f"{result.combos_processed} Jobs, {result.matches_created} Matches erstellt, "
+            f"{total_filtered_out} durch intelligente Filterung ausgefiltert"
         )
 
         return result
 
-    async def _generate_matches_for_job(self, job: Job, category: str) -> int:
+    async def _generate_matches_for_job_v2(
+        self, job: Job, category: str,
+    ) -> tuple[int, int]:
         """
-        Generiert Matches fuer einen einzelnen Job.
+        Generiert Matches fuer einen Job — v2 mit intelligenter Filterung.
 
-        Filter-Kette (nur passende Kandidaten):
-        1. Gleiche Kategorie + aktiv + hat Koordinaten + hat Jobtitel
-        2. Innerhalb von 30km (PostGIS)
-        3. Mindestens 1 gemeinsamer Berufstitel
-        4. KEIN Fuehrungskraft (is_leadership = false)
-        5. Nur die Top 15 naechsten nach Entfernung
+        Ablauf:
+        1. Finde alle Kandidaten innerhalb 30km (gleiche Kategorie, aktiv)
+           → KEIN Titel-Filter auf DB-Ebene! Wir laden ALLE nahen Kandidaten.
+        2. Fuer jeden Kandidaten: Berechne kalibrierte Rollen-Similarity
+           → Pruefe Ausschluss-Paare (Score 0)
+           → Pruefe Mindest-Similarity (>= 0.25)
+        3. Berechne vollstaendigen Pre-Score
+           → Matches mit Pre-Score < 20 werden verworfen
+        4. Sortiere nach Pre-Score (beste zuerst)
+        5. Max MAX_CANDIDATES_PER_JOB als Sicherheitslimit
 
         Returns:
-            Anzahl neu erstellter Matches
+            (erstellt, ausgefiltert) — Anzahl erstellter und ausgefilterter Matches
         """
         if not job.location_coords or not job.hotlist_job_titles:
-            return 0
-
-        job_titles = job.hotlist_job_titles
+            return 0, 0
 
         # Distanz-Expression
         distance_expr = func.ST_Distance(
@@ -286,76 +314,131 @@ class PreMatchService:
             True,  # use_spheroid
         )
 
-        # ── Filter 1-4: Passende Kandidaten finden ──
-        candidates_query = select(
-            Candidate.id,
-            (distance_expr / METERS_PER_KM).label("distance_km"),
-        ).where(
-            and_(
-                # Basis-Filter
-                Candidate.hotlist_category == category,
-                Candidate.address_coords.is_not(None),
-                Candidate.hidden == False,  # noqa: E712
-                Candidate.deleted_at.is_(None),
-                Candidate.hotlist_job_titles.is_not(None),
-                # Filter 2: Distanz max 30km
-                func.ST_DWithin(
-                    Candidate.address_coords,
-                    job.location_coords,
-                    PRE_MATCH_MAX_DISTANCE_KM * METERS_PER_KM,
-                    True,
-                ),
-                # Filter 3: Mindestens 1 gemeinsamer Berufstitel
-                Candidate.hotlist_job_titles.op("&&")(cast(job_titles, ARRAY(String))),
-                # Filter 4: Keine Fuehrungskraefte
-                or_(
-                    Candidate.classification_data.is_(None),
-                    Candidate.classification_data["is_leadership"].astext != "true",
-                ),
+        # ── DB-Query: Alle Kandidaten innerhalb 30km (ohne Titel-Filter!) ──
+        candidates_query = (
+            select(
+                Candidate,
+                (distance_expr / METERS_PER_KM).label("distance_km"),
             )
-        ).order_by(
-            # Filter 5: Sortiere nach Naehe — die naechsten zuerst
-            (distance_expr / METERS_PER_KM).asc()
-        ).limit(
-            # Filter 5: Nur die Top N naechsten Kandidaten pro Job
-            MAX_CANDIDATES_PER_JOB
+            .where(
+                and_(
+                    # Basis-Filter
+                    Candidate.hotlist_category == category,
+                    Candidate.address_coords.is_not(None),
+                    Candidate.hidden == False,  # noqa: E712
+                    Candidate.deleted_at.is_(None),
+                    # Distanz max 30km — EINZIGE harte Grenze
+                    func.ST_DWithin(
+                        Candidate.address_coords,
+                        job.location_coords,
+                        PRE_MATCH_MAX_DISTANCE_KM * METERS_PER_KM,
+                        True,
+                    ),
+                    # Keine Fuehrungskraefte
+                    or_(
+                        Candidate.classification_data.is_(None),
+                        Candidate.classification_data["is_leadership"].astext != "true",
+                    ),
+                )
+            )
+            .order_by((distance_expr / METERS_PER_KM).asc())
         )
 
         result = await self.db.execute(candidates_query)
         nearby_candidates = result.all()
 
         if not nearby_candidates:
-            return 0
+            return 0, 0
 
         # Bestehende Matches fuer diesen Job laden
         existing_query = select(Match.candidate_id).where(Match.job_id == job.id)
         existing_result = await self.db.execute(existing_query)
         existing_candidate_ids = {row[0] for row in existing_result}
 
-        created = 0
-        for candidate_id, distance_km in nearby_candidates:
-            if candidate_id in existing_candidate_ids:
+        # ── Intelligente Filterung: Rollen-Similarity + Pre-Score ──
+        scored_candidates = []
+        filtered_out = 0
+
+        for candidate, distance_km in nearby_candidates:
+            if candidate.id in existing_candidate_ids:
                 continue  # Match existiert bereits
 
-            # Neuen Match erstellen
-            new_match = Match(
+            # Schritt 2a: Ausschluss-Paare pruefen
+            if self._scorer and self._scorer._exclusion_set:
+                job_role = (job.hotlist_job_title or "").strip()
+                cand_role = (candidate.hotlist_job_title or "").strip()
+                if job_role and cand_role and (job_role, cand_role) in self._scorer._exclusion_set:
+                    filtered_out += 1
+                    continue
+
+            # Schritt 2b: Rollen-Similarity berechnen (kalibriert)
+            if self._scorer:
+                role_sim, _, _ = self._scorer._calculate_role_similarity(candidate, job)
+            else:
+                # Fallback ohne Scorer: einfacher Titel-Vergleich
+                role_sim = self._simple_role_check(candidate, job)
+
+            if role_sim < MIN_ROLE_SIMILARITY:
+                filtered_out += 1
+                continue
+
+            # Schritt 3: Temporaeres Match-Objekt fuer Pre-Score-Berechnung
+            temp_match = Match(
                 job_id=job.id,
-                candidate_id=candidate_id,
+                candidate_id=candidate.id,
                 distance_km=round(distance_km, 2),
                 status=MatchStatus.NEW,
             )
-            self.db.add(new_match)
+
+            # Pre-Score sofort berechnen
+            if self._scorer:
+                breakdown = self._scorer.calculate_pre_score(candidate, job, temp_match)
+                pre_score = breakdown.total
+            else:
+                pre_score = role_sim * 50  # Grober Fallback
+
+            # Schritt 4: Mindest-Pre-Score pruefen
+            if pre_score < MIN_PRE_SCORE:
+                filtered_out += 1
+                continue
+
+            # Match-Objekt mit Score versehen
+            temp_match.pre_score = pre_score
+            temp_match.keyword_score = temp_match.keyword_score  # wurde ggf. inline gesetzt
+            temp_match.matched_keywords = temp_match.matched_keywords  # wurde ggf. inline gesetzt
+
+            scored_candidates.append((temp_match, pre_score))
+
+        # Schritt 5: Sortiere nach Pre-Score (beste zuerst) + Sicherheitslimit
+        scored_candidates.sort(key=lambda x: x[1], reverse=True)
+
+        created = 0
+        for match_obj, _score in scored_candidates[:MAX_CANDIDATES_PER_JOB]:
+            self.db.add(match_obj)
             created += 1
 
-        return created
+        # Was ueber dem Sicherheitslimit liegt, zaehlt auch als gefiltert
+        if len(scored_candidates) > MAX_CANDIDATES_PER_JOB:
+            filtered_out += len(scored_candidates) - MAX_CANDIDATES_PER_JOB
 
-    async def _score_unscored_matches(self, category: str) -> int:
-        """Berechnet Pre-Scores fuer alle Matches ohne Score in der Kategorie."""
-        from app.services.pre_scoring_service import PreScoringService
+        return created, filtered_out
 
-        scorer = PreScoringService(self.db)
-        result = await scorer.score_matches_for_category(category, force=False)
-        return result.scored
+    @staticmethod
+    def _simple_role_check(candidate: Candidate, job: Job) -> float:
+        """Fallback Rollen-Check ohne Kalibrierung (einfacher Titel-Vergleich)."""
+        job_titles = set(t.lower().strip() for t in (job.hotlist_job_titles or []))
+        cand_titles = set(t.lower().strip() for t in (candidate.hotlist_job_titles or []))
+
+        if not job_titles or not cand_titles:
+            return 0.0
+
+        # Gemeinsame Titel
+        common = job_titles & cand_titles
+        if common:
+            return 1.0
+
+        # Kein gemeinsamer Titel
+        return 0.0
 
     # ──────────────────────────────────────────────────
     # Abfragen: Uebersicht

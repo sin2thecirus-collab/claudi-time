@@ -231,6 +231,7 @@ async def _run_generate(category: str, force: bool = False):
                 "matches_created": result.matches_created,
                 "matches_updated": result.matches_updated,
                 "matches_skipped": result.matches_skipped,
+                "matches_filtered_out": result.matches_filtered_out,
                 "errors_count": len(result.errors),
                 "errors": result.errors[:10],
             }
