@@ -3,6 +3,7 @@
 import csv
 import io
 import logging
+import re
 from datetime import datetime, timezone
 from typing import BinaryIO
 from uuid import UUID
@@ -585,6 +586,106 @@ class CSVImportService:
                 return value
         return None
 
+    @staticmethod
+    def _clean_job_text(text: str | None, position: str = "") -> str | None:
+        """
+        Bereitet rohen Stellenanzeigen-Text strukturiert auf.
+
+        Stellenanzeigen kommen oft als einziger Textblock aus einer Excel-Zelle
+        ohne Zeilenumbrueche. Diese Methode erkennt typische Abschnitts-Ueberschriften
+        und fuegt Zeilenumbrueche ein, damit der Text lesbar wird.
+
+        Args:
+            text: Roher Stellentext
+            position: Stellentitel (zum Entfernen von Duplikaten am Anfang)
+
+        Returns:
+            Strukturierter Text mit Zeilenumbruechen oder None
+        """
+        if not text or not text.strip():
+            return None
+
+        cleaned = text.strip()
+
+        # Wenn der Text bereits Zeilenumbrueche hat, nur leicht bereinigen
+        if cleaned.count("\n") > 3:
+            # Schon strukturiert — nur ueberfluessige Leerzeilen reduzieren
+            cleaned = re.sub(r"\n{4,}", "\n\n\n", cleaned)
+            return cleaned.strip()
+
+        # ── Schritt 1: Metadata am Anfang entfernen ──
+        # Muster: "Jobtitel Stadt Firma Feste Anstellung Vollzeit Erschienen: vor X"
+        meta_patterns = [
+            r"Erschienen:\s*vor\s+\d+\s+\w+\s*",
+            r"Gehalt\s+anzeigen\s*",
+            r"Feste\s+Anstellung\s+(?:Vollzeit|Teilzeit)\s*",
+            r"(?:Vollzeit|Teilzeit)\s+(?:Mit|Ohne)\s+Berufserfahrung[^.]*\s*",
+            r"Teilweise\s+Homeoffice\s*",
+        ]
+        for pattern in meta_patterns:
+            cleaned = re.sub(pattern, "\n", cleaned, flags=re.IGNORECASE)
+
+        # ── Schritt 2: Bekannte Abschnitts-Ueberschriften erkennen ──
+        # Diese Keywords markieren den Beginn eines neuen Abschnitts
+        section_headers = [
+            # Ueber uns / Unternehmen
+            r"(?:Über uns|Ueber uns|Unternehmensbeschreibung|Das Unternehmen|Wer wir sind)",
+            # Aufgaben
+            r"(?:Ihre Aufgaben|Deine Aufgaben|Aufgaben|Aufgabengebiet|Aufgabenbereich|"
+            r"Ihr Aufgabengebiet|Ihre Taetigkeit|Taetigkeiten|Das erwartet Sie|"
+            r"Das erwartet dich|Was Sie erwartet|Was dich erwartet|Stellenbeschreibung|"
+            r"Tätigkeiten|Ihre Tätigkeit|Ihr Aufgabenbereich|Das sind Ihre Aufgaben|"
+            r"Diese Aufgaben erwarten Sie)",
+            # Profil / Anforderungen
+            r"(?:Ihr Profil|Dein Profil|Profil|Anforderungen|Anforderungsprofil|"
+            r"Ihre Qualifikation|Qualifikation|Das bringen Sie mit|Das bringst du mit|"
+            r"Was Sie mitbringen|Was du mitbringst|Voraussetzungen|Unsere Anforderungen|"
+            r"Das wünschen wir uns|Das sollten Sie mitbringen)",
+            # Benefits / Wir bieten
+            r"(?:Wir bieten|Was wir bieten|Was wir Ihnen bieten|Ihre Vorteile|"
+            r"Benefits|Unser Angebot|Das bieten wir|Das bieten wir Ihnen|"
+            r"Darauf können Sie sich freuen|Darauf kannst du dich freuen|"
+            r"Ihre Benefits|Wir bieten Ihnen|Das erwartet Sie bei uns)",
+            # Kontakt / Bewerbung
+            r"(?:Kontakt|Bewerbung|So bewerben Sie sich|Jetzt bewerben|"
+            r"Haben wir Ihr Interesse geweckt|Interessiert\?|"
+            r"Ihre Bewerbung|Ansprechpartner)",
+        ]
+
+        for header_group in section_headers:
+            # Ueberschrift erkennen und 2 Zeilenumbrueche davor einfuegen
+            cleaned = re.sub(
+                rf"(?<!\n)\s*({header_group})\s*:?\s*",
+                r"\n\n\1\n",
+                cleaned,
+                flags=re.IGNORECASE,
+            )
+
+        # ── Schritt 3: Aufzaehlungszeichen erkennen ──
+        # Muster wie "- Punkt" oder "• Punkt" die inline stehen
+        cleaned = re.sub(
+            r"(?<!\n)\s+([-•●▪◦–])\s+",
+            r"\n\1 ",
+            cleaned,
+        )
+
+        # ── Schritt 4: Doppelte Leerzeichen bereinigen ──
+        cleaned = re.sub(r"[ \t]{2,}", " ", cleaned)
+
+        # ── Schritt 5: Ueberfluessige Leerzeilen reduzieren ──
+        cleaned = re.sub(r"\n{4,}", "\n\n\n", cleaned)
+        cleaned = re.sub(r"^\n+", "", cleaned)
+
+        # ── Schritt 6: Position-Duplikat am Anfang entfernen ──
+        # Oft steht der Jobtitel 1-2x am Anfang
+        if position and cleaned.startswith(position):
+            cleaned = cleaned[len(position):].lstrip()
+            # Nochmal pruefen (manchmal steht er 2x)
+            if cleaned.startswith(position):
+                cleaned = cleaned[len(position):].lstrip()
+
+        return cleaned.strip() if cleaned.strip() else None
+
     def _row_to_job(self, row: dict[str, str], content_hash: str, company_id=None) -> Job:
         """
         Konvertiert eine CSV-Zeile in ein Job-Objekt.
@@ -602,11 +703,17 @@ class CSVImportService:
         """
         # DB-Limits: company_name/position=VARCHAR(255), city/work_location_city/
         # employment_type/industry=VARCHAR(100), company_size=VARCHAR(100)
+        position = (self._get_field(row, "Position", "Funktion - AP Firma")
+                    or "Keine Position angegeben")[:255]
+
+        raw_job_text = self._get_field(
+            row, "Beschreibung", "Stellenbeschreibung", "Anzeigen-Text",
+        )
+
         return Job(
             company_name=row.get("Unternehmen", "").strip()[:255],
             company_id=company_id,
-            position=(self._get_field(row, "Position", "Funktion - AP Firma")
-                      or "Keine Position angegeben")[:255],
+            position=position,
             street_address=self._get_field(row, "Straße", "Straße und Hausnummer", max_len=255),
             postal_code=self._get_field(row, "PLZ", max_len=10),
             city=self._get_field(row, "Stadt", "Ort", max_len=100),
@@ -614,9 +721,7 @@ class CSVImportService:
                 row, "Arbeitsort", "Einsatzort", "Ort", "Stadt", max_len=100,
             ),
             job_url=self._get_field(row, "URL", "Anzeigenlink", "Link", max_len=500),
-            job_text=self._get_field(
-                row, "Beschreibung", "Stellenbeschreibung", "Anzeigen-Text",
-            ),
+            job_text=self._clean_job_text(raw_job_text, position),
             employment_type=self._get_field(row, "Beschäftigungsart", "Art", max_len=100),
             industry=self._get_field(row, "Branche", max_len=100),
             company_size=self._get_field(

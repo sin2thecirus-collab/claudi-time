@@ -493,3 +493,62 @@ def _job_to_response(job) -> JobResponse:
         match_count=getattr(job, "match_count", None),
         active_candidate_count=getattr(job, "active_candidate_count", None),
     )
+
+
+# ==================== Maintenance ====================
+
+
+@router.post(
+    "/maintenance/clean-job-texts",
+    summary="Bestehende Job-Texte strukturiert aufbereiten",
+    tags=["Maintenance"],
+)
+async def clean_existing_job_texts(
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Bereinigt alle bestehenden job_text Felder in der Datenbank.
+
+    Erkennt Abschnitts-Ueberschriften und fuegt Zeilenumbrueche ein,
+    damit der Text im Split-View lesbar angezeigt wird.
+    """
+    from sqlalchemy import select, and_
+    from app.models.job import Job as JobModel
+
+    # Alle Jobs mit job_text laden die KEINE Zeilenumbrueche haben
+    # (= noch nicht bereinigt)
+    query = select(JobModel).where(
+        and_(
+            JobModel.job_text.is_not(None),
+            JobModel.deleted_at.is_(None),
+        )
+    )
+    result = await db.execute(query)
+    jobs = result.scalars().all()
+
+    cleaned_count = 0
+    skipped_count = 0
+
+    for job in jobs:
+        if not job.job_text:
+            continue
+
+        # Nur bereinigen wenn weniger als 4 Zeilenumbrueche
+        # (sonst ist der Text vermutlich schon strukturiert)
+        if job.job_text.count("\n") > 3:
+            skipped_count += 1
+            continue
+
+        new_text = CSVImportService._clean_job_text(job.job_text, job.position or "")
+        if new_text and new_text != job.job_text:
+            job.job_text = new_text
+            cleaned_count += 1
+
+    await db.commit()
+
+    return {
+        "status": "completed",
+        "total_jobs": len(jobs),
+        "cleaned": cleaned_count,
+        "skipped_already_structured": skipped_count,
+    }
