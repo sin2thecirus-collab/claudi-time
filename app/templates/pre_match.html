@@ -151,8 +151,7 @@
     {% if by_profession %}
     <div class="space-y-4">
         {% for profession, cities in by_profession.items() %}
-        {% set cities_json %}[{% for g in cities %}{"job_title":"{{ g.job_title | replace('"', '\\"') }}","city":"{{ g.city | replace('"', '\\"') }}","match_count":{{ g.match_count }}}{% if not loop.last %},{% endif %}{% endfor %}]{% endset %}
-        <div x-data="{ open: true, citiesData: {{ cities_json }} }"
+        <div x-data="{ open: true, citiesData: {{ cities_json_map[profession] }} }"
              x-show="!searchTerm || '{{ profession | lower }}'.includes(searchTerm.toLowerCase()) || citiesData.some(c => c.city.toLowerCase().includes(searchTerm.toLowerCase()))"
              class="bg-white rounded-xl border border-gray-200 overflow-hidden">
 

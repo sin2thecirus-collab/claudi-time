@@ -10,6 +10,7 @@ API:
 """
 
 import asyncio
+import json
 import logging
 from datetime import datetime, timezone
 
@@ -66,6 +67,17 @@ async def pre_match_page(
             by_profession[g.job_title] = []
         by_profession[g.job_title].append(g)
 
+    # JSON-Daten fuer JavaScript (cities pro Beruf) — weil tojson auf Dataclass nicht klappt
+    cities_json_map: dict[str, str] = {}
+    for profession, city_groups in by_profession.items():
+        cities_json_map[profession] = json.dumps(
+            [
+                {"job_title": g.job_title, "city": g.city, "match_count": g.match_count}
+                for g in city_groups
+            ],
+            ensure_ascii=False,
+        )
+
     return templates.TemplateResponse(
         "pre_match.html",
         {
@@ -73,6 +85,7 @@ async def pre_match_page(
             "category": category,
             "groups": groups,
             "by_profession": by_profession,
+            "cities_json_map": cities_json_map,
             "stats": stats,
             "generate_status": _generate_status,
         },
