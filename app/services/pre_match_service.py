@@ -76,6 +76,15 @@ class PreMatchDetail:
     feedback_note: str | None
     has_cv: bool
     cv_stored_path: str | None
+    # Split-View Daten
+    job_text: str | None = None
+    candidate_work_history: list[dict] | None = None
+    candidate_education: list[dict] | None = None
+    candidate_further_education: list[dict] | None = None
+    candidate_it_skills: list[str] | None = None
+    candidate_languages: list[dict] | None = None
+    candidate_current_position: str | None = None
+    candidate_skills: list[str] | None = None
 
 
 @dataclass
@@ -497,6 +506,34 @@ class PreMatchService:
 
         details = []
         for match, candidate, job in rows:
+            # work_history normalisieren (kann list oder None sein)
+            wh = candidate.work_history
+            if wh and isinstance(wh, list):
+                work_history = wh
+            else:
+                work_history = []
+
+            # education normalisieren
+            edu = candidate.education
+            if edu and isinstance(edu, list):
+                education = edu
+            else:
+                education = []
+
+            # further_education normalisieren
+            fe = candidate.further_education
+            if fe and isinstance(fe, list):
+                further_education = fe
+            else:
+                further_education = []
+
+            # languages normalisieren
+            langs = candidate.languages
+            if langs and isinstance(langs, list):
+                languages = langs
+            else:
+                languages = []
+
             details.append(
                 PreMatchDetail(
                     match_id=match.id,
@@ -521,6 +558,15 @@ class PreMatchService:
                     feedback_note=match.feedback_note,
                     has_cv=bool(candidate.cv_stored_path or candidate.cv_text),
                     cv_stored_path=candidate.cv_stored_path,
+                    # Split-View Daten
+                    job_text=job.job_text,
+                    candidate_work_history=work_history,
+                    candidate_education=education,
+                    candidate_further_education=further_education,
+                    candidate_it_skills=candidate.it_skills or [],
+                    candidate_languages=languages,
+                    candidate_current_position=candidate.current_position,
+                    candidate_skills=candidate.skills or [],
                 )
             )
 

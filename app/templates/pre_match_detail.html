@@ -7,6 +7,8 @@
     selectedIds: [],
     selectAll: false,
     expandedRows: {},
+    splitViewOpen: false,
+    splitViewMatchId: null,
     toggleAll() {
         if (this.selectAll) {
             this.selectedIds = [{% for m in matches %}'{{ m.match_id }}'{% if not loop.last %},{% endif %}{% endfor %}];
@@ -22,6 +24,16 @@
     },
     toggleRow(id) {
         this.expandedRows[id] = !this.expandedRows[id];
+    },
+    openSplitView(matchId) {
+        this.splitViewMatchId = matchId;
+        this.splitViewOpen = true;
+        document.body.style.overflow = 'hidden';
+    },
+    closeSplitView() {
+        this.splitViewOpen = false;
+        this.splitViewMatchId = null;
+        document.body.style.overflow = '';
     }
 }">
 
@@ -98,7 +110,7 @@
         </div>
     </div>
 
-    {# -- Tabelle (Hybrid V5) -- #}
+    {# -- Tabelle -- #}
     {% if matches %}
     <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <table class="w-full">
@@ -150,14 +162,24 @@
                         </span>
                     </td>
 
-                    {# Kandidat #}
+                    {# Kandidat + Rolle #}
                     <td class="px-3 py-3">
-                        <a href="/candidates/{{ m.candidate_id }}"
-                           @click.stop
-                           class="text-sm font-semibold text-gray-900 hover:text-primary-600 transition-colors">
-                            {{ m.candidate_name }}
-                        </a>
-                        <p class="text-xs text-gray-400">{{ m.candidate_city or '' }}</p>
+                        <div class="flex items-center gap-2">
+                            <div>
+                                <a href="/candidates/{{ m.candidate_id }}"
+                                   @click.stop
+                                   class="text-sm font-semibold text-gray-900 hover:text-primary-600 transition-colors">
+                                    {{ m.candidate_name }}
+                                </a>
+                                <div class="flex items-center gap-1.5 mt-0.5">
+                                    <p class="text-xs text-gray-400">{{ m.candidate_city or '' }}</p>
+                                    {% if m.candidate_title %}
+                                    <span class="text-gray-300">&middot;</span>
+                                    <span class="text-[10px] font-medium text-blue-600">{{ m.candidate_title }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
                     </td>
 
                     {# Unternehmen (hidden on mobile) #}
@@ -212,7 +234,7 @@
                     x-transition:leave-end="opacity-0">
                     <td colspan="7" class="px-4 py-4 bg-gray-50/80 border-t border-gray-100">
 
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
 
                             {# Telefon #}
                             <div>
@@ -270,10 +292,39 @@
                                 {% endif %}
                             </div>
 
-                            {# Aktionen: CV + KI + Feedback #}
+                            {# IT-Skills Vorschau #}
+                            <div>
+                                <p class="text-[10px] text-gray-400 uppercase font-semibold tracking-wider mb-1.5">IT-Skills</p>
+                                {% if m.candidate_it_skills %}
+                                <div class="flex flex-wrap gap-1">
+                                    {% for s in m.candidate_it_skills[:6] %}
+                                    <span class="inline-flex items-center rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600">
+                                        {{ s }}
+                                    </span>
+                                    {% endfor %}
+                                    {% if m.candidate_it_skills | length > 6 %}
+                                    <span class="text-[10px] text-gray-400">+{{ m.candidate_it_skills | length - 6 }}</span>
+                                    {% endif %}
+                                </div>
+                                {% else %}
+                                <span class="text-xs text-gray-300">-</span>
+                                {% endif %}
+                            </div>
+
+                            {# Aktionen: CV + Vergleich + KI + Feedback #}
                             <div>
                                 <p class="text-[10px] text-gray-400 uppercase font-semibold tracking-wider mb-1.5">Aktionen</p>
                                 <div class="flex items-center gap-2 flex-wrap">
+
+                                    {# Split-View Vergleich Button #}
+                                    <button onclick="event.stopPropagation(); openSplitViewForMatch('{{ m.match_id }}')"
+                                            class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors text-xs font-medium"
+                                            title="Job vs. Kandidat vergleichen">
+                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+                                        </svg>
+                                        Vergleich
+                                    </button>
 
                                     {# CV #}
                                     {% if m.has_cv %}
@@ -409,27 +460,365 @@
         <p class="text-sm text-gray-500 mt-2">Fuer diese Kombination gibt es noch keine Pre-Matches.</p>
     </div>
     {% endif %}
+
+    {# ═══════════════════════════════════════════════════════════════ #}
+    {# SPLIT-VIEW MODAL — Fullscreen Overlay: Job links, Kandidat rechts #}
+    {# ═══════════════════════════════════════════════════════════════ #}
+    <div x-show="splitViewOpen"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50 bg-gray-900/60 backdrop-blur-sm"
+         @keydown.escape.window="closeSplitView()"
+         style="display: none;">
+
+        {# Modal Container #}
+        <div class="fixed inset-2 md:inset-4 lg:inset-6 bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+
+            {# Modal Header #}
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50 flex-shrink-0">
+                <div class="flex items-center gap-3">
+                    <svg class="w-5 h-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+                    </svg>
+                    <h2 class="text-lg font-bold text-gray-900" id="sv-header-title">Job vs. Kandidat Vergleich</h2>
+                </div>
+                <button @click="closeSplitView()"
+                        class="p-2 rounded-lg hover:bg-gray-200 transition-colors text-gray-500 hover:text-gray-700">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            {# Split-View Content: 2 Spalten #}
+            <div class="flex-1 grid grid-cols-1 md:grid-cols-2 divide-x divide-gray-200 overflow-hidden">
+
+                {# ──── LINKE SEITE: Job ──── #}
+                <div class="flex flex-col overflow-hidden">
+                    <div class="px-5 py-3 bg-blue-50 border-b border-blue-100 flex-shrink-0">
+                        <div class="flex items-center gap-2">
+                            <svg class="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0" />
+                            </svg>
+                            <h3 class="text-sm font-bold text-blue-800">Jobbeschreibung</h3>
+                        </div>
+                        <p class="text-xs text-blue-600 mt-1" id="sv-job-meta"></p>
+                    </div>
+                    <div class="flex-1 overflow-y-auto px-5 py-4" id="sv-job-content">
+                        <p class="text-sm text-gray-400 italic">Lade...</p>
+                    </div>
+                </div>
+
+                {# ──── RECHTE SEITE: Kandidat ──── #}
+                <div class="flex flex-col overflow-hidden">
+                    <div class="px-5 py-3 bg-emerald-50 border-b border-emerald-100 flex-shrink-0">
+                        <div class="flex items-center gap-2">
+                            <svg class="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                            </svg>
+                            <h3 class="text-sm font-bold text-emerald-800" id="sv-candidate-name">Kandidat</h3>
+                        </div>
+                        <p class="text-xs text-emerald-600 mt-1" id="sv-candidate-meta"></p>
+                    </div>
+                    <div class="flex-1 overflow-y-auto px-5 py-4" id="sv-candidate-content">
+                        <p class="text-sm text-gray-400 italic">Lade...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+// ═══════════════════════════════════════════════════════════════
+// Match-Daten Store (wird beim Rendern befuellt, vermeidet tojson in HTML-Attributen)
+// ═══════════════════════════════════════════════════════════════
+const MATCH_DATA = {};
+{% for m in matches %}
+MATCH_DATA['{{ m.match_id }}'] = {
+    candidateName: {{ m.candidate_name | tojson }},
+    candidateTitle: {{ m.candidate_title | tojson }},
+    candidateTitles: {{ m.candidate_titles | tojson }},
+    candidateCity: {{ (m.candidate_city or '') | tojson }},
+    candidateCurrentPosition: {{ (m.candidate_current_position or '') | tojson }},
+    jobCompany: {{ m.job_company | tojson }},
+    jobPosition: {{ m.job_position | tojson }},
+    jobUrl: {{ (m.job_url or '') | tojson }},
+    distanceKm: {{ m.distance_km if m.distance_km is not none else 'null' }},
+    preScore: {{ m.pre_score if m.pre_score is not none else 'null' }},
+    jobText: {{ (m.job_text or '') | tojson }},
+    workHistory: {{ (m.candidate_work_history or []) | tojson }},
+    education: {{ (m.candidate_education or []) | tojson }},
+    furtherEducation: {{ (m.candidate_further_education or []) | tojson }},
+    itSkills: {{ (m.candidate_it_skills or []) | tojson }},
+    languages: {{ (m.candidate_languages or []) | tojson }},
+    skills: {{ (m.candidate_skills or []) | tojson }},
+    hasCv: {{ 'true' if m.has_cv else 'false' }},
+    candidateId: '{{ m.candidate_id }}',
+    cvStoredPath: {{ (m.cv_stored_path or '') | tojson }}
+};
+{% endfor %}
+
+// ═══════════════════════════════════════════════════════════════
+// Split-View oeffnen
+// ═══════════════════════════════════════════════════════════════
+function openSplitViewForMatch(matchId) {
+    const data = MATCH_DATA[matchId];
+    if (!data) return;
+
+    // Alpine-State setzen
+    const alpineEl = document.querySelector('[x-data]');
+    if (alpineEl && alpineEl.__x) {
+        alpineEl.__x.$data.splitViewMatchId = matchId;
+        alpineEl.__x.$data.splitViewOpen = true;
+        document.body.style.overflow = 'hidden';
+    }
+
+    // Header
+    document.getElementById('sv-header-title').textContent =
+        data.jobPosition + '  vs.  ' + data.candidateName;
+
+    // ── Linke Seite: Job ──
+    document.getElementById('sv-job-meta').textContent =
+        data.jobCompany + ' — ' + data.jobPosition;
+
+    const jobEl = document.getElementById('sv-job-content');
+    if (data.jobText && data.jobText.trim()) {
+        // Job-Text rendern mit Zeilenumbruechen
+        jobEl.innerHTML = '<div class="prose prose-sm max-w-none text-gray-700 leading-relaxed">' +
+            escapeHtml(data.jobText).replace(/\n/g, '<br>') +
+            '</div>';
+    } else if (data.jobUrl) {
+        jobEl.innerHTML = '<div class="text-center py-12">' +
+            '<p class="text-gray-400 mb-4">Keine Jobbeschreibung gespeichert</p>' +
+            '<a href="' + escapeHtml(data.jobUrl) + '" target="_blank" ' +
+            'class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 font-medium text-sm">' +
+            '<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">' +
+            '<path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg>' +
+            'Job-Anzeige oeffnen</a></div>';
+    } else {
+        jobEl.innerHTML = '<p class="text-gray-400 italic text-center py-12">Keine Jobbeschreibung verfuegbar</p>';
+    }
+
+    // ── Rechte Seite: Kandidat ──
+    document.getElementById('sv-candidate-name').textContent = data.candidateName;
+    const metaParts = [];
+    if (data.candidateTitle) metaParts.push(data.candidateTitle);
+    if (data.candidateCity) metaParts.push(data.candidateCity);
+    if (data.distanceKm !== null) metaParts.push(data.distanceKm.toFixed(1) + ' km');
+    document.getElementById('sv-candidate-meta').textContent = metaParts.join(' — ');
+
+    const candEl = document.getElementById('sv-candidate-content');
+    candEl.innerHTML = buildCandidateCV(data);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Kandidaten-Lebenslauf HTML aufbauen
+// ═══════════════════════════════════════════════════════════════
+function buildCandidateCV(data) {
+    let html = '';
+
+    // Aktuelle Position
+    if (data.candidateCurrentPosition) {
+        html += '<div class="mb-5">' +
+            '<h4 class="text-[10px] text-gray-400 uppercase font-semibold tracking-wider mb-2">Aktuelle Position</h4>' +
+            '<p class="text-sm font-medium text-gray-800">' + escapeHtml(data.candidateCurrentPosition) + '</p>' +
+            '</div>';
+    }
+
+    // Rollen-Badges
+    if (data.candidateTitles && data.candidateTitles.length > 0) {
+        html += '<div class="mb-5">' +
+            '<h4 class="text-[10px] text-gray-400 uppercase font-semibold tracking-wider mb-2">Rollen</h4>' +
+            '<div class="flex flex-wrap gap-1.5">';
+        data.candidateTitles.forEach(function(t) {
+            html += '<span class="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">' + escapeHtml(t) + '</span>';
+        });
+        html += '</div></div>';
+    }
+
+    // Berufserfahrung (work_history)
+    if (data.workHistory && data.workHistory.length > 0) {
+        html += '<div class="mb-5">' +
+            '<h4 class="text-[10px] text-gray-400 uppercase font-semibold tracking-wider mb-3">Berufserfahrung</h4>' +
+            '<div class="space-y-4">';
+        data.workHistory.forEach(function(entry) {
+            html += '<div class="relative pl-4 border-l-2 border-gray-200">';
+            // Position + Firma
+            html += '<p class="text-sm font-semibold text-gray-800">' + escapeHtml(entry.position || 'Unbekannte Position') + '</p>';
+            if (entry.company) {
+                html += '<p class="text-xs font-medium text-gray-500">' + escapeHtml(entry.company) + '</p>';
+            }
+            // Zeitraum
+            const timeRange = formatDateRange(entry.start_date, entry.end_date);
+            if (timeRange) {
+                html += '<p class="text-[10px] text-gray-400 mt-0.5">' + escapeHtml(timeRange) + '</p>';
+            }
+            // Taetigkeiten
+            if (entry.description) {
+                html += '<div class="mt-1.5 text-xs text-gray-600 leading-relaxed">' +
+                    formatBullets(entry.description) + '</div>';
+            }
+            html += '</div>';
+        });
+        html += '</div></div>';
+    }
+
+    // Weiterbildung
+    if (data.furtherEducation && data.furtherEducation.length > 0) {
+        html += '<div class="mb-5">' +
+            '<h4 class="text-[10px] text-gray-400 uppercase font-semibold tracking-wider mb-2">Weiterbildung / Zertifikate</h4>' +
+            '<div class="space-y-2">';
+        data.furtherEducation.forEach(function(entry) {
+            html += '<div class="flex items-start gap-2">' +
+                '<span class="text-emerald-400 mt-0.5">&#9679;</span>' +
+                '<div>' +
+                '<p class="text-sm font-medium text-gray-800">' + escapeHtml(entry.degree || entry.field_of_study || 'Zertifikat') + '</p>';
+            if (entry.institution) {
+                html += '<p class="text-xs text-gray-500">' + escapeHtml(entry.institution) + '</p>';
+            }
+            const timeRange = formatDateRange(entry.start_date, entry.end_date);
+            if (timeRange) {
+                html += '<p class="text-[10px] text-gray-400">' + escapeHtml(timeRange) + '</p>';
+            }
+            html += '</div></div>';
+        });
+        html += '</div></div>';
+    }
+
+    // Ausbildung
+    if (data.education && data.education.length > 0) {
+        html += '<div class="mb-5">' +
+            '<h4 class="text-[10px] text-gray-400 uppercase font-semibold tracking-wider mb-2">Ausbildung</h4>' +
+            '<div class="space-y-2">';
+        data.education.forEach(function(entry) {
+            html += '<div class="flex items-start gap-2">' +
+                '<span class="text-blue-400 mt-0.5">&#9679;</span>' +
+                '<div>' +
+                '<p class="text-sm font-medium text-gray-800">' + escapeHtml(entry.degree || entry.field_of_study || 'Ausbildung') + '</p>';
+            if (entry.institution) {
+                html += '<p class="text-xs text-gray-500">' + escapeHtml(entry.institution) + '</p>';
+            }
+            if (entry.field_of_study && entry.degree) {
+                html += '<p class="text-xs text-gray-500">' + escapeHtml(entry.field_of_study) + '</p>';
+            }
+            const timeRange = formatDateRange(entry.start_date, entry.end_date);
+            if (timeRange) {
+                html += '<p class="text-[10px] text-gray-400">' + escapeHtml(timeRange) + '</p>';
+            }
+            html += '</div></div>';
+        });
+        html += '</div></div>';
+    }
+
+    // IT-Skills
+    if (data.itSkills && data.itSkills.length > 0) {
+        html += '<div class="mb-5">' +
+            '<h4 class="text-[10px] text-gray-400 uppercase font-semibold tracking-wider mb-2">IT-Kenntnisse</h4>' +
+            '<div class="flex flex-wrap gap-1.5">';
+        data.itSkills.forEach(function(s) {
+            html += '<span class="inline-flex items-center rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700">' + escapeHtml(s) + '</span>';
+        });
+        html += '</div></div>';
+    }
+
+    // Sprachen
+    if (data.languages && data.languages.length > 0) {
+        html += '<div class="mb-5">' +
+            '<h4 class="text-[10px] text-gray-400 uppercase font-semibold tracking-wider mb-2">Sprachen</h4>' +
+            '<div class="flex flex-wrap gap-2">';
+        data.languages.forEach(function(l) {
+            var lang = l.language || l;
+            var level = l.level || '';
+            html += '<span class="inline-flex items-center rounded-md bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700">' +
+                escapeHtml(lang) + (level ? ' (' + escapeHtml(level) + ')' : '') + '</span>';
+        });
+        html += '</div></div>';
+    }
+
+    // Weitere Skills
+    if (data.skills && data.skills.length > 0) {
+        html += '<div class="mb-5">' +
+            '<h4 class="text-[10px] text-gray-400 uppercase font-semibold tracking-wider mb-2">Fachkenntnisse</h4>' +
+            '<div class="flex flex-wrap gap-1.5">';
+        data.skills.forEach(function(s) {
+            html += '<span class="inline-flex items-center rounded-md bg-purple-50 px-2 py-1 text-xs font-medium text-purple-700">' + escapeHtml(s) + '</span>';
+        });
+        html += '</div></div>';
+    }
+
+    // Fallback wenn gar nichts da
+    if (!html) {
+        html = '<div class="text-center py-12">' +
+            '<p class="text-gray-400 italic">Keine CV-Daten verfuegbar</p>' +
+            '<a href="/candidates/' + data.candidateId + '" target="_blank" ' +
+            'class="inline-flex items-center gap-2 px-4 py-2 mt-4 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 font-medium text-sm">' +
+            'Kandidat oeffnen</a></div>';
+    }
+
+    return html;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Hilfsfunktionen
+// ═══════════════════════════════════════════════════════════════
+function escapeHtml(str) {
+    if (!str) return '';
+    var div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+function formatDateRange(start, end) {
+    if (!start && !end) return '';
+    var s = start || '?';
+    var e = end || 'heute';
+    return s + ' - ' + e;
+}
+
+function formatBullets(text) {
+    if (!text) return '';
+    // Split auf \n und als Aufzaehlung rendern
+    var lines = text.split('\n').filter(function(l) { return l.trim(); });
+    if (lines.length <= 1) return '<p>' + escapeHtml(text) + '</p>';
+    var html = '<ul class="list-none space-y-0.5">';
+    lines.forEach(function(line) {
+        var cleaned = line.replace(/^[\u2022\-\*]\s*/, '');
+        html += '<li class="flex items-start gap-1.5">' +
+            '<span class="text-gray-400 mt-0.5 flex-shrink-0">&bull;</span>' +
+            '<span>' + escapeHtml(cleaned) + '</span></li>';
+    });
+    html += '</ul>';
+    return html;
+}
+
+// ═══════════════════════════════════════════════════════════════
 // Copy to Clipboard
+// ═══════════════════════════════════════════════════════════════
 function copyToClipboard(text, btnEl) {
-    navigator.clipboard.writeText(text).then(() => {
-        const origHTML = btnEl.innerHTML;
+    navigator.clipboard.writeText(text).then(function() {
+        var origHTML = btnEl.innerHTML;
         btnEl.innerHTML = '<svg class="w-3.5 h-3.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>';
         btnEl.style.opacity = '1';
-        setTimeout(() => {
+        setTimeout(function() {
             btnEl.innerHTML = origHTML;
             btnEl.style.opacity = '';
         }, 1500);
-    }).catch(() => {
+    }).catch(function() {
         showToast('Kopieren fehlgeschlagen', 'error');
     });
 }
 
-// Deep Match fuer ausgewaehlte — Batch + Redirect zum DeepMatch-Bereich
+// ═══════════════════════════════════════════════════════════════
+// Deep Match fuer ausgewaehlte
+// ═══════════════════════════════════════════════════════════════
 async function deepMatchSelected() {
     const alpine = document.querySelector('[x-data]').__x.$data;
     const ids = alpine.selectedIds;
@@ -457,11 +846,11 @@ async function deepMatchSelected() {
                 `DeepMatch abgeschlossen: ${data.evaluated} bewertet`,
                 'success'
             );
-            setTimeout(() => {
+            setTimeout(function() {
                 window.location.href = '/deep-match{% if category %}?category={{ category }}{% endif %}';
             }, 1500);
         } else {
-            const errData = await resp.json().catch(() => ({}));
+            const errData = await resp.json().catch(function() { return {}; });
             showToast(errData.detail || 'Fehler bei DeepMatch', 'error');
         }
     } catch (e) {
@@ -481,7 +870,7 @@ async function triggerSingleDeepMatch(matchId) {
         const resp = await fetch('/partials/deepmatch-single/' + matchId, { method: 'POST' });
         if (resp.ok) {
             showToast('KI-Bewertung abgeschlossen', 'success', 2000);
-            setTimeout(() => window.location.reload(), 1000);
+            setTimeout(function() { window.location.reload(); }, 1000);
         } else {
             if (btn) btn.innerHTML = '<span class="text-red-500 text-xs">Fehler</span>';
         }
@@ -500,7 +889,7 @@ async function saveFeedback(matchId, feedback) {
         });
         if (resp.ok) {
             showToast('Feedback gespeichert', 'success', 2000);
-            setTimeout(() => window.location.reload(), 500);
+            setTimeout(function() { window.location.reload(); }, 500);
         }
     } catch (e) {
         showToast('Fehler: ' + e.message, 'error');
@@ -520,7 +909,7 @@ async function promptFeedbackNote(matchId) {
         });
         if (resp.ok) {
             showToast('Notiz gespeichert', 'success', 2000);
-            setTimeout(() => window.location.reload(), 500);
+            setTimeout(function() { window.location.reload(); }, 500);
         }
     } catch (e) {
         showToast('Fehler: ' + e.message, 'error');
