@@ -17,6 +17,13 @@ Analysiert alle AI-bewerteten Matches und leitet Korrekturfaktoren ab:
    → Wenn (job_role, cand_role) IMMER ai_score < 0.2 ergibt
    → Diese Kombination wird im Pre-Match ausgeschlossen
 
+4. Staerken/Schwaechen-Muster (NEU):
+   → Analysiert ai_strengths + ai_weaknesses Texte
+   → Erkennt wiederkehrende Muster in guten/schlechten Matches
+   → Identifiziert "Must-Have" Skills (fehlen = schlecht)
+   → Identifiziert "Deal-Breaker" (kommen = schlecht)
+   → Pro Rollen-Paar: Was macht den Unterschied?
+
 Die Ergebnisse werden als JSON in einer DB-Tabelle gespeichert
 und vom Pre-Scoring-Service beim naechsten Lauf geladen.
 """
@@ -70,6 +77,21 @@ class PowerKeyword:
 
 
 @dataclass
+class StrengthWeaknessPattern:
+    """Ein wiederkehrendes Muster in AI-Staerken oder AI-Schwaechen."""
+
+    pattern: str  # Der erkannte Text/Begriff (z.B. "DATEV", "SAP", "Monatsabschluss")
+    category: str  # "must_have", "deal_breaker", "nice_to_have", "minor_issue"
+    in_strengths_good: int  # Wie oft als Staerke in guten Matches
+    in_strengths_bad: int  # Wie oft als Staerke in schlechten Matches
+    in_weaknesses_good: int  # Wie oft als Schwaeche in guten Matches
+    in_weaknesses_bad: int  # Wie oft als Schwaeche in schlechten Matches
+    total_mentions: int  # Gesamtanzahl Erwaehungen
+    impact_score: float  # -1.0 (Deal-Breaker) bis +1.0 (Must-Have)
+    role_context: str | None = None  # In welchem Rollen-Kontext relevant
+
+
+@dataclass
 class CalibrationResult:
     """Gesamtergebnis einer Kalibrierung."""
 
@@ -90,6 +112,13 @@ class CalibrationResult:
 
     # Analyse 3: Ausschluss-Paare
     exclusion_pairs: list[list[str]] = field(default_factory=list)
+
+    # Analyse 4: Staerken/Schwaechen-Muster (NEU)
+    strength_weakness_patterns: list[StrengthWeaknessPattern] = field(default_factory=list)
+    must_have_skills: list[str] = field(default_factory=list)  # Skills die in guten Matches als Staerke vorkommen
+    deal_breaker_gaps: list[str] = field(default_factory=list)  # Luecken die in schlechten Matches als Schwaeche vorkommen
+    top_strengths_good_matches: list[str] = field(default_factory=list)  # Haeufigste Staerken in guten Matches
+    top_weaknesses_bad_matches: list[str] = field(default_factory=list)  # Haeufigste Schwaechen in schlechten Matches
 
     # Meta
     warnings: list[str] = field(default_factory=list)
@@ -133,6 +162,24 @@ class CalibrationResult:
                 for kw in self.keyword_stats
             ],
             "exclusion_pairs": self.exclusion_pairs,
+            "strength_weakness_patterns": [
+                {
+                    "pattern": p.pattern,
+                    "category": p.category,
+                    "in_strengths_good": p.in_strengths_good,
+                    "in_strengths_bad": p.in_strengths_bad,
+                    "in_weaknesses_good": p.in_weaknesses_good,
+                    "in_weaknesses_bad": p.in_weaknesses_bad,
+                    "total_mentions": p.total_mentions,
+                    "impact_score": round(p.impact_score, 3),
+                    "role_context": p.role_context,
+                }
+                for p in self.strength_weakness_patterns
+            ],
+            "must_have_skills": self.must_have_skills,
+            "deal_breaker_gaps": self.deal_breaker_gaps,
+            "top_strengths_good_matches": self.top_strengths_good_matches,
+            "top_weaknesses_bad_matches": self.top_weaknesses_bad_matches,
             "warnings": self.warnings,
         }
 
@@ -253,11 +300,25 @@ class CalibrationService:
         if matches_with_roles:
             self._find_exclusion_pairs(matches_with_roles, result)
 
+        # ── Schritt 5: Staerken/Schwaechen-Tiefenanalyse (NEU) ──
+        matches_with_sw = [
+            m for m in matches_data
+            if m["ai_strengths"] or m["ai_weaknesses"]
+        ]
+        if matches_with_sw:
+            self._analyze_strength_weakness_patterns(matches_with_sw, result)
+        else:
+            result.warnings.append(
+                "Keine Matches mit Staerken/Schwaechen-Daten gefunden."
+            )
+
         logger.info(
             f"Kalibrierung abgeschlossen: "
             f"{result.role_pairs_analyzed} Rollen-Paare, "
             f"{len(result.power_keywords)} Power-Keywords, "
-            f"{len(result.exclusion_pairs)} Ausschluss-Paare"
+            f"{len(result.exclusion_pairs)} Ausschluss-Paare, "
+            f"{len(result.must_have_skills)} Must-Haves, "
+            f"{len(result.deal_breaker_gaps)} Deal-Breaker"
         )
 
         return result
@@ -273,22 +334,26 @@ class CalibrationService:
         Returns:
             Liste von Dicts mit:
             - match_id, ai_score, matched_keywords
+            - ai_strengths, ai_weaknesses, ai_explanation (NEU — fuer Tiefenanalyse)
             - job_role (Job.hotlist_job_title)
             - candidate_role (Candidate.hotlist_job_title)
             - candidate_roles (Candidate.hotlist_job_titles)
         """
         query = (
             select(
-                Match.id,
-                Match.ai_score,
-                Match.matched_keywords,
-                Match.pre_score,
-                Match.distance_km,
-                Job.hotlist_job_title,
-                Job.hotlist_city,
-                Candidate.hotlist_job_title,
-                Candidate.hotlist_job_titles,
-                Candidate.hotlist_city,
+                Match.id,                      # 0
+                Match.ai_score,                # 1
+                Match.matched_keywords,        # 2
+                Match.pre_score,               # 3
+                Match.distance_km,             # 4
+                Job.hotlist_job_title,          # 5
+                Job.hotlist_city,              # 6
+                Candidate.hotlist_job_title,    # 7
+                Candidate.hotlist_job_titles,   # 8
+                Candidate.hotlist_city,         # 9
+                Match.ai_strengths,            # 10 — NEU
+                Match.ai_weaknesses,           # 11 — NEU
+                Match.ai_explanation,          # 12 — NEU
             )
             .join(Job, Match.job_id == Job.id)
             .join(Candidate, Match.candidate_id == Candidate.id)
@@ -318,6 +383,9 @@ class CalibrationService:
                 "candidate_role": (row[7] or "").strip(),
                 "candidate_roles": row[8] or [],
                 "candidate_city": (row[9] or "").strip(),
+                "ai_strengths": row[10] or [],
+                "ai_weaknesses": row[11] or [],
+                "ai_explanation": (row[12] or "").strip(),
             })
 
         return matches_data
@@ -519,6 +587,165 @@ class CalibrationService:
                 )
 
     # ──────────────────────────────────────────────────
+    # Analyse 4: Staerken/Schwaechen-Muster
+    # ──────────────────────────────────────────────────
+
+    def _analyze_strength_weakness_patterns(
+        self,
+        matches: list[dict],
+        result: CalibrationResult,
+    ) -> None:
+        """
+        Analysiert ai_strengths und ai_weaknesses Texte aus DeepMatch-Ergebnissen.
+
+        Extrahiert Schluesselwoerter aus den Freitext-Listen und erkennt:
+        - Must-Have Skills: Tauchen als Staerke in guten Matches auf
+          UND als Schwaeche ("fehlt", "keine") in schlechten Matches
+        - Deal-Breaker: Tauchen als Schwaeche in schlechten Matches auf
+          und fehlen selten in guten Matches
+        - Top-Staerken: Die haeufigsten Staerken in guten Matches
+        - Top-Schwaechen: Die haeufigsten Schwaechen in schlechten Matches
+        """
+        # Schluesselwoerter extrahieren aus Staerken/Schwaechen-Texten
+        # z.B. "5 Jahre DATEV-Erfahrung" → "datev"
+        # z.B. "Keine SAP-Kenntnisse" → "sap"
+
+        # Zaehler pro extrahiertem Begriff
+        strengths_in_good: dict[str, int] = defaultdict(int)
+        strengths_in_bad: dict[str, int] = defaultdict(int)
+        weaknesses_in_good: dict[str, int] = defaultdict(int)
+        weaknesses_in_bad: dict[str, int] = defaultdict(int)
+
+        # Auch die rohen Texte sammeln fuer Top-Listen
+        raw_strengths_good: dict[str, int] = defaultdict(int)
+        raw_weaknesses_bad: dict[str, int] = defaultdict(int)
+
+        good_count = 0
+        bad_count = 0
+
+        for m in matches:
+            score = m["ai_score"]
+            is_good = score >= GOOD_MATCH_THRESHOLD
+            is_bad = score <= BAD_MATCH_THRESHOLD
+
+            if is_good:
+                good_count += 1
+            if is_bad:
+                bad_count += 1
+
+            # Staerken analysieren
+            for s in m["ai_strengths"]:
+                s_clean = s.strip()
+                if not s_clean:
+                    continue
+
+                # Rohen Text fuer Top-Listen
+                if is_good:
+                    raw_strengths_good[s_clean] += 1
+
+                # Schluesselwoerter extrahieren
+                terms = _extract_skill_terms(s_clean)
+                for term in terms:
+                    if is_good:
+                        strengths_in_good[term] += 1
+                    if is_bad:
+                        strengths_in_bad[term] += 1
+
+            # Schwaechen analysieren
+            for w in m["ai_weaknesses"]:
+                w_clean = w.strip()
+                if not w_clean:
+                    continue
+
+                # Rohen Text fuer Top-Listen
+                if is_bad:
+                    raw_weaknesses_bad[w_clean] += 1
+
+                # Schluesselwoerter extrahieren
+                terms = _extract_skill_terms(w_clean)
+                for term in terms:
+                    if is_good:
+                        weaknesses_in_good[term] += 1
+                    if is_bad:
+                        weaknesses_in_bad[term] += 1
+
+        # ── Top-Staerken in guten Matches (rohe Texte, sortiert) ──
+        result.top_strengths_good_matches = [
+            text for text, count in sorted(
+                raw_strengths_good.items(), key=lambda x: -x[1]
+            )[:15]
+        ]
+
+        # ── Top-Schwaechen in schlechten Matches (rohe Texte, sortiert) ──
+        result.top_weaknesses_bad_matches = [
+            text for text, count in sorted(
+                raw_weaknesses_bad.items(), key=lambda x: -x[1]
+            )[:15]
+        ]
+
+        # ── Alle Begriffe zusammenfuehren und Impact berechnen ──
+        all_terms = set(strengths_in_good) | set(strengths_in_bad) | \
+                    set(weaknesses_in_good) | set(weaknesses_in_bad)
+
+        for term in all_terms:
+            sg = strengths_in_good.get(term, 0)
+            sb = strengths_in_bad.get(term, 0)
+            wg = weaknesses_in_good.get(term, 0)
+            wb = weaknesses_in_bad.get(term, 0)
+            total = sg + sb + wg + wb
+
+            if total < 2:
+                continue  # Zu wenig Daten
+
+            # Impact Score berechnen:
+            # Positiv = als Staerke in guten + als Schwaeche in schlechten (fehlt = schlecht)
+            # Negativ = als Schwaeche in guten + als Staerke in schlechten (vorhanden = schlecht)
+            positive_signal = sg + wb  # Staerke+gut ODER Schwaeche+schlecht = Skill ist wichtig
+            negative_signal = sb + wg  # Staerke+schlecht ODER Schwaeche+gut = Skill irrelevant/schaedlich
+
+            if (positive_signal + negative_signal) > 0:
+                impact = (positive_signal - negative_signal) / (positive_signal + negative_signal)
+            else:
+                impact = 0.0
+
+            # Kategorie bestimmen
+            if impact >= 0.5 and sg >= 2 and wb >= 1:
+                category = "must_have"
+                result.must_have_skills.append(term)
+            elif impact <= -0.5 and wb >= 2:
+                category = "deal_breaker"
+                result.deal_breaker_gaps.append(term)
+            elif impact > 0:
+                category = "nice_to_have"
+            else:
+                category = "minor_issue"
+
+            pattern = StrengthWeaknessPattern(
+                pattern=term,
+                category=category,
+                in_strengths_good=sg,
+                in_strengths_bad=sb,
+                in_weaknesses_good=wg,
+                in_weaknesses_bad=wb,
+                total_mentions=total,
+                impact_score=impact,
+            )
+            result.strength_weakness_patterns.append(pattern)
+
+        # Sortiere nach absolutem Impact (wichtigste zuerst)
+        result.strength_weakness_patterns.sort(
+            key=lambda p: abs(p.impact_score), reverse=True
+        )
+
+        logger.info(
+            f"Staerken/Schwaechen-Analyse: "
+            f"{len(result.must_have_skills)} Must-Haves, "
+            f"{len(result.deal_breaker_gaps)} Deal-Breaker, "
+            f"{len(result.strength_weakness_patterns)} Muster gesamt "
+            f"(aus {good_count} guten, {bad_count} schlechten Matches)"
+        )
+
+    # ──────────────────────────────────────────────────
     # Kalibrierungsdaten laden (fuer Pre-Scoring)
     # ──────────────────────────────────────────────────
 
@@ -672,6 +899,89 @@ class CalibrationService:
 # ═══════════════════════════════════════════════════════════════
 
 
+# Bekannte Fachbegriffe die wir direkt erkennen wollen
+_KNOWN_SKILL_TERMS = {
+    # Software/Tools
+    "datev", "sap", "lexware", "addison", "sage", "navision", "dynamics",
+    "excel", "power bi", "powerbi", "tableau",
+    # Buchhaltungs-Fachbegriffe
+    "fibu", "finanzbuchhaltung", "anlagenbuchhaltung", "anlagenbuchhalter",
+    "konsolidierung", "monatsabschluss", "monatsabschluesse",
+    "jahresabschluss", "jahresabschluesse", "quartalsabschluss",
+    "hgb", "ifrs", "us-gaap", "gaap",
+    "bilanzierung", "bilanz",
+    "umsatzsteuer", "ust", "ustva", "mehrwertsteuer",
+    "lohnabrechnung", "lohnbuchhaltung", "gehaltsabrechnung", "entgeltabrechnung",
+    "kreditorenbuchhaltung", "debitorenbuchhaltung",
+    "zahlungsverkehr", "mahnwesen", "rechnungspruefung",
+    "kostenrechnung", "controlling", "budgetierung",
+    "steuererklarung", "steuererklaerung", "steuerrecht",
+    # Qualifikationen
+    "bilanzbuchhalter", "steuerfachangestellte", "steuerfachangestellter",
+    "buchhalter", "finanzbuchhalter",
+    "wirtschaftspruefer", "steuerberater",
+    # Soft Skills / Erfahrung
+    "berufserfahrung", "branchenerfahrung", "fuehrungserfahrung",
+    "teamleitung", "prozessoptimierung",
+}
+
+# Woerter die wir ignorieren (zu generisch)
+_STOP_WORDS = {
+    "der", "die", "das", "und", "oder", "in", "mit", "von", "zu", "fuer",
+    "fur", "eine", "ein", "einem", "einer", "den", "dem", "des", "ist",
+    "hat", "wird", "sind", "war", "kann", "keine", "kein", "nicht",
+    "sehr", "gut", "gute", "guter", "relevante", "relevanter",
+    "erfahrung", "kenntnisse", "kenntnis", "faehigkeit", "faehigkeiten",
+    "bereich", "jahre", "jahr", "umfassende", "fundierte", "solide",
+    "direkte", "praktische", "spezifische", "fehlende", "mangelnde",
+}
+
+
+def _extract_skill_terms(text: str) -> list[str]:
+    """
+    Extrahiert Fachbegriffe aus einem Staerken/Schwaechen-Text.
+
+    Beispiele:
+    - "5 Jahre DATEV-Erfahrung" → ["datev"]
+    - "Keine SAP-Kenntnisse" → ["sap"]
+    - "Fundierte HGB-Bilanzierungskenntnisse" → ["hgb", "bilanzierung"]
+    - "Erfahrung im Monatsabschluss" → ["monatsabschluss"]
+
+    Returns:
+        Liste von erkannten Fachbegriffen (lowercase)
+    """
+    import re
+
+    text_lower = text.lower()
+    found_terms = []
+
+    # 1. Direkte Erkennung bekannter Begriffe
+    for term in _KNOWN_SKILL_TERMS:
+        if term in text_lower:
+            found_terms.append(term)
+
+    # 2. Wenn nichts gefunden: Versuch aus dem Text relevante Woerter zu extrahieren
+    if not found_terms:
+        # Entferne Satzzeichen, splitte in Woerter
+        words = re.findall(r'[a-zäöüß]+', text_lower)
+        for word in words:
+            if len(word) >= 4 and word not in _STOP_WORDS:
+                # Pruefe ob es ein zusammengesetztes Wort ist
+                # z.B. "buchhaltungserfahrung" → wir nehmen das ganze Wort
+                if len(word) >= 6:
+                    found_terms.append(word)
+
+    # Deduplizieren und zurueckgeben
+    seen = set()
+    unique = []
+    for t in found_terms:
+        if t not in seen:
+            seen.add(t)
+            unique.append(t)
+
+    return unique
+
+
 def _dict_to_calibration_result(data: dict) -> CalibrationResult:
     """Konvertiert ein Dict (aus DB) zurueck in ein CalibrationResult."""
     result = CalibrationResult(
@@ -684,6 +994,10 @@ def _dict_to_calibration_result(data: dict) -> CalibrationResult:
         penalty_keywords=data.get("penalty_keywords", []),
         keyword_weight_boost=data.get("keyword_weight_boost", {}),
         exclusion_pairs=data.get("exclusion_pairs", []),
+        must_have_skills=data.get("must_have_skills", []),
+        deal_breaker_gaps=data.get("deal_breaker_gaps", []),
+        top_strengths_good_matches=data.get("top_strengths_good_matches", []),
+        top_weaknesses_bad_matches=data.get("top_weaknesses_bad_matches", []),
         warnings=data.get("warnings", []),
     )
 
@@ -710,6 +1024,20 @@ def _dict_to_calibration_result(data: dict) -> CalibrationResult:
             total_count=kw["total_count"],
             power_ratio=kw["power_ratio"],
             suggested_weight=kw["suggested_weight"],
+        ))
+
+    # Strength/Weakness patterns
+    for p in data.get("strength_weakness_patterns", []):
+        result.strength_weakness_patterns.append(StrengthWeaknessPattern(
+            pattern=p["pattern"],
+            category=p["category"],
+            in_strengths_good=p["in_strengths_good"],
+            in_strengths_bad=p["in_strengths_bad"],
+            in_weaknesses_good=p["in_weaknesses_good"],
+            in_weaknesses_bad=p["in_weaknesses_bad"],
+            total_mentions=p["total_mentions"],
+            impact_score=p["impact_score"],
+            role_context=p.get("role_context"),
         ))
 
     return result
