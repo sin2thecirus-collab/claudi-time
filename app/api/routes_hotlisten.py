@@ -1624,3 +1624,132 @@ async def save_deepmatch_feedback(
         raise HTTPException(status_code=404, detail="Match nicht gefunden")
 
     return {"success": True}
+
+
+# ═══════════════════════════════════════════════════════════════
+# BULK DEEPMATCH — Alle Pre-Matches einer Kategorie AI-bewerten
+# ═══════════════════════════════════════════════════════════════
+
+# In-Memory Status fuer Bulk-Bewertung (wie Pre-Match-Generierung)
+_bulk_evaluate_status: dict = {
+    "running": False,
+    "started_at": None,
+    "category": None,
+    "progress": None,
+    "result": None,
+    "finished_at": None,
+    "error": None,
+}
+
+
+async def _run_bulk_evaluate(
+    category: str,
+    max_matches: int,
+    min_pre_score: float | None,
+) -> None:
+    """Background-Task: Fuehrt Bulk-DeepMatch durch."""
+    global _bulk_evaluate_status
+
+    def progress_cb(step: str, detail: str) -> None:
+        _bulk_evaluate_status["progress"] = {"step": step, "detail": detail}
+
+    try:
+        async with async_session_maker() as db:
+            async with DeepMatchService(db) as service:
+                result = await service.evaluate_bulk(
+                    category=category,
+                    max_matches=max_matches,
+                    skip_already_checked=True,
+                    min_pre_score=min_pre_score,
+                    progress_callback=progress_cb,
+                )
+
+        _bulk_evaluate_status["result"] = {
+            "total_matches": result.total_matches,
+            "evaluated": result.evaluated,
+            "skipped_already_checked": result.skipped_already_checked,
+            "skipped_low_score": result.skipped_low_score,
+            "skipped_error": result.skipped_error,
+            "avg_ai_score": result.avg_ai_score,
+            "total_cost_usd": result.total_cost_usd,
+            "errors": result.errors[:10],  # Max 10 Fehler anzeigen
+        }
+        _bulk_evaluate_status["error"] = None
+
+    except Exception as e:
+        logger.error(f"Bulk-DeepMatch Fehler: {e}")
+        _bulk_evaluate_status["error"] = str(e)
+
+    finally:
+        _bulk_evaluate_status["running"] = False
+        _bulk_evaluate_status["finished_at"] = datetime.now(timezone.utc).isoformat()
+
+
+@router.post("/api/deepmatch/bulk-evaluate", tags=["Hotlisten API"])
+async def trigger_bulk_evaluate(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Startet Bulk-DeepMatch fuer alle Pre-Matches einer Kategorie.
+
+    Laeuft als Background-Task. Fortschritt via GET /api/deepmatch/bulk-evaluate/status.
+
+    Query-Parameter:
+    - category: FINANCE oder ENGINEERING (default: FINANCE)
+    - max_matches: Maximum Anzahl (default: 500)
+    - min_pre_score: Mindest-Pre-Score (optional)
+    """
+    global _bulk_evaluate_status
+
+    if _bulk_evaluate_status["running"]:
+        return {
+            "status": "already_running",
+            "started_at": _bulk_evaluate_status["started_at"],
+            "category": _bulk_evaluate_status["category"],
+        }
+
+    body = await request.json() if request.headers.get("content-type") == "application/json" else {}
+    category = body.get("category", "FINANCE")
+    max_matches = min(int(body.get("max_matches", 500)), 1000)  # Hard-Cap 1000
+    min_pre_score = body.get("min_pre_score")
+    if min_pre_score is not None:
+        min_pre_score = float(min_pre_score)
+
+    # Kosten schaetzen bevor wir starten
+    async with DeepMatchService(db) as service:
+        cost_est = service.estimate_cost(max_matches)
+
+    # Status initialisieren
+    _bulk_evaluate_status = {
+        "running": True,
+        "started_at": datetime.now(timezone.utc).isoformat(),
+        "category": category,
+        "progress": {"step": "init", "detail": "Wird gestartet..."},
+        "result": None,
+        "finished_at": None,
+        "error": None,
+    }
+
+    # Background-Task starten
+    background_tasks.add_task(
+        _run_bulk_evaluate,
+        category=category,
+        max_matches=max_matches,
+        min_pre_score=min_pre_score,
+    )
+
+    return {
+        "status": "started",
+        "category": category,
+        "max_matches": max_matches,
+        "estimated_cost_usd": cost_est["estimated_cost_usd"],
+        "estimated_cost_eur": cost_est["estimated_cost_eur"],
+    }
+
+
+@router.get("/api/deepmatch/bulk-evaluate/status", tags=["Hotlisten API"])
+async def get_bulk_evaluate_status():
+    """Gibt den aktuellen Status der Bulk-Bewertung zurueck."""
+    return _bulk_evaluate_status

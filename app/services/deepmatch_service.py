@@ -5,6 +5,7 @@ Stufe 3 des Hotlisten-Systems:
 - Vergleicht Kandidaten-Erfahrung mit Job-Anforderungen
 - Wird nur ON-DEMAND ausgelöst (Benutzer wählt Kandidaten mit Checkboxen)
 - Pre-Filter: Nur Kandidaten mit pre_score >= THRESHOLD
+- Bulk-Modus: Bis zu 500 Matches auf einmal (Background-Task)
 
 Ablauf:
 1. Benutzer wählt Kandidaten in der Hotliste (Checkboxen)
@@ -14,12 +15,12 @@ Ablauf:
 """
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Callable
 from uuid import UUID
 
-from sqlalchemy import select, and_
+from sqlalchemy import func, select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.candidate import Candidate
@@ -168,6 +169,24 @@ class DeepMatchBatchResult:
     avg_ai_score: float
     results: list[DeepMatchResult]
     total_cost_usd: float
+
+
+@dataclass
+class BulkEvaluateResult:
+    """Ergebnis einer Bulk-DeepMatch-Operation (bis 500 Matches).
+
+    Wird fuer den Lern-Kreislauf verwendet: Alle Pre-Matches einer Kategorie
+    werden durch OpenAI bewertet, Ergebnisse werden gespeichert und spaeter
+    fuer Kalibrierung genutzt.
+    """
+    total_matches: int = 0
+    evaluated: int = 0
+    skipped_already_checked: int = 0
+    skipped_low_score: int = 0
+    skipped_error: int = 0
+    avg_ai_score: float = 0.0
+    total_cost_usd: float = 0.0
+    errors: list[str] = field(default_factory=list)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -524,6 +543,143 @@ Vergleiche diese mit den Anforderungen der Stellenbeschreibung."""
             results=results,
             total_cost_usd=self._openai.total_usage.cost_usd,
         )
+
+    # ──────────────────────────────────────────────────
+    # Bulk-Bewertung (alle Pre-Matches einer Kategorie)
+    # ──────────────────────────────────────────────────
+
+    async def evaluate_bulk(
+        self,
+        category: str = "FINANCE",
+        max_matches: int = 500,
+        skip_already_checked: bool = True,
+        min_pre_score: float | None = None,
+        progress_callback: Callable[[str, str], None] | None = None,
+    ) -> BulkEvaluateResult:
+        """
+        Bewertet ALLE Pre-Matches einer Kategorie durch OpenAI.
+
+        Dies ist der Schluessel fuer den Lern-Kreislauf:
+        - Schickt bis zu max_matches Matches an OpenAI
+        - Speichert alle Ergebnisse (ai_score, ai_explanation, etc.)
+        - Diese Daten werden spaeter vom CalibrationService analysiert
+
+        Args:
+            category: FINANCE oder ENGINEERING
+            max_matches: Maximum Anzahl (default 500)
+            skip_already_checked: Bereits AI-bewertete ueberspringen
+            min_pre_score: Mindest-Pre-Score (None = kein Filter)
+            progress_callback: Optional callback(step, detail) fuer UI
+
+        Returns:
+            BulkEvaluateResult mit Statistiken
+        """
+        result = BulkEvaluateResult()
+
+        if progress_callback:
+            progress_callback("init", "Lade Matches...")
+
+        # Alle Matches der Kategorie laden
+        query = (
+            select(Match.id)
+            .join(Job, Match.job_id == Job.id)
+            .join(Candidate, Match.candidate_id == Candidate.id)
+            .where(
+                and_(
+                    Job.hotlist_category == category,
+                    Job.deleted_at.is_(None),
+                    Candidate.hidden == False,  # noqa: E712
+                    Candidate.deleted_at.is_(None),
+                )
+            )
+        )
+
+        # Bereits bewertete ueberspringen?
+        if skip_already_checked:
+            query = query.where(Match.ai_checked_at.is_(None))
+
+        # Mindest-Pre-Score?
+        if min_pre_score is not None:
+            query = query.where(Match.pre_score >= min_pre_score)
+
+        # Sortiert nach Pre-Score DESC (beste zuerst bewerten)
+        query = query.order_by(Match.pre_score.desc().nullslast())
+        query = query.limit(max_matches)
+
+        match_ids_result = await self.db.execute(query)
+        match_ids = [row[0] for row in match_ids_result.all()]
+
+        result.total_matches = len(match_ids)
+
+        if not match_ids:
+            if progress_callback:
+                progress_callback("done", "Keine Matches zu bewerten")
+            return result
+
+        # Kosten schaetzen
+        cost_est = self.estimate_cost(len(match_ids))
+        if progress_callback:
+            progress_callback(
+                "start",
+                f"{len(match_ids)} Matches gefunden. "
+                f"Geschaetzte Kosten: ~${cost_est['estimated_cost_usd']:.2f}",
+            )
+
+        # Matches einzeln bewerten (sequenziell, um OpenAI nicht zu ueberlasten)
+        score_sum = 0.0
+
+        for i, match_id in enumerate(match_ids):
+            try:
+                # Fortschritt melden
+                if progress_callback and (i % 5 == 0 or i == len(match_ids) - 1):
+                    avg_so_far = score_sum / result.evaluated if result.evaluated > 0 else 0
+                    progress_callback(
+                        "evaluating",
+                        f"{i + 1}/{len(match_ids)} bewertet | "
+                        f"Ø Score: {avg_so_far:.2f} | "
+                        f"Kosten: ~${self._openai.total_usage.cost_usd:.3f}",
+                    )
+
+                dm_result = await self.evaluate_match(match_id)
+
+                if dm_result.success:
+                    result.evaluated += 1
+                    score_sum += dm_result.ai_score
+                elif dm_result.error == "Pre-Score unter Schwellenwert":
+                    result.skipped_low_score += 1
+                else:
+                    result.skipped_error += 1
+                    if dm_result.error:
+                        result.errors.append(
+                            f"Match {match_id}: {dm_result.error[:100]}"
+                        )
+
+            except Exception as e:
+                logger.error(f"Bulk-DeepMatch Fehler fuer Match {match_id}: {e}")
+                result.skipped_error += 1
+                result.errors.append(f"Match {match_id}: {str(e)[:100]}")
+
+        # Ergebnis berechnen
+        result.avg_ai_score = round(
+            score_sum / result.evaluated if result.evaluated > 0 else 0, 2
+        )
+        result.total_cost_usd = self._openai.total_usage.cost_usd
+
+        if progress_callback:
+            progress_callback(
+                "done",
+                f"Fertig! {result.evaluated}/{result.total_matches} bewertet. "
+                f"Ø Score: {result.avg_ai_score:.2f}, "
+                f"Kosten: ${result.total_cost_usd:.3f}",
+            )
+
+        logger.info(
+            f"Bulk-DeepMatch {category}: {result.evaluated}/{result.total_matches} bewertet, "
+            f"Ø Score={result.avg_ai_score:.2f}, "
+            f"Kosten=${result.total_cost_usd:.3f}"
+        )
+
+        return result
 
     # ──────────────────────────────────────────────────
     # User-Feedback speichern
