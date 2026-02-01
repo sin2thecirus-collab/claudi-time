@@ -1,0 +1,298 @@
+{% extends "base.html" %}
+
+{% block title %}DeepMatch — Pulspoint{% endblock %}
+
+{% block content %}
+<div class="space-y-6" x-data="deepMatchHub()">
+    {# Header #}
+    <div>
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">DeepMatch</h1>
+                <p class="text-sm text-gray-500 mt-1">Alle KI-bewerteten Matches auf einen Blick</p>
+            </div>
+        </div>
+    </div>
+
+    {# Statistik-Karten #}
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-white rounded-xl border border-gray-200 p-4">
+            <div class="text-2xl font-bold text-gray-900">{{ total_matches }}</div>
+            <div class="text-xs text-gray-500 mt-1">KI-bewertete Matches</div>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 p-4">
+            <div class="text-2xl font-bold {% if avg_ai_score >= 70 %}text-green-600{% elif avg_ai_score >= 40 %}text-yellow-600{% else %}text-gray-400{% endif %}">{{ avg_ai_score|int }}%</div>
+            <div class="text-xs text-gray-500 mt-1">Durchschnitt KI-Score</div>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 p-4">
+            <div class="text-2xl font-bold text-green-600">{{ good_count }}</div>
+            <div class="text-xs text-gray-500 mt-1">Positives Feedback</div>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 p-4">
+            <div class="text-2xl font-bold text-red-500">{{ bad_count }}</div>
+            <div class="text-xs text-gray-500 mt-1">Negatives Feedback</div>
+        </div>
+    </div>
+
+    {# Filter-Leiste #}
+    <div class="flex flex-wrap items-center gap-3 bg-white rounded-lg border border-gray-200 px-4 py-3">
+        {# Kategorie-Filter #}
+        <div class="flex items-center gap-2">
+            <span class="text-xs font-medium text-gray-500 uppercase">Kategorie:</span>
+            <a href="/deep-match?sort={{ sort }}"
+               class="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium transition-colors
+                   {% if not category %}bg-primary-100 text-primary-700 ring-1 ring-primary-300{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
+                Alle
+            </a>
+            <a href="/deep-match?category=FINANCE&sort={{ sort }}"
+               class="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium transition-colors
+                   {% if category == 'FINANCE' %}bg-primary-100 text-primary-700 ring-1 ring-primary-300{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
+                Finance
+            </a>
+            <a href="/deep-match?category=ENGINEERING&sort={{ sort }}"
+               class="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium transition-colors
+                   {% if category == 'ENGINEERING' %}bg-primary-100 text-primary-700 ring-1 ring-primary-300{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
+                Engineering
+            </a>
+        </div>
+
+        <div class="hidden sm:block w-px h-6 bg-gray-200"></div>
+
+        {# Sortierung #}
+        <div class="flex items-center gap-2">
+            <span class="text-xs font-medium text-gray-500 uppercase">Sortierung:</span>
+            <a href="/deep-match?{% if category %}category={{ category }}&{% endif %}sort=recent"
+               class="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium transition-colors
+                   {% if sort == 'recent' %}bg-primary-100 text-primary-700 ring-1 ring-primary-300{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
+                Neueste
+            </a>
+            <a href="/deep-match?{% if category %}category={{ category }}&{% endif %}sort=score"
+               class="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium transition-colors
+                   {% if sort == 'score' %}bg-primary-100 text-primary-700 ring-1 ring-primary-300{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
+                Bester Score
+            </a>
+            <a href="/deep-match?{% if category %}category={{ category }}&{% endif %}sort=distance"
+               class="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium transition-colors
+                   {% if sort == 'distance' %}bg-primary-100 text-primary-700 ring-1 ring-primary-300{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
+                Naechste Entfernung
+            </a>
+        </div>
+    </div>
+
+    {# Matches-Liste #}
+    {% if matches %}
+    <div class="space-y-3">
+        {% for m in matches %}
+        <div class="bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-gray-300 transition-colors" x-data="{ expanded: false }">
+            {# Haupt-Zeile #}
+            <div class="flex items-center gap-4 px-5 py-4">
+                {# Kandidat-Info #}
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2">
+                        <a href="/kandidaten/{{ m.candidate_id }}" class="text-sm font-semibold text-gray-900 hover:text-primary-600 transition-colors">
+                            {{ m.candidate_name }}
+                        </a>
+                        {% if m.distance_km is not none %}
+                        <span class="text-xs {% if m.distance_km <= 5 %}text-green-600{% elif m.distance_km <= 15 %}text-yellow-600{% else %}text-gray-400{% endif %}">
+                            {{ m.distance_km }} km
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div class="text-xs text-gray-500 mt-0.5">
+                        {{ m.candidate_position }} &middot; {{ m.candidate_city }}
+                    </div>
+                    {% if m.candidate_job_titles %}
+                    <div class="flex flex-wrap gap-1 mt-1">
+                        {% for title in m.candidate_job_titles %}
+                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600">
+                            {{ title }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+
+                {# Job-Info #}
+                <div class="hidden sm:block text-right min-w-0 flex-shrink-0">
+                    <div class="text-xs font-medium text-gray-700 truncate max-w-48">
+                        {% if m.job_url %}
+                        <a href="{{ m.job_url }}" target="_blank" class="hover:text-primary-600 transition-colors">{{ m.job_position }}</a>
+                        {% else %}
+                        {{ m.job_position }}
+                        {% endif %}
+                    </div>
+                    <div class="text-xs text-gray-400 truncate max-w-48">{{ m.job_company }} &middot; {{ m.job_city }}</div>
+                    {% if m.job_job_titles %}
+                    <div class="flex flex-wrap justify-end gap-1 mt-1">
+                        {% for title in m.job_job_titles %}
+                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-green-50 text-green-700">
+                            {{ title }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+
+                {# Herkunft-Badge #}
+                <div class="hidden lg:flex flex-shrink-0 flex-col items-center">
+                    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-blue-50 text-blue-700">
+                        {{ m.match_job_title }}
+                    </span>
+                    <span class="text-xs text-gray-400 mt-0.5">{{ m.match_city }}</span>
+                </div>
+
+                {# Pre-Score #}
+                <div class="flex-shrink-0 text-center w-14">
+                    {% if m.pre_score is not none %}
+                    <div class="text-base font-bold {% if m.pre_score >= 70 %}text-green-600{% elif m.pre_score >= 40 %}text-yellow-600{% else %}text-gray-400{% endif %}">
+                        {{ m.pre_score|int }}
+                    </div>
+                    <div class="text-xs text-gray-400">Pre</div>
+                    {% else %}
+                    <span class="text-sm text-gray-300">&mdash;</span>
+                    {% endif %}
+                </div>
+
+                {# AI-Score #}
+                <div class="flex-shrink-0 text-center w-14">
+                    {% if m.ai_score is not none %}
+                    <button @click="expanded = !expanded" class="cursor-pointer group">
+                        <div class="text-base font-bold {% if m.ai_score >= 70 %}text-green-600{% elif m.ai_score >= 40 %}text-yellow-600{% else %}text-red-500{% endif %} group-hover:underline">
+                            {{ m.ai_score|int }}%
+                        </div>
+                        <div class="text-xs text-gray-400">KI</div>
+                    </button>
+                    {% else %}
+                    <span class="text-sm text-gray-300">&mdash;</span>
+                    {% endif %}
+                </div>
+
+                {# Feedback + Notiz #}
+                <div class="flex-shrink-0 flex gap-1">
+                    <button @click="sendFeedback('{{ m.match_id }}', 'good')"
+                            class="p-1.5 rounded-lg {% if m.user_feedback == 'good' %}bg-green-100 ring-1 ring-green-300{% else %}hover:bg-green-50{% endif %} transition-all"
+                            title="Guter Match">
+                        👍
+                    </button>
+                    <button @click="sendFeedback('{{ m.match_id }}', 'bad')"
+                            class="p-1.5 rounded-lg {% if m.user_feedback == 'bad' %}bg-red-100 ring-1 ring-red-300{% else %}hover:bg-red-50{% endif %} transition-all"
+                            title="Schlechter Match">
+                        👎
+                    </button>
+                    <button @click="promptNote('{{ m.match_id }}')"
+                            class="p-1.5 rounded-lg {% if m.feedback_note %}bg-blue-100 ring-1 ring-blue-300{% else %}hover:bg-blue-50{% endif %} transition-all"
+                            title="{% if m.feedback_note %}Notiz: {{ m.feedback_note }}{% else %}Notiz hinzufuegen{% endif %}">
+                        📝
+                    </button>
+                </div>
+            </div>
+
+            {# Expandierte KI-Details #}
+            {% if m.ai_explanation %}
+            <div x-show="expanded" x-transition x-cloak class="border-t border-gray-100 bg-gray-50 px-5 py-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {# Erklaerung #}
+                    <div class="md:col-span-3">
+                        <p class="text-sm text-gray-700">{{ m.ai_explanation }}</p>
+                        {% if m.ai_checked_at %}
+                        <p class="text-xs text-gray-400 mt-2">Bewertet am {{ m.ai_checked_at }}</p>
+                        {% endif %}
+                    </div>
+
+                    {# Staerken #}
+                    {% if m.ai_strengths %}
+                    <div>
+                        <h4 class="text-xs font-semibold text-green-700 uppercase mb-2">Staerken</h4>
+                        <ul class="space-y-1">
+                            {% for s in m.ai_strengths %}
+                            <li class="flex items-start gap-1.5 text-sm text-gray-700">
+                                <span class="text-green-500 flex-shrink-0">✓</span>
+                                <span>{{ s }}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    {# Schwaechen #}
+                    {% if m.ai_weaknesses %}
+                    <div>
+                        <h4 class="text-xs font-semibold text-red-700 uppercase mb-2">Luecken</h4>
+                        <ul class="space-y-1">
+                            {% for w in m.ai_weaknesses %}
+                            <li class="flex items-start gap-1.5 text-sm text-gray-700">
+                                <span class="text-red-400 flex-shrink-0">✗</span>
+                                <span>{{ w }}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    {# Empty State #}
+    <div class="bg-white rounded-xl border border-gray-200 px-6 py-16 text-center">
+        <svg class="mx-auto h-16 w-16 text-gray-300" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+        </svg>
+        <h3 class="mt-4 text-lg font-semibold text-gray-900">Noch keine DeepMatch-Ergebnisse</h3>
+        <p class="mt-2 text-sm text-gray-500 max-w-md mx-auto">
+            Gehe zum <a href="/pre-match" class="text-primary-600 hover:text-primary-700 font-medium">Pre-Match Bereich</a>,
+            waehle Kandidaten aus und starte den Deep Match um KI-bewertete Ergebnisse hier zu sehen.
+        </p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function deepMatchHub() {
+    return {
+        async sendFeedback(matchId, feedback) {
+            try {
+                const resp = await fetch('/api/deepmatch/feedback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ match_id: matchId, feedback: feedback }),
+                });
+                if (resp.ok) {
+                    showToast('Feedback gespeichert', 'success', 2000);
+                    setTimeout(() => window.location.reload(), 800);
+                } else {
+                    showToast('Fehler beim Speichern', 'error');
+                }
+            } catch (e) {
+                showToast('Netzwerkfehler: ' + e.message, 'error');
+            }
+        },
+
+        async promptNote(matchId) {
+            const note = prompt('Feedback-Notiz:');
+            if (note === null) return;
+
+            try {
+                const resp = await fetch('/api/deepmatch/feedback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ match_id: matchId, feedback: 'note', note: note }),
+                });
+                if (resp.ok) {
+                    showToast('Notiz gespeichert', 'success', 2000);
+                    setTimeout(() => window.location.reload(), 800);
+                } else {
+                    showToast('Fehler beim Speichern', 'error');
+                }
+            } catch (e) {
+                showToast('Netzwerkfehler: ' + e.message, 'error');
+            }
+        }
+    };
+}
+</script>
+{% endblock %}

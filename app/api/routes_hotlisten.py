@@ -852,6 +852,106 @@ async def deepmatch_page(
 
 
 # ════════════════════════════════════════════════════════════════
+# DEEP-MATCH HUB (eigener Bereich, alle KI-bewerteten Matches)
+# ════════════════════════════════════════════════════════════════
+
+@router.get("/deep-match", response_class=HTMLResponse)
+async def deep_match_hub_page(
+    request: Request,
+    category: Optional[str] = None,
+    sort: str = Query(default="recent"),
+    db: AsyncSession = Depends(get_db),
+):
+    """DeepMatch Hub: Zentrale Uebersicht aller KI-bewerteten Matches."""
+    query = (
+        select(Match, Candidate, Job)
+        .join(Candidate, Match.candidate_id == Candidate.id)
+        .join(Job, Match.job_id == Job.id)
+        .where(
+            and_(
+                Match.ai_checked_at.isnot(None),
+                Candidate.deleted_at.is_(None),
+                Job.deleted_at.is_(None),
+            )
+        )
+    )
+
+    if category:
+        query = query.where(Candidate.hotlist_category == category)
+
+    if sort == "score":
+        query = query.order_by(Match.ai_score.desc().nullslast())
+    elif sort == "distance":
+        query = query.order_by(Match.distance_km.asc().nullslast())
+    else:  # "recent"
+        query = query.order_by(Match.ai_checked_at.desc())
+
+    query = query.limit(200)
+
+    result = await db.execute(query)
+    rows = result.all()
+
+    matches_data = []
+    score_sum = 0.0
+    score_count = 0
+    good_count = 0
+    bad_count = 0
+
+    for match, candidate, job in rows:
+        ai_score_pct = round(match.ai_score * 100, 0) if match.ai_score else None
+        if ai_score_pct is not None:
+            score_sum += ai_score_pct
+            score_count += 1
+        if match.user_feedback == "good":
+            good_count += 1
+        elif match.user_feedback == "bad":
+            bad_count += 1
+
+        matches_data.append({
+            "match_id": str(match.id),
+            "candidate_name": candidate.full_name if candidate.full_name not in ("Not Available", "Unbekannt", "") else (candidate.current_position or candidate.hotlist_job_title or "Kandidat"),
+            "candidate_position": candidate.current_position or "—",
+            "candidate_city": candidate.hotlist_city or candidate.city or "—",
+            "candidate_job_titles": candidate.hotlist_job_titles or ([candidate.hotlist_job_title] if candidate.hotlist_job_title else []),
+            "candidate_id": str(candidate.id),
+            "job_position": job.position,
+            "job_company": job.company_name,
+            "job_city": job.hotlist_city or job.display_city,
+            "job_job_titles": job.hotlist_job_titles or ([job.hotlist_job_title] if job.hotlist_job_title else []),
+            "job_url": job.url,
+            "distance_km": round(match.distance_km, 1) if match.distance_km else None,
+            "pre_score": round(match.pre_score, 0) if match.pre_score else None,
+            "ai_score": ai_score_pct,
+            "ai_explanation": match.ai_explanation,
+            "ai_strengths": match.ai_strengths or [],
+            "ai_weaknesses": match.ai_weaknesses or [],
+            "status": match.status.value if match.status else "new",
+            "user_feedback": match.user_feedback,
+            "feedback_note": match.feedback_note,
+            "ai_checked_at": match.ai_checked_at.strftime("%d.%m.%Y %H:%M") if match.ai_checked_at else None,
+            "category": candidate.hotlist_category or "—",
+            "match_job_title": candidate.hotlist_job_title or "—",
+            "match_city": candidate.hotlist_city or "—",
+        })
+
+    avg_score = round(score_sum / score_count, 0) if score_count > 0 else 0
+
+    return templates.TemplateResponse(
+        "deep_match.html",
+        {
+            "request": request,
+            "matches": matches_data,
+            "total_matches": len(matches_data),
+            "avg_ai_score": avg_score,
+            "good_count": good_count,
+            "bad_count": bad_count,
+            "category": category,
+            "sort": sort,
+        },
+    )
+
+
+# ════════════════════════════════════════════════════════════════
 # API-ENDPOINTS (JSON, für HTMX)
 # ════════════════════════════════════════════════════════════════
 
