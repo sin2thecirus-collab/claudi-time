@@ -907,6 +907,19 @@ async def deep_match_hub_page(
         elif match.user_feedback == "bad":
             bad_count += 1
 
+        # --- CV-Daten fuer Split-View ---
+        def _ensure_list(val):
+            if isinstance(val, list):
+                return val
+            if isinstance(val, str):
+                import json as _json
+                try:
+                    parsed = _json.loads(val)
+                    return parsed if isinstance(parsed, list) else []
+                except Exception:
+                    return []
+            return []
+
         matches_data.append({
             "match_id": str(match.id),
             "candidate_name": candidate.full_name if candidate.full_name not in ("Not Available", "Unbekannt", "") else (candidate.current_position or candidate.hotlist_job_title or "Kandidat"),
@@ -932,6 +945,15 @@ async def deep_match_hub_page(
             "category": candidate.hotlist_category or "—",
             "match_job_title": candidate.hotlist_job_title or "—",
             "match_city": candidate.hotlist_city or "—",
+            # Split-View Daten
+            "job_text": job.job_text or "",
+            "candidate_work_history": _ensure_list(getattr(candidate, "work_history", None)),
+            "candidate_education": _ensure_list(getattr(candidate, "education", None)),
+            "candidate_further_education": _ensure_list(getattr(candidate, "further_education", None)),
+            "candidate_it_skills": list(candidate.it_skills) if candidate.it_skills else [],
+            "candidate_languages": _ensure_list(getattr(candidate, "languages", None)),
+            "candidate_current_position": candidate.current_position or "",
+            "candidate_skills": list(candidate.skills) if candidate.skills else [],
         })
 
     avg_score = round(score_sum / score_count, 0) if score_count > 0 else 0
