@@ -1,4 +1,4 @@
-"""Pre-Scoring Service v2 — Rollen-Aehnlichkeit + Keyword-Power.
+"""Pre-Scoring Service v3 — Mit KI-Kalibrierung.
 
 Berechnet Pre-Scores fuer Kandidat-Job-Matches anhand von:
 1. Rollen-Aehnlichkeit (35 Pkt) — Matrix-basiert, primaer vs. sekundaer
@@ -6,6 +6,11 @@ Berechnet Pre-Scores fuer Kandidat-Job-Matches anhand von:
 3. Distanz (15 Pkt) — Kontinuierlich, naeher = besser
 4. Kategorie (15 Pkt) — Gate: bei Mismatch wird Gesamt gedeckelt
 5. Stadt (10 Pkt) — Abgestuft: gleich / Metropolregion / anders
+
+NEU in v3 — Kalibrierung:
+- Rollen-Matrix-Werte werden durch AI-gelernte Overrides ueberschrieben
+- Power-Keywords zaehlen doppelt, Penalty-Keywords halb
+- Ausschluss-Paare werden erkannt und mit Score 0 bewertet
 
 Der Pre-Score ist KOSTENLOS (kein OpenAI) und dient als Vorfilter
 vor dem teuren DeepMatch (OpenAI).
@@ -171,23 +176,81 @@ class PreScoringService:
 
     Verwendet nur lokale Daten (keine API-Calls).
     5 Komponenten: Rollen-Aehnlichkeit + Keywords + Distanz + Kategorie + Stadt.
+
+    Optionale Kalibrierung aus DeepMatch-Ergebnissen:
+    - Rollen-Matrix-Overrides (AI-gelernte Werte)
+    - Power-Keywords (zaehlen doppelt)
+    - Ausschluss-Paare (Score = 0)
     """
 
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, calibration_data=None):
         self.db = db
+        # Kalibrierungsdaten (CalibrationResult oder None)
+        self._calibration = calibration_data
+        # Aufbereitete Caches fuer schnellen Zugriff
+        self._role_overrides: dict[tuple[str, str], float] = {}
+        self._keyword_weights: dict[str, float] = {}
+        self._exclusion_set: set[tuple[str, str]] = set()
+        if calibration_data:
+            self._apply_calibration(calibration_data)
+
+    def _apply_calibration(self, cal) -> None:
+        """Bereitet Kalibrierungsdaten fuer schnellen Zugriff auf."""
+        # Rollen-Overrides: "Fibu|Kredi" → (Fibu, Kredi) = 0.45
+        overrides = getattr(cal, 'role_matrix_overrides', None) or {}
+        if isinstance(overrides, dict):
+            for key, value in overrides.items():
+                parts = key.split("|")
+                if len(parts) == 2:
+                    self._role_overrides[(parts[0], parts[1])] = value
+
+        # Keyword-Gewichte: {"datev": 2.0, "sap": 0.5}
+        weights = getattr(cal, 'keyword_weight_boost', None) or {}
+        if isinstance(weights, dict):
+            self._keyword_weights = {k.lower(): v for k, v in weights.items()}
+
+        # Ausschluss-Paare
+        exclusions = getattr(cal, 'exclusion_pairs', None) or []
+        for pair in exclusions:
+            if isinstance(pair, (list, tuple)) and len(pair) == 2:
+                self._exclusion_set.add((pair[0], pair[1]))
+
+        if self._role_overrides or self._keyword_weights or self._exclusion_set:
+            logger.info(
+                f"Kalibrierung geladen: {len(self._role_overrides)} Rollen-Overrides, "
+                f"{len(self._keyword_weights)} Keyword-Gewichte, "
+                f"{len(self._exclusion_set)} Ausschluss-Paare"
+            )
+
+    async def load_calibration(self) -> bool:
+        """Laedt Kalibrierungsdaten aus der DB (lazy loading)."""
+        if self._calibration is not None:
+            return True  # Bereits geladen
+
+        try:
+            from app.services.calibration_service import CalibrationService
+            cal = await CalibrationService.load_calibration_data(self.db)
+            if cal:
+                self._calibration = cal
+                self._apply_calibration(cal)
+                return True
+        except Exception as e:
+            logger.debug(f"Keine Kalibrierungsdaten: {e}")
+        return False
 
     # --------------------------------------------------
     # Komponente 1: Rollen-Aehnlichkeit (35 Punkte)
     # --------------------------------------------------
 
-    @staticmethod
     def _calculate_role_similarity(
+        self,
         candidate: Candidate, job: Job,
     ) -> tuple[float, str | None, str]:
         """
         Berechnet die Rollen-Aehnlichkeit zwischen Kandidat und Job.
 
         Verwendet die FINANCE_ROLE_SIMILARITY Matrix.
+        Kalibrierungs-Overrides haben Vorrang vor der Standard-Matrix.
         Primaertitel zaehlt voll, Nebentitel mit 40% Abzug.
 
         Returns:
@@ -216,8 +279,13 @@ class PreScoringService:
             is_primary = (cand_title == cand_primary) or (i == 0)
             multiplier = 1.0 if is_primary else SECONDARY_TITLE_PENALTY
 
-            # Versuche Matrix-Lookup
-            matrix_sim = FINANCE_ROLE_SIMILARITY.get((job_primary, cand_title))
+            # Pruefe zuerst Kalibrierungs-Overrides (AI-gelernt)
+            override_sim = self._role_overrides.get((job_primary, cand_title))
+            if override_sim is not None:
+                matrix_sim = override_sim
+            else:
+                # Fallback: Standard-Matrix
+                matrix_sim = FINANCE_ROLE_SIMILARITY.get((job_primary, cand_title))
 
             if matrix_sim is not None:
                 score = multiplier * matrix_sim
@@ -240,8 +308,8 @@ class PreScoringService:
     # Komponente 2: Keyword-Match (25 Punkte)
     # --------------------------------------------------
 
-    @staticmethod
     def _calculate_keyword_score(
+        self,
         candidate: Candidate, job: Job, match: Match,
     ) -> tuple[float, int]:
         """
@@ -250,7 +318,10 @@ class PreScoringService:
         KRITISCH: Pre-Matches haben oft keyword_score = NULL.
         In dem Fall berechnen wir Keywords inline.
 
-        Skalierung nach absoluter Anzahl (nicht Ratio):
+        Kalibrierung: Power-Keywords zaehlen doppelt, Penalty-Keywords halb.
+        Effektiver Count wird statt absolutem Count verwendet.
+
+        Skalierung nach Anzahl (nicht Ratio):
         0 = 0.0, 1 = 0.15, 2 = 0.30, ... 5 = 0.75, 6-7 = 0.85, 8+ = 1.0
 
         Returns:
@@ -268,10 +339,23 @@ class PreScoringService:
                 match.keyword_score = result.keyword_score
                 match.matched_keywords = result.matched_keywords
 
-        count = len(matched_keywords)
+        raw_count = len(matched_keywords)
 
-        if count == 0:
+        if raw_count == 0:
             return 0.0, 0
+
+        # Kalibrierung: Gewichteter Count (Power x2, Penalty x0.5)
+        if self._keyword_weights:
+            weighted_count = 0.0
+            for kw in matched_keywords:
+                weight = self._keyword_weights.get(kw.strip().lower(), 1.0)
+                weighted_count += weight
+            count = weighted_count
+        else:
+            count = float(raw_count)
+
+        if count <= 0:
+            return 0.0, raw_count
         elif count <= 5:
             # Linear: 1=0.15, 2=0.30, 3=0.45, 4=0.60, 5=0.75
             score = count * 0.15
@@ -282,7 +366,7 @@ class PreScoringService:
             # 8+ = voll
             score = 1.0
 
-        return min(score, 1.0), count
+        return min(score, 1.0), raw_count
 
     # --------------------------------------------------
     # Komponente 3: Distanz (15 Punkte)
@@ -388,6 +472,11 @@ class PreScoringService:
         4. Kategorie (15 Pkt) — Gate (bei Mismatch: max 10 gesamt)
         5. Stadt (10 Pkt) — Gleich / Metropolregion / anders
 
+        Kalibrierung (wenn geladen):
+        - Rollen-Overrides ueberschreiben Matrix-Werte
+        - Power-Keywords zaehlen doppelt
+        - Ausschluss-Paare = Score 0
+
         Args:
             candidate: Kandidat
             job: Job
@@ -396,6 +485,23 @@ class PreScoringService:
         Returns:
             PreScoreBreakdown mit Einzelwerten und Gesamt-Score
         """
+        # Ausschluss-Paare Check (Kalibrierung)
+        if self._exclusion_set:
+            job_role = (job.hotlist_job_title or "").strip()
+            cand_role = (candidate.hotlist_job_title or "").strip()
+            if job_role and cand_role and (job_role, cand_role) in self._exclusion_set:
+                return PreScoreBreakdown(
+                    category_score=0.0,
+                    city_score=0.0,
+                    role_similarity_score=0.0,
+                    keyword_score=0.0,
+                    distance_score=0.0,
+                    matched_role=cand_role,
+                    role_match_type="excluded",
+                    keyword_count=0,
+                    total=0.0,
+                )
+
         # 1. Rollen-Aehnlichkeit (35 Punkte)
         role_sim, matched_role, match_type = self._calculate_role_similarity(
             candidate, job,
@@ -447,9 +553,13 @@ class PreScoringService:
         """
         Berechnet den Pre-Score fuer ein einzelnes Match.
 
+        Laedt automatisch Kalibrierungsdaten (falls vorhanden).
+
         Returns:
             PreScoreBreakdown oder None bei Fehler
         """
+        await self.load_calibration()
+
         result = await self.db.execute(
             select(Match, Candidate, Job)
             .join(Candidate, Match.candidate_id == Candidate.id)
@@ -483,12 +593,17 @@ class PreScoringService:
         """
         Berechnet Pre-Scores fuer alle Matches einer Kategorie.
 
+        Laedt automatisch Kalibrierungsdaten (falls vorhanden).
+
         Args:
             category: FINANCE oder ENGINEERING
             city: Optional: nur Matches in dieser Stadt
             job_title: Optional: nur Matches mit diesem Beruf
             force: True = auch bereits gescorte Matches neu bewerten
         """
+        # Kalibrierungsdaten laden (lazy, einmalig)
+        await self.load_calibration()
+
         from sqlalchemy import or_
 
         # Query: Matches mit Kandidaten und Jobs der gleichen Kategorie

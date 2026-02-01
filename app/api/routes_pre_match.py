@@ -3,10 +3,13 @@
 Seiten:
 - GET /pre-match           → Uebersichtsseite (Kacheln nach Beruf+Stadt)
 - GET /pre-match/detail    → Detail-Seite (Kandidaten-Tabelle)
+- GET /pre-match/calibration → Kalibrierungs-Dashboard
 
 API:
 - POST /api/pre-match/generate       → Pre-Matches generieren (Background)
 - GET  /api/pre-match/generate/status → Status der Generierung
+- POST /api/calibration/run           → Kalibrierung ausfuehren
+- GET  /api/calibration/status        → Kalibrierungsdaten + Statistiken
 """
 
 import asyncio
@@ -237,3 +240,154 @@ async def _run_generate(category: str, force: bool = False):
     finally:
         _generate_status["running"] = False
         _generate_status["finished_at"] = datetime.now(timezone.utc).isoformat()
+
+
+# ═══════════════════════════════════════════════════════════════
+# KALIBRIERUNG — Lernt aus DeepMatch-Ergebnissen
+# ═══════════════════════════════════════════════════════════════
+
+_calibration_status: dict = {
+    "running": False,
+    "started_at": None,
+    "result": None,
+    "finished_at": None,
+    "error": None,
+}
+
+
+@router.get("/pre-match/calibration", response_class=HTMLResponse)
+async def calibration_page(
+    request: Request,
+    category: str = Query(default="FINANCE"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Kalibrierungs-Dashboard: Zeigt Lern-Ergebnisse und ermoeglicht Kalibrierung."""
+    from app.services.calibration_service import CalibrationService
+
+    service = CalibrationService(db)
+
+    # Lade Statistiken ueber AI-Matches
+    ai_stats = await service.get_ai_match_stats(category)
+
+    # Lade letzte Kalibrierungsdaten (falls vorhanden)
+    last_calibration = await CalibrationService.load_calibration_data(db)
+    last_calibration_dict = last_calibration.to_dict() if last_calibration else None
+
+    # Aktuelle Matrix fuer Vergleich
+    from app.services.pre_scoring_service import FINANCE_ROLE_SIMILARITY
+    current_matrix = {
+        f"{k[0]}|{k[1]}": v
+        for k, v in FINANCE_ROLE_SIMILARITY.items()
+        if k[0] != k[1]  # Keine Diagonale (immer 1.0)
+    }
+
+    return templates.TemplateResponse(
+        "calibration.html",
+        {
+            "request": request,
+            "category": category,
+            "ai_stats": ai_stats,
+            "last_calibration": last_calibration_dict,
+            "last_calibration_json": json.dumps(last_calibration_dict, ensure_ascii=False) if last_calibration_dict else "null",
+            "current_matrix_json": json.dumps(current_matrix, ensure_ascii=False),
+            "calibration_status": _calibration_status,
+        },
+    )
+
+
+@router.post("/api/calibration/run")
+async def trigger_calibration(
+    background_tasks: BackgroundTasks,
+    category: str = Query(default="FINANCE"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Startet die Kalibrierung im Hintergrund."""
+    global _calibration_status
+
+    if _calibration_status["running"]:
+        return JSONResponse(
+            status_code=409,
+            content={
+                "error": "already_running",
+                "message": "Kalibrierung laeuft bereits",
+            },
+        )
+
+    _calibration_status = {
+        "running": True,
+        "started_at": datetime.now(timezone.utc).isoformat(),
+        "result": None,
+        "finished_at": None,
+        "error": None,
+    }
+
+    background_tasks.add_task(_run_calibration, category)
+
+    return {
+        "status": "started",
+        "category": category,
+        "message": "Kalibrierung gestartet — analysiere AI-Bewertungen...",
+    }
+
+
+@router.get("/api/calibration/status")
+async def get_calibration_status():
+    """Gibt den aktuellen Status der Kalibrierung zurueck."""
+    return _calibration_status
+
+
+@router.get("/api/calibration/data")
+async def get_calibration_data(
+    category: str = Query(default="FINANCE"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Gibt die gespeicherten Kalibrierungsdaten zurueck (JSON)."""
+    from app.services.calibration_service import CalibrationService
+
+    data = await CalibrationService.load_calibration_data(db)
+    if not data:
+        return JSONResponse(
+            status_code=404,
+            content={"error": "no_data", "message": "Keine Kalibrierungsdaten vorhanden"},
+        )
+    return data.to_dict()
+
+
+@router.get("/api/calibration/ai-stats")
+async def get_ai_stats(
+    category: str = Query(default="FINANCE"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Gibt Statistiken ueber AI-bewertete Matches zurueck."""
+    from app.services.calibration_service import CalibrationService
+
+    service = CalibrationService(db)
+    return await service.get_ai_match_stats(category)
+
+
+async def _run_calibration(category: str):
+    """Fuehrt die Kalibrierung als Background-Task aus."""
+    global _calibration_status
+
+    from app.database import async_session_maker
+    from app.services.calibration_service import CalibrationService
+
+    try:
+        async with async_session_maker() as db:
+            service = CalibrationService(db)
+
+            # Kalibrierung ausfuehren
+            result = await service.run_calibration(category)
+
+            # Ergebnis in DB speichern
+            await service.save_calibration_data(result)
+
+            _calibration_status["result"] = result.to_dict()
+
+    except Exception as e:
+        logger.error(f"Kalibrierung fehlgeschlagen: {e}", exc_info=True)
+        _calibration_status["error"] = str(e)[:500]
+
+    finally:
+        _calibration_status["running"] = False
+        _calibration_status["finished_at"] = datetime.now(timezone.utc).isoformat()
