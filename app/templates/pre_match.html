@@ -118,7 +118,7 @@
     {% if by_profession %}
     <div class="space-y-4">
         {% for profession, cities in by_profession.items() %}
-        <div x-show="!searchTerm || '{{ profession | lower }}'.includes(searchTerm.toLowerCase()) || {{ cities | map(attribute='city') | list | tojson }}.some(c => c.toLowerCase().includes(searchTerm.toLowerCase()))"
+        <div x-show="!searchTerm || '{{ profession | lower }}'.includes(searchTerm.toLowerCase()) || {{ cities | map(attribute='city') | list | tojson | e }}.some(c => c.toLowerCase().includes(searchTerm.toLowerCase()))"
              class="bg-white rounded-xl border border-gray-200 overflow-hidden"
              x-data="{ open: true }">
 
