@@ -1,0 +1,97 @@
+{# Partial: Unternehmen-Liste #}
+
+{% if companies and companies | length > 0 %}
+<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <table class="w-full">
+        <thead class="bg-gray-50 border-b border-gray-200">
+            <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unternehmen</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Stadt</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Jobs</th>
+                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Kontakte</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Erstellt</th>
+                <th class="px-4 py-3 w-10"></th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            {% for item in companies %}
+            {% set c = item.company %}
+            <tr class="hover:bg-gray-50 transition-colors cursor-pointer"
+                onclick="window.location='/unternehmen/{{ c.id }}'">
+                <td class="px-6 py-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-lg bg-primary-100 flex items-center justify-center flex-shrink-0">
+                            <svg class="w-4 h-4 text-primary-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5M3.75 3v18h16.5V3H3.75zm3 3.75h3v3h-3v-3zm6 0h3v3h-3v-3zm-6 6h3v3h-3v-3zm6 0h3v3h-3v-3z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-sm font-semibold text-gray-900">{{ c.name }}</p>
+                            {% if c.domain %}
+                            <p class="text-xs text-gray-400">{{ c.domain }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </td>
+                <td class="px-6 py-4 hidden md:table-cell">
+                    <span class="text-sm text-gray-600">{{ c.city or '-' }}</span>
+                </td>
+                <td class="px-6 py-4">
+                    {% if c.status.value == 'active' or c.status == 'active' %}
+                    <span class="inline-flex items-center rounded-full bg-green-50 px-2 py-1 text-xs font-medium text-green-700">Aktiv</span>
+                    {% elif c.status.value == 'blacklist' or c.status == 'blacklist' %}
+                    <span class="inline-flex items-center rounded-full bg-red-50 px-2 py-1 text-xs font-medium text-red-700">Blacklist</span>
+                    {% else %}
+                    <span class="inline-flex items-center rounded-full bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700">Laufend</span>
+                    {% endif %}
+                </td>
+                <td class="px-6 py-4 text-center hidden sm:table-cell">
+                    <span class="text-sm font-medium text-gray-900">{{ item.job_count }}</span>
+                </td>
+                <td class="px-6 py-4 text-center hidden sm:table-cell">
+                    <span class="text-sm text-gray-600">{{ item.contact_count }}</span>
+                </td>
+                <td class="px-6 py-4 text-right hidden lg:table-cell">
+                    <span class="text-xs text-gray-400">{{ c.created_at | datetime }}</span>
+                </td>
+                <td class="px-4 py-4">
+                    <svg class="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                    </svg>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{# Pagination #}
+{% if total_pages > 1 %}
+<div class="flex items-center justify-between mt-4">
+    <p class="text-sm text-gray-500">{{ total }} Unternehmen gesamt</p>
+    <div class="flex gap-2">
+        {% if page > 1 %}
+        <button hx-get="/partials/companies-list?page={{ page - 1 }}&per_page={{ per_page }}"
+                hx-target="#companies-table"
+                class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">Zurueck</button>
+        {% endif %}
+        <span class="px-3 py-1.5 text-sm text-gray-500">Seite {{ page }} / {{ total_pages }}</span>
+        {% if page < total_pages %}
+        <button hx-get="/partials/companies-list?page={{ page + 1 }}&per_page={{ per_page }}"
+                hx-target="#companies-table"
+                class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">Weiter</button>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{% else %}
+<div class="bg-white rounded-xl border border-gray-200 p-12 text-center">
+    <svg class="w-12 h-12 text-gray-300 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5M3.75 3v18h16.5V3H3.75z" />
+    </svg>
+    <h3 class="text-lg font-semibold text-gray-900">Keine Unternehmen gefunden</h3>
+    <p class="text-sm text-gray-500 mt-2">Unternehmen werden automatisch beim CSV-Import erstellt.</p>
+</div>
+{% endif %}

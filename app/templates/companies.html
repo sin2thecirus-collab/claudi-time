@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}Unternehmen - Pulspoint{% endblock %}
+
+{% block content %}
+<div x-data="{ searchTerm: '' }">
+
+    {# -- Header -- #}
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Unternehmen</h1>
+            <p class="text-sm text-gray-500 mt-1">Firmenverwaltung mit Kontakten, Korrespondenz und Blacklist</p>
+        </div>
+    </div>
+
+    {# -- Stats Cards (HTMX geladen) -- #}
+    <div id="company-stats"
+         hx-get="/api/companies/stats"
+         hx-trigger="load"
+         hx-swap="innerHTML"
+         class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white rounded-xl border border-gray-200 p-4 animate-skeleton">
+            <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Gesamt</p>
+            <p class="text-2xl font-bold text-gray-300 mt-1">--</p>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 p-4 animate-skeleton">
+            <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Aktiv</p>
+            <p class="text-2xl font-bold text-gray-300 mt-1">--</p>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 p-4 animate-skeleton">
+            <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Blacklist</p>
+            <p class="text-2xl font-bold text-gray-300 mt-1">--</p>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 p-4 animate-skeleton">
+            <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Laufende Prozesse</p>
+            <p class="text-2xl font-bold text-gray-300 mt-1">--</p>
+        </div>
+    </div>
+
+    {# -- Filter + Suche -- #}
+    <div class="flex flex-col sm:flex-row gap-3 mb-6">
+        <div class="flex-1 relative">
+            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            </svg>
+            <input type="text"
+                   name="search"
+                   placeholder="Firma oder Stadt suchen..."
+                   hx-get="/partials/companies-list"
+                   hx-trigger="keyup changed delay:300ms"
+                   hx-target="#companies-table"
+                   hx-include="[name='status'],[name='sort_by']"
+                   class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm">
+        </div>
+        <select name="status"
+                hx-get="/partials/companies-list"
+                hx-trigger="change"
+                hx-target="#companies-table"
+                hx-include="[name='search'],[name='sort_by']"
+                class="px-4 py-3 border border-gray-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-primary-500">
+            <option value="">Alle Status</option>
+            <option value="active">Aktiv</option>
+            <option value="blacklist">Blacklist</option>
+            <option value="laufende_prozesse">Laufende Prozesse</option>
+        </select>
+        <select name="sort_by"
+                hx-get="/partials/companies-list"
+                hx-trigger="change"
+                hx-target="#companies-table"
+                hx-include="[name='search'],[name='status']"
+                class="px-4 py-3 border border-gray-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-primary-500">
+            <option value="created_at">Kuerzlich hinzugefuegt</option>
+            <option value="name">Name A-Z</option>
+        </select>
+    </div>
+
+    {# -- Tabelle (HTMX geladen) -- #}
+    <div id="companies-table"
+         hx-get="/partials/companies-list?per_page=25"
+         hx-trigger="load"
+         hx-swap="innerHTML">
+        <div class="bg-white rounded-xl border border-gray-200 p-12 text-center animate-skeleton">
+            <p class="text-gray-400">Lade Unternehmen...</p>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Stats-Anzeige formatieren
+document.body.addEventListener('htmx:afterSwap', function(event) {
+    if (event.detail.target.id === 'company-stats') {
+        try {
+            const data = JSON.parse(event.detail.xhr.responseText);
+            event.detail.target.innerHTML = `
+                <div class="bg-white rounded-xl border border-gray-200 p-4">
+                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Gesamt</p>
+                    <p class="text-2xl font-bold text-gray-900 mt-1">${data.total}</p>
+                </div>
+                <div class="bg-white rounded-xl border border-gray-200 p-4">
+                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Aktiv</p>
+                    <p class="text-2xl font-bold text-green-600 mt-1">${data.active}</p>
+                </div>
+                <div class="bg-white rounded-xl border border-gray-200 p-4">
+                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Blacklist</p>
+                    <p class="text-2xl font-bold text-red-600 mt-1">${data.blacklisted}</p>
+                </div>
+                <div class="bg-white rounded-xl border border-gray-200 p-4">
+                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Laufende Prozesse</p>
+                    <p class="text-2xl font-bold text-amber-600 mt-1">${data.laufende_prozesse}</p>
+                </div>
+            `;
+        } catch(e) {}
+    }
+});
+</script>
+{% endblock %}

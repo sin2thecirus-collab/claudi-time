@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import ImportJob, Job
 from app.models.import_job import ImportStatus
 from app.services.categorization_service import CategorizationService
+from app.services.company_service import CompanyService
 from app.services.csv_validator import (
     CSVValidator,
     ValidationResult,
@@ -281,9 +282,14 @@ class CSVImportService:
             successful = 0
             failed = 0
             duplicates = 0
+            blacklisted = 0
             errors_detail: list[dict] = []
             batch: list[Job] = []
             BATCH_SIZE = 500
+
+            # Company Service + Cache fuer Performance
+            company_service = CompanyService(self.db)
+            company_cache: dict[str, object] = {}  # name -> Company | None
 
             # Bestehende content_hashes laden (für Duplikaterkennung)
             logger.info("Lade bestehende Content-Hashes...")
@@ -295,7 +301,8 @@ class CSVImportService:
 
                 try:
                     # Pflichtfeld: Unternehmen muss vorhanden sein
-                    if not row.get("Unternehmen", "").strip():
+                    company_name = row.get("Unternehmen", "").strip()
+                    if not company_name:
                         failed += 1
                         if len(errors_detail) < 50:
                             errors_detail.append({
@@ -303,6 +310,47 @@ class CSVImportService:
                                 "message": "Pflichtfeld 'Unternehmen' ist leer",
                             })
                         continue
+
+                    # Company lookup/create (mit Cache)
+                    cache_key = company_name.lower()
+                    if cache_key not in company_cache:
+                        company = await company_service.get_or_create_by_name(
+                            name=company_name,
+                            street=self._get_field(row, "Straße", "Straße und Hausnummer"),
+                            postal_code=self._get_field(row, "PLZ"),
+                            city=self._get_field(row, "Stadt", "Ort"),
+                            domain=self._get_field(row, "Internet", "Domain", "Website"),
+                            employee_count=self._get_field(
+                                row, "Unternehmensgröße", "Unternehmensgroesse",
+                                "Mitarbeiter (MA) / Unternehmensgröße", "Mitarbeiter",
+                            ),
+                        )
+                        company_cache[cache_key] = company
+                    else:
+                        company = company_cache[cache_key]
+
+                    # Blacklisted → skip
+                    if company is None:
+                        blacklisted += 1
+                        duplicates += 1  # Zaehlt als uebersprungen
+                        continue
+
+                    # Kontaktperson extrahieren (falls vorhanden)
+                    ap_vorname = self._get_field(row, "Vorname - AP Firma")
+                    ap_nachname = self._get_field(row, "Nachname - AP Firma")
+                    if ap_vorname or ap_nachname:
+                        try:
+                            await company_service.get_or_create_contact(
+                                company_id=company.id,
+                                first_name=ap_vorname,
+                                last_name=ap_nachname,
+                                salutation=self._get_field(row, "Anrede - AP Firma"),
+                                position=self._get_field(row, "Funktion - AP Firma"),
+                                phone=self._get_field(row, "Telefon - AP Firma"),
+                                email=self._get_field(row, "E-Mail - AP Firma"),
+                            )
+                        except Exception as e:
+                            logger.debug(f"Kontakt-Extraktion fehlgeschlagen: {e}")
 
                     # Content-Hash berechnen
                     content_hash = calculate_content_hash(row)
@@ -312,8 +360,8 @@ class CSVImportService:
                         duplicates += 1
                         continue
 
-                    # Job erstellen
-                    job = self._row_to_job(row, content_hash)
+                    # Job erstellen (mit company_id)
+                    job = self._row_to_job(row, content_hash, company_id=company.id)
 
                     # Hotlist-Kategorisierung direkt nach Erstellung
                     self._categorize_job(job)
@@ -362,6 +410,10 @@ class CSVImportService:
                 if not import_job.errors_detail:
                     import_job.errors_detail = {}
                 import_job.errors_detail["duplicates_skipped"] = duplicates
+            if blacklisted > 0:
+                if not import_job.errors_detail:
+                    import_job.errors_detail = {}
+                import_job.errors_detail["blacklisted_skipped"] = blacklisted
 
             await self.db.commit()
 
@@ -493,7 +545,7 @@ class CSVImportService:
                 return value
         return None
 
-    def _row_to_job(self, row: dict[str, str], content_hash: str) -> Job:
+    def _row_to_job(self, row: dict[str, str], content_hash: str, company_id=None) -> Job:
         """
         Konvertiert eine CSV-Zeile in ein Job-Objekt.
 
@@ -503,6 +555,7 @@ class CSVImportService:
         Args:
             row: CSV-Zeile als Dictionary
             content_hash: Berechneter Content-Hash
+            company_id: Optional - UUID der verknuepften Company
 
         Returns:
             Job-Objekt
@@ -511,6 +564,7 @@ class CSVImportService:
         # employment_type/industry=VARCHAR(100), company_size=VARCHAR(100)
         return Job(
             company_name=row.get("Unternehmen", "").strip()[:255],
+            company_id=company_id,
             position=(self._get_field(row, "Position", "Funktion - AP Firma")
                       or "Keine Position angegeben")[:255],
             street_address=self._get_field(row, "Straße", "Straße und Hausnummer", max_len=255),

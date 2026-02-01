@@ -1,0 +1,42 @@
+{# Partial: Korrespondenz eines Unternehmens #}
+
+{% if correspondence and correspondence | length > 0 %}
+<div class="space-y-3">
+    {% for corr in correspondence %}
+    <div class="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+        {# Direction Icon #}
+        <div class="flex-shrink-0 mt-0.5">
+            {% if corr.direction.value == 'outbound' %}
+            <div class="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center" title="Ausgehend">
+                <svg class="w-3.5 h-3.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                </svg>
+            </div>
+            {% else %}
+            <div class="w-7 h-7 rounded-full bg-green-100 flex items-center justify-center" title="Eingehend">
+                <svg class="w-3.5 h-3.5 text-green-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 3.75H6.912a2.25 2.25 0 00-2.15 1.588L2.35 13.177a2.25 2.25 0 00-.1.661V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18v-4.162c0-.224-.034-.447-.1-.661L19.24 5.338a2.25 2.25 0 00-2.15-1.588H15M2.25 13.5h3.86a2.25 2.25 0 012.012 1.244l.256.512a2.25 2.25 0 002.013 1.244h3.218a2.25 2.25 0 002.013-1.244l.256-.512a2.25 2.25 0 012.013-1.244h3.859" />
+                </svg>
+            </div>
+            {% endif %}
+        </div>
+        <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between">
+                <p class="text-sm font-medium text-gray-900 truncate">{{ corr.subject }}</p>
+                <span class="text-xs text-gray-400 flex-shrink-0 ml-2">{{ corr.sent_at | datetime }}</span>
+            </div>
+            {% if corr.body %}
+            <p class="text-xs text-gray-500 mt-1 line-clamp-2">{{ corr.body }}</p>
+            {% endif %}
+        </div>
+        <button onclick="deleteCorrespondence('{{ corr.id }}')" class="text-gray-400 hover:text-red-500 p-1 flex-shrink-0" title="Loeschen">
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        </button>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<p class="text-sm text-gray-400">Keine Korrespondenz vorhanden</p>
+{% endif %}

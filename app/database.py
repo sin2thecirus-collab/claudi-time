@@ -94,6 +94,8 @@ async def init_db() -> None:
         ("matches", "stale", "BOOLEAN DEFAULT FALSE"),
         ("matches", "stale_reason", "VARCHAR(255)"),
         ("matches", "stale_since", "TIMESTAMPTZ"),
+        # Jobs: Company FK
+        ("jobs", "company_id", "UUID"),
     ]
     for table_name, col_name, col_type in migrations:
         try:

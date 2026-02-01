@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 
 from geoalchemy2 import Geography
-from sqlalchemy import ARRAY, Boolean, DateTime, Float, Index, String, Text, func
+from sqlalchemy import ARRAY, Boolean, DateTime, Float, ForeignKey, Index, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -25,6 +25,11 @@ class Job(Base):
 
     # Basis-Informationen
     company_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    company_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("companies.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     position: Mapped[str] = mapped_column(String(255), nullable=False)
 
     # Adresse
@@ -72,6 +77,9 @@ class Job(Base):
     )
 
     # Relationships
+    company: Mapped["Company | None"] = relationship(
+        "Company", back_populates="jobs",
+    )
     matches: Mapped[list["Match"]] = relationship(
         "Match",
         back_populates="job",
@@ -90,6 +98,7 @@ class Job(Base):
         Index("ix_jobs_deleted_at", "deleted_at"),
         Index("ix_jobs_content_hash", "content_hash"),
         Index("ix_jobs_hotlist_category", "hotlist_category"),
+        Index("ix_jobs_company_id", "company_id"),
     )
 
     @property

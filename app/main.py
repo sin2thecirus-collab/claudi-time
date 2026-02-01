@@ -123,6 +123,7 @@ from app.api.routes_statistics import router as statistics_router
 from app.api.routes_alerts import router as alerts_router
 from app.api.routes_hotlisten import router as hotlisten_router
 from app.api.routes_pre_match import router as pre_match_router
+from app.api.routes_companies import router as companies_router
 
 # Custom Exception Handlers registrieren
 register_exception_handlers(app)
@@ -141,3 +142,4 @@ app.include_router(settings_router, prefix="/api")
 app.include_router(admin_router, prefix="/api")
 app.include_router(statistics_router, prefix="/api")
 app.include_router(alerts_router, prefix="/api")
+app.include_router(companies_router, prefix="/api")

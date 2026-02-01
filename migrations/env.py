@@ -15,6 +15,9 @@ from app.database import Base
 from app.models import (  # noqa: F401
     Alert,
     Candidate,
+    Company,
+    CompanyContact,
+    CompanyCorrespondence,
     DailyStatistics,
     FilterPreset,
     FilterUsage,

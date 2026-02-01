@@ -1,0 +1,24 @@
+{# Partial: Jobs eines Unternehmens #}
+
+{% if jobs and jobs | length > 0 %}
+<div class="space-y-2">
+    {% for job in jobs %}
+    <a href="/jobs/{{ job.id }}" class="block p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors group">
+        <p class="text-sm font-medium text-gray-900 group-hover:text-primary-600 truncate">{{ job.position }}</p>
+        <div class="flex items-center gap-2 mt-1">
+            {% if job.city %}
+            <span class="text-xs text-gray-500">{{ job.city }}</span>
+            {% endif %}
+            {% if job.employment_type %}
+            <span class="text-xs text-gray-400">&middot; {{ job.employment_type }}</span>
+            {% endif %}
+        </div>
+    </a>
+    {% endfor %}
+    {% if jobs | length >= 50 %}
+    <p class="text-xs text-gray-400 text-center pt-2">Zeigt max. 50 Jobs</p>
+    {% endif %}
+</div>
+{% else %}
+<p class="text-sm text-gray-400">Keine Jobs verknuepft</p>
+{% endif %}

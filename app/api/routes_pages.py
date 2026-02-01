@@ -15,6 +15,7 @@ from app.services.job_runner_service import JobRunnerService
 from app.schemas.filters import JobFilterParams
 from app.services.job_service import JobService
 from app.services.candidate_service import CandidateService
+from app.services.company_service import CompanyService
 from app.services.filter_service import FilterService
 from app.services.statistics_service import StatisticsService
 from app.services.alert_service import AlertService
@@ -109,6 +110,49 @@ async def candidate_detail(
         {
             "request": request,
             "candidate": candidate
+        }
+    )
+
+
+@router.get("/unternehmen", response_class=HTMLResponse)
+async def companies_page(request: Request):
+    """Unternehmen-Uebersichtsseite."""
+    return templates.TemplateResponse(
+        "companies.html",
+        {"request": request}
+    )
+
+
+@router.get("/unternehmen/{company_id}", response_class=HTMLResponse)
+async def company_detail(
+    request: Request,
+    company_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Unternehmen-Detailseite."""
+    company_service = CompanyService(db)
+    company = await company_service.get_company(company_id)
+
+    if not company:
+        raise HTTPException(status_code=404, detail="Unternehmen nicht gefunden")
+
+    # Job-Count laden
+    from app.models.job import Job
+    from sqlalchemy import func, select
+    job_count_result = await db.execute(
+        select(func.count(Job.id)).where(
+            Job.company_id == company_id,
+            Job.deleted_at.is_(None),
+        )
+    )
+    job_count = job_count_result.scalar() or 0
+
+    return templates.TemplateResponse(
+        "company_detail.html",
+        {
+            "request": request,
+            "company": company,
+            "job_count": job_count,
         }
     )
 
@@ -354,6 +398,110 @@ async def candidates_list_partial(
             "per_page": result.per_page,
             "total_pages": result.pages,
             "search": search,
+        }
+    )
+
+
+@router.get("/partials/companies-list", response_class=HTMLResponse)
+async def companies_list_partial(
+    request: Request,
+    page: int = 1,
+    per_page: int = 25,
+    search: Optional[str] = None,
+    city: Optional[str] = None,
+    status: Optional[str] = None,
+    sort_by: str = "created_at",
+    db: AsyncSession = Depends(get_db),
+):
+    """Partial: Unternehmen-Liste fuer HTMX."""
+    company_service = CompanyService(db)
+    result = await company_service.list_companies(
+        search=search,
+        city=city,
+        status=status,
+        sort_by=sort_by,
+        page=page,
+        per_page=per_page,
+    )
+
+    return templates.TemplateResponse(
+        "partials/companies_list.html",
+        {
+            "request": request,
+            "companies": result["items"],
+            "total": result["total"],
+            "page": result["page"],
+            "per_page": result["per_page"],
+            "total_pages": result["pages"],
+            "search": search,
+        }
+    )
+
+
+@router.get("/partials/company-contacts/{company_id}", response_class=HTMLResponse)
+async def company_contacts_partial(
+    request: Request,
+    company_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Partial: Kontakte eines Unternehmens fuer HTMX."""
+    company_service = CompanyService(db)
+    contacts = await company_service.list_contacts(company_id)
+
+    return templates.TemplateResponse(
+        "partials/company_contacts.html",
+        {
+            "request": request,
+            "contacts": contacts,
+            "company_id": str(company_id),
+        }
+    )
+
+
+@router.get("/partials/company-correspondence/{company_id}", response_class=HTMLResponse)
+async def company_correspondence_partial(
+    request: Request,
+    company_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Partial: Korrespondenz eines Unternehmens fuer HTMX."""
+    company_service = CompanyService(db)
+    correspondence = await company_service.list_correspondence(company_id)
+
+    return templates.TemplateResponse(
+        "partials/company_correspondence.html",
+        {
+            "request": request,
+            "correspondence": correspondence,
+            "company_id": str(company_id),
+        }
+    )
+
+
+@router.get("/partials/company-jobs/{company_id}", response_class=HTMLResponse)
+async def company_jobs_partial(
+    request: Request,
+    company_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Partial: Jobs eines Unternehmens fuer HTMX."""
+    from app.models.job import Job
+    from sqlalchemy import select
+
+    result = await db.execute(
+        select(Job)
+        .where(Job.company_id == company_id, Job.deleted_at.is_(None))
+        .order_by(Job.created_at.desc())
+        .limit(50)
+    )
+    jobs = result.scalars().all()
+
+    return templates.TemplateResponse(
+        "partials/company_jobs.html",
+        {
+            "request": request,
+            "jobs": jobs,
+            "company_id": str(company_id),
         }
     )
 
