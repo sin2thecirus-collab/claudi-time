@@ -56,7 +56,20 @@ VERBINDLICHE FACHLICHE REGELN
    - Wenn JA → qualifiziert fuer Bilanzbuchhalter-Stellen
    - Wenn NEIN (nur Vorbereitung/Zuarbeit/Unterstuetzung) → qualifiziert fuer Finanzbuchhalter-Stellen
    - "Erstellung" ≠ "Vorbereitung" oder "Mitwirkung" — diesen Unterschied IMMER beachten
+   - ACHTUNG: "Mitwirkung bei der Erstellung der Jahresabschluesse" enthaelt das Wort "Erstellung",
+     aber der Kontext ist NUR vorbereitend/zuarbeitend → das ist KEIN Bilanzbuchhalter-Niveau!
    - Formale Qualifikation "Bilanzbuchhalter IHK" ist ein starkes Signal, aber nicht allein entscheidend
+
+   WICHTIG — AUCH DIE STELLE/VAKANZ PRUEFEN:
+   - Eine Stelle ist NUR eine echte Bilanzbuchhalter-Vakanz, wenn die AUFGABEN klar zeigen,
+     dass eigenstaendige Erstellung von Abschluessen erwartet wird
+   - Viele Firmen suchen "Finanzbuchhalter" und schreiben "Weiterbildung zum Bilanzbuchhalter
+     wuenschenswert" in die Anforderungen → das macht die Stelle NICHT zur Bilanzbuchhalter-Vakanz!
+   - Entscheidend sind die AUFGABEN: Wird dort eigenstaendige Erstellung gefordert?
+     Oder nur Mitwirkung, Vorbereitung, Zuarbeit, Unterstuetzung?
+   - Wenn die Aufgaben nur vorbereitende Taetigkeiten beschreiben (auch wenn der Titel
+     "Bilanzbuchhalter" enthaelt), ist es de facto eine Finanzbuchhalter-Stelle
+   - Bewerte die STELLE realistisch: Was wird TATSAECHLICH getan, nicht was der Titel suggeriert
 
 3. KONSOLIDIERUNG = Group Accountant / Konzernbuchhalter
    - Arbeitet der Kandidat mit Konzernabschluessen, Intercompany-Abstimmungen, Konsolidierung?

@@ -66,6 +66,44 @@ BILANZ_CREATION_KEYWORDS = [
     "verantwortlich für die erstellung",
 ]
 
+# NEGATIVE Kontexte: Phrasen die "Erstellung" enthalten aber KEINE echte
+# eigenstaendige Erstellung bedeuten — nur Vorbereitung/Zuarbeit/Mitwirkung.
+# Diese muessen VOR dem positiven Match geprueft werden.
+BILANZ_CREATION_NEGATIONS = [
+    "mitwirkung bei der erstellung",
+    "mitwirkung an der erstellung",
+    "mithilfe bei der erstellung",
+    "unterstützung bei der erstellung",
+    "unterstützung der erstellung",
+    "zuarbeit bei der erstellung",
+    "zuarbeit zur erstellung",
+    "vorbereitung und erstellung",  # "Vorbereitung und Erstellung" = nur vorbereiten
+    "vorbereitung der erstellung",
+    "assistenz bei der erstellung",
+    "mitarbeit bei der erstellung",
+    "mitarbeit an der erstellung",
+]
+
+# Anforderungs-Kontexte fuer Jobs: Bilanzbuchhalter wird nur als WUNSCH
+# in den Anforderungen/Qualifikationen erwaehnt, nicht als echte Taetigkeit.
+# z.B. "Weiterbildung zum Bilanzbuchhalter wuenschenswert"
+JOB_BILANZ_WISH_KEYWORDS = [
+    "weiterbildung zum bilanzbuchhalter",
+    "weiterbildung zur bilanzbuchhalterin",
+    "bilanzbuchhalter wünschenswert",
+    "bilanzbuchhalter von vorteil",
+    "bilanzbuchhalter erwünscht",
+    "idealerweise bilanzbuchhalter",
+    "optimalerweise bilanzbuchhalter",
+    "gerne bilanzbuchhalter",
+    "oder bilanzbuchhalter",
+    "zum/zur bilanzbuchhalter",
+    "fortbildung bilanzbuchhalter",
+    "angehender bilanzbuchhalter",
+    "angehende bilanzbuchhalterin",
+    "auf dem weg zum bilanzbuchhalter",
+]
+
 # Bilanzbuchhalter: Qualifikation (MUSS vorhanden sein) — erweitert
 BILANZ_QUALIFICATION_KEYWORDS = [
     "bilanzbuchhalter", "bilanzbuchhalterin",
@@ -300,8 +338,21 @@ class FinanceRulesEngine:
         return False
 
     def _has_bilanz_activities(self, text: str) -> bool:
-        """Prüft ob Erstellung von Abschlüssen in Tätigkeiten vorkommt."""
-        return self._has_any_keyword(text, BILANZ_CREATION_KEYWORDS)
+        """Prüft ob EIGENSTAENDIGE Erstellung von Abschluessen in Taetigkeiten vorkommt.
+
+        WICHTIG: 'Mitwirkung bei der Erstellung' zaehlt NICHT als eigenstaendige
+        Erstellung. Dort steckt zwar 'Erstellung' drin, aber der Kontext ist
+        nur vorbereitend/zuarbeitend → Finanzbuchhalter, nicht Bilanzbuchhalter.
+        """
+        if not self._has_any_keyword(text, BILANZ_CREATION_KEYWORDS):
+            return False
+        # Negations-Check: Wenn NUR negierte Formen vorkommen, ist es KEINE
+        # echte Erstellung. Wir prüfen ob nach Entfernung aller Negationen
+        # noch ein positives Match übrig bleibt.
+        cleaned = text
+        for neg in BILANZ_CREATION_NEGATIONS:
+            cleaned = cleaned.replace(neg, "")
+        return self._has_any_keyword(cleaned, BILANZ_CREATION_KEYWORDS)
 
     def _has_fibu_activities(self, text: str) -> bool:
         """Prüft ob Finanzbuchhalter-Tätigkeiten vorkommen."""
@@ -471,7 +522,19 @@ class FinanceRulesEngine:
     # ──────────────────────────────────────────────────
 
     def classify_job(self, job: Job) -> RulesClassificationResult:
-        """Klassifiziert einen FINANCE-Job anhand regelbasierter Analyse."""
+        """Klassifiziert einen FINANCE-Job anhand regelbasierter Analyse.
+
+        WICHTIGE REGEL fuer Bilanzbuchhalter-Vakanzen:
+        Eine Stelle ist NUR dann eine echte Bilanzbuchhalter-Vakanz wenn:
+        1. Die AUFGABEN eigenstaendige Erstellung von Abschluessen fordern
+           (nicht nur Mitwirkung/Vorbereitung/Zuarbeit)
+        2. UND Bilanzbuchhalter als ECHTE Anforderung steht (nicht nur
+           'Weiterbildung zum Bilanzbuchhalter wuenschenswert')
+
+        Viele Unternehmen suchen Finanzbuchhalter, erwaehnen aber
+        'Bilanzbuchhalter-Weiterbildung' als Nice-to-have → das macht
+        die Vakanz NICHT zur Bilanzbuchhalter-Stelle.
+        """
         if not job.job_text and not job.position:
             return RulesClassificationResult(reasoning="Keine Stellenbeschreibung vorhanden")
 
@@ -479,16 +542,30 @@ class FinanceRulesEngine:
         roles = []
         reasons = []
 
-        # Bilanzbuchhalter: Erstellung von Abschlüssen + Bilanzbuchhalter gefordert
-        has_bilanz_keyword = self._has_any_keyword(text, BILANZ_QUALIFICATION_KEYWORDS)
-        has_bilanz_act = self._has_any_keyword(text, BILANZ_CREATION_KEYWORDS)
+        # Bilanzbuchhalter-Vakanz: STRENGE Pruefung
+        # 1. Hat der Job eigenstaendige Abschluss-Erstellung in den Aufgaben?
+        has_bilanz_act = self._has_bilanz_activities(text)  # nutzt jetzt Negations-Check
 
-        if has_bilanz_keyword and has_bilanz_act:
+        # 2. Wird "Bilanzbuchhalter" als echte Anforderung erwaehnt?
+        has_bilanz_keyword = self._has_any_keyword(text, BILANZ_QUALIFICATION_KEYWORDS)
+
+        # 3. Wird "Bilanzbuchhalter" NUR als Wunsch/Nice-to-have erwaehnt?
+        is_bilanz_only_wish = self._has_any_keyword(text, JOB_BILANZ_WISH_KEYWORDS)
+
+        # Wenn Bilanzbuchhalter nur als Wunsch erwaehnt wird UND der Jobtitel
+        # kein Bilanzbuchhalter ist → es ist KEINE Bilanzbuchhalter-Vakanz
+        job_title_is_bilanz = "bilanzbuchhalter" in (job.position or "").lower()
+
+        if has_bilanz_act and has_bilanz_keyword and (job_title_is_bilanz or not is_bilanz_only_wish):
             roles.append("Bilanzbuchhalter/in")
-            reasons.append("Erstellung Abschlüsse + Bilanzbuchhalter gefordert")
+            reasons.append("Eigenstaendige Erstellung Abschluesse + Bilanzbuchhalter gefordert")
         elif has_bilanz_act and not has_bilanz_keyword:
             roles.append("Finanzbuchhalter/in")
-            reasons.append("Abschlüsse erwähnt aber kein Bilanzbuchhalter gefordert")
+            reasons.append("Abschluesse in Aufgaben aber kein Bilanzbuchhalter gefordert")
+        elif has_bilanz_keyword and is_bilanz_only_wish and not job_title_is_bilanz:
+            # Bilanzbuchhalter nur als Wunsch → Finanzbuchhalter-Vakanz
+            roles.append("Finanzbuchhalter/in")
+            reasons.append("Bilanzbuchhalter nur als Weiterbildungswunsch, kein echtes Anforderungsprofil")
 
         # Finanzbuchhalter
         if "Finanzbuchhalter/in" not in roles and "Bilanzbuchhalter/in" not in roles:
