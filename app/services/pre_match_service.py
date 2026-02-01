@@ -40,16 +40,16 @@ PRE_MATCH_MAX_DISTANCE_KM = 30
 METERS_PER_KM = 1000
 
 # Mindest-Rollen-Similarity damit ein Match erstellt wird (0.0-1.0)
-# 0.3 = z.B. Fibu→Kredi ist ok, aber Lohn→Fibu (0.05) wird ausgefiltert
+# 0.25 = z.B. Fibu→Kredi (0.60) ja, Lohn→Fibu (0.05) nein
 MIN_ROLE_SIMILARITY = 0.25
 
 # Mindest-Pre-Score damit ein Match gespeichert wird (0-100)
-# Unter 20 = sehr schlechte Passung, lohnt nicht gespeichert zu werden
-MIN_PRE_SCORE = 20.0
+# 35 = filtert mittelmäßige Paarungen raus (z.B. Kredi→Bilu weit weg ohne Keywords)
+MIN_PRE_SCORE = 35.0
 
-# Sicherheitslimit: Max. Kandidaten pro Job (verhindert Explosion bei grossen Staedten)
-# Wird nur als Sicherheitsnetz genutzt, sortiert nach Pre-Score (nicht Entfernung!)
-MAX_CANDIDATES_PER_JOB = 50
+# Max. Kandidaten pro Job — sortiert nach Pre-Score (beste zuerst!)
+# 15 = fokussiert auf die wirklich passenden Kandidaten
+MAX_CANDIDATES_PER_JOB = 15
 
 
 # ═══════════════════════════════════════════════════════════════
