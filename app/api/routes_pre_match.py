@@ -202,9 +202,38 @@ async def get_generate_status():
 # ═══════════════════════════════════════════════════════════════
 
 
+async def _ensure_quick_score_columns():
+    """Stellt sicher, dass die quick_score Spalten existieren (Migration 009)."""
+    from app.database import async_session_maker
+    from sqlalchemy import text as sa_text
+
+    try:
+        async with async_session_maker() as db:
+            # Pruefe ob quick_score Spalte existiert
+            result = await db.execute(sa_text(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_name = 'matches' AND column_name = 'quick_score'"
+            ))
+            if result.fetchone() is None:
+                logger.info("Erstelle fehlende quick_score Spalten (Migration 009)...")
+                await db.execute(sa_text("ALTER TABLE matches ADD COLUMN IF NOT EXISTS quick_score FLOAT"))
+                await db.execute(sa_text("ALTER TABLE matches ADD COLUMN IF NOT EXISTS quick_reason VARCHAR(200)"))
+                await db.execute(sa_text("ALTER TABLE matches ADD COLUMN IF NOT EXISTS quick_scored_at TIMESTAMPTZ"))
+                await db.execute(sa_text(
+                    "CREATE INDEX IF NOT EXISTS ix_matches_quick_score ON matches (quick_score)"
+                ))
+                await db.commit()
+                logger.info("quick_score Spalten erfolgreich erstellt")
+    except Exception as e:
+        logger.warning(f"Konnte quick_score Spalten nicht pruefen/erstellen: {e}")
+
+
 async def _run_generate(category: str, force: bool = False):
     """Fuehrt die Pre-Match-Generierung als Background-Task aus."""
     global _generate_status
+
+    # Sicherstellen, dass DB-Schema aktuell ist
+    await _ensure_quick_score_columns()
 
     from app.database import async_session_maker
 
