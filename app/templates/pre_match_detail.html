@@ -35,6 +35,33 @@
         this.splitViewOpen = false;
         this.splitViewMatchId = null;
         document.body.style.overflow = '';
+    },
+    async deepMatchSelected() {
+        const ids = this.selectedIds;
+        if (ids.length === 0) return;
+        if (ids.length > 20) {
+            showToast('Maximal 20 Matches pro Batch', 'warning');
+            return;
+        }
+        if (!confirm('KI-Bewertung fuer ' + ids.length + ' Matches starten? (Kosten: ~$' + (ids.length * 0.001).toFixed(3) + ')')) return;
+        showToast('Deep Match gestartet fuer ' + ids.length + ' Matches...', 'info');
+        try {
+            const resp = await fetch('/api/deepmatch/evaluate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ match_ids: ids }),
+            });
+            if (resp.ok) {
+                const data = await resp.json();
+                showToast('DeepMatch abgeschlossen: ' + data.evaluated + ' bewertet', 'success');
+                setTimeout(() => { window.location.href = '/deep-match{% if category %}?category={{ category }}{% endif %}'; }, 1500);
+            } else {
+                const errData = await resp.json().catch(() => ({}));
+                showToast(errData.detail || 'Fehler bei DeepMatch', 'error');
+            }
+        } catch (e) {
+            showToast('Netzwerkfehler: ' + e.message, 'error');
+        }
     }
 }">
 
@@ -810,46 +837,9 @@ function copyToClipboard(text, btnEl) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// Deep Match fuer ausgewaehlte
+// Deep Match fuer ausgewaehlte — jetzt als Alpine-Methode (siehe x-data)
+// Globale Funktion entfernt wegen Alpine v3 Kompatibilitaet
 // ═══════════════════════════════════════════════════════════════
-async function deepMatchSelected() {
-    const alpine = document.querySelector('[x-data]').__x.$data;
-    const ids = alpine.selectedIds;
-    if (ids.length === 0) return;
-
-    if (ids.length > 20) {
-        showToast('Maximal 20 Matches pro Batch', 'warning');
-        return;
-    }
-
-    if (!confirm(`KI-Bewertung fuer ${ids.length} Matches starten? (Kosten: ~$${(ids.length * 0.001).toFixed(3)})`)) return;
-
-    showToast(`Deep Match gestartet fuer ${ids.length} Matches...`, 'info');
-
-    try {
-        const resp = await fetch('/api/deepmatch/evaluate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ match_ids: ids }),
-        });
-
-        if (resp.ok) {
-            const data = await resp.json();
-            showToast(
-                `DeepMatch abgeschlossen: ${data.evaluated} bewertet`,
-                'success'
-            );
-            setTimeout(function() {
-                window.location.href = '/deep-match{% if category %}?category={{ category }}{% endif %}';
-            }, 1500);
-        } else {
-            const errData = await resp.json().catch(function() { return {}; });
-            showToast(errData.detail || 'Fehler bei DeepMatch', 'error');
-        }
-    } catch (e) {
-        showToast('Netzwerkfehler: ' + e.message, 'error');
-    }
-}
 
 // Einzelnes Deep Match
 async function triggerSingleDeepMatch(matchId) {
