@@ -555,6 +555,7 @@ Vergleiche diese mit den Anforderungen der Stellenbeschreibung."""
         skip_already_checked: bool = True,
         min_pre_score: float | None = None,
         progress_callback: Callable[[str, str], None] | None = None,
+        combos: list[dict] | None = None,
     ) -> BulkEvaluateResult:
         """
         Bewertet ALLE Pre-Matches einer Kategorie durch OpenAI.
@@ -570,6 +571,8 @@ Vergleiche diese mit den Anforderungen der Stellenbeschreibung."""
             skip_already_checked: Bereits AI-bewertete ueberspringen
             min_pre_score: Mindest-Pre-Score (None = kein Filter)
             progress_callback: Optional callback(step, detail) fuer UI
+            combos: Optional — Liste von {"job_title": ..., "city": ...}.
+                    Wenn gesetzt, werden nur Matches dieser Kombinationen bewertet.
 
         Returns:
             BulkEvaluateResult mit Statistiken
@@ -593,6 +596,22 @@ Vergleiche diese mit den Anforderungen der Stellenbeschreibung."""
                 )
             )
         )
+
+        # Combos-Filter: Nur bestimmte Job+Stadt Paare bewerten
+        if combos:
+            from sqlalchemy import or_
+            combo_filters = []
+            for combo in combos:
+                jt = combo.get("job_title", "")
+                city = combo.get("city", "")
+                combo_filters.append(
+                    and_(
+                        Job.hotlist_job_title == jt,
+                        Job.hotlist_city == city,
+                    )
+                )
+            if combo_filters:
+                query = query.where(or_(*combo_filters))
 
         # Bereits bewertete ueberspringen?
         if skip_already_checked:

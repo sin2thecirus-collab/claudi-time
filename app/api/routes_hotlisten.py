@@ -1646,8 +1646,14 @@ async def _run_bulk_evaluate(
     category: str,
     max_matches: int,
     min_pre_score: float | None,
+    combos: list[dict] | None = None,
 ) -> None:
-    """Background-Task: Fuehrt Bulk-DeepMatch durch."""
+    """Background-Task: Fuehrt Bulk-DeepMatch durch.
+
+    Args:
+        combos: Optional — Liste von {"job_title": ..., "city": ...} Filtern.
+                Wenn gesetzt, werden nur Matches dieser Kombinationen bewertet.
+    """
     global _bulk_evaluate_status
 
     def progress_cb(step: str, detail: str) -> None:
@@ -1662,6 +1668,7 @@ async def _run_bulk_evaluate(
                     skip_already_checked=True,
                     min_pre_score=min_pre_score,
                     progress_callback=progress_cb,
+                    combos=combos,
                 )
 
         _bulk_evaluate_status["result"] = {
@@ -1717,16 +1724,22 @@ async def trigger_bulk_evaluate(
     if min_pre_score is not None:
         min_pre_score = float(min_pre_score)
 
+    # Optional: Combos (Job+Stadt Paare) fuer gezielten Run
+    combos = body.get("combos")  # [{"job_title": "...", "city": "..."}]
+
     # Kosten schaetzen bevor wir starten
     async with DeepMatchService(db) as service:
         cost_est = service.estimate_cost(max_matches)
 
     # Status initialisieren
+    combo_label = ""
+    if combos:
+        combo_label = f" ({len(combos)} Kombinationen)"
     _bulk_evaluate_status = {
         "running": True,
         "started_at": datetime.now(timezone.utc).isoformat(),
         "category": category,
-        "progress": {"step": "init", "detail": "Wird gestartet..."},
+        "progress": {"step": "init", "detail": f"Wird gestartet...{combo_label}"},
         "result": None,
         "finished_at": None,
         "error": None,
@@ -1738,12 +1751,14 @@ async def trigger_bulk_evaluate(
         category=category,
         max_matches=max_matches,
         min_pre_score=min_pre_score,
+        combos=combos,
     )
 
     return {
         "status": "started",
         "category": category,
         "max_matches": max_matches,
+        "combos_count": len(combos) if combos else 0,
         "estimated_cost_usd": cost_est["estimated_cost_usd"],
         "estimated_cost_eur": cost_est["estimated_cost_eur"],
     }
