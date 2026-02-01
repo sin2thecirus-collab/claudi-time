@@ -151,17 +151,18 @@
     {% if by_profession %}
     <div class="space-y-4">
         {% for profession, cities in by_profession.items() %}
-        <div x-data="{ open: true }"
-             x-show="!searchTerm || '{{ profession | lower }}'.includes(searchTerm.toLowerCase()) || {{ cities | tojson }}.some(c => c.city.toLowerCase().includes(searchTerm.toLowerCase()))"
+        {% set cities_json %}[{% for g in cities %}{"job_title":"{{ g.job_title | replace('"', '\\"') }}","city":"{{ g.city | replace('"', '\\"') }}","match_count":{{ g.match_count }}}{% if not loop.last %},{% endif %}{% endfor %}]{% endset %}
+        <div x-data="{ open: true, citiesData: {{ cities_json }} }"
+             x-show="!searchTerm || '{{ profession | lower }}'.includes(searchTerm.toLowerCase()) || citiesData.some(c => c.city.toLowerCase().includes(searchTerm.toLowerCase()))"
              class="bg-white rounded-xl border border-gray-200 overflow-hidden">
 
             {# Beruf-Header #}
             <div class="flex items-center px-6 py-4 hover:bg-gray-50 transition-colors">
                 {# Checkbox: Alle Staedte dieser Berufsgruppe #}
                 <input type="checkbox"
-                       @click.stop="toggleProfession('{{ profession | replace("'", "\\'") }}', {{ cities | tojson }})"
-                       :checked="isProfessionFullySelected('{{ profession | replace("'", "\\'") }}', {{ cities | tojson }})"
-                       :indeterminate="isProfessionPartiallySelected('{{ profession | replace("'", "\\'") }}', {{ cities | tojson }})"
+                       @click.stop="toggleProfession('{{ profession | replace("'", "\\'") }}', citiesData)"
+                       :checked="isProfessionFullySelected('{{ profession | replace("'", "\\'") }}', citiesData)"
+                       :indeterminate="isProfessionPartiallySelected('{{ profession | replace("'", "\\'") }}', citiesData)"
                        class="w-4 h-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500 mr-4 cursor-pointer">
 
                 <button @click="open = !open" class="flex-1 flex items-center justify-between">
