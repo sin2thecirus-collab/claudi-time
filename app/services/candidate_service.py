@@ -12,7 +12,7 @@ from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from geoalchemy2 import functions as geo_func
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import limits
@@ -143,13 +143,53 @@ class CandidateService:
                 for entry in update_data["education"]
             ]
 
+        # Stale-relevante Felder pruefen
+        stale_fields = {"city", "postal_code", "street_address", "address_coords",
+                        "skills", "current_position", "cv_text"}
+        stale_changed = stale_fields & set(update_data.keys())
+
         for key, value in update_data.items():
             setattr(candidate, key, value)
 
         candidate.updated_at = datetime.now(timezone.utc)
 
+        # Betroffene Matches als stale markieren
+        if stale_changed:
+            await self._mark_candidate_matches_stale(
+                candidate_id=candidate_id,
+                reason=f"Kandidat geaendert: {', '.join(stale_changed)}",
+            )
+
         logger.info(f"Kandidat aktualisiert: {candidate_id}")
         return candidate
+
+    async def _mark_candidate_matches_stale(
+        self,
+        candidate_id: UUID,
+        reason: str = "Kandidaten-Daten geaendert",
+    ) -> int:
+        """Markiert alle Matches eines Kandidaten als stale."""
+        from app.models.match import Match
+
+        result = await self.db.execute(
+            update(Match)
+            .where(
+                and_(
+                    Match.candidate_id == candidate_id,
+                    Match.stale.is_(False),
+                )
+            )
+            .values(
+                stale=True,
+                stale_reason=reason,
+                stale_since=datetime.now(timezone.utc),
+            )
+        )
+        await self.db.commit()
+
+        if result.rowcount > 0:
+            logger.info(f"Stale markiert: {result.rowcount} Matches fuer Kandidat {candidate_id} ({reason})")
+        return result.rowcount
 
     async def list_candidates(
         self,

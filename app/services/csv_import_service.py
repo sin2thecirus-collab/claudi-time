@@ -432,6 +432,19 @@ class CSVImportService:
                 f"Fehlgeschlagen: {failed}"
             )
 
+            # Auto-Kategorisierung: importierte Jobs fuer Pre-Matching vorbereiten
+            if successful > 0:
+                try:
+                    from app.services.categorization_service import CategorizationService
+                    cat_service = CategorizationService(self.db)
+                    cat_result = await cat_service.categorize_all_jobs()
+                    logger.info(
+                        f"Auto-Kategorisierung: {cat_result.categorized} Jobs kategorisiert "
+                        f"({cat_result.finance} FINANCE, {cat_result.engineering} ENGINEERING)"
+                    )
+                except Exception as cat_err:
+                    logger.warning(f"Auto-Kategorisierung fehlgeschlagen: {cat_err}")
+
         except Exception as e:
             logger.error(f"Import fehlgeschlagen: {e}", exc_info=True)
             import_job.status = ImportStatus.FAILED

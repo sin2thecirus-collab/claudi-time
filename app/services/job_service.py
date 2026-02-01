@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Sequence
 from uuid import UUID
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -90,14 +90,61 @@ class JobService:
         job = await self.get_job(job_id)
 
         update_data = data.model_dump(exclude_unset=True)
+
+        # Stale-relevante Felder pruefen (Adresse, Position, Skills)
+        stale_fields = {"city", "work_location_city", "postal_code", "street_address",
+                        "position", "job_text", "location_coords"}
+        stale_changed = stale_fields & set(update_data.keys())
+
         for field, value in update_data.items():
             setattr(job, field, value)
 
         await self.db.commit()
+
+        # Betroffene Matches als stale markieren
+        if stale_changed:
+            await self._mark_matches_stale(
+                job_id=job_id,
+                reason=f"Job geaendert: {', '.join(stale_changed)}",
+            )
+
         await self.db.refresh(job)
 
         logger.info(f"Job aktualisiert: {job_id}")
         return job
+
+    async def _mark_matches_stale(
+        self,
+        job_id: UUID | None = None,
+        candidate_id: UUID | None = None,
+        reason: str = "Daten geaendert",
+    ) -> int:
+        """Markiert alle Matches eines Jobs oder Kandidaten als stale."""
+        from app.models.match import Match
+
+        conditions = [Match.stale.is_(False)]
+        if job_id:
+            conditions.append(Match.job_id == job_id)
+        if candidate_id:
+            conditions.append(Match.candidate_id == candidate_id)
+
+        if len(conditions) <= 1:
+            return 0  # Kein Filter gesetzt
+
+        result = await self.db.execute(
+            update(Match)
+            .where(and_(*conditions))
+            .values(
+                stale=True,
+                stale_reason=reason,
+                stale_since=datetime.now(timezone.utc),
+            )
+        )
+        await self.db.commit()
+
+        if result.rowcount > 0:
+            logger.info(f"Stale markiert: {result.rowcount} Matches ({reason})")
+        return result.rowcount
 
     async def soft_delete_job(self, job_id: UUID) -> Job:
         """

@@ -1489,11 +1489,14 @@ async def save_deepmatch_feedback(
     feedback = body.get("feedback")  # "good", "neutral", "bad"
     note = body.get("note")
 
-    if feedback not in ("good", "neutral", "bad"):
+    if feedback not in ("good", "neutral", "bad", "note"):
         raise HTTPException(status_code=400, detail="Ungültiges Feedback")
 
+    # "note" ist kein echtes Feedback, nur eine Notiz — Feedback-Feld nicht ueberschreiben
+    actual_feedback = feedback if feedback != "note" else None
+
     async with DeepMatchService(db) as service:
-        success = await service.save_feedback(match_id, feedback, note)
+        success = await service.save_feedback(match_id, actual_feedback, note)
 
     if not success:
         raise HTTPException(status_code=404, detail="Match nicht gefunden")

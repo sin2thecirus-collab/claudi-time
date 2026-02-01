@@ -346,8 +346,10 @@ class DeepMatchService:
         if not match:
             return False
 
-        match.user_feedback = feedback
-        match.feedback_note = note
+        if feedback is not None:
+            match.user_feedback = feedback
+        if note is not None:
+            match.feedback_note = note
         match.feedback_at = datetime.now(timezone.utc)
         await self.db.commit()
 

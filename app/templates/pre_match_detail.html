@@ -471,7 +471,7 @@ async function triggerSingleDeepMatch(matchId) {
 // Feedback speichern
 async function saveFeedback(matchId, feedback) {
     try {
-        const resp = await fetch('/api/hotlisten/deepmatch/feedback', {
+        const resp = await fetch('/api/deepmatch/feedback', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ match_id: matchId, feedback: feedback }),
@@ -491,7 +491,7 @@ async function promptFeedbackNote(matchId) {
     if (note === null) return;
 
     try {
-        const resp = await fetch('/api/hotlisten/deepmatch/feedback', {
+        const resp = await fetch('/api/deepmatch/feedback', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ match_id: matchId, feedback: 'note', note: note }),

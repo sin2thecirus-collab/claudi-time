@@ -142,10 +142,10 @@ class PreScoringService:
         if match.distance_km is not None:
             if match.distance_km <= 5:
                 distance_score = WEIGHT_DISTANCE  # Volle Punkte bei ≤5km
-            elif match.distance_km <= 25:
-                # Linear abfallend: 5km = 10, 25km = 0
-                distance_score = WEIGHT_DISTANCE * (1 - (match.distance_km - 5) / 20)
-            # > 25km = 0 Punkte
+            elif match.distance_km <= 30:
+                # Linear abfallend: 5km = 10, 30km = 0 (Pre-Match Radius = 30km)
+                distance_score = WEIGHT_DISTANCE * (1 - (match.distance_km - 5) / 25)
+            # > 30km = 0 Punkte
 
         total = category_score + city_score + job_title_score + keyword_score + distance_score
 

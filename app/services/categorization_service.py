@@ -174,6 +174,19 @@ JOB_TITLE_NORMALIZATION: dict[str, str] = {
     "steuerberaterin": "Steuerberater/in",
     "wirtschaftsprüfer": "Wirtschaftsprüfer/in",
     "wirtschaftsprüferin": "Wirtschaftsprüfer/in",
+    # FINANCE — zusaetzliche Bezeichnungen
+    "entgeltabrechnung": "Lohnbuchhalter/in",
+    "payroll": "Lohnbuchhalter/in",
+    "lohn- und gehalt": "Lohnbuchhalter/in",
+    "lohn und gehalt": "Lohnbuchhalter/in",
+    "gehaltsabrechnung": "Lohnbuchhalter/in",
+    "rechnungswesen": "Buchhalter/in",
+    "financial accountant": "Finanzbuchhalter/in",
+    "tax consultant": "Steuerberater/in",
+    "tax advisor": "Steuerberater/in",
+    "finanzanalyst": "Controller/in",
+    "financial analyst": "Controller/in",
+    "treasurer": "Controller/in",
     # ENGINEERING
     "servicetechniker": "Servicetechniker/in",
     "servicetechnikerin": "Servicetechniker/in",
@@ -197,6 +210,23 @@ JOB_TITLE_NORMALIZATION: dict[str, str] = {
     "klempner": "Klempner/in",
     "schlosser": "Schlosser/in",
     "metallbauer": "Metallbauer/in",
+    # ENGINEERING — zusaetzliche Bezeichnungen
+    "shk": "Anlagenmechaniker/in SHK",
+    "sanitär": "Sanitärinstallateur/in",
+    "sanitaer": "Sanitärinstallateur/in",
+    "klimatechniker": "Kältetechniker/in",
+    "lüftungstechniker": "Kältetechniker/in",
+    "kältemonteur": "Kältetechniker/in",
+    "haustechniker": "Servicetechniker/in",
+    "wartungstechniker": "Servicetechniker/in",
+    "instandhalter": "Servicetechniker/in",
+    "automatisierungstechniker": "Mechatroniker/in",
+    "sps-programmierer": "Mechatroniker/in",
+    "schweißer": "Schlosser/in",
+    "schweisser": "Schlosser/in",
+    "zerspanungsmechaniker": "Industriemechaniker/in",
+    "cnc": "Industriemechaniker/in",
+    "werkzeugmechaniker": "Industriemechaniker/in",
 }
 
 
@@ -318,6 +348,7 @@ class CategorizationService:
 
         Sucht im Position-Feld nach bekannten Keywords und
         gibt die normalisierte Form zurück.
+        Fallback: Original-Titel (gekuerzt) statt None.
         """
         if not position:
             return None
@@ -328,7 +359,9 @@ class CategorizationService:
             if keyword in position_lower:
                 return normalized
 
-        return None
+        # Fallback: Original-Titel zurueckgeben (max. 100 Zeichen)
+        # Damit Kandidaten/Jobs nicht ohne Titel im Pre-Match verschwinden
+        return position.strip()[:100]
 
     # ──────────────────────────────────────────────────
     # Einzelne Kandidaten/Jobs kategorisieren
@@ -422,8 +455,8 @@ class CategorizationService:
                     if classification.roles and not classification.is_leadership:
                         candidate.hotlist_job_title = classification.primary_role
                         candidate.hotlist_job_titles = classification.roles
-                except Exception:
-                    pass  # Fallback auf normalize_job_title
+                except Exception as e:
+                    logger.warning(f"FinanceRulesEngine Kandidat {getattr(candidate, 'id', '?')}: {e}")
 
     def apply_to_job(self, job: Job, result: CategorizationResult) -> None:
         """Setzt die Hotlist-Felder auf dem Job-Model."""
@@ -449,8 +482,8 @@ class CategorizationService:
                     if classification.roles:
                         job.hotlist_job_title = classification.primary_role
                         job.hotlist_job_titles = classification.roles
-                except Exception:
-                    pass  # Fallback auf normalize_job_title
+                except Exception as e:
+                    logger.warning(f"FinanceRulesEngine Job {getattr(job, 'id', '?')}: {e}")
 
     # ──────────────────────────────────────────────────
     # Batch-Kategorisierung (alle)
