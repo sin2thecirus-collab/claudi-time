@@ -573,11 +573,12 @@ function openSplitViewForMatch(matchId) {
     const data = MATCH_DATA[matchId];
     if (!data) return;
 
-    // Alpine-State setzen
+    // Alpine v3 State setzen
     const alpineEl = document.querySelector('[x-data]');
-    if (alpineEl && alpineEl.__x) {
-        alpineEl.__x.$data.splitViewMatchId = matchId;
-        alpineEl.__x.$data.splitViewOpen = true;
+    if (alpineEl) {
+        const alpineData = Alpine.$data(alpineEl);
+        alpineData.splitViewMatchId = matchId;
+        alpineData.splitViewOpen = true;
         document.body.style.overflow = 'hidden';
     }
 
