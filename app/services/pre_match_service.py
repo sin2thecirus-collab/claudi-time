@@ -29,6 +29,9 @@ logger = logging.getLogger(__name__)
 PRE_MATCH_MAX_DISTANCE_KM = 30
 METERS_PER_KM = 1000
 
+# Max. Kandidaten pro Job (die naechsten nach Entfernung)
+MAX_CANDIDATES_PER_JOB = 15
+
 
 # ═══════════════════════════════════════════════════════════════
 # DATENKLASSEN
@@ -106,6 +109,47 @@ class PreMatchService:
     # Generierung
     # ──────────────────────────────────────────────────
 
+    async def purge_and_regenerate(
+        self,
+        category: str = "FINANCE",
+        progress_callback: Any = None,
+    ) -> PreMatchGenerateResult:
+        """
+        Loescht ALLE alten Matches einer Kategorie und generiert komplett neu.
+
+        Wird verwendet wenn sich die Filter-Logik geaendert hat und die
+        alten Matches nicht mehr gueltig sind.
+        """
+        from sqlalchemy import delete
+
+        if progress_callback:
+            progress_callback("purge", "Loesche alte Matches...")
+
+        # Alle Matches dieser Kategorie loeschen (ueber Job-Kategorie)
+        job_ids_query = select(Job.id).where(
+            and_(
+                Job.hotlist_category == category,
+                Job.deleted_at.is_(None),
+            )
+        )
+        delete_query = delete(Match).where(
+            Match.job_id.in_(job_ids_query)
+        )
+        delete_result = await self.db.execute(delete_query)
+        deleted = delete_result.rowcount
+        await self.db.commit()
+
+        logger.info(f"Pre-Match Purge: {deleted} alte Matches geloescht fuer {category}")
+
+        if progress_callback:
+            progress_callback("purge", f"{deleted} alte Matches geloescht, generiere neu...")
+
+        # Neu generieren mit den neuen Filtern
+        return await self.generate_all(
+            category=category,
+            progress_callback=progress_callback,
+        )
+
     async def generate_all(
         self,
         category: str = "FINANCE",
@@ -115,9 +159,15 @@ class PreMatchService:
         Generiert Pre-Matches fuer ALLE Beruf+Stadt Kombos einer Kategorie.
 
         1. Findet alle aktiven Jobs mit Koordinaten + hotlist_job_titles
-        2. Fuer jeden Job: Finde Kandidaten im Umkreis von 30km mit passendem Beruf
+        2. Fuer jeden Job: Finde passende Kandidaten (gefiltert!)
         3. Erstelle Match-Eintraege (falls nicht vorhanden)
         4. Berechne Pre-Score
+
+        Filter pro Job:
+        - Gleiche Kategorie + gleicher Berufstitel
+        - Innerhalb 30km Luftlinie
+        - Keine Fuehrungskraefte
+        - Max 15 naechste Kandidaten pro Job
 
         Args:
             category: Kategorie (z.B. "FINANCE")
@@ -202,8 +252,12 @@ class PreMatchService:
         """
         Generiert Matches fuer einen einzelnen Job.
 
-        Findet alle Kandidaten der gleichen Kategorie im Umkreis von 30km
-        die mindestens einen gemeinsamen Berufstitel haben.
+        Filter-Kette (nur passende Kandidaten):
+        1. Gleiche Kategorie + aktiv + hat Koordinaten + hat Jobtitel
+        2. Innerhalb von 30km (PostGIS)
+        3. Mindestens 1 gemeinsamer Berufstitel
+        4. KEIN Fuehrungskraft (is_leadership = false)
+        5. Nur die Top 15 naechsten nach Entfernung
 
         Returns:
             Anzahl neu erstellter Matches
@@ -220,27 +274,39 @@ class PreMatchService:
             True,  # use_spheroid
         )
 
-        # Kandidaten im Umkreis von 30km mit passendem Beruf
+        # ── Filter 1-4: Passende Kandidaten finden ──
         candidates_query = select(
             Candidate.id,
             (distance_expr / METERS_PER_KM).label("distance_km"),
         ).where(
             and_(
+                # Basis-Filter
                 Candidate.hotlist_category == category,
                 Candidate.address_coords.is_not(None),
                 Candidate.hidden == False,  # noqa: E712
                 Candidate.deleted_at.is_(None),
                 Candidate.hotlist_job_titles.is_not(None),
-                # Distanz-Filter: max 30km
+                # Filter 2: Distanz max 30km
                 func.ST_DWithin(
                     Candidate.address_coords,
                     job.location_coords,
                     PRE_MATCH_MAX_DISTANCE_KM * METERS_PER_KM,
                     True,
                 ),
-                # Beruf-Filter: mindestens 1 gemeinsamer Titel (PostgreSQL && Operator)
+                # Filter 3: Mindestens 1 gemeinsamer Berufstitel
                 Candidate.hotlist_job_titles.op("&&")(cast(job_titles, ARRAY(String))),
+                # Filter 4: Keine Fuehrungskraefte
+                or_(
+                    Candidate.classification_data.is_(None),
+                    Candidate.classification_data["is_leadership"].astext != "true",
+                ),
             )
+        ).order_by(
+            # Filter 5: Sortiere nach Naehe — die naechsten zuerst
+            (distance_expr / METERS_PER_KM).asc()
+        ).limit(
+            # Filter 5: Nur die Top N naechsten Kandidaten pro Job
+            MAX_CANDIDATES_PER_JOB
         )
 
         result = await self.db.execute(candidates_query)

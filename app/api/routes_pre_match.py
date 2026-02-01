@@ -131,9 +131,15 @@ async def pre_match_detail_page(
 async def trigger_generate(
     background_tasks: BackgroundTasks,
     category: str = Query(default="FINANCE"),
+    force: bool = Query(default=False),
     db: AsyncSession = Depends(get_db),
 ):
-    """Startet die Pre-Match-Generierung im Hintergrund."""
+    """Startet die Pre-Match-Generierung im Hintergrund.
+
+    Args:
+        category: Kategorie (FINANCE/ENGINEERING)
+        force: Wenn True, loescht alle alten Matches und generiert komplett neu
+    """
     global _generate_status
 
     if _generate_status["running"]:
@@ -150,19 +156,20 @@ async def trigger_generate(
         "running": True,
         "started_at": datetime.now(timezone.utc).isoformat(),
         "category": category,
-        "progress": "Starte...",
+        "progress": "Loesche alte Matches..." if force else "Starte...",
         "result": None,
         "finished_at": None,
         "error": None,
     }
 
     # Background-Task mit eigener DB-Session
-    background_tasks.add_task(_run_generate, category)
+    background_tasks.add_task(_run_generate, category, force)
 
     return {
         "status": "started",
         "category": category,
-        "message": "Pre-Match-Generierung gestartet",
+        "force": force,
+        "message": "Alte Matches werden geloescht + neu generiert" if force else "Pre-Match-Generierung gestartet",
     }
 
 
@@ -177,7 +184,7 @@ async def get_generate_status():
 # ═══════════════════════════════════════════════════════════════
 
 
-async def _run_generate(category: str):
+async def _run_generate(category: str, force: bool = False):
     """Fuehrt die Pre-Match-Generierung als Background-Task aus."""
     global _generate_status
 
@@ -190,10 +197,16 @@ async def _run_generate(category: str):
             def progress_callback(step: str, detail: str):
                 _generate_status["progress"] = f"{step}: {detail}"
 
-            result = await service.generate_all(
-                category=category,
-                progress_callback=progress_callback,
-            )
+            if force:
+                result = await service.purge_and_regenerate(
+                    category=category,
+                    progress_callback=progress_callback,
+                )
+            else:
+                result = await service.generate_all(
+                    category=category,
+                    progress_callback=progress_callback,
+                )
 
             _generate_status["result"] = {
                 "combos_processed": result.combos_processed,
