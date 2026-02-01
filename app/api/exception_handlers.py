@@ -239,22 +239,18 @@ async def database_exception_handler(
 
 async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Handler für alle unbehandelten Exceptions."""
-    import traceback
-    tb = traceback.format_exception(type(exc), exc, exc.__traceback__)
-    error_detail = "".join(tb)
     logger.error(
-        f"Unhandled exception: {exc}\n{error_detail}",
+        f"Unhandled exception: {exc}",
         extra={"request_id": _get_request_id(request)},
         exc_info=True,
     )
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={
-            "error": "internal_error",
-            "message": "Interner Serverfehler",
-            "details": str(exc),
-            "traceback": error_detail,
-        },
+        content=_create_error_response(
+            error_code=ErrorCode.INTERNAL_ERROR,
+            message="Interner Serverfehler",
+            request=request,
+        ),
     )
 
 
