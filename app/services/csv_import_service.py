@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from typing import BinaryIO
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -282,9 +282,11 @@ class CSVImportService:
             successful = 0
             failed = 0
             duplicates = 0
+            duplicates_updated = 0
             blacklisted = 0
             errors_detail: list[dict] = []
             batch: list[Job] = []
+            duplicate_ids: list[UUID] = []  # IDs fuer last_updated_at Update
             BATCH_SIZE = 500
 
             # Company Service + Cache fuer Performance
@@ -358,6 +360,10 @@ class CSVImportService:
                     # Duplikat prüfen
                     if content_hash in existing_hashes:
                         duplicates += 1
+                        # last_updated_at aktualisieren statt Skip
+                        existing_job_id = existing_hashes[content_hash]
+                        duplicate_ids.append(existing_job_id)
+                        duplicates_updated += 1
                         continue
 
                     # Job erstellen (mit company_id)
@@ -367,7 +373,7 @@ class CSVImportService:
                     self._categorize_job(job)
 
                     batch.append(job)
-                    existing_hashes.add(content_hash)
+                    existing_hashes[content_hash] = job.id
                     successful += 1
 
                 except Exception as e:
@@ -379,20 +385,21 @@ class CSVImportService:
                         })
 
                 # Batch in DB schreiben alle BATCH_SIZE Zeilen
-                if len(batch) >= BATCH_SIZE:
-                    batch_ok = await self._flush_batch(batch, import_job, processed, successful, failed, duplicates, errors_detail)
+                if len(batch) >= BATCH_SIZE or len(duplicate_ids) >= BATCH_SIZE:
+                    batch_ok = await self._flush_batch(batch, import_job, processed, successful, failed, duplicates, errors_detail, duplicate_ids)
                     if not batch_ok:
                         failed += len(batch)
                         successful -= len(batch)
                     batch = []
+                    duplicate_ids = []
                     logger.info(
                         f"Import-Fortschritt: {processed}/{import_job.total_rows} "
-                        f"({successful} OK, {duplicates} Duplikate, {failed} Fehler)"
+                        f"({successful} OK, {duplicates_updated} aktualisiert, {failed} Fehler)"
                     )
 
-            # Restliche Jobs in DB schreiben
-            if batch:
-                batch_ok = await self._flush_batch(batch, import_job, processed, successful, failed, duplicates, errors_detail)
+            # Restliche Jobs + Duplikat-Updates in DB schreiben
+            if batch or duplicate_ids:
+                batch_ok = await self._flush_batch(batch, import_job, processed, successful, failed, duplicates, errors_detail, duplicate_ids)
                 if not batch_ok:
                     failed += len(batch)
                     successful -= len(batch)
@@ -409,7 +416,7 @@ class CSVImportService:
             if duplicates > 0:
                 if not import_job.errors_detail:
                     import_job.errors_detail = {}
-                import_job.errors_detail["duplicates_skipped"] = duplicates
+                import_job.errors_detail["duplicates_updated"] = duplicates_updated
             if blacklisted > 0:
                 if not import_job.errors_detail:
                     import_job.errors_detail = {}
@@ -421,6 +428,7 @@ class CSVImportService:
                 f"Import abgeschlossen: {import_job.id}, "
                 f"Verarbeitet: {processed}, "
                 f"Erfolgreich: {successful}, "
+                f"Duplikate aktualisiert: {duplicates_updated}, "
                 f"Fehlgeschlagen: {failed}"
             )
 
@@ -479,14 +487,33 @@ class CSVImportService:
         failed: int,
         duplicates: int,
         errors_detail: list[dict],
+        duplicate_ids: list[UUID] | None = None,
     ) -> bool:
-        """Schreibt einen Batch in die DB. Bei Fehler: Rollback + Warnung.
+        """Schreibt einen Batch in die DB und aktualisiert Duplikate.
+
+        Args:
+            batch: Neue Jobs zum Einfuegen
+            import_job: Aktueller ImportJob
+            processed/successful/failed/duplicates: Zaehler
+            errors_detail: Fehlerliste
+            duplicate_ids: Job-IDs deren last_updated_at aktualisiert wird
 
         Returns:
             True wenn Batch erfolgreich, False bei Fehler
         """
         try:
-            self.db.add_all(batch)
+            if batch:
+                self.db.add_all(batch)
+
+            # Duplikate: last_updated_at aktualisieren (Batch-Update)
+            if duplicate_ids:
+                now = datetime.now(timezone.utc)
+                await self.db.execute(
+                    update(Job)
+                    .where(Job.id.in_(duplicate_ids))
+                    .values(last_updated_at=now)
+                )
+
             import_job.processed_rows = processed
             import_job.successful_rows = successful
             import_job.failed_rows = failed + duplicates
@@ -504,17 +531,17 @@ class CSVImportService:
                 })
             return False
 
-    async def _get_existing_hashes(self) -> set[str]:
+    async def _get_existing_hashes(self) -> dict[str, UUID]:
         """
-        Lädt alle bestehenden content_hashes aus der Datenbank.
+        Lädt alle bestehenden content_hashes mit Job-IDs aus der Datenbank.
 
         Returns:
-            Set der bestehenden Hashes
+            Dict: content_hash → job_id
         """
         result = await self.db.execute(
-            select(Job.content_hash).where(Job.content_hash.isnot(None))
+            select(Job.content_hash, Job.id).where(Job.content_hash.isnot(None))
         )
-        return {row[0] for row in result.all()}
+        return {row[0]: row[1] for row in result.all()}
 
     def _categorize_job(self, job: Job) -> None:
         """Kategorisiert einen Job für die Hotlist (synchron, kein DB-Commit)."""
@@ -585,6 +612,7 @@ class CSVImportService:
                 max_len=50,
             ),
             content_hash=content_hash,
+            imported_at=datetime.now(timezone.utc),
         )
 
 

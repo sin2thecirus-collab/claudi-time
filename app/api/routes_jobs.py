@@ -486,6 +486,8 @@ def _job_to_response(job) -> JobResponse:
         excluded_from_deletion=job.excluded_from_deletion,
         is_deleted=job.is_deleted,
         is_expired=job.is_expired,
+        imported_at=getattr(job, "imported_at", None),
+        last_updated_at=getattr(job, "last_updated_at", None),
         created_at=job.created_at,
         updated_at=job.updated_at,
         match_count=getattr(job, "match_count", None),

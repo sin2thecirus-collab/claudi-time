@@ -85,6 +85,8 @@ class JobResponse(BaseModel):
     excluded_from_deletion: bool
     is_deleted: bool
     is_expired: bool
+    imported_at: datetime | None = None
+    last_updated_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 

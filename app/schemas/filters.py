@@ -21,6 +21,7 @@ class JobSortBy(str, Enum):
     """Sortierfelder für Jobs."""
 
     CREATED_AT = "created_at"
+    IMPORTED_AT = "imported_at"
     COMPANY_NAME = "company_name"
     POSITION = "position"
     CITY = "city"
@@ -77,6 +78,14 @@ class JobFilterParams(BaseModel):
     )
     expires_before: datetime | None = Field(
         default=None, description="Läuft ab vor Datum"
+    )
+
+    # Zeitraum-Filter
+    imported_days: int | None = Field(
+        default=None, ge=1, le=365, description="Importiert in den letzten X Tagen"
+    )
+    updated_days: int | None = Field(
+        default=None, ge=1, le=365, description="Aktualisiert in den letzten X Tagen"
     )
 
     # Sortierung

@@ -312,6 +312,16 @@ class JobService:
         if filters.expires_before:
             query = query.where(Job.expires_at <= filters.expires_before)
 
+        # Zeitraum-Filter: Importiert in den letzten X Tagen
+        if filters.imported_days:
+            cutoff = datetime.now(timezone.utc) - timedelta(days=filters.imported_days)
+            query = query.where(Job.imported_at >= cutoff)
+
+        # Zeitraum-Filter: Aktualisiert in den letzten X Tagen
+        if filters.updated_days:
+            cutoff = datetime.now(timezone.utc) - timedelta(days=filters.updated_days)
+            query = query.where(Job.last_updated_at >= cutoff)
+
         return query
 
     async def _apply_sorting(self, query, filters: JobFilterParams):
@@ -393,6 +403,8 @@ class JobService:
                 "excluded_from_deletion": job.excluded_from_deletion,
                 "is_deleted": job.is_deleted,
                 "is_expired": job.is_expired,
+                "imported_at": job.imported_at,
+                "last_updated_at": job.last_updated_at,
                 "created_at": job.created_at,
                 "updated_at": job.updated_at,
                 "match_count": counts.get(job.id, 0),

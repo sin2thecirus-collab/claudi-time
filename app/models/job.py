@@ -65,6 +65,15 @@ class Job(Base):
     excluded_from_deletion: Mapped[bool] = mapped_column(Boolean, default=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
+    # Import-Tracking
+    imported_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
+    last_updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+    )
+
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -99,6 +108,8 @@ class Job(Base):
         Index("ix_jobs_content_hash", "content_hash"),
         Index("ix_jobs_hotlist_category", "hotlist_category"),
         Index("ix_jobs_company_id", "company_id"),
+        Index("ix_jobs_imported_at", "imported_at"),
+        Index("ix_jobs_last_updated_at", "last_updated_at"),
     )
 
     @property

@@ -83,6 +83,15 @@ async def job_detail(
     )
 
 
+@router.get("/jobs", response_class=HTMLResponse)
+async def jobs_page(request: Request):
+    """Dedizierte Jobs-Uebersichtsseite mit Kachel-/Listenansicht."""
+    return templates.TemplateResponse(
+        "jobs.html",
+        {"request": request}
+    )
+
+
 @router.get("/kandidaten", response_class=HTMLResponse)
 async def candidates_list_page(request: Request):
     """Kandidaten-Uebersichtsseite."""
@@ -222,6 +231,78 @@ async def job_list_partial(
             "jobs": result.items,
             "priority_cities": priority_cities,
             "now": datetime.now
+        }
+    )
+
+
+@router.get("/partials/jobs-list", response_class=HTMLResponse)
+async def jobs_list_partial(
+    request: Request,
+    page: int = 1,
+    per_page: int = 20,
+    search: Optional[str] = None,
+    cities: Optional[str] = None,
+    industry: Optional[str] = None,
+    company: Optional[str] = None,
+    sort_by: str = "imported_at",
+    sort_order: str = "desc",
+    imported_days: Optional[int] = None,
+    updated_days: Optional[int] = None,
+    view: str = "cards",
+    db: AsyncSession = Depends(get_db),
+):
+    """Partial: Jobs-Liste fuer neue /jobs Seite (HTMX)."""
+    from app.schemas.filters import JobSortBy, SortOrder as SortOrderEnum
+
+    job_service = JobService(db)
+    filter_service = FilterService(db)
+
+    # Sort-Enum aufloesen
+    try:
+        sort_by_enum = JobSortBy(sort_by)
+    except ValueError:
+        sort_by_enum = JobSortBy.IMPORTED_AT
+
+    try:
+        sort_order_enum = SortOrderEnum(sort_order)
+    except ValueError:
+        sort_order_enum = SortOrderEnum.DESC
+
+    # Filter aufbauen
+    filters = JobFilterParams(
+        search=search if search else None,
+        cities=cities.split(",") if cities else None,
+        industries=[industry] if industry else None,
+        company=company if company else None,
+        sort_by=sort_by_enum,
+        sort_order=sort_order_enum,
+        imported_days=imported_days,
+        updated_days=updated_days,
+    )
+
+    # Jobs laden
+    result = await job_service.list_jobs(
+        filters=filters,
+        page=page,
+        per_page=per_page,
+    )
+
+    # Prio-Staedte laden
+    priority_cities = await filter_service.get_priority_cities()
+
+    return templates.TemplateResponse(
+        "partials/jobs_list.html",
+        {
+            "request": request,
+            "jobs": result.items,
+            "total": result.total,
+            "page": result.page,
+            "per_page": result.per_page,
+            "total_pages": result.pages,
+            "priority_cities": priority_cities,
+            "view": view,
+            "search": search,
+            "now": datetime.now,
         }
     )
 

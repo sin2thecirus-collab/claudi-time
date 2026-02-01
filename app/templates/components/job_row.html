@@ -1,0 +1,78 @@
+{# Job Row - Tabellenzeile fuer Listenansicht #}
+{# Verwendung: {% include 'components/job_row.html' %} #}
+{# Parameter: job (Job-Dict aus Service) #}
+
+<div class="grid grid-cols-12 gap-2 px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors items-center"
+     id="job-row-{{ job.id }}">
+    {# Checkbox #}
+    <div class="col-span-1">
+        <input type="checkbox"
+               name="selected_jobs"
+               value="{{ job.id }}"
+               class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500">
+    </div>
+
+    {# Position #}
+    <div class="col-span-3 min-w-0">
+        <a href="/jobs/{{ job.id }}"
+           class="text-sm font-medium text-gray-900 hover:text-primary-600 truncate block">
+            {{ job.position | default('Keine Position') }}
+        </a>
+        {% if job.employment_type %}
+        <span class="text-xs text-gray-400">{{ job.employment_type }}</span>
+        {% endif %}
+    </div>
+
+    {# Unternehmen #}
+    <div class="col-span-2 min-w-0">
+        <span class="text-sm text-gray-600 truncate block">{{ job.company_name }}</span>
+    </div>
+
+    {# Stadt #}
+    <div class="col-span-2 min-w-0">
+        <span class="text-sm text-gray-600 truncate block">
+            {{ job.work_location_city or job.city or 'Unbekannt' }}
+        </span>
+    </div>
+
+    {# Importiert #}
+    <div class="col-span-2">
+        {% if job.imported_at is defined and job.imported_at is not none %}
+        <span class="text-xs text-gray-500" title="Importiert: {{ job.imported_at.strftime('%d.%m.%Y %H:%M') }}">
+            {{ job.imported_at.strftime('%d.%m.%Y') }}
+        </span>
+        {% elif job.created_at is defined and job.created_at is not none %}
+        <span class="text-xs text-gray-500">
+            {{ job.created_at.strftime('%d.%m.%Y') }}
+        </span>
+        {% endif %}
+        {% if job.last_updated_at is defined and job.last_updated_at is not none %}
+        <span class="block text-xs text-blue-500" title="Zuletzt aktualisiert: {{ job.last_updated_at.strftime('%d.%m.%Y %H:%M') }}">
+            aktualisiert {{ job.last_updated_at.strftime('%d.%m.') }}
+        </span>
+        {% endif %}
+    </div>
+
+    {# Aktionen #}
+    <div class="col-span-2 flex items-center justify-end space-x-1">
+        {% if job.job_url %}
+        <a href="{{ job.job_url }}"
+           target="_blank"
+           rel="noopener noreferrer"
+           class="p-1.5 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-100"
+           title="Extern oeffnen">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+            </svg>
+        </a>
+        {% endif %}
+        <a href="/jobs/{{ job.id }}"
+           class="p-1.5 text-gray-400 hover:text-primary-600 rounded hover:bg-gray-100"
+           title="Details">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+        </a>
+    </div>
+</div>

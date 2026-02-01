@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+
+{% block title %}Jobs - Pulspoint{% endblock %}
+
+{% block content %}
+<div x-data x-init="$store.jobsView = { mode: 'cards' }">
+
+    {# -- Header -- #}
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Jobs</h1>
+            <p class="text-sm text-gray-500 mt-1">Alle importierten Stellenanzeigen verwalten</p>
+        </div>
+        <div class="flex items-center space-x-3">
+            {# View Toggle #}
+            <div class="flex bg-gray-100 rounded-lg p-1">
+                <button @click="$store.jobsView.mode = 'cards'"
+                        :class="$store.jobsView.mode === 'cards' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'"
+                        class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
+                        title="Kachelansicht">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+                    </svg>
+                </button>
+                <button @click="$store.jobsView.mode = 'list'"
+                        :class="$store.jobsView.mode === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'"
+                        class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
+                        title="Listenansicht">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" />
+                    </svg>
+                </button>
+            </div>
+
+            {# Import Button #}
+            <button type="button"
+                    onclick="openModal('/partials/import-dialog')"
+                    class="inline-flex items-center rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 transition-colors">
+                <svg class="-ml-0.5 mr-1.5 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z" />
+                    <path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z" />
+                </svg>
+                Jobs importieren
+            </button>
+        </div>
+    </div>
+
+    {# -- Filter + Suche -- #}
+    <div class="flex flex-col sm:flex-row gap-3 mb-6">
+        {# Suchfeld #}
+        <div class="flex-1 relative">
+            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            </svg>
+            <input type="text"
+                   name="search"
+                   placeholder="Position oder Unternehmen suchen..."
+                   hx-get="/partials/jobs-list"
+                   hx-trigger="keyup changed delay:300ms"
+                   hx-target="#jobs-content"
+                   hx-include="[name='sort_by'],[name='imported_days'],[name='company']"
+                   class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm">
+        </div>
+
+        {# Unternehmen-Filter #}
+        <div class="relative">
+            <input type="text"
+                   name="company"
+                   placeholder="Unternehmen..."
+                   hx-get="/partials/jobs-list"
+                   hx-trigger="keyup changed delay:400ms"
+                   hx-target="#jobs-content"
+                   hx-include="[name='search'],[name='sort_by'],[name='imported_days']"
+                   class="w-full sm:w-48 px-4 py-3 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+        </div>
+
+        {# Zeitraum-Filter #}
+        <select name="imported_days"
+                hx-get="/partials/jobs-list"
+                hx-trigger="change"
+                hx-target="#jobs-content"
+                hx-include="[name='search'],[name='sort_by'],[name='company']"
+                class="px-4 py-3 border border-gray-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-primary-500">
+            <option value="">Alle Zeitraeume</option>
+            <option value="1">Heute importiert</option>
+            <option value="7">Letzte 7 Tage</option>
+            <option value="30">Letzte 30 Tage</option>
+            <option value="90">Letzte 90 Tage</option>
+        </select>
+
+        {# Sortierung #}
+        <select name="sort_by"
+                hx-get="/partials/jobs-list"
+                hx-trigger="change"
+                hx-target="#jobs-content"
+                hx-include="[name='search'],[name='imported_days'],[name='company']"
+                class="px-4 py-3 border border-gray-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-primary-500">
+            <option value="imported_at">Neueste zuerst</option>
+            <option value="created_at">Erstellungsdatum</option>
+            <option value="position">Position A-Z</option>
+            <option value="company_name">Firma A-Z</option>
+        </select>
+    </div>
+
+    {# -- Batch-Aktionen (sichtbar wenn Jobs selektiert) -- #}
+    <div id="batch-actions"
+         x-data="{ selectedCount: 0 }"
+         x-show="selectedCount > 0"
+         x-cloak
+         class="mb-4 p-3 bg-primary-50 border border-primary-200 rounded-xl flex items-center justify-between">
+        <span class="text-sm font-medium text-primary-700"
+              x-text="selectedCount + ' Job(s) ausgewaehlt'"></span>
+        <button type="button"
+                @click="batchDeleteJobs()"
+                class="inline-flex items-center text-sm font-medium text-red-600 hover:text-red-800">
+            <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+            </svg>
+            Loeschen
+        </button>
+    </div>
+
+    {# -- Jobs-Content (HTMX geladen) -- #}
+    <div id="jobs-content"
+         hx-get="/partials/jobs-list?per_page=20"
+         hx-trigger="load"
+         hx-swap="innerHTML">
+        {# Skeleton waehrend des Ladens #}
+        <div class="bg-white rounded-xl border border-gray-200 p-12 text-center animate-skeleton">
+            <p class="text-gray-400">Lade Jobs...</p>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Checkbox-Zaehler aktualisieren
+    document.body.addEventListener('change', function(e) {
+        if (e.target.name === 'selected_jobs') {
+            const checked = document.querySelectorAll('input[name="selected_jobs"]:checked');
+            const batchEl = document.getElementById('batch-actions');
+            if (batchEl && batchEl._x_dataStack) {
+                batchEl._x_dataStack[0].selectedCount = checked.length;
+            }
+        }
+    });
+
+    // Batch-Delete
+    async function batchDeleteJobs() {
+        const checked = document.querySelectorAll('input[name="selected_jobs"]:checked');
+        if (checked.length === 0) return;
+
+        if (!confirm('Sollen ' + checked.length + ' Job(s) geloescht werden?')) return;
+
+        const ids = Array.from(checked).map(cb => cb.value);
+
+        try {
+            const response = await fetch('/jobs/batch', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: ids }),
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                showToast(data.deleted_count + ' Job(s) geloescht', 'success');
+                // Liste neu laden
+                htmx.trigger('#jobs-content', 'htmx:load');
+                htmx.ajax('GET', '/partials/jobs-list?per_page=20', {target: '#jobs-content', swap: 'innerHTML'});
+            } else {
+                showToast('Fehler beim Loeschen', 'error');
+            }
+        } catch(e) {
+            showToast('Netzwerkfehler', 'error');
+        }
+    }
+</script>
+{% endblock %}

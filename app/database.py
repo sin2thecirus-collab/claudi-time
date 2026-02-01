@@ -271,6 +271,9 @@ async def init_db() -> None:
         ("matches", "stale_since", "TIMESTAMPTZ"),
         # Jobs: Company FK
         ("jobs", "company_id", "UUID"),
+        # Jobs: Import-Tracking
+        ("jobs", "imported_at", "TIMESTAMPTZ DEFAULT NOW()"),
+        ("jobs", "last_updated_at", "TIMESTAMPTZ"),
     ]
     for table_name, col_name, col_type in migrations:
         try:
@@ -292,3 +295,14 @@ async def init_db() -> None:
                     logger.info(f"Migration: '{table_name}.{col_name}' Spalte hinzugefügt.")
         except Exception as e:
             logger.warning(f"Migration für '{table_name}.{col_name}' übersprungen: {e}")
+
+    # Backfill: imported_at = created_at fuer bestehende Jobs ohne imported_at
+    try:
+        async with engine.begin() as conn:
+            result = await conn.execute(
+                text("UPDATE jobs SET imported_at = created_at WHERE imported_at IS NULL")
+            )
+            if result.rowcount > 0:
+                logger.info(f"Backfill: {result.rowcount} Jobs imported_at = created_at gesetzt")
+    except Exception as e:
+        logger.warning(f"Backfill imported_at übersprungen: {e}")
