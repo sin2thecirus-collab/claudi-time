@@ -29,6 +29,7 @@
         this.splitViewMatchId = matchId;
         this.splitViewOpen = true;
         document.body.style.overflow = 'hidden';
+        this.$nextTick(() => { populateSplitView(matchId); });
     },
     closeSplitView() {
         this.splitViewOpen = false;
@@ -317,7 +318,7 @@
                                 <div class="flex items-center gap-2 flex-wrap">
 
                                     {# Split-View Vergleich Button #}
-                                    <button onclick="event.stopPropagation(); openSplitViewForMatch('{{ m.match_id }}')"
+                                    <button @click.stop="openSplitView('{{ m.match_id }}')"
                                             class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors text-xs font-medium"
                                             title="Job vs. Kandidat vergleichen">
                                         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
@@ -567,20 +568,11 @@ MATCH_DATA['{{ m.match_id }}'] = {
 {% endfor %}
 
 // ═══════════════════════════════════════════════════════════════
-// Split-View oeffnen
+// Split-View DOM befuellen (wird von Alpine openSplitView aufgerufen)
 // ═══════════════════════════════════════════════════════════════
-function openSplitViewForMatch(matchId) {
+function populateSplitView(matchId) {
     const data = MATCH_DATA[matchId];
     if (!data) return;
-
-    // Alpine v3 State setzen
-    const alpineEl = document.querySelector('[x-data]');
-    if (alpineEl) {
-        const alpineData = Alpine.$data(alpineEl);
-        alpineData.splitViewMatchId = matchId;
-        alpineData.splitViewOpen = true;
-        document.body.style.overflow = 'hidden';
-    }
 
     // Header
     document.getElementById('sv-header-title').textContent =
