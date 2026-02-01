@@ -1,21 +1,20 @@
-"""Pre-Scoring Service - Berechnet Vor-Scores für Matches.
+"""Pre-Scoring Service v2 — Rollen-Aehnlichkeit + Keyword-Power.
 
-Stufe 2 des Hotlisten-Systems:
-- Vergleicht Kandidat ↔ Job anhand von:
-  1. Kategorie-Übereinstimmung (FINANCE/ENGINEERING)
-  2. Stadt-Übereinstimmung
-  3. Job-Title-Ähnlichkeit
-  4. Keyword-Score (aus bestehendem Matching)
-  5. Distanz (aus bestehendem Matching)
+Berechnet Pre-Scores fuer Kandidat-Job-Matches anhand von:
+1. Rollen-Aehnlichkeit (35 Pkt) — Matrix-basiert, primaer vs. sekundaer
+2. Keyword-Match (25 Pkt) — Absolute Anzahl, inline berechnet
+3. Distanz (15 Pkt) — Kontinuierlich, naeher = besser
+4. Kategorie (15 Pkt) — Gate: bei Mismatch wird Gesamt gedeckelt
+5. Stadt (10 Pkt) — Abgestuft: gleich / Metropolregion / anders
 
-Der Pre-Score ist KOSTENLOS (kein OpenAI) und dient als Filter
+Der Pre-Score ist KOSTENLOS (kein OpenAI) und dient als Vorfilter
 vor dem teuren DeepMatch (OpenAI).
 
 Score-Bereich: 0.0 – 100.0
 """
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 from sqlalchemy import select, and_
@@ -25,35 +24,127 @@ from app.models.candidate import Candidate
 from app.models.job import Job
 from app.models.match import Match
 from app.services.categorization_service import HotlistCategory
+from app.services.keyword_matcher import keyword_matcher
 
 logger = logging.getLogger(__name__)
 
 
-# ═══════════════════════════════════════════════════════════════
-# GEWICHTUNGEN
-# ═══════════════════════════════════════════════════════════════
+# ===================================================================
+# GEWICHTUNGEN (Summe = 100)
+# ===================================================================
 
-# Maximale Punkte pro Komponente (Summe = 100)
-WEIGHT_CATEGORY: float = 30.0       # Gleiche Kategorie
-WEIGHT_CITY: float = 25.0           # Gleiche Stadt
-WEIGHT_JOB_TITLE: float = 20.0      # Gleicher normalisierter Job-Title
-WEIGHT_KEYWORDS: float = 15.0       # Keyword-Score (0-1 → 0-15)
-WEIGHT_DISTANCE: float = 10.0       # Distanz (0-25km → 10-0)
+WEIGHT_ROLE_SIMILARITY: float = 35.0   # Rollen-Aehnlichkeit via Matrix
+WEIGHT_KEYWORDS: float = 25.0          # Keyword-Match (absolute Anzahl)
+WEIGHT_DISTANCE: float = 15.0          # Distanz (naeher = besser)
+WEIGHT_CATEGORY: float = 15.0          # Kategorie-Gate
+WEIGHT_CITY: float = 10.0              # Stadt (abgestuft)
+
+# Wenn Kategorien nicht uebereinstimmen: Gesamt-Score gedeckelt
+CATEGORY_MISMATCH_CAP: float = 10.0
+
+# Abzug fuer Nebentitel (40% Penalty)
+SECONDARY_TITLE_PENALTY: float = 0.6
 
 
-# ═══════════════════════════════════════════════════════════════
+# ===================================================================
+# FINANCE ROLLEN-AEHNLICHKEITSMATRIX
+# ===================================================================
+# Trainiert aus fachlichem Wissen:
+# - Bilanz <-> Fibu (0.80): Bilu = Fibu + Qualifikation + eigenstaendige Erstellung
+# - Fibu <-> Kredi (0.60): Fibu macht ganzheitliche Buchhaltung (Kredi+Debi)
+# - Fibu <-> Debi (0.60): Debi ist Teilbereich von Fibu
+# - Kredi <-> Debi (0.50): Beide Sub-Ledger, unterschiedliche Seite
+# - Lohn <-> alle (0.00-0.10): Komplett anderes Fachgebiet!
+# - SteuFa <-> Fibu/Bilu (0.50-0.55): SteuFa wird immer mit Fibu/Bilu gepaart
+
+_FINANCE_ROLES = [
+    "Bilanzbuchhalter/in",
+    "Finanzbuchhalter/in",
+    "Kreditorenbuchhalter/in",
+    "Debitorenbuchhalter/in",
+    "Lohnbuchhalter/in",
+    "Steuerfachangestellte/r",
+]
+
+_FINANCE_MATRIX = [
+    # Bilanz  Fibu   Kredi  Debi   Lohn   SteuFa
+    [1.00,   0.80,  0.40,  0.40,  0.05,  0.50],   # Bilanzbuchhalter/in
+    [0.80,   1.00,  0.60,  0.60,  0.05,  0.55],   # Finanzbuchhalter/in
+    [0.40,   0.60,  1.00,  0.50,  0.00,  0.20],   # Kreditorenbuchhalter/in
+    [0.40,   0.60,  0.50,  1.00,  0.00,  0.20],   # Debitorenbuchhalter/in
+    [0.05,   0.05,  0.00,  0.00,  1.00,  0.10],   # Lohnbuchhalter/in
+    [0.50,   0.55,  0.20,  0.20,  0.10,  1.00],   # Steuerfachangestellte/r
+]
+
+# Baue Dict fuer schnellen Lookup: (role_a, role_b) -> similarity
+FINANCE_ROLE_SIMILARITY: dict[tuple[str, str], float] = {}
+for i, r1 in enumerate(_FINANCE_ROLES):
+    for j, r2 in enumerate(_FINANCE_ROLES):
+        FINANCE_ROLE_SIMILARITY[(r1, r2)] = _FINANCE_MATRIX[i][j]
+
+
+# ===================================================================
+# METROPOLREGIONEN (fuer Stadt-Scoring)
+# ===================================================================
+
+METRO_AREAS: dict[str, set[str]] = {
+    "muenchen": {
+        "muenchen", "münchen", "garching", "unterhaching", "ottobrunn",
+        "ismaning", "unterschleissheim", "unterschleißheim", "haar",
+        "grasbrunn", "aschheim", "feldkirchen", "oberhaching",
+        "taufkirchen", "pullach", "gruenwald", "grünwald",
+    },
+    "frankfurt": {
+        "frankfurt", "offenbach", "eschborn", "bad homburg",
+        "neu-isenburg", "oberursel", "kronberg", "dreieich",
+        "langen", "dietzenbach",
+    },
+    "hamburg": {
+        "hamburg", "norderstedt", "pinneberg", "wedel",
+        "ahrensburg", "reinbek", "schenefeld",
+    },
+    "berlin": {
+        "berlin", "potsdam", "teltow", "kleinmachnow",
+        "bernau", "falkensee",
+    },
+    "stuttgart": {
+        "stuttgart", "esslingen", "ludwigsburg", "boeblingen",
+        "böblingen", "sindelfingen", "fellbach", "waiblingen",
+        "leinfelden-echterdingen",
+    },
+    "koeln_duesseldorf": {
+        "koeln", "köln", "duesseldorf", "düsseldorf", "leverkusen",
+        "bonn", "bergisch gladbach", "neuss", "ratingen", "dormagen",
+    },
+    "nuernberg": {
+        "nuernberg", "nürnberg", "fuerth", "fürth", "erlangen",
+        "schwabach",
+    },
+}
+
+
+# ===================================================================
 # DATENKLASSEN
-# ═══════════════════════════════════════════════════════════════
+# ===================================================================
 
 @dataclass
 class PreScoreBreakdown:
-    """Aufschlüsselung des Pre-Scores."""
-    category_score: float
-    city_score: float
-    job_title_score: float
-    keyword_score: float
-    distance_score: float
-    total: float
+    """Detaillierte Aufschluesselung des Pre-Scores."""
+
+    # Gewichtete Punkte (fuer Anzeige)
+    category_score: float       # 0 - 15
+    city_score: float           # 0 - 10
+    role_similarity_score: float  # 0 - 35
+    keyword_score: float        # 0 - 25
+    distance_score: float       # 0 - 15
+
+    # Diagnostik
+    matched_role: str | None = None      # Welcher Kandidaten-Titel am besten passt
+    role_match_type: str = "none"        # "primary", "secondary", "none"
+    keyword_count: int = 0               # Anzahl gematchter Keywords
+
+    # Gesamt
+    total: float = 0.0
 
     @property
     def is_good_match(self) -> bool:
@@ -70,23 +161,216 @@ class PreScoringResult:
     avg_score: float
 
 
-# ═══════════════════════════════════════════════════════════════
+# ===================================================================
 # SERVICE
-# ═══════════════════════════════════════════════════════════════
+# ===================================================================
 
 class PreScoringService:
     """
-    Berechnet Pre-Scores für Kandidat-Job-Matches.
+    Berechnet Pre-Scores fuer Kandidat-Job-Matches.
 
     Verwendet nur lokale Daten (keine API-Calls).
+    5 Komponenten: Rollen-Aehnlichkeit + Keywords + Distanz + Kategorie + Stadt.
     """
 
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    # ──────────────────────────────────────────────────
-    # Score-Berechnung
-    # ──────────────────────────────────────────────────
+    # --------------------------------------------------
+    # Komponente 1: Rollen-Aehnlichkeit (35 Punkte)
+    # --------------------------------------------------
+
+    @staticmethod
+    def _calculate_role_similarity(
+        candidate: Candidate, job: Job,
+    ) -> tuple[float, str | None, str]:
+        """
+        Berechnet die Rollen-Aehnlichkeit zwischen Kandidat und Job.
+
+        Verwendet die FINANCE_ROLE_SIMILARITY Matrix.
+        Primaertitel zaehlt voll, Nebentitel mit 40% Abzug.
+
+        Returns:
+            (score 0.0-1.0, matched_role, match_type)
+        """
+        job_primary = (job.hotlist_job_title or "").strip()
+        if not job_primary:
+            return 0.0, None, "none"
+
+        cand_primary = (candidate.hotlist_job_title or "").strip()
+        cand_all = candidate.hotlist_job_titles or []
+        if not cand_all and cand_primary:
+            cand_all = [cand_primary]
+
+        if not cand_all:
+            return 0.0, None, "none"
+
+        best_score = 0.0
+        best_role = None
+        best_type = "none"
+
+        for i, cand_title in enumerate(cand_all):
+            if not cand_title:
+                continue
+
+            is_primary = (cand_title == cand_primary) or (i == 0)
+            multiplier = 1.0 if is_primary else SECONDARY_TITLE_PENALTY
+
+            # Versuche Matrix-Lookup
+            matrix_sim = FINANCE_ROLE_SIMILARITY.get((job_primary, cand_title))
+
+            if matrix_sim is not None:
+                score = multiplier * matrix_sim
+            else:
+                # Fallback fuer ENGINEERING oder unbekannte Rollen:
+                # Exakter String-Vergleich
+                if cand_title.lower() == job_primary.lower():
+                    score = multiplier * 1.0
+                else:
+                    score = 0.0
+
+            if score > best_score:
+                best_score = score
+                best_role = cand_title
+                best_type = "primary" if is_primary else "secondary"
+
+        return min(best_score, 1.0), best_role, best_type
+
+    # --------------------------------------------------
+    # Komponente 2: Keyword-Match (25 Punkte)
+    # --------------------------------------------------
+
+    @staticmethod
+    def _calculate_keyword_score(
+        candidate: Candidate, job: Job, match: Match,
+    ) -> tuple[float, int]:
+        """
+        Berechnet den Keyword-Score basierend auf absoluter Anzahl.
+
+        KRITISCH: Pre-Matches haben oft keyword_score = NULL.
+        In dem Fall berechnen wir Keywords inline.
+
+        Skalierung nach absoluter Anzahl (nicht Ratio):
+        0 = 0.0, 1 = 0.15, 2 = 0.30, ... 5 = 0.75, 6-7 = 0.85, 8+ = 1.0
+
+        Returns:
+            (score 0.0-1.0, keyword_count)
+        """
+        matched_keywords = match.matched_keywords or []
+
+        # Wenn keine Keywords vorhanden: inline berechnen
+        if not matched_keywords and job.job_text:
+            candidate_skills = candidate.skills or []
+            if candidate_skills:
+                result = keyword_matcher.match(candidate_skills, job.job_text)
+                matched_keywords = result.matched_keywords
+                # Auf Match-Objekt speichern fuer spaetere Nutzung
+                match.keyword_score = result.keyword_score
+                match.matched_keywords = result.matched_keywords
+
+        count = len(matched_keywords)
+
+        if count == 0:
+            return 0.0, 0
+        elif count <= 5:
+            # Linear: 1=0.15, 2=0.30, 3=0.45, 4=0.60, 5=0.75
+            score = count * 0.15
+        elif count <= 7:
+            # 6=0.80, 7=0.85
+            score = 0.75 + (count - 5) * 0.05
+        else:
+            # 8+ = voll
+            score = 1.0
+
+        return min(score, 1.0), count
+
+    # --------------------------------------------------
+    # Komponente 3: Distanz (15 Punkte)
+    # --------------------------------------------------
+
+    @staticmethod
+    def _calculate_distance_score(match: Match) -> float:
+        """
+        Berechnet den Distanz-Score (naeher = besser).
+
+        <=5km = 1.0, 5-15km = 0.8->0.5, 15-30km = 0.5->0.0, >30km = 0.0
+
+        Returns:
+            score 0.0-1.0
+        """
+        if match.distance_km is None:
+            return 0.0
+
+        km = match.distance_km
+        if km <= 5:
+            return 1.0
+        elif km <= 15:
+            # Linear: 5km=0.8, 15km=0.5
+            return 0.8 - (km - 5) * 0.03
+        elif km <= 30:
+            # Linear: 15km=0.5, 30km=0.0
+            return 0.5 - (km - 15) * (0.5 / 15)
+        else:
+            return 0.0
+
+    # --------------------------------------------------
+    # Komponente 4: Kategorie (15 Punkte, Gate)
+    # --------------------------------------------------
+
+    @staticmethod
+    def _calculate_category_score(
+        candidate: Candidate, job: Job,
+    ) -> float:
+        """
+        Kategorie-Gate: Gleiche Kategorie = 1.0, sonst 0.0.
+        Bei 0.0 wird der Gesamt-Score auf max 10 gedeckelt.
+
+        Returns:
+            0.0 oder 1.0
+        """
+        if (
+            candidate.hotlist_category
+            and job.hotlist_category
+            and candidate.hotlist_category == job.hotlist_category
+            and candidate.hotlist_category != HotlistCategory.SONSTIGE
+        ):
+            return 1.0
+        return 0.0
+
+    # --------------------------------------------------
+    # Komponente 5: Stadt (10 Punkte, abgestuft)
+    # --------------------------------------------------
+
+    @staticmethod
+    def _calculate_city_score(
+        candidate: Candidate, job: Job,
+    ) -> float:
+        """
+        Stadt-Score: gleiche Stadt = 1.0, Metropolregion = 0.5, anders = 0.0.
+
+        Returns:
+            0.0, 0.5, oder 1.0
+        """
+        if not candidate.hotlist_city or not job.hotlist_city:
+            return 0.0
+
+        cand_city = candidate.hotlist_city.lower().strip()
+        job_city = job.hotlist_city.lower().strip()
+
+        # Exakte Uebereinstimmung
+        if cand_city == job_city:
+            return 1.0
+
+        # Metropolregion-Check
+        for _metro_name, cities in METRO_AREAS.items():
+            if cand_city in cities and job_city in cities:
+                return 0.5
+
+        return 0.0
+
+    # --------------------------------------------------
+    # Haupt-Scoring-Methode
+    # --------------------------------------------------
 
     def calculate_pre_score(
         self,
@@ -95,76 +379,73 @@ class PreScoringService:
         match: Match,
     ) -> PreScoreBreakdown:
         """
-        Berechnet den Pre-Score für ein Kandidat-Job-Paar.
+        Berechnet den Pre-Score fuer ein Kandidat-Job-Paar.
+
+        5 Komponenten:
+        1. Rollen-Aehnlichkeit (35 Pkt) — Matrix + primaer/sekundaer
+        2. Keyword-Match (25 Pkt) — Absolute Anzahl, inline berechnet
+        3. Distanz (15 Pkt) — Naeher = besser
+        4. Kategorie (15 Pkt) — Gate (bei Mismatch: max 10 gesamt)
+        5. Stadt (10 Pkt) — Gleich / Metropolregion / anders
 
         Args:
             candidate: Kandidat
             job: Job
-            match: Bestehendes Match-Objekt (für distance_km, keyword_score)
+            match: Match-Objekt (fuer distance_km, keyword_score)
 
         Returns:
             PreScoreBreakdown mit Einzelwerten und Gesamt-Score
         """
-        # 1. Kategorie-Übereinstimmung (30 Punkte)
-        category_score = 0.0
-        if (
-            candidate.hotlist_category
-            and job.hotlist_category
-            and candidate.hotlist_category == job.hotlist_category
-            and candidate.hotlist_category != HotlistCategory.SONSTIGE
-        ):
-            category_score = WEIGHT_CATEGORY
+        # 1. Rollen-Aehnlichkeit (35 Punkte)
+        role_sim, matched_role, match_type = self._calculate_role_similarity(
+            candidate, job,
+        )
+        role_points = role_sim * WEIGHT_ROLE_SIMILARITY
 
-        # 2. Stadt-Übereinstimmung (25 Punkte)
-        city_score = 0.0
-        if candidate.hotlist_city and job.hotlist_city:
-            if candidate.hotlist_city.lower() == job.hotlist_city.lower():
-                city_score = WEIGHT_CITY
+        # 2. Keywords (25 Punkte)
+        kw_score, kw_count = self._calculate_keyword_score(
+            candidate, job, match,
+        )
+        kw_points = kw_score * WEIGHT_KEYWORDS
 
-        # 3. Job-Title-Ähnlichkeit (20 Punkte) — Array-Intersection
-        job_title_score = 0.0
-        cand_titles = candidate.hotlist_job_titles or ([candidate.hotlist_job_title] if candidate.hotlist_job_title else [])
-        job_titles = job.hotlist_job_titles or ([job.hotlist_job_title] if job.hotlist_job_title else [])
-        if cand_titles and job_titles:
-            cand_set = {t.lower() for t in cand_titles if t}
-            job_set = {t.lower() for t in job_titles if t}
-            if cand_set & job_set:  # Mindestens 1 gemeinsamer Titel
-                job_title_score = WEIGHT_JOB_TITLE
+        # 3. Distanz (15 Punkte)
+        dist_score = self._calculate_distance_score(match)
+        dist_points = dist_score * WEIGHT_DISTANCE
 
-        # 4. Keyword-Score (15 Punkte, aus bestehendem Matching)
-        keyword_score = 0.0
-        if match.keyword_score is not None and match.keyword_score > 0:
-            # keyword_score ist 0.0 – 1.0, skalieren auf 0 – 15
-            keyword_score = min(match.keyword_score, 1.0) * WEIGHT_KEYWORDS
+        # 4. Kategorie (15 Punkte, Gate)
+        cat_score = self._calculate_category_score(candidate, job)
+        cat_points = cat_score * WEIGHT_CATEGORY
 
-        # 5. Distanz (10 Punkte, invers: näher = besser)
-        distance_score = 0.0
-        if match.distance_km is not None:
-            if match.distance_km <= 5:
-                distance_score = WEIGHT_DISTANCE  # Volle Punkte bei ≤5km
-            elif match.distance_km <= 30:
-                # Linear abfallend: 5km = 10, 30km = 0 (Pre-Match Radius = 30km)
-                distance_score = WEIGHT_DISTANCE * (1 - (match.distance_km - 5) / 25)
-            # > 30km = 0 Punkte
+        # 5. Stadt (10 Punkte)
+        city_score = self._calculate_city_score(candidate, job)
+        city_points = city_score * WEIGHT_CITY
 
-        total = category_score + city_score + job_title_score + keyword_score + distance_score
+        # Gesamt
+        total = role_points + kw_points + dist_points + cat_points + city_points
+
+        # Kategorie-Gate: Bei Mismatch deckeln
+        if cat_score == 0.0:
+            total = min(total, CATEGORY_MISMATCH_CAP)
 
         return PreScoreBreakdown(
-            category_score=round(category_score, 1),
-            city_score=round(city_score, 1),
-            job_title_score=round(job_title_score, 1),
-            keyword_score=round(keyword_score, 1),
-            distance_score=round(distance_score, 1),
+            category_score=round(cat_points, 1),
+            city_score=round(city_points, 1),
+            role_similarity_score=round(role_points, 1),
+            keyword_score=round(kw_points, 1),
+            distance_score=round(dist_points, 1),
+            matched_role=matched_role,
+            role_match_type=match_type,
+            keyword_count=kw_count,
             total=round(total, 1),
         )
 
-    # ──────────────────────────────────────────────────
+    # --------------------------------------------------
     # Einzelnes Match scoren
-    # ──────────────────────────────────────────────────
+    # --------------------------------------------------
 
     async def score_match(self, match_id) -> PreScoreBreakdown | None:
         """
-        Berechnet den Pre-Score für ein einzelnes Match.
+        Berechnet den Pre-Score fuer ein einzelnes Match.
 
         Returns:
             PreScoreBreakdown oder None bei Fehler
@@ -188,9 +469,9 @@ class PreScoringService:
 
         return breakdown
 
-    # ──────────────────────────────────────────────────
+    # --------------------------------------------------
     # Batch-Scoring: Alle Matches einer Kategorie/Stadt
-    # ──────────────────────────────────────────────────
+    # --------------------------------------------------
 
     async def score_matches_for_category(
         self,
@@ -200,12 +481,12 @@ class PreScoringService:
         force: bool = False,
     ) -> PreScoringResult:
         """
-        Berechnet Pre-Scores für alle Matches einer Kategorie.
+        Berechnet Pre-Scores fuer alle Matches einer Kategorie.
 
         Args:
             category: FINANCE oder ENGINEERING
             city: Optional: nur Matches in dieser Stadt
-            job_title: Optional: nur Matches mit diesem Beruf (Kandidat UND Job)
+            job_title: Optional: nur Matches mit diesem Beruf
             force: True = auch bereits gescorte Matches neu bewerten
         """
         from sqlalchemy import or_
@@ -259,7 +540,7 @@ class PreScoringService:
                 score_sum += breakdown.total
                 scored += 1
             except Exception as e:
-                logger.error(f"Pre-Scoring Fehler für Match {match.id}: {e}")
+                logger.error(f"Pre-Scoring Fehler fuer Match {match.id}: {e}")
                 skipped += 1
 
         await self.db.commit()
@@ -267,9 +548,9 @@ class PreScoringService:
         avg = score_sum / scored if scored > 0 else 0.0
 
         logger.info(
-            f"Pre-Scoring für {category}"
+            f"Pre-Scoring fuer {category}"
             f"{f' / {city}' if city else ''}: "
-            f"{scored}/{total} gescort, Ø {avg:.1f}"
+            f"{scored}/{total} gescort, Oe {avg:.1f}"
         )
 
         return PreScoringResult(
@@ -281,7 +562,7 @@ class PreScoringService:
 
     async def score_all_matches(self, force: bool = False) -> dict:
         """
-        Berechnet Pre-Scores für ALLE Matches (FINANCE + ENGINEERING).
+        Berechnet Pre-Scores fuer ALLE Matches (FINANCE + ENGINEERING).
 
         Returns:
             Dict mit Ergebnissen pro Kategorie
