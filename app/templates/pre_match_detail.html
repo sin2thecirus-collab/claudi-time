@@ -6,7 +6,7 @@
 <div x-data="{
     selectedIds: [],
     selectAll: false,
-    showAiDetails: {},
+    expandedRows: {},
     toggleAll() {
         if (this.selectAll) {
             this.selectedIds = [{% for m in matches %}'{{ m.match_id }}'{% if not loop.last %},{% endif %}{% endfor %}];
@@ -19,6 +19,9 @@
         if (idx >= 0) this.selectedIds.splice(idx, 1);
         else this.selectedIds.push(String(id));
         this.selectAll = this.selectedIds.length === {{ matches | length }};
+    },
+    toggleRow(id) {
+        this.expandedRows[id] = !this.expandedRows[id];
     }
 }">
 
@@ -95,238 +98,262 @@
         </div>
     </div>
 
-    {# -- Tabelle -- #}
+    {# -- Tabelle (Hybrid V5) -- #}
     {% if matches %}
     <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div class="overflow-x-auto">
-            <table class="w-full text-left">
+        <table class="w-full">
 
-                {# Tabellen-Header #}
-                <thead>
-                    <tr class="bg-gray-50 border-b border-gray-200">
-                        <th class="w-10 px-3 py-2.5"></th>
-                        <th class="w-14 px-2 py-2.5 text-center text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Score</th>
-                        <th class="min-w-[160px] px-3 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Kandidat</th>
-                        <th class="min-w-[120px] px-3 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Titel</th>
-                        <th class="min-w-[140px] px-3 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Telefon</th>
-                        <th class="min-w-[160px] px-3 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Email</th>
-                        <th class="min-w-[120px] px-3 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Unternehmen</th>
-                        <th class="min-w-[120px] px-3 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Job</th>
-                        <th class="w-14 px-2 py-2.5 text-center text-[10px] font-semibold text-gray-400 uppercase tracking-wider">km</th>
-                        <th class="w-10 px-2 py-2.5 text-center text-[10px] font-semibold text-gray-400 uppercase tracking-wider">CV</th>
-                        <th class="w-10 px-2 py-2.5 text-center text-[10px] font-semibold text-gray-400 uppercase tracking-wider">KI</th>
-                        <th class="w-24 px-2 py-2.5 text-center text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Feedback</th>
-                    </tr>
-                </thead>
+            {# Header #}
+            <thead>
+                <tr class="bg-gray-50 border-b border-gray-200">
+                    <th class="w-10 px-3 py-2.5"></th>
+                    <th class="w-12 px-2 py-2.5 text-center text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Score</th>
+                    <th class="px-3 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Kandidat</th>
+                    <th class="px-3 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider hidden md:table-cell">Unternehmen</th>
+                    <th class="px-3 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Job</th>
+                    <th class="w-16 px-2 py-2.5 text-center text-[10px] font-semibold text-gray-400 uppercase tracking-wider">km</th>
+                    <th class="w-10 px-2 py-2.5"></th>
+                </tr>
+            </thead>
 
-                <tbody class="divide-y divide-gray-50">
-                    {% for m in matches %}
-                    {# Match-Zeile #}
-                    <tr class="hover:bg-gray-50/80 transition-colors" id="match-row-{{ m.match_id }}">
+            <tbody class="divide-y divide-gray-100">
+                {% for m in matches %}
 
-                        {# Checkbox #}
-                        <td class="px-3 py-3">
-                            <input type="checkbox"
-                                   :checked="selectedIds.includes('{{ m.match_id }}')"
-                                   @change="toggleOne('{{ m.match_id }}')"
-                                   class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500">
-                        </td>
+                {# -- Hauptzeile (klickbar) -- #}
+                <tr @click="toggleRow('{{ m.match_id }}')"
+                    class="cursor-pointer transition-colors"
+                    :class="expandedRows['{{ m.match_id }}'] ? 'bg-blue-50/40' : 'hover:bg-gray-50'"
+                    id="match-row-{{ m.match_id }}">
 
-                        {# Score Badge #}
-                        <td class="px-2 py-3 text-center">
-                            {% if m.ai_score is not none %}
-                                {% set score_val = (m.ai_score * 100) | round | int %}
-                            {% elif m.pre_score is not none %}
-                                {% set score_val = m.pre_score | round | int %}
-                            {% else %}
-                                {% set score_val = 0 %}
-                            {% endif %}
-                            <span class="inline-flex items-center justify-center w-9 h-9 rounded-lg text-xs font-bold
-                                {% if score_val >= 70 %}bg-green-100 text-green-700
-                                {% elif score_val >= 40 %}bg-amber-100 text-amber-700
-                                {% else %}bg-gray-100 text-gray-500{% endif %}">
-                                {{ score_val }}
-                            </span>
-                        </td>
+                    {# Checkbox #}
+                    <td class="px-3 py-3" @click.stop>
+                        <input type="checkbox"
+                               :checked="selectedIds.includes('{{ m.match_id }}')"
+                               @change="toggleOne('{{ m.match_id }}')"
+                               class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500">
+                    </td>
 
-                        {# Kandidat #}
-                        <td class="px-3 py-3">
-                            <a href="/candidates/{{ m.candidate_id }}"
-                               class="text-sm font-semibold text-gray-900 hover:text-primary-600 transition-colors truncate block max-w-[200px]">
-                                {{ m.candidate_name }}
-                            </a>
-                            <p class="text-xs text-gray-400 truncate max-w-[200px]">{{ m.candidate_city or '' }}</p>
-                        </td>
+                    {# Score #}
+                    <td class="px-2 py-3 text-center">
+                        {% if m.ai_score is not none %}
+                            {% set score_val = (m.ai_score * 100) | round | int %}
+                        {% elif m.pre_score is not none %}
+                            {% set score_val = m.pre_score | round | int %}
+                        {% else %}
+                            {% set score_val = 0 %}
+                        {% endif %}
+                        <span class="inline-flex items-center justify-center w-9 h-9 rounded-lg text-xs font-bold
+                            {% if score_val >= 70 %}bg-green-100 text-green-700
+                            {% elif score_val >= 40 %}bg-amber-100 text-amber-700
+                            {% else %}bg-gray-100 text-gray-500{% endif %}">
+                            {{ score_val }}
+                        </span>
+                    </td>
 
-                        {# Titel #}
-                        <td class="px-3 py-3">
-                            {% if m.candidate_titles %}
-                            <div class="flex flex-wrap gap-0.5">
-                                {% for t in m.candidate_titles[:2] %}
-                                <span class="inline-flex items-center rounded-md bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 truncate max-w-[130px]">
-                                    {{ t }}
-                                </span>
-                                {% endfor %}
-                                {% if m.candidate_titles | length > 2 %}
-                                <span class="text-[10px] text-gray-400">+{{ m.candidate_titles | length - 2 }}</span>
-                                {% endif %}
-                            </div>
-                            {% elif m.candidate_title %}
-                            <span class="text-xs text-gray-600 truncate block max-w-[130px]">{{ m.candidate_title }}</span>
-                            {% else %}
-                            <span class="text-xs text-gray-300">-</span>
-                            {% endif %}
-                        </td>
+                    {# Kandidat #}
+                    <td class="px-3 py-3">
+                        <a href="/candidates/{{ m.candidate_id }}"
+                           @click.stop
+                           class="text-sm font-semibold text-gray-900 hover:text-primary-600 transition-colors">
+                            {{ m.candidate_name }}
+                        </a>
+                        <p class="text-xs text-gray-400">{{ m.candidate_city or '' }}</p>
+                    </td>
 
-                        {# Telefon + Copy #}
-                        <td class="px-3 py-3">
-                            {% if m.candidate_phone %}
-                            <div class="flex items-center gap-1 group/phone">
-                                <span class="text-xs text-gray-700 truncate max-w-[120px]">{{ m.candidate_phone }}</span>
-                                <button onclick="copyToClipboard('{{ m.candidate_phone }}', this)"
-                                        class="opacity-0 group-hover/phone:opacity-100 p-0.5 rounded hover:bg-gray-200 transition-all flex-shrink-0"
-                                        title="Kopieren">
-                                    <svg class="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9.75a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
-                                    </svg>
-                                </button>
-                            </div>
-                            {% else %}
-                            <span class="text-xs text-gray-300">-</span>
-                            {% endif %}
-                        </td>
+                    {# Unternehmen (hidden on mobile) #}
+                    <td class="px-3 py-3 hidden md:table-cell">
+                        <span class="text-xs font-medium text-gray-700">{{ m.job_company }}</span>
+                    </td>
 
-                        {# Email + Copy #}
-                        <td class="px-3 py-3">
-                            {% if m.candidate_email %}
-                            <div class="flex items-center gap-1 group/email">
-                                <span class="text-xs text-gray-700 truncate max-w-[140px]">{{ m.candidate_email }}</span>
-                                <button onclick="copyToClipboard('{{ m.candidate_email }}', this)"
-                                        class="opacity-0 group-hover/email:opacity-100 p-0.5 rounded hover:bg-gray-200 transition-all flex-shrink-0"
-                                        title="Kopieren">
-                                    <svg class="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9.75a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
-                                    </svg>
-                                </button>
-                            </div>
-                            {% else %}
-                            <span class="text-xs text-gray-300">-</span>
-                            {% endif %}
-                        </td>
+                    {# Job #}
+                    <td class="px-3 py-3">
+                        {% if m.job_url %}
+                        <a href="{{ m.job_url }}" target="_blank" @click.stop
+                           class="text-xs text-primary-600 hover:text-primary-800 font-medium"
+                           title="{{ m.job_position }}">
+                            {{ m.job_position }}
+                        </a>
+                        {% else %}
+                        <span class="text-xs text-gray-600">{{ m.job_position }}</span>
+                        {% endif %}
+                    </td>
 
-                        {# Unternehmen #}
-                        <td class="px-3 py-3">
-                            <span class="text-xs font-medium text-gray-700 truncate block max-w-[140px]">{{ m.job_company }}</span>
-                        </td>
+                    {# Entfernung #}
+                    <td class="px-2 py-3 text-center">
+                        {% if m.distance_km is not none %}
+                        <span class="inline-flex items-center justify-center rounded-md px-2 py-1 text-xs font-bold
+                            {% if m.distance_km <= 5 %}text-green-700 bg-green-50
+                            {% elif m.distance_km <= 15 %}text-amber-700 bg-amber-50
+                            {% else %}text-gray-500 bg-gray-100{% endif %}">
+                            {{ m.distance_km | round(1) }}
+                        </span>
+                        {% else %}
+                        <span class="text-xs text-gray-300">-</span>
+                        {% endif %}
+                    </td>
 
-                        {# Job-Name + Link #}
-                        <td class="px-3 py-3">
-                            {% if m.job_url %}
-                            <a href="{{ m.job_url }}" target="_blank"
-                               class="text-xs text-primary-600 hover:text-primary-800 truncate block font-medium max-w-[140px]"
-                               title="{{ m.job_position }}">
-                                {{ m.job_position }}
-                            </a>
-                            {% else %}
-                            <span class="text-xs text-gray-600 truncate block max-w-[140px]">{{ m.job_position }}</span>
-                            {% endif %}
-                        </td>
+                    {# Chevron #}
+                    <td class="px-2 py-3 text-center">
+                        <svg class="w-4 h-4 text-gray-400 inline transition-transform duration-200"
+                             :class="expandedRows['{{ m.match_id }}'] ? 'rotate-180' : ''"
+                             fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                        </svg>
+                    </td>
+                </tr>
 
-                        {# Entfernung #}
-                        <td class="px-2 py-3 text-center">
-                            {% if m.distance_km is not none %}
-                            <span class="text-xs font-semibold {% if m.distance_km <= 5 %}text-green-600{% elif m.distance_km <= 15 %}text-amber-600{% else %}text-gray-500{% endif %}">
-                                {{ m.distance_km | round(1) }}
-                            </span>
-                            {% else %}
-                            <span class="text-xs text-gray-300">-</span>
-                            {% endif %}
-                        </td>
+                {# -- Detail-Zeile (aufklappbar) -- #}
+                <tr x-show="expandedRows['{{ m.match_id }}']"
+                    x-transition:enter="transition ease-out duration-200"
+                    x-transition:enter-start="opacity-0"
+                    x-transition:enter-end="opacity-100"
+                    x-transition:leave="transition ease-in duration-150"
+                    x-transition:leave-start="opacity-100"
+                    x-transition:leave-end="opacity-0">
+                    <td colspan="7" class="px-4 py-4 bg-gray-50/80 border-t border-gray-100">
 
-                        {# CV Button #}
-                        <td class="px-2 py-3 text-center">
-                            {% if m.has_cv %}
-                                {% if m.cv_stored_path %}
-                                <a href="/api/candidates/{{ m.candidate_id }}/cv" target="_blank"
-                                   class="inline-flex items-center justify-center w-7 h-7 rounded-md bg-blue-50 text-blue-500 hover:bg-blue-100 transition-colors"
-                                   title="CV ansehen">
-                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                                    </svg>
-                                </a>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+
+                            {# Telefon #}
+                            <div>
+                                <p class="text-[10px] text-gray-400 uppercase font-semibold tracking-wider mb-1.5">Telefon</p>
+                                {% if m.candidate_phone %}
+                                <div class="flex items-center gap-2">
+                                    <span class="text-sm text-gray-800">{{ m.candidate_phone }}</span>
+                                    <button onclick="copyToClipboard('{{ m.candidate_phone }}', this); event.stopPropagation();"
+                                            class="p-1 rounded hover:bg-gray-200 transition-colors"
+                                            title="Kopieren">
+                                        <svg class="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9.75a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
+                                        </svg>
+                                    </button>
+                                </div>
                                 {% else %}
-                                <span class="inline-flex items-center justify-center w-7 h-7 rounded-md bg-gray-50 text-gray-400" title="CV nur als Text">
-                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                                    </svg>
-                                </span>
+                                <span class="text-xs text-gray-300">-</span>
                                 {% endif %}
-                            {% else %}
-                            <span class="text-xs text-gray-300">-</span>
-                            {% endif %}
-                        </td>
-
-                        {# KI Button/Score #}
-                        <td class="px-2 py-3 text-center">
-                            {% if m.ai_score is not none %}
-                            <button @click="showAiDetails['{{ m.match_id }}'] = !showAiDetails['{{ m.match_id }}']"
-                                    class="inline-flex items-center justify-center w-7 h-7 rounded-md transition-colors
-                                    {% if m.ai_score >= 0.7 %}bg-green-100 text-green-600 hover:bg-green-200
-                                    {% elif m.ai_score >= 0.4 %}bg-amber-100 text-amber-600 hover:bg-amber-200
-                                    {% else %}bg-gray-100 text-gray-500 hover:bg-gray-200{% endif %}"
-                                    title="KI-Score: {{ (m.ai_score * 100) | round | int }}">
-                                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
-                                    <path d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-                                </svg>
-                            </button>
-                            {% else %}
-                            <button onclick="triggerSingleDeepMatch('{{ m.match_id }}')"
-                                    class="inline-flex items-center justify-center w-7 h-7 rounded-md bg-primary-50 text-primary-500 hover:bg-primary-100 transition-colors"
-                                    title="KI-Bewertung starten"
-                                    id="dm-btn-{{ m.match_id }}">
-                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-                                </svg>
-                            </button>
-                            {% endif %}
-                        </td>
-
-                        {# Feedback #}
-                        <td class="px-2 py-3 text-center">
-                            {% if m.ai_score is not none %}
-                            <div class="flex items-center justify-center gap-1">
-                                <button onclick="saveFeedback('{{ m.match_id }}', 'good')"
-                                        class="p-1 rounded hover:bg-green-50 transition-colors {% if m.user_feedback == 'good' %}bg-green-100{% endif %}"
-                                        title="Gut">
-                                    <svg class="w-4 h-4 {% if m.user_feedback == 'good' %}text-green-500{% else %}text-gray-300{% endif %}" fill="currentColor" viewBox="0 0 20 20">
-                                        <path d="M2 10.5a1.5 1.5 0 113 0v6a1.5 1.5 0 01-3 0v-6zM6 10.333v5.43a2 2 0 001.106 1.79l.05.025A4 4 0 008.943 18h5.416a2 2 0 001.962-1.608l1.2-6A2 2 0 0015.56 8H12V4a2 2 0 00-2-2 1 1 0 00-1 1v.667a4 4 0 01-.8 2.4L6.8 7.933a4 4 0 00-.8 2.4z" />
-                                    </svg>
-                                </button>
-                                <button onclick="saveFeedback('{{ m.match_id }}', 'bad')"
-                                        class="p-1 rounded hover:bg-red-50 transition-colors {% if m.user_feedback == 'bad' %}bg-red-100{% endif %}"
-                                        title="Schlecht">
-                                    <svg class="w-4 h-4 {% if m.user_feedback == 'bad' %}text-red-500{% else %}text-gray-300{% endif %}" fill="currentColor" viewBox="0 0 20 20">
-                                        <path d="M18 9.5a1.5 1.5 0 11-3 0v-6a1.5 1.5 0 013 0v6zM14 9.667v-5.43a2 2 0 00-1.106-1.79l-.05-.025A4 4 0 0011.057 2H5.64a2 2 0 00-1.962 1.608l-1.2 6A2 2 0 004.44 12H8v4a2 2 0 002 2 1 1 0 001-1v-.667a4 4 0 01.8-2.4l1.4-1.866a4 4 0 00.8-2.4z" />
-                                    </svg>
-                                </button>
-                                <button onclick="promptFeedbackNote('{{ m.match_id }}')"
-                                        class="p-1 rounded hover:bg-blue-50 transition-colors {% if m.feedback_note %}bg-blue-100{% endif %}"
-                                        title="{{ m.feedback_note or 'Notiz hinzufuegen' }}">
-                                    <svg class="w-4 h-4 {% if m.feedback_note %}text-blue-500{% else %}text-gray-300{% endif %}" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
-                                    </svg>
-                                </button>
                             </div>
-                            {% else %}
-                            <span class="text-[10px] text-gray-300">erst nach KI</span>
-                            {% endif %}
-                        </td>
-                    </tr>
 
-                    {# -- KI-Details (aufklappbar) -- #}
-                    {% if m.ai_score is not none %}
-                    <tr x-show="showAiDetails['{{ m.match_id }}']" x-transition>
-                        <td colspan="12" class="px-4 py-3 bg-gray-50 border-t border-gray-100">
+                            {# Email #}
+                            <div>
+                                <p class="text-[10px] text-gray-400 uppercase font-semibold tracking-wider mb-1.5">Email</p>
+                                {% if m.candidate_email %}
+                                <div class="flex items-center gap-2">
+                                    <span class="text-sm text-gray-800 truncate">{{ m.candidate_email }}</span>
+                                    <button onclick="copyToClipboard('{{ m.candidate_email }}', this); event.stopPropagation();"
+                                            class="p-1 rounded hover:bg-gray-200 transition-colors flex-shrink-0"
+                                            title="Kopieren">
+                                        <svg class="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9.75a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
+                                        </svg>
+                                    </button>
+                                </div>
+                                {% else %}
+                                <span class="text-xs text-gray-300">-</span>
+                                {% endif %}
+                            </div>
+
+                            {# Titel-Badges #}
+                            <div>
+                                <p class="text-[10px] text-gray-400 uppercase font-semibold tracking-wider mb-1.5">Titel</p>
+                                {% if m.candidate_titles %}
+                                <div class="flex flex-wrap gap-1">
+                                    {% for t in m.candidate_titles %}
+                                    <span class="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700">
+                                        {{ t }}
+                                    </span>
+                                    {% endfor %}
+                                </div>
+                                {% elif m.candidate_title %}
+                                <span class="text-xs text-gray-600">{{ m.candidate_title }}</span>
+                                {% else %}
+                                <span class="text-xs text-gray-300">-</span>
+                                {% endif %}
+                            </div>
+
+                            {# Aktionen: CV + KI + Feedback #}
+                            <div>
+                                <p class="text-[10px] text-gray-400 uppercase font-semibold tracking-wider mb-1.5">Aktionen</p>
+                                <div class="flex items-center gap-2 flex-wrap">
+
+                                    {# CV #}
+                                    {% if m.has_cv %}
+                                        {% if m.cv_stored_path %}
+                                        <a href="/api/candidates/{{ m.candidate_id }}/cv" target="_blank"
+                                           @click.stop
+                                           class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors text-xs font-medium"
+                                           title="CV ansehen">
+                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                                            </svg>
+                                            CV
+                                        </a>
+                                        {% else %}
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-gray-50 text-gray-400 text-xs font-medium" title="CV nur als Text">
+                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                                            </svg>
+                                            Text
+                                        </span>
+                                        {% endif %}
+                                    {% endif %}
+
+                                    {# KI-Bewertung #}
+                                    {% if m.ai_score is not none %}
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium
+                                        {% if m.ai_score >= 0.7 %}bg-green-100 text-green-700
+                                        {% elif m.ai_score >= 0.4 %}bg-amber-100 text-amber-700
+                                        {% else %}bg-gray-100 text-gray-500{% endif %}"
+                                        title="KI-Score: {{ (m.ai_score * 100) | round | int }}">
+                                        <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                                            <path d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                                        </svg>
+                                        KI {{ (m.ai_score * 100) | round | int }}
+                                    </span>
+                                    {% else %}
+                                    <button onclick="triggerSingleDeepMatch('{{ m.match_id }}'); event.stopPropagation();"
+                                            class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-primary-50 text-primary-600 hover:bg-primary-100 transition-colors text-xs font-medium"
+                                            title="KI-Bewertung starten"
+                                            id="dm-btn-{{ m.match_id }}">
+                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                                        </svg>
+                                        KI starten
+                                    </button>
+                                    {% endif %}
+
+                                    {# Feedback #}
+                                    {% if m.ai_score is not none %}
+                                    <div class="flex items-center gap-0.5 ml-1">
+                                        <button onclick="saveFeedback('{{ m.match_id }}', 'good'); event.stopPropagation();"
+                                                class="p-1.5 rounded hover:bg-green-50 transition-colors {% if m.user_feedback == 'good' %}bg-green-100{% endif %}"
+                                                title="Gut">
+                                            <svg class="w-4 h-4 {% if m.user_feedback == 'good' %}text-green-500{% else %}text-gray-300{% endif %}" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M2 10.5a1.5 1.5 0 113 0v6a1.5 1.5 0 01-3 0v-6zM6 10.333v5.43a2 2 0 001.106 1.79l.05.025A4 4 0 008.943 18h5.416a2 2 0 001.962-1.608l1.2-6A2 2 0 0015.56 8H12V4a2 2 0 00-2-2 1 1 0 00-1 1v.667a4 4 0 01-.8 2.4L6.8 7.933a4 4 0 00-.8 2.4z" />
+                                            </svg>
+                                        </button>
+                                        <button onclick="saveFeedback('{{ m.match_id }}', 'bad'); event.stopPropagation();"
+                                                class="p-1.5 rounded hover:bg-red-50 transition-colors {% if m.user_feedback == 'bad' %}bg-red-100{% endif %}"
+                                                title="Schlecht">
+                                            <svg class="w-4 h-4 {% if m.user_feedback == 'bad' %}text-red-500{% else %}text-gray-300{% endif %}" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M18 9.5a1.5 1.5 0 11-3 0v-6a1.5 1.5 0 013 0v6zM14 9.667v-5.43a2 2 0 00-1.106-1.79l-.05-.025A4 4 0 0011.057 2H5.64a2 2 0 00-1.962 1.608l-1.2 6A2 2 0 004.44 12H8v4a2 2 0 002 2 1 1 0 001-1v-.667a4 4 0 01.8-2.4l1.4-1.866a4 4 0 00.8-2.4z" />
+                                            </svg>
+                                        </button>
+                                        <button onclick="promptFeedbackNote('{{ m.match_id }}'); event.stopPropagation();"
+                                                class="p-1.5 rounded hover:bg-blue-50 transition-colors {% if m.feedback_note %}bg-blue-100{% endif %}"
+                                                title="{{ m.feedback_note or 'Notiz hinzufuegen' }}">
+                                            <svg class="w-4 h-4 {% if m.feedback_note %}text-blue-500{% else %}text-gray-300{% endif %}" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        {# KI-Details (wenn vorhanden) #}
+                        {% if m.ai_score is not none and (m.ai_explanation or m.ai_strengths or m.ai_weaknesses) %}
+                        <div class="mt-4 pt-4 border-t border-gray-200">
                             <div class="flex items-start gap-6">
                                 {# Score-Vergleich #}
                                 <div class="flex items-center gap-3 flex-shrink-0">
@@ -366,14 +393,15 @@
                                     {% endfor %}
                                 </div>
                             </div>
-                        </td>
-                    </tr>
-                    {% endif %}
+                        </div>
+                        {% endif %}
 
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+                    </td>
+                </tr>
+
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
     {% else %}
     <div class="bg-white rounded-xl border border-gray-200 p-12 text-center">
@@ -389,7 +417,6 @@
 // Copy to Clipboard
 function copyToClipboard(text, btnEl) {
     navigator.clipboard.writeText(text).then(() => {
-        // Visuelles Feedback
         const origHTML = btnEl.innerHTML;
         btnEl.innerHTML = '<svg class="w-3.5 h-3.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>';
         btnEl.style.opacity = '1';
@@ -425,16 +452,16 @@ async function triggerSingleDeepMatch(matchId) {
     const btn = document.getElementById('dm-btn-' + matchId);
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = '<svg class="animate-spin w-3.5 h-3.5 text-primary-500" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>';
+        btn.innerHTML = '<svg class="animate-spin w-3.5 h-3.5 text-primary-500" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> KI...';
     }
 
     try {
         const resp = await fetch('/partials/deepmatch-single/' + matchId, { method: 'POST' });
         if (resp.ok) {
-            const row = document.getElementById('match-row-' + matchId);
-            if (row) row.innerHTML = await resp.text();
+            showToast('KI-Bewertung abgeschlossen', 'success', 2000);
+            setTimeout(() => window.location.reload(), 1000);
         } else {
-            if (btn) btn.innerHTML = '<svg class="w-3.5 h-3.5 text-red-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" /></svg>';
+            if (btn) btn.innerHTML = '<span class="text-red-500 text-xs">Fehler</span>';
         }
     } catch (e) {
         if (btn) btn.title = 'Fehler: ' + e.message;
