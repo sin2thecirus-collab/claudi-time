@@ -118,9 +118,9 @@
     {% if by_profession %}
     <div class="space-y-4">
         {% for profession, cities in by_profession.items() %}
-        <div x-show="!searchTerm || '{{ profession | lower }}'.includes(searchTerm.toLowerCase()) || {{ cities | map(attribute='city') | list | tojson | e }}.some(c => c.toLowerCase().includes(searchTerm.toLowerCase()))"
-             class="bg-white rounded-xl border border-gray-200 overflow-hidden"
-             x-data="{ open: true }">
+        <div x-data="{ open: true, cityNames: [{% for g in cities %}'{{ g.city | replace("'", "\\'") }}'{% if not loop.last %},{% endif %}{% endfor %}] }"
+             x-show="!searchTerm || '{{ profession | lower }}'.includes(searchTerm.toLowerCase()) || cityNames.some(c => c.toLowerCase().includes(searchTerm.toLowerCase()))"
+             class="bg-white rounded-xl border border-gray-200 overflow-hidden">
 
             {# Beruf-Header #}
             <button @click="open = !open"
