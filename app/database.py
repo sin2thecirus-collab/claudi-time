@@ -54,11 +54,166 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             await session.close()
 
 
+async def _ensure_company_tables() -> None:
+    """Erstellt Company-Tabellen falls sie nicht existieren (Railway-Fallback)."""
+    async with engine.begin() as conn:
+        # Pruefe ob companies Tabelle existiert
+        result = await conn.execute(
+            text(
+                "SELECT table_name FROM information_schema.tables "
+                "WHERE table_schema = 'public' AND table_name = 'companies'"
+            )
+        )
+        if result.fetchone():
+            logger.info("Company-Tabellen existieren bereits.")
+            return
+
+        logger.info("Company-Tabellen werden erstellt...")
+
+        # Enum-Typen erstellen
+        await conn.execute(text(
+            "DO $$ BEGIN "
+            "CREATE TYPE companystatus AS ENUM ('active', 'blacklist', 'laufende_prozesse'); "
+            "EXCEPTION WHEN duplicate_object THEN NULL; END $$"
+        ))
+        await conn.execute(text(
+            "DO $$ BEGIN "
+            "CREATE TYPE correspondencedirection AS ENUM ('inbound', 'outbound'); "
+            "EXCEPTION WHEN duplicate_object THEN NULL; END $$"
+        ))
+
+        # companies Tabelle
+        await conn.execute(text("""
+            CREATE TABLE companies (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                name VARCHAR(255) NOT NULL UNIQUE,
+                domain VARCHAR(255),
+                street VARCHAR(255),
+                house_number VARCHAR(20),
+                postal_code VARCHAR(10),
+                city VARCHAR(100),
+                employee_count VARCHAR(50),
+                status companystatus DEFAULT 'active',
+                notes TEXT,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        """))
+
+        # PostGIS Koordinaten-Spalte (via DO-Block damit Fehler den TX nicht killt)
+        await conn.execute(text("""
+            DO $$ BEGIN
+                PERFORM AddGeographyColumn('public', 'companies', 'location_coords', 4326, 'POINT', 2);
+            EXCEPTION WHEN OTHERS THEN
+                RAISE NOTICE 'PostGIS Spalte uebersprungen: %', SQLERRM;
+            END $$
+        """))
+
+        # Indizes fuer companies
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_companies_name ON companies (name)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_companies_city ON companies (city)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_companies_status ON companies (status)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_companies_created_at ON companies (created_at)"))
+
+        # company_contacts Tabelle
+        await conn.execute(text("""
+            CREATE TABLE company_contacts (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+                salutation VARCHAR(20),
+                first_name VARCHAR(100),
+                last_name VARCHAR(100),
+                position VARCHAR(255),
+                email VARCHAR(500),
+                phone VARCHAR(100),
+                notes TEXT,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        """))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_company_contacts_company_id ON company_contacts (company_id)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_company_contacts_last_name ON company_contacts (last_name)"))
+
+        # company_correspondence Tabelle
+        await conn.execute(text("""
+            CREATE TABLE company_correspondence (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+                contact_id UUID REFERENCES company_contacts(id) ON DELETE SET NULL,
+                direction correspondencedirection DEFAULT 'outbound',
+                subject VARCHAR(500) NOT NULL,
+                body TEXT,
+                sent_at TIMESTAMPTZ DEFAULT NOW(),
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        """))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_company_correspondence_company_id ON company_correspondence (company_id)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_company_correspondence_sent_at ON company_correspondence (sent_at)"))
+
+        # jobs.company_id FK hinzufuegen (falls noch nicht vorhanden)
+        result = await conn.execute(
+            text(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_name = 'jobs' AND column_name = 'company_id'"
+            )
+        )
+        if not result.fetchone():
+            await conn.execute(text("ALTER TABLE jobs ADD COLUMN company_id UUID"))
+            await conn.execute(text(
+                "ALTER TABLE jobs ADD CONSTRAINT fk_jobs_company_id "
+                "FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE SET NULL"
+            ))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_jobs_company_id ON jobs (company_id)"))
+
+        # Datenmigration: bestehende company_name → Company Records
+        await conn.execute(text("""
+            INSERT INTO companies (id, name, city, postal_code, street, created_at, updated_at)
+            SELECT
+                gen_random_uuid(),
+                sub.company_name,
+                sub.city,
+                sub.postal_code,
+                sub.street_address,
+                NOW(),
+                NOW()
+            FROM (
+                SELECT DISTINCT ON (TRIM(company_name))
+                    TRIM(company_name) AS company_name,
+                    city,
+                    postal_code,
+                    street_address
+                FROM jobs
+                WHERE company_name IS NOT NULL
+                    AND TRIM(company_name) != ''
+                    AND deleted_at IS NULL
+                ORDER BY TRIM(company_name), created_at DESC
+            ) sub
+            WHERE NOT EXISTS (
+                SELECT 1 FROM companies c
+                WHERE LOWER(c.name) = LOWER(sub.company_name)
+            )
+        """))
+
+        # Jobs mit company_id verknuepfen
+        await conn.execute(text("""
+            UPDATE jobs j
+            SET company_id = c.id
+            FROM companies c
+            WHERE LOWER(TRIM(j.company_name)) = LOWER(c.name)
+                AND j.company_id IS NULL
+        """))
+
+        logger.info("Company-Tabellen erfolgreich erstellt und Daten migriert.")
+
+
 async def init_db() -> None:
     """Initialisiert die Datenbankverbindung und führt Migrationen aus."""
     async with engine.begin() as conn:
         # Verbindung testen
         await conn.run_sync(lambda _: None)
+
+    # ── Tabellen-Erstellung (fuer neue Tabellen die nicht via Alembic laufen) ──
+    await _ensure_company_tables()
 
     # Automatische Migrationen für neue Spalten
     # Lock-Timeout setzen damit ALTER TABLE nicht ewig blockiert
