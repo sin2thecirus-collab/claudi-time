@@ -268,12 +268,20 @@ async def jobs_list_partial(
     except ValueError:
         sort_order_enum = SortOrderEnum.DESC
 
+    # Zu kurze Suchbegriffe ignorieren (SearchTerm Validator erfordert min. 2 Zeichen)
+    safe_search = search.strip() if search else None
+    if safe_search and len(safe_search) < 2:
+        safe_search = None
+    safe_company = company.strip() if company else None
+    if safe_company and len(safe_company) < 2:
+        safe_company = None
+
     # Filter aufbauen
     filters = JobFilterParams(
-        search=search if search else None,
+        search=safe_search,
         cities=cities.split(",") if cities else None,
         industries=[industry] if industry else None,
-        company=company if company else None,
+        company=safe_company,
         sort_by=sort_by_enum,
         sort_order=sort_order_enum,
         imported_days=imported_days,
