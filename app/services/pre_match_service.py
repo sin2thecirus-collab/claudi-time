@@ -76,6 +76,9 @@ class PreMatchDetail:
     feedback_note: str | None
     has_cv: bool
     cv_stored_path: str | None
+    # Quick-AI Score (Phase C)
+    quick_score: int | None = None
+    quick_reason: str | None = None
     # Split-View Daten
     job_text: str | None = None
     candidate_work_history: list[dict] | None = None
@@ -558,6 +561,9 @@ class PreMatchService:
                     feedback_note=match.feedback_note,
                     has_cv=bool(candidate.cv_stored_path or candidate.cv_text),
                     cv_stored_path=candidate.cv_stored_path,
+                    # Quick-AI Score
+                    quick_score=int(match.quick_score) if match.quick_score is not None else None,
+                    quick_reason=match.quick_reason,
                     # Split-View Daten
                     job_text=job.job_text,
                     candidate_work_history=work_history,

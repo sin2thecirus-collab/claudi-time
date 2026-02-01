@@ -75,6 +75,11 @@ class Match(Base):
     feedback_note: Mapped[str | None] = mapped_column(Text)
     feedback_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
+    # Quick-AI Score (Phase C — guenstige KI-Schnellbewertung)
+    quick_score: Mapped[int | None] = mapped_column(Float)  # 0-100
+    quick_reason: Mapped[str | None] = mapped_column(String(200))  # 1 Satz
+    quick_scored_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
     # Status
     status: Mapped[MatchStatus] = mapped_column(
         Enum(MatchStatus, values_callable=lambda x: [e.value for e in x]),

@@ -173,21 +173,30 @@
                                class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500">
                     </td>
 
-                    {# Score #}
+                    {# Score (zeigt besten verfuegbaren Score + Quick-AI Indikator) #}
                     <td class="px-2 py-3 text-center">
                         {% if m.ai_score is not none %}
                             {% set score_val = (m.ai_score * 100) | round | int %}
+                        {% elif m.quick_score is not none %}
+                            {% set score_val = m.quick_score %}
                         {% elif m.pre_score is not none %}
                             {% set score_val = m.pre_score | round | int %}
                         {% else %}
                             {% set score_val = 0 %}
                         {% endif %}
-                        <span class="inline-flex items-center justify-center w-9 h-9 rounded-lg text-xs font-bold
-                            {% if score_val >= 70 %}bg-green-100 text-green-700
-                            {% elif score_val >= 40 %}bg-amber-100 text-amber-700
-                            {% else %}bg-gray-100 text-gray-500{% endif %}">
-                            {{ score_val }}
-                        </span>
+                        <div class="flex flex-col items-center gap-0.5">
+                            <span class="inline-flex items-center justify-center w-9 h-9 rounded-lg text-xs font-bold
+                                {% if score_val >= 70 %}bg-green-100 text-green-700
+                                {% elif score_val >= 40 %}bg-amber-100 text-amber-700
+                                {% else %}bg-gray-100 text-gray-500{% endif %}">
+                                {{ score_val }}
+                            </span>
+                            {% if m.quick_score is not none and m.ai_score is none %}
+                            <span class="text-[8px] font-semibold text-cyan-500" title="Quick-AI Score: {{ m.quick_score }} — {{ m.quick_reason or '' }}">QAI</span>
+                            {% elif m.ai_score is not none %}
+                            <span class="text-[8px] font-semibold text-purple-500">KI</span>
+                            {% endif %}
+                        </div>
                     </td>
 
                     {# Kandidat + Rolle #}
@@ -429,6 +438,38 @@
                                 </div>
                             </div>
                         </div>
+
+                        {# Quick-AI Score (wenn vorhanden und kein DeepMatch) #}
+                        {% if m.quick_score is not none and m.ai_score is none %}
+                        <div class="mt-4 pt-4 border-t border-gray-200">
+                            <div class="flex items-center gap-3">
+                                <div class="flex items-center gap-2">
+                                    <span class="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-cyan-50 text-cyan-700 text-xs font-semibold">
+                                        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                                            <path d="M12.378 1.602a.75.75 0 00-.756 0L3 6.632l9 5.25 9-5.25-8.622-5.03zM21.75 7.93l-9 5.25v9l8.628-5.032a.75.75 0 00.372-.648V7.93zM11.25 22.18v-9l-9-5.25v8.57a.75.75 0 00.372.648l8.628 5.033z" />
+                                        </svg>
+                                        Quick-AI {{ m.quick_score }}
+                                    </span>
+                                    <div class="text-center flex-shrink-0">
+                                        <p class="text-[10px] text-gray-400 uppercase">Pre</p>
+                                        <p class="text-sm font-bold text-gray-400">{{ m.pre_score | default(0) | round | int }}</p>
+                                    </div>
+                                    <svg class="w-3 h-3 text-gray-300" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                                    </svg>
+                                    <div class="text-center flex-shrink-0">
+                                        <p class="text-[10px] text-cyan-500 uppercase font-semibold">QAI</p>
+                                        <p class="text-sm font-bold {% if m.quick_score >= 70 %}text-green-600{% elif m.quick_score >= 40 %}text-amber-600{% else %}text-gray-500{% endif %}">
+                                            {{ m.quick_score }}
+                                        </p>
+                                    </div>
+                                </div>
+                                {% if m.quick_reason %}
+                                <p class="text-xs text-gray-600 flex-1">{{ m.quick_reason }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
 
                         {# KI-Details (wenn vorhanden) #}
                         {% if m.ai_score is not none and (m.ai_explanation or m.ai_strengths or m.ai_weaknesses) %}

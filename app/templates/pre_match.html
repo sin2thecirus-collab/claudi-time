@@ -33,6 +33,16 @@
                 KI-Kalibrierung
             </a>
 
+            {# Quick-AI Score Button #}
+            <button onclick="triggerQuickAI()"
+                    id="quick-ai-btn"
+                    class="inline-flex items-center gap-2 rounded-lg bg-cyan-100 px-4 py-2.5 text-sm font-semibold text-cyan-700 hover:bg-cyan-200 transition-colors">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12.378 1.602a.75.75 0 00-.756 0L3 6.632l9 5.25 9-5.25-8.622-5.03zM21.75 7.93l-9 5.25v9l8.628-5.032a.75.75 0 00.372-.648V7.93zM11.25 22.18v-9l-9-5.25v8.57a.75.75 0 00.372.648l8.628 5.033z" />
+                </svg>
+                Quick-AI
+            </button>
+
             {# Generieren Button #}
             <button onclick="triggerGenerate()"
                     id="generate-btn"
@@ -76,6 +86,9 @@
         </div>
         {% endif %}
     </div>
+
+    {# ── Quick-AI Status-Banner ── #}
+    <div id="quick-ai-status" class="mb-4" style="display:none"></div>
 
     {# ── Bulk-Evaluate Status-Banner ── #}
     <div id="bulk-evaluate-status" class="mb-4" style="display:none"></div>
@@ -473,6 +486,92 @@ async function triggerGenerate() {
                 }
             } catch (e) { /* ignore */ }
         }, 2000);
+
+    } catch (e) {
+        showToast('Netzwerkfehler: ' + e.message, 'error');
+        btn.disabled = false;
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
+// QUICK-AI SCORING (Phase C — guenstige KI-Schnellbewertung)
+// ═══════════════════════════════════════════════════════════
+
+async function triggerQuickAI() {
+    if (!confirm(
+        'Quick-AI Scoring starten?\n\n' +
+        'Alle Matches ohne Quick-Score werden durch eine guenstige KI bewertet.\n' +
+        'Geschaetzte Kosten: ~$0.04 pro 1000 Matches\n\n' +
+        'Fortfahren?'
+    )) return;
+
+    const btn = document.getElementById('quick-ai-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Quick-AI...';
+
+    const statusEl = document.getElementById('quick-ai-status');
+    statusEl.style.display = 'block';
+    statusEl.innerHTML = `
+        <div class="rounded-lg bg-cyan-50 border border-cyan-200 p-4">
+            <div class="flex items-center gap-3">
+                <svg class="w-5 h-5 text-cyan-500 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                <div>
+                    <p class="text-sm font-semibold text-cyan-800">Quick-AI Scoring gestartet...</p>
+                    <p class="text-xs text-cyan-600" id="quick-ai-progress"></p>
+                </div>
+            </div>
+        </div>`;
+
+    try {
+        const resp = await fetch('/api/quick-score/run?category={{ category }}', { method: 'POST' });
+        if (!resp.ok) {
+            const data = await resp.json();
+            showToast(data.message || 'Fehler beim Starten', 'error');
+            btn.disabled = false;
+            return;
+        }
+
+        // Polling
+        const poll = setInterval(async () => {
+            try {
+                const sr = await fetch('/api/quick-score/status');
+                const status = await sr.json();
+                const pEl = document.getElementById('quick-ai-progress');
+                if (pEl && status.progress) pEl.textContent = status.progress;
+
+                if (!status.running) {
+                    clearInterval(poll);
+                    btn.disabled = false;
+                    btn.innerHTML = '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12.378 1.602a.75.75 0 00-.756 0L3 6.632l9 5.25 9-5.25-8.622-5.03zM21.75 7.93l-9 5.25v9l8.628-5.032a.75.75 0 00.372-.648V7.93zM11.25 22.18v-9l-9-5.25v8.57a.75.75 0 00.372.648l8.628 5.033z"/></svg> Quick-AI';
+
+                    if (status.error) {
+                        statusEl.innerHTML = `<div class="rounded-lg bg-red-50 border border-red-200 p-4"><p class="text-sm font-semibold text-red-800">Fehler: ${status.error}</p></div>`;
+                    } else if (status.result) {
+                        const r = status.result;
+                        statusEl.innerHTML = `
+                            <div class="rounded-lg bg-green-50 border border-green-200 p-4">
+                                <div class="flex items-center gap-3">
+                                    <svg class="w-5 h-5 text-green-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <div>
+                                        <p class="text-sm font-semibold text-green-800">Quick-AI abgeschlossen!</p>
+                                        <p class="text-xs text-green-600 mt-1">
+                                            <strong>${r.scored}</strong> von ${r.total_matches} bewertet &middot;
+                                            &Oslash; Score: <strong>${r.avg_score}</strong> &middot;
+                                            Kosten: $${r.total_cost_usd?.toFixed(3) || '?'}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>`;
+                        showToast(`Quick-AI: ${r.scored} Matches bewertet!`, 'success');
+                    }
+                }
+            } catch (e) { /* ignore */ }
+        }, 3000);
 
     } catch (e) {
         showToast('Netzwerkfehler: ' + e.message, 'error');

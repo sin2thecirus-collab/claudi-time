@@ -10,6 +10,8 @@ API:
 - GET  /api/pre-match/generate/status → Status der Generierung
 - POST /api/calibration/run           → Kalibrierung ausfuehren
 - GET  /api/calibration/status        → Kalibrierungsdaten + Statistiken
+- POST /api/quick-score/run           → Quick-AI Scoring starten (Background)
+- GET  /api/quick-score/status        → Quick-AI Status
 """
 
 import asyncio
@@ -391,3 +393,105 @@ async def _run_calibration(category: str):
     finally:
         _calibration_status["running"] = False
         _calibration_status["finished_at"] = datetime.now(timezone.utc).isoformat()
+
+
+# ═══════════════════════════════════════════════════════════════
+# QUICK-AI SCORE — Guenstige KI-Schnellbewertung (Phase C)
+# ═══════════════════════════════════════════════════════════════
+
+_quick_score_status: dict = {
+    "running": False,
+    "started_at": None,
+    "progress": None,
+    "result": None,
+    "finished_at": None,
+    "error": None,
+}
+
+
+@router.post("/api/quick-score/run")
+async def trigger_quick_score(
+    background_tasks: BackgroundTasks,
+    category: str = Query(default="FINANCE"),
+    max_matches: int = Query(default=500),
+):
+    """Startet Quick-AI Scoring im Hintergrund.
+
+    Bewertet alle Matches ohne Quick-Score mit einer guenstigen KI-Schnellbewertung.
+    Kosten: ~$0.04 pro 1000 Matches.
+    """
+    global _quick_score_status
+
+    if _quick_score_status["running"]:
+        return JSONResponse(
+            status_code=409,
+            content={
+                "error": "already_running",
+                "message": "Quick-AI laeuft bereits",
+            },
+        )
+
+    _quick_score_status = {
+        "running": True,
+        "started_at": datetime.now(timezone.utc).isoformat(),
+        "progress": "Starte Quick-AI...",
+        "result": None,
+        "finished_at": None,
+        "error": None,
+    }
+
+    background_tasks.add_task(_run_quick_score, category, max_matches)
+
+    return {
+        "status": "started",
+        "category": category,
+        "max_matches": max_matches,
+        "message": "Quick-AI Scoring gestartet...",
+    }
+
+
+@router.get("/api/quick-score/status")
+async def get_quick_score_status():
+    """Gibt den aktuellen Status des Quick-AI Scorings zurueck."""
+    return _quick_score_status
+
+
+async def _run_quick_score(category: str, max_matches: int = 500):
+    """Fuehrt Quick-AI Scoring als Background-Task aus."""
+    global _quick_score_status
+
+    from app.database import async_session_maker
+    from app.services.quick_score_service import QuickScoreService
+
+    try:
+        async with async_session_maker() as db:
+            service = QuickScoreService(db)
+
+            def progress_callback(step: str, detail: str):
+                _quick_score_status["progress"] = f"{step}: {detail}"
+
+            try:
+                result = await service.score_batch(
+                    category=category,
+                    max_matches=max_matches,
+                    progress_callback=progress_callback,
+                )
+
+                _quick_score_status["result"] = {
+                    "total_matches": result.total_matches,
+                    "scored": result.scored,
+                    "skipped_error": result.skipped_error,
+                    "avg_score": result.avg_score,
+                    "total_cost_usd": result.total_cost_usd,
+                    "errors": result.errors[:10],
+                }
+            finally:
+                await service.close()
+
+    except Exception as e:
+        logger.error(f"Quick-AI Scoring fehlgeschlagen: {e}", exc_info=True)
+        _quick_score_status["error"] = str(e)[:500]
+
+    finally:
+        _quick_score_status["running"] = False
+        _quick_score_status["finished_at"] = datetime.now(timezone.utc).isoformat()
