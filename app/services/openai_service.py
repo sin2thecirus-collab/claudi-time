@@ -139,6 +139,8 @@ class OpenAIService:
         job_data: dict[str, Any],
         candidate_data: dict[str, Any],
         retry_count: int = 2,
+        system_prompt: str | None = None,
+        user_prompt_override: str | None = None,
     ) -> MatchEvaluation:
         """Bewertet die Passung zwischen Kandidat und Job.
 
@@ -146,6 +148,8 @@ class OpenAIService:
             job_data: Job-Informationen (position, company, job_text, etc.)
             candidate_data: Kandidaten-Informationen (name, skills, work_history, etc.)
             retry_count: Anzahl Retry-Versuche bei Timeout
+            system_prompt: Optionaler Custom System-Prompt (Default: generischer MATCHING_SYSTEM_PROMPT)
+            user_prompt_override: Optionaler fertig gebauter User-Prompt (ueberspringt _create_match_prompt)
 
         Returns:
             MatchEvaluation mit Score, Erklärung und Stärken/Schwächen
@@ -158,7 +162,8 @@ class OpenAIService:
             )
 
         # Prompt erstellen
-        user_prompt = self._create_match_prompt(job_data, candidate_data)
+        actual_system = system_prompt or MATCHING_SYSTEM_PROMPT
+        user_prompt = user_prompt_override or self._create_match_prompt(job_data, candidate_data)
 
         for attempt in range(retry_count + 1):
             try:
@@ -169,11 +174,11 @@ class OpenAIService:
                     json={
                         "model": self.MODEL,
                         "messages": [
-                            {"role": "system", "content": MATCHING_SYSTEM_PROMPT},
+                            {"role": "system", "content": actual_system},
                             {"role": "user", "content": user_prompt},
                         ],
                         "temperature": 0.3,
-                        "max_tokens": 500,
+                        "max_tokens": 800,
                         "response_format": {"type": "json_object"},
                     },
                 )

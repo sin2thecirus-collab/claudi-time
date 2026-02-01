@@ -37,48 +37,93 @@ DEEPMATCH_PRE_SCORE_THRESHOLD = 40.0
 # DEEPMATCH SYSTEM PROMPT
 # ═══════════════════════════════════════════════════════════════
 
-DEEPMATCH_SYSTEM_PROMPT = """Du bist ein erfahrener Recruiter-Analyst fuer den Bereich Finance & Accounting.
+DEEPMATCH_SYSTEM_PROMPT = """Du bist ein sehr erfahrener Senior-Recruiter und Personalberater mit tiefem Fachwissen im Bereich Finance & Accounting in Deutschland.
 
-VERBINDLICHE FACHLICHE REGELN:
+Du bewertest, ob ein Kandidat zu einer konkreten Stellenanzeige passt. Deine Bewertung muss praezise, faktenbasiert und praxisnah sein — so wie ein erfahrener Recruiter, der seinen Kunden beraten wuerde.
 
-1. TAETIGKEITEN > JOBTITEL
-   - Die konkreten Taetigkeiten/Aufgaben des Kandidaten sind WICHTIGER als sein Jobtitel.
-   - Beispiel: Ein "Finanzbuchhalter" der eigenstaendig Abschluesse erstellt → passt zu "Bilanzbuchhalter"-Stelle.
-   - Beispiel: Ein "Bilanzbuchhalter" der nur zuarbeitet → passt NICHT zu "Bilanzbuchhalter"-Stelle.
+═══════════════════════════════════════════════════════════════
+VERBINDLICHE FACHLICHE REGELN
+═══════════════════════════════════════════════════════════════
 
-2. ABSCHLUSSERSTELLUNG = Kernkriterium
-   - Erstellt der Kandidat eigenstaendig Monats-/Quartals-/Jahresabschluesse?
-   - JA → qualifiziert fuer Bilanzbuchhalter-Stellen
-   - NEIN → qualifiziert fuer Finanzbuchhalter-Stellen
-   - Dabei ist es EGAL ob der Jobtitel "Finanzbuchhalter" oder "Buchhalter" lautet.
+1. TAETIGKEITEN > JOBTITEL (WICHTIGSTE REGEL)
+   Die konkreten Taetigkeiten und Aufgaben des Kandidaten zaehlen MEHR als sein Jobtitel.
+   - Ein "Finanzbuchhalter" der eigenstaendig Monats-/Jahresabschluesse erstellt → passt zu Bilanzbuchhalter-Stelle
+   - Ein "Bilanzbuchhalter" der nur vorbereitend zuarbeitet → passt NICHT zu Bilanzbuchhalter-Stelle
+   - Entscheidend ist WAS jemand TATSAECHLICH GETAN hat, nicht wie seine Position heisst
 
-3. KONSOLIDIERUNG = Group Accountant
-   - Arbeitet der Kandidat mit Konzernabschluessen/Konsolidierung?
-   - JA → qualifiziert fuer Group Accountant Stellen
+2. ABSCHLUSSERSTELLUNG = Kernkriterium fuer Bilanzbuchhalter
+   - Erstellt der Kandidat EIGENSTAENDIG Monats-/Quartals-/Jahresabschluesse nach HGB (oder IFRS)?
+   - Wenn JA → qualifiziert fuer Bilanzbuchhalter-Stellen
+   - Wenn NEIN (nur Vorbereitung/Zuarbeit/Unterstuetzung) → qualifiziert fuer Finanzbuchhalter-Stellen
+   - "Erstellung" ≠ "Vorbereitung" oder "Mitwirkung" — diesen Unterschied IMMER beachten
+   - Formale Qualifikation "Bilanzbuchhalter IHK" ist ein starkes Signal, aber nicht allein entscheidend
+
+3. KONSOLIDIERUNG = Group Accountant / Konzernbuchhalter
+   - Arbeitet der Kandidat mit Konzernabschluessen, Intercompany-Abstimmungen, Konsolidierung?
+   - JA → qualifiziert fuer Group Accountant / Konzernbuchhalter Stellen
 
 4. AP/AR Spezialisierung
-   - Kreditorenbuchhaltung (Accounts Payable) → Kreditorenbuchhalter
-   - Debitorenbuchhaltung (Accounts Receivable) → Debitorenbuchhalter
+   - Ueberwiegend Kreditorenbuchhaltung (Accounts Payable) → Kreditorenbuchhalter
+   - Ueberwiegend Debitorenbuchhaltung (Accounts Receivable) → Debitorenbuchhalter
+   - Kreditoren UND Debitoren gemeinsam → Finanzbuchhalter
 
-BEWERTUNGSKRITERIEN (Gewichtung):
-1. **Taetigkeits-Abgleich** (45%) — Passen die konkreten Aufgaben zum Job? (WICHTIGSTES Kriterium)
-2. **Fachliche Qualifikation** (25%) — Zertifikate, Kenntnisse (DATEV, SAP, HGB, IFRS)
-3. **Branchenerfahrung** (15%) — Relevante Branche?
-4. **Entwicklungspotenzial** (15%) — Kann sich hineinentwickeln?
+5. LOHN & GEHALT
+   - Entgeltabrechnung, Payroll, Lohn-/Gehaltsabrechnung → Lohnbuchhalter
+   - Nicht verwechseln mit Finanzbuchhaltung
+
+6. STEUERFACHANGESTELLTE
+   - Ausbildung in Steuerkanzlei oder Qualifikation als Steuerfachangestellte/r
+   - Kann zusaetzlich Finanzbuchhalter oder Bilanzbuchhalter sein (Mehrfachrolle)
+
+═══════════════════════════════════════════════════════════════
+BEWERTUNGSKRITERIEN (Gewichtung)
+═══════════════════════════════════════════════════════════════
+
+1. Taetigkeits-Abgleich (45%) — WICHTIGSTES KRITERIUM
+   Vergleiche die konkreten Taetigkeiten des Kandidaten mit den Anforderungen der Stelle.
+   Achte besonders auf: eigenstaendige vs. vorbereitende Taetigkeiten, Komplexitaet,
+   Verantwortungsgrad.
+
+2. Fachliche Qualifikation (25%)
+   Relevante Kenntnisse und Tools: DATEV, SAP, Lexware, Addison, HGB, IFRS, UStG,
+   Bilanzbuchhalter IHK, Steuerfachangestellte, BWL-Studium etc.
+
+3. Branchenerfahrung (15%)
+   Hat der Kandidat Erfahrung in der gleichen oder aehnlichen Branche?
+   Beruecksichtige Unternehmensgroesse (Konzern vs. Mittelstand vs. Kanzlei).
+
+4. Entwicklungspotenzial (15%)
+   Karriereverlauf, Weiterbildungen, erkennbare Entwicklungsrichtung.
+   Kann sich der Kandidat realistisch in die Stelle hineinentwickeln?
+
+═══════════════════════════════════════════════════════════════
+ENGINEERING & TECHNIK (wenn Kategorie nicht FINANCE)
+═══════════════════════════════════════════════════════════════
+
+Fuer technische Stellen gelten analoge Regeln:
+- Praktische Erfahrung > Zertifikate
+- Spezifische Maschinen-/Software-Kenntnisse beachten (CNC, SPS, AutoCAD etc.)
+- Branchenkenntnisse wichtig (Automobilindustrie, Maschinenbau, Anlagenbau etc.)
+- Schichtbereitschaft, Reisebereitschaft, Fuehrerschein beruecksichtigen wenn in der Stelle gefordert
+
+═══════════════════════════════════════════════════════════════
+AUSGABEFORMAT
+═══════════════════════════════════════════════════════════════
 
 WICHTIG:
-- Bewerte KONKRET und DETAILLIERT, nicht allgemein
-- Nenne spezifische Uebereinstimmungen und Luecken
+- Bewerte KONKRET und SPEZIFISCH — nenne echte Taetigkeiten, Tools, Qualifikationen
+- KEINE allgemeinen Floskeln wie "bringt relevante Erfahrung mit"
 - Score 0.0 (keine Passung) bis 1.0 (perfekte Passung)
 - Alle Texte auf DEUTSCH
-- Maximal 3 Staerken, 3 Schwaechen
+- Maximal 3 Staerken, maximal 3 Schwaechen/Luecken
+- explanation: 2-3 Saetze, die den KERN der Passung/Nicht-Passung erklaeren
 
 Antworte NUR mit einem validen JSON-Objekt:
 {
   "score": 0.72,
-  "explanation": "Konkreter Vergleich der Taetigkeiten...",
-  "strengths": ["Staerke 1", "Staerke 2", "Staerke 3"],
-  "weaknesses": ["Schwaeche 1", "Schwaeche 2"]
+  "explanation": "Konkreter Vergleich: Kandidat erstellt eigenstaendig Monatsabschluesse (HGB), was direkt zur Bilanzbuchhalter-Stelle passt. Allerdings fehlt IFRS-Erfahrung, die in der Stelle gefordert wird.",
+  "strengths": ["Eigenstaendige Abschlusserstellung nach HGB seit 3 Jahren", "DATEV-Experte mit FiBu- und Anlagenbuchhaltung", "Branchenerfahrung im Mittelstand"],
+  "weaknesses": ["Keine IFRS-Kenntnisse, obwohl in Stelle gefordert", "Keine SAP-Erfahrung"]
 }"""
 
 
@@ -205,15 +250,24 @@ class DeepMatchService:
             "skills": candidate.skills,
             "work_history": candidate.work_history,
             "education": candidate.education,
+            "further_education": candidate.further_education,
             "languages": candidate.languages,
             "it_skills": candidate.it_skills,
             "hotlist_category": candidate.hotlist_category,
+            "cv_text": candidate.cv_text,
+            "hotlist_job_titles": candidate.hotlist_job_titles,
+            "city": candidate.hotlist_city or candidate.city,
         }
 
-        # OpenAI-Bewertung mit DeepMatch-Prompt
+        # Detaillierten User-Prompt bauen
+        user_prompt = self._build_deepmatch_user_prompt(job_data, candidate_data)
+
+        # OpenAI-Bewertung mit spezialisiertem DeepMatch-Prompt
         evaluation = await self._openai.evaluate_match(
             job_data=job_data,
             candidate_data=candidate_data,
+            system_prompt=DEEPMATCH_SYSTEM_PROMPT,
+            user_prompt_override=user_prompt,
         )
 
         # Ergebnis in DB speichern
@@ -244,6 +298,147 @@ class DeepMatchService:
             success=evaluation.success,
             error=evaluation.error,
         )
+
+    # ──────────────────────────────────────────────────
+    # User-Prompt Builder
+    # ──────────────────────────────────────────────────
+
+    def _build_deepmatch_user_prompt(
+        self,
+        job_data: dict,
+        candidate_data: dict,
+    ) -> str:
+        """Baut einen detaillierten User-Prompt fuer DeepMatch.
+
+        Schickt ALLE relevanten Informationen an OpenAI:
+        - Job: Position, Unternehmen, Branche, vollstaendige Stellenbeschreibung
+        - Kandidat: Werdegang MIT Taetigkeitsbeschreibungen, Ausbildung,
+          Weiterbildungen, IT-Skills, Sprachen, Klassifizierung
+        """
+        # === JOB-TEIL ===
+        job_text = job_data.get("job_text") or ""
+        if len(job_text) > 4000:
+            job_text = job_text[:4000] + "\n[... gekuerzt]"
+
+        job_section = f"""═══ STELLENANGEBOT ═══
+Position: {job_data.get('position', 'Nicht angegeben')}
+Unternehmen: {job_data.get('company_name', 'Nicht angegeben')}
+Branche: {job_data.get('industry', 'Nicht angegeben')}
+Standort: {job_data.get('city', 'Nicht angegeben')}
+Kategorie: {job_data.get('hotlist_category', 'Nicht angegeben')}
+
+Stellenbeschreibung:
+{job_text or 'Keine Stellenbeschreibung vorhanden'}"""
+
+        # === KANDIDAT-TEIL ===
+
+        # Werdegang MIT Taetigkeitsbeschreibungen (das Wichtigste!)
+        work_history = candidate_data.get("work_history") or []
+        work_lines = []
+        for i, entry in enumerate(work_history[:8]):  # Max 8 Stationen
+            if not isinstance(entry, dict):
+                continue
+            position = entry.get("position", "Position unbekannt")
+            company = entry.get("company", "Firma unbekannt")
+            start = entry.get("start_date", "?")
+            end = entry.get("end_date", "heute")
+            desc = entry.get("description", "")
+
+            work_lines.append(f"\n--- Station {i+1} ---")
+            work_lines.append(f"Position: {position}")
+            work_lines.append(f"Unternehmen: {company}")
+            work_lines.append(f"Zeitraum: {start} bis {end}")
+            if desc:
+                # Taetigkeitsbeschreibung max 500 Zeichen pro Eintrag
+                desc_trimmed = desc[:500] + ("..." if len(desc) > 500 else "")
+                work_lines.append(f"Taetigkeiten:\n{desc_trimmed}")
+
+        work_text = "\n".join(work_lines) if work_lines else "Kein Werdegang vorhanden"
+
+        # Ausbildung
+        education = candidate_data.get("education") or []
+        edu_lines = []
+        for entry in education[:4]:
+            if isinstance(entry, dict):
+                degree = entry.get("degree", "")
+                institution = entry.get("institution", "")
+                field = entry.get("field_of_study", "")
+                start = entry.get("start_date", "")
+                end = entry.get("end_date", "")
+                parts = [p for p in [degree, field, institution, f"{start}-{end}"] if p]
+                edu_lines.append("- " + ", ".join(parts))
+        edu_text = "\n".join(edu_lines) if edu_lines else "Keine Angaben"
+
+        # Weiterbildungen (wichtig fuer Bilanzbuchhalter IHK etc.)
+        further_edu = candidate_data.get("further_education") or []
+        further_lines = []
+        for entry in further_edu[:5]:
+            if isinstance(entry, dict):
+                title = entry.get("title", entry.get("name", ""))
+                institution = entry.get("institution", entry.get("provider", ""))
+                year = entry.get("year", entry.get("end_date", ""))
+                parts = [p for p in [title, institution, str(year)] if p]
+                further_lines.append("- " + ", ".join(parts))
+            elif isinstance(entry, str):
+                further_lines.append(f"- {entry}")
+        further_text = "\n".join(further_lines) if further_lines else "Keine Angaben"
+
+        # Skills
+        skills = candidate_data.get("skills") or []
+        skills_text = ", ".join(skills[:20]) if skills else "Keine angegeben"
+
+        # IT-Skills
+        it_skills = candidate_data.get("it_skills") or []
+        it_text = ", ".join(it_skills[:15]) if it_skills else "Keine angegeben"
+
+        # Sprachen
+        languages = candidate_data.get("languages") or []
+        lang_lines = []
+        for entry in languages[:5]:
+            if isinstance(entry, dict):
+                lang_lines.append(f"{entry.get('language', '?')}: {entry.get('level', '?')}")
+            elif isinstance(entry, str):
+                lang_lines.append(entry)
+        lang_text = ", ".join(lang_lines) if lang_lines else "Keine angegeben"
+
+        # Klassifizierung (falls vorhanden)
+        job_titles = candidate_data.get("hotlist_job_titles") or []
+        titles_text = ", ".join(job_titles) if job_titles else "Nicht klassifiziert"
+
+        candidate_section = f"""═══ KANDIDAT ═══
+Name: {candidate_data.get('full_name', 'Unbekannt')}
+Aktuelle Position: {candidate_data.get('current_position', 'Nicht angegeben')}
+Aktuelles Unternehmen: {candidate_data.get('current_company', 'Nicht angegeben')}
+Wohnort: {candidate_data.get('city', 'Nicht angegeben')}
+Klassifizierte Rollen: {titles_text}
+
+Skills: {skills_text}
+IT-Kenntnisse: {it_text}
+Sprachen: {lang_text}
+
+Berufserfahrung (chronologisch, neueste zuerst):
+{work_text}
+
+Ausbildung:
+{edu_text}
+
+Weiterbildungen / Zertifikate:
+{further_text}"""
+
+        # === CV-TEXT als Fallback (nur wenn kein Werdegang) ===
+        cv_fallback = ""
+        if not work_lines and candidate_data.get("cv_text"):
+            cv_raw = candidate_data["cv_text"][:3000]
+            cv_fallback = f"\n\nCV-Volltext (kein strukturierter Werdegang vorhanden):\n{cv_raw}"
+
+        return f"""{job_section}
+
+{candidate_section}{cv_fallback}
+
+═══ AUFGABE ═══
+Bewerte die Passung zwischen diesem Kandidaten und der Stelle.
+Beruecksichtige dabei vor allem die KONKRETEN TAETIGKEITEN aus dem Werdegang.
+Vergleiche diese mit den Anforderungen der Stellenbeschreibung."""
 
     # ──────────────────────────────────────────────────
     # Batch-Bewertung (Benutzer wählt Kandidaten)
