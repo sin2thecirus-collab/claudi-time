@@ -918,7 +918,7 @@ async def deep_match_hub_page(
             "job_company": job.company_name,
             "job_city": job.hotlist_city or job.display_city,
             "job_job_titles": job.hotlist_job_titles or ([job.hotlist_job_title] if job.hotlist_job_title else []),
-            "job_url": job.url,
+            "job_url": job.job_url,
             "distance_km": round(match.distance_km, 1) if match.distance_km else None,
             "pre_score": round(match.pre_score, 0) if match.pre_score else None,
             "ai_score": ai_score_pct,
