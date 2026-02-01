@@ -194,7 +194,7 @@
                     <td class="px-3 py-3">
                         <div class="flex items-center gap-2">
                             <div>
-                                <a href="/candidates/{{ m.candidate_id }}"
+                                <a href="/kandidaten/{{ m.candidate_id }}"
                                    @click.stop
                                    class="text-sm font-semibold text-gray-900 hover:text-primary-600 transition-colors">
                                     {{ m.candidate_name }}
@@ -778,7 +778,7 @@ function buildCandidateCV(data) {
     if (!html) {
         html = '<div class="text-center py-12">' +
             '<p class="text-gray-400 italic">Keine CV-Daten verfuegbar</p>' +
-            '<a href="/candidates/' + data.candidateId + '" target="_blank" ' +
+            '<a href="/kandidaten/' + data.candidateId + '" target="_blank" ' +
             'class="inline-flex items-center gap-2 px-4 py-2 mt-4 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 font-medium text-sm">' +
             'Kandidat oeffnen</a></div>';
     }

@@ -39,7 +39,7 @@
             </div>
             <div class="min-w-0">
                 {% if candidate.first_name or candidate.last_name %}
-                <a href="/candidates/{{ candidate.id }}" class="text-sm font-semibold text-gray-900 hover:text-primary-600 transition-colors truncate block">
+                <a href="/kandidaten/{{ candidate.id }}" class="text-sm font-semibold text-gray-900 hover:text-primary-600 transition-colors truncate block">
                     {{ candidate.first_name or '' }} {{ candidate.last_name or '' }}
                 </a>
                 {% else %}
@@ -103,7 +103,7 @@
 
     {# ── Aktionen ── #}
     <div class="col-span-2 text-right flex items-center justify-end gap-1.5">
-        <a href="/candidates/{{ candidate.id }}"
+        <a href="/kandidaten/{{ candidate.id }}"
            class="inline-flex items-center gap-1 rounded-md bg-gray-100 text-gray-600 hover:bg-gray-200 px-2 py-1.5 text-xs font-medium transition-colors"
            title="Kandidaten-Profil">
             <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
