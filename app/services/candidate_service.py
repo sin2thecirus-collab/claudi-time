@@ -12,7 +12,7 @@ from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from geoalchemy2 import functions as geo_func
-from sqlalchemy import and_, func, or_, select, update
+from sqlalchemy import and_, cast, func, or_, select, update, String
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import limits
@@ -563,10 +563,16 @@ class CandidateService:
         if filters.city_search:
             query = query.where(Candidate.city.ilike(f"%{filters.city_search}%"))
 
-        # Skills-Filter (AND-Verknüpfung)
+        # Skills-Filter (Textsuche in skills + it_skills Arrays)
         if filters.skills:
             for skill in filters.skills:
-                query = query.where(Candidate.skills.contains([skill]))
+                skill_term = f"%{skill}%"
+                query = query.where(
+                    or_(
+                        cast(Candidate.skills, String).ilike(skill_term),
+                        cast(Candidate.it_skills, String).ilike(skill_term),
+                    )
+                )
 
         # Position-Filter
         if filters.position:
