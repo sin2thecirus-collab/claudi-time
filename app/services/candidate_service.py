@@ -578,6 +578,10 @@ class CandidateService:
         if filters.position:
             query = query.where(Candidate.current_position.ilike(f"%{filters.position}%"))
 
+        # Kategorie-Filter (FINANCE, ENGINEERING)
+        if filters.hotlist_category:
+            query = query.where(Candidate.hotlist_category == filters.hotlist_category)
+
         # Nur aktive Kandidaten
         if filters.only_active:
             cutoff = datetime.now(timezone.utc) - timedelta(days=limits.ACTIVE_CANDIDATE_DAYS)

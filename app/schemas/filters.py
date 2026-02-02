@@ -106,6 +106,7 @@ class CandidateFilterParams(BaseModel):
     # Einzelne Filter
     position: SearchTerm = Field(default=None, description="Filter nach Position")
     city_search: str | None = Field(default=None, description="Freitext-Suche nach Stadt")
+    hotlist_category: str | None = Field(default=None, description="Filter nach Kategorie (FINANCE, ENGINEERING)")
 
     # Distanz-Filter
     min_distance_km: float | None = Field(

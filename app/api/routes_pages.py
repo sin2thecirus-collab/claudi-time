@@ -457,6 +457,7 @@ async def candidates_list_partial(
     position: Optional[str] = None,
     skills: Optional[str] = None,
     city: Optional[str] = None,
+    category: Optional[str] = None,
     db: AsyncSession = Depends(get_db)
 ):
     """Partial: Kandidaten-Liste fuer HTMX."""
@@ -476,6 +477,7 @@ async def candidates_list_partial(
         position=position if position else None,
         skills=skills_list,
         city_search=city if city else None,
+        hotlist_category=category if category else None,
         include_hidden=False,
         only_active=False,
     )
@@ -501,6 +503,7 @@ async def candidates_list_partial(
             "position": position,
             "skills": skills,
             "city": city,
+            "category": category,
         }
     )
 

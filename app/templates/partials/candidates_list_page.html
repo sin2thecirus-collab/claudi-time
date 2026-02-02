@@ -191,7 +191,7 @@
                     <button hx-delete="/api/candidates/{{ candidate.id }}"
                             hx-confirm="Kandidat {{ candidate.first_name }} {{ candidate.last_name }} wirklich loeschen? Der Kandidat wird beim naechsten CRM-Sync ignoriert."
                             hx-swap="none"
-                            hx-on::after-request="if(event.detail.successful) htmx.ajax('GET', '/partials/candidates-list?page={{ page }}{% if search %}&search={{ search }}{% endif %}{% if position %}&position={{ position }}{% endif %}{% if skills %}&skills={{ skills }}{% endif %}{% if city %}&city={{ city }}{% endif %}', {target:'#candidates-list', swap:'innerHTML'})"
+                            hx-on::after-request="if(event.detail.successful) htmx.ajax('GET', '/partials/candidates-list?page={{ page }}{% if search %}&search={{ search }}{% endif %}{% if position %}&position={{ position }}{% endif %}{% if skills %}&skills={{ skills }}{% endif %}{% if city %}&city={{ city }}{% endif %}{% if category %}&category={{ category }}{% endif %}', {target:'#candidates-list', swap:'innerHTML'})"
                             class="text-red-500 hover:text-red-700 transition-colors"
                             onclick="event.stopPropagation()"
                             title="Kandidat loeschen">
@@ -213,7 +213,7 @@
     <div class="flex items-center justify-between">
         <div class="flex-1 flex justify-between sm:hidden">
             {% if page > 1 %}
-            <button hx-get="/partials/candidates-list?page={{ page - 1 }}{% if search %}&search={{ search }}{% endif %}{% if position %}&position={{ position }}{% endif %}{% if skills %}&skills={{ skills }}{% endif %}{% if city %}&city={{ city }}{% endif %}&per_page={{ per_page }}"
+            <button hx-get="/partials/candidates-list?page={{ page - 1 }}{% if search %}&search={{ search }}{% endif %}{% if position %}&position={{ position }}{% endif %}{% if skills %}&skills={{ skills }}{% endif %}{% if city %}&city={{ city }}{% endif %}{% if category %}&category={{ category }}{% endif %}&per_page={{ per_page }}"
                     hx-target="#candidates-list"
                     hx-swap="innerHTML"
                     class="relative inline-flex items-center px-5 py-2.5 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
@@ -221,7 +221,7 @@
             </button>
             {% endif %}
             {% if page < total_pages %}
-            <button hx-get="/partials/candidates-list?page={{ page + 1 }}{% if search %}&search={{ search }}{% endif %}{% if position %}&position={{ position }}{% endif %}{% if skills %}&skills={{ skills }}{% endif %}{% if city %}&city={{ city }}{% endif %}&per_page={{ per_page }}"
+            <button hx-get="/partials/candidates-list?page={{ page + 1 }}{% if search %}&search={{ search }}{% endif %}{% if position %}&position={{ position }}{% endif %}{% if skills %}&skills={{ skills }}{% endif %}{% if city %}&city={{ city }}{% endif %}{% if category %}&category={{ category }}{% endif %}&per_page={{ per_page }}"
                     hx-target="#candidates-list"
                     hx-swap="innerHTML"
                     class="ml-3 relative inline-flex items-center px-5 py-2.5 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
@@ -245,7 +245,7 @@
                 <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
                     {# Zurueck #}
                     {% if page > 1 %}
-                    <button hx-get="/partials/candidates-list?page={{ page - 1 }}{% if search %}&search={{ search }}{% endif %}{% if position %}&position={{ position }}{% endif %}{% if skills %}&skills={{ skills }}{% endif %}{% if city %}&city={{ city }}{% endif %}&per_page={{ per_page }}"
+                    <button hx-get="/partials/candidates-list?page={{ page - 1 }}{% if search %}&search={{ search }}{% endif %}{% if position %}&position={{ position }}{% endif %}{% if skills %}&skills={{ skills }}{% endif %}{% if city %}&city={{ city }}{% endif %}{% if category %}&category={{ category }}{% endif %}&per_page={{ per_page }}"
                             hx-target="#candidates-list"
                             hx-swap="innerHTML"
                             class="relative inline-flex items-center px-3 py-2.5 rounded-l-md border border-gray-300 bg-white text-base font-medium text-gray-500 hover:bg-gray-50">
@@ -263,7 +263,7 @@
                             {{ p }}
                         </span>
                         {% elif p == 1 or p == total_pages or (p >= page - 1 and p <= page + 1) %}
-                        <button hx-get="/partials/candidates-list?page={{ p }}{% if search %}&search={{ search }}{% endif %}{% if position %}&position={{ position }}{% endif %}{% if skills %}&skills={{ skills }}{% endif %}{% if city %}&city={{ city }}{% endif %}&per_page={{ per_page }}"
+                        <button hx-get="/partials/candidates-list?page={{ p }}{% if search %}&search={{ search }}{% endif %}{% if position %}&position={{ position }}{% endif %}{% if skills %}&skills={{ skills }}{% endif %}{% if city %}&city={{ city }}{% endif %}{% if category %}&category={{ category }}{% endif %}&per_page={{ per_page }}"
                                 hx-target="#candidates-list"
                                 hx-swap="innerHTML"
                                 class="relative inline-flex items-center px-5 py-2.5 border border-gray-300 bg-white text-base font-medium text-gray-700 hover:bg-gray-50">
@@ -278,7 +278,7 @@
 
                     {# Weiter #}
                     {% if page < total_pages %}
-                    <button hx-get="/partials/candidates-list?page={{ page + 1 }}{% if search %}&search={{ search }}{% endif %}{% if position %}&position={{ position }}{% endif %}{% if skills %}&skills={{ skills }}{% endif %}{% if city %}&city={{ city }}{% endif %}&per_page={{ per_page }}"
+                    <button hx-get="/partials/candidates-list?page={{ page + 1 }}{% if search %}&search={{ search }}{% endif %}{% if position %}&position={{ position }}{% endif %}{% if skills %}&skills={{ skills }}{% endif %}{% if city %}&city={{ city }}{% endif %}{% if category %}&category={{ category }}{% endif %}&per_page={{ per_page }}"
                             hx-target="#candidates-list"
                             hx-swap="innerHTML"
                             class="relative inline-flex items-center px-3 py-2.5 rounded-r-md border border-gray-300 bg-white text-base font-medium text-gray-500 hover:bg-gray-50">
@@ -491,7 +491,7 @@ function batchDeleteSelected() {
             exitSelectionMode();
             var perPage = document.getElementById('per-page-select');
             var perPageVal = perPage ? perPage.value : '{{ per_page }}';
-            htmx.ajax('GET', '/partials/candidates-list?page={{ page }}{% if search %}&search={{ search }}{% endif %}{% if position %}&position={{ position }}{% endif %}{% if skills %}&skills={{ skills }}{% endif %}{% if city %}&city={{ city }}{% endif %}&per_page=' + perPageVal, {target:'#candidates-list', swap:'innerHTML'});
+            htmx.ajax('GET', '/partials/candidates-list?page={{ page }}{% if search %}&search={{ search }}{% endif %}{% if position %}&position={{ position }}{% endif %}{% if skills %}&skills={{ skills }}{% endif %}{% if city %}&city={{ city }}{% endif %}{% if category %}&category={{ category }}{% endif %}&per_page=' + perPageVal, {target:'#candidates-list', swap:'innerHTML'});
         }
     });
 }

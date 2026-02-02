@@ -41,7 +41,7 @@
                        hx-get="/partials/candidates-list"
                        hx-trigger="keyup changed delay:300ms"
                        hx-target="#candidates-list"
-                       hx-include="[name='search'], [name='per_page'], [name='position'], [name='skills'], [name='city']"
+                       hx-include="[name='search'], [name='per_page'], [name='position'], [name='skills'], [name='city'], [name='category']"
                        class="block w-80 rounded-md border-0 py-3 pl-12 pr-4 text-lg text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-primary-600 leading-6">
                 <div class="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
                     <svg class="h-6 w-6 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
@@ -50,6 +50,35 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    {# Kategorie-Riegel (Segmented Control) #}
+    <div x-data="{ activeCategory: '' }" class="flex items-center justify-center">
+        <div class="inline-flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+            <button type="button"
+                    :class="activeCategory === 'FINANCE' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+                    @click="activeCategory = 'FINANCE'; $refs.categoryInput.value = 'FINANCE'; htmx.trigger($refs.categoryInput, 'change')"
+                    class="rounded-md px-5 py-2.5 text-base font-medium transition-all">
+                Finance
+            </button>
+            <button type="button"
+                    :class="activeCategory === '' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+                    @click="activeCategory = ''; $refs.categoryInput.value = ''; htmx.trigger($refs.categoryInput, 'change')"
+                    class="rounded-md px-5 py-2.5 text-base font-medium transition-all">
+                Alle
+            </button>
+            <button type="button"
+                    :class="activeCategory === 'ENGINEERING' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+                    @click="activeCategory = 'ENGINEERING'; $refs.categoryInput.value = 'ENGINEERING'; htmx.trigger($refs.categoryInput, 'change')"
+                    class="rounded-md px-5 py-2.5 text-base font-medium transition-all">
+                Engineering
+            </button>
+        </div>
+        <input type="hidden" name="category" x-ref="categoryInput" value=""
+               hx-get="/partials/candidates-list"
+               hx-trigger="change"
+               hx-target="#candidates-list"
+               hx-include="[name='search'], [name='per_page'], [name='position'], [name='skills'], [name='city'], [name='category']">
     </div>
 
     {# Erweiterte Filter #}
@@ -79,7 +108,7 @@
                            hx-get="/partials/candidates-list"
                            hx-trigger="keyup changed delay:300ms"
                            hx-target="#candidates-list"
-                           hx-include="[name='search'], [name='per_page'], [name='position'], [name='skills'], [name='city']"
+                           hx-include="[name='search'], [name='per_page'], [name='position'], [name='skills'], [name='city'], [name='category']"
                            oninput="updateFilterBadge()"
                            class="block w-full rounded-md border-0 py-2.5 pl-4 pr-4 text-base text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-primary-600">
                 </div>
@@ -92,7 +121,7 @@
                            hx-get="/partials/candidates-list"
                            hx-trigger="keyup changed delay:300ms"
                            hx-target="#candidates-list"
-                           hx-include="[name='search'], [name='per_page'], [name='position'], [name='skills'], [name='city']"
+                           hx-include="[name='search'], [name='per_page'], [name='position'], [name='skills'], [name='city'], [name='category']"
                            oninput="updateFilterBadge()"
                            class="block w-full rounded-md border-0 py-2.5 pl-4 pr-4 text-base text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-primary-600">
                 </div>
@@ -105,7 +134,7 @@
                            hx-get="/partials/candidates-list"
                            hx-trigger="keyup changed delay:300ms"
                            hx-target="#candidates-list"
-                           hx-include="[name='search'], [name='per_page'], [name='position'], [name='skills'], [name='city']"
+                           hx-include="[name='search'], [name='per_page'], [name='position'], [name='skills'], [name='city'], [name='category']"
                            oninput="updateFilterBadge()"
                            class="block w-full rounded-md border-0 py-2.5 pl-4 pr-4 text-base text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-primary-600">
                 </div>
@@ -152,6 +181,8 @@ function changePerPage(perPage) {
     if (skills && skills.value) url += '&skills=' + encodeURIComponent(skills.value);
     var city = document.querySelector('[name="city"]');
     if (city && city.value) url += '&city=' + encodeURIComponent(city.value);
+    var category = document.querySelector('[name="category"]');
+    if (category && category.value) url += '&category=' + encodeURIComponent(category.value);
     htmx.ajax('GET', url, {target:'#candidates-list', swap:'innerHTML'});
 }
 
@@ -161,6 +192,9 @@ function resetCandidateFilters() {
     });
     var search = document.getElementById('candidate-search');
     if (search) search.value = '';
+    // Kategorie-Riegel zuruecksetzen
+    var category = document.querySelector('[name="category"]');
+    if (category) category.value = '';
     updateFilterBadge();
     var perPage = document.getElementById('per-page-select');
     var perPageVal = perPage ? perPage.value : '25';
