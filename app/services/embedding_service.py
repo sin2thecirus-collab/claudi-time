@@ -3,17 +3,17 @@
 Nutzt OpenAI text-embedding-3-small (1536 Dimensionen):
 - $0.02 / 1M Tokens → ~$0.05 fuer alle Finance-Kandidaten + Jobs
 - Generiert Embeddings aus strukturierten Texten (CV, Job-Beschreibung)
-- Speichert Vektoren in PostgreSQL via pgvector
-- Bietet Cosine-Similarity-Suche mit PostGIS-Distanzfilter
+- Speichert Vektoren in PostgreSQL als JSONB-Array (kein pgvector noetig!)
+- Bietet Cosine-Similarity-Suche in Python + PostGIS-Distanzfilter in SQL
 """
 
 import logging
+import math
 from typing import Any
 from uuid import UUID
 
 import httpx
-from pgvector.sqlalchemy import Vector
-from sqlalchemy import func, select, text, and_, cast
+from sqlalchemy import func, select, text, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -37,7 +37,7 @@ class EmbeddingService:
     - Text-Aufbereitung: Baut aus strukturierten Daten einen optimalen Embedding-Text
     - Embedding-Generierung: OpenAI API Call (text-embedding-3-small)
     - Speicherung: Vektoren in candidates.embedding / jobs.embedding
-    - Similarity-Suche: pgvector Cosine-Similarity mit PostGIS-Distanzfilter
+    - Similarity-Suche: Python Cosine-Similarity + PostGIS-Distanzfilter
     """
 
     def __init__(self, db: AsyncSession, api_key: str | None = None):
@@ -485,8 +485,23 @@ class EmbeddingService:
         return stats
 
     # ═══════════════════════════════════════════════════════════════
-    # SIMILARITY-SUCHE (pgvector + PostGIS)
+    # SIMILARITY-SUCHE (Python Cosine-Similarity + PostGIS Distanz)
     # ═══════════════════════════════════════════════════════════════
+
+    @staticmethod
+    def _cosine_similarity(vec_a: list[float], vec_b: list[float]) -> float:
+        """Berechnet die Cosine-Similarity zwischen zwei Vektoren.
+
+        Rein Python — kein numpy noetig. Performant genug fuer ~2000 Kandidaten.
+        """
+        dot_product = sum(a * b for a, b in zip(vec_a, vec_b))
+        norm_a = math.sqrt(sum(a * a for a in vec_a))
+        norm_b = math.sqrt(sum(b * b for b in vec_b))
+
+        if norm_a == 0 or norm_b == 0:
+            return 0.0
+
+        return dot_product / (norm_a * norm_b)
 
     async def find_similar_candidates(
         self,
@@ -496,10 +511,13 @@ class EmbeddingService:
     ) -> list[dict]:
         """Findet die aehnlichsten Kandidaten fuer einen Job via Embedding-Similarity.
 
-        Kombiniert:
-        1. Kategorie-Filter: Nur FINANCE-Kandidaten
-        2. PostGIS-Distanzfilter: Maximal max_distance_km Entfernung
-        3. pgvector Cosine-Similarity: Top N nach semantischer Aehnlichkeit
+        Ablauf:
+        1. Job-Embedding laden
+        2. Alle Finance-Kandidaten mit Embedding + Distanz laden (PostGIS-Filter in SQL)
+        3. Cosine-Similarity in Python berechnen
+        4. Top N zurueckgeben
+
+        Performant genug fuer ~2000 Finance-Kandidaten (< 100ms in Python).
 
         Args:
             job_id: Job-ID
@@ -522,29 +540,27 @@ class EmbeddingService:
             logger.warning(f"Job {job_id} hat kein Embedding — erst generieren!")
             return []
 
-        # SQL-Query: pgvector Cosine-Similarity + PostGIS-Distanz
-        # cosine_distance = 1 - cosine_similarity
-        # Also: niedrigere Distance = hoehere Similarity
-        #
-        # Wir nutzen den <=> Operator (Cosine Distance) von pgvector
-        # und konvertieren zu Similarity: 1 - distance
-        #
-        # WICHTIG: Der Embedding-Parameter muss explizit als ::vector gecastet werden,
-        # da asyncpg den String-Parameter sonst nicht als pgvector-Typ erkennt.
+        job_embedding = job.embedding  # JSONB → Python list[float]
+        if not isinstance(job_embedding, list) or len(job_embedding) == 0:
+            logger.warning(f"Job {job_id}: Ungültiges Embedding-Format")
+            return []
 
+        # ── Schritt 1: Alle Finance-Kandidaten mit Embedding + PostGIS-Distanz laden ──
+        # Distanz wird in SQL berechnet (PostGIS), Similarity in Python.
         query = text("""
             SELECT
                 c.id AS candidate_id,
-                1 - (c.embedding <=> CAST(:job_embedding AS vector)) AS similarity,
+                c.embedding AS candidate_embedding,
                 CASE
-                    WHEN c.address_coords IS NOT NULL AND :job_coords IS NOT NULL
+                    WHEN c.address_coords IS NOT NULL AND j.location_coords IS NOT NULL
                     THEN ST_Distance(
                         c.address_coords::geography,
-                        ST_GeogFromText(:job_coords)
+                        j.location_coords::geography
                     ) / 1000.0
                     ELSE NULL
                 END AS distance_km
             FROM candidates c
+            CROSS JOIN (SELECT location_coords FROM jobs WHERE id = :job_id) j
             WHERE
                 c.hotlist_category = 'FINANCE'
                 AND c.hidden = false
@@ -553,66 +569,51 @@ class EmbeddingService:
                 AND (
                     -- Distanz-Filter: Entweder innerhalb max_distance_km ODER keine Koordinaten
                     c.address_coords IS NULL
-                    OR :job_coords IS NULL
+                    OR j.location_coords IS NULL
                     OR ST_DWithin(
                         c.address_coords::geography,
-                        ST_GeogFromText(:job_coords),
+                        j.location_coords::geography,
                         :max_distance_m
                     )
                 )
-            ORDER BY c.embedding <=> CAST(:job_embedding AS vector) ASC
-            LIMIT :result_limit
         """)
-
-        # Job-Koordinaten als WKT (Well-Known Text)
-        job_coords = None
-        try:
-            coords_result = await self.db.execute(
-                text("SELECT ST_AsText(location_coords) FROM jobs WHERE id = :jid"),
-                {"jid": str(job_id)},
-            )
-            row = coords_result.first()
-            if row and row[0]:
-                job_coords = row[0]
-        except Exception as e:
-            logger.warning(f"Job {job_id}: Konnte Koordinaten nicht laden: {e}")
-            # Ohne Koordinaten weiter — Distanzfilter wird uebersprungen
-
-        # Job-Embedding als String fuer SQL (pgvector erwartet '[1,2,3,...]' Format)
-        # WICHTIG: Keine Leerzeichen nach Kommas — pgvector erwartet kompaktes Format
-        embedding_values = job.embedding
-        if hasattr(embedding_values, 'tolist'):
-            # numpy array → Python list
-            embedding_values = embedding_values.tolist()
-        elif not isinstance(embedding_values, list):
-            embedding_values = list(embedding_values)
-        job_embedding_str = '[' + ','.join(str(v) for v in embedding_values) + ']'
 
         result = await self.db.execute(
             query,
             {
-                "job_embedding": job_embedding_str,
-                "job_coords": job_coords,
+                "job_id": str(job_id),
                 "max_distance_m": max_distance_km * 1000,  # km → Meter
-                "result_limit": limit,
             },
         )
 
-        candidates = []
+        # ── Schritt 2: Cosine-Similarity in Python berechnen ──
+        scored_candidates = []
         for row in result.all():
-            candidates.append({
-                "candidate_id": row[0],
-                "similarity": round(float(row[1]), 4),
-                "distance_km": round(float(row[2]), 1) if row[2] is not None else None,
+            cand_id = row[0]
+            cand_embedding = row[1]  # JSONB → Python list
+            distance_km = row[2]
+
+            if not isinstance(cand_embedding, list) or len(cand_embedding) == 0:
+                continue
+
+            similarity = self._cosine_similarity(job_embedding, cand_embedding)
+            scored_candidates.append({
+                "candidate_id": cand_id,
+                "similarity": round(similarity, 4),
+                "distance_km": round(float(distance_km), 1) if distance_km is not None else None,
             })
+
+        # ── Schritt 3: Top N sortiert nach Similarity DESC ──
+        scored_candidates.sort(key=lambda c: c["similarity"], reverse=True)
+        top_candidates = scored_candidates[:limit]
 
         logger.info(
             f"Similarity-Suche fuer Job {job_id}: "
-            f"{len(candidates)} Kandidaten gefunden "
+            f"{len(top_candidates)} von {len(scored_candidates)} Kandidaten zurueckgegeben "
             f"(max {max_distance_km}km, Top {limit})"
         )
 
-        return candidates
+        return top_candidates
 
     # ═══════════════════════════════════════════════════════════════
     # STATUS / STATISTIKEN

@@ -4,7 +4,6 @@ import uuid
 from datetime import date, datetime
 
 from geoalchemy2 import Geography
-from pgvector.sqlalchemy import Vector
 from sqlalchemy import ARRAY, Boolean, Column, Date, DateTime, Index, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -81,7 +80,8 @@ class Candidate(Base):
     classification_data: Mapped[dict | None] = mapped_column(JSONB)  # {"source", "roles", "reasoning", "classified_at"}
 
     # Embedding (pgvector - text-embedding-3-small, 1536 Dimensionen)
-    embedding = Column(Vector(1536))
+    # Embedding (OpenAI text-embedding-3-small, 1536 Dimensionen, als JSONB-Array gespeichert)
+    embedding = Column(JSONB)
 
     # Status
     hidden: Mapped[bool] = mapped_column(Boolean, default=False)

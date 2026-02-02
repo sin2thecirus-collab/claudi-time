@@ -235,13 +235,9 @@ async def init_db() -> None:
     # ── Tabellen-Erstellung (fuer neue Tabellen die nicht via Alembic laufen) ──
     await _ensure_company_tables()
 
-    # ── pgvector Extension aktivieren ──
-    try:
-        async with engine.begin() as conn:
-            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-            logger.info("pgvector Extension aktiviert.")
-    except Exception as e:
-        logger.warning(f"pgvector Extension konnte nicht aktiviert werden: {e}")
+    # ── pgvector Extension NICHT noetig — Embeddings werden als JSONB gespeichert ──
+    # Railway Standard-PostgreSQL hat kein pgvector vorinstalliert.
+    # Similarity-Suche laeuft stattdessen in Python (performant genug fuer ~2000 Kandidaten).
 
     # Automatische Migrationen für neue Spalten
     # Lock-Timeout setzen damit ALTER TABLE nicht ewig blockiert
@@ -282,9 +278,9 @@ async def init_db() -> None:
         # Jobs: Import-Tracking
         ("jobs", "imported_at", "TIMESTAMPTZ DEFAULT NOW()"),
         ("jobs", "last_updated_at", "TIMESTAMPTZ"),
-        # Embeddings (pgvector - text-embedding-3-small, 1536 Dimensionen)
-        ("candidates", "embedding", "vector(1536)"),
-        ("jobs", "embedding", "vector(1536)"),
+        # Embeddings (als JSONB-Array gespeichert — kein pgvector noetig)
+        ("candidates", "embedding", "JSONB"),
+        ("jobs", "embedding", "JSONB"),
     ]
     for table_name, col_name, col_type in migrations:
         try:
@@ -318,53 +314,5 @@ async def init_db() -> None:
     except Exception as e:
         logger.warning(f"Backfill imported_at übersprungen: {e}")
 
-    # ── pgvector IVFFlat-Indexes fuer Embedding-Similarity-Suche ──
-    # IVFFlat braucht Daten zum Erstellen der Listen. Wir erstellen die Indexes
-    # erst wenn Embeddings vorhanden sind (sonst schlaegt IVFFlat fehl).
-    # Fallback: HNSW-Index der auch ohne Daten funktioniert.
-    embedding_indexes = [
-        (
-            "ix_candidates_embedding_cosine",
-            "candidates",
-            "embedding",
-        ),
-        (
-            "ix_jobs_embedding_cosine",
-            "jobs",
-            "embedding",
-        ),
-    ]
-    for idx_name, table_name, col_name in embedding_indexes:
-        try:
-            async with engine.begin() as conn:
-                # Prüfen ob Spalte existiert
-                result = await conn.execute(
-                    text(
-                        "SELECT column_name FROM information_schema.columns "
-                        "WHERE table_name = :table AND column_name = :col"
-                    ),
-                    {"table": table_name, "col": col_name},
-                )
-                if not result.fetchone():
-                    continue
-
-                # Prüfen ob Index bereits existiert
-                result = await conn.execute(
-                    text(
-                        "SELECT indexname FROM pg_indexes "
-                        "WHERE indexname = :idx_name"
-                    ),
-                    {"idx_name": idx_name},
-                )
-                if result.fetchone():
-                    continue
-
-                # HNSW-Index erstellen (funktioniert auch ohne Daten, im Gegensatz zu IVFFlat)
-                await conn.execute(text(
-                    f"CREATE INDEX {idx_name} ON {table_name} "
-                    f"USING hnsw ({col_name} vector_cosine_ops) "
-                    f"WITH (m = 16, ef_construction = 64)"
-                ))
-                logger.info(f"HNSW-Index '{idx_name}' auf {table_name}.{col_name} erstellt.")
-        except Exception as e:
-            logger.warning(f"Embedding-Index '{idx_name}' übersprungen: {e}")
+    # ── Embedding-Indexes nicht noetig (JSONB, kein pgvector) ──
+    # Similarity-Suche laeuft in Python, nicht in SQL.
