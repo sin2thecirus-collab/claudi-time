@@ -326,7 +326,7 @@ var _skillsData = {{ (candidate.skills or []) | tojson | safe }};
 var _candidateName = {{ (candidate.full_name or ((candidate.first_name or '') ~ ' ' ~ (candidate.last_name or ''))) | tojson | safe }};
 
 function buildFullProfileText(name, workHistory, itSkills, languages, furtherEdu, education, skills) {
-    var lines = ['PROFIL - ' + (name || '').trim(), ''];
+    var lines = [];
     var hasContent = false;
 
     // 1. Berufserfahrung

@@ -499,7 +499,7 @@ function batchDeleteSelected() {
 // ==================== Werdegang Copy ====================
 
 function buildFullProfileText(name, workHistory, itSkills, languages, furtherEdu, education, skills) {
-    var lines = ['PROFIL - ' + (name || '').trim(), ''];
+    var lines = [];
     var hasContent = false;
 
     if (workHistory && workHistory.length > 0) {
