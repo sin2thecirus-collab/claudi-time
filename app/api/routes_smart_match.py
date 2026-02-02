@@ -260,7 +260,16 @@ async def _run_smart_match_all(top_n: int = 10, max_distance_km: float = 30.0):
             )
 
             await service.close()
-            await db.commit()
+
+            # Finaler Commit — mit Rollback-Fallback
+            try:
+                await db.commit()
+            except Exception as commit_err:
+                logger.warning(f"Finaler Commit fehlgeschlagen (Ergebnisse koennen trotzdem gespeichert sein): {commit_err}")
+                try:
+                    await db.rollback()
+                except Exception:
+                    pass
 
     except Exception as e:
         logger.exception(f"Smart-Matching fehlgeschlagen: {e}")

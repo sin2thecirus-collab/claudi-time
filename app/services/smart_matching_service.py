@@ -414,11 +414,17 @@ class SmartMatchingService:
                 f"Suche Top {top_n} Kandidaten (max {max_distance_km}km)...",
             )
 
-        similar_candidates = await self._embedding_service.find_similar_candidates(
-            job_id=job_id,
-            limit=top_n,
-            max_distance_km=max_distance_km,
-        )
+        try:
+            similar_candidates = await self._embedding_service.find_similar_candidates(
+                job_id=job_id,
+                limit=top_n,
+                max_distance_km=max_distance_km,
+            )
+        except Exception as e:
+            logger.error(f"Similarity-Suche fehlgeschlagen fuer Job {job_id}: {e}")
+            result.errors.append(f"Similarity-Suche fehlgeschlagen: {str(e)[:150]}")
+            result.duration_seconds = round(time.time() - start_time, 1)
+            return result
 
         result.embedding_candidates_found = len(similar_candidates)
 
@@ -580,7 +586,8 @@ class SmartMatchingService:
                 if progress_callback:
                     progress_callback(
                         "matching",
-                        f"Job {i + 1}/{len(jobs)}: {position}",
+                        f"Job {i + 1}/{len(jobs)}: {position} "
+                        f"({stats['jobs_matched']} gematcht, {stats['jobs_failed']} fehlgeschlagen)",
                     )
 
                 job_result = await self.match_job(
@@ -602,6 +609,14 @@ class SmartMatchingService:
                 logger.error(f"Smart-Match Batch-Fehler fuer Job {job_id}: {e}")
                 stats["jobs_failed"] += 1
                 stats["errors"].append(f"Job {position}: {str(e)[:100]}")
+
+                # KRITISCH: Session-Rollback nach Fehler!
+                # Ohne Rollback bleibt die Session im 'InFailedSQLTransaction'-Zustand
+                # und ALLE nachfolgenden Jobs wuerden ebenfalls fehlschlagen.
+                try:
+                    await self.db.rollback()
+                except Exception as rollback_err:
+                    logger.error(f"Rollback fehlgeschlagen: {rollback_err}")
 
         if progress_callback:
             progress_callback(

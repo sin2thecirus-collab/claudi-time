@@ -389,9 +389,18 @@ class EmbeddingService:
             except Exception as e:
                 logger.error(f"Embedding-Fehler fuer Kandidat {cid}: {e}")
                 stats["errors"] += 1
+                # Rollback damit die Session nicht im Fehlerzustand haengt
+                try:
+                    await self.db.rollback()
+                except Exception:
+                    pass
 
         # Finaler Commit
-        await self.db.commit()
+        try:
+            await self.db.commit()
+        except Exception as e:
+            logger.error(f"Finaler Commit fehlgeschlagen: {e}")
+            await self.db.rollback()
 
         logger.info(
             f"Finance-Kandidaten Embedding fertig: "
@@ -454,8 +463,18 @@ class EmbeddingService:
             except Exception as e:
                 logger.error(f"Embedding-Fehler fuer Job {jid}: {e}")
                 stats["errors"] += 1
+                # Rollback damit die Session nicht im Fehlerzustand haengt
+                try:
+                    await self.db.rollback()
+                except Exception:
+                    pass
 
-        await self.db.commit()
+        # Finaler Commit
+        try:
+            await self.db.commit()
+        except Exception as e:
+            logger.error(f"Finaler Commit fehlgeschlagen: {e}")
+            await self.db.rollback()
 
         logger.info(
             f"Finance-Jobs Embedding fertig: "
@@ -509,16 +528,19 @@ class EmbeddingService:
         #
         # Wir nutzen den <=> Operator (Cosine Distance) von pgvector
         # und konvertieren zu Similarity: 1 - distance
+        #
+        # WICHTIG: Der Embedding-Parameter muss explizit als ::vector gecastet werden,
+        # da asyncpg den String-Parameter sonst nicht als pgvector-Typ erkennt.
 
         query = text("""
             SELECT
                 c.id AS candidate_id,
-                1 - (c.embedding <=> :job_embedding) AS similarity,
+                1 - (c.embedding <=> CAST(:job_embedding AS vector)) AS similarity,
                 CASE
                     WHEN c.address_coords IS NOT NULL AND :job_coords IS NOT NULL
                     THEN ST_Distance(
                         c.address_coords::geography,
-                        :job_coords::geography
+                        ST_GeogFromText(:job_coords)
                     ) / 1000.0
                     ELSE NULL
                 END AS distance_km
@@ -534,18 +556,17 @@ class EmbeddingService:
                     OR :job_coords IS NULL
                     OR ST_DWithin(
                         c.address_coords::geography,
-                        :job_coords::geography,
+                        ST_GeogFromText(:job_coords),
                         :max_distance_m
                     )
                 )
-            ORDER BY c.embedding <=> :job_embedding ASC
+            ORDER BY c.embedding <=> CAST(:job_embedding AS vector) ASC
             LIMIT :result_limit
         """)
 
         # Job-Koordinaten als WKT (Well-Known Text)
         job_coords = None
-        if job.location_coords is not None:
-            # location_coords ist ein PostGIS Geography — wir brauchen den WKT-String
+        try:
             coords_result = await self.db.execute(
                 text("SELECT ST_AsText(location_coords) FROM jobs WHERE id = :jid"),
                 {"jid": str(job_id)},
@@ -553,9 +574,19 @@ class EmbeddingService:
             row = coords_result.first()
             if row and row[0]:
                 job_coords = row[0]
+        except Exception as e:
+            logger.warning(f"Job {job_id}: Konnte Koordinaten nicht laden: {e}")
+            # Ohne Koordinaten weiter — Distanzfilter wird uebersprungen
 
         # Job-Embedding als String fuer SQL (pgvector erwartet '[1,2,3,...]' Format)
-        job_embedding_str = str(list(job.embedding))
+        # WICHTIG: Keine Leerzeichen nach Kommas — pgvector erwartet kompaktes Format
+        embedding_values = job.embedding
+        if hasattr(embedding_values, 'tolist'):
+            # numpy array → Python list
+            embedding_values = embedding_values.tolist()
+        elif not isinstance(embedding_values, list):
+            embedding_values = list(embedding_values)
+        job_embedding_str = '[' + ','.join(str(v) for v in embedding_values) + ']'
 
         result = await self.db.execute(
             query,
