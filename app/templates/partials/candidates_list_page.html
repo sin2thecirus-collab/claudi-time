@@ -171,9 +171,9 @@
                 <div class="flex items-center justify-end space-x-4">
                     {% if candidate.work_history and candidate.work_history | length > 0 %}
                     <button type="button"
-                            data-work-history='{{ candidate.work_history | tojson }}'
+                            data-candidate-id="{{ candidate.id }}"
                             data-name="{{ candidate.first_name or '' }} {{ candidate.last_name or '' }}"
-                            onclick="event.stopPropagation(); copyWerdegangFromData(this)"
+                            onclick="event.stopPropagation(); copyWerdegangFromApi(this)"
                             class="text-gray-400 hover:text-primary-600 transition-colors"
                             title="Werdegang kopieren">
                         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
@@ -498,50 +498,57 @@ function batchDeleteSelected() {
 
 // ==================== Werdegang Copy ====================
 
-function copyWerdegangFromData(btn) {
-    var data = JSON.parse(btn.dataset.workHistory || '[]');
+function copyWerdegangFromApi(btn) {
+    var candidateId = btn.dataset.candidateId;
     var name = (btn.dataset.name || 'Unbekannt').trim();
 
-    if (!data || data.length === 0) {
-        if (typeof showToast === 'function') showToast('Kein Werdegang vorhanden', 'warning');
-        return;
-    }
+    fetch('/api/candidates/' + candidateId)
+        .then(function(r) { return r.json(); })
+        .then(function(candidate) {
+            var data = candidate.work_history || [];
+            if (data.length === 0) {
+                if (typeof showToast === 'function') showToast('Kein Werdegang vorhanden', 'warning');
+                return;
+            }
 
-    var lines = ['WERDEGANG - ' + name, ''];
+            var lines = ['WERDEGANG - ' + name, ''];
 
-    for (var i = 0; i < data.length; i++) {
-        var job = data[i];
-        if (!job || typeof job !== 'object') continue;
+            for (var i = 0; i < data.length; i++) {
+                var job = data[i];
+                if (!job || typeof job !== 'object') continue;
 
-        var dateRange = '';
-        if (job.start_date) {
-            dateRange = job.start_date;
-            dateRange += job.end_date ? ' - ' + job.end_date : ' - heute';
-        }
-        if (dateRange) lines.push(dateRange);
+                var dateRange = '';
+                if (job.start_date) {
+                    dateRange = job.start_date;
+                    dateRange += job.end_date ? ' - ' + job.end_date : ' - heute';
+                }
+                if (dateRange) lines.push(dateRange);
 
-        lines.push(job.position || job.title || 'Unbekannte Position');
-        lines.push(job.company || 'Unbekanntes Unternehmen');
-        if (job.description) lines.push(job.description);
-        lines.push(''); // Leerzeile zwischen Eintraegen
-    }
+                lines.push(job.position || job.title || 'Unbekannte Position');
+                lines.push(job.company || 'Unbekanntes Unternehmen');
+                if (job.description) lines.push(job.description);
+                lines.push('');
+            }
 
-    var text = lines.join('\n').trim();
+            var text = lines.join('\n').trim();
 
-    navigator.clipboard.writeText(text).then(function() {
-        if (typeof showToast === 'function') showToast('Werdegang kopiert!', 'success');
-    }).catch(function() {
-        // Fallback fuer aeltere Browser
-        var textarea = document.createElement('textarea');
-        textarea.value = text;
-        textarea.style.position = 'fixed';
-        textarea.style.opacity = '0';
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textarea);
-        if (typeof showToast === 'function') showToast('Werdegang kopiert!', 'success');
-    });
+            navigator.clipboard.writeText(text).then(function() {
+                if (typeof showToast === 'function') showToast('Werdegang kopiert!', 'success');
+            }).catch(function() {
+                var textarea = document.createElement('textarea');
+                textarea.value = text;
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                if (typeof showToast === 'function') showToast('Werdegang kopiert!', 'success');
+            });
+        })
+        .catch(function() {
+            if (typeof showToast === 'function') showToast('Fehler beim Laden', 'error');
+        });
 }
 
 // ==================== Inline Edit ====================
