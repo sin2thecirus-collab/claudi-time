@@ -83,29 +83,57 @@ class EmbeddingService:
     def build_candidate_text(candidate: Candidate) -> str:
         """Baut den Embedding-Text fuer einen Kandidaten.
 
-        Enthaelt ALLE relevanten beruflichen Informationen:
-        - Aktuelle Position + Unternehmen
-        - Kompletter Werdegang MIT Taetigkeitsbeschreibungen
-        - Ausbildung und Weiterbildungen
-        - Skills, IT-Kenntnisse, Sprachen
-        - Klassifizierte Rollen
+        STRUKTUR (Reihenfolge ist wichtig — Anfang wird staerker gewichtet):
+        1. Kernprofil: Titel + Kerntaetigkeiten (Zusammenfassung)
+        2. Kompletter Werdegang MIT Taetigkeitsbeschreibungen
+        3. Weiterbildungen (IHK Bilanzbuchhalter etc.)
+        4. Skills, IT-Kenntnisse, Sprachen
+        5. Ausbildung
+
+        Warum Titel + Taetigkeiten als Zusammenfassung am Anfang?
+        → "Bilanzbuchhalter" kann bedeuten: Eigenstaendige JA-Erstellung ODER
+          nur Mitwirkung bei Abschluessen. Erst die Taetigkeiten zeigen das Level.
+        → Embeddings gewichten den Anfang eines Textes staerker.
+        → Die Zusammenfassung gibt dem Vektor die richtige "Richtung".
 
         KEIN Name, keine Kontaktdaten (Datenschutz + irrelevant fuer Matching).
         """
         parts = []
 
-        # Aktuelle Position
-        if candidate.current_position:
-            parts.append(f"Aktuelle Position: {candidate.current_position}")
-        if candidate.current_company:
-            parts.append(f"Aktuelles Unternehmen: {candidate.current_company}")
+        # ── 1. KERNPROFIL (Titel + Kerntaetigkeiten als Zusammenfassung) ──
+        # Das ist das Wichtigste: WAS macht die Person KONKRET?
+        # Steht bewusst am Anfang, weil Embeddings den Textanfang staerker gewichten.
+        profile_parts = []
 
-        # Klassifizierte Rollen (wichtig fuer Kategorisierung)
+        if candidate.current_position:
+            profile_parts.append(candidate.current_position)
+        elif candidate.hotlist_job_titles:
+            profile_parts.append(candidate.hotlist_job_titles[0])
+
+        # Kerntaetigkeiten aus der aktuellsten Position extrahieren
+        work_history = candidate.work_history or []
+        latest_desc = ""
+        if work_history:
+            for entry in work_history:
+                if isinstance(entry, dict) and entry.get("description"):
+                    latest_desc = entry["description"]
+                    break  # Nur die aktuellste (erste) Position
+
+        if profile_parts:
+            summary = f"Kernprofil: {' / '.join(profile_parts)}"
+            if latest_desc:
+                # Erste 300 Zeichen der Kerntaetigkeiten — genuegt fuer die Embedding-Richtung
+                summary += f" — Kerntaetigkeiten: {latest_desc[:300]}"
+            parts.append(summary)
+
+        # Klassifizierte Rollen (alle, fuer Breite)
         if candidate.hotlist_job_titles:
             parts.append(f"Rollen: {', '.join(candidate.hotlist_job_titles)}")
 
-        # Werdegang — DAS WICHTIGSTE fuer Finance-Matching
-        work_history = candidate.work_history or []
+        if candidate.current_company:
+            parts.append(f"Aktuelles Unternehmen: {candidate.current_company}")
+
+        # ── 2. KOMPLETTER WERDEGANG (mit allen Taetigkeiten) ──
         if work_history:
             work_lines = ["Berufserfahrung:"]
             for entry in work_history:
@@ -193,23 +221,38 @@ class EmbeddingService:
     def build_job_text(job: Job) -> str:
         """Baut den Embedding-Text fuer einen Job.
 
-        Enthaelt die KOMPLETTE Stellenbeschreibung:
-        - Position, Branche, Beschaeftigungsart
-        - Vollstaendiger Stellentext (NICHT abgeschnitten!)
-        - Klassifizierte Rollen
+        STRUKTUR (Reihenfolge ist wichtig — Anfang wird staerker gewichtet):
+        1. Kernprofil: Gesuchte Rolle + Kern-Anforderungen (Zusammenfassung)
+        2. Klassifizierte Rollen + Metadaten
+        3. Vollstaendiger Stellentext (NICHT abgeschnitten!)
+
+        Warum Zusammenfassung am Anfang?
+        → Jobtitel allein ist mehrdeutig ("Buchhalter" kann Junior oder Senior sein)
+        → Erst Position + Kerntaetigkeiten bestimmen, wen wir wirklich suchen
+        → Stellentexte sind oft lang mit HR-Bla — das Wesentliche muss vorne stehen
         """
         parts = []
 
+        # ── 1. KERNPROFIL (Position + erste 300 Zeichen des Stellentexts) ──
+        # Gibt dem Embedding die richtige "Richtung" bevor der lange Text kommt
         if job.position:
-            parts.append(f"Position: {job.position}")
+            summary = f"Gesucht: {job.position}"
+            if job.job_text:
+                # Erste 300 Zeichen enthalten meist die Kern-Anforderungen
+                summary += f" — Anforderungen: {job.job_text[:300]}"
+            parts.append(summary)
+
+        # ── 2. METADATEN + KLASSIFIZIERUNG ──
+        if job.hotlist_job_titles:
+            parts.append(f"Rollen: {', '.join(job.hotlist_job_titles)}")
         if job.industry:
             parts.append(f"Branche: {job.industry}")
         if job.employment_type:
             parts.append(f"Beschaeftigungsart: {job.employment_type}")
-        if job.hotlist_job_titles:
-            parts.append(f"Rollen: {', '.join(job.hotlist_job_titles)}")
 
-        # Vollstaendiger Stellentext — NICHT abschneiden!
+        # ── 3. VOLLSTAENDIGER STELLENTEXT ──
+        # NICHT abschneiden — Deep-AI bekommt ihn sowieso,
+        # aber fuer das Embedding ist die volle Tiefe wichtig
         if job.job_text:
             parts.append(f"Stellenbeschreibung:\n{job.job_text}")
 
