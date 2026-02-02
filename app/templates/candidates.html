@@ -81,8 +81,8 @@
                hx-include="[name='search'], [name='per_page'], [name='position'], [name='skills'], [name='city'], [name='category']">
     </div>
 
-    {# Erweiterte Filter #}
-    <div x-data="{ filtersOpen: false }" class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg">
+    {# Erweiterte Filter - automatisch oeffnen wenn URL-Parameter vorhanden #}
+    <div x-data="{ filtersOpen: new URLSearchParams(window.location.search).get('position') || new URLSearchParams(window.location.search).get('skills') || new URLSearchParams(window.location.search).get('city') ? true : false }" class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg">
         <button @click="filtersOpen = !filtersOpen"
                 type="button"
                 class="w-full flex items-center justify-between px-5 py-3 text-left hover:bg-gray-50 transition-colors rounded-lg">
@@ -151,8 +151,6 @@
     {# Kandidaten-Tabelle #}
     <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg overflow-hidden">
         <div id="candidates-list"
-             hx-get="/partials/candidates-list?per_page=25"
-             hx-trigger="load"
              hx-swap="innerHTML">
             {# Loading State #}
             <div class="p-10 text-center">
@@ -169,27 +167,145 @@
 </div>
 
 <script>
-// Nach oben scrollen bei Seitenwechsel
+// ==================== URL State Management ====================
+// Synchronisiert Filter, Seite, Kategorie mit der Browser-URL
+// Damit beim Zurueck-Button alles erhalten bleibt
+
+function getUrlParams() {
+    return new URLSearchParams(window.location.search);
+}
+
+function getCurrentState() {
+    var search = document.getElementById('candidate-search');
+    var position = document.querySelector('[name="position"]');
+    var skills = document.querySelector('[name="skills"]');
+    var city = document.querySelector('[name="city"]');
+    var category = document.querySelector('[name="category"]');
+    var perPage = document.getElementById('per-page-select');
+    return {
+        search: search ? search.value : '',
+        position: position ? position.value : '',
+        skills: skills ? skills.value : '',
+        city: city ? city.value : '',
+        category: category ? category.value : '',
+        per_page: perPage ? perPage.value : '25',
+    };
+}
+
+function buildQueryString(state, page) {
+    var params = new URLSearchParams();
+    if (page && page > 1) params.set('page', page);
+    if (state.per_page && state.per_page !== '25') params.set('per_page', state.per_page);
+    if (state.search) params.set('search', state.search);
+    if (state.position) params.set('position', state.position);
+    if (state.skills) params.set('skills', state.skills);
+    if (state.city) params.set('city', state.city);
+    if (state.category) params.set('category', state.category);
+    var qs = params.toString();
+    return qs ? '?' + qs : '';
+}
+
+function pushStateToUrl(page) {
+    var state = getCurrentState();
+    var newUrl = '/kandidaten' + buildQueryString(state, page);
+    if (window.location.pathname + window.location.search !== newUrl) {
+        history.pushState({ candidatePage: true, page: page }, '', newUrl);
+    }
+}
+
+// URL-State in Formular-Inputs wiederherstellen
+function restoreStateFromUrl() {
+    var params = getUrlParams();
+
+    var search = document.getElementById('candidate-search');
+    if (search && params.get('search')) search.value = params.get('search');
+
+    var position = document.querySelector('[name="position"]');
+    if (position && params.get('position')) position.value = params.get('position');
+
+    var skills = document.querySelector('[name="skills"]');
+    if (skills && params.get('skills')) skills.value = params.get('skills');
+
+    var city = document.querySelector('[name="city"]');
+    if (city && params.get('city')) city.value = params.get('city');
+
+    var category = document.querySelector('[name="category"]');
+    if (category && params.get('category')) category.value = params.get('category');
+
+    var perPage = document.getElementById('per-page-select');
+    if (perPage && params.get('per_page')) perPage.value = params.get('per_page');
+
+    // Kategorie-Riegel visuell synchronisieren
+    var catVal = params.get('category') || '';
+    // Alpine.js activeCategory setzen via DOM-Event
+    var catButtons = document.querySelectorAll('[x-data] button[type="button"]');
+    // Besser: Alpine direkt ueber $data ansprechen
+    var catContainer = document.querySelector('[x-data]');
+    if (catContainer && catContainer.__x) {
+        catContainer.__x.$data.activeCategory = catVal;
+    } else if (catContainer && catContainer._x_dataStack) {
+        catContainer._x_dataStack[0].activeCategory = catVal;
+    }
+
+    updateFilterBadge();
+}
+
+// Aktuelle Seite aus dem HTMX-Response extrahieren
+var _currentPage = 1;
+var _isInitialLoad = true;
+
+// Nach oben scrollen bei Seitenwechsel + URL updaten
 document.body.addEventListener('htmx:afterSettle', function(event) {
     if (event.detail.target && event.detail.target.id === 'candidates-list') {
-        window.scrollTo(0, 0);
+        // Beim initial-load nicht scrollen (Seite wird gerade erst aufgebaut)
+        if (!_isInitialLoad) {
+            window.scrollTo(0, 0);
+        }
+        // Aktuelle Seite aus dem Response extrahieren
+        var activePageEl = document.querySelector('#candidates-list .border-primary-500');
+        if (activePageEl) {
+            _currentPage = parseInt(activePageEl.textContent.trim()) || 1;
+        }
+        if (_isInitialLoad) {
+            // Erster Load: replaceState statt pushState (kein Extra-Eintrag im History)
+            var state = getCurrentState();
+            var newUrl = '/kandidaten' + buildQueryString(state, _currentPage);
+            history.replaceState({ candidatePage: true, page: _currentPage }, '', newUrl);
+            _isInitialLoad = false;
+        } else {
+            pushStateToUrl(_currentPage);
+        }
+    }
+});
+
+// popstate: Wenn Benutzer Zurueck/Vorwaerts klickt
+window.addEventListener('popstate', function(event) {
+    // Nur reagieren wenn wir auf /kandidaten sind
+    if (window.location.pathname === '/kandidaten') {
+        restoreStateFromUrl();
+        // Liste mit den URL-Parametern neu laden
+        var params = getUrlParams();
+        var page = params.get('page') || '1';
+        var perPage = params.get('per_page') || '25';
+        var url = '/partials/candidates-list?page=' + page + '&per_page=' + perPage;
+        if (params.get('search')) url += '&search=' + encodeURIComponent(params.get('search'));
+        if (params.get('position')) url += '&position=' + encodeURIComponent(params.get('position'));
+        if (params.get('skills')) url += '&skills=' + encodeURIComponent(params.get('skills'));
+        if (params.get('city')) url += '&city=' + encodeURIComponent(params.get('city'));
+        if (params.get('category')) url += '&category=' + encodeURIComponent(params.get('category'));
+        htmx.ajax('GET', url, {target:'#candidates-list', swap:'innerHTML'});
     }
 });
 
 function changePerPage(perPage) {
-    var search = document.getElementById('candidate-search');
-    var searchVal = search ? search.value : '';
+    var state = getCurrentState();
+    state.per_page = perPage;
     var url = '/partials/candidates-list?page=1&per_page=' + perPage;
-    if (searchVal) url += '&search=' + encodeURIComponent(searchVal);
-    // Erweiterte Filter einbeziehen
-    var position = document.querySelector('[name="position"]');
-    if (position && position.value) url += '&position=' + encodeURIComponent(position.value);
-    var skills = document.querySelector('[name="skills"]');
-    if (skills && skills.value) url += '&skills=' + encodeURIComponent(skills.value);
-    var city = document.querySelector('[name="city"]');
-    if (city && city.value) url += '&city=' + encodeURIComponent(city.value);
-    var category = document.querySelector('[name="category"]');
-    if (category && category.value) url += '&category=' + encodeURIComponent(category.value);
+    if (state.search) url += '&search=' + encodeURIComponent(state.search);
+    if (state.position) url += '&position=' + encodeURIComponent(state.position);
+    if (state.skills) url += '&skills=' + encodeURIComponent(state.skills);
+    if (state.city) url += '&city=' + encodeURIComponent(state.city);
+    if (state.category) url += '&category=' + encodeURIComponent(state.category);
     htmx.ajax('GET', url, {target:'#candidates-list', swap:'innerHTML'});
 }
 
@@ -202,6 +318,11 @@ function resetCandidateFilters() {
     // Kategorie-Riegel zuruecksetzen
     var category = document.querySelector('[name="category"]');
     if (category) category.value = '';
+    // Alpine.js Kategorie-State zuruecksetzen
+    var catContainer = document.querySelector('[x-data]');
+    if (catContainer && catContainer._x_dataStack) {
+        catContainer._x_dataStack[0].activeCategory = '';
+    }
     updateFilterBadge();
     var perPage = document.getElementById('per-page-select');
     var perPageVal = perPage ? perPage.value : '25';
@@ -221,5 +342,36 @@ function updateFilterBadge() {
         badge.classList.add('hidden');
     }
 }
+
+// ==================== Initialisierung ====================
+// Beim Laden: State aus URL wiederherstellen und Liste laden
+(function() {
+    function initCandidates() {
+        var params = getUrlParams();
+
+        // State aus URL in Formular-Inputs wiederherstellen
+        restoreStateFromUrl();
+
+        // Initiale Liste laden (mit URL-Parametern falls vorhanden)
+        var page = params.get('page') || '1';
+        var perPage = params.get('per_page') || '25';
+        var url = '/partials/candidates-list?page=' + page + '&per_page=' + perPage;
+        if (params.get('search')) url += '&search=' + encodeURIComponent(params.get('search'));
+        if (params.get('position')) url += '&position=' + encodeURIComponent(params.get('position'));
+        if (params.get('skills')) url += '&skills=' + encodeURIComponent(params.get('skills'));
+        if (params.get('city')) url += '&city=' + encodeURIComponent(params.get('city'));
+        if (params.get('category')) url += '&category=' + encodeURIComponent(params.get('category'));
+        htmx.ajax('GET', url, {target:'#candidates-list', swap:'innerHTML'});
+    }
+
+    // Warten bis DOM + Alpine.js bereit sind
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(initCandidates, 50);
+        });
+    } else {
+        setTimeout(initCandidates, 50);
+    }
+})();
 </script>
 {% endblock %}
