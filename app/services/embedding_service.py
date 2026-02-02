@@ -222,24 +222,29 @@ class EmbeddingService:
         """Baut den Embedding-Text fuer einen Job.
 
         STRUKTUR (Reihenfolge ist wichtig — Anfang wird staerker gewichtet):
-        1. Kernprofil: Gesuchte Rolle + Kern-Anforderungen (Zusammenfassung)
+        1. Kernprofil: Gesuchte Rolle + Kern-Aufgaben (Zusammenfassung)
         2. Klassifizierte Rollen + Metadaten
         3. Vollstaendiger Stellentext (NICHT abgeschnitten!)
 
         Warum Zusammenfassung am Anfang?
         → Jobtitel allein ist mehrdeutig ("Buchhalter" kann Junior oder Senior sein)
-        → Erst Position + Kerntaetigkeiten bestimmen, wen wir wirklich suchen
+        → Erst Position + Aufgaben bestimmen, wen wir wirklich suchen
         → Stellentexte sind oft lang mit HR-Bla — das Wesentliche muss vorne stehen
+
+        Hinweis: Die ersten 300 Zeichen des Stellentexts enthalten fast immer die
+        AUFGABEN ("Deine Aufgaben", "Was dich erwartet", "Ihre Taetigkeiten"),
+        NICHT die Anforderungen — die kommen typischerweise erst weiter unten.
         """
         parts = []
 
-        # ── 1. KERNPROFIL (Position + erste 300 Zeichen des Stellentexts) ──
-        # Gibt dem Embedding die richtige "Richtung" bevor der lange Text kommt
+        # ── 1. KERNPROFIL (Position + erste 300 Zeichen = Aufgaben/Taetigkeiten) ──
+        # Die ersten 300 Zeichen einer Stellenausschreibung enthalten typischerweise
+        # die AUFGABEN ("Deine Aufgaben:", "Was dich erwartet:", "Ihre Taetigkeiten:"),
+        # nicht die Anforderungen — die kommen erst spaeter im Text.
         if job.position:
             summary = f"Gesucht: {job.position}"
             if job.job_text:
-                # Erste 300 Zeichen enthalten meist die Kern-Anforderungen
-                summary += f" — Anforderungen: {job.job_text[:300]}"
+                summary += f" — Aufgaben: {job.job_text[:300]}"
             parts.append(summary)
 
         # ── 2. METADATEN + KLASSIFIZIERUNG ──
