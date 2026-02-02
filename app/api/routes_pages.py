@@ -454,6 +454,9 @@ async def candidates_list_partial(
     page: int = 1,
     per_page: int = 25,
     search: Optional[str] = None,
+    position: Optional[str] = None,
+    skills: Optional[str] = None,
+    city: Optional[str] = None,
     db: AsyncSession = Depends(get_db)
 ):
     """Partial: Kandidaten-Liste fuer HTMX."""
@@ -462,9 +465,17 @@ async def candidates_list_partial(
 
     candidate_service = CandidateService(db)
 
+    # Skills-String in Liste splitten (kommagetrennt)
+    skills_list = None
+    if skills:
+        skills_list = [s.strip() for s in skills.split(',') if s.strip()]
+
     # Filter aufbauen - only_active=False um alle Kandidaten anzuzeigen
     filters = CandidateFilterParams(
         name=search if search else None,
+        position=position if position else None,
+        skills=skills_list,
+        city_search=city if city else None,
         include_hidden=False,
         only_active=False,
     )
@@ -487,6 +498,9 @@ async def candidates_list_partial(
             "per_page": result.per_page,
             "total_pages": result.pages,
             "search": search,
+            "position": position,
+            "skills": skills,
+            "city": city,
         }
     )
 

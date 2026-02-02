@@ -555,9 +555,13 @@ class CandidateService:
                 )
             )
 
-        # Stadt-Filter
+        # Stadt-Filter (exakte Liste)
         if filters.cities:
             query = query.where(Candidate.city.in_(filters.cities))
+
+        # Stadt-Textsuche (ILIKE)
+        if filters.city_search:
+            query = query.where(Candidate.city.ilike(f"%{filters.city_search}%"))
 
         # Skills-Filter (AND-Verknüpfung)
         if filters.skills:

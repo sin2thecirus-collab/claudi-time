@@ -169,6 +169,19 @@
             {# Aktionen #}
             <td class="relative whitespace-nowrap py-5 pl-4 pr-5 text-right text-lg font-medium sm:pr-8">
                 <div class="flex items-center justify-end space-x-4">
+                    {% if candidate.work_history and candidate.work_history | length > 0 %}
+                    <button type="button"
+                            data-work-history='{{ candidate.work_history | tojson }}'
+                            data-name="{{ candidate.first_name or '' }} {{ candidate.last_name or '' }}"
+                            onclick="event.stopPropagation(); copyWerdegangFromData(this)"
+                            class="text-gray-400 hover:text-primary-600 transition-colors"
+                            title="Werdegang kopieren">
+                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9.75a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
+                        </svg>
+                        <span class="sr-only">Werdegang kopieren</span>
+                    </button>
+                    {% endif %}
                     <a href="/kandidaten/{{ candidate.id }}"
                        class="text-primary-600 hover:text-primary-900"
                        onclick="event.stopPropagation()">
@@ -178,7 +191,7 @@
                     <button hx-delete="/api/candidates/{{ candidate.id }}"
                             hx-confirm="Kandidat {{ candidate.first_name }} {{ candidate.last_name }} wirklich loeschen? Der Kandidat wird beim naechsten CRM-Sync ignoriert."
                             hx-swap="none"
-                            hx-on::after-request="if(event.detail.successful) htmx.ajax('GET', '/partials/candidates-list?page={{ page }}{% if search %}&search={{ search }}{% endif %}', {target:'#candidates-list', swap:'innerHTML'})"
+                            hx-on::after-request="if(event.detail.successful) htmx.ajax('GET', '/partials/candidates-list?page={{ page }}{% if search %}&search={{ search }}{% endif %}{% if position %}&position={{ position }}{% endif %}{% if skills %}&skills={{ skills }}{% endif %}{% if city %}&city={{ city }}{% endif %}', {target:'#candidates-list', swap:'innerHTML'})"
                             class="text-red-500 hover:text-red-700 transition-colors"
                             onclick="event.stopPropagation()"
                             title="Kandidat loeschen">
@@ -200,7 +213,7 @@
     <div class="flex items-center justify-between">
         <div class="flex-1 flex justify-between sm:hidden">
             {% if page > 1 %}
-            <button hx-get="/partials/candidates-list?page={{ page - 1 }}{% if search %}&search={{ search }}{% endif %}&per_page={{ per_page }}"
+            <button hx-get="/partials/candidates-list?page={{ page - 1 }}{% if search %}&search={{ search }}{% endif %}{% if position %}&position={{ position }}{% endif %}{% if skills %}&skills={{ skills }}{% endif %}{% if city %}&city={{ city }}{% endif %}&per_page={{ per_page }}"
                     hx-target="#candidates-list"
                     hx-swap="innerHTML"
                     class="relative inline-flex items-center px-5 py-2.5 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
@@ -208,7 +221,7 @@
             </button>
             {% endif %}
             {% if page < total_pages %}
-            <button hx-get="/partials/candidates-list?page={{ page + 1 }}{% if search %}&search={{ search }}{% endif %}&per_page={{ per_page }}"
+            <button hx-get="/partials/candidates-list?page={{ page + 1 }}{% if search %}&search={{ search }}{% endif %}{% if position %}&position={{ position }}{% endif %}{% if skills %}&skills={{ skills }}{% endif %}{% if city %}&city={{ city }}{% endif %}&per_page={{ per_page }}"
                     hx-target="#candidates-list"
                     hx-swap="innerHTML"
                     class="ml-3 relative inline-flex items-center px-5 py-2.5 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
@@ -232,7 +245,7 @@
                 <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
                     {# Zurueck #}
                     {% if page > 1 %}
-                    <button hx-get="/partials/candidates-list?page={{ page - 1 }}{% if search %}&search={{ search }}{% endif %}&per_page={{ per_page }}"
+                    <button hx-get="/partials/candidates-list?page={{ page - 1 }}{% if search %}&search={{ search }}{% endif %}{% if position %}&position={{ position }}{% endif %}{% if skills %}&skills={{ skills }}{% endif %}{% if city %}&city={{ city }}{% endif %}&per_page={{ per_page }}"
                             hx-target="#candidates-list"
                             hx-swap="innerHTML"
                             class="relative inline-flex items-center px-3 py-2.5 rounded-l-md border border-gray-300 bg-white text-base font-medium text-gray-500 hover:bg-gray-50">
@@ -250,7 +263,7 @@
                             {{ p }}
                         </span>
                         {% elif p == 1 or p == total_pages or (p >= page - 1 and p <= page + 1) %}
-                        <button hx-get="/partials/candidates-list?page={{ p }}{% if search %}&search={{ search }}{% endif %}&per_page={{ per_page }}"
+                        <button hx-get="/partials/candidates-list?page={{ p }}{% if search %}&search={{ search }}{% endif %}{% if position %}&position={{ position }}{% endif %}{% if skills %}&skills={{ skills }}{% endif %}{% if city %}&city={{ city }}{% endif %}&per_page={{ per_page }}"
                                 hx-target="#candidates-list"
                                 hx-swap="innerHTML"
                                 class="relative inline-flex items-center px-5 py-2.5 border border-gray-300 bg-white text-base font-medium text-gray-700 hover:bg-gray-50">
@@ -265,7 +278,7 @@
 
                     {# Weiter #}
                     {% if page < total_pages %}
-                    <button hx-get="/partials/candidates-list?page={{ page + 1 }}{% if search %}&search={{ search }}{% endif %}&per_page={{ per_page }}"
+                    <button hx-get="/partials/candidates-list?page={{ page + 1 }}{% if search %}&search={{ search }}{% endif %}{% if position %}&position={{ position }}{% endif %}{% if skills %}&skills={{ skills }}{% endif %}{% if city %}&city={{ city }}{% endif %}&per_page={{ per_page }}"
                             hx-target="#candidates-list"
                             hx-swap="innerHTML"
                             class="relative inline-flex items-center px-3 py-2.5 rounded-r-md border border-gray-300 bg-white text-base font-medium text-gray-500 hover:bg-gray-50">
@@ -478,8 +491,56 @@ function batchDeleteSelected() {
             exitSelectionMode();
             var perPage = document.getElementById('per-page-select');
             var perPageVal = perPage ? perPage.value : '{{ per_page }}';
-            htmx.ajax('GET', '/partials/candidates-list?page={{ page }}{% if search %}&search={{ search }}{% endif %}&per_page=' + perPageVal, {target:'#candidates-list', swap:'innerHTML'});
+            htmx.ajax('GET', '/partials/candidates-list?page={{ page }}{% if search %}&search={{ search }}{% endif %}{% if position %}&position={{ position }}{% endif %}{% if skills %}&skills={{ skills }}{% endif %}{% if city %}&city={{ city }}{% endif %}&per_page=' + perPageVal, {target:'#candidates-list', swap:'innerHTML'});
         }
+    });
+}
+
+// ==================== Werdegang Copy ====================
+
+function copyWerdegangFromData(btn) {
+    var data = JSON.parse(btn.dataset.workHistory || '[]');
+    var name = (btn.dataset.name || 'Unbekannt').trim();
+
+    if (!data || data.length === 0) {
+        if (typeof showToast === 'function') showToast('Kein Werdegang vorhanden', 'warning');
+        return;
+    }
+
+    var lines = ['WERDEGANG - ' + name, ''];
+
+    for (var i = 0; i < data.length; i++) {
+        var job = data[i];
+        if (!job || typeof job !== 'object') continue;
+
+        var dateRange = '';
+        if (job.start_date) {
+            dateRange = job.start_date;
+            dateRange += job.end_date ? ' - ' + job.end_date : ' - heute';
+        }
+        if (dateRange) lines.push(dateRange);
+
+        lines.push(job.position || job.title || 'Unbekannte Position');
+        lines.push(job.company || 'Unbekanntes Unternehmen');
+        if (job.description) lines.push(job.description);
+        lines.push(''); // Leerzeile zwischen Eintraegen
+    }
+
+    var text = lines.join('\n').trim();
+
+    navigator.clipboard.writeText(text).then(function() {
+        if (typeof showToast === 'function') showToast('Werdegang kopiert!', 'success');
+    }).catch(function() {
+        // Fallback fuer aeltere Browser
+        var textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        if (typeof showToast === 'function') showToast('Werdegang kopiert!', 'success');
     });
 }
 
