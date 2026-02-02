@@ -33,16 +33,6 @@
                 KI-Kalibrierung
             </a>
 
-            {# Quick-AI Score Button — nutzt Alpine-Daten fuer Auswahl #}
-            <button @click="triggerQuickAIScoped()"
-                    id="quick-ai-btn"
-                    class="inline-flex items-center gap-2 rounded-lg bg-cyan-100 px-4 py-2.5 text-sm font-semibold text-cyan-700 hover:bg-cyan-200 transition-colors">
-                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12.378 1.602a.75.75 0 00-.756 0L3 6.632l9 5.25 9-5.25-8.622-5.03zM21.75 7.93l-9 5.25v9l8.628-5.032a.75.75 0 00.372-.648V7.93zM11.25 22.18v-9l-9-5.25v8.57a.75.75 0 00.372.648l8.628 5.033z" />
-                </svg>
-                Quick-AI
-            </button>
-
             {# Generieren Button #}
             <button onclick="triggerGenerate()"
                     id="generate-btn"
@@ -121,6 +111,27 @@
                         class="px-3 py-2 text-sm font-medium text-amber-700 hover:text-amber-900 transition-colors">
                     Auswahl aufheben
                 </button>
+
+                {# Quick-AI Button — guenstige Schnellbewertung #}
+                <button @click="triggerQuickAIScoped()"
+                        id="quick-ai-btn"
+                        :disabled="quickAIRunning"
+                        class="inline-flex items-center gap-2 rounded-lg bg-cyan-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-cyan-600 transition-colors disabled:opacity-50">
+                    <template x-if="!quickAIRunning">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12.378 1.602a.75.75 0 00-.756 0L3 6.632l9 5.25 9-5.25-8.622-5.03zM21.75 7.93l-9 5.25v9l8.628-5.032a.75.75 0 00.372-.648V7.93zM11.25 22.18v-9l-9-5.25v8.57a.75.75 0 00.372.648l8.628 5.033z" />
+                        </svg>
+                    </template>
+                    <template x-if="quickAIRunning">
+                        <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                        </svg>
+                    </template>
+                    <span x-text="quickAIRunning ? quickAIProgress : 'Quick-AI Check'"></span>
+                </button>
+
+                {# Deep Match Button — ausfuehrliche KI-Bewertung #}
                 <button @click="startBulkDeepMatch()"
                         :disabled="bulkRunning"
                         class="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-amber-600 transition-colors disabled:opacity-50">
@@ -287,6 +298,8 @@ function preMatchPage() {
         selected: {},  // key -> { job_title, city, match_count }
         bulkRunning: false,
         bulkProgress: '',
+        quickAIRunning: false,
+        quickAIProgress: '',
 
         // ── Computed Properties ──
 
@@ -368,8 +381,8 @@ function preMatchPage() {
                 `Fortfahren?`
             )) return;
 
-            const btn = document.getElementById('quick-ai-btn');
-            btn.disabled = true;
+            this.quickAIRunning = true;
+            this.quickAIProgress = 'Starte...';
 
             const statusEl = document.getElementById('quick-ai-status');
             statusEl.style.display = 'block';
@@ -394,6 +407,7 @@ function preMatchPage() {
 
             for (const combo of combos) {
                 combosDone++;
+                this.quickAIProgress = `${combosDone}/${combos.length}: ${combo.job_title} / ${combo.city}`;
                 const progressEl = document.getElementById('quick-ai-progress');
                 if (progressEl) {
                     progressEl.textContent = `Kombination ${combosDone}/${combos.length}: ${combo.job_title} / ${combo.city}...`;
@@ -428,7 +442,8 @@ function preMatchPage() {
             }
 
             // Fertig!
-            btn.disabled = false;
+            this.quickAIRunning = false;
+            this.quickAIProgress = '';
             statusEl.innerHTML = `
                 <div class="rounded-lg bg-green-50 border border-green-200 p-4">
                     <div class="flex items-center gap-3">
