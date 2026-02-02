@@ -98,8 +98,28 @@
                 {{ ai_checked }} KI-bewertet
             </span>
             {% endif %}
+            {% if quick_ai_filtered > 0 %}
+            <span class="inline-flex items-center rounded-lg bg-red-50 px-3 py-1.5 text-sm font-medium text-red-600" title="Durch Quick-AI als unpassend bewertet und ausgeblendet">
+                {{ quick_ai_filtered }} ausgefiltert
+            </span>
+            {% endif %}
         </div>
     </div>
+
+    {# Quick-AI Filter Info Banner #}
+    {% if quick_ai_filtered > 0 %}
+    <div class="mb-4 rounded-lg bg-cyan-50 border border-cyan-200 p-3">
+        <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-cyan-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12.378 1.602a.75.75 0 00-.756 0L3 6.632l9 5.25 9-5.25-8.622-5.03zM21.75 7.93l-9 5.25v9l8.628-5.032a.75.75 0 00.372-.648V7.93zM11.25 22.18v-9l-9-5.25v8.57a.75.75 0 00.372.648l8.628 5.033z" />
+            </svg>
+            <p class="text-xs text-cyan-700">
+                <strong>Quick-AI Filter aktiv:</strong>
+                {{ quick_ai_filtered }} Kandidat{{ 'en' if quick_ai_filtered != 1 }} mit Score &lt;30 wurden ausgeblendet, da die KI sie als unpassend eingestuft hat.
+            </p>
+        </div>
+    </div>
+    {% endif %}
 
     {# -- Toolbar -- #}
     <div class="bg-white rounded-xl border border-gray-200 px-4 py-3 mb-4 flex items-center justify-between">

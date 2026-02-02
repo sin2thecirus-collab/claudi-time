@@ -378,6 +378,15 @@ async def _run_cv_parsing(batch_size: int, max_candidates: int):
                     break
 
                 for candidate in candidates:
+                    # Stop-Mechanismus prüfen
+                    if _cv_parsing_status.get("stop_requested"):
+                        logger.info("CV-Parsing wurde manuell gestoppt.")
+                        _cv_parsing_status["running"] = False
+                        _cv_parsing_status["finished_at"] = datetime.now(timezone.utc).isoformat()
+                        _cv_parsing_status["current_candidate"] = None
+                        await db.commit()
+                        return
+
                     _cv_parsing_status["current_candidate"] = (
                         f"{candidate.first_name} {candidate.last_name}"
                     )
@@ -440,6 +449,51 @@ async def _run_cv_parsing(batch_size: int, max_candidates: int):
         f"=== CV-PARSING FERTIG === {_cv_parsing_status['parsed']} geparst, "
         f"{_cv_parsing_status['failed']} fehlgeschlagen"
     )
+
+
+@router.post(
+    "/stop-cv-parsing",
+    summary="Laufendes CV-Parsing stoppen",
+)
+async def stop_cv_parsing():
+    """Stoppt das laufende CV-Parsing nach dem aktuellen Kandidaten."""
+    global _cv_parsing_status
+    if _cv_parsing_status.get("running"):
+        _cv_parsing_status["stop_requested"] = True
+        return {"success": True, "message": "Stop-Signal gesendet. Parsing wird nach aktuellem Kandidaten gestoppt."}
+    return {"success": False, "message": "Kein CV-Parsing läuft aktuell."}
+
+
+@router.post(
+    "/restore-timestamps",
+    summary="Timestamps für bereits geparste Kandidaten wiederherstellen",
+)
+async def restore_timestamps(db: AsyncSession = Depends(get_db)):
+    """Setzt cv_parsed_at für alle Kandidaten, die bereits current_position haben aber kein cv_parsed_at."""
+    from datetime import datetime, timezone
+
+    from sqlalchemy import update, func
+
+    from app.models.candidate import Candidate
+
+    now = datetime.now(timezone.utc)
+    result = await db.execute(
+        update(Candidate)
+        .where(
+            Candidate.cv_parsed_at.is_(None),
+            Candidate.current_position.isnot(None),
+            Candidate.current_position != "",
+        )
+        .values(cv_parsed_at=now)
+    )
+    await db.commit()
+    updated = result.rowcount
+
+    return {
+        "success": True,
+        "message": f"Timestamps für {updated} Kandidaten wiederhergestellt.",
+        "updated_count": updated,
+    }
 
 
 @router.post(

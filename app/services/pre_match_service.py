@@ -51,6 +51,11 @@ MIN_PRE_SCORE = 35.0
 # 15 = fokussiert auf die wirklich passenden Kandidaten
 MAX_CANDIDATES_PER_JOB = 15
 
+# Mindest Quick-AI Score — Matches mit niedrigerem Score werden aus der Liste gefiltert
+# 30 = deutlich unpassende Kandidaten fliegen raus (Quick-AI sagt: passt nicht)
+# None = noch nicht bewertet → bleibt sichtbar (wird nicht gefiltert)
+QUICK_AI_MIN_SCORE = 30
+
 
 # ═══════════════════════════════════════════════════════════════
 # DATENKLASSEN
@@ -454,12 +459,22 @@ class PreMatchService:
         - Durchschnittlicher Pre-Score
         - Anzahl <5km Matches
 
+        Quick-AI Filterung:
+        - Matches mit quick_score < QUICK_AI_MIN_SCORE werden NICHT mitgezaehlt
+        - Matches ohne quick_score (noch nicht bewertet) bleiben sichtbar
+
         Args:
             category: Kategorie (z.B. "FINANCE")
 
         Returns:
             Liste von PreMatchGroup, sortiert nach Beruf, dann Match-Count DESC
         """
+        # Quick-AI Filter: quick_score IS NULL (noch nicht bewertet) ODER quick_score >= Schwelle
+        quick_ai_filter = or_(
+            Match.quick_score.is_(None),
+            Match.quick_score >= QUICK_AI_MIN_SCORE,
+        )
+
         # Wir gruppieren nach Job.hotlist_job_title (primary) + Job.hotlist_city
         query = (
             select(
@@ -486,6 +501,7 @@ class PreMatchService:
                     Candidate.hidden == False,  # noqa: E712
                     Candidate.deleted_at.is_(None),
                     Candidate.hotlist_category == category,
+                    quick_ai_filter,
                 )
             )
             .group_by(Job.hotlist_job_title, Job.hotlist_city)
@@ -498,7 +514,7 @@ class PreMatchService:
 
         groups = []
         for row in rows:
-            # close_count berechnen: Matches mit distance_km <= 5
+            # close_count berechnen: Matches mit distance_km <= 5 (mit Quick-AI Filter)
             close_query = (
                 select(func.count(Match.id))
                 .join(Job, Match.job_id == Job.id)
@@ -513,6 +529,7 @@ class PreMatchService:
                         Candidate.deleted_at.is_(None),
                         Match.distance_km.is_not(None),
                         Match.distance_km <= 5,
+                        quick_ai_filter,
                     )
                 )
             )
@@ -542,9 +559,13 @@ class PreMatchService:
         city: str,
         category: str = "FINANCE",
         sort_by: str = "distance",  # "distance" oder "score"
-    ) -> list[PreMatchDetail]:
+    ) -> tuple[list["PreMatchDetail"], int]:
         """
         Gibt alle Matches fuer eine Beruf+Stadt Kombination zurueck.
+
+        Quick-AI Filterung:
+        - Matches mit quick_score < QUICK_AI_MIN_SCORE werden ausgeblendet
+        - Matches ohne quick_score (noch nicht bewertet) bleiben sichtbar
 
         Args:
             job_title: Berufstitel (z.B. "Bilanzbuchhalter/in")
@@ -553,8 +574,14 @@ class PreMatchService:
             sort_by: Sortierung ("distance" = ASC, "score" = DESC)
 
         Returns:
-            Liste von PreMatchDetail, sortiert nach Entfernung oder Score
+            Tuple von (Liste von PreMatchDetail, Anzahl durch Quick-AI gefilterter Matches)
         """
+        # Quick-AI Filter: NULL (noch nicht bewertet) ODER >= Schwelle
+        quick_ai_filter = or_(
+            Match.quick_score.is_(None),
+            Match.quick_score >= QUICK_AI_MIN_SCORE,
+        )
+
         query = (
             select(Match, Candidate, Job)
             .join(Candidate, Match.candidate_id == Candidate.id)
@@ -568,19 +595,44 @@ class PreMatchService:
                     Candidate.hidden == False,  # noqa: E712
                     Candidate.deleted_at.is_(None),
                     Candidate.hotlist_category == category,
+                    quick_ai_filter,
                 )
             )
         )
 
+        # Zaehle wie viele durch Quick-AI gefiltert wurden
+        filtered_query = (
+            select(func.count(Match.id))
+            .join(Candidate, Match.candidate_id == Candidate.id)
+            .join(Job, Match.job_id == Job.id)
+            .where(
+                and_(
+                    Job.hotlist_job_title == job_title,
+                    Job.hotlist_city == city,
+                    Job.hotlist_category == category,
+                    Job.deleted_at.is_(None),
+                    Candidate.hidden == False,  # noqa: E712
+                    Candidate.deleted_at.is_(None),
+                    Candidate.hotlist_category == category,
+                    Match.quick_score.is_not(None),
+                    Match.quick_score < QUICK_AI_MIN_SCORE,
+                )
+            )
+        )
+        filtered_result = await self.db.execute(filtered_query)
+        filtered_count = filtered_result.scalar() or 0
+
         if sort_by == "score":
             query = query.order_by(
                 Match.ai_score.desc().nullslast(),
+                Match.quick_score.desc().nullslast(),
                 Match.pre_score.desc().nullslast(),
                 Match.distance_km.asc().nullslast(),
             )
         else:
             query = query.order_by(
                 Match.distance_km.asc().nullslast(),
+                Match.quick_score.desc().nullslast(),
                 Match.pre_score.desc().nullslast(),
             )
 
@@ -659,15 +711,25 @@ class PreMatchService:
                 )
             )
 
-        return details
+        return details, filtered_count
 
     # ──────────────────────────────────────────────────
     # Statistiken
     # ──────────────────────────────────────────────────
 
     async def get_stats(self, category: str = "FINANCE") -> dict:
-        """Gibt Statistiken fuer die Uebersichtsseite zurueck."""
-        # Gesamt-Matches in Kategorie
+        """Gibt Statistiken fuer die Uebersichtsseite zurueck.
+
+        Quick-AI Filterung: Matches mit quick_score < QUICK_AI_MIN_SCORE
+        werden NICHT mitgezaehlt (sie "fliegen raus").
+        """
+        # Quick-AI Filter
+        quick_ai_filter = or_(
+            Match.quick_score.is_(None),
+            Match.quick_score >= QUICK_AI_MIN_SCORE,
+        )
+
+        # Gesamt-Matches in Kategorie (gefiltert)
         total_query = (
             select(func.count(Match.id))
             .join(Job, Match.job_id == Job.id)
@@ -678,6 +740,7 @@ class PreMatchService:
                     Job.deleted_at.is_(None),
                     Candidate.hidden == False,  # noqa: E712
                     Candidate.deleted_at.is_(None),
+                    quick_ai_filter,
                 )
             )
         )
@@ -693,13 +756,14 @@ class PreMatchService:
                     Job.hotlist_category == category,
                     Job.deleted_at.is_(None),
                     Job.hotlist_job_title.is_not(None),
+                    quick_ai_filter,
                 )
             )
         )
         berufe_result = await self.db.execute(berufe_query)
         berufe = berufe_result.scalar() or 0
 
-        # Matches < 5km
+        # Matches < 5km (gefiltert)
         close_query = (
             select(func.count(Match.id))
             .join(Job, Match.job_id == Job.id)
@@ -712,13 +776,14 @@ class PreMatchService:
                     Candidate.deleted_at.is_(None),
                     Match.distance_km.is_not(None),
                     Match.distance_km <= 5,
+                    quick_ai_filter,
                 )
             )
         )
         close_result = await self.db.execute(close_query)
         close = close_result.scalar() or 0
 
-        # Durchschnittliche Distanz
+        # Durchschnittliche Distanz (gefiltert)
         avg_dist_query = (
             select(func.avg(Match.distance_km))
             .join(Job, Match.job_id == Job.id)
@@ -730,15 +795,36 @@ class PreMatchService:
                     Candidate.hidden == False,  # noqa: E712
                     Candidate.deleted_at.is_(None),
                     Match.distance_km.is_not(None),
+                    quick_ai_filter,
                 )
             )
         )
         avg_dist_result = await self.db.execute(avg_dist_query)
         avg_dist = avg_dist_result.scalar()
 
+        # Wie viele durch Quick-AI insgesamt rausgefiltert?
+        filtered_query = (
+            select(func.count(Match.id))
+            .join(Job, Match.job_id == Job.id)
+            .join(Candidate, Match.candidate_id == Candidate.id)
+            .where(
+                and_(
+                    Job.hotlist_category == category,
+                    Job.deleted_at.is_(None),
+                    Candidate.hidden == False,  # noqa: E712
+                    Candidate.deleted_at.is_(None),
+                    Match.quick_score.is_not(None),
+                    Match.quick_score < QUICK_AI_MIN_SCORE,
+                )
+            )
+        )
+        filtered_result = await self.db.execute(filtered_query)
+        filtered_count = filtered_result.scalar() or 0
+
         return {
             "total_matches": total,
             "berufe_count": berufe,
             "close_matches": close,
             "avg_distance_km": round(float(avg_dist), 1) if avg_dist else 0,
+            "quick_ai_filtered": filtered_count,
         }

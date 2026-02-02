@@ -109,7 +109,7 @@ async def pre_match_detail_page(
     """Detail-Seite: Kandidaten-Tabelle fuer eine Beruf+Stadt Kombo."""
     service = PreMatchService(db)
 
-    matches = await service.get_detail(
+    matches, quick_ai_filtered = await service.get_detail(
         job_title=job_title,
         city=city,
         category=category,
@@ -136,6 +136,7 @@ async def pre_match_detail_page(
             "close_count": close_count,
             "avg_distance": avg_distance,
             "ai_checked": ai_checked,
+            "quick_ai_filtered": quick_ai_filtered,
         },
     )
 
