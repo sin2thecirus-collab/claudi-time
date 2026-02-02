@@ -170,8 +170,10 @@
 
 <script>
 // Nach oben scrollen bei Seitenwechsel
-document.getElementById('candidates-list').addEventListener('htmx:afterSwap', function() {
-    window.scrollTo({ top: 0, behavior: 'instant' });
+document.body.addEventListener('htmx:afterSettle', function(event) {
+    if (event.detail.target && event.detail.target.id === 'candidates-list') {
+        window.scrollTo(0, 0);
+    }
 });
 
 function changePerPage(perPage) {
