@@ -299,6 +299,110 @@ async def get_smart_match_stats(
     return stats
 
 
+@router.get("/api/smart-match/debug")
+async def smart_match_debug(
+    db: AsyncSession = Depends(get_db),
+):
+    """Debug-Endpunkt: Prueft pgvector Extension und Embedding-Spalten."""
+    from sqlalchemy import text
+
+    checks = {}
+
+    # 1. pgvector Extension
+    try:
+        result = await db.execute(
+            text("SELECT extname, extversion FROM pg_extension WHERE extname = 'vector'")
+        )
+        row = result.first()
+        if row:
+            checks["pgvector_extension"] = {"installed": True, "version": row[1]}
+        else:
+            checks["pgvector_extension"] = {"installed": False}
+    except Exception as e:
+        checks["pgvector_extension"] = {"error": str(e)}
+
+    # 2. Embedding-Spalte auf candidates
+    try:
+        result = await db.execute(
+            text(
+                "SELECT column_name, data_type, udt_name "
+                "FROM information_schema.columns "
+                "WHERE table_name = 'candidates' AND column_name = 'embedding'"
+            )
+        )
+        row = result.first()
+        if row:
+            checks["candidates_embedding_column"] = {
+                "exists": True,
+                "data_type": row[1],
+                "udt_name": row[2],
+            }
+        else:
+            checks["candidates_embedding_column"] = {"exists": False}
+    except Exception as e:
+        checks["candidates_embedding_column"] = {"error": str(e)}
+
+    # 3. Embedding-Spalte auf jobs
+    try:
+        result = await db.execute(
+            text(
+                "SELECT column_name, data_type, udt_name "
+                "FROM information_schema.columns "
+                "WHERE table_name = 'jobs' AND column_name = 'embedding'"
+            )
+        )
+        row = result.first()
+        if row:
+            checks["jobs_embedding_column"] = {
+                "exists": True,
+                "data_type": row[1],
+                "udt_name": row[2],
+            }
+        else:
+            checks["jobs_embedding_column"] = {"exists": False}
+    except Exception as e:
+        checks["jobs_embedding_column"] = {"error": str(e)}
+
+    # 4. HNSW-Indexes
+    try:
+        result = await db.execute(
+            text(
+                "SELECT indexname, tablename FROM pg_indexes "
+                "WHERE indexname LIKE '%embedding%'"
+            )
+        )
+        indexes = [{"name": r[0], "table": r[1]} for r in result.all()]
+        checks["embedding_indexes"] = indexes
+    except Exception as e:
+        checks["embedding_indexes"] = {"error": str(e)}
+
+    # 5. Schnelltest: Gibt es Finance-Kandidaten?
+    try:
+        result = await db.execute(
+            text(
+                "SELECT COUNT(*) FROM candidates "
+                "WHERE hotlist_category = 'FINANCE' AND hidden = false AND deleted_at IS NULL"
+            )
+        )
+        checks["finance_candidates_count"] = result.scalar()
+    except Exception as e:
+        checks["finance_candidates_count"] = {"error": str(e)}
+
+    # 6. Schnelltest: Gibt es Finance-Jobs?
+    try:
+        result = await db.execute(
+            text(
+                "SELECT COUNT(*) FROM jobs "
+                "WHERE hotlist_category = 'FINANCE' AND deleted_at IS NULL"
+            )
+        )
+        checks["finance_jobs_count"] = result.scalar()
+    except Exception as e:
+        checks["finance_jobs_count"] = {"error": str(e)}
+
+    return checks
+
+
 @router.post("/api/smart-match/estimate")
 async def estimate_smart_match_cost(
     num_jobs: int = Query(default=100, ge=1, le=5000),
