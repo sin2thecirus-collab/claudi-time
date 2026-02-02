@@ -169,6 +169,11 @@
 </div>
 
 <script>
+// Nach oben scrollen bei Seitenwechsel
+document.getElementById('candidates-list').addEventListener('htmx:afterSwap', function() {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+});
+
 function changePerPage(perPage) {
     var search = document.getElementById('candidate-search');
     var searchVal = search ? search.value : '';

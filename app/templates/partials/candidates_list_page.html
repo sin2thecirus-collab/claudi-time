@@ -215,7 +215,7 @@
             {% if page > 1 %}
             <button hx-get="/partials/candidates-list?page={{ page - 1 }}{% if search %}&search={{ search }}{% endif %}{% if position %}&position={{ position }}{% endif %}{% if skills %}&skills={{ skills }}{% endif %}{% if city %}&city={{ city }}{% endif %}{% if category %}&category={{ category }}{% endif %}&per_page={{ per_page }}"
                     hx-target="#candidates-list"
-                    hx-swap="innerHTML show:window:top"
+                    hx-swap="innerHTML"
                     class="relative inline-flex items-center px-5 py-2.5 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
                 Zurueck
             </button>
@@ -223,7 +223,7 @@
             {% if page < total_pages %}
             <button hx-get="/partials/candidates-list?page={{ page + 1 }}{% if search %}&search={{ search }}{% endif %}{% if position %}&position={{ position }}{% endif %}{% if skills %}&skills={{ skills }}{% endif %}{% if city %}&city={{ city }}{% endif %}{% if category %}&category={{ category }}{% endif %}&per_page={{ per_page }}"
                     hx-target="#candidates-list"
-                    hx-swap="innerHTML show:window:top"
+                    hx-swap="innerHTML"
                     class="ml-3 relative inline-flex items-center px-5 py-2.5 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
                 Weiter
             </button>
@@ -247,7 +247,7 @@
                     {% if page > 1 %}
                     <button hx-get="/partials/candidates-list?page={{ page - 1 }}{% if search %}&search={{ search }}{% endif %}{% if position %}&position={{ position }}{% endif %}{% if skills %}&skills={{ skills }}{% endif %}{% if city %}&city={{ city }}{% endif %}{% if category %}&category={{ category }}{% endif %}&per_page={{ per_page }}"
                             hx-target="#candidates-list"
-                            hx-swap="innerHTML show:window:top"
+                            hx-swap="innerHTML"
                             class="relative inline-flex items-center px-3 py-2.5 rounded-l-md border border-gray-300 bg-white text-base font-medium text-gray-500 hover:bg-gray-50">
                         <span class="sr-only">Zurueck</span>
                         <svg class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
@@ -265,7 +265,7 @@
                         {% elif p == 1 or p == total_pages or (p >= page - 1 and p <= page + 1) %}
                         <button hx-get="/partials/candidates-list?page={{ p }}{% if search %}&search={{ search }}{% endif %}{% if position %}&position={{ position }}{% endif %}{% if skills %}&skills={{ skills }}{% endif %}{% if city %}&city={{ city }}{% endif %}{% if category %}&category={{ category }}{% endif %}&per_page={{ per_page }}"
                                 hx-target="#candidates-list"
-                                hx-swap="innerHTML show:window:top"
+                                hx-swap="innerHTML"
                                 class="relative inline-flex items-center px-5 py-2.5 border border-gray-300 bg-white text-base font-medium text-gray-700 hover:bg-gray-50">
                             {{ p }}
                         </button>
@@ -280,7 +280,7 @@
                     {% if page < total_pages %}
                     <button hx-get="/partials/candidates-list?page={{ page + 1 }}{% if search %}&search={{ search }}{% endif %}{% if position %}&position={{ position }}{% endif %}{% if skills %}&skills={{ skills }}{% endif %}{% if city %}&city={{ city }}{% endif %}{% if category %}&category={{ category }}{% endif %}&per_page={{ per_page }}"
                             hx-target="#candidates-list"
-                            hx-swap="innerHTML show:window:top"
+                            hx-swap="innerHTML"
                             class="relative inline-flex items-center px-3 py-2.5 rounded-r-md border border-gray-300 bg-white text-base font-medium text-gray-500 hover:bg-gray-50">
                         <span class="sr-only">Weiter</span>
                         <svg class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
