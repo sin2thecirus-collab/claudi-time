@@ -175,11 +175,11 @@
                             data-name="{{ candidate.first_name or '' }} {{ candidate.last_name or '' }}"
                             onclick="event.stopPropagation(); copyWerdegangFromApi(this)"
                             class="text-gray-400 hover:text-primary-600 transition-colors"
-                            title="Werdegang kopieren">
+                            title="Profil kopieren">
                         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9.75a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
                         </svg>
-                        <span class="sr-only">Werdegang kopieren</span>
+                        <span class="sr-only">Profil kopieren</span>
                     </button>
                     {% endif %}
                     <a href="/kandidaten/{{ candidate.id }}"
@@ -498,6 +498,95 @@ function batchDeleteSelected() {
 
 // ==================== Werdegang Copy ====================
 
+function buildFullProfileText(name, workHistory, itSkills, languages, furtherEdu, education, skills) {
+    var lines = ['PROFIL - ' + (name || '').trim(), ''];
+    var hasContent = false;
+
+    if (workHistory && workHistory.length > 0) {
+        hasContent = true;
+        lines.push('--- BERUFSERFAHRUNG ---');
+        lines.push('');
+        for (var i = 0; i < workHistory.length; i++) {
+            var job = workHistory[i];
+            if (!job || typeof job !== 'object') continue;
+            var dateRange = '';
+            if (job.start_date) {
+                dateRange = job.start_date;
+                dateRange += job.end_date ? ' - ' + job.end_date : ' - heute';
+            }
+            if (dateRange) lines.push(dateRange);
+            lines.push(job.position || job.title || 'Unbekannte Position');
+            lines.push(job.company || 'Unbekanntes Unternehmen');
+            if (job.description) lines.push(job.description);
+            lines.push('');
+        }
+    }
+
+    if (itSkills && itSkills.length > 0) {
+        hasContent = true;
+        lines.push('--- IT-KENNTNISSE ---');
+        lines.push(itSkills.join(', '));
+        lines.push('');
+    }
+
+    if (languages && languages.length > 0) {
+        hasContent = true;
+        lines.push('--- SPRACHEN ---');
+        for (var i = 0; i < languages.length; i++) {
+            var lang = languages[i];
+            if (!lang || typeof lang !== 'object') continue;
+            var langLine = lang.language || 'Unbekannt';
+            if (lang.level) langLine += ' (' + lang.level + ')';
+            lines.push(langLine);
+        }
+        lines.push('');
+    }
+
+    if (furtherEdu && furtherEdu.length > 0) {
+        hasContent = true;
+        lines.push('--- ZERTIFIKATE & WEITERBILDUNGEN ---');
+        for (var i = 0; i < furtherEdu.length; i++) {
+            var wb = furtherEdu[i];
+            if (!wb || typeof wb !== 'object') continue;
+            var wbTitle = wb.degree || wb.qualification || 'Weiterbildung';
+            var wbInst = wb.institution || '';
+            var wbDate = wb.year || wb.end_date || '';
+            var wbLine = wbTitle;
+            if (wbInst) wbLine += ' | ' + wbInst;
+            if (wbDate) wbLine += ' | ' + wbDate;
+            lines.push(wbLine);
+        }
+        lines.push('');
+    }
+
+    if (education && education.length > 0) {
+        hasContent = true;
+        lines.push('--- AUSBILDUNG ---');
+        for (var i = 0; i < education.length; i++) {
+            var edu = education[i];
+            if (!edu || typeof edu !== 'object') continue;
+            var eduTitle = edu.degree || edu.qualification || 'Ausbildung';
+            var eduInst = edu.institution || edu.school || '';
+            var eduDate = edu.year || edu.end_date || '';
+            var eduLine = eduTitle;
+            if (eduInst) eduLine += ' | ' + eduInst;
+            if (eduDate) eduLine += ' | ' + eduDate;
+            lines.push(eduLine);
+        }
+        lines.push('');
+    }
+
+    if (skills && skills.length > 0) {
+        hasContent = true;
+        lines.push('--- SKILLS & KENNTNISSE ---');
+        lines.push(skills.join(', '));
+        lines.push('');
+    }
+
+    if (!hasContent) return null;
+    return lines.join('\n').trim();
+}
+
 function copyWerdegangFromApi(btn) {
     var candidateId = btn.dataset.candidateId;
     var name = (btn.dataset.name || 'Unbekannt').trim();
@@ -505,35 +594,23 @@ function copyWerdegangFromApi(btn) {
     fetch('/api/candidates/' + candidateId)
         .then(function(r) { return r.json(); })
         .then(function(candidate) {
-            var data = candidate.work_history || [];
-            if (data.length === 0) {
-                if (typeof showToast === 'function') showToast('Kein Werdegang vorhanden', 'warning');
+            var text = buildFullProfileText(
+                name,
+                candidate.work_history || [],
+                candidate.it_skills || [],
+                candidate.languages || [],
+                candidate.further_education || [],
+                candidate.education || [],
+                candidate.skills || []
+            );
+
+            if (!text) {
+                if (typeof showToast === 'function') showToast('Kein Profil vorhanden', 'warning');
                 return;
             }
 
-            var lines = ['WERDEGANG - ' + name, ''];
-
-            for (var i = 0; i < data.length; i++) {
-                var job = data[i];
-                if (!job || typeof job !== 'object') continue;
-
-                var dateRange = '';
-                if (job.start_date) {
-                    dateRange = job.start_date;
-                    dateRange += job.end_date ? ' - ' + job.end_date : ' - heute';
-                }
-                if (dateRange) lines.push(dateRange);
-
-                lines.push(job.position || job.title || 'Unbekannte Position');
-                lines.push(job.company || 'Unbekanntes Unternehmen');
-                if (job.description) lines.push(job.description);
-                lines.push('');
-            }
-
-            var text = lines.join('\n').trim();
-
             navigator.clipboard.writeText(text).then(function() {
-                if (typeof showToast === 'function') showToast('Werdegang kopiert!', 'success');
+                if (typeof showToast === 'function') showToast('Profil kopiert!', 'success');
             }).catch(function() {
                 var textarea = document.createElement('textarea');
                 textarea.value = text;
@@ -543,7 +620,7 @@ function copyWerdegangFromApi(btn) {
                 textarea.select();
                 document.execCommand('copy');
                 document.body.removeChild(textarea);
-                if (typeof showToast === 'function') showToast('Werdegang kopiert!', 'success');
+                if (typeof showToast === 'function') showToast('Profil kopiert!', 'success');
             });
         })
         .catch(function() {
