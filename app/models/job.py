@@ -4,7 +4,8 @@ import uuid
 from datetime import datetime
 
 from geoalchemy2 import Geography
-from sqlalchemy import ARRAY, Boolean, DateTime, Float, ForeignKey, Index, String, Text, func
+from pgvector.sqlalchemy import Vector
+from sqlalchemy import ARRAY, Boolean, Column, DateTime, Float, ForeignKey, Index, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -56,6 +57,9 @@ class Job(Base):
     hotlist_job_title: Mapped[str | None] = mapped_column(String(255))  # Primary Role
     hotlist_job_titles: Mapped[list[str] | None] = mapped_column(ARRAY(String))  # Alle Rollen
     categorized_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    # Embedding (pgvector - text-embedding-3-small, 1536 Dimensionen)
+    embedding = Column(Vector(1536))
 
     # Duplikaterkennung
     content_hash: Mapped[str | None] = mapped_column(String(64), unique=True)

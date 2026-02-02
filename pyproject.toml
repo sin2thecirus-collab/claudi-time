@@ -21,6 +21,7 @@ dependencies = [
     "PyMuPDF>=1.23.0",
     "python-dotenv>=1.0.0",
     "boto3>=1.34.0",
+    "pgvector>=0.3.0",
 ]
 
 [project.optional-dependencies]
