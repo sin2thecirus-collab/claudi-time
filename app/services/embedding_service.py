@@ -217,34 +217,100 @@ class EmbeddingService:
 
         return "\n\n".join(parts)
 
-    @staticmethod
-    def build_job_text(job: Job) -> str:
+    # Typische Abschnitts-Marker in deutschen Stellenausschreibungen
+    # Reihenfolge im Text: 1. Unternehmensvorstellung → 2. Aufgaben → 3. Anforderungen → 4. Benefits
+    _TASK_MARKERS = [
+        "aufgaben", "ihre aufgaben", "deine aufgaben", "das erwartet dich",
+        "was dich erwartet", "was sie erwartet", "ihre taetigkeiten",
+        "ihre tätigkeiten", "das sind ihre aufgaben", "tätigkeiten",
+        "taetigkeiten", "your tasks", "your responsibilities",
+        "stellenbeschreibung", "aufgabengebiet", "aufgabenbereich",
+        "das bewegen sie", "so sieht ihr tag aus",
+    ]
+    _REQUIREMENT_MARKERS = [
+        "anforderungen", "ihr profil", "dein profil", "das bringst du mit",
+        "das bringen sie mit", "was sie mitbringen", "was du mitbringst",
+        "qualifikationen", "voraussetzungen", "your profile",
+        "das solltest du mitbringen", "das zeichnet sie aus",
+        "requirements", "ihre qualifikationen",
+    ]
+
+    @classmethod
+    def _extract_tasks_section(cls, job_text: str) -> str | None:
+        """Extrahiert den Aufgaben-Abschnitt aus einem Stellentext.
+
+        Typischer Aufbau:
+        1. Unternehmensvorstellung ("Wir sind ein...")  ← irrelevant
+        2. Aufgaben ("Deine Aufgaben:")                 ← DAS wollen wir
+        3. Anforderungen ("Das bringst du mit:")
+        4. Benefits ("Wir bieten dir:")
+
+        Returns:
+            Aufgaben-Text (max 500 Zeichen) oder None wenn nicht gefunden
+        """
+        text_lower = job_text.lower()
+
+        # Aufgaben-Abschnitt finden
+        task_start = -1
+        for marker in cls._TASK_MARKERS:
+            pos = text_lower.find(marker)
+            if pos != -1:
+                # Ab dem Marker starten (nach dem Marker-Text)
+                task_start = pos + len(marker)
+                break
+
+        if task_start == -1:
+            return None
+
+        # Ende des Aufgaben-Abschnitts = Beginn des naechsten Abschnitts
+        task_end = len(job_text)
+        for marker in cls._REQUIREMENT_MARKERS:
+            pos = text_lower.find(marker, task_start + 20)  # mindestens 20 Zeichen nach Aufgaben-Start
+            if pos != -1 and pos < task_end:
+                task_end = pos
+
+        # Aufgaben extrahieren und bereinigen
+        tasks_raw = job_text[task_start:task_end].strip()
+        # Fuehrende Sonderzeichen entfernen (": ", "\n", etc.)
+        tasks_raw = tasks_raw.lstrip(":;-–— \n\r\t")
+
+        if len(tasks_raw) < 20:
+            return None  # Zu kurz, wahrscheinlich falsch erkannt
+
+        return tasks_raw[:500]
+
+    @classmethod
+    def build_job_text(cls, job: Job) -> str:
         """Baut den Embedding-Text fuer einen Job.
 
         STRUKTUR (Reihenfolge ist wichtig — Anfang wird staerker gewichtet):
-        1. Kernprofil: Gesuchte Rolle + Kern-Aufgaben (Zusammenfassung)
+        1. Kernprofil: Gesuchte Rolle + extrahierte Aufgaben
         2. Klassifizierte Rollen + Metadaten
         3. Vollstaendiger Stellentext (NICHT abgeschnitten!)
 
-        Warum Zusammenfassung am Anfang?
-        → Jobtitel allein ist mehrdeutig ("Buchhalter" kann Junior oder Senior sein)
-        → Erst Position + Aufgaben bestimmen, wen wir wirklich suchen
-        → Stellentexte sind oft lang mit HR-Bla — das Wesentliche muss vorne stehen
+        Typischer Aufbau einer Stellenausschreibung:
+        1. Unternehmensvorstellung ("Wir sind ein mittelstaendisches...")  ← irrelevant
+        2. Aufgaben ("Deine Aufgaben:", "Was dich erwartet:")             ← DAS wollen wir
+        3. Anforderungen ("Das bringst du mit:")
+        4. Benefits ("Wir bieten dir:")
 
-        Hinweis: Die ersten 300 Zeichen des Stellentexts enthalten fast immer die
-        AUFGABEN ("Deine Aufgaben", "Was dich erwartet", "Ihre Taetigkeiten"),
-        NICHT die Anforderungen — die kommen typischerweise erst weiter unten.
+        → Die ersten 300 Zeichen sind fast immer Unternehmens-Bla.
+        → Deshalb extrahieren wir gezielt den AUFGABEN-Abschnitt und
+          stellen ihn an den Anfang des Embedding-Texts.
         """
         parts = []
 
-        # ── 1. KERNPROFIL (Position + erste 300 Zeichen = Aufgaben/Taetigkeiten) ──
-        # Die ersten 300 Zeichen einer Stellenausschreibung enthalten typischerweise
-        # die AUFGABEN ("Deine Aufgaben:", "Was dich erwartet:", "Ihre Taetigkeiten:"),
-        # nicht die Anforderungen — die kommen erst spaeter im Text.
+        # ── 1. KERNPROFIL (Position + extrahierte Aufgaben) ──
+        # Unternehmensvorstellung ueberspringen, direkt zu den Aufgaben
         if job.position:
             summary = f"Gesucht: {job.position}"
+
+            # Aufgaben-Abschnitt gezielt extrahieren
             if job.job_text:
-                summary += f" — Aufgaben: {job.job_text[:300]}"
+                tasks = cls._extract_tasks_section(job.job_text)
+                if tasks:
+                    summary += f" — Aufgaben: {tasks}"
+
             parts.append(summary)
 
         # ── 2. METADATEN + KLASSIFIZIERUNG ──
