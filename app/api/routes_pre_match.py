@@ -444,10 +444,14 @@ async def trigger_quick_score(
     background_tasks: BackgroundTasks,
     category: str = Query(default="FINANCE"),
     max_matches: int = Query(default=500),
+    job_title: str | None = Query(default=None),
+    city: str | None = Query(default=None),
 ):
     """Startet Quick-AI Scoring im Hintergrund.
 
-    Bewertet alle Matches ohne Quick-Score mit einer guenstigen KI-Schnellbewertung.
+    Bewertet Matches ohne Quick-Score mit einer guenstigen KI-Schnellbewertung.
+    Wenn job_title und city angegeben: NUR diese Kombination bewerten.
+    Sonst: Alle Matches der Kategorie.
     Kosten: ~$0.04 pro 1000 Matches.
     """
     global _quick_score_status
@@ -461,22 +465,27 @@ async def trigger_quick_score(
             },
         )
 
+    scope_label = f"{job_title} / {city}" if job_title and city else f"Kategorie {category}"
+
     _quick_score_status = {
         "running": True,
         "started_at": datetime.now(timezone.utc).isoformat(),
-        "progress": "Starte Quick-AI...",
+        "progress": f"Starte Quick-AI fuer {scope_label}...",
         "result": None,
         "finished_at": None,
         "error": None,
+        "scope": scope_label,
     }
 
-    background_tasks.add_task(_run_quick_score, category, max_matches)
+    background_tasks.add_task(_run_quick_score, category, max_matches, job_title, city)
 
     return {
         "status": "started",
         "category": category,
         "max_matches": max_matches,
-        "message": "Quick-AI Scoring gestartet...",
+        "job_title": job_title,
+        "city": city,
+        "message": f"Quick-AI Scoring gestartet fuer {scope_label}...",
     }
 
 
@@ -486,7 +495,12 @@ async def get_quick_score_status():
     return _quick_score_status
 
 
-async def _run_quick_score(category: str, max_matches: int = 500):
+async def _run_quick_score(
+    category: str,
+    max_matches: int = 500,
+    job_title: str | None = None,
+    city: str | None = None,
+):
     """Fuehrt Quick-AI Scoring als Background-Task aus."""
     global _quick_score_status
 
@@ -504,6 +518,8 @@ async def _run_quick_score(category: str, max_matches: int = 500):
                 result = await service.score_batch(
                     category=category,
                     max_matches=max_matches,
+                    job_title=job_title,
+                    city=city,
                     progress_callback=progress_callback,
                 )
 

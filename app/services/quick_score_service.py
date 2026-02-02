@@ -252,16 +252,22 @@ Skills: {skills_text}"""
         self,
         category: str = "FINANCE",
         max_matches: int = 500,
+        job_title: str | None = None,
+        city: str | None = None,
         progress_callback: Callable[[str, str], None] | None = None,
     ) -> QuickScoreBatchResult:
         """
-        Bewertet alle Matches einer Kategorie die noch keinen Quick-Score haben.
+        Bewertet Matches die noch keinen Quick-Score haben.
 
-        Wird automatisch nach der Pre-Match-Generierung aufgerufen.
+        Wenn job_title und city angegeben sind, werden NUR Matches
+        fuer diese Kombination bewertet (z.B. "Bilanzbuchhalter/in" in "Muenchen").
+        Sonst werden alle Matches der Kategorie bewertet.
 
         Args:
             category: FINANCE oder ENGINEERING
             max_matches: Maximum Anzahl pro Durchlauf
+            job_title: Optional — nur Matches fuer diesen Beruf
+            city: Optional — nur Matches fuer diese Stadt
             progress_callback: Optional callback(step, detail) fuer UI
 
         Returns:
@@ -269,23 +275,32 @@ Skills: {skills_text}"""
         """
         result = QuickScoreBatchResult()
 
-        if progress_callback:
-            progress_callback("quick_ai", "Lade Matches ohne Quick-Score...")
+        scope_label = f"{job_title} / {city}" if job_title and city else f"Kategorie {category}"
 
-        # Alle Matches ohne Quick-Score laden
+        if progress_callback:
+            progress_callback("quick_ai", f"Lade Matches ohne Quick-Score fuer {scope_label}...")
+
+        # Filter-Bedingungen
+        conditions = [
+            Job.hotlist_category == category,
+            Job.deleted_at.is_(None),
+            Candidate.hidden == False,  # noqa: E712
+            Candidate.deleted_at.is_(None),
+            Match.quick_score.is_(None),  # Noch nicht bewertet
+        ]
+
+        # Optional: Nur bestimmte Beruf+Stadt-Kombination
+        if job_title:
+            conditions.append(Job.hotlist_job_title == job_title)
+        if city:
+            conditions.append(Job.hotlist_city == city)
+
+        # Matches laden
         query = (
             select(Match, Candidate, Job)
             .join(Candidate, Match.candidate_id == Candidate.id)
             .join(Job, Match.job_id == Job.id)
-            .where(
-                and_(
-                    Job.hotlist_category == category,
-                    Job.deleted_at.is_(None),
-                    Candidate.hidden == False,  # noqa: E712
-                    Candidate.deleted_at.is_(None),
-                    Match.quick_score.is_(None),  # Noch nicht bewertet
-                )
-            )
+            .where(and_(*conditions))
             .order_by(Match.pre_score.desc().nullslast())  # Beste zuerst
             .limit(max_matches)
         )
