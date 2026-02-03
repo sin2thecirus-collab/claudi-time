@@ -9,9 +9,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import and_, case, desc, func, or_, select, text
+from sqlalchemy import and_, case, cast, desc, func, Numeric, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.models.match import Match, MatchStatus
 
@@ -75,12 +74,12 @@ class MatchCenterService:
             select(
                 func.count(func.distinct(Match.job_id)).label("total_jobs"),
                 func.count(Match.id).label("total_matches"),
-                func.round(func.avg(Match.ai_score) * 100, 1).label("avg_score"),
-                func.count(case((Match.status == MatchStatus.PLACED, 1))).label("placed"),
-                func.count(case((Match.status == MatchStatus.NEW, 1))).label("new"),
-                func.count(case((Match.status == MatchStatus.AI_CHECKED, 1))).label("ai_checked"),
-                func.count(case((Match.status == MatchStatus.PRESENTED, 1))).label("presented"),
-                func.count(case((Match.status == MatchStatus.REJECTED, 1))).label("rejected"),
+                func.avg(Match.ai_score).label("avg_score"),
+                func.sum(case((Match.status == MatchStatus.PLACED, 1), else_=0)).label("placed"),
+                func.sum(case((Match.status == MatchStatus.NEW, 1), else_=0)).label("new"),
+                func.sum(case((Match.status == MatchStatus.AI_CHECKED, 1), else_=0)).label("ai_checked"),
+                func.sum(case((Match.status == MatchStatus.PRESENTED, 1), else_=0)).label("presented"),
+                func.sum(case((Match.status == MatchStatus.REJECTED, 1), else_=0)).label("rejected"),
             )
             .select_from(Match)
             .join(Job, Match.job_id == Job.id, isouter=True)
@@ -99,14 +98,16 @@ class MatchCenterService:
         result = await self.db.execute(base)
         row = result.one()
 
+        avg = round(float(row.avg_score) * 100, 1) if row.avg_score else 0
+
         return {
-            "total_jobs": row.total_jobs or 0,
-            "total_matches": row.total_matches or 0,
-            "avg_score": float(row.avg_score) if row.avg_score else 0,
-            "placed_count": row.placed or 0,
-            "new_count": (row.new or 0) + (row.ai_checked or 0),
-            "presented_count": row.presented or 0,
-            "rejected_count": row.rejected or 0,
+            "total_jobs": int(row.total_jobs or 0),
+            "total_matches": int(row.total_matches or 0),
+            "avg_score": avg,
+            "placed_count": int(row.placed or 0),
+            "new_count": int(row.new or 0) + int(row.ai_checked or 0),
+            "presented_count": int(row.presented or 0),
+            "rejected_count": int(row.rejected or 0),
         }
 
     async def get_jobs_overview(
@@ -137,12 +138,12 @@ class MatchCenterService:
                 Match.job_id,
                 func.count(Match.id).label("match_count"),
                 func.max(Match.ai_score).label("top_ai_score"),
-                func.round(func.avg(Match.ai_score) * 100, 1).label("avg_ai_score"),
-                func.count(case((Match.status == MatchStatus.NEW, 1))).label("new_count"),
-                func.count(case((Match.status == MatchStatus.AI_CHECKED, 1))).label("ai_checked_count"),
-                func.count(case((Match.status == MatchStatus.PRESENTED, 1))).label("presented_count"),
-                func.count(case((Match.status == MatchStatus.REJECTED, 1))).label("rejected_count"),
-                func.count(case((Match.status == MatchStatus.PLACED, 1))).label("placed_count"),
+                func.avg(Match.ai_score).label("avg_ai_score"),
+                func.sum(case((Match.status == MatchStatus.NEW, 1), else_=0)).label("new_count"),
+                func.sum(case((Match.status == MatchStatus.AI_CHECKED, 1), else_=0)).label("ai_checked_count"),
+                func.sum(case((Match.status == MatchStatus.PRESENTED, 1), else_=0)).label("presented_count"),
+                func.sum(case((Match.status == MatchStatus.REJECTED, 1), else_=0)).label("rejected_count"),
+                func.sum(case((Match.status == MatchStatus.PLACED, 1), else_=0)).label("placed_count"),
             )
             .where(
                 and_(
@@ -238,11 +239,11 @@ class MatchCenterService:
                     position=row.position or "Unbekannte Position",
                     company_name=row.company_name or "Unbekanntes Unternehmen",
                     city=row.city or "",
-                    match_count=row.match_count or 0,
-                    top_ai_score=round(row.top_ai_score * 100, 1) if row.top_ai_score else None,
-                    avg_ai_score=float(row.avg_ai_score) if row.avg_ai_score else None,
-                    new_count=(row.new_count or 0) + (row.ai_checked_count or 0),
-                    presented_count=row.presented_count or 0,
+                    match_count=int(row.match_count or 0),
+                    top_ai_score=round(float(row.top_ai_score) * 100, 1) if row.top_ai_score else None,
+                    avg_ai_score=round(float(row.avg_ai_score) * 100, 1) if row.avg_ai_score else None,
+                    new_count=int(row.new_count or 0) + int(row.ai_checked_count or 0),
+                    presented_count=int(row.presented_count or 0),
                     created_at=row.created_at,
                 )
             )
@@ -457,9 +458,9 @@ class MatchCenterService:
             select(
                 Match.job_id,
                 func.count(Match.id).label("match_count"),
-                func.count(case((Match.status == MatchStatus.PRESENTED, 1))).label("presented_count"),
-                func.count(case((Match.status == MatchStatus.REJECTED, 1))).label("rejected_count"),
-                func.count(case((Match.status == MatchStatus.PLACED, 1))).label("placed_count"),
+                func.sum(case((Match.status == MatchStatus.PRESENTED, 1), else_=0)).label("presented_count"),
+                func.sum(case((Match.status == MatchStatus.REJECTED, 1), else_=0)).label("rejected_count"),
+                func.sum(case((Match.status == MatchStatus.PLACED, 1), else_=0)).label("placed_count"),
             )
             .where(
                 and_(
