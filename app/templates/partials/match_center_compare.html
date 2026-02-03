@@ -1,0 +1,189 @@
+{# Vergleichs-Modal: Stellenbeschreibung + Lebenslauf nebeneinander #}
+{# Wird via HTMX in das Vergleichs-Modal geladen #}
+
+<!-- Header -->
+<div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50 flex-shrink-0">
+    <div>
+        <h2 class="text-lg font-bold text-gray-900">Vergleich</h2>
+        <p class="text-sm text-gray-500 mt-0.5">
+            {{ data.candidate_name }} &rarr; {{ data.job_position }}
+        </p>
+    </div>
+    <div class="flex items-center gap-3">
+        {% if data.ai_score is not none %}
+        <div class="flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold
+                    {% if data.ai_score >= 70 %}bg-green-100 text-green-700
+                    {% elif data.ai_score >= 40 %}bg-yellow-100 text-yellow-700
+                    {% else %}bg-gray-100 text-gray-500{% endif %}">
+            {{ data.ai_score|int }}%
+        </div>
+        {% endif %}
+        <button onclick="closeCompareModal()"
+                class="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+        </button>
+    </div>
+</div>
+
+<!-- Scrollbarer Body -->
+<div class="overflow-y-auto flex-1 p-6">
+
+    <!-- Info-Karten: Entfernung, Firma, Jobtitel, Adressen -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+
+        <!-- Entfernung -->
+        <div class="bg-blue-50 rounded-lg p-3">
+            <p class="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-1">Entfernung</p>
+            <p class="text-lg font-bold text-blue-800">
+                {% if data.distance_km is not none %}{{ data.distance_km }} km{% else %}Unbekannt{% endif %}
+            </p>
+        </div>
+
+        <!-- Firma (kopierbar) -->
+        <div class="bg-gray-50 rounded-lg p-3 group cursor-pointer hover:bg-gray-100 transition-colors"
+             onclick="copyToClipboard(this.querySelector('[data-copy]').textContent.trim(), 'Firma')">
+            <div class="flex items-center justify-between">
+                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Firma</p>
+                <svg class="w-3.5 h-3.5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                </svg>
+            </div>
+            <p class="text-sm font-medium text-gray-900" data-copy>{{ data.job_company_name or 'Nicht angegeben' }}</p>
+        </div>
+
+        <!-- Jobtitel (kopierbar) -->
+        <div class="bg-gray-50 rounded-lg p-3 group cursor-pointer hover:bg-gray-100 transition-colors"
+             onclick="copyToClipboard(this.querySelector('[data-copy]').textContent.trim(), 'Jobtitel')">
+            <div class="flex items-center justify-between">
+                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Jobtitel</p>
+                <svg class="w-3.5 h-3.5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                </svg>
+            </div>
+            <p class="text-sm font-medium text-gray-900" data-copy>{{ data.job_position }}</p>
+        </div>
+
+        <!-- Job-Adresse (kopierbar) -->
+        <div class="bg-gray-50 rounded-lg p-3 group cursor-pointer hover:bg-gray-100 transition-colors"
+             onclick="copyToClipboard(this.querySelector('[data-copy]').textContent.trim(), 'Job-Adresse')">
+            <div class="flex items-center justify-between">
+                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Job-Adresse</p>
+                <svg class="w-3.5 h-3.5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                </svg>
+            </div>
+            <p class="text-sm font-medium text-gray-900" data-copy>{% if data.job_street_address %}{{ data.job_street_address }}, {% endif %}{{ data.job_postal_code }} {{ data.job_city }}</p>
+        </div>
+    </div>
+
+    <!-- Kandidaten-Adresse (kopierbar) -->
+    <div class="mb-6">
+        <div class="bg-amber-50 rounded-lg p-3 group cursor-pointer hover:bg-amber-100 transition-colors inline-flex items-center gap-3"
+             onclick="copyToClipboard(this.querySelector('[data-copy]').textContent.trim(), 'Kandidaten-Adresse')">
+            <div>
+                <p class="text-xs font-semibold text-amber-600 uppercase tracking-wider mb-1">Kandidaten-Adresse</p>
+                <p class="text-sm font-medium text-gray-900" data-copy>{% if data.candidate_street_address %}{{ data.candidate_street_address }}, {% endif %}{{ data.candidate_postal_code }} {{ data.candidate_city }}</p>
+            </div>
+            <svg class="w-4 h-4 text-amber-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+            </svg>
+        </div>
+    </div>
+
+    <!-- Zwei-Spalten: Stellenbeschreibung | Lebenslauf -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- LINKS: Stellenbeschreibung -->
+        <div>
+            <div class="flex items-center justify-between mb-2">
+                <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wider">Stellenbeschreibung</h3>
+                {% if data.job_text %}
+                <button onclick="copyToClipboard(document.getElementById('compare-job-text').innerText, 'Stellenbeschreibung')"
+                        class="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1 transition-colors">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                    </svg>
+                    Kopieren
+                </button>
+                {% endif %}
+            </div>
+            <div id="compare-job-text"
+                 class="bg-white border border-gray-200 rounded-lg p-4 max-h-96 overflow-y-auto text-sm text-gray-700 leading-relaxed whitespace-pre-line">
+                {% if data.job_text %}{{ data.job_text }}{% else %}<span class="text-gray-400 italic">Keine Stellenbeschreibung vorhanden.</span>{% endif %}
+            </div>
+        </div>
+
+        <!-- RECHTS: Lebenslauf -->
+        <div>
+            <div class="flex items-center justify-between mb-2">
+                <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wider">Lebenslauf</h3>
+                {% if data.cv_text %}
+                <button onclick="copyToClipboard(document.getElementById('compare-cv-text').innerText, 'Lebenslauf')"
+                        class="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1 transition-colors">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                    </svg>
+                    Kopieren
+                </button>
+                {% endif %}
+            </div>
+            <div id="compare-cv-text"
+                 class="bg-white border border-gray-200 rounded-lg p-4 max-h-96 overflow-y-auto text-sm text-gray-700 leading-relaxed whitespace-pre-line">
+                {% if data.cv_text %}{{ data.cv_text }}{% else %}<span class="text-gray-400 italic">Kein Lebenslauf vorhanden.</span>{% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- KI-Bewertung -->
+    {% if data.ai_explanation %}
+    <div class="mt-6 bg-gray-50 rounded-lg p-4">
+        <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wider mb-2">KI-Bewertung</h3>
+        <p class="text-sm text-gray-600 leading-relaxed">{{ data.ai_explanation }}</p>
+
+        {% if data.ai_strengths or data.ai_weaknesses %}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+            {% if data.ai_strengths %}
+            <div>
+                <h4 class="text-xs font-semibold text-green-700 uppercase mb-1">Staerken</h4>
+                <ul class="space-y-1">
+                    {% for s in data.ai_strengths %}
+                    <li class="flex items-start gap-1.5 text-sm text-gray-600">
+                        <svg class="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                        {{ s }}
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+            {% if data.ai_weaknesses %}
+            <div>
+                <h4 class="text-xs font-semibold text-red-700 uppercase mb-1">Schwaechen</h4>
+                <ul class="space-y-1">
+                    {% for w in data.ai_weaknesses %}
+                    <li class="flex items-start gap-1.5 text-sm text-gray-600">
+                        <svg class="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                        {{ w }}
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<!-- Footer -->
+<div class="flex items-center justify-end px-6 py-4 border-t border-gray-200 bg-gray-50 flex-shrink-0">
+    <button onclick="closeCompareModal()"
+            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+        Schliessen
+    </button>
+</div>

@@ -356,6 +356,23 @@
             window.dispatchEvent(new CustomEvent('close-modal'));
         }
 
+        // In die Zwischenablage kopieren + Toast
+        function copyToClipboard(text, label) {
+            navigator.clipboard.writeText(text).then(function() {
+                showToast(label + ' kopiert', 'success');
+            }).catch(function() {
+                var ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                showToast(label + ' kopiert', 'success');
+            });
+        }
+
         // HTMX Events fuer Toasts
         document.body.addEventListener('showToast', function(evt) {
             showToast(evt.detail.message, evt.detail.type || 'success');

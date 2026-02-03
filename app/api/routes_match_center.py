@@ -1,16 +1,18 @@
 """Match Center Routes - Einheitliche job-zentrische Match-Verwaltung.
 
-Ersetzt Pre-Match + DeepMatch Navigation mit einem unified Match Center.
+Grid-Layout: Jobtitel-Reihen mit Stadt-Kaestchen.
+Vergleichs-Modal: Stellenbeschreibung + Lebenslauf nebeneinander.
 
 Seiten:
-- GET /match-center              -> Job-zentrische Uebersicht (Tabs: Neu / In Bearbeitung / Archiv)
+- GET /match-center              -> Grid-Uebersicht (Jobtitel x Stadt)
 - GET /match-center/job/<job_id> -> Einzelner Job mit allen Kandidaten-Matches
 
 API (HTMX):
-- GET  /api/match-center/jobs                   -> Job-Liste nach Stage (HTMX partial)
-- GET  /api/match-center/job/<job_id>/matches   -> Kandidaten fuer einen Job (HTMX partial)
-- POST /api/match-center/status/<match_id>      -> Match-Status aendern
-- POST /api/match-center/feedback/<match_id>    -> Feedback speichern
+- GET  /api/match-center/group                 -> Jobs+Matches fuer Jobtitel+Stadt (HTMX partial)
+- GET  /api/match-center/job/<job_id>/matches  -> Kandidaten fuer einen Job (HTMX partial)
+- GET  /api/match-center/compare/<match_id>    -> Vergleichs-Modal (HTMX partial)
+- POST /api/match-center/status/<match_id>     -> Match-Status aendern
+- POST /api/match-center/feedback/<match_id>   -> Feedback speichern
 
 Legacy-Redirects:
 - GET /pre-match       -> 301 /match-center
@@ -45,23 +47,18 @@ async def match_center_page(
     request: Request,
     stage: str = Query("new", regex="^(new|in_progress|archive)$"),
     search: str = Query(None),
-    page: int = Query(1, ge=1),
     db: AsyncSession = Depends(get_db),
 ):
-    """Match Center Hauptseite - Job-zentrische Uebersicht."""
+    """Match Center Hauptseite - Grid-Uebersicht (Jobtitel x Stadt)."""
     service = MatchCenterService(db)
 
-    # Statistiken und Stage-Counts parallel
+    # Statistiken, Stage-Counts und Grid parallel
     stats = await service.get_stats()
     stage_counts = await service.get_stage_counts()
-    jobs, total = await service.get_jobs_overview(
+    groups = await service.get_grid_overview(
         stage=stage,
         search=search,
-        page=page,
-        per_page=20,
     )
-
-    total_pages = max(1, (total + 19) // 20)
 
     return templates.TemplateResponse(
         "match_center.html",
@@ -69,12 +66,9 @@ async def match_center_page(
             "request": request,
             "stats": stats,
             "stage_counts": stage_counts,
-            "jobs": jobs,
+            "groups": groups,
             "current_stage": stage,
             "current_search": search or "",
-            "current_page": page,
-            "total_pages": total_pages,
-            "total_jobs": total,
         },
     )
 
@@ -115,35 +109,30 @@ async def match_center_job_detail(
 # ═══════════════════════════════════════════════════════════════
 
 
-@router.get("/api/match-center/jobs", response_class=HTMLResponse)
-async def get_jobs_partial(
+@router.get("/api/match-center/group", response_class=HTMLResponse)
+async def get_group_detail(
     request: Request,
+    title: str = Query(...),
+    city: str = Query(...),
     stage: str = Query("new", regex="^(new|in_progress|archive)$"),
-    search: str = Query(None),
-    page: int = Query(1, ge=1),
     db: AsyncSession = Depends(get_db),
 ):
-    """HTMX Partial: Job-Liste nach Stage."""
+    """HTMX Partial: Jobs + Matches fuer eine Jobtitel+Stadt Kombination."""
     service = MatchCenterService(db)
 
-    jobs, total = await service.get_jobs_overview(
+    jobs = await service.get_group_jobs(
+        job_title=title,
+        city=city,
         stage=stage,
-        search=search,
-        page=page,
-        per_page=20,
     )
-    total_pages = max(1, (total + 19) // 20)
 
     return templates.TemplateResponse(
-        "partials/match_center_jobs.html",
+        "partials/match_center_group.html",
         {
             "request": request,
             "jobs": jobs,
-            "current_stage": stage,
-            "current_search": search or "",
-            "current_page": page,
-            "total_pages": total_pages,
-            "total_jobs": total,
+            "group_title": title,
+            "group_city": city,
         },
     )
 
@@ -170,6 +159,32 @@ async def get_job_matches_partial(
     )
 
 
+@router.get("/api/match-center/compare/{match_id}", response_class=HTMLResponse)
+async def get_match_comparison_partial(
+    request: Request,
+    match_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """HTMX Partial: Vergleichs-Dialog fuer ein Match (Job + Kandidat)."""
+    service = MatchCenterService(db)
+
+    comparison = await service.get_match_comparison(match_id)
+
+    if not comparison:
+        return HTMLResponse(
+            '<div class="p-6 text-center text-red-500">Match nicht gefunden</div>',
+            status_code=404,
+        )
+
+    return templates.TemplateResponse(
+        "partials/match_center_compare.html",
+        {
+            "request": request,
+            "data": comparison,
+        },
+    )
+
+
 @router.post("/api/match-center/status/{match_id}", response_class=HTMLResponse)
 async def update_match_status(
     request: Request,
@@ -185,7 +200,6 @@ async def update_match_status(
     if not match:
         return HTMLResponse("<span class='text-red-500 text-xs'>Nicht gefunden</span>", status_code=404)
 
-    # Status-Labels und Farben
     status_config = {
         "new": ("Neu", "bg-gray-100 text-gray-700"),
         "ai_checked": ("Bewertet", "bg-blue-100 text-blue-700"),
@@ -195,7 +209,6 @@ async def update_match_status(
     }
     label, css = status_config.get(status, ("Unbekannt", "bg-gray-100 text-gray-700"))
 
-    # Trigger Toast via HX-Trigger Header
     from fastapi.responses import HTMLResponse as HR
     response = HR(
         f'<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {css}">{label}</span>'
