@@ -33,6 +33,15 @@ class MatchStatus(str, enum.Enum):
     PLACED = "placed"
 
 
+class MatchingMethod(str, enum.Enum):
+    """Welches System hat diesen Match erstellt."""
+
+    PRE_MATCH = "pre_match"
+    DEEP_MATCH = "deep_match"
+    SMART_MATCH = "smart_match"
+    MANUAL = "manual"
+
+
 class Match(Base):
     """Model für Job-Kandidaten-Matches."""
 
@@ -45,17 +54,20 @@ class Match(Base):
         default=uuid.uuid4,
     )
 
-    # Foreign Keys
-    job_id: Mapped[uuid.UUID] = mapped_column(
+    # Foreign Keys (SET NULL: Matches bleiben erhalten wenn Jobs/Kandidaten geloescht werden)
+    job_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("jobs.id", ondelete="CASCADE"),
-        nullable=False,
+        ForeignKey("jobs.id", ondelete="SET NULL"),
+        nullable=True,
     )
-    candidate_id: Mapped[uuid.UUID] = mapped_column(
+    candidate_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("candidates.id", ondelete="CASCADE"),
-        nullable=False,
+        ForeignKey("candidates.id", ondelete="SET NULL"),
+        nullable=True,
     )
+
+    # Matching-Methode (welches System hat diesen Match erstellt)
+    matching_method: Mapped[str | None] = mapped_column(String(50))
 
     # Basis-Matching-Daten
     distance_km: Mapped[float | None] = mapped_column(Float)
@@ -106,9 +118,9 @@ class Match(Base):
         onupdate=func.now(),
     )
 
-    # Relationships
-    job: Mapped["Job"] = relationship("Job", back_populates="matches")
-    candidate: Mapped["Candidate"] = relationship("Candidate", back_populates="matches")
+    # Relationships (Optional weil SET NULL bei Loeschung)
+    job: Mapped["Job | None"] = relationship("Job", back_populates="matches")
+    candidate: Mapped["Candidate | None"] = relationship("Candidate", back_populates="matches")
 
     # Constraints und Indizes
     __table_args__ = (
@@ -121,6 +133,7 @@ class Match(Base):
         Index("ix_matches_created_at", "created_at"),
         Index("ix_matches_pre_score", "pre_score"),
         Index("ix_matches_stale", "stale"),
+        Index("ix_matches_matching_method", "matching_method"),
     )
 
     @property

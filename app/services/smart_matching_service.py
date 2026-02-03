@@ -537,6 +537,7 @@ class SmartMatchingService:
         top_n: int = 10,
         max_distance_km: float = 30.0,
         progress_callback: Callable[[str, str], None] | None = None,
+        skip_already_matched: bool = True,
     ) -> dict:
         """Fuehrt Smart-Matching fuer ALLE aktiven Finance-Jobs durch.
 
@@ -544,6 +545,8 @@ class SmartMatchingService:
             top_n: Kandidaten pro Job
             max_distance_km: Maximale Entfernung
             progress_callback: Optional callback(step, detail)
+            skip_already_matched: Wenn True, werden Jobs uebersprungen die
+                                  bereits smart_match Matches haben (inkrementell)
 
         Returns:
             Dict mit Gesamtstatistiken
@@ -559,6 +562,15 @@ class SmartMatchingService:
             )
             .order_by(Job.created_at.desc())
         )
+
+        # Inkrementell: Jobs ueberspringen die bereits Smart-Match-Ergebnisse haben
+        if skip_already_matched:
+            already_matched_subq = (
+                select(Match.job_id)
+                .where(Match.matching_method == "smart_match")
+                .group_by(Match.job_id)
+            )
+            query = query.where(Job.id.notin_(already_matched_subq))
         result = await self.db.execute(query)
         jobs = result.all()
 
@@ -919,6 +931,7 @@ Bewerte realistisch — kein Wunschdenken."""
             match.ai_strengths = ai_result.get("strengths", [])
             match.ai_weaknesses = ai_result.get("weaknesses", [])
             match.ai_checked_at = now
+            match.matching_method = "smart_match"
             # Status nur aktualisieren wenn noch NEW
             if match.status == MatchStatus.NEW:
                 match.status = MatchStatus.AI_CHECKED
@@ -941,6 +954,7 @@ Bewerte realistisch — kein Wunschdenken."""
                 ai_weaknesses=ai_result.get("weaknesses", []),
                 ai_checked_at=now,
                 status=MatchStatus.AI_CHECKED,
+                matching_method="smart_match",
                 stale=False,
             )
             self.db.add(new_match)

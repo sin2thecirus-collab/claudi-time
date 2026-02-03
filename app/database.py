@@ -281,6 +281,8 @@ async def init_db() -> None:
         # Embeddings (als JSONB-Array gespeichert — kein pgvector noetig)
         ("candidates", "embedding", "JSONB"),
         ("jobs", "embedding", "JSONB"),
+        # Match Center: Matching-Methode (pre_match, deep_match, smart_match, manual)
+        ("matches", "matching_method", "VARCHAR(50)"),
     ]
     for table_name, col_name, col_type in migrations:
         try:
@@ -313,6 +315,58 @@ async def init_db() -> None:
                 logger.info(f"Backfill: {result.rowcount} Jobs imported_at = created_at gesetzt")
     except Exception as e:
         logger.warning(f"Backfill imported_at übersprungen: {e}")
+
+    # ── Match-FK-Migration: CASCADE → SET NULL ──
+    # Matches duerfen NICHT geloescht werden wenn Jobs/Kandidaten entfernt werden.
+    # Die Lerndaten muessen dauerhaft erhalten bleiben.
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("SET lock_timeout = '5s'"))
+            for fk_name, col, ref in [
+                ("matches_job_id_fkey", "job_id", "jobs(id)"),
+                ("matches_candidate_id_fkey", "candidate_id", "candidates(id)"),
+            ]:
+                await conn.execute(text(f"""
+                    DO $$ BEGIN
+                        ALTER TABLE matches DROP CONSTRAINT IF EXISTS {fk_name};
+                        ALTER TABLE matches ALTER COLUMN {col} DROP NOT NULL;
+                        ALTER TABLE matches ADD CONSTRAINT {fk_name}
+                            FOREIGN KEY ({col}) REFERENCES {ref} ON DELETE SET NULL;
+                    EXCEPTION WHEN OTHERS THEN NULL;
+                    END $$
+                """))
+            logger.info("Migration: matches FK CASCADE → SET NULL erfolgreich.")
+    except Exception as e:
+        logger.warning(f"FK-Migration uebersprungen: {e}")
+
+    # ── Backfill matching_method fuer bestehende Matches ──
+    try:
+        async with engine.begin() as conn:
+            # Matches mit AI-Bewertung → smart_match (letzter grosser Lauf war Smart Match)
+            result1 = await conn.execute(text("""
+                UPDATE matches SET matching_method = 'smart_match'
+                WHERE matching_method IS NULL AND ai_checked_at IS NOT NULL
+            """))
+            # Matches ohne AI-Bewertung → pre_match (alter regelbasierter Lauf)
+            result2 = await conn.execute(text("""
+                UPDATE matches SET matching_method = 'pre_match'
+                WHERE matching_method IS NULL AND ai_checked_at IS NULL
+            """))
+            total = (result1.rowcount or 0) + (result2.rowcount or 0)
+            if total > 0:
+                logger.info(f"Backfill matching_method: {total} Matches getaggt "
+                            f"(smart_match={result1.rowcount}, pre_match={result2.rowcount})")
+    except Exception as e:
+        logger.warning(f"Backfill matching_method uebersprungen: {e}")
+
+    # ── Index fuer matching_method ──
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_matches_matching_method ON matches (matching_method)"
+            ))
+    except Exception as e:
+        logger.warning(f"Index ix_matches_matching_method uebersprungen: {e}")
 
     # ── Embedding-Indexes nicht noetig (JSONB, kein pgvector) ──
     # Similarity-Suche laeuft in Python, nicht in SQL.

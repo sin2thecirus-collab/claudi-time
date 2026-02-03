@@ -200,9 +200,14 @@ async def trigger_smart_match_all(
     background_tasks: BackgroundTasks,
     top_n: int = Query(default=10, ge=1, le=50),
     max_distance_km: float = Query(default=30.0, ge=1.0, le=200.0),
+    skip_matched: bool = Query(default=True, description="Bereits gematchte Jobs ueberspringen"),
     db: AsyncSession = Depends(get_db),
 ):
-    """Startet Smart-Matching fuer ALLE aktiven Finance-Jobs im Hintergrund."""
+    """Startet Smart-Matching fuer ALLE aktiven Finance-Jobs im Hintergrund.
+
+    Mit skip_matched=True (Standard) werden nur neue/ungematchte Jobs verarbeitet.
+    Mit skip_matched=False wird ein vollstaendiger Re-Match aller Jobs durchgefuehrt.
+    """
     if _matching_status["running"]:
         return {
             "status": "already_running",
@@ -210,19 +215,20 @@ async def trigger_smart_match_all(
             "detail": _matching_status["detail"],
         }
 
+    mode = "inkrementell (nur neue Jobs)" if skip_matched else "komplett (alle Jobs)"
     _matching_status["running"] = True
     _matching_status["started_at"] = datetime.now(timezone.utc).isoformat()
     _matching_status["step"] = "starting"
-    _matching_status["detail"] = "Starte Smart-Matching fuer alle Finance-Jobs..."
+    _matching_status["detail"] = f"Starte Smart-Matching {mode}..."
     _matching_status["result"] = None
     _matching_status["finished_at"] = None
     _matching_status["error"] = None
 
-    background_tasks.add_task(_run_smart_match_all, top_n, max_distance_km)
+    background_tasks.add_task(_run_smart_match_all, top_n, max_distance_km, skip_matched)
 
     return {
         "status": "started",
-        "message": "Smart-Matching gestartet (laeuft im Hintergrund)",
+        "message": f"Smart-Matching gestartet ({mode})",
     }
 
 
@@ -232,7 +238,11 @@ async def get_smart_match_status():
     return _matching_status
 
 
-async def _run_smart_match_all(top_n: int = 10, max_distance_km: float = 30.0):
+async def _run_smart_match_all(
+    top_n: int = 10,
+    max_distance_km: float = 30.0,
+    skip_already_matched: bool = True,
+):
     """Background-Task: Smart-Matching fuer alle Finance-Jobs."""
     from app.database import async_session_maker
     from app.services.smart_matching_service import SmartMatchingService
@@ -249,6 +259,7 @@ async def _run_smart_match_all(top_n: int = 10, max_distance_km: float = 30.0):
                 top_n=top_n,
                 max_distance_km=max_distance_km,
                 progress_callback=progress,
+                skip_already_matched=skip_already_matched,
             )
 
             _matching_status["result"] = result
