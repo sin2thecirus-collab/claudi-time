@@ -661,18 +661,16 @@ class EmbeddingService:
 
         # ── Schritt 1: Alle Finance-Kandidaten mit Embedding + PostGIS-Distanz laden ──
         # Distanz wird in SQL berechnet (PostGIS), Similarity in Python.
+        # STRENG: Nur Kandidaten MIT Koordinaten UND innerhalb max_distance_km.
+        # Kandidaten ohne Adresse werden NICHT gematcht.
         query = text("""
             SELECT
                 c.id AS candidate_id,
                 c.embedding AS candidate_embedding,
-                CASE
-                    WHEN c.address_coords IS NOT NULL AND j.location_coords IS NOT NULL
-                    THEN ST_Distance(
-                        c.address_coords::geography,
-                        j.location_coords::geography
-                    ) / 1000.0
-                    ELSE NULL
-                END AS distance_km
+                ST_Distance(
+                    c.address_coords::geography,
+                    j.location_coords::geography
+                ) / 1000.0 AS distance_km
             FROM candidates c
             CROSS JOIN (SELECT location_coords FROM jobs WHERE id = :job_id) j
             WHERE
@@ -680,15 +678,12 @@ class EmbeddingService:
                 AND c.hidden = false
                 AND c.deleted_at IS NULL
                 AND c.embedding IS NOT NULL
-                AND (
-                    -- Distanz-Filter: Entweder innerhalb max_distance_km ODER keine Koordinaten
-                    c.address_coords IS NULL
-                    OR j.location_coords IS NULL
-                    OR ST_DWithin(
-                        c.address_coords::geography,
-                        j.location_coords::geography,
-                        :max_distance_m
-                    )
+                AND c.address_coords IS NOT NULL
+                AND j.location_coords IS NOT NULL
+                AND ST_DWithin(
+                    c.address_coords::geography,
+                    j.location_coords::geography,
+                    :max_distance_m
                 )
         """)
 

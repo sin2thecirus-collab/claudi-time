@@ -424,3 +424,75 @@ async def estimate_smart_match_cost(
 
     estimate = SmartMatchingService.estimate_cost(num_jobs, candidates_per_job)
     return estimate
+
+
+# ═══════════════════════════════════════════════════════════════
+# CLEANUP: Fehlerhafte Matches bereinigen
+# ═══════════════════════════════════════════════════════════════
+
+
+@router.post("/api/smart-match/cleanup-invalid-distances")
+async def cleanup_invalid_distance_matches(
+    dry_run: bool = Query(default=True, description="True = nur zaehlen, False = wirklich loeschen"),
+    max_distance_km: float = Query(default=30.0, ge=1.0),
+    db: AsyncSession = Depends(get_db),
+):
+    """Loescht fehlerhafte Matches: distance_km IS NULL oder > max_distance_km.
+
+    Einmalige Bereinigung nach Verschaerfung des Distanz-Filters.
+    Standard: dry_run=True (zaehlt nur, loescht nicht).
+    """
+    from sqlalchemy import text
+
+    # Zuerst zaehlen
+    count_result = await db.execute(
+        text("""
+            SELECT
+                COUNT(*) AS total,
+                COUNT(*) FILTER (WHERE distance_km IS NULL) AS null_distance,
+                COUNT(*) FILTER (WHERE distance_km > :max_km) AS over_distance
+            FROM matches
+            WHERE matching_method = 'smart_match'
+              AND (distance_km IS NULL OR distance_km > :max_km)
+        """),
+        {"max_km": max_distance_km},
+    )
+    row = count_result.one()
+    total, null_count, over_count = row.total, row.null_distance, row.over_distance
+
+    if dry_run:
+        return {
+            "dry_run": True,
+            "would_delete": total,
+            "null_distance": null_count,
+            "over_distance_km": over_count,
+            "max_distance_km": max_distance_km,
+            "message": f"Wuerde {total} Matches loeschen. Setze dry_run=false zum Loeschen.",
+        }
+
+    # Wirklich loeschen
+    delete_result = await db.execute(
+        text("""
+            DELETE FROM matches
+            WHERE matching_method = 'smart_match'
+              AND (distance_km IS NULL OR distance_km > :max_km)
+        """),
+        {"max_km": max_distance_km},
+    )
+    await db.commit()
+
+    deleted = delete_result.rowcount
+
+    logger.info(
+        f"Cleanup: {deleted} fehlerhafte Matches geloescht "
+        f"(null_distance={null_count}, over_{max_distance_km}km={over_count})"
+    )
+
+    return {
+        "dry_run": False,
+        "deleted": deleted,
+        "null_distance": null_count,
+        "over_distance_km": over_count,
+        "max_distance_km": max_distance_km,
+        "message": f"{deleted} fehlerhafte Matches geloescht.",
+    }
