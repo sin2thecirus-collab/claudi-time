@@ -147,7 +147,12 @@ class MatchComparisonData:
     candidate_street_address: str
     candidate_current_position: str
     candidate_current_company: str
-    cv_text: str
+    work_history: list[dict] | None
+    education: list[dict] | None
+    further_education: list[dict] | None
+    languages: list[dict] | None
+    it_skills: list[str] | None
+    skills: list[str] | None
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -619,7 +624,12 @@ class MatchCenterService:
                 Candidate.street_address.label("candidate_street_address"),
                 Candidate.current_position,
                 Candidate.current_company,
-                Candidate.cv_text,
+                Candidate.work_history,
+                Candidate.education,
+                Candidate.further_education,
+                Candidate.languages,
+                Candidate.it_skills,
+                Candidate.skills,
             )
             .join(Job, Match.job_id == Job.id, isouter=True)
             .join(Candidate, Match.candidate_id == Candidate.id, isouter=True)
@@ -661,7 +671,12 @@ class MatchCenterService:
             candidate_street_address=row.candidate_street_address or "",
             candidate_current_position=row.current_position or "",
             candidate_current_company=row.current_company or "",
-            cv_text=row.cv_text or "",
+            work_history=row.work_history,
+            education=row.education,
+            further_education=row.further_education,
+            languages=row.languages,
+            it_skills=row.it_skills,
+            skills=row.skills,
         )
 
     # ───────────────────────────────────────────────────────────

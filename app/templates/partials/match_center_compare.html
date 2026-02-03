@@ -115,11 +115,10 @@
             </div>
         </div>
 
-        <!-- RECHTS: Lebenslauf -->
+        <!-- RECHTS: Lebenslauf (strukturiert, ohne persoenliche Daten) -->
         <div>
             <div class="flex items-center justify-between mb-2">
                 <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wider">Lebenslauf</h3>
-                {% if data.cv_text %}
                 <button onclick="copyToClipboard(document.getElementById('compare-cv-text').innerText, 'Lebenslauf')"
                         class="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1 transition-colors">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -127,11 +126,115 @@
                     </svg>
                     Kopieren
                 </button>
-                {% endif %}
             </div>
             <div id="compare-cv-text"
-                 class="bg-white border border-gray-200 rounded-lg p-4 max-h-96 overflow-y-auto text-sm text-gray-700 leading-relaxed whitespace-pre-line">
-                {% if data.cv_text %}{{ data.cv_text }}{% else %}<span class="text-gray-400 italic">Kein Lebenslauf vorhanden.</span>{% endif %}
+                 class="bg-white border border-gray-200 rounded-lg p-4 max-h-96 overflow-y-auto text-sm text-gray-700 leading-relaxed space-y-4">
+
+                {# ── BERUFSERFAHRUNG ── #}
+                {% if data.work_history and data.work_history is iterable and data.work_history is not string and data.work_history | length > 0 %}
+                <div>
+                    <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Berufserfahrung</h4>
+                    <ul class="space-y-2">
+                        {% for job in data.work_history %}{% if job is mapping %}
+                        <li>
+                            <div class="flex items-start justify-between">
+                                <div>
+                                    <p class="font-medium text-gray-900">{{ job.position | default('Unbekannte Position') }}</p>
+                                    <p class="text-gray-500 text-xs">{{ job.company | default('Unbekanntes Unternehmen') }}</p>
+                                </div>
+                                <span class="text-xs text-gray-400 whitespace-nowrap ml-2">{% if job.start_date %}{{ job.start_date }}{% endif %}{% if job.end_date %} - {{ job.end_date }}{% elif job.start_date %} - heute{% endif %}</span>
+                            </div>
+                            {% if job.description and job.description != 'null' %}
+                            <p class="text-xs text-gray-600 mt-1 whitespace-pre-line">{{ job.description[:200] }}{% if job.description | length > 200 %}...{% endif %}</p>
+                            {% endif %}
+                        </li>
+                        {% endif %}{% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                {# ── AUSBILDUNG ── #}
+                {% if data.education and data.education is iterable and data.education is not string and data.education | length > 0 %}
+                <div>
+                    <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Ausbildung</h4>
+                    <ul class="space-y-1.5">
+                        {% for edu in data.education %}{% if edu is mapping %}
+                        <li class="flex items-start justify-between">
+                            <div>
+                                <p class="font-medium text-gray-900">{{ edu.degree | default('Ausbildung') }}</p>
+                                <p class="text-xs text-gray-500">{{ edu.institution | default('Unbekannte Institution') }}{% if edu.field_of_study %} — {{ edu.field_of_study }}{% endif %}</p>
+                            </div>
+                            <span class="text-xs text-gray-400 whitespace-nowrap ml-2">{% if edu.end_date %}{{ edu.end_date }}{% elif edu.start_date %}{{ edu.start_date }}{% endif %}</span>
+                        </li>
+                        {% endif %}{% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                {# ── WEITERBILDUNG & ZERTIFIKATE ── #}
+                {% if data.further_education and data.further_education is iterable and data.further_education is not string and data.further_education | length > 0 %}
+                <div>
+                    <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Zertifikate & Weiterbildungen</h4>
+                    <ul class="space-y-1.5">
+                        {% for wb in data.further_education %}{% if wb is mapping %}
+                        <li class="flex items-start justify-between">
+                            <div>
+                                <p class="font-medium text-gray-900">{{ wb.degree | default('Weiterbildung') }}</p>
+                                <p class="text-xs text-gray-500">{{ wb.institution | default('Unbekannter Anbieter') }}</p>
+                            </div>
+                            <span class="text-xs text-gray-400 whitespace-nowrap ml-2">{% if wb.end_date %}{{ wb.end_date }}{% elif wb.start_date %}{{ wb.start_date }}{% endif %}</span>
+                        </li>
+                        {% endif %}{% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                {# ── IT-KENNTNISSE ── #}
+                {% if data.it_skills and data.it_skills | length > 0 %}
+                <div>
+                    <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">IT-Kenntnisse</h4>
+                    <div class="flex flex-wrap gap-1">
+                        {% for skill in data.it_skills %}
+                        <span class="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">{{ skill }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {# ── SPRACHEN ── #}
+                {% if data.languages and data.languages is iterable and data.languages is not string and data.languages | length > 0 %}
+                <div>
+                    <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Sprachen</h4>
+                    <div class="space-y-1">
+                        {% for lang in data.languages %}{% if lang is mapping %}
+                        <div class="flex items-center justify-between">
+                            <span class="font-medium text-gray-900">{{ lang.language | default('Unbekannt') }}</span>
+                            {% if lang.level %}
+                            <span class="inline-flex items-center rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-700/10">{{ lang.level }}</span>
+                            {% endif %}
+                        </div>
+                        {% endif %}{% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {# ── KENNTNISSE ── #}
+                {% if data.skills and data.skills | length > 0 %}
+                <div>
+                    <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Kenntnisse</h4>
+                    <div class="flex flex-wrap gap-1">
+                        {% for skill in data.skills %}
+                        <span class="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700 ring-1 ring-inset ring-gray-600/10">{{ skill }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {# ── EMPTY STATE ── #}
+                {% if not (data.work_history and data.work_history | length > 0) and not (data.education and data.education | length > 0) and not (data.further_education and data.further_education | length > 0) and not (data.it_skills and data.it_skills | length > 0) and not (data.languages and data.languages | length > 0) and not (data.skills and data.skills | length > 0) %}
+                <span class="text-gray-400 italic">Kein Lebenslauf vorhanden.</span>
+                {% endif %}
+
             </div>
         </div>
     </div>
