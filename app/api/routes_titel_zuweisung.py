@@ -159,13 +159,13 @@ async def titel_kandidaten_liste(
             )
         )
 
-    # Filter: Nach Titel (NUR manuelle Titel + current_position)
-    # NICHT hotlist_job_title — der wird automatisch gesetzt und kann falsch sein
+    # Filter: Nach Titel (manuelle Titel, hotlist_job_title, current_position)
     if titel:
         titel_search = f"%{titel}%"
         query = query.where(
             or_(
                 Candidate.manual_job_titles.any(titel),
+                Candidate.hotlist_job_title.ilike(titel_search),
                 Candidate.current_position.ilike(titel_search),
             )
         )
