@@ -1417,3 +1417,32 @@ async def cleanup_for_restart(
         "embeddings_kept": "alle",
         "status": "Cleanup abgeschlossen. Bereit fuer Neustart.",
     }
+
+
+# ==================== Migrations On-Demand ====================
+
+
+@router.post("/run-migrations")
+async def run_migrations():
+    """Fuehrt ausstehende Alembic-Migrationen aus (on-demand)."""
+    import subprocess
+
+    try:
+        result = subprocess.run(
+            ["alembic", "upgrade", "head"],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+
+        return {
+            "success": result.returncode == 0,
+            "stdout": result.stdout,
+            "stderr": result.stderr,
+            "returncode": result.returncode,
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+        }
