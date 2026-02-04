@@ -1331,7 +1331,7 @@ async def _run_cleanup(db_unused: AsyncSession, job_run_id: UUID):
 # ==================== MT Neustart: Cleanup for Restart ====================
 
 
-@router.post("/api/admin/cleanup-for-restart")
+@router.post("/cleanup-for-restart")
 async def cleanup_for_restart(
     dry_run: bool = Query(default=True, description="True = nur zaehlen, nicht loeschen"),
     archive_matches: bool = Query(default=True, description="AI-bewertete Matches vorher archivieren"),
