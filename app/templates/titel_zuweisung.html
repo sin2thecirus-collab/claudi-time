@@ -235,6 +235,9 @@
 
 {% block scripts %}
 <script>
+// Globale Filter-Referenz (wird von Alpine gesetzt, von saveTitelZuweisung gelesen)
+var _titelFilter = {};
+
 function titelZuweisung() {
     return {
         searchTerm: '',
@@ -252,6 +255,15 @@ function titelZuweisung() {
             if (this.selectedHasCv) params.set('has_cv', this.selectedHasCv);
             if (this.selectedTitel) params.set('titel', this.selectedTitel);
             if (this.selectedMinRating) params.set('min_rating', this.selectedMinRating);
+
+            // Globale Filter-Referenz aktualisieren (fuer saveTitelZuweisung)
+            _titelFilter = {
+                selectedCity: this.selectedCity,
+                selectedStatus: this.selectedStatus,
+                selectedHasCv: this.selectedHasCv,
+                selectedTitel: this.selectedTitel,
+                selectedMinRating: this.selectedMinRating,
+            };
 
             htmx.ajax('GET', '/partials/titel-zuweisung/kandidaten?' + params.toString(), {
                 target: '#kandidaten-liste',
@@ -334,13 +346,12 @@ async function saveTitelZuweisung(candidateId, loadNext) {
 
             if (loadNext) {
                 // Naechsten Kandidaten laden (ALLE aktiven Filter uebergeben!)
-                const filterData = document.querySelector('[x-data]')?.__x?.$data || {};
                 const nextParams = new URLSearchParams();
-                if (filterData.selectedCity) nextParams.set('city', filterData.selectedCity);
-                if (filterData.selectedStatus) nextParams.set('status', filterData.selectedStatus);
-                if (filterData.selectedHasCv) nextParams.set('has_cv', filterData.selectedHasCv);
-                if (filterData.selectedTitel) nextParams.set('titel', filterData.selectedTitel);
-                if (filterData.selectedMinRating) nextParams.set('min_rating', filterData.selectedMinRating);
+                if (_titelFilter.selectedCity) nextParams.set('city', _titelFilter.selectedCity);
+                if (_titelFilter.selectedStatus) nextParams.set('status', _titelFilter.selectedStatus);
+                if (_titelFilter.selectedHasCv) nextParams.set('has_cv', _titelFilter.selectedHasCv);
+                if (_titelFilter.selectedTitel) nextParams.set('titel', _titelFilter.selectedTitel);
+                if (_titelFilter.selectedMinRating) nextParams.set('min_rating', _titelFilter.selectedMinRating);
                 const nextResp = await fetch('/api/titel-zuweisung/next/' + candidateId + '?' + nextParams.toString());
                 const nextData = await nextResp.json();
 
@@ -382,13 +393,12 @@ async function deleteKandidat(candidateId) {
             showToast(data.message || 'Kandidat geloescht', 'success');
 
             // Naechsten Kandidaten laden (ALLE aktiven Filter uebergeben!)
-            const filterData2 = document.querySelector('[x-data]')?.__x?.$data || {};
             const delParams = new URLSearchParams();
-            if (filterData2.selectedCity) delParams.set('city', filterData2.selectedCity);
-            if (filterData2.selectedStatus) delParams.set('status', filterData2.selectedStatus);
-            if (filterData2.selectedHasCv) delParams.set('has_cv', filterData2.selectedHasCv);
-            if (filterData2.selectedTitel) delParams.set('titel', filterData2.selectedTitel);
-            if (filterData2.selectedMinRating) delParams.set('min_rating', filterData2.selectedMinRating);
+            if (_titelFilter.selectedCity) delParams.set('city', _titelFilter.selectedCity);
+            if (_titelFilter.selectedStatus) delParams.set('status', _titelFilter.selectedStatus);
+            if (_titelFilter.selectedHasCv) delParams.set('has_cv', _titelFilter.selectedHasCv);
+            if (_titelFilter.selectedTitel) delParams.set('titel', _titelFilter.selectedTitel);
+            if (_titelFilter.selectedMinRating) delParams.set('min_rating', _titelFilter.selectedMinRating);
             const nextResp = await fetch('/api/titel-zuweisung/next/' + candidateId + '?' + delParams.toString());
             const nextData = await nextResp.json();
 
