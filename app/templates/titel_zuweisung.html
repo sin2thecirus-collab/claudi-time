@@ -87,7 +87,8 @@
     </div>
 
     {# ═══ Filter-Leiste ═══ #}
-    <div class="bg-white rounded-xl border border-gray-200 p-5">
+    <div class="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
+        {# Zeile 1: Suche + Status #}
         <div class="flex flex-wrap items-center gap-4">
             {# Suche #}
             <div class="flex-1 min-w-[200px]">
@@ -97,15 +98,6 @@
                        placeholder="Name oder Position suchen..."
                        class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500">
             </div>
-
-            {# Stadt-Filter #}
-            <select x-model="selectedCity" @change="loadKandidaten()"
-                    class="rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500">
-                <option value="">Alle Staedte</option>
-                {% for city in cities %}
-                <option value="{{ city.name }}">{{ city.name }} ({{ city.count }})</option>
-                {% endfor %}
-            </select>
 
             {# Status-Filter #}
             <div class="flex rounded-lg border border-gray-300 overflow-hidden">
@@ -125,6 +117,61 @@
                     Zugewiesen
                 </button>
             </div>
+        </div>
+
+        {# Zeile 2: CV-Filter + Stadt + Titel #}
+        <div class="flex flex-wrap items-center gap-4">
+            {# CV-Filter #}
+            <div class="flex items-center gap-2">
+                <label class="text-xs font-medium text-gray-500 uppercase tracking-wider">CV</label>
+                <div class="flex rounded-lg border border-gray-300 overflow-hidden">
+                    <button @click="selectedHasCv = ''; loadKandidaten()"
+                            :class="selectedHasCv === '' ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
+                            class="px-3 py-2 text-xs font-medium transition-colors">
+                        Alle
+                    </button>
+                    <button @click="selectedHasCv = 'ja'; loadKandidaten()"
+                            :class="selectedHasCv === 'ja' ? 'bg-green-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
+                            class="px-3 py-2 text-xs font-medium border-l border-gray-300 transition-colors">
+                        Mit CV
+                    </button>
+                    <button @click="selectedHasCv = 'nein'; loadKandidaten()"
+                            :class="selectedHasCv === 'nein' ? 'bg-red-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
+                            class="px-3 py-2 text-xs font-medium border-l border-gray-300 transition-colors">
+                        Ohne CV
+                    </button>
+                </div>
+            </div>
+
+            {# Stadt-Filter #}
+            <div class="flex items-center gap-2">
+                <label class="text-xs font-medium text-gray-500 uppercase tracking-wider">Stadt</label>
+                <select x-model="selectedCity" @change="loadKandidaten()"
+                        class="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500">
+                    <option value="">Alle Staedte</option>
+                    {% for city in cities %}
+                    <option value="{{ city.name }}">{{ city.name }} ({{ city.count }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            {# Titel-Filter #}
+            <div class="flex items-center gap-2">
+                <label class="text-xs font-medium text-gray-500 uppercase tracking-wider">Titel</label>
+                <select x-model="selectedTitel" @change="loadKandidaten()"
+                        class="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500">
+                    <option value="">Alle Titel</option>
+                    {% for title in common_job_titles %}
+                    <option value="{{ title }}">{{ title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            {# Filter zuruecksetzen #}
+            <button @click="resetFilters()" x-show="selectedCity || selectedHasCv || selectedTitel || searchTerm"
+                    class="text-xs text-gray-500 hover:text-gray-700 underline transition-colors">
+                Filter zuruecksetzen
+            </button>
         </div>
     </div>
 
@@ -174,17 +221,30 @@ function titelZuweisung() {
         searchTerm: '',
         selectedCity: '',
         selectedStatus: 'offen',
+        selectedHasCv: '',
+        selectedTitel: '',
 
         loadKandidaten() {
             const params = new URLSearchParams();
             params.set('status', this.selectedStatus);
             if (this.selectedCity) params.set('city', this.selectedCity);
             if (this.searchTerm) params.set('search', this.searchTerm);
+            if (this.selectedHasCv) params.set('has_cv', this.selectedHasCv);
+            if (this.selectedTitel) params.set('titel', this.selectedTitel);
 
             htmx.ajax('GET', '/partials/titel-zuweisung/kandidaten?' + params.toString(), {
                 target: '#kandidaten-liste',
                 swap: 'innerHTML'
             });
+        },
+
+        resetFilters() {
+            this.searchTerm = '';
+            this.selectedCity = '';
+            this.selectedStatus = 'offen';
+            this.selectedHasCv = '';
+            this.selectedTitel = '';
+            this.loadKandidaten();
         }
     };
 }

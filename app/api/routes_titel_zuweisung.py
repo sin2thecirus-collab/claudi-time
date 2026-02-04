@@ -102,6 +102,8 @@ async def titel_kandidaten_liste(
     city: str = Query(default=""),
     status: str = Query(default="alle"),  # "alle", "offen", "zugewiesen"
     search: str = Query(default=""),
+    has_cv: str = Query(default=""),  # "ja", "nein", "" (alle)
+    titel: str = Query(default=""),  # Filter nach zugewiesenem Titel
     db: AsyncSession = Depends(get_db),
 ):
     """HTMX-Partial: Kandidaten-Tabelle fuer Titel-Zuweisung."""
@@ -129,6 +131,33 @@ async def titel_kandidaten_liste(
             and_(
                 Candidate.manual_job_titles.isnot(None),
                 func.array_length(Candidate.manual_job_titles, 1) > 0,
+            )
+        )
+
+    # Filter: CV vorhanden
+    if has_cv == "ja":
+        query = query.where(
+            or_(
+                Candidate.cv_url.isnot(None),
+                Candidate.cv_stored_path.isnot(None),
+            )
+        )
+    elif has_cv == "nein":
+        query = query.where(
+            and_(
+                Candidate.cv_url.is_(None),
+                Candidate.cv_stored_path.is_(None),
+            )
+        )
+
+    # Filter: Nach zugewiesenem Titel
+    if titel:
+        # PostgreSQL ARRAY contains: manual_job_titles @> ARRAY['Titel']
+        # Oder hotlist_job_titles als Fallback
+        query = query.where(
+            or_(
+                Candidate.manual_job_titles.any(titel),
+                Candidate.hotlist_job_titles.any(titel),
             )
         )
 
@@ -179,6 +208,8 @@ async def titel_kandidaten_liste(
             "city": city,
             "status": status,
             "search": search,
+            "has_cv": has_cv,
+            "titel": titel,
         },
     )
 
