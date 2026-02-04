@@ -165,7 +165,6 @@ async def titel_kandidaten_liste(
         query = query.where(
             or_(
                 Candidate.manual_job_titles.any(titel),
-                Candidate.hotlist_job_titles.any(titel),
                 Candidate.hotlist_job_title.ilike(titel_search),
                 Candidate.current_position.ilike(titel_search),
             )
