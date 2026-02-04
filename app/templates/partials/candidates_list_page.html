@@ -66,7 +66,7 @@
     </thead>
     <tbody class="divide-y divide-gray-200 bg-white">
         {% for candidate in candidates %}
-        <tr id="row-{{ candidate.id }}" class="hover:bg-gray-50 cursor-pointer transition-colors"
+        <tr id="row-{{ candidate.id }}" class="{% if candidate.hidden %}bg-gray-50 opacity-60{% endif %} hover:bg-gray-100 cursor-pointer transition-colors"
             onclick="window.location='/kandidaten/{{ candidate.id }}'">
             {# Checkbox (nur sichtbar im Auswahl-Modus) #}
             <td class="selection-col hidden whitespace-nowrap py-5 pl-5 pr-2 w-12" onclick="event.stopPropagation()">

@@ -471,14 +471,14 @@ async def candidates_list_partial(
     if skills:
         skills_list = [s.strip() for s in skills.split(',') if s.strip()]
 
-    # Filter aufbauen - only_active=False um alle Kandidaten anzuzeigen
+    # Filter aufbauen - include_hidden=True damit ALLE Kandidaten findbar sind
     filters = CandidateFilterParams(
         name=search if search else None,
         position=position if position else None,
         skills=skills_list,
         city_search=city if city else None,
         hotlist_category=category if category else None,
-        include_hidden=False,
+        include_hidden=True,
         only_active=False,
     )
 
