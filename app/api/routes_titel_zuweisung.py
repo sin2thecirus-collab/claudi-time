@@ -4,6 +4,7 @@ Hauptseite: /titel-zuweisung
 - Tabelle aller Kandidaten mit Filtern (Stadt, Status)
 - Modal zum CV-Lesen und Titel-Zuweisen
 - Lern-Integration: Jede Zuweisung → mt_training_data
+- KETTENREAKTION: Aenderungen propagieren zu category, matches, embedding
 """
 
 import json
@@ -14,11 +15,13 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import and_, func, or_, select, case
+from sqlalchemy import and_, func, or_, select, case, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.candidate import Candidate
+from app.models.match import Match
+from app.services.categorization_service import CategorizationService
 from app.services.mt_learning_service import COMMON_JOB_TITLES, MTLearningService
 
 logger = logging.getLogger(__name__)
@@ -331,11 +334,20 @@ async def save_titel_zuweisung(
     suggestion = await learning_service.get_suggestion_for_candidate(candidate)
     predicted_titles = suggestion.get("suggested_titles") if suggestion.get("source") != "none" else None
 
+    # ── Vorherige Werte merken (fuer Kettenreaktion) ──
+    old_position = candidate.current_position
+    old_category = candidate.hotlist_category
+    name_changed = False
+
     # 0. Namen aktualisieren (wenn geaendert)
     if first_name and first_name.strip():
-        candidate.first_name = first_name.strip()
+        if candidate.first_name != first_name.strip():
+            candidate.first_name = first_name.strip()
+            name_changed = True
     if last_name and last_name.strip():
-        candidate.last_name = last_name.strip()
+        if candidate.last_name != last_name.strip():
+            candidate.last_name = last_name.strip()
+            name_changed = True
 
     # 1. manual_job_titles setzen
     candidate.manual_job_titles = titles
@@ -350,6 +362,53 @@ async def save_titel_zuweisung(
     candidate.hotlist_job_title = titles[0]
     candidate.hotlist_job_titles = list(titles)
     candidate.categorized_at = datetime.now(timezone.utc)
+
+    # ═══════════════════════════════════════════════════════
+    # KETTENREAKTION: Aenderungen überall propagieren
+    # ═══════════════════════════════════════════════════════
+
+    # KR-1: current_position mit erstem manuellen Titel synchronisieren
+    #        → wird überall angezeigt (Kandidaten-Liste, Match-Cards, Detail)
+    candidate.current_position = titles[0]
+    logger.info(f"KR-1: current_position '{old_position}' → '{titles[0]}'")
+
+    # KR-2: hotlist_category aus den manuellen Titeln ableiten
+    #        → Kandidat erscheint in der richtigen Hotlist-Kategorie
+    cat_service = CategorizationService(db)
+    titles_text = " ".join(titles)
+    new_category, matched_kw = cat_service.detect_category(titles_text)
+    candidate.hotlist_category = new_category
+    if old_category != new_category:
+        logger.info(f"KR-2: hotlist_category '{old_category}' → '{new_category}' (keywords: {matched_kw})")
+
+    # KR-3: Embedding invalidieren (veraltet nach Titelaenderung)
+    #        → naechster Matching-Lauf berechnet neues Embedding
+    if candidate.embedding is not None:
+        candidate.embedding = None
+        logger.info(f"KR-3: Embedding invalidiert fuer {candidate.full_name}")
+
+    # KR-4: Bestehende Matches als stale markieren
+    #        → Scores basieren auf altem Profil, muessen neu bewertet werden
+    now = datetime.now(timezone.utc)
+    stale_result = await db.execute(
+        update(Match)
+        .where(
+            and_(
+                Match.candidate_id == candidate_id,
+                or_(Match.stale.is_(False), Match.stale.is_(None)),
+            )
+        )
+        .values(
+            stale=True,
+            stale_reason=f"Titel geaendert: {old_position} → {titles[0]}",
+            stale_since=now,
+        )
+    )
+    stale_count = stale_result.rowcount or 0
+    if stale_count > 0:
+        logger.info(f"KR-4: {stale_count} Matches als stale markiert")
+
+    # ═══════════════════════════════════════════════════════
 
     # 4. Training-Daten speichern
     await learning_service.save_title_assignment(
@@ -370,6 +429,10 @@ async def save_titel_zuweisung(
         "assigned_titles": titles,
         "rating": candidate.rating,
         "candidate_name": candidate.full_name,
+        "category": new_category,
+        "position_updated": titles[0],
+        "stale_matches": stale_count,
+        "name_changed": name_changed,
     }
 
 
