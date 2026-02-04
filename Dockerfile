@@ -1,6 +1,6 @@
 FROM python:3.11-slim AS base
 
-# Build: 2026-01-26-v4 - Force rebuild
+# Build: 2026-02-04-v1 - Word-CV async + UserInstallation fix
 # Arbeitsverzeichnis setzen
 WORKDIR /app
 
@@ -25,7 +25,10 @@ COPY . .
 
 # Non-root User für Sicherheit
 RUN useradd --create-home --shell /bin/bash appuser && \
-    chown -R appuser:appuser /app
+    chown -R appuser:appuser /app && \
+    mkdir -p /home/appuser/.config/libreoffice && \
+    chown -R appuser:appuser /home/appuser
+
 USER appuser
 
 # Port freigeben
@@ -38,7 +41,8 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 # Umgebungsvariablen
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PORT=8000
+    PORT=8000 \
+    HOME=/home/appuser
 
 # Uvicorn starten
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

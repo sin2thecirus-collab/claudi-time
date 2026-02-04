@@ -511,9 +511,9 @@ def _is_word_document(content: bytes, url: str | None = None) -> bool:
     return False
 
 
-def _convert_word_to_pdf(word_content: bytes) -> bytes:
-    """Konvertiert Word-Dokument (DOC/DOCX) zu PDF via LibreOffice."""
-    import subprocess
+async def _convert_word_to_pdf(word_content: bytes) -> bytes:
+    """Konvertiert Word-Dokument (DOC/DOCX) zu PDF via LibreOffice (async)."""
+    import asyncio
     import tempfile
     import os
     import shutil
@@ -521,43 +521,64 @@ def _convert_word_to_pdf(word_content: bytes) -> bytes:
     if not shutil.which("soffice"):
         raise RuntimeError("LibreOffice nicht installiert (soffice nicht gefunden)")
 
-    with tempfile.TemporaryDirectory() as tmpdir:
+    tmpdir = tempfile.mkdtemp()
+    try:
         # Word-Datei speichern
         input_path = os.path.join(tmpdir, "document.docx")
         with open(input_path, "wb") as f:
             f.write(word_content)
 
-        # HOME setzen — LibreOffice braucht es fuer sein Profil-Verzeichnis
+        # HOME + LibreOffice User-Profil in tmpdir
         env = os.environ.copy()
         env["HOME"] = tmpdir
+        env["TMPDIR"] = tmpdir
 
-        # LibreOffice Konvertierung
-        result = subprocess.run(
-            [
-                "soffice",
-                "--headless",
-                "--norestore",
-                "--convert-to", "pdf",
-                "--outdir", tmpdir,
-                input_path,
-            ],
-            capture_output=True,
-            timeout=60,
+        # Eigenes User-Profil pro Aufruf (verhindert Lock-Konflikte)
+        user_profile = f"file://{tmpdir}/libreoffice_profile"
+
+        # LibreOffice async ausfuehren (blockiert nicht den Event Loop)
+        process = await asyncio.create_subprocess_exec(
+            "soffice",
+            "--headless",
+            "--norestore",
+            "--nofirststartwizard",
+            f"-env:UserInstallation={user_profile}",
+            "--convert-to", "pdf",
+            "--outdir", tmpdir,
+            input_path,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
             env=env,
         )
 
-        if result.returncode != 0:
-            stderr = result.stderr.decode(errors="replace")
-            logger.error(f"LibreOffice Konvertierung fehlgeschlagen (exit {result.returncode}): {stderr}")
-            raise RuntimeError(f"Word-zu-PDF Konvertierung fehlgeschlagen: {stderr[:200]}")
+        try:
+            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=60)
+        except asyncio.TimeoutError:
+            process.kill()
+            await process.communicate()
+            raise RuntimeError("Word-zu-PDF Konvertierung Timeout (60s)")
+
+        if process.returncode != 0:
+            stderr_text = stderr.decode(errors="replace")
+            logger.error(f"LibreOffice Konvertierung fehlgeschlagen (exit {process.returncode}): {stderr_text}")
+            raise RuntimeError(f"Word-zu-PDF Konvertierung fehlgeschlagen: {stderr_text[:200]}")
 
         # PDF lesen
         pdf_path = os.path.join(tmpdir, "document.pdf")
         if not os.path.exists(pdf_path):
-            raise RuntimeError("PDF wurde nicht erstellt — LibreOffice hat keine Ausgabe erzeugt")
+            # Manchmal erzeugt LibreOffice Dateien mit anderem Namen
+            pdf_files = [f for f in os.listdir(tmpdir) if f.endswith(".pdf")]
+            if pdf_files:
+                pdf_path = os.path.join(tmpdir, pdf_files[0])
+            else:
+                stdout_text = stdout.decode(errors="replace") if stdout else ""
+                logger.error(f"LibreOffice hat kein PDF erzeugt. stdout: {stdout_text}")
+                raise RuntimeError("PDF wurde nicht erstellt — LibreOffice hat keine Ausgabe erzeugt")
 
         with open(pdf_path, "rb") as f:
             return f.read()
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 @router.get(
@@ -598,7 +619,13 @@ async def cv_preview_proxy(
                 # R2-Datei pruefen: Word-Dokument konvertieren
                 if _is_word_document(content, candidate.cv_stored_path):
                     logger.info(f"Word-Dokument in R2 erkannt fuer {candidate.full_name}, konvertiere zu PDF")
-                    pdf_content = _convert_word_to_pdf(content)
+                    try:
+                        pdf_content = await _convert_word_to_pdf(content)
+                    except RuntimeError as e:
+                        logger.error(f"Word-Konvertierung fehlgeschlagen (R2) fuer {candidate.full_name}: {e}")
+                        raise NotFoundException(
+                            message=f"CV ist ein Word-Dokument und konnte nicht konvertiert werden: {e}"
+                        )
                     # Konvertiertes PDF in R2 ueberschreiben (nur 1x konvertieren)
                     try:
                         r2.client.put_object(
@@ -637,7 +664,13 @@ async def cv_preview_proxy(
     # Word-Dokument? → zu PDF konvertieren
     if _is_word_document(file_content, candidate.cv_url):
         logger.info(f"Word-Dokument vom CRM erkannt fuer {candidate.full_name}, konvertiere zu PDF")
-        pdf_content = _convert_word_to_pdf(file_content)
+        try:
+            pdf_content = await _convert_word_to_pdf(file_content)
+        except RuntimeError as e:
+            logger.error(f"Word-Konvertierung fehlgeschlagen (CRM) fuer {candidate.full_name}: {e}")
+            raise NotFoundException(
+                message=f"CV ist ein Word-Dokument und konnte nicht konvertiert werden: {e}"
+            )
     else:
         pdf_content = file_content
 
