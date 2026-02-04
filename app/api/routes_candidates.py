@@ -497,6 +497,59 @@ async def get_jobs_for_candidate(
 
 # ==================== CV-Proxy (fuer iframe-Vorschau) ====================
 
+def _is_word_document(content: bytes, url: str | None = None) -> bool:
+    """Erkennt ob der Inhalt ein Word-Dokument ist (DOCX oder DOC)."""
+    # DOCX = ZIP-Archiv (PK Header)
+    if content[:4] == b"PK\x03\x04":
+        return True
+    # DOC = OLE2 Compound File (D0CF Header)
+    if content[:8] == b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1":
+        return True
+    # Fallback: URL-Endung pruefen
+    if url and any(url.lower().endswith(ext) for ext in (".docx", ".doc")):
+        return True
+    return False
+
+
+def _convert_word_to_pdf(word_content: bytes) -> bytes:
+    """Konvertiert Word-Dokument (DOC/DOCX) zu PDF via LibreOffice."""
+    import subprocess
+    import tempfile
+    import os
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Word-Datei speichern
+        input_path = os.path.join(tmpdir, "document.docx")
+        with open(input_path, "wb") as f:
+            f.write(word_content)
+
+        # LibreOffice Konvertierung
+        result = subprocess.run(
+            [
+                "soffice",
+                "--headless",
+                "--norestore",
+                "--convert-to", "pdf",
+                "--outdir", tmpdir,
+                input_path,
+            ],
+            capture_output=True,
+            timeout=60,
+        )
+
+        if result.returncode != 0:
+            logger.error(f"LibreOffice Konvertierung fehlgeschlagen: {result.stderr.decode()}")
+            raise RuntimeError("Word-zu-PDF Konvertierung fehlgeschlagen")
+
+        # PDF lesen
+        pdf_path = os.path.join(tmpdir, "document.pdf")
+        if not os.path.exists(pdf_path):
+            raise RuntimeError("PDF wurde nicht erstellt")
+
+        with open(pdf_path, "rb") as f:
+            return f.read()
+
+
 @router.get(
     "/{candidate_id}/cv-preview",
     summary="CV als PDF-Proxy fuer iframe-Vorschau",
@@ -506,7 +559,9 @@ async def cv_preview_proxy(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Proxy-Endpoint der das CV-PDF liefert.
+    Proxy-Endpoint der das CV als PDF liefert.
+
+    Unterstuetzte Formate: PDF, DOCX, DOC (Word wird automatisch konvertiert).
 
     Reihenfolge:
     1. Aus R2 Object Storage (wenn cv_stored_path vorhanden)
@@ -530,6 +585,9 @@ async def cv_preview_proxy(
         try:
             content = r2.download_cv(candidate.cv_stored_path)
             if content:
+                # R2-Datei pruefen: Word-Dokument konvertieren
+                if _is_word_document(content, candidate.cv_stored_path):
+                    content = _convert_word_to_pdf(content)
                 return StreamingResponse(
                     iter([content]),
                     media_type="application/pdf",
@@ -551,7 +609,14 @@ async def cv_preview_proxy(
     if response.status_code != 200:
         raise NotFoundException(message="CV konnte nicht geladen werden")
 
-    pdf_content = response.content
+    file_content = response.content
+
+    # Word-Dokument? → zu PDF konvertieren
+    if _is_word_document(file_content, candidate.cv_url):
+        logger.info(f"Word-Dokument erkannt fuer {candidate.full_name}, konvertiere zu PDF")
+        pdf_content = _convert_word_to_pdf(file_content)
+    else:
+        pdf_content = file_content
 
     # EINMALIG in R2 speichern (nur wenn noch nicht vorhanden)
     if r2.is_available and not candidate.cv_stored_path:

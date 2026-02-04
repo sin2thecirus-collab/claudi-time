@@ -4,11 +4,12 @@ FROM python:3.11-slim AS base
 # Arbeitsverzeichnis setzen
 WORKDIR /app
 
-# System-Dependencies für PyMuPDF und asyncpg
+# System-Dependencies für PyMuPDF, asyncpg und Word-zu-PDF Konvertierung
 RUN apt-get update && apt-get install -y \
     gcc \
     libpq-dev \
     curl \
+    libreoffice-writer \
     && rm -rf /var/lib/apt/lists/*
 
 # Python Dependencies installieren
