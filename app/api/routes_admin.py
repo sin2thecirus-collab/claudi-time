@@ -1423,10 +1423,32 @@ async def cleanup_for_restart(
 
 
 @router.post("/run-migrations")
-async def run_migrations():
-    """Fuehrt ausstehende Alembic-Migrationen aus (on-demand)."""
-    import subprocess
+async def run_migrations(
+    db: AsyncSession = Depends(get_db),
+):
+    """Fuehrt ausstehende Alembic-Migrationen aus (on-demand).
 
+    Repariert vorher die alembic_version Tabelle falls noetig
+    (001_initial -> 001 Umbenennung).
+    """
+    import subprocess
+    from sqlalchemy import text
+
+    # Fix: alembic_version Tabelle reparieren (001_initial -> 001)
+    try:
+        result = await db.execute(
+            text("SELECT version_num FROM alembic_version")
+        )
+        current = result.scalar_one_or_none()
+        if current == "001_initial":
+            await db.execute(
+                text("UPDATE alembic_version SET version_num = '001' WHERE version_num = '001_initial'")
+            )
+            await db.commit()
+    except Exception:
+        pass  # Tabelle existiert nicht oder anderer Fehler
+
+    # Dann Migrationen ausfuehren
     try:
         result = subprocess.run(
             ["alembic", "upgrade", "head"],
