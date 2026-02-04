@@ -158,14 +158,22 @@
                             <span class="text-gray-400"> · {{ entry.get("zeitraum", entry.get("duration", entry.get("period", ""))) }}</span>
                             {% endif %}
                         </p>
-                        {% if entry.get("description") or entry.get("beschreibung") or entry.get("tasks") %}
-                        <p class="text-xs text-gray-400 mt-1 line-clamp-3 whitespace-pre-line">
-                            {% if entry.get("tasks") is iterable and entry.get("tasks") is not string %}
-                                {{ entry.get("tasks") | join("\n") }}
-                            {% else %}
-                                {{ entry.get("description", entry.get("beschreibung", entry.get("tasks", ""))) }}
+                        {% set desc_text = entry.get("description", entry.get("beschreibung", "")) %}
+                        {% set tasks_data = entry.get("tasks") %}
+                        {% if desc_text or tasks_data %}
+                        <ul class="mt-1.5 space-y-0.5">
+                            {% if tasks_data is iterable and tasks_data is not string %}
+                                {% for task in tasks_data %}
+                                <li class="text-xs text-gray-600 flex"><span class="flex-shrink-0 mr-1.5 text-gray-400">&bull;</span><span>{{ task }}</span></li>
+                                {% endfor %}
+                            {% elif desc_text %}
+                                {% for line in desc_text.split('\n') %}
+                                {% if line.strip() %}
+                                <li class="text-xs text-gray-600 flex"><span class="flex-shrink-0 mr-1.5 text-gray-400">&bull;</span><span>{{ line.strip().lstrip('•·-').strip() }}</span></li>
+                                {% endif %}
+                                {% endfor %}
                             {% endif %}
-                        </p>
+                        </ul>
                         {% endif %}
                     </div>
                     {% elif entry is string %}
