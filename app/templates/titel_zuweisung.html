@@ -342,14 +342,21 @@ async function deleteKandidat(candidateId) {
 
         if (data.success) {
             showToast(data.message || 'Kandidat geloescht', 'success');
-            closeTitelModal();
 
-            // Liste neu laden
-            setTimeout(() => {
-                htmx.trigger('#kandidaten-liste', 'refreshList');
-                // Seite neu laden fuer Statistik-Aktualisierung
-                location.reload();
-            }, 500);
+            // Naechsten Kandidaten laden (gleiche Logik wie saveTitelZuweisung)
+            const cityParam = document.querySelector('[x-data]')?.__x?.$data?.selectedCity || '';
+            const nextResp = await fetch('/api/titel-zuweisung/next/' + candidateId + '?city=' + encodeURIComponent(cityParam));
+            const nextData = await nextResp.json();
+
+            if (nextData.next_id) {
+                openTitelModal(nextData.next_id);
+            } else {
+                closeTitelModal();
+                showToast('Alle Kandidaten bearbeitet!', 'info');
+            }
+
+            // Liste im Hintergrund aktualisieren (ohne Seiten-Reload)
+            htmx.trigger('#kandidaten-liste', 'refreshList');
         } else {
             showToast('Fehler: ' + (data.detail || 'Unbekannter Fehler'), 'error');
         }
