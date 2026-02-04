@@ -177,7 +177,12 @@
                     <option value="2">ab 2 Sterne</option>
                     <option value="3">ab 3 Sterne</option>
                     <option value="4">ab 4 Sterne</option>
-                    <option value="5">5 Sterne</option>
+                    <option value="5">ab 5 Sterne</option>
+                    <option value="6">ab 6 Sterne</option>
+                    <option value="7">ab 7 Sterne</option>
+                    <option value="8">ab 8 Sterne</option>
+                    <option value="9">ab 9 Sterne</option>
+                    <option value="10">10 Sterne</option>
                 </select>
             </div>
 
@@ -302,11 +307,17 @@ async function saveTitelZuweisung(candidateId, loadNext) {
     const ratingInput = document.getElementById('rating-input');
     const rating = ratingInput && parseInt(ratingInput.value) > 0 ? parseInt(ratingInput.value) : null;
 
+    // Namen lesen (falls bearbeitet)
+    const firstNameInput = document.getElementById('name-first-input');
+    const lastNameInput = document.getElementById('name-last-input');
+    const firstName = firstNameInput ? firstNameInput.value : null;
+    const lastName = lastNameInput ? lastNameInput.value : null;
+
     try {
         const response = await fetch('/api/titel-zuweisung/save/' + candidateId, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ titles: titles, rating: rating })
+            body: JSON.stringify({ titles: titles, rating: rating, first_name: firstName, last_name: lastName })
         });
 
         const data = await response.json();

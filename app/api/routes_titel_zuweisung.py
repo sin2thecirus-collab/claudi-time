@@ -298,6 +298,8 @@ async def save_titel_zuweisung(
     body = await request.json()
     titles = body.get("titles", [])
     rating = body.get("rating")
+    first_name = body.get("first_name")
+    last_name = body.get("last_name")
 
     if not titles:
         raise HTTPException(400, "Mindestens ein Titel erforderlich")
@@ -305,8 +307,8 @@ async def save_titel_zuweisung(
     # Rating validieren (1-5 oder null)
     if rating is not None:
         rating = int(rating)
-        if rating < 1 or rating > 5:
-            raise HTTPException(400, "Rating muss zwischen 1 und 5 liegen")
+        if rating < 1 or rating > 10:
+            raise HTTPException(400, "Rating muss zwischen 1 und 10 liegen")
 
     # Kandidat laden
     result = await db.execute(
@@ -320,6 +322,12 @@ async def save_titel_zuweisung(
     learning_service = MTLearningService(db)
     suggestion = await learning_service.get_suggestion_for_candidate(candidate)
     predicted_titles = suggestion.get("suggested_titles") if suggestion.get("source") != "none" else None
+
+    # 0. Namen aktualisieren (wenn geaendert)
+    if first_name and first_name.strip():
+        candidate.first_name = first_name.strip()
+    if last_name and last_name.strip():
+        candidate.last_name = last_name.strip()
 
     # 1. manual_job_titles setzen
     candidate.manual_job_titles = titles
