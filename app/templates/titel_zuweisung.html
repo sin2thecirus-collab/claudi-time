@@ -167,8 +167,22 @@
                 </select>
             </div>
 
+            {# Bewertung-Filter #}
+            <div class="flex items-center gap-2">
+                <label class="text-xs font-medium text-gray-500 uppercase tracking-wider">Sterne</label>
+                <select x-model="selectedMinRating" @change="loadKandidaten()"
+                        class="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500">
+                    <option value="">Alle</option>
+                    <option value="1">ab 1 Stern</option>
+                    <option value="2">ab 2 Sterne</option>
+                    <option value="3">ab 3 Sterne</option>
+                    <option value="4">ab 4 Sterne</option>
+                    <option value="5">5 Sterne</option>
+                </select>
+            </div>
+
             {# Filter zuruecksetzen #}
-            <button @click="resetFilters()" x-show="selectedCity || selectedHasCv || selectedTitel || searchTerm"
+            <button @click="resetFilters()" x-show="selectedCity || selectedHasCv || selectedTitel || selectedMinRating || searchTerm"
                     class="text-xs text-gray-500 hover:text-gray-700 underline transition-colors">
                 Filter zuruecksetzen
             </button>
@@ -223,6 +237,7 @@ function titelZuweisung() {
         selectedStatus: 'offen',
         selectedHasCv: '',
         selectedTitel: '',
+        selectedMinRating: '',
 
         loadKandidaten() {
             const params = new URLSearchParams();
@@ -231,6 +246,7 @@ function titelZuweisung() {
             if (this.searchTerm) params.set('search', this.searchTerm);
             if (this.selectedHasCv) params.set('has_cv', this.selectedHasCv);
             if (this.selectedTitel) params.set('titel', this.selectedTitel);
+            if (this.selectedMinRating) params.set('min_rating', this.selectedMinRating);
 
             htmx.ajax('GET', '/partials/titel-zuweisung/kandidaten?' + params.toString(), {
                 target: '#kandidaten-liste',
@@ -244,6 +260,7 @@ function titelZuweisung() {
             this.selectedStatus = 'offen';
             this.selectedHasCv = '';
             this.selectedTitel = '';
+            this.selectedMinRating = '';
             this.loadKandidaten();
         }
     };
@@ -281,11 +298,15 @@ async function saveTitelZuweisung(candidateId, loadNext) {
         return;
     }
 
+    // Rating-Wert lesen
+    const ratingInput = document.getElementById('rating-input');
+    const rating = ratingInput && parseInt(ratingInput.value) > 0 ? parseInt(ratingInput.value) : null;
+
     try {
         const response = await fetch('/api/titel-zuweisung/save/' + candidateId, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ titles: titles })
+            body: JSON.stringify({ titles: titles, rating: rating })
         });
 
         const data = await response.json();

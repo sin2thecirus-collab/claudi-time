@@ -4,7 +4,7 @@ import uuid
 from datetime import date, datetime
 
 from geoalchemy2 import Geography
-from sqlalchemy import ARRAY, Boolean, Column, Date, DateTime, Index, String, Text, func
+from sqlalchemy import ARRAY, Boolean, Column, Date, DateTime, Index, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -72,6 +72,10 @@ class Candidate(Base):
     # Manuelle Jobtitel-Zuweisung (wird NIE automatisch ueberschrieben)
     manual_job_titles: Mapped[list[str] | None] = mapped_column(ARRAY(String))  # z.B. ["Finanzbuchhalter/in", "Kreditorenbuchhalter/in"]
     manual_job_titles_set_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    # Sterne-Bewertung (1-5, manuell vergeben)
+    rating: Mapped[int | None] = mapped_column(Integer)
+    rating_set_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     # Hotlist-Kategorisierung
     hotlist_category: Mapped[str | None] = mapped_column(String(50))

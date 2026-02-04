@@ -1,6 +1,6 @@
 {# Partial: Kandidaten-Liste fuer Titel-Zuweisung #}
 <div class="bg-white rounded-xl border border-gray-200 overflow-hidden"
-     hx-get="/partials/titel-zuweisung/kandidaten?page={{ page }}&per_page={{ per_page }}&city={{ city }}&status={{ status }}&search={{ search }}&has_cv={{ has_cv }}&titel={{ titel }}"
+     hx-get="/partials/titel-zuweisung/kandidaten?page={{ page }}&per_page={{ per_page }}&city={{ city }}&status={{ status }}&search={{ search }}&has_cv={{ has_cv }}&titel={{ titel }}&min_rating={{ min_rating }}"
      hx-trigger="refreshList from:body"
      hx-target="#kandidaten-liste"
      hx-swap="innerHTML">
@@ -13,6 +13,7 @@
             {% if city %} in {{ city }}{% endif %}
             {% if has_cv == "ja" %} — mit CV{% elif has_cv == "nein" %} — ohne CV{% endif %}
             {% if titel %} — Titel: {{ titel }}{% endif %}
+            {% if min_rating %} — ab {{ min_rating }} Sterne{% endif %}
         </span>
         <div class="flex items-center gap-2">
             <span class="text-xs text-gray-400">Seite {{ page }} von {{ total_pages }}</span>
@@ -27,6 +28,7 @@
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kandidat</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Position / Firma</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stadt</th>
+                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Bewertung</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Zugewiesene Titel</th>
                 <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Aktion</th>
             </tr>
@@ -67,6 +69,21 @@
                 {# Stadt #}
                 <td class="px-6 py-4">
                     <span class="text-sm text-gray-600">{{ candidate.hotlist_city or candidate.city or "—" }}</span>
+                </td>
+
+                {# Bewertung #}
+                <td class="px-6 py-4 text-center">
+                    {% if candidate.rating %}
+                    <div class="inline-flex items-center gap-0.5">
+                        {% for i in range(1, 6) %}
+                        <svg class="w-4 h-4 {% if i <= candidate.rating %}text-amber-400{% else %}text-gray-200{% endif %}" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                        </svg>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <span class="text-xs text-gray-300">—</span>
+                    {% endif %}
                 </td>
 
                 {# Zugewiesene Titel #}
@@ -121,7 +138,7 @@
 
     {# ═══ Pagination ═══ #}
     {% if total_pages > 1 %}
-    {% set base_params = "per_page=" ~ per_page ~ "&city=" ~ city ~ "&status=" ~ status ~ "&search=" ~ search ~ "&has_cv=" ~ has_cv ~ "&titel=" ~ titel %}
+    {% set base_params = "per_page=" ~ per_page ~ "&city=" ~ city ~ "&status=" ~ status ~ "&search=" ~ search ~ "&has_cv=" ~ has_cv ~ "&titel=" ~ titel ~ "&min_rating=" ~ min_rating %}
     <div class="px-6 py-4 border-t border-gray-200 flex items-center justify-between bg-gray-50">
         <div class="text-sm text-gray-500">
             Zeige {{ ((page - 1) * per_page) + 1 }}–{{ [page * per_page, total_count] | min }} von {{ total_count }}

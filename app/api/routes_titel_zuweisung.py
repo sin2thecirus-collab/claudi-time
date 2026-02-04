@@ -104,6 +104,7 @@ async def titel_kandidaten_liste(
     search: str = Query(default=""),
     has_cv: str = Query(default=""),  # "ja", "nein", "" (alle)
     titel: str = Query(default=""),  # Filter nach zugewiesenem Titel
+    min_rating: str = Query(default=""),  # Minimum-Bewertung (1-5)
     db: AsyncSession = Depends(get_db),
 ):
     """HTMX-Partial: Kandidaten-Tabelle fuer Titel-Zuweisung."""
@@ -161,6 +162,12 @@ async def titel_kandidaten_liste(
             )
         )
 
+    # Filter: Mindest-Bewertung
+    if min_rating:
+        query = query.where(
+            Candidate.rating >= int(min_rating)
+        )
+
     # Filter: Suche (Name oder Position)
     if search:
         search_term = f"%{search}%"
@@ -210,6 +217,7 @@ async def titel_kandidaten_liste(
             "search": search,
             "has_cv": has_cv,
             "titel": titel,
+            "min_rating": min_rating,
         },
     )
 
@@ -285,13 +293,20 @@ async def save_titel_zuweisung(
 ):
     """Speichert die manuelle Titel-Zuweisung fuer einen Kandidaten.
 
-    Body: { "titles": ["Finanzbuchhalter/in", "Kreditorenbuchhalter/in"] }
+    Body: { "titles": ["Finanzbuchhalter/in", "Kreditorenbuchhalter/in"], "rating": 4 }
     """
     body = await request.json()
     titles = body.get("titles", [])
+    rating = body.get("rating")
 
     if not titles:
         raise HTTPException(400, "Mindestens ein Titel erforderlich")
+
+    # Rating validieren (1-5 oder null)
+    if rating is not None:
+        rating = int(rating)
+        if rating < 1 or rating > 5:
+            raise HTTPException(400, "Rating muss zwischen 1 und 5 liegen")
 
     # Kandidat laden
     result = await db.execute(
@@ -310,12 +325,17 @@ async def save_titel_zuweisung(
     candidate.manual_job_titles = titles
     candidate.manual_job_titles_set_at = datetime.now(timezone.utc)
 
-    # 2. hotlist-Felder synchronisieren
+    # 2. Rating speichern (wenn vorhanden)
+    if rating is not None:
+        candidate.rating = rating
+        candidate.rating_set_at = datetime.now(timezone.utc)
+
+    # 3. hotlist-Felder synchronisieren
     candidate.hotlist_job_title = titles[0]
     candidate.hotlist_job_titles = list(titles)
     candidate.categorized_at = datetime.now(timezone.utc)
 
-    # 3. Training-Daten speichern
+    # 4. Training-Daten speichern
     await learning_service.save_title_assignment(
         candidate=candidate,
         assigned_titles=titles,
@@ -325,13 +345,14 @@ async def save_titel_zuweisung(
     await db.flush()
 
     logger.info(
-        f"Titel zugewiesen: {candidate.full_name} → {titles}"
+        f"Titel zugewiesen: {candidate.full_name} → {titles}" + (f" (Rating: {rating})" if rating else "")
     )
 
     return {
         "success": True,
         "candidate_id": str(candidate_id),
         "assigned_titles": titles,
+        "rating": candidate.rating,
         "candidate_name": candidate.full_name,
     }
 
