@@ -121,8 +121,8 @@ async def list_candidates(
     position: str | None = Query(default=None, min_length=2, max_length=100),
     only_active: bool = Query(default=False, description="Nur aktive (≤30 Tage)"),
     include_hidden: bool = Query(default=False),
-    # Sortierung
-    sort_by: str = Query(default="created_at"),
+    # Sortierung (Standard: zuletzt gesynct zuerst)
+    sort_by: str = Query(default="crm_synced_at"),
     sort_order: SortOrder = Query(default=SortOrder.DESC),
     db: AsyncSession = Depends(get_db),
 ):

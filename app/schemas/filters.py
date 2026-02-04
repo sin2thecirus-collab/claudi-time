@@ -133,9 +133,9 @@ class CandidateFilterParams(BaseModel):
         default=None, description="Filter nach Match-Status"
     )
 
-    # Sortierung
+    # Sortierung (Standard: zuletzt gesynct zuerst)
     sort_by: CandidateSortBy = Field(
-        default=CandidateSortBy.CREATED_AT, description="Sortierfeld"
+        default=CandidateSortBy.CRM_SYNCED_AT, description="Sortierfeld"
     )
     sort_order: SortOrder = Field(default=SortOrder.DESC, description="Sortierreihenfolge")
 
