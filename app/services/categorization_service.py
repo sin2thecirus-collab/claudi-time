@@ -38,7 +38,7 @@ class HotlistCategory:
 
 # Keywords pro Kategorie (lowercase, Regex-fähig)
 FINANCE_KEYWORDS: list[str] = [
-    # Berufsbezeichnungen
+    # Berufsbezeichnungen (stark — reichen allein fuer FINANCE-Zuordnung)
     "buchhalter", "buchhalterin", "finanzbuchhalter", "finanzbuchhalterin",
     "bilanzbuchhalter", "bilanzbuchhalterin", "lohnbuchhalter", "lohnbuchhalterin",
     "debitorenbuchhalter", "kreditorenbuchhalter",
@@ -46,18 +46,21 @@ FINANCE_KEYWORDS: list[str] = [
     "steuerfachangestellte", "steuerfachangestellter", "steuerfachwirt",
     "steuerberater", "steuerberaterin",
     "wirtschaftsprüfer", "wirtschaftsprüferin",
-    "accountant", "accounting", "accounts payable", "accounts receivable",
+    "accountant", "accounts payable", "accounts receivable",
     "finanzwirt", "finanzbuchhaltung", "lohnbuchhaltung",
     "rechnungswesen", "hauptbuchhalter",
-    # Tätigkeiten
-    "buchhaltung", "buchführung", "bilanzierung", "jahresabschluss",
+    # Tätigkeiten (mittel — brauchen Kontext)
+    "buchführung", "bilanzierung", "jahresabschluss",
     "monatsabschluss", "kontenabstimmung", "kontenklärung",
     "debitorenbuchhaltung", "kreditorenbuchhaltung", "anlagenbuchhaltung",
-    "kostenrechnung", "controlling", "reporting",
+    "kostenrechnung",
     "umsatzsteuer", "vorsteuer", "steuererklärung",
     "zahlungsverkehr", "mahnwesen", "rechnungsprüfung",
-    # Software
-    "datev", "sap fi", "sap co", "lexware", "sage",
+    # Software (nur als Verstärker — nicht allein ausreichend)
+    "datev", "sap fi", "sap co", "lexware",
+    # ENTFERNT: "buchhaltung" (zu generisch, auch "Abteilung Buchhaltung"),
+    # "controlling" (zu generisch), "reporting" (zu generisch),
+    # "accounting" (zu generisch), "sage" (auch Eigenname)
 ]
 
 ENGINEERING_KEYWORDS: list[str] = [
@@ -302,8 +305,17 @@ class CategorizationService:
             if pattern.search(text_lower):
                 engineering_matches.append(keyword)
 
-        # Kategorie bestimmen: wer hat mehr Treffer?
-        if finance_matches and len(finance_matches) >= len(engineering_matches):
+        # Kategorie bestimmen: wer hat MEHR Treffer?
+        # Bei Gleichstand → SONSTIGE (nicht mehr automatisch FINANCE)
+        if finance_matches and engineering_matches:
+            if len(finance_matches) > len(engineering_matches):
+                return HotlistCategory.FINANCE, finance_matches
+            elif len(engineering_matches) > len(finance_matches):
+                return HotlistCategory.ENGINEERING, engineering_matches
+            else:
+                # Gleichstand → SONSTIGE (manuell entscheiden)
+                return HotlistCategory.SONSTIGE, finance_matches + engineering_matches
+        elif finance_matches:
             return HotlistCategory.FINANCE, finance_matches
         elif engineering_matches:
             return HotlistCategory.ENGINEERING, engineering_matches
@@ -371,28 +383,54 @@ class CategorizationService:
         """
         Kategorisiert einen einzelnen Kandidaten.
 
-        Analysiert: current_position, skills, cv_text
+        LOGIK (Priorität):
+        1. current_position entscheidet ZUERST — wenn die Position klar einer
+           Kategorie zuzuordnen ist, gilt diese.
+        2. Nur bei uneindeutiger Position: skills + cv_text als Tiebreaker.
+        3. Bei Gleichstand: SONSTIGE (nicht mehr automatisch FINANCE).
         """
-        # Texte sammeln für Analyse
-        texts = []
-        if candidate.current_position:
-            texts.append(candidate.current_position)
-        if candidate.skills:
-            texts.append(" ".join(candidate.skills))
-        if candidate.cv_text:
-            # Nur die ersten 2000 Zeichen des CV
-            texts.append(candidate.cv_text[:2000])
-
-        combined_text = " ".join(texts)
-        category, matched_keywords = self.detect_category(combined_text)
         city = self.resolve_city(candidate.postal_code, candidate.city)
         job_title = self.normalize_job_title(candidate.current_position)
 
+        # STUFE 1: Position allein prüfen (stärkster Indikator)
+        if candidate.current_position:
+            pos_category, pos_keywords = self.detect_category(candidate.current_position)
+            if pos_category != HotlistCategory.SONSTIGE:
+                return CategorizationResult(
+                    category=pos_category,
+                    city=city,
+                    job_title=job_title,
+                    matched_keywords=pos_keywords,
+                )
+
+        # STUFE 2: Skills prüfen (zweitstärkster Indikator)
+        if candidate.skills:
+            skills_text = " ".join(candidate.skills)
+            skills_category, skills_keywords = self.detect_category(skills_text)
+            if skills_category != HotlistCategory.SONSTIGE:
+                return CategorizationResult(
+                    category=skills_category,
+                    city=city,
+                    job_title=job_title,
+                    matched_keywords=skills_keywords,
+                )
+
+        # STUFE 3: CV-Text als Fallback (schwächster Indikator, nur erste 2000 Zeichen)
+        if candidate.cv_text:
+            cv_category, cv_keywords = self.detect_category(candidate.cv_text[:2000])
+            if cv_category != HotlistCategory.SONSTIGE:
+                return CategorizationResult(
+                    category=cv_category,
+                    city=city,
+                    job_title=job_title,
+                    matched_keywords=cv_keywords,
+                )
+
         return CategorizationResult(
-            category=category,
+            category=HotlistCategory.SONSTIGE,
             city=city,
             job_title=job_title,
-            matched_keywords=matched_keywords,
+            matched_keywords=[],
         )
 
     def categorize_job(self, job: Job) -> CategorizationResult:

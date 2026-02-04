@@ -987,6 +987,73 @@ async def trigger_categorization(
     return result
 
 
+@router.post("/api/hotlisten/recategorize-cleanup", tags=["Hotlisten API"])
+async def recategorize_cleanup(
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Bereinigung: Kategorisiert ALLE Kandidaten neu mit der verbesserten Logik.
+
+    Ablauf:
+    1. Alle Kandidaten neu kategorisieren (force=True)
+    2. Kandidaten deren Kategorie sich geaendert hat (z.B. FINANCE → ENGINEERING):
+       classification_data zuruecksetzen (war auf Basis der falschen Kategorie)
+    3. Ergebnis: Nur tatsaechliche Finance-Kandidaten bleiben als FINANCE
+    """
+    from sqlalchemy import update
+
+    cat_service = CategorizationService(db)
+
+    # 1. Vorher: Alle aktuellen FINANCE-Kandidaten merken
+    finance_before_query = select(Candidate.id).where(
+        Candidate.deleted_at.is_(None),
+        Candidate.hotlist_category == HotlistCategory.FINANCE,
+    )
+    result_before = await db.execute(finance_before_query)
+    finance_ids_before = set(row[0] for row in result_before.all())
+    finance_count_before = len(finance_ids_before)
+
+    # 2. Alle Kandidaten neu kategorisieren (force=True)
+    cat_result = await cat_service.categorize_all(force=True)
+
+    # 3. Nachher: Alle FINANCE-Kandidaten prüfen
+    finance_after_query = select(Candidate.id).where(
+        Candidate.deleted_at.is_(None),
+        Candidate.hotlist_category == HotlistCategory.FINANCE,
+    )
+    result_after = await db.execute(finance_after_query)
+    finance_ids_after = set(row[0] for row in result_after.all())
+
+    # 4. Kandidaten die NICHT MEHR FINANCE sind → classification_data zuruecksetzen
+    reclassified_ids = finance_ids_before - finance_ids_after
+    reset_count = 0
+    if reclassified_ids:
+        reset_result = await db.execute(
+            update(Candidate)
+            .where(Candidate.id.in_(reclassified_ids))
+            .values(classification_data=None)
+        )
+        reset_count = reset_result.rowcount
+        await db.commit()
+
+    logger.info(
+        f"Bereinigung: {finance_count_before} FINANCE vorher → "
+        f"{len(finance_ids_after)} FINANCE nachher, "
+        f"{reset_count} Kandidaten classification_data zurueckgesetzt"
+    )
+
+    return {
+        "finance_before": finance_count_before,
+        "finance_after": len(finance_ids_after),
+        "reclassified_count": reset_count,
+        "categorization": cat_result,
+        "message": (
+            f"{reset_count} falsch als FINANCE eingestufte Kandidaten korrigiert. "
+            f"FINANCE: {finance_count_before} → {len(finance_ids_after)}"
+        ),
+    }
+
+
 def _make_progress_callback(key: str):
     """Erstellt einen Callback der den globalen Status live aktualisiert."""
     def callback(processed: int, total: int, batch_result):
