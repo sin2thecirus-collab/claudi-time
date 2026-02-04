@@ -270,5 +270,32 @@ function updateStatsOptimistic() {
     // Einfaches Page-Reload verzoegert (damit die DB Zeit hat)
     // Spaeter: Stats per HTMX aktualisieren
 }
+
+async function deleteKandidat(candidateId) {
+    try {
+        const response = await fetch('/api/titel-zuweisung/kandidat/' + candidateId, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showToast(data.message || 'Kandidat geloescht', 'success');
+            closeTitelModal();
+
+            // Liste neu laden
+            setTimeout(() => {
+                htmx.trigger('#kandidaten-liste', 'refreshList');
+                // Seite neu laden fuer Statistik-Aktualisierung
+                location.reload();
+            }, 500);
+        } else {
+            showToast('Fehler: ' + (data.detail || 'Unbekannter Fehler'), 'error');
+        }
+    } catch (err) {
+        showToast('Fehler beim Loeschen: ' + err.message, 'error');
+    }
+}
 </script>
 {% endblock %}

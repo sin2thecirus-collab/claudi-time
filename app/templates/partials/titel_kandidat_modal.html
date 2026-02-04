@@ -1,6 +1,6 @@
 {# Partial: Modal fuer Kandidat CV-Ansicht + Titel-Zuweisung #}
 
-<div class="p-0">
+<div class="p-0" x-data="{ confirmDelete: false }">
     {# ═══ Modal Header ═══ #}
     <div class="sticky top-0 z-10 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
         <div class="flex items-center gap-3">
@@ -55,7 +55,7 @@
                 {% endif %}
             </div>
 
-            {# Berufserfahrung #}
+            {# ═══ Berufserfahrung ═══ #}
             {% if work_history %}
             <div>
                 <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
@@ -73,16 +73,19 @@
                         </p>
                         <p class="text-xs text-gray-500">
                             {{ entry.get("company", entry.get("unternehmen", "")) or "" }}
-                            {% if entry.get("zeitraum") or entry.get("duration") or entry.get("period") %}
-                            · {{ entry.get("zeitraum", entry.get("duration", entry.get("period", ""))) }}
+                            {# Zeitraum: start_date – end_date #}
+                            {% if entry.get("start_date") or entry.get("end_date") %}
+                            <span class="text-gray-400"> · {{ entry.get("start_date", "?") }} – {{ entry.get("end_date", "heute") }}</span>
+                            {% elif entry.get("zeitraum") or entry.get("duration") or entry.get("period") %}
+                            <span class="text-gray-400"> · {{ entry.get("zeitraum", entry.get("duration", entry.get("period", ""))) }}</span>
                             {% endif %}
                         </p>
-                        {% if entry.get("beschreibung") or entry.get("description") or entry.get("tasks") %}
-                        <p class="text-xs text-gray-400 mt-1 line-clamp-2">
+                        {% if entry.get("description") or entry.get("beschreibung") or entry.get("tasks") %}
+                        <p class="text-xs text-gray-400 mt-1 line-clamp-3 whitespace-pre-line">
                             {% if entry.get("tasks") is iterable and entry.get("tasks") is not string %}
-                                {{ entry.get("tasks") | join(", ") }}
+                                {{ entry.get("tasks") | join("\n") }}
                             {% else %}
-                                {{ entry.get("beschreibung", entry.get("description", entry.get("tasks", ""))) }}
+                                {{ entry.get("description", entry.get("beschreibung", entry.get("tasks", ""))) }}
                             {% endif %}
                         </p>
                         {% endif %}
@@ -97,7 +100,7 @@
             </div>
             {% endif %}
 
-            {# Ausbildung #}
+            {# ═══ Ausbildung ═══ #}
             {% if education %}
             <div>
                 <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
@@ -106,17 +109,23 @@
                     </svg>
                     Ausbildung
                 </h4>
-                <div class="space-y-2">
+                <div class="space-y-3">
                     {% for entry in education %}
                     {% if entry is mapping %}
                     <div class="pl-4 border-l-2 border-blue-200">
                         <p class="text-sm font-medium text-gray-900">
                             {{ entry.get("degree", entry.get("abschluss", "")) or entry.get("name", "") }}
+                            {% if entry.get("field_of_study") %}
+                            <span class="font-normal text-gray-500"> — {{ entry.get("field_of_study") }}</span>
+                            {% endif %}
                         </p>
                         <p class="text-xs text-gray-500">
                             {{ entry.get("institution", entry.get("schule", "")) }}
-                            {% if entry.get("zeitraum") or entry.get("year") %}
-                            · {{ entry.get("zeitraum", entry.get("year", "")) }}
+                            {# Zeitraum: start_date – end_date #}
+                            {% if entry.get("start_date") or entry.get("end_date") %}
+                            <span class="text-gray-400"> · {{ entry.get("start_date", "?") }} – {{ entry.get("end_date", "?") }}</span>
+                            {% elif entry.get("zeitraum") or entry.get("year") %}
+                            <span class="text-gray-400"> · {{ entry.get("zeitraum", entry.get("year", "")) }}</span>
                             {% endif %}
                         </p>
                     </div>
@@ -130,7 +139,7 @@
             </div>
             {% endif %}
 
-            {# Weiterbildungen #}
+            {# ═══ Weiterbildungen / Zertifikate ═══ #}
             {% if further_education %}
             <div>
                 <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
@@ -139,16 +148,30 @@
                     </svg>
                     Weiterbildungen / Zertifikate
                 </h4>
-                <div class="flex flex-wrap gap-2">
+                <div class="space-y-2">
                     {% for entry in further_education %}
                     {% if entry is mapping %}
-                    <span class="inline-flex items-center rounded-full bg-purple-50 text-purple-700 px-3 py-1 text-xs font-medium">
-                        {{ entry.get("name", entry.get("bezeichnung", "Zertifikat")) }}
-                    </span>
+                    <div class="pl-4 border-l-2 border-purple-200">
+                        <p class="text-sm font-medium text-gray-900">
+                            {{ entry.get("degree", entry.get("name", entry.get("bezeichnung", "Zertifikat"))) }}
+                            {% if entry.get("field_of_study") %}
+                            <span class="font-normal text-gray-500"> — {{ entry.get("field_of_study") }}</span>
+                            {% endif %}
+                        </p>
+                        <p class="text-xs text-gray-500">
+                            {{ entry.get("institution", entry.get("schule", "")) }}
+                            {# Zeitraum #}
+                            {% if entry.get("start_date") or entry.get("end_date") %}
+                            <span class="text-gray-400"> · {{ entry.get("start_date", "?") }} – {{ entry.get("end_date", "?") }}</span>
+                            {% elif entry.get("year") or entry.get("zeitraum") %}
+                            <span class="text-gray-400"> · {{ entry.get("year", entry.get("zeitraum", "")) }}</span>
+                            {% endif %}
+                        </p>
+                    </div>
                     {% elif entry is string %}
-                    <span class="inline-flex items-center rounded-full bg-purple-50 text-purple-700 px-3 py-1 text-xs font-medium">
-                        {{ entry }}
-                    </span>
+                    <div class="pl-4 border-l-2 border-purple-200">
+                        <p class="text-sm text-gray-700">{{ entry }}</p>
+                    </div>
                     {% endif %}
                     {% endfor %}
                 </div>
@@ -232,11 +255,11 @@
                         {% else %}border-gray-200 bg-gray-50{% endif %} p-4">
                 <div class="flex items-start gap-2">
                     {% if suggestion.source == 'training_data' %}
-                    <span class="text-lg">🧠</span>
+                    <span class="text-lg">&#x1f9e0;</span>
                     {% elif suggestion.source == 'classification' %}
-                    <span class="text-lg">🤖</span>
+                    <span class="text-lg">&#x1f916;</span>
                     {% else %}
-                    <span class="text-lg">🔑</span>
+                    <span class="text-lg">&#x1f511;</span>
                     {% endif %}
                     <div class="flex-1">
                         <p class="text-xs font-bold uppercase tracking-wider mb-1
@@ -327,6 +350,37 @@
                     class="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
                 Abbrechen
             </button>
+
+            {# ═══ LOESCHBUTTON ═══ #}
+            <div class="pt-4 border-t border-gray-200">
+                {# Normaler Zustand: Loeschbutton #}
+                <button x-show="!confirmDelete" @click="confirmDelete = true"
+                        class="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                    </svg>
+                    Kandidat loeschen
+                </button>
+
+                {# Bestaetigungsdialog #}
+                <div x-show="confirmDelete" x-cloak class="rounded-lg bg-red-50 border border-red-300 p-4 space-y-3">
+                    <p class="text-sm font-medium text-red-800">Kandidat "{{ candidate.full_name }}" wirklich loeschen?</p>
+                    <p class="text-xs text-red-600">Der Kandidat wird permanent entfernt. Gesammelte Erkenntnisse (Lern-Daten) bleiben erhalten.</p>
+                    <div class="flex items-center gap-2">
+                        <button onclick="deleteKandidat('{{ candidate.id }}')"
+                                class="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 transition-colors">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                            </svg>
+                            Ja, loeschen
+                        </button>
+                        <button @click="confirmDelete = false"
+                                class="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-white transition-colors">
+                            Abbrechen
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>

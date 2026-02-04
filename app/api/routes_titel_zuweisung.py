@@ -379,3 +379,68 @@ async def training_stats(
     learning_service = MTLearningService(db)
     stats = await learning_service.get_training_stats()
     return stats
+
+
+# ════════════════════════════════════════════════════════════════
+# KANDIDAT LOESCHEN (mit Erkenntnisse-Sicherung)
+# ════════════════════════════════════════════════════════════════
+
+@router.delete("/api/titel-zuweisung/kandidat/{candidate_id}")
+async def delete_kandidat_with_learning(
+    candidate_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Loescht einen Kandidaten (Soft-Delete) und sichert Erkenntnisse.
+
+    Vor dem Loeschen:
+    1. CV-Zusammenfassung + manuelle Titel als Training-Eintrag speichern
+    2. Dann Soft-Delete (deleted_at = now())
+
+    Ergebnis: Kandidat verschwindet aus allen Listen,
+    aber Lern-Daten bleiben in mt_training_data erhalten.
+    """
+    # Kandidat laden
+    result = await db.execute(
+        select(Candidate).where(Candidate.id == candidate_id)
+    )
+    candidate = result.scalar_one_or_none()
+    if not candidate:
+        raise HTTPException(404, "Kandidat nicht gefunden")
+
+    candidate_name = candidate.full_name
+
+    # Schritt 1: Erkenntnisse sichern (bevor wir loeschen)
+    learning_service = MTLearningService(db)
+    input_text = learning_service._build_cv_summary(candidate)
+
+    # Finalen Training-Eintrag erstellen
+    from app.models.mt_training import MTTrainingData
+
+    training_entry = MTTrainingData(
+        entity_type="deleted_candidate",
+        entity_id=candidate.id,
+        input_text=input_text,
+        predicted_titles=None,
+        assigned_titles=list(candidate.manual_job_titles) if candidate.manual_job_titles else None,
+        was_correct=None,
+        reasoning=f"Kandidat '{candidate_name}' wurde geloescht. Erkenntnisse gesichert.",
+        embedding=candidate.embedding if hasattr(candidate, "embedding") else None,
+    )
+    db.add(training_entry)
+
+    # Schritt 2: Soft-Delete
+    candidate.deleted_at = datetime.now(timezone.utc)
+
+    await db.commit()
+
+    logger.info(
+        f"Kandidat geloescht (soft-delete): {candidate_name} ({candidate_id}), "
+        f"Erkenntnisse in mt_training_data gesichert"
+    )
+
+    return {
+        "success": True,
+        "candidate_id": str(candidate_id),
+        "candidate_name": candidate_name,
+        "message": f"Kandidat '{candidate_name}' geloescht. Lern-Daten bleiben erhalten.",
+    }
