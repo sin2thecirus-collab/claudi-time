@@ -516,12 +516,20 @@ def _convert_word_to_pdf(word_content: bytes) -> bytes:
     import subprocess
     import tempfile
     import os
+    import shutil
+
+    if not shutil.which("soffice"):
+        raise RuntimeError("LibreOffice nicht installiert (soffice nicht gefunden)")
 
     with tempfile.TemporaryDirectory() as tmpdir:
         # Word-Datei speichern
         input_path = os.path.join(tmpdir, "document.docx")
         with open(input_path, "wb") as f:
             f.write(word_content)
+
+        # HOME setzen — LibreOffice braucht es fuer sein Profil-Verzeichnis
+        env = os.environ.copy()
+        env["HOME"] = tmpdir
 
         # LibreOffice Konvertierung
         result = subprocess.run(
@@ -535,16 +543,18 @@ def _convert_word_to_pdf(word_content: bytes) -> bytes:
             ],
             capture_output=True,
             timeout=60,
+            env=env,
         )
 
         if result.returncode != 0:
-            logger.error(f"LibreOffice Konvertierung fehlgeschlagen: {result.stderr.decode()}")
-            raise RuntimeError("Word-zu-PDF Konvertierung fehlgeschlagen")
+            stderr = result.stderr.decode(errors="replace")
+            logger.error(f"LibreOffice Konvertierung fehlgeschlagen (exit {result.returncode}): {stderr}")
+            raise RuntimeError(f"Word-zu-PDF Konvertierung fehlgeschlagen: {stderr[:200]}")
 
         # PDF lesen
         pdf_path = os.path.join(tmpdir, "document.pdf")
         if not os.path.exists(pdf_path):
-            raise RuntimeError("PDF wurde nicht erstellt")
+            raise RuntimeError("PDF wurde nicht erstellt — LibreOffice hat keine Ausgabe erzeugt")
 
         with open(pdf_path, "rb") as f:
             return f.read()
@@ -587,7 +597,20 @@ async def cv_preview_proxy(
             if content:
                 # R2-Datei pruefen: Word-Dokument konvertieren
                 if _is_word_document(content, candidate.cv_stored_path):
-                    content = _convert_word_to_pdf(content)
+                    logger.info(f"Word-Dokument in R2 erkannt fuer {candidate.full_name}, konvertiere zu PDF")
+                    pdf_content = _convert_word_to_pdf(content)
+                    # Konvertiertes PDF in R2 ueberschreiben (nur 1x konvertieren)
+                    try:
+                        r2.client.put_object(
+                            Bucket=r2.bucket,
+                            Key=candidate.cv_stored_path,
+                            Body=pdf_content,
+                            ContentType="application/pdf",
+                        )
+                        logger.info(f"Word-CV in R2 durch PDF ersetzt: {candidate.cv_stored_path}")
+                    except Exception:
+                        pass
+                    content = pdf_content
                 return StreamingResponse(
                     iter([content]),
                     media_type="application/pdf",
@@ -597,7 +620,7 @@ async def cv_preview_proxy(
                     },
                 )
         except Exception as e:
-            logger.warning(f"R2 Download fehlgeschlagen, Fallback auf CRM: {e}")
+            logger.warning(f"R2 Download/Konvertierung fehlgeschlagen, Fallback auf CRM: {e}")
 
     # 2. Fallback: Vom CRM-Server holen
     if not candidate.cv_url:
@@ -613,7 +636,7 @@ async def cv_preview_proxy(
 
     # Word-Dokument? → zu PDF konvertieren
     if _is_word_document(file_content, candidate.cv_url):
-        logger.info(f"Word-Dokument erkannt fuer {candidate.full_name}, konvertiere zu PDF")
+        logger.info(f"Word-Dokument vom CRM erkannt fuer {candidate.full_name}, konvertiere zu PDF")
         pdf_content = _convert_word_to_pdf(file_content)
     else:
         pdf_content = file_content

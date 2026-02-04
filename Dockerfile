@@ -10,7 +10,10 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     curl \
     libreoffice-writer \
-    && rm -rf /var/lib/apt/lists/*
+    fonts-liberation \
+    fontconfig \
+    && rm -rf /var/lib/apt/lists/* \
+    && fc-cache -f
 
 # Python Dependencies installieren
 COPY pyproject.toml README.md ./
