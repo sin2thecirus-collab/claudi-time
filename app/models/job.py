@@ -58,6 +58,10 @@ class Job(Base):
     hotlist_job_titles: Mapped[list[str] | None] = mapped_column(ARRAY(String))  # Alle Rollen
     categorized_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
+    # Manuelle Jobtitel-Zuweisung (wird NIE automatisch ueberschrieben)
+    manual_job_title: Mapped[str | None] = mapped_column(String(255))
+    manual_job_title_set_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
     # Embedding (OpenAI text-embedding-3-small, 1536 Dimensionen, als JSONB-Array gespeichert)
     embedding = Column(JobJSONB)
 

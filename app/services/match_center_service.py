@@ -856,7 +856,7 @@ class MatchCenterService:
         return match
 
     async def save_feedback(self, match_id: UUID, feedback: str, note: str | None = None) -> Match | None:
-        """Speichert Recruiter-Feedback fuer ein Match."""
+        """Speichert Recruiter-Feedback fuer ein Match + Memory-Eintrag."""
         from datetime import datetime, timezone
 
         result = await self.db.execute(select(Match).where(Match.id == match_id))
@@ -869,8 +869,79 @@ class MatchCenterService:
         match.feedback_note = note
         match.feedback_at = datetime.now(timezone.utc)
 
+        # Memory-Eintrag erstellen (fuer Lern-System)
+        try:
+            from app.models.mt_match_memory import MTMatchMemory
+            from app.models.job import Job
+
+            # Company-ID ermitteln (falls Job eine company_id hat)
+            company_id = None
+            if match.job_id:
+                job_result = await self.db.execute(
+                    select(Job.company_id).where(Job.id == match.job_id)
+                )
+                company_id = job_result.scalar_one_or_none()
+
+            action_map = {
+                "good": "matched",
+                "bad": "rejected",
+                "maybe": "maybe",
+            }
+
+            memory_entry = MTMatchMemory(
+                candidate_id=match.candidate_id,
+                job_id=match.job_id,
+                company_id=company_id,
+                action=action_map.get(feedback, feedback),
+                rejection_reason=note if feedback == "bad" else None,
+                never_again_company=False,  # Wird separat gesetzt
+            )
+            self.db.add(memory_entry)
+        except Exception as e:
+            logger.warning(f"Memory-Eintrag fuer Match {match_id} fehlgeschlagen: {e}")
+
         await self.db.flush()
         return match
+
+    async def get_memory_warnings(self, candidate_id: UUID) -> list[dict]:
+        """Holt Memory-Warnungen fuer einen Kandidaten.
+
+        Returns:
+            Liste von Warnungen wie:
+            [{"company_name": "Firma X", "action": "rejected", "created_at": "..."}]
+        """
+        try:
+            from app.models.mt_match_memory import MTMatchMemory
+            from app.models.company import Company
+
+            result = await self.db.execute(
+                select(
+                    MTMatchMemory.action,
+                    MTMatchMemory.rejection_reason,
+                    MTMatchMemory.never_again_company,
+                    MTMatchMemory.created_at,
+                    Company.name.label("company_name"),
+                )
+                .join(Company, MTMatchMemory.company_id == Company.id, isouter=True)
+                .where(MTMatchMemory.candidate_id == candidate_id)
+                .order_by(MTMatchMemory.created_at.desc())
+                .limit(10)
+            )
+            rows = result.all()
+
+            return [
+                {
+                    "action": row.action,
+                    "reason": row.rejection_reason,
+                    "never_again": row.never_again_company,
+                    "created_at": row.created_at.strftime("%d.%m.%Y") if row.created_at else "",
+                    "company_name": row.company_name or "Unbekannt",
+                }
+                for row in rows
+            ]
+        except Exception as e:
+            logger.warning(f"Memory-Abfrage fehlgeschlagen: {e}")
+            return []
 
     async def get_job_detail(self, job_id: UUID) -> dict | None:
         """Holt detaillierte Job-Informationen fuer die Detail-Ansicht."""

@@ -1326,3 +1326,94 @@ async def _run_cleanup(db_unused: AsyncSession, job_run_id: UUID):
             logger.error(f"Cleanup fehlgeschlagen: {e}", exc_info=True)
             await job_runner.fail_job(job_run_id, str(e))
             await db.commit()
+
+
+# ==================== MT Neustart: Cleanup for Restart ====================
+
+
+@router.post("/api/admin/cleanup-for-restart")
+async def cleanup_for_restart(
+    dry_run: bool = Query(default=True, description="True = nur zaehlen, nicht loeschen"),
+    archive_matches: bool = Query(default=True, description="AI-bewertete Matches vorher archivieren"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Loescht alle Matches und Jobs fuer einen sauberen Neustart.
+
+    - Matches mit AI-Scores werden vorher in mt_training_data archiviert
+    - Jobs werden soft-deleted (deleted_at = now())
+    - Kandidaten + Embeddings bleiben erhalten
+    - Lern-Daten bleiben erhalten
+    """
+    from sqlalchemy import delete, func, select, update
+
+    from app.models.match import Match
+    from app.models.job import Job
+
+    # Zaehlen
+    matches_count = (await db.execute(select(func.count(Match.id)))).scalar() or 0
+    jobs_count = (await db.execute(
+        select(func.count(Job.id)).where(Job.deleted_at.is_(None))
+    )).scalar() or 0
+
+    # AI-bewertete Matches zaehlen (die archiviert werden sollen)
+    ai_matches_count = (await db.execute(
+        select(func.count(Match.id)).where(Match.ai_score.isnot(None))
+    )).scalar() or 0
+
+    if dry_run:
+        return {
+            "dry_run": True,
+            "matches_to_delete": matches_count,
+            "ai_matches_to_archive": ai_matches_count,
+            "jobs_to_soft_delete": jobs_count,
+            "candidates_kept": "alle",
+            "embeddings_kept": "alle",
+        }
+
+    archived = 0
+
+    # Schritt 1: AI-bewertete Matches in mt_training_data archivieren
+    if archive_matches and ai_matches_count > 0:
+        from sqlalchemy import text
+
+        # Archiviere Match-Daten als Lern-Eintraege
+        result = await db.execute(
+            select(Match).where(Match.ai_score.isnot(None))
+        )
+        ai_matches = result.scalars().all()
+
+        for m in ai_matches:
+            await db.execute(text("""
+                INSERT INTO mt_training_data (entity_type, entity_id, input_text, assigned_titles, predicted_titles, was_correct, reasoning, created_at)
+                VALUES ('match_archive', :entity_id, :input_text, :assigned_titles, :predicted_titles, :was_correct, :reasoning, NOW())
+            """), {
+                "entity_id": m.id,
+                "input_text": f"Match: Job={m.job_id} ↔ Kandidat={m.candidate_id}, Score={m.ai_score}",
+                "assigned_titles": "[]",
+                "predicted_titles": f'["{m.ai_score}"]',
+                "was_correct": m.user_feedback == "good" if m.user_feedback else None,
+                "reasoning": m.ai_explanation,
+            })
+            archived += 1
+
+    # Schritt 2: Alle Matches loeschen
+    await db.execute(delete(Match))
+
+    # Schritt 3: Alle Jobs soft-deleten
+    await db.execute(
+        update(Job)
+        .where(Job.deleted_at.is_(None))
+        .values(deleted_at=func.now())
+    )
+
+    await db.commit()
+
+    return {
+        "dry_run": False,
+        "matches_deleted": matches_count,
+        "ai_matches_archived": archived,
+        "jobs_soft_deleted": jobs_count,
+        "candidates_kept": "alle",
+        "embeddings_kept": "alle",
+        "status": "Cleanup abgeschlossen. Bereit fuer Neustart.",
+    }

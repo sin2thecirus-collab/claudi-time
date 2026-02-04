@@ -125,6 +125,7 @@ from app.api.routes_hotlisten import router as hotlisten_router
 from app.api.routes_match_center import router as match_center_router
 from app.api.routes_companies import router as companies_router
 from app.api.routes_smart_match import router as smart_match_router
+from app.api.routes_titel_zuweisung import router as titel_zuweisung_router
 
 # Custom Exception Handlers registrieren
 register_exception_handlers(app)
@@ -133,6 +134,7 @@ register_exception_handlers(app)
 app.include_router(pages_router)
 app.include_router(hotlisten_router)  # Hotlisten-Seiten + API (/hotlisten, /match-bereiche, /deepmatch)
 app.include_router(match_center_router)  # Match Center (/match-center, /api/match-center)
+app.include_router(titel_zuweisung_router)  # Titel-Zuweisung (/titel-zuweisung, /api/titel-zuweisung)
 
 # API Router registrieren (alle mit /api Prefix)
 app.include_router(jobs_router, prefix="/api")

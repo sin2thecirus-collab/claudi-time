@@ -1,0 +1,332 @@
+{# Partial: Modal fuer Kandidat CV-Ansicht + Titel-Zuweisung #}
+
+<div class="p-0">
+    {# ═══ Modal Header ═══ #}
+    <div class="sticky top-0 z-10 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold
+                        {% if candidate.manual_job_titles and candidate.manual_job_titles | length > 0 %}bg-green-100 text-green-700{% else %}bg-primary-100 text-primary-700{% endif %}">
+                {{ (candidate.first_name or "?")[0] | upper }}{{ (candidate.last_name or "?")[0] | upper }}
+            </div>
+            <div>
+                <h2 class="text-lg font-bold text-gray-900">{{ candidate.full_name }}</h2>
+                <p class="text-sm text-gray-500">
+                    {{ candidate.current_position or "Keine Position" }}
+                    {% if candidate.current_company %} · {{ candidate.current_company }}{% endif %}
+                </p>
+            </div>
+        </div>
+        <button onclick="closeTitelModal()" class="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        </button>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-0 divide-x divide-gray-200">
+        {# ═══ LINKE SEITE: CV-Daten ═══ #}
+        <div class="p-6 overflow-y-auto max-h-[70vh] space-y-6">
+            <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider">Lebenslauf</h3>
+
+            {# Basisdaten #}
+            <div class="space-y-2">
+                <div class="flex items-center gap-2 text-sm">
+                    <svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+                    </svg>
+                    <span class="text-gray-700">{{ candidate.hotlist_city or candidate.city or "Keine Stadt" }}</span>
+                </div>
+                {% if candidate.email %}
+                <div class="flex items-center gap-2 text-sm">
+                    <svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                    </svg>
+                    <span class="text-gray-700">{{ candidate.email }}</span>
+                </div>
+                {% endif %}
+                {% if candidate.age %}
+                <div class="flex items-center gap-2 text-sm">
+                    <svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 8.25v-1.5m0 1.5c-1.355 0-2.697.056-4.024.166C6.845 8.51 6 9.473 6 10.608v2.513m6-4.87c1.355 0 2.697.055 4.024.165C17.155 8.51 18 9.473 18 10.608v2.513m-3-4.87v-1.5m-6 1.5v-1.5m12 9.75l-1.5.75a3.354 3.354 0 01-3 0 3.354 3.354 0 00-3 0 3.354 3.354 0 01-3 0 3.354 3.354 0 00-3 0 3.354 3.354 0 01-3 0L3 16.5m15-3.38a48.474 48.474 0 00-6-.37c-2.032 0-4.034.126-6 .37m12 0c.39.049.777.102 1.163.16 1.07.16 1.837 1.094 1.837 2.175v5.17c0 .62-.504 1.124-1.124 1.124H4.124A1.124 1.124 0 013 20.625v-5.17c0-1.08.768-2.014 1.837-2.174A47.78 47.78 0 016 13.12" />
+                    </svg>
+                    <span class="text-gray-700">{{ candidate.age }} Jahre</span>
+                </div>
+                {% endif %}
+            </div>
+
+            {# Berufserfahrung #}
+            {% if work_history %}
+            <div>
+                <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0" />
+                    </svg>
+                    Berufserfahrung
+                </h4>
+                <div class="space-y-3">
+                    {% for entry in work_history %}
+                    {% if entry is mapping %}
+                    <div class="relative pl-4 border-l-2 border-gray-200">
+                        <p class="text-sm font-medium text-gray-900">
+                            {{ entry.get("position", entry.get("titel", "")) or "Unbekannte Position" }}
+                        </p>
+                        <p class="text-xs text-gray-500">
+                            {{ entry.get("company", entry.get("unternehmen", "")) or "" }}
+                            {% if entry.get("zeitraum") or entry.get("duration") or entry.get("period") %}
+                            · {{ entry.get("zeitraum", entry.get("duration", entry.get("period", ""))) }}
+                            {% endif %}
+                        </p>
+                        {% if entry.get("beschreibung") or entry.get("description") or entry.get("tasks") %}
+                        <p class="text-xs text-gray-400 mt-1 line-clamp-2">
+                            {% if entry.get("tasks") is iterable and entry.get("tasks") is not string %}
+                                {{ entry.get("tasks") | join(", ") }}
+                            {% else %}
+                                {{ entry.get("beschreibung", entry.get("description", entry.get("tasks", ""))) }}
+                            {% endif %}
+                        </p>
+                        {% endif %}
+                    </div>
+                    {% elif entry is string %}
+                    <div class="relative pl-4 border-l-2 border-gray-200">
+                        <p class="text-sm text-gray-700">{{ entry }}</p>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {# Ausbildung #}
+            {% if education %}
+            <div>
+                <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342" />
+                    </svg>
+                    Ausbildung
+                </h4>
+                <div class="space-y-2">
+                    {% for entry in education %}
+                    {% if entry is mapping %}
+                    <div class="pl-4 border-l-2 border-blue-200">
+                        <p class="text-sm font-medium text-gray-900">
+                            {{ entry.get("degree", entry.get("abschluss", "")) or entry.get("name", "") }}
+                        </p>
+                        <p class="text-xs text-gray-500">
+                            {{ entry.get("institution", entry.get("schule", "")) }}
+                            {% if entry.get("zeitraum") or entry.get("year") %}
+                            · {{ entry.get("zeitraum", entry.get("year", "")) }}
+                            {% endif %}
+                        </p>
+                    </div>
+                    {% elif entry is string %}
+                    <div class="pl-4 border-l-2 border-blue-200">
+                        <p class="text-sm text-gray-700">{{ entry }}</p>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {# Weiterbildungen #}
+            {% if further_education %}
+            <div>
+                <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
+                    </svg>
+                    Weiterbildungen / Zertifikate
+                </h4>
+                <div class="flex flex-wrap gap-2">
+                    {% for entry in further_education %}
+                    {% if entry is mapping %}
+                    <span class="inline-flex items-center rounded-full bg-purple-50 text-purple-700 px-3 py-1 text-xs font-medium">
+                        {{ entry.get("name", entry.get("bezeichnung", "Zertifikat")) }}
+                    </span>
+                    {% elif entry is string %}
+                    <span class="inline-flex items-center rounded-full bg-purple-50 text-purple-700 px-3 py-1 text-xs font-medium">
+                        {{ entry }}
+                    </span>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {# IT-Skills #}
+            {% if it_skills %}
+            <div>
+                <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">IT-Kenntnisse</h4>
+                <div class="flex flex-wrap gap-1.5">
+                    {% for skill in it_skills %}
+                    <span class="inline-flex items-center rounded-md bg-gray-100 text-gray-600 px-2.5 py-1 text-xs font-medium">
+                        {{ skill }}
+                    </span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {# Skills #}
+            {% if skills %}
+            <div>
+                <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Faehigkeiten</h4>
+                <div class="flex flex-wrap gap-1.5">
+                    {% for skill in skills[:20] %}
+                    <span class="inline-flex items-center rounded-md bg-blue-50 text-blue-600 px-2.5 py-1 text-xs font-medium">
+                        {{ skill }}
+                    </span>
+                    {% endfor %}
+                    {% if skills | length > 20 %}
+                    <span class="text-xs text-gray-400">+{{ skills | length - 20 }} weitere</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            {# Sprachen #}
+            {% if languages %}
+            <div>
+                <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Sprachen</h4>
+                <div class="flex flex-wrap gap-2">
+                    {% for lang in languages %}
+                    {% if lang is mapping %}
+                    <span class="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-700 px-3 py-1 text-xs font-medium">
+                        {{ lang.get("language", lang.get("sprache", "")) }}
+                        {% if lang.get("level") or lang.get("niveau") %}
+                        <span class="text-amber-400">({{ lang.get("level", lang.get("niveau", "")) }})</span>
+                        {% endif %}
+                    </span>
+                    {% elif lang is string %}
+                    <span class="inline-flex items-center rounded-full bg-amber-50 text-amber-700 px-3 py-1 text-xs font-medium">
+                        {{ lang }}
+                    </span>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {# Kein CV? #}
+            {% if not work_history and not education and not skills and not it_skills %}
+            <div class="text-center py-8">
+                <svg class="mx-auto h-10 w-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                </svg>
+                <p class="mt-2 text-sm text-gray-400">Kein CV geparst — Titel manuell zuweisen basierend auf CRM-Daten</p>
+            </div>
+            {% endif %}
+        </div>
+
+        {# ═══ RECHTE SEITE: Titel-Zuweisung ═══ #}
+        <div class="p-6 bg-gray-50/50 space-y-6" id="titel-form">
+            <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider">Jobtitel zuweisen</h3>
+
+            {# MT-Vorschlag #}
+            {% if suggestion and suggestion.source != "none" %}
+            <div class="rounded-lg border
+                        {% if suggestion.source == 'training_data' %}border-purple-200 bg-purple-50
+                        {% elif suggestion.source == 'classification' %}border-blue-200 bg-blue-50
+                        {% else %}border-gray-200 bg-gray-50{% endif %} p-4">
+                <div class="flex items-start gap-2">
+                    {% if suggestion.source == 'training_data' %}
+                    <span class="text-lg">🧠</span>
+                    {% elif suggestion.source == 'classification' %}
+                    <span class="text-lg">🤖</span>
+                    {% else %}
+                    <span class="text-lg">🔑</span>
+                    {% endif %}
+                    <div class="flex-1">
+                        <p class="text-xs font-bold uppercase tracking-wider mb-1
+                                  {% if suggestion.source == 'training_data' %}text-purple-600
+                                  {% elif suggestion.source == 'classification' %}text-blue-600
+                                  {% else %}text-gray-500{% endif %}">
+                            {% if suggestion.source == 'training_data' %}MT-Vorschlag (gelernt)
+                            {% elif suggestion.source == 'classification' %}KI-Klassifizierung
+                            {% else %}Keyword-Vorschlag{% endif %}
+                            <span class="font-normal">({{ (suggestion.confidence * 100) | round(0) | int }}%)</span>
+                        </p>
+                        <div class="flex flex-wrap gap-1.5 mb-2">
+                            {% for title in suggestion.suggested_titles %}
+                            <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
+                                         {% if suggestion.source == 'training_data' %}bg-purple-100 text-purple-700
+                                         {% elif suggestion.source == 'classification' %}bg-blue-100 text-blue-700
+                                         {% else %}bg-gray-200 text-gray-600{% endif %}">
+                                {{ title }}
+                            </span>
+                            {% endfor %}
+                        </div>
+                        <p class="text-xs text-gray-500 line-clamp-2">{{ suggestion.reasoning }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {# Titel Checkboxen #}
+            <div>
+                <label class="text-sm font-medium text-gray-700 mb-3 block">Jobtitel auswaehlen (mehrere moeglich)</label>
+                <div class="space-y-2 max-h-[300px] overflow-y-auto pr-2">
+                    {% for title in common_job_titles %}
+                    <label class="flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-2.5 cursor-pointer hover:border-primary-300 hover:bg-primary-50/30 transition-colors has-[:checked]:border-primary-500 has-[:checked]:bg-primary-50">
+                        <input type="checkbox" name="titel" value="{{ title }}"
+                               {% if candidate.manual_job_titles and title in candidate.manual_job_titles %}checked{% endif %}
+                               class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500">
+                        <span class="text-sm text-gray-700">{{ title }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            {# Custom Titel #}
+            <div>
+                <label class="text-sm font-medium text-gray-700 mb-2 block">Eigener Titel (Komma-getrennt)</label>
+                <input type="text" id="custom-titel-input"
+                       placeholder="z.B. Sachbearbeiter/in Lohnabrechnung"
+                       class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500">
+            </div>
+
+            {# Aktuelle Zuweisung anzeigen #}
+            {% if candidate.manual_job_titles and candidate.manual_job_titles | length > 0 %}
+            <div class="rounded-lg bg-green-50 border border-green-200 p-3">
+                <p class="text-xs font-bold text-green-600 uppercase tracking-wider mb-2">Aktuell zugewiesen</p>
+                <div class="flex flex-wrap gap-1.5">
+                    {% for title in candidate.manual_job_titles %}
+                    <span class="inline-flex items-center rounded-full bg-green-100 text-green-700 px-2.5 py-0.5 text-xs font-medium">
+                        {{ title }}
+                    </span>
+                    {% endfor %}
+                </div>
+                {% if candidate.manual_job_titles_set_at %}
+                <p class="text-xs text-green-500 mt-1">
+                    Zugewiesen am {{ candidate.manual_job_titles_set_at.strftime("%d.%m.%Y %H:%M") }}
+                </p>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {# Action Buttons #}
+            <div class="flex items-center gap-3 pt-4 border-t border-gray-200">
+                <button onclick="saveTitelZuweisung('{{ candidate.id }}', false)"
+                        class="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-primary-700 transition-colors">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                    </svg>
+                    Speichern
+                </button>
+                <button onclick="saveTitelZuweisung('{{ candidate.id }}', true)"
+                        class="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-green-700 transition-colors">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 8.688c0-.864.933-1.405 1.683-.977l7.108 4.062a1.125 1.125 0 010 1.953l-7.108 4.062A1.125 1.125 0 013 16.81V8.688zM12.75 8.688c0-.864.933-1.405 1.683-.977l7.108 4.062a1.125 1.125 0 010 1.953l-7.108 4.062a1.125 1.125 0 01-1.683-.977V8.688z" />
+                    </svg>
+                    Speichern & Naechster
+                </button>
+            </div>
+            <button onclick="closeTitelModal()"
+                    class="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
+                Abbrechen
+            </button>
+        </div>
+    </div>
+</div>

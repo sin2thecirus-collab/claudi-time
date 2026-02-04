@@ -283,6 +283,11 @@ async def init_db() -> None:
         ("jobs", "embedding", "JSONB"),
         # Match Center: Matching-Methode (pre_match, deep_match, smart_match, manual)
         ("matches", "matching_method", "VARCHAR(50)"),
+        # Manuelle Jobtitel-Zuweisung (Kandidaten: ARRAY, Jobs: einzeln)
+        ("candidates", "manual_job_titles", "VARCHAR[]"),
+        ("candidates", "manual_job_titles_set_at", "TIMESTAMPTZ"),
+        ("jobs", "manual_job_title", "VARCHAR(255)"),
+        ("jobs", "manual_job_title_set_at", "TIMESTAMPTZ"),
     ]
     for table_name, col_name, col_type in migrations:
         try:
@@ -367,6 +372,62 @@ async def init_db() -> None:
             ))
     except Exception as e:
         logger.warning(f"Index ix_matches_matching_method uebersprungen: {e}")
+
+    # ── MT Lern-Tabellen erstellen ──
+    try:
+        async with engine.begin() as conn:
+            # mt_training_data — Lern-Daten aus manuellen Jobtitel-Zuweisungen
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS mt_training_data (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    entity_type VARCHAR(20) NOT NULL,
+                    entity_id UUID NOT NULL,
+                    input_text TEXT,
+                    predicted_titles JSONB,
+                    assigned_titles JSONB NOT NULL,
+                    was_correct BOOLEAN,
+                    reasoning TEXT,
+                    embedding JSONB,
+                    created_at TIMESTAMPTZ DEFAULT NOW()
+                )
+            """))
+            await conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_mt_training_entity "
+                "ON mt_training_data (entity_type, entity_id)"
+            ))
+            await conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_mt_training_created "
+                "ON mt_training_data (created_at)"
+            ))
+
+            # mt_match_memory — Gedaechtnis fuer Match-Entscheidungen
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS mt_match_memory (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    candidate_id UUID REFERENCES candidates(id) ON DELETE SET NULL,
+                    job_id UUID REFERENCES jobs(id) ON DELETE SET NULL,
+                    company_id UUID REFERENCES companies(id) ON DELETE SET NULL,
+                    action VARCHAR(50) NOT NULL,
+                    rejection_reason TEXT,
+                    never_again_company BOOLEAN DEFAULT FALSE,
+                    created_at TIMESTAMPTZ DEFAULT NOW()
+                )
+            """))
+            await conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_mt_memory_candidate "
+                "ON mt_match_memory (candidate_id)"
+            ))
+            await conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_mt_memory_company "
+                "ON mt_match_memory (company_id)"
+            ))
+            await conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_mt_memory_never_again "
+                "ON mt_match_memory (candidate_id, company_id) WHERE never_again_company = TRUE"
+            ))
+            logger.info("MT Lern-Tabellen erstellt/geprueft.")
+    except Exception as e:
+        logger.warning(f"MT Lern-Tabellen Erstellung uebersprungen: {e}")
 
     # ── Embedding-Indexes nicht noetig (JSONB, kein pgvector) ──
     # Similarity-Suche laeuft in Python, nicht in SQL.

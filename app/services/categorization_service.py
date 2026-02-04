@@ -432,6 +432,20 @@ class CategorizationService:
         """Setzt die Hotlist-Felder auf dem Kandidaten-Model."""
         candidate.hotlist_category = result.category
         candidate.hotlist_city = result.city
+
+        # PIPELINE-SCHUTZ: Wenn manuelle Jobtitel gesetzt, diese NIEMALS ueberschreiben!
+        has_manual = (
+            hasattr(candidate, "manual_job_titles")
+            and candidate.manual_job_titles
+            and len(candidate.manual_job_titles) > 0
+        )
+        if has_manual:
+            # Manuelle Titel haben Vorrang — hotlist-Felder synchronisieren
+            candidate.hotlist_job_title = candidate.manual_job_titles[0]
+            candidate.hotlist_job_titles = list(candidate.manual_job_titles)
+            candidate.categorized_at = datetime.now(timezone.utc)
+            return  # Keine automatische Klassifizierung
+
         candidate.hotlist_job_title = result.job_title
         # Array mit einzelnem Titel setzen (wird später durch RulesEngine/OpenAI überschrieben)
         if result.job_title:
@@ -462,6 +476,18 @@ class CategorizationService:
         """Setzt die Hotlist-Felder auf dem Job-Model."""
         job.hotlist_category = result.category
         job.hotlist_city = result.city
+
+        # PIPELINE-SCHUTZ: Wenn manueller Jobtitel gesetzt, NIEMALS ueberschreiben!
+        has_manual = (
+            hasattr(job, "manual_job_title")
+            and job.manual_job_title
+        )
+        if has_manual:
+            job.hotlist_job_title = job.manual_job_title
+            job.hotlist_job_titles = [job.manual_job_title]
+            job.categorized_at = datetime.now(timezone.utc)
+            return  # Keine automatische Klassifizierung
+
         job.hotlist_job_title = result.job_title
         if result.job_title:
             job.hotlist_job_titles = [result.job_title]

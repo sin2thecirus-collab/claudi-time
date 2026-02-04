@@ -1,0 +1,274 @@
+{% extends "base.html" %}
+
+{% block title %}Titel-Zuweisung — Pulspoint{% endblock %}
+
+{% block content %}
+<div class="space-y-6" x-data="titelZuweisung()">
+
+    {# ═══ Header ═══ #}
+    <div class="flex items-start justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Titel-Zuweisung</h1>
+            <p class="mt-1 text-sm text-gray-500">Kandidaten manuell den richtigen Jobtitel zuweisen — jede Zuweisung trainiert MT</p>
+        </div>
+        <div class="flex items-center gap-3">
+            {# Training-Stats Badge #}
+            <div class="flex items-center gap-2 rounded-lg bg-purple-50 border border-purple-200 px-4 py-2">
+                <svg class="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342" />
+                </svg>
+                <span class="text-sm font-medium text-purple-700">{{ training_stats.total_entries }} Lern-Eintraege</span>
+                {% if training_stats.accuracy_percent > 0 %}
+                <span class="text-xs text-purple-500">({{ training_stats.accuracy_percent }}% Genauigkeit)</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {# ═══ Statistik-Leiste ═══ #}
+    <div class="grid grid-cols-3 gap-4">
+        <div class="bg-white rounded-xl border border-gray-200 px-5 py-4">
+            <div class="flex items-center gap-3">
+                <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-blue-50">
+                    <svg class="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-1.997M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-2xl font-bold text-gray-900">{{ total_candidates }}</p>
+                    <p class="text-xs text-gray-500">Kandidaten gesamt</p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 px-5 py-4">
+            <div class="flex items-center gap-3">
+                <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-green-50">
+                    <svg class="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-2xl font-bold text-green-600">{{ assigned_count }}</p>
+                    <p class="text-xs text-gray-500">Titel zugewiesen</p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 px-5 py-4">
+            <div class="flex items-center gap-3">
+                <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-amber-50">
+                    <svg class="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-2xl font-bold text-amber-600">{{ open_count }}</p>
+                    <p class="text-xs text-gray-500">Noch offen</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ═══ Fortschrittsbalken ═══ #}
+    {% set progress_pct = ((assigned_count / total_candidates * 100) | round(0) | int) if total_candidates > 0 else 0 %}
+    <div class="bg-white rounded-xl border border-gray-200 p-5">
+        <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+                <h3 class="text-sm font-semibold text-gray-700">Fortschritt</h3>
+                <span class="inline-flex items-center rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-700">
+                    {{ progress_pct }}%
+                </span>
+            </div>
+            <p class="text-xs text-gray-400">{{ assigned_count }} von {{ total_candidates }} Kandidaten haben Titel</p>
+        </div>
+        <div class="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+            <div class="h-2.5 rounded-full bg-gradient-to-r from-green-400 to-green-600 transition-all duration-500"
+                 style="width: {{ progress_pct }}%"></div>
+        </div>
+    </div>
+
+    {# ═══ Filter-Leiste ═══ #}
+    <div class="bg-white rounded-xl border border-gray-200 p-5">
+        <div class="flex flex-wrap items-center gap-4">
+            {# Suche #}
+            <div class="flex-1 min-w-[200px]">
+                <input type="text"
+                       x-model="searchTerm"
+                       @input.debounce.400ms="loadKandidaten()"
+                       placeholder="Name oder Position suchen..."
+                       class="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500">
+            </div>
+
+            {# Stadt-Filter #}
+            <select x-model="selectedCity" @change="loadKandidaten()"
+                    class="rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500">
+                <option value="">Alle Staedte</option>
+                {% for city in cities %}
+                <option value="{{ city.name }}">{{ city.name }} ({{ city.count }})</option>
+                {% endfor %}
+            </select>
+
+            {# Status-Filter #}
+            <div class="flex rounded-lg border border-gray-300 overflow-hidden">
+                <button @click="selectedStatus = 'alle'; loadKandidaten()"
+                        :class="selectedStatus === 'alle' ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
+                        class="px-4 py-2.5 text-sm font-medium transition-colors">
+                    Alle
+                </button>
+                <button @click="selectedStatus = 'offen'; loadKandidaten()"
+                        :class="selectedStatus === 'offen' ? 'bg-amber-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
+                        class="px-4 py-2.5 text-sm font-medium border-l border-gray-300 transition-colors">
+                    Offen
+                </button>
+                <button @click="selectedStatus = 'zugewiesen'; loadKandidaten()"
+                        :class="selectedStatus === 'zugewiesen' ? 'bg-green-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
+                        class="px-4 py-2.5 text-sm font-medium border-l border-gray-300 transition-colors">
+                    Zugewiesen
+                </button>
+            </div>
+        </div>
+    </div>
+
+    {# ═══ Kandidaten-Tabelle (HTMX) ═══ #}
+    <div id="kandidaten-liste"
+         hx-get="/partials/titel-zuweisung/kandidaten?status=offen"
+         hx-trigger="load"
+         hx-swap="innerHTML">
+        {# Loading Skeleton #}
+        <div class="bg-white rounded-xl border border-gray-200 p-8 text-center">
+            <div class="animate-pulse space-y-4">
+                <div class="h-4 bg-gray-200 rounded w-1/3 mx-auto"></div>
+                <div class="h-4 bg-gray-200 rounded w-1/2 mx-auto"></div>
+                <div class="h-4 bg-gray-200 rounded w-2/5 mx-auto"></div>
+            </div>
+            <p class="mt-4 text-sm text-gray-400">Kandidaten werden geladen...</p>
+        </div>
+    </div>
+
+</div>
+
+{# ═══ Grosses Modal fuer CV-Ansicht + Titel-Zuweisung ═══ #}
+<div id="titel-modal-container"
+     x-data="{ open: false }"
+     @open-titel-modal.window="open = true"
+     @close-titel-modal.window="open = false"
+     @keydown.escape.window="open = false"
+     x-show="open"
+     x-cloak
+     class="relative z-50">
+    <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+    <div class="fixed inset-0 z-10 overflow-y-auto" @click.self="open = false">
+        <div class="flex min-h-full items-center justify-center p-4" @click.self="open = false">
+            <div id="titel-modal-content" @click.stop
+                 class="relative transform overflow-hidden rounded-xl bg-white text-left shadow-2xl sm:my-8 w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+                {# Modal-Inhalt wird per HTMX geladen #}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function titelZuweisung() {
+    return {
+        searchTerm: '',
+        selectedCity: '',
+        selectedStatus: 'offen',
+
+        loadKandidaten() {
+            const params = new URLSearchParams();
+            params.set('status', this.selectedStatus);
+            if (this.selectedCity) params.set('city', this.selectedCity);
+            if (this.searchTerm) params.set('search', this.searchTerm);
+
+            htmx.ajax('GET', '/partials/titel-zuweisung/kandidaten?' + params.toString(), {
+                target: '#kandidaten-liste',
+                swap: 'innerHTML'
+            });
+        }
+    };
+}
+
+function openTitelModal(candidateId) {
+    htmx.ajax('GET', '/partials/titel-zuweisung/kandidat/' + candidateId, {
+        target: '#titel-modal-content',
+        swap: 'innerHTML'
+    }).then(() => {
+        window.dispatchEvent(new CustomEvent('open-titel-modal'));
+    });
+}
+
+function closeTitelModal() {
+    window.dispatchEvent(new CustomEvent('close-titel-modal'));
+}
+
+async function saveTitelZuweisung(candidateId, loadNext) {
+    // Ausgewaehlte Titel sammeln
+    const checkboxes = document.querySelectorAll('#titel-form input[name="titel"]:checked');
+    const customInput = document.getElementById('custom-titel-input');
+    const titles = [];
+
+    checkboxes.forEach(cb => titles.push(cb.value));
+
+    // Custom-Titel hinzufuegen
+    if (customInput && customInput.value.trim()) {
+        const customTitles = customInput.value.split(',').map(t => t.trim()).filter(t => t);
+        titles.push(...customTitles);
+    }
+
+    if (titles.length === 0) {
+        showToast('Bitte mindestens einen Titel auswaehlen', 'warning');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/titel-zuweisung/save/' + candidateId, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ titles: titles })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showToast(data.candidate_name + ': ' + titles.join(', '), 'success');
+
+            // Tabelle aktualisieren
+            const event = new Event('refreshKandidaten');
+            document.dispatchEvent(event);
+
+            // Statistiken in der Seite aktualisieren (optimistisch)
+            updateStatsOptimistic();
+
+            if (loadNext) {
+                // Naechsten Kandidaten laden
+                const cityParam = document.querySelector('[x-data]')?.__x?.$data?.selectedCity || '';
+                const nextResp = await fetch('/api/titel-zuweisung/next/' + candidateId + '?city=' + encodeURIComponent(cityParam));
+                const nextData = await nextResp.json();
+
+                if (nextData.next_id) {
+                    openTitelModal(nextData.next_id);
+                } else {
+                    closeTitelModal();
+                    showToast('Alle Kandidaten bearbeitet!', 'info');
+                }
+            } else {
+                closeTitelModal();
+            }
+
+            // Liste neu laden
+            htmx.trigger('#kandidaten-liste', 'refreshList');
+        } else {
+            showToast('Fehler beim Speichern', 'error');
+        }
+    } catch (err) {
+        showToast('Fehler: ' + err.message, 'error');
+    }
+}
+
+function updateStatsOptimistic() {
+    // Einfaches Page-Reload verzoegert (damit die DB Zeit hat)
+    // Spaeter: Stats per HTMX aktualisieren
+}
+</script>
+{% endblock %}

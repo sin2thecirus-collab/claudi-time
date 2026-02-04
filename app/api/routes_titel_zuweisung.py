@@ -1,0 +1,381 @@
+"""Titel-Zuweisung Routes — Manuelle Jobtitel-Zuweisung fuer Kandidaten.
+
+Hauptseite: /titel-zuweisung
+- Tabelle aller Kandidaten mit Filtern (Stadt, Status)
+- Modal zum CV-Lesen und Titel-Zuweisen
+- Lern-Integration: Jede Zuweisung → mt_training_data
+"""
+
+import json
+import logging
+from datetime import datetime, timezone
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+from sqlalchemy import and_, func, or_, select, case
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.database import get_db
+from app.models.candidate import Candidate
+from app.services.mt_learning_service import COMMON_JOB_TITLES, MTLearningService
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(tags=["Titel-Zuweisung"])
+templates = Jinja2Templates(directory="app/templates")
+
+
+# ════════════════════════════════════════════════════════════════
+# HAUPTSEITE: /titel-zuweisung
+# ════════════════════════════════════════════════════════════════
+
+@router.get("/titel-zuweisung", response_class=HTMLResponse)
+async def titel_zuweisung_page(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Titel-Zuweisung Hauptseite."""
+    # Statistiken laden
+    total_q = await db.execute(
+        select(func.count(Candidate.id)).where(
+            Candidate.deleted_at.is_(None)
+        )
+    )
+    total_candidates = total_q.scalar() or 0
+
+    # Bereits zugewiesen
+    assigned_q = await db.execute(
+        select(func.count(Candidate.id)).where(
+            and_(
+                Candidate.deleted_at.is_(None),
+                Candidate.manual_job_titles.isnot(None),
+            )
+        )
+    )
+    assigned_count = assigned_q.scalar() or 0
+
+    # Noch offen
+    open_count = total_candidates - assigned_count
+
+    # Staedte mit Kandidaten-Counts
+    cities_q = await db.execute(
+        select(
+            func.coalesce(Candidate.hotlist_city, Candidate.city, "Unbekannt").label("city_name"),
+            func.count(Candidate.id).label("cnt"),
+        )
+        .where(Candidate.deleted_at.is_(None))
+        .group_by("city_name")
+        .order_by(func.count(Candidate.id).desc())
+        .limit(50)
+    )
+    cities = [{"name": row.city_name, "count": row.cnt} for row in cities_q.all()]
+
+    # Training-Stats
+    learning_service = MTLearningService(db)
+    training_stats = await learning_service.get_training_stats()
+
+    return templates.TemplateResponse(
+        "titel_zuweisung.html",
+        {
+            "request": request,
+            "total_candidates": total_candidates,
+            "assigned_count": assigned_count,
+            "open_count": open_count,
+            "cities": cities,
+            "common_job_titles": COMMON_JOB_TITLES,
+            "training_stats": training_stats,
+        },
+    )
+
+
+# ════════════════════════════════════════════════════════════════
+# KANDIDATEN-LISTE (HTMX Partial)
+# ════════════════════════════════════════════════════════════════
+
+@router.get("/partials/titel-zuweisung/kandidaten", response_class=HTMLResponse)
+async def titel_kandidaten_liste(
+    request: Request,
+    page: int = Query(default=1, ge=1),
+    per_page: int = Query(default=25, ge=10, le=100),
+    city: str = Query(default=""),
+    status: str = Query(default="alle"),  # "alle", "offen", "zugewiesen"
+    search: str = Query(default=""),
+    db: AsyncSession = Depends(get_db),
+):
+    """HTMX-Partial: Kandidaten-Tabelle fuer Titel-Zuweisung."""
+    query = select(Candidate).where(Candidate.deleted_at.is_(None))
+
+    # Filter: Stadt
+    if city:
+        query = query.where(
+            or_(
+                Candidate.hotlist_city == city,
+                Candidate.city == city,
+            )
+        )
+
+    # Filter: Status (offen/zugewiesen)
+    if status == "offen":
+        query = query.where(
+            or_(
+                Candidate.manual_job_titles.is_(None),
+                func.array_length(Candidate.manual_job_titles, 1).is_(None),
+            )
+        )
+    elif status == "zugewiesen":
+        query = query.where(
+            and_(
+                Candidate.manual_job_titles.isnot(None),
+                func.array_length(Candidate.manual_job_titles, 1) > 0,
+            )
+        )
+
+    # Filter: Suche (Name oder Position)
+    if search:
+        search_term = f"%{search}%"
+        query = query.where(
+            or_(
+                Candidate.first_name.ilike(search_term),
+                Candidate.last_name.ilike(search_term),
+                Candidate.current_position.ilike(search_term),
+                Candidate.current_company.ilike(search_term),
+            )
+        )
+
+    # Sortierung: Offene zuerst, dann nach Name
+    query = query.order_by(
+        case(
+            (Candidate.manual_job_titles.is_(None), 0),
+            else_=1,
+        ),
+        Candidate.last_name.asc(),
+        Candidate.first_name.asc(),
+    )
+
+    # Gesamt-Count
+    count_query = select(func.count()).select_from(query.subquery())
+    total_result = await db.execute(count_query)
+    total_count = total_result.scalar() or 0
+
+    # Pagination
+    total_pages = max(1, (total_count + per_page - 1) // per_page)
+    offset = (page - 1) * per_page
+    query = query.offset(offset).limit(per_page)
+
+    result = await db.execute(query)
+    candidates = result.scalars().all()
+
+    return templates.TemplateResponse(
+        "partials/titel_kandidaten_liste.html",
+        {
+            "request": request,
+            "candidates": candidates,
+            "page": page,
+            "per_page": per_page,
+            "total_count": total_count,
+            "total_pages": total_pages,
+            "city": city,
+            "status": status,
+            "search": search,
+        },
+    )
+
+
+# ════════════════════════════════════════════════════════════════
+# KANDIDAT-MODAL (HTMX Partial)
+# ════════════════════════════════════════════════════════════════
+
+@router.get("/partials/titel-zuweisung/kandidat/{candidate_id}", response_class=HTMLResponse)
+async def titel_kandidat_modal(
+    request: Request,
+    candidate_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """HTMX-Partial: Modal mit CV-Details und Titel-Zuweisung."""
+    result = await db.execute(
+        select(Candidate).where(Candidate.id == candidate_id)
+    )
+    candidate = result.scalar_one_or_none()
+
+    if not candidate:
+        raise HTTPException(404, "Kandidat nicht gefunden")
+
+    # MT-Vorschlag generieren
+    learning_service = MTLearningService(db)
+    suggestion = await learning_service.get_suggestion_for_candidate(candidate)
+
+    # CV-Daten vorbereiten (sicher als Listen)
+    def _ensure_list(val):
+        if isinstance(val, list):
+            return val
+        if isinstance(val, str):
+            try:
+                parsed = json.loads(val)
+                return parsed if isinstance(parsed, list) else []
+            except Exception:
+                return []
+        return []
+
+    work_history = _ensure_list(candidate.work_history)
+    education = _ensure_list(candidate.education)
+    further_education = _ensure_list(candidate.further_education)
+    languages = _ensure_list(candidate.languages)
+    it_skills = list(candidate.it_skills) if candidate.it_skills else []
+    skills = list(candidate.skills) if candidate.skills else []
+
+    return templates.TemplateResponse(
+        "partials/titel_kandidat_modal.html",
+        {
+            "request": request,
+            "candidate": candidate,
+            "suggestion": suggestion,
+            "common_job_titles": COMMON_JOB_TITLES,
+            "work_history": work_history,
+            "education": education,
+            "further_education": further_education,
+            "languages": languages,
+            "it_skills": it_skills,
+            "skills": skills,
+        },
+    )
+
+
+# ════════════════════════════════════════════════════════════════
+# TITEL SPEICHERN (API)
+# ════════════════════════════════════════════════════════════════
+
+@router.post("/api/titel-zuweisung/save/{candidate_id}")
+async def save_titel_zuweisung(
+    request: Request,
+    candidate_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Speichert die manuelle Titel-Zuweisung fuer einen Kandidaten.
+
+    Body: { "titles": ["Finanzbuchhalter/in", "Kreditorenbuchhalter/in"] }
+    """
+    body = await request.json()
+    titles = body.get("titles", [])
+
+    if not titles:
+        raise HTTPException(400, "Mindestens ein Titel erforderlich")
+
+    # Kandidat laden
+    result = await db.execute(
+        select(Candidate).where(Candidate.id == candidate_id)
+    )
+    candidate = result.scalar_one_or_none()
+    if not candidate:
+        raise HTTPException(404, "Kandidat nicht gefunden")
+
+    # Vorherige Vorschlaege merken (fuer Training)
+    learning_service = MTLearningService(db)
+    suggestion = await learning_service.get_suggestion_for_candidate(candidate)
+    predicted_titles = suggestion.get("suggested_titles") if suggestion.get("source") != "none" else None
+
+    # 1. manual_job_titles setzen
+    candidate.manual_job_titles = titles
+    candidate.manual_job_titles_set_at = datetime.now(timezone.utc)
+
+    # 2. hotlist-Felder synchronisieren
+    candidate.hotlist_job_title = titles[0]
+    candidate.hotlist_job_titles = list(titles)
+    candidate.categorized_at = datetime.now(timezone.utc)
+
+    # 3. Training-Daten speichern
+    await learning_service.save_title_assignment(
+        candidate=candidate,
+        assigned_titles=titles,
+        predicted_titles=predicted_titles,
+    )
+
+    await db.flush()
+
+    logger.info(
+        f"Titel zugewiesen: {candidate.full_name} → {titles}"
+    )
+
+    return {
+        "success": True,
+        "candidate_id": str(candidate_id),
+        "assigned_titles": titles,
+        "candidate_name": candidate.full_name,
+    }
+
+
+# ════════════════════════════════════════════════════════════════
+# NAECHSTER KANDIDAT (fuer "Speichern & Naechster")
+# ════════════════════════════════════════════════════════════════
+
+@router.get("/api/titel-zuweisung/next/{candidate_id}")
+async def next_candidate(
+    candidate_id: UUID,
+    city: str = Query(default=""),
+    status: str = Query(default="offen"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Gibt die ID des naechsten Kandidaten zurueck (fuer 'Speichern & Naechster')."""
+    # Aktuellen Kandidaten laden
+    current = await db.execute(
+        select(Candidate).where(Candidate.id == candidate_id)
+    )
+    current_candidate = current.scalar_one_or_none()
+
+    if not current_candidate:
+        return {"next_id": None}
+
+    # Naechsten offenen Kandidaten finden
+    query = (
+        select(Candidate.id)
+        .where(
+            and_(
+                Candidate.deleted_at.is_(None),
+                Candidate.id != candidate_id,
+            )
+        )
+    )
+
+    # Filter: Stadt
+    if city:
+        query = query.where(
+            or_(
+                Candidate.hotlist_city == city,
+                Candidate.city == city,
+            )
+        )
+
+    # Filter: Nur offene
+    if status == "offen":
+        query = query.where(
+            or_(
+                Candidate.manual_job_titles.is_(None),
+                func.array_length(Candidate.manual_job_titles, 1).is_(None),
+            )
+        )
+
+    # Sortierung: Nach Name, naechster nach aktuellem
+    query = query.order_by(
+        Candidate.last_name.asc(),
+        Candidate.first_name.asc(),
+    ).limit(1)
+
+    result = await db.execute(query)
+    next_id = result.scalar_one_or_none()
+
+    return {"next_id": str(next_id) if next_id else None}
+
+
+# ════════════════════════════════════════════════════════════════
+# TRAINING-STATS (API)
+# ════════════════════════════════════════════════════════════════
+
+@router.get("/api/titel-zuweisung/stats")
+async def training_stats(
+    db: AsyncSession = Depends(get_db),
+):
+    """Gibt Training-Statistiken zurueck."""
+    learning_service = MTLearningService(db)
+    stats = await learning_service.get_training_stats()
+    return stats

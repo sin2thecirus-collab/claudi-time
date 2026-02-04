@@ -69,6 +69,10 @@ class Candidate(Base):
     # Manuelle Overrides (Felder die manuell bearbeitet wurden und nicht per Sync/Parsing ueberschrieben werden)
     manual_overrides: Mapped[dict | None] = mapped_column(JSONB)
 
+    # Manuelle Jobtitel-Zuweisung (wird NIE automatisch ueberschrieben)
+    manual_job_titles: Mapped[list[str] | None] = mapped_column(ARRAY(String))  # z.B. ["Finanzbuchhalter/in", "Kreditorenbuchhalter/in"]
+    manual_job_titles_set_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
     # Hotlist-Kategorisierung
     hotlist_category: Mapped[str | None] = mapped_column(String(50))
     hotlist_city: Mapped[str | None] = mapped_column(String(255))
