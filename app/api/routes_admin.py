@@ -1434,15 +1434,18 @@ async def run_migrations(
     import subprocess
     from sqlalchemy import text
 
-    # Fix: alembic_version Tabelle reparieren (001_initial -> 001)
+    # Fix: alembic_version Tabelle reparieren
+    # Die DB hat alle Spalten bis 009, aber alembic_version war kaputt.
+    # Setze auf 009 damit nur neue Migrationen (010+) laufen.
     try:
         result = await db.execute(
             text("SELECT version_num FROM alembic_version")
         )
         current = result.scalar_one_or_none()
-        if current == "001_initial":
+        if current in ("001_initial", "001"):
             await db.execute(
-                text("UPDATE alembic_version SET version_num = '001' WHERE version_num = '001_initial'")
+                text("UPDATE alembic_version SET version_num = '009' WHERE version_num = :old"),
+                {"old": current},
             )
             await db.commit()
     except Exception:
