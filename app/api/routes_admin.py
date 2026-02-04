@@ -1007,11 +1007,15 @@ async def _run_geocoding(db_unused: AsyncSession, job_run_id: UUID):
             geocoding_service = GeocodingService(db)
             result = await geocoding_service.process_all_pending()
 
+            # Ergebnis ist ein dict mit "jobs" und "candidates" Sub-Dicts
+            jobs_r = result.get("jobs", {})
+            cands_r = result.get("candidates", {})
+
             await job_runner.complete_job(
                 job_run_id,
-                items_total=result.total,
-                items_successful=result.successful,
-                items_failed=result.failed,
+                items_total=jobs_r.get("total", 0) + cands_r.get("total", 0),
+                items_successful=jobs_r.get("successful", 0) + cands_r.get("successful", 0),
+                items_failed=jobs_r.get("failed", 0) + cands_r.get("failed", 0),
             )
             await db.commit()
         except Exception as e:
