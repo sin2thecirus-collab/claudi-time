@@ -135,12 +135,16 @@ async def titel_kandidaten_liste(
             )
         )
 
-    # Filter: CV vorhanden
+    # Filter: CV vorhanden (cv_url, cv_stored_path ODER cv_text)
     if has_cv == "ja":
         query = query.where(
             or_(
                 Candidate.cv_url.isnot(None),
                 Candidate.cv_stored_path.isnot(None),
+                and_(
+                    Candidate.cv_text.isnot(None),
+                    Candidate.cv_text != "",
+                ),
             )
         )
     elif has_cv == "nein":
@@ -148,17 +152,22 @@ async def titel_kandidaten_liste(
             and_(
                 Candidate.cv_url.is_(None),
                 Candidate.cv_stored_path.is_(None),
+                or_(
+                    Candidate.cv_text.is_(None),
+                    Candidate.cv_text == "",
+                ),
             )
         )
 
-    # Filter: Nach zugewiesenem Titel
+    # Filter: Nach Titel (breit: zugewiesene Titel + Position + Hotlist)
     if titel:
-        # PostgreSQL ARRAY contains: manual_job_titles @> ARRAY['Titel']
-        # Oder hotlist_job_titles als Fallback
+        titel_search = f"%{titel}%"
         query = query.where(
             or_(
                 Candidate.manual_job_titles.any(titel),
                 Candidate.hotlist_job_titles.any(titel),
+                Candidate.hotlist_job_title.ilike(titel_search),
+                Candidate.current_position.ilike(titel_search),
             )
         )
 
