@@ -333,9 +333,15 @@ async function saveTitelZuweisung(candidateId, loadNext) {
             updateStatsOptimistic();
 
             if (loadNext) {
-                // Naechsten Kandidaten laden
-                const cityParam = document.querySelector('[x-data]')?.__x?.$data?.selectedCity || '';
-                const nextResp = await fetch('/api/titel-zuweisung/next/' + candidateId + '?city=' + encodeURIComponent(cityParam));
+                // Naechsten Kandidaten laden (ALLE aktiven Filter uebergeben!)
+                const filterData = document.querySelector('[x-data]')?.__x?.$data || {};
+                const nextParams = new URLSearchParams();
+                if (filterData.selectedCity) nextParams.set('city', filterData.selectedCity);
+                if (filterData.selectedStatus) nextParams.set('status', filterData.selectedStatus);
+                if (filterData.selectedHasCv) nextParams.set('has_cv', filterData.selectedHasCv);
+                if (filterData.selectedTitel) nextParams.set('titel', filterData.selectedTitel);
+                if (filterData.selectedMinRating) nextParams.set('min_rating', filterData.selectedMinRating);
+                const nextResp = await fetch('/api/titel-zuweisung/next/' + candidateId + '?' + nextParams.toString());
                 const nextData = await nextResp.json();
 
                 if (nextData.next_id) {
@@ -375,9 +381,15 @@ async function deleteKandidat(candidateId) {
         if (data.success) {
             showToast(data.message || 'Kandidat geloescht', 'success');
 
-            // Naechsten Kandidaten laden (gleiche Logik wie saveTitelZuweisung)
-            const cityParam = document.querySelector('[x-data]')?.__x?.$data?.selectedCity || '';
-            const nextResp = await fetch('/api/titel-zuweisung/next/' + candidateId + '?city=' + encodeURIComponent(cityParam));
+            // Naechsten Kandidaten laden (ALLE aktiven Filter uebergeben!)
+            const filterData2 = document.querySelector('[x-data]')?.__x?.$data || {};
+            const delParams = new URLSearchParams();
+            if (filterData2.selectedCity) delParams.set('city', filterData2.selectedCity);
+            if (filterData2.selectedStatus) delParams.set('status', filterData2.selectedStatus);
+            if (filterData2.selectedHasCv) delParams.set('has_cv', filterData2.selectedHasCv);
+            if (filterData2.selectedTitel) delParams.set('titel', filterData2.selectedTitel);
+            if (filterData2.selectedMinRating) delParams.set('min_rating', filterData2.selectedMinRating);
+            const nextResp = await fetch('/api/titel-zuweisung/next/' + candidateId + '?' + delParams.toString());
             const nextData = await nextResp.json();
 
             if (nextData.next_id) {

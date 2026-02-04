@@ -445,9 +445,16 @@ async def next_candidate(
     candidate_id: UUID,
     city: str = Query(default=""),
     status: str = Query(default="offen"),
+    has_cv: str = Query(default=""),
+    titel: str = Query(default=""),
+    min_rating: str = Query(default=""),
     db: AsyncSession = Depends(get_db),
 ):
-    """Gibt die ID des naechsten Kandidaten zurueck (fuer 'Speichern & Naechster')."""
+    """Gibt die ID des naechsten Kandidaten zurueck (fuer 'Speichern & Naechster').
+
+    WICHTIG: Muss dieselben Filter wie die Kandidaten-Liste beruecksichtigen,
+    damit 'Naechster' nur innerhalb der gefilterten Menge springt.
+    """
     # Aktuellen Kandidaten laden
     current = await db.execute(
         select(Candidate).where(Candidate.id == candidate_id)
@@ -457,7 +464,7 @@ async def next_candidate(
     if not current_candidate:
         return {"next_id": None}
 
-    # Naechsten offenen Kandidaten finden
+    # Naechsten Kandidaten finden (gleiche Filter wie Hauptliste!)
     query = (
         select(Candidate.id)
         .where(
@@ -484,6 +491,54 @@ async def next_candidate(
                 Candidate.manual_job_titles.is_(None),
                 func.array_length(Candidate.manual_job_titles, 1).is_(None),
             )
+        )
+    elif status == "zugewiesen":
+        query = query.where(
+            and_(
+                Candidate.manual_job_titles.isnot(None),
+                func.array_length(Candidate.manual_job_titles, 1) > 0,
+            )
+        )
+
+    # Filter: CV vorhanden
+    if has_cv == "ja":
+        query = query.where(
+            or_(
+                Candidate.cv_url.isnot(None),
+                Candidate.cv_stored_path.isnot(None),
+                and_(
+                    Candidate.cv_text.isnot(None),
+                    Candidate.cv_text != "",
+                ),
+            )
+        )
+    elif has_cv == "nein":
+        query = query.where(
+            and_(
+                Candidate.cv_url.is_(None),
+                Candidate.cv_stored_path.is_(None),
+                or_(
+                    Candidate.cv_text.is_(None),
+                    Candidate.cv_text == "",
+                ),
+            )
+        )
+
+    # Filter: Nach Titel (gleiche Logik wie Hauptliste!)
+    if titel:
+        titel_search = f"%{titel}%"
+        query = query.where(
+            or_(
+                Candidate.manual_job_titles.any(titel),
+                Candidate.hotlist_job_title.ilike(titel_search),
+                Candidate.current_position.ilike(titel_search),
+            )
+        )
+
+    # Filter: Mindest-Bewertung
+    if min_rating:
+        query = query.where(
+            Candidate.rating >= int(min_rating)
         )
 
     # Sortierung: Nach Name, naechster nach aktuellem
