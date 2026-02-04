@@ -159,13 +159,13 @@ async def titel_kandidaten_liste(
             )
         )
 
-    # Filter: Nach Titel (breit: zugewiesene Titel + Position + Hotlist)
+    # Filter: Nach Titel (NUR manuelle Titel + current_position)
+    # NICHT hotlist_job_title — der wird automatisch gesetzt und kann falsch sein
     if titel:
         titel_search = f"%{titel}%"
         query = query.where(
             or_(
                 Candidate.manual_job_titles.any(titel),
-                Candidate.hotlist_job_title.ilike(titel_search),
                 Candidate.current_position.ilike(titel_search),
             )
         )
@@ -358,7 +358,7 @@ async def save_titel_zuweisung(
         predicted_titles=predicted_titles,
     )
 
-    await db.flush()
+    await db.commit()
 
     logger.info(
         f"Titel zugewiesen: {candidate.full_name} → {titles}" + (f" (Rating: {rating})" if rating else "")
