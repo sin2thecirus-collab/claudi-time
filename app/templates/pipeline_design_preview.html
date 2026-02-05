@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+
+{% block title %}Pipeline Design Vorschau{% endblock %}
+
+{% block content %}
+<div class="max-w-[1600px] mx-auto px-4 py-8">
+    {# Header #}
+    <div class="mb-8">
+        <h1 class="text-2xl font-bold text-gray-900">Pipeline Design Vorschau</h1>
+        <p class="text-gray-500 mt-1">Wähle das Design, das dir am besten gefällt</p>
+    </div>
+
+    {# Design Selector #}
+    <div x-data="{ activeDesign: 1 }" class="space-y-6">
+
+        {# Tab Navigation #}
+        <div class="flex items-center gap-2 p-1 bg-gray-100 rounded-xl w-fit">
+            <button @click="activeDesign = 1"
+                    :class="activeDesign === 1 ? 'bg-white shadow-sm text-gray-900' : 'text-gray-600 hover:text-gray-900'"
+                    class="px-6 py-3 text-sm font-medium rounded-lg transition-all">
+                1. Tabelle
+            </button>
+            <button @click="activeDesign = 2"
+                    :class="activeDesign === 2 ? 'bg-white shadow-sm text-gray-900' : 'text-gray-600 hover:text-gray-900'"
+                    class="px-6 py-3 text-sm font-medium rounded-lg transition-all">
+                2. Mini Kanban
+            </button>
+            <button @click="activeDesign = 3"
+                    :class="activeDesign === 3 ? 'bg-white shadow-sm text-gray-900' : 'text-gray-600 hover:text-gray-900'"
+                    class="px-6 py-3 text-sm font-medium rounded-lg transition-all">
+                3. Akkordeon
+            </button>
+            <button @click="activeDesign = 4"
+                    :class="activeDesign === 4 ? 'bg-white shadow-sm text-gray-900' : 'text-gray-600 hover:text-gray-900'"
+                    class="px-6 py-3 text-sm font-medium rounded-lg transition-all">
+                4. Timeline
+            </button>
+        </div>
+
+        {# Design Preview Area #}
+        <div class="bg-gray-50 rounded-2xl border border-gray-200 p-6 min-h-[600px]">
+
+            {# Variante 1: Tabelle #}
+            <div x-show="activeDesign === 1" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
+                <div class="mb-4 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-lg font-semibold text-gray-900">Variante 1: Tabellen-Ansicht</h2>
+                        <p class="text-sm text-gray-500">Klassische Tabelle mit Filter-Tabs. Übersichtlich, sortierbar.</p>
+                    </div>
+                    <span class="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">Für Übersicht</span>
+                </div>
+                {% include 'partials/ats_pipeline_variants/variant_1_table.html' %}
+            </div>
+
+            {# Variante 2: Mini Kanban #}
+            <div x-show="activeDesign === 2" x-cloak x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
+                <div class="mb-4 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-lg font-semibold text-gray-900">Variante 2: Minimales Kanban</h2>
+                        <p class="text-sm text-gray-500">Kompakte Karten in 8 Spalten. Alle Phasen auf einen Blick.</p>
+                    </div>
+                    <span class="px-3 py-1 bg-purple-100 text-purple-700 text-xs font-medium rounded-full">Kompakt</span>
+                </div>
+                {% include 'partials/ats_pipeline_variants/variant_2_minimal_kanban.html' %}
+            </div>
+
+            {# Variante 3: Akkordeon #}
+            <div x-show="activeDesign === 3" x-cloak x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
+                <div class="mb-4 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-lg font-semibold text-gray-900">Variante 3: Akkordeon</h2>
+                        <p class="text-sm text-gray-500">Aufklappbare Abschnitte. Eine Phase auf einmal fokussieren.</p>
+                    </div>
+                    <span class="px-3 py-1 bg-amber-100 text-amber-700 text-xs font-medium rounded-full">Fokussiert</span>
+                </div>
+                {% include 'partials/ats_pipeline_variants/variant_3_accordion.html' %}
+            </div>
+
+            {# Variante 4: Timeline #}
+            <div x-show="activeDesign === 4" x-cloak x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
+                <div class="mb-4 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-lg font-semibold text-gray-900">Variante 4: Timeline / Verlauf</h2>
+                        <p class="text-sm text-gray-500">Vertikale Timeline mit Fortschritts-Header. Modern, visuell.</p>
+                    </div>
+                    <span class="px-3 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">Modern</span>
+                </div>
+                {% include 'partials/ats_pipeline_variants/variant_4_timeline.html' %}
+            </div>
+        </div>
+
+        {# Selection Buttons #}
+        <div class="flex items-center justify-center gap-4 pt-4">
+            <p class="text-gray-500">Welches Design soll ich verwenden?</p>
+            <div class="flex gap-2">
+                <a href="?select=1" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
+                    Tabelle wählen
+                </a>
+                <a href="?select=2" class="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors">
+                    Mini Kanban wählen
+                </a>
+                <a href="?select=3" class="px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 transition-colors">
+                    Akkordeon wählen
+                </a>
+                <a href="?select=4" class="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors">
+                    Timeline wählen
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

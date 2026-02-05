@@ -1,0 +1,242 @@
+{# VARIANTE 1: Einfache Tabelle #}
+{# Kandidaten als Tabellenzeilen mit Status-Spalte, Filter-Tabs oben #}
+
+<div id="pipeline-board"
+     x-data="{
+        activeFilter: 'all',
+        dragging: false,
+        dragEntryId: null
+     }"
+     hx-get="/ats/stellen/{{ job_id }}/pipeline"
+     hx-trigger="pipeline-updated from:body"
+     hx-swap="outerHTML">
+
+    {# ── Filter Tabs ───────────────────────────────────────── #}
+    <div class="flex items-center gap-1 mb-4 p-1 bg-gray-100 rounded-lg w-fit">
+        <button @click="activeFilter = 'all'"
+                :class="activeFilter === 'all' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-600 hover:text-gray-900'"
+                class="px-4 py-2 text-sm font-medium rounded-md transition-all">
+            Alle
+            <span class="ml-1.5 px-1.5 py-0.5 text-xs rounded-full bg-gray-200">
+                {% set total = namespace(count=0) %}
+                {% for stage in stages %}
+                    {% set stage_key = stage.value %}
+                    {% set stage_data = pipeline.get(stage_key, {'entries': []}) %}
+                    {% set total.count = total.count + (stage_data.entries | length) %}
+                {% endfor %}
+                {{ total.count }}
+            </span>
+        </button>
+        {% for stage in stages %}
+        {% set stage_key = stage.value %}
+        {% set stage_data = pipeline.get(stage_key, {'label': stage_labels[stage], 'entries': []}) %}
+        <button @click="activeFilter = '{{ stage_key }}'"
+                :class="activeFilter === '{{ stage_key }}' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-600 hover:text-gray-900'"
+                class="px-3 py-2 text-sm font-medium rounded-md transition-all whitespace-nowrap">
+            {{ stage_data.label }}
+            <span class="ml-1 px-1.5 py-0.5 text-xs rounded-full"
+                  :class="activeFilter === '{{ stage_key }}' ? 'bg-primary-100 text-primary-700' : 'bg-gray-200'">
+                {{ stage_data.entries | length }}
+            </span>
+        </button>
+        {% endfor %}
+    </div>
+
+    {# ── Tabelle ───────────────────────────────────────────── #}
+    <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <table class="w-full">
+            <thead class="bg-gray-50 border-b border-gray-200">
+                <tr>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Kandidat</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Position</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Standort</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Datum</th>
+                    <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Aktionen</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% for stage in stages %}
+                {% set stage_key = stage.value %}
+                {% set stage_data = pipeline.get(stage_key, {'label': stage_labels[stage], 'entries': []}) %}
+                {% for entry in stage_data.entries %}
+                {% set candidate = entry.candidate %}
+
+                <tr x-show="activeFilter === 'all' || activeFilter === '{{ stage_key }}'"
+                    x-transition:enter="transition ease-out duration-150"
+                    x-transition:enter-start="opacity-0"
+                    x-transition:enter-end="opacity-100"
+                    class="hover:bg-gray-50 transition-colors">
+
+                    {# Kandidat #}
+                    <td class="px-4 py-3">
+                        {% if candidate %}
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white font-semibold text-sm">
+                                {{ (candidate.first_name or 'U')[0] }}{{ (candidate.last_name or '')[0] }}
+                            </div>
+                            <div>
+                                <a href="/kandidaten/{{ candidate.id }}" class="text-sm font-medium text-gray-900 hover:text-primary-600">
+                                    {{ candidate.full_name or ((candidate.first_name or '') ~ ' ' ~ (candidate.last_name or '')) | trim or 'Unbekannt' }}
+                                </a>
+                            </div>
+                        </div>
+                        {% else %}
+                        <span class="text-sm text-gray-400 italic">Kandidat entfernt</span>
+                        {% endif %}
+                    </td>
+
+                    {# Position #}
+                    <td class="px-4 py-3">
+                        <span class="text-sm text-gray-600">{{ candidate.current_position or '-' if candidate else '-' }}</span>
+                    </td>
+
+                    {# Standort #}
+                    <td class="px-4 py-3">
+                        <span class="text-sm text-gray-600">{{ candidate.city or '-' if candidate else '-' }}</span>
+                    </td>
+
+                    {# Status #}
+                    <td class="px-4 py-3">
+                        {% set stage_colors = {
+                            'matched': 'bg-blue-100 text-blue-700 border-blue-200',
+                            'sent': 'bg-indigo-100 text-indigo-700 border-indigo-200',
+                            'feedback': 'bg-amber-100 text-amber-700 border-amber-200',
+                            'interview_1': 'bg-purple-100 text-purple-700 border-purple-200',
+                            'interview_2': 'bg-purple-100 text-purple-700 border-purple-200',
+                            'interview_3': 'bg-purple-100 text-purple-700 border-purple-200',
+                            'offer': 'bg-emerald-100 text-emerald-700 border-emerald-200',
+                            'placed': 'bg-green-100 text-green-700 border-green-200'
+                        } %}
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border {{ stage_colors.get(stage_key, 'bg-gray-100 text-gray-700 border-gray-200') }}">
+                            {{ stage_data.label }}
+                        </span>
+                    </td>
+
+                    {# Datum #}
+                    <td class="px-4 py-3">
+                        {% if entry.stage_changed_at %}
+                        <span class="text-sm text-gray-500">{{ entry.stage_changed_at.strftime('%d.%m.%Y') }}</span>
+                        {% else %}
+                        <span class="text-sm text-gray-400">-</span>
+                        {% endif %}
+                    </td>
+
+                    {# Aktionen #}
+                    <td class="px-4 py-3 text-right">
+                        <div class="flex items-center justify-end gap-2">
+                            {# Status ändern Dropdown #}
+                            <div x-data="{ open: false }" class="relative">
+                                <button @click="open = !open"
+                                        @click.outside="open = false"
+                                        class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 15L12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" />
+                                    </svg>
+                                </button>
+                                <div x-show="open" x-cloak
+                                     x-transition
+                                     class="absolute right-0 top-full mt-1 w-40 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                                    {% for s in stages %}
+                                    {% set s_key = s.value %}
+                                    {% set s_data = pipeline.get(s_key, {'label': stage_labels[s]}) %}
+                                    <button @click="
+                                        fetch('/api/ats/pipeline/entries/{{ entry.id }}/stage', {
+                                            method: 'PATCH',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ stage: '{{ s_key }}' })
+                                        }).then(() => document.body.dispatchEvent(new CustomEvent('pipeline-updated')));
+                                        open = false;
+                                    "
+                                            class="w-full px-3 py-1.5 text-left text-sm hover:bg-gray-50 {{ 'font-medium text-primary-600' if s_key == stage_key else 'text-gray-700' }}">
+                                        {{ s_data.label }}
+                                    </button>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            {% if candidate %}
+                            <a href="/kandidaten/{{ candidate.id }}"
+                               class="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                                </svg>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+                {% endfor %}
+
+                {# Empty State #}
+                <tr x-show="
+                    {% for stage in stages %}
+                    {% set stage_key = stage.value %}
+                    {% set stage_data = pipeline.get(stage_key, {'entries': []}) %}
+                    (activeFilter === '{{ stage_key }}' && {{ stage_data.entries | length }} === 0) {{ '||' if not loop.last else '' }}
+                    {% endfor %}
+                " x-cloak>
+                    <td colspan="6" class="px-4 py-12 text-center">
+                        <div class="text-gray-400">
+                            <svg class="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+                            </svg>
+                            <p class="text-sm">Keine Kandidaten in dieser Phase</p>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    {# ── Abgelehnte (collapsed) ────────────────────────────── #}
+    {% set rejected_data = pipeline.get('rejected', {'label': 'Abgelehnt', 'entries': []}) %}
+    {% set rejected_entries = rejected_data.entries %}
+
+    {% if rejected_entries | length > 0 %}
+    <div x-data="{ open: false }" class="mt-4">
+        <button @click="open = !open"
+                class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors">
+            <svg :class="{ 'rotate-90': open }" class="w-4 h-4 transition-transform" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+            </svg>
+            Abgelehnte Kandidaten ({{ rejected_entries | length }})
+        </button>
+
+        <div x-show="open" x-collapse x-cloak class="mt-2">
+            <div class="bg-red-50 rounded-xl border border-red-200 overflow-hidden">
+                <table class="w-full">
+                    <tbody class="divide-y divide-red-100">
+                        {% for entry in rejected_entries %}
+                        {% set candidate = entry.candidate %}
+                        <tr class="hover:bg-red-100/50 transition-colors">
+                            <td class="px-4 py-3">
+                                {% if candidate %}
+                                <span class="text-sm font-medium text-gray-900">
+                                    {{ candidate.full_name or ((candidate.first_name or '') ~ ' ' ~ (candidate.last_name or '')) | trim }}
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-3">
+                                <span class="text-sm text-gray-600">{{ candidate.current_position or '-' if candidate else '-' }}</span>
+                            </td>
+                            <td class="px-4 py-3">
+                                {% if entry.rejection_reason %}
+                                <span class="text-sm text-red-600">{{ entry.rejection_reason }}</span>
+                                {% else %}
+                                <span class="text-sm text-gray-400">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-3 text-right">
+                                <span class="text-xs text-gray-500">{{ entry.stage_changed_at.strftime('%d.%m.%Y') if entry.stage_changed_at else '-' }}</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>

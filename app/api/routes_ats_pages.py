@@ -76,6 +76,42 @@ async def ats_jobs_list(
     })
 
 
+@router.get("/ats/pipeline-design", response_class=HTMLResponse)
+async def pipeline_design_preview(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Pipeline Design Vorschau - 4 Varianten zum Auswählen."""
+    pipeline_service = ATSPipelineService(db)
+
+    # Demo-Daten für Vorschau (leere Pipeline falls keine Jobs vorhanden)
+    # Verwende UUID.int für einen "Demo-Job"
+    from uuid import UUID as UUIDType
+    demo_job_id = UUIDType("00000000-0000-0000-0000-000000000001")
+
+    # Leere Demo-Pipeline erstellen
+    pipeline = {
+        "matched": {"label": "Gematcht", "entries": []},
+        "sent": {"label": "Vorgestellt", "entries": []},
+        "feedback": {"label": "Feedback", "entries": []},
+        "interview_1": {"label": "Interview 1", "entries": []},
+        "interview_2": {"label": "Interview 2", "entries": []},
+        "interview_3": {"label": "Interview 3", "entries": []},
+        "offer": {"label": "Angebot", "entries": []},
+        "placed": {"label": "Platziert", "entries": []},
+        "rejected": {"label": "Abgelehnt", "entries": []},
+    }
+
+    return templates.TemplateResponse("pipeline_design_preview.html", {
+        "request": request,
+        "job_id": demo_job_id,
+        "pipeline": pipeline,
+        "stages": PIPELINE_STAGE_ORDER,
+        "stage_labels": PIPELINE_STAGE_LABELS,
+        "PipelineStage": PipelineStage,
+    })
+
+
 @router.get("/ats/stellen/{job_id}", response_class=HTMLResponse)
 async def ats_job_detail(
     request: Request,
