@@ -228,6 +228,7 @@ async def create_company_full(data: CompanyFullCreate, db: AsyncSession = Depend
 
     # 3. ATS-Job erstellen (wenn Titel vorhanden)
     ats_job = None
+    job_error = None
     if data.job_title:
         try:
             from app.services.ats_job_service import ATSJobService
@@ -246,9 +247,16 @@ async def create_company_full(data: CompanyFullCreate, db: AsyncSession = Depend
                 job_data["contact_id"] = contact.id
             ats_job = await ats_service.create_job(**job_data)
         except Exception as e:
-            logger.warning(f"ATS-Job Erstellung fehlgeschlagen: {e}")
+            logger.error(f"ATS-Job Erstellung fehlgeschlagen: {e}", exc_info=True)
+            job_error = str(e)
 
     await db.commit()
+
+    message = "Unternehmen erfolgreich erstellt"
+    if ats_job:
+        message += f" (inkl. Stelle '{ats_job.title}')"
+    elif data.job_title and job_error:
+        message += f" — Stelle konnte nicht erstellt werden: {job_error}"
 
     return {
         "company_id": str(company.id),
@@ -256,7 +264,7 @@ async def create_company_full(data: CompanyFullCreate, db: AsyncSession = Depend
         "contact_id": str(contact.id) if contact else None,
         "ats_job_id": str(ats_job.id) if ats_job else None,
         "redirect_url": f"/unternehmen/{company.id}",
-        "message": "Unternehmen erfolgreich erstellt",
+        "message": message,
     }
 
 
