@@ -1,96 +1,7 @@
 {# Job hinzufügen Dialog - Modal für manuelle Job-Erstellung #}
 {# Wird via openModal('/partials/job-add-dialog') geladen #}
 
-<div x-data="{
-    companies: [],
-    selectedCompanyId: '',
-    companyName: '',
-    position: '',
-    city: '',
-    street: '',
-    postalCode: '',
-    domain: '',
-    jobText: '',
-    industry: '',
-    employmentType: '',
-    loading: false,
-    submitting: false,
-
-    async init() {
-        this.loading = true;
-        try {
-            const res = await fetch('/api/companies?per_page=500&sort_by=name');
-            const data = await res.json();
-            this.companies = data.items || [];
-        } catch (e) {
-            console.error('Fehler beim Laden der Unternehmen:', e);
-        }
-        this.loading = false;
-    },
-
-    fillCompanyData() {
-        const c = this.companies.find(x => x.id === this.selectedCompanyId);
-        if (c) {
-            this.companyName = c.name || '';
-            this.city = c.city || '';
-            this.street = (c.street || '') + (c.house_number ? ' ' + c.house_number : '');
-            this.postalCode = c.postal_code || '';
-            this.domain = c.domain || '';
-        } else {
-            this.companyName = '';
-            this.city = '';
-            this.street = '';
-            this.postalCode = '';
-            this.domain = '';
-        }
-    },
-
-    async submitJob() {
-        if (!this.companyName || !this.position) {
-            showToast('Bitte Unternehmen und Position ausfuellen', 'error');
-            return;
-        }
-
-        this.submitting = true;
-        try {
-            const payload = {
-                company_name: this.companyName,
-                position: this.position,
-                city: this.city || null,
-                street_address: this.street || null,
-                postal_code: this.postalCode || null,
-                job_text: this.jobText || null,
-                industry: this.industry || null,
-                employment_type: this.employmentType || null,
-            };
-
-            if (this.selectedCompanyId) {
-                payload.company_id = this.selectedCompanyId;
-            }
-
-            const res = await fetch('/api/jobs', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            });
-
-            if (res.ok) {
-                const data = await res.json();
-                showToast('Job \"' + data.position + '\" erstellt', 'success');
-                closeModal();
-                // Jobs-Liste neu laden
-                htmx.ajax('GET', '/partials/jobs-list?per_page=20', {target: '#jobs-content', swap: 'innerHTML'});
-            } else {
-                const err = await res.json();
-                showToast(err.detail || 'Fehler beim Erstellen', 'error');
-            }
-        } catch (e) {
-            console.error('Fehler:', e);
-            showToast('Netzwerkfehler', 'error');
-        }
-        this.submitting = false;
-    }
-}">
+<div x-data="jobAddDialog()" x-init="loadCompanies()">
     <div class="bg-white px-4 pb-4 pt-5 sm:p-6">
         <div class="sm:flex sm:items-start">
             <div class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 sm:mx-0 sm:h-10 sm:w-10">
@@ -108,19 +19,18 @@
                 </div>
 
                 {# Formular #}
-                <form @submit.prevent="submitJob()" class="mt-4 space-y-4">
+                <div class="mt-4 space-y-4">
 
                     {# Unternehmen Auswahl #}
                     <div>
-                        <label for="company-select" class="block text-sm font-medium text-gray-700">
+                        <label class="block text-sm font-medium text-gray-700">
                             Unternehmen <span class="text-red-500">*</span>
                         </label>
                         <div class="mt-1 relative">
-                            <select id="company-select"
-                                    x-model="selectedCompanyId"
+                            <select x-model="selectedCompanyId"
                                     @change="fillCompanyData()"
                                     :disabled="loading"
-                                    class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm">
+                                    class="block w-full rounded-lg border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 text-sm">
                                 <option value="">-- Unternehmen auswaehlen --</option>
                                 <template x-for="company in companies" :key="company.id">
                                     <option :value="company.id" x-text="company.name + (company.city ? ' (' + company.city + ')' : '')"></option>
@@ -138,61 +48,55 @@
                             <input type="text"
                                    x-model="companyName"
                                    placeholder="Oder Firmennamen manuell eingeben..."
-                                   class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm">
+                                   class="block w-full rounded-lg border border-gray-300 py-2 px-3 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 text-sm">
                         </div>
                     </div>
 
                     {# Position #}
                     <div>
-                        <label for="position" class="block text-sm font-medium text-gray-700">
+                        <label class="block text-sm font-medium text-gray-700">
                             Position / Titel <span class="text-red-500">*</span>
                         </label>
                         <input type="text"
-                               id="position"
                                x-model="position"
-                               required
                                placeholder="z.B. Senior Softwareentwickler"
-                               class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm">
+                               class="mt-1 block w-full rounded-lg border border-gray-300 py-2 px-3 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 text-sm">
                     </div>
 
                     {# PLZ + Stadt #}
                     <div class="grid grid-cols-3 gap-3">
                         <div>
-                            <label for="postal-code" class="block text-sm font-medium text-gray-700">PLZ</label>
+                            <label class="block text-sm font-medium text-gray-700">PLZ</label>
                             <input type="text"
-                                   id="postal-code"
                                    x-model="postalCode"
                                    placeholder="12345"
                                    maxlength="5"
-                                   class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm">
+                                   class="mt-1 block w-full rounded-lg border border-gray-300 py-2 px-3 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 text-sm">
                         </div>
                         <div class="col-span-2">
-                            <label for="city" class="block text-sm font-medium text-gray-700">Stadt</label>
+                            <label class="block text-sm font-medium text-gray-700">Stadt</label>
                             <input type="text"
-                                   id="city"
                                    x-model="city"
                                    placeholder="Hamburg"
-                                   class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm">
+                                   class="mt-1 block w-full rounded-lg border border-gray-300 py-2 px-3 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 text-sm">
                         </div>
                     </div>
 
                     {# Strasse #}
                     <div>
-                        <label for="street" class="block text-sm font-medium text-gray-700">Strasse & Hausnummer</label>
+                        <label class="block text-sm font-medium text-gray-700">Strasse & Hausnummer</label>
                         <input type="text"
-                               id="street"
                                x-model="street"
                                placeholder="Musterstrasse 123"
-                               class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm">
+                               class="mt-1 block w-full rounded-lg border border-gray-300 py-2 px-3 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 text-sm">
                     </div>
 
                     {# Beschaeftigungsart + Branche #}
                     <div class="grid grid-cols-2 gap-3">
                         <div>
-                            <label for="employment-type" class="block text-sm font-medium text-gray-700">Beschaeftigungsart</label>
-                            <select id="employment-type"
-                                    x-model="employmentType"
-                                    class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm">
+                            <label class="block text-sm font-medium text-gray-700">Beschaeftigungsart</label>
+                            <select x-model="employmentType"
+                                    class="mt-1 block w-full rounded-lg border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 text-sm">
                                 <option value="">-- Auswaehlen --</option>
                                 <option value="Vollzeit">Vollzeit</option>
                                 <option value="Teilzeit">Teilzeit</option>
@@ -202,34 +106,32 @@
                             </select>
                         </div>
                         <div>
-                            <label for="industry" class="block text-sm font-medium text-gray-700">Branche</label>
+                            <label class="block text-sm font-medium text-gray-700">Branche</label>
                             <input type="text"
-                                   id="industry"
                                    x-model="industry"
                                    placeholder="z.B. IT, Finance"
-                                   class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm">
+                                   class="mt-1 block w-full rounded-lg border border-gray-300 py-2 px-3 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 text-sm">
                         </div>
                     </div>
 
                     {# Stellenbeschreibung #}
                     <div>
-                        <label for="job-text" class="block text-sm font-medium text-gray-700">Stellenbeschreibung</label>
-                        <textarea id="job-text"
-                                  x-model="jobText"
+                        <label class="block text-sm font-medium text-gray-700">Stellenbeschreibung</label>
+                        <textarea x-model="jobText"
                                   rows="4"
                                   placeholder="Beschreiben Sie die Stelle..."
-                                  class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm"></textarea>
+                                  class="mt-1 block w-full rounded-lg border border-gray-300 py-2 px-3 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 text-sm"></textarea>
                     </div>
 
-                </form>
+                </div>
             </div>
         </div>
     </div>
     <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
         <button type="button"
                 @click="submitJob()"
-                :disabled="submitting || (!companyName || !position)"
-                :class="submitting || (!companyName || !position) ? 'bg-gray-300 cursor-not-allowed' : 'bg-primary-600 hover:bg-primary-500'"
+                :disabled="submitting || (!companyName && !selectedCompanyId) || !position"
+                :class="(submitting || ((!companyName && !selectedCompanyId) || !position)) ? 'bg-gray-300 cursor-not-allowed' : 'bg-primary-600 hover:bg-primary-500'"
                 class="inline-flex w-full justify-center rounded-md px-3 py-2 text-sm font-semibold text-white shadow-sm sm:ml-3 sm:w-auto transition-colors">
             <svg x-show="submitting" class="h-4 w-4 mr-1 animate-spin" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
@@ -238,10 +140,109 @@
             <span x-text="submitting ? 'Erstelle...' : 'Job erstellen'"></span>
         </button>
         <button type="button"
-                onclick="closeModal()"
+                @click="closeModal()"
                 :disabled="submitting"
                 class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto">
             Abbrechen
         </button>
     </div>
 </div>
+
+<script>
+    // Alpine.js Komponente als globale Funktion definieren
+    function jobAddDialog() {
+        return {
+            companies: [],
+            selectedCompanyId: '',
+            companyName: '',
+            position: '',
+            city: '',
+            street: '',
+            postalCode: '',
+            domain: '',
+            jobText: '',
+            industry: '',
+            employmentType: '',
+            loading: false,
+            submitting: false,
+
+            async loadCompanies() {
+                this.loading = true;
+                try {
+                    const res = await fetch('/api/companies?per_page=500&sort_by=name');
+                    const data = await res.json();
+                    this.companies = data.items || [];
+                } catch (e) {
+                    console.error('Fehler beim Laden der Unternehmen:', e);
+                }
+                this.loading = false;
+            },
+
+            fillCompanyData() {
+                const c = this.companies.find(x => x.id === this.selectedCompanyId);
+                if (c) {
+                    this.companyName = c.name || '';
+                    this.city = c.city || '';
+                    this.street = (c.street || '') + (c.house_number ? ' ' + c.house_number : '');
+                    this.postalCode = c.postal_code || '';
+                    this.domain = c.domain || '';
+                } else {
+                    this.companyName = '';
+                    this.city = '';
+                    this.street = '';
+                    this.postalCode = '';
+                    this.domain = '';
+                }
+            },
+
+            async submitJob() {
+                const finalCompanyName = this.companyName || '';
+                const finalPosition = this.position || '';
+
+                if (!finalCompanyName || !finalPosition) {
+                    showToast('Bitte Unternehmen und Position ausfuellen', 'error');
+                    return;
+                }
+
+                this.submitting = true;
+                try {
+                    const payload = {
+                        company_name: finalCompanyName,
+                        position: finalPosition,
+                        city: this.city || null,
+                        street_address: this.street || null,
+                        postal_code: this.postalCode || null,
+                        job_text: this.jobText || null,
+                        industry: this.industry || null,
+                        employment_type: this.employmentType || null,
+                    };
+
+                    if (this.selectedCompanyId) {
+                        payload.company_id = this.selectedCompanyId;
+                    }
+
+                    const res = await fetch('/api/jobs', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                    });
+
+                    if (res.ok) {
+                        const data = await res.json();
+                        showToast('Job "' + data.position + '" erstellt', 'success');
+                        closeModal();
+                        // Jobs-Liste neu laden
+                        htmx.ajax('GET', '/partials/jobs-list?per_page=20', {target: '#jobs-content', swap: 'innerHTML'});
+                    } else {
+                        const err = await res.json();
+                        showToast(err.detail || 'Fehler beim Erstellen', 'error');
+                    }
+                } catch (e) {
+                    console.error('Fehler:', e);
+                    showToast('Netzwerkfehler', 'error');
+                }
+                this.submitting = false;
+            }
+        };
+    }
+</script>
