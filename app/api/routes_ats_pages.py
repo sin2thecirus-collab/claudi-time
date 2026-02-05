@@ -76,6 +76,75 @@ async def ats_jobs_list(
     })
 
 
+@router.get("/ats/pipeline", response_class=HTMLResponse)
+async def ats_pipeline_overview(
+    request: Request,
+    company_id: UUID | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Pipeline-Uebersicht — Alle Jobs in Pipeline mit horizontaler Ansicht."""
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+    from app.models.ats_job import ATSJob
+    from app.models.company import Company
+
+    # Alle Jobs die in_pipeline=True haben, mit Company und Pipeline-Entries
+    query = (
+        select(ATSJob)
+        .options(
+            selectinload(ATSJob.company),
+            selectinload(ATSJob.pipeline_entries),
+        )
+        .where(ATSJob.in_pipeline == True)
+        .order_by(ATSJob.created_at.desc())
+    )
+
+    if company_id:
+        query = query.where(ATSJob.company_id == company_id)
+
+    result = await db.execute(query)
+    jobs_in_pipeline = result.scalars().all()
+
+    # Gruppiere Jobs nach Company
+    jobs_by_company = {}
+    for job in jobs_in_pipeline:
+        company_name = job.company.name if job.company else "Ohne Unternehmen"
+        company_key = str(job.company_id) if job.company_id else "none"
+        if company_key not in jobs_by_company:
+            jobs_by_company[company_key] = {
+                "company": job.company,
+                "company_name": company_name,
+                "jobs": [],
+            }
+        # Pipeline-Entries nach Stage gruppieren
+        entries_by_stage = {}
+        for entry in job.pipeline_entries:
+            stage_key = entry.stage.value
+            if stage_key not in entries_by_stage:
+                entries_by_stage[stage_key] = []
+            entries_by_stage[stage_key].append(entry)
+        jobs_by_company[company_key]["jobs"].append({
+            "job": job,
+            "entries_by_stage": entries_by_stage,
+        })
+
+    # Alle Companies für Filter laden
+    companies_result = await db.execute(
+        select(Company).order_by(Company.name)
+    )
+    all_companies = companies_result.scalars().all()
+
+    return templates.TemplateResponse("ats_pipeline_overview.html", {
+        "request": request,
+        "jobs_by_company": jobs_by_company,
+        "stages": PIPELINE_STAGE_ORDER,
+        "stage_labels": PIPELINE_STAGE_LABELS,
+        "all_companies": all_companies,
+        "selected_company_id": str(company_id) if company_id else None,
+        "total_jobs": len(jobs_in_pipeline),
+    })
+
+
 @router.get("/ats/pipeline-design", response_class=HTMLResponse)
 async def pipeline_design_preview(
     request: Request,

@@ -485,6 +485,8 @@ async def init_db() -> None:
         ("candidates", "manual_job_titles_set_at", "TIMESTAMPTZ"),
         ("jobs", "manual_job_title", "VARCHAR(255)"),
         ("jobs", "manual_job_title_set_at", "TIMESTAMPTZ"),
+        # ATS Jobs: Pipeline-Uebersicht Flag
+        ("ats_jobs", "in_pipeline", "BOOLEAN DEFAULT FALSE"),
     ]
     for table_name, col_name, col_type in migrations:
         try:

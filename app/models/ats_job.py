@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime
 
 from geoalchemy2 import Geography
-from sqlalchemy import DateTime, Enum, ForeignKey, Index, Integer, String, Text, func
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -81,6 +81,10 @@ class ATSJob(Base):
     )
     source: Mapped[str | None] = mapped_column(String(100))
     notes: Mapped[str | None] = mapped_column(Text)
+
+    # Pipeline-Uebersicht Flag
+    # Jobs erscheinen erst nach Klick auf "To Interview" in der Pipeline-Uebersicht
+    in_pipeline: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     # Besetzt-Datum
     filled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

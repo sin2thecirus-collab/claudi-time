@@ -79,9 +79,9 @@
                 {% for item in jobs %}
                 {% set job = item.job %}
                 {% set pipeline_count = item.pipeline_count %}
-                <a href="/ats/stellen/{{ job.id }}" class="block px-6 py-4 hover:bg-gray-50 transition-colors">
+                <div class="px-6 py-4 hover:bg-gray-50 transition-colors">
                     <div class="flex items-center justify-between">
-                        <div class="min-w-0 flex-1">
+                        <a href="/ats/stellen/{{ job.id }}" class="min-w-0 flex-1">
                             <div class="flex items-center gap-3">
                                 <p class="text-sm font-semibold text-gray-900 truncate">{{ job.title }}</p>
                                 {# Priority Badge #}
@@ -91,6 +91,15 @@
                                 <span class="inline-flex items-center rounded-full bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-700 ring-1 ring-orange-600/20">Hoch</span>
                                 {% elif job.priority == 'medium' %}
                                 <span class="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-amber-600/20">Mittel</span>
+                                {% endif %}
+                                {# In Pipeline Badge #}
+                                {% if job.in_pipeline %}
+                                <span class="inline-flex items-center rounded-full bg-primary-50 px-2 py-0.5 text-xs font-medium text-primary-700 ring-1 ring-primary-600/20">
+                                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                    </svg>
+                                    In Pipeline
+                                </span>
                                 {% endif %}
                             </div>
                             <div class="flex items-center gap-2 mt-1">
@@ -104,8 +113,25 @@
                                 {% endif %}
                                 <span class="text-xs text-gray-400">{{ job.created_at.strftime('%d.%m.%Y') if job.created_at else '' }}</span>
                             </div>
-                        </div>
+                        </a>
                         <div class="flex items-center gap-3 flex-shrink-0 ml-4">
+                            {# To Interview Button / In Pipeline Link #}
+                            {% if not job.in_pipeline %}
+                            <button onclick="moveToPipeline('{{ job.id }}', this)"
+                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors shadow-sm">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                                </svg>
+                                To Interview
+                            </button>
+                            {% else %}
+                            <a href="/ats/pipeline" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary-700 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors ring-1 ring-primary-200">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+                                </svg>
+                                Zur Pipeline
+                            </a>
+                            {% endif %}
                             <span class="text-xs text-gray-400">{{ pipeline_count }} Kandidaten</span>
                             {# Status Badge #}
                             {% if job.status == 'open' or job.status.value == 'open' %}
@@ -117,12 +143,14 @@
                             {% elif job.status == 'cancelled' or job.status.value == 'cancelled' %}
                             <span class="inline-flex items-center rounded-full bg-gray-50 px-2.5 py-0.5 text-xs font-medium text-gray-600 ring-1 ring-gray-500/20">Storniert</span>
                             {% endif %}
-                            <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                            </svg>
+                            <a href="/ats/stellen/{{ job.id }}" class="text-gray-400 hover:text-gray-600">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                                </svg>
+                            </a>
                         </div>
                     </div>
-                </a>
+                </div>
                 {% endfor %}
             </div>
             {% else %}
@@ -297,6 +325,74 @@ function selectCompany(id, name) {
     document.getElementById('selected-company-id').value = id;
     document.getElementById('company-search-input').value = name;
     document.getElementById('company-search-results').innerHTML = '';
+}
+
+async function moveToPipeline(jobId, buttonEl) {
+    // Button deaktivieren während Request
+    buttonEl.disabled = true;
+    buttonEl.innerHTML = `
+        <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        Wird verschoben...
+    `;
+
+    try {
+        const response = await fetch(`/api/ats/jobs/${jobId}/to-pipeline`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (!response.ok) {
+            throw new Error('Fehler beim Verschieben');
+        }
+
+        const data = await response.json();
+
+        // Button durch "Zur Pipeline" Link ersetzen
+        const parentDiv = buttonEl.parentElement;
+        buttonEl.outerHTML = `
+            <a href="/ats/pipeline" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary-700 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors ring-1 ring-primary-200">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+                </svg>
+                Zur Pipeline
+            </a>
+        `;
+
+        // "In Pipeline" Badge zum Titel hinzufuegen
+        const row = parentDiv.closest('.px-6');
+        const titleDiv = row.querySelector('.flex.items-center.gap-3');
+        if (titleDiv && !titleDiv.querySelector('.text-primary-700')) {
+            titleDiv.insertAdjacentHTML('beforeend', `
+                <span class="inline-flex items-center rounded-full bg-primary-50 px-2 py-0.5 text-xs font-medium text-primary-700 ring-1 ring-primary-600/20">
+                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                    </svg>
+                    In Pipeline
+                </span>
+            `);
+        }
+
+        // Toast anzeigen
+        if (typeof showToast === 'function') {
+            showToast(data.message, 'success');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        // Button wieder aktivieren bei Fehler
+        buttonEl.disabled = false;
+        buttonEl.innerHTML = `
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+            </svg>
+            To Interview
+        `;
+        if (typeof showToast === 'function') {
+            showToast('Fehler beim Verschieben zur Pipeline', 'error');
+        }
+    }
 }
 </script>
 {% endblock %}

@@ -43,6 +43,7 @@ class ATSJobUpdate(BaseModel):
     priority: Optional[str] = None
     source: Optional[str] = None
     notes: Optional[str] = None
+    in_pipeline: Optional[bool] = None
 
 
 # ── Endpoints ────────────────────────────────────
@@ -96,6 +97,7 @@ async def list_ats_jobs(
             "priority": job.priority.value,
             "employment_type": job.employment_type,
             "pipeline_count": item["pipeline_count"],
+            "in_pipeline": getattr(job, 'in_pipeline', False),
             "created_at": job.created_at.isoformat() if job.created_at else None,
         })
 
@@ -135,6 +137,7 @@ async def get_ats_job(job_id: UUID, db: AsyncSession = Depends(get_db)):
         "notes": job.notes,
         "filled_at": job.filled_at.isoformat() if job.filled_at else None,
         "pipeline_count": len(job.pipeline_entries) if job.pipeline_entries else 0,
+        "in_pipeline": getattr(job, 'in_pipeline', False),
         "created_at": job.created_at.isoformat() if job.created_at else None,
         "updated_at": job.updated_at.isoformat() if job.updated_at else None,
     }
@@ -179,3 +182,37 @@ async def set_ats_job_status(
         raise HTTPException(status_code=404, detail="ATS-Stelle nicht gefunden")
     await db.commit()
     return {"message": f"Status auf '{status}' gesetzt", "id": str(job.id)}
+
+
+@router.put("/{job_id}/to-pipeline")
+async def move_job_to_pipeline(job_id: UUID, db: AsyncSession = Depends(get_db)):
+    """Setzt in_pipeline=True — Job erscheint dann in der Interview-Pipeline-Uebersicht."""
+    service = ATSJobService(db)
+    job = await service.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="ATS-Stelle nicht gefunden")
+
+    job.in_pipeline = True
+    await db.commit()
+    return {
+        "message": f"'{job.title}' ist jetzt in der Interview-Pipeline",
+        "id": str(job.id),
+        "in_pipeline": True,
+    }
+
+
+@router.put("/{job_id}/from-pipeline")
+async def remove_job_from_pipeline(job_id: UUID, db: AsyncSession = Depends(get_db)):
+    """Setzt in_pipeline=False — Job wird aus der Interview-Pipeline-Uebersicht entfernt."""
+    service = ATSJobService(db)
+    job = await service.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="ATS-Stelle nicht gefunden")
+
+    job.in_pipeline = False
+    await db.commit()
+    return {
+        "message": f"'{job.title}' wurde aus der Interview-Pipeline entfernt",
+        "id": str(job.id),
+        "in_pipeline": False,
+    }
