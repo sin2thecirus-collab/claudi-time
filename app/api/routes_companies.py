@@ -274,7 +274,7 @@ async def extract_job_from_pdf(file: UploadFile = File(...), db: AsyncSession = 
     # Text extrahieren mit PyMuPDF
     try:
         from app.services.cv_parser_service import CVParserService
-        parser = CVParserService()
+        parser = CVParserService(db)
         raw_text = parser.extract_text_from_pdf(pdf_bytes)
     except Exception as e:
         logger.error(f"PDF-Extraktion fehlgeschlagen: {e}")
