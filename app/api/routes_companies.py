@@ -1,7 +1,9 @@
 """Company Routes - API-Endpunkte fuer Unternehmensverwaltung."""
 
+import hashlib
 import json
 import logging
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
@@ -250,10 +252,35 @@ async def create_company_full(data: CompanyFullCreate, db: AsyncSession = Depend
             logger.error(f"ATS-Job Erstellung fehlgeschlagen: {e}", exc_info=True)
             job_error = str(e)
 
+    # 4. Regular Job erstellen (fuer /jobs + Zugehoerige Jobs auf Unternehmensseite)
+    regular_job = None
+    if data.job_title:
+        try:
+            from app.models.job import Job
+
+            hash_input = f"manual|{data.name.strip().lower()}|{data.job_title.strip().lower()}|{datetime.now(timezone.utc).isoformat()}"
+            content_hash = hashlib.sha256(hash_input.encode("utf-8")).hexdigest()
+
+            regular_job = Job(
+                company_name=data.name.strip()[:255],
+                company_id=company.id,
+                position=data.job_title.strip()[:255],
+                city=data.job_location_city or data.city,
+                job_text=data.job_description,
+                employment_type=data.job_employment_type,
+                content_hash=content_hash,
+            )
+            db.add(regular_job)
+            await db.flush()
+        except Exception as e:
+            logger.error(f"Regular Job Erstellung fehlgeschlagen: {e}", exc_info=True)
+            if not job_error:
+                job_error = str(e)
+
     await db.commit()
 
     message = "Unternehmen erfolgreich erstellt"
-    if ats_job:
+    if ats_job and regular_job:
         message += f" (inkl. Stelle '{ats_job.title}')"
     elif data.job_title and job_error:
         message += f" — Stelle konnte nicht erstellt werden: {job_error}"
@@ -263,6 +290,7 @@ async def create_company_full(data: CompanyFullCreate, db: AsyncSession = Depend
         "company_name": company.name,
         "contact_id": str(contact.id) if contact else None,
         "ats_job_id": str(ats_job.id) if ats_job else None,
+        "job_id": str(regular_job.id) if regular_job else None,
         "redirect_url": f"/unternehmen/{company.id}",
         "message": message,
     }
