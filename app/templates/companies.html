@@ -3,7 +3,7 @@
 {% block title %}Unternehmen - Pulspoint{% endblock %}
 
 {% block content %}
-<div x-data="{ searchTerm: '' }">
+<div x-data="{ searchTerm: '', showAddCompanyModal: false }">
 
     {# -- Header -- #}
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
@@ -11,6 +11,13 @@
             <h1 class="text-2xl font-bold text-gray-900">Unternehmen</h1>
             <p class="text-sm text-gray-500 mt-1">Firmenverwaltung mit Kontakten, Korrespondenz und Blacklist</p>
         </div>
+        <button @click="showAddCompanyModal = true"
+                class="inline-flex items-center gap-2 px-4 py-2.5 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 transition-colors shadow-sm">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            Unternehmen hinzufuegen
+        </button>
     </div>
 
     {# -- Stats Cards (HTMX geladen) -- #}
@@ -81,6 +88,339 @@
          hx-swap="innerHTML">
         <div class="bg-white rounded-xl border border-gray-200 p-12 text-center animate-skeleton">
             <p class="text-gray-400">Lade Unternehmen...</p>
+        </div>
+    </div>
+
+    {# ══════════════════════════════════════════════════════════ #}
+    {# ── Modal: Unternehmen hinzufuegen ─────────────────────── #}
+    {# ══════════════════════════════════════════════════════════ #}
+    <div x-show="showAddCompanyModal" x-cloak
+         class="fixed inset-0 z-50 flex items-start justify-center pt-10 pb-10 overflow-y-auto"
+         @keydown.escape.window="showAddCompanyModal = false">
+
+        {# Backdrop #}
+        <div class="fixed inset-0 bg-black/50" @click="showAddCompanyModal = false"></div>
+
+        {# Modal Content #}
+        <div x-show="showAddCompanyModal"
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0 scale-95"
+             x-transition:enter-end="opacity-100 scale-100"
+             x-transition:leave="transition ease-in duration-150"
+             x-transition:leave-start="opacity-100 scale-100"
+             x-transition:leave-end="opacity-0 scale-95"
+             x-data="{
+                showJobSection: false,
+                pdfUploading: false,
+                submitting: false,
+
+                async uploadPdf(event) {
+                    const file = event.target.files[0];
+                    if (!file) return;
+                    this.pdfUploading = true;
+                    try {
+                        const formData = new FormData();
+                        formData.append('file', file);
+                        const resp = await fetch('/api/companies/extract-job-pdf', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        if (!resp.ok) {
+                            const err = await resp.json();
+                            throw new Error(err.detail || 'PDF-Extraktion fehlgeschlagen');
+                        }
+                        const data = await resp.json();
+                        if (data.title) document.getElementById('ac-job-title').value = data.title;
+                        if (data.description) document.getElementById('ac-job-desc').value = data.description;
+                        if (data.requirements) document.getElementById('ac-job-req').value = data.requirements;
+                        if (data.location_city) document.getElementById('ac-job-city').value = data.location_city;
+                        if (data.employment_type) document.getElementById('ac-job-type').value = data.employment_type;
+                        if (typeof showToast === 'function') showToast('Job-Daten aus PDF extrahiert', 'success');
+                    } catch(e) {
+                        if (typeof showToast === 'function') showToast(e.message, 'error');
+                    } finally {
+                        this.pdfUploading = false;
+                    }
+                },
+
+                async submitForm() {
+                    this.submitting = true;
+                    try {
+                        const payload = {
+                            name: document.getElementById('ac-name').value,
+                            domain: document.getElementById('ac-domain').value || null,
+                            street: document.getElementById('ac-street').value || null,
+                            house_number: document.getElementById('ac-house').value || null,
+                            postal_code: document.getElementById('ac-plz').value || null,
+                            city: document.getElementById('ac-city').value || null,
+                            phone: document.getElementById('ac-phone').value || null,
+                            contact_first_name: document.getElementById('ac-cf').value || null,
+                            contact_last_name: document.getElementById('ac-cl').value || null,
+                            contact_position: document.getElementById('ac-cp').value || null,
+                            contact_phone: document.getElementById('ac-cph').value || null,
+                            contact_email: document.getElementById('ac-ce').value || null,
+                        };
+                        if (this.showJobSection) {
+                            payload.job_title = document.getElementById('ac-job-title').value || null;
+                            payload.job_description = document.getElementById('ac-job-desc').value || null;
+                            payload.job_requirements = document.getElementById('ac-job-req').value || null;
+                            payload.job_location_city = document.getElementById('ac-job-city').value || null;
+                            payload.job_employment_type = document.getElementById('ac-job-type').value || null;
+                            payload.job_priority = document.getElementById('ac-job-prio').value || null;
+                            payload.job_source = document.getElementById('ac-job-source').value || null;
+                        }
+                        const resp = await fetch('/api/companies/create-full', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify(payload)
+                        });
+                        if (!resp.ok) {
+                            const err = await resp.json();
+                            throw new Error(err.detail || 'Fehler beim Erstellen');
+                        }
+                        const result = await resp.json();
+                        if (typeof showToast === 'function') showToast(result.message, 'success');
+                        window.location.href = result.redirect_url;
+                    } catch(e) {
+                        if (typeof showToast === 'function') showToast(e.message, 'error');
+                    } finally {
+                        this.submitting = false;
+                    }
+                }
+             }"
+             class="relative w-full max-w-5xl bg-white rounded-xl shadow-xl mx-4">
+
+            {# Modal Header #}
+            <div class="px-6 py-4 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-semibold text-gray-900">Unternehmen hinzufuegen</h3>
+                    <button @click="showAddCompanyModal = false" class="text-gray-400 hover:text-gray-500">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            {# Modal Body #}
+            <div class="px-6 py-5 space-y-6 max-h-[75vh] overflow-y-auto">
+
+                {# ── Abschnitt 1: Firmendaten ── #}
+                <div>
+                    <h4 class="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-3 flex items-center gap-2">
+                        <svg class="w-4 h-4 text-primary-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+                        </svg>
+                        Firmendaten
+                    </h4>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Firmenname *</label>
+                            <input type="text" id="ac-name" required
+                                   class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                   placeholder="z.B. Baader Bank AG">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Domain / Website</label>
+                                <input type="text" id="ac-domain"
+                                       class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                       placeholder="z.B. baaderbank.de">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Telefon Zentrale</label>
+                                <input type="text" id="ac-phone"
+                                       class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                       placeholder="z.B. 089 51500">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-4">
+                            <div class="col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Strasse</label>
+                                <input type="text" id="ac-street"
+                                       class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                       placeholder="z.B. Weihenstephaner Str.">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Hausnr.</label>
+                                <input type="text" id="ac-house"
+                                       class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                       placeholder="4">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">PLZ</label>
+                                <input type="text" id="ac-plz"
+                                       class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                       placeholder="85716">
+                            </div>
+                            <div class="col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Stadt</label>
+                                <input type="text" id="ac-city"
+                                       class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                       placeholder="z.B. Muenchen">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="border-gray-200">
+
+                {# ── Abschnitt 2: Ansprechpartner ── #}
+                <div>
+                    <h4 class="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-3 flex items-center gap-2">
+                        <svg class="w-4 h-4 text-primary-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                        </svg>
+                        Ansprechpartner
+                    </h4>
+                    <div class="space-y-3">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Vorname</label>
+                                <input type="text" id="ac-cf"
+                                       class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                       placeholder="Teresa">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Nachname</label>
+                                <input type="text" id="ac-cl"
+                                       class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                       placeholder="Geltermeier">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Position / Titel</label>
+                            <input type="text" id="ac-cp"
+                                   class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                   placeholder="z.B. HR Manager">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Telefon</label>
+                                <input type="text" id="ac-cph"
+                                       class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                       placeholder="08951501027">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">E-Mail</label>
+                                <input type="email" id="ac-ce"
+                                       class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                       placeholder="teresa@baaderbank.de">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="border-gray-200">
+
+                {# ── Abschnitt 3: Job (optional) ── #}
+                <div>
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="text-sm font-semibold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                            <svg class="w-4 h-4 text-primary-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0M12 12.75h.008v.008H12v-.008z" />
+                            </svg>
+                            Stelle hinzufuegen
+                        </h4>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" x-model="showJobSection" class="sr-only peer">
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+                        </label>
+                    </div>
+
+                    <div x-show="showJobSection" x-collapse>
+                        <div class="space-y-3 pt-2">
+                            {# PDF Upload #}
+                            <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-primary-400 transition-colors"
+                                 :class="pdfUploading ? 'opacity-50 pointer-events-none' : ''">
+                                <input type="file" id="ac-pdf-input" accept=".pdf" class="hidden" @change="uploadPdf($event)">
+                                <label for="ac-pdf-input" class="cursor-pointer">
+                                    <svg class="w-8 h-8 text-gray-400 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                                    </svg>
+                                    <p class="text-sm text-gray-600 font-medium" x-show="!pdfUploading">PDF-Jobbeschreibung hochladen</p>
+                                    <p class="text-sm text-primary-600 font-medium" x-show="pdfUploading">Wird analysiert...</p>
+                                    <p class="text-xs text-gray-400 mt-1">PDF wird automatisch ausgelesen und die Felder befuellt</p>
+                                </label>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Jobtitel *</label>
+                                <input type="text" id="ac-job-title"
+                                       class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                       placeholder="z.B. Senior Accountant / Bilanzbuchhalter">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Jobbeschreibung</label>
+                                <textarea id="ac-job-desc" rows="8"
+                                          class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                          placeholder="Aufgaben und Verantwortlichkeiten..."></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Anforderungen</label>
+                                <textarea id="ac-job-req" rows="5"
+                                          class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                          placeholder="Qualifikationen und Erfahrung..."></textarea>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Standort</label>
+                                    <input type="text" id="ac-job-city"
+                                           class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                           placeholder="z.B. Unterschleissheim">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Anstellungsart</label>
+                                    <select id="ac-job-type"
+                                            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500">
+                                        <option value="">-- Waehlen --</option>
+                                        <option value="fulltime">Vollzeit</option>
+                                        <option value="parttime">Teilzeit</option>
+                                        <option value="contract">Freelance</option>
+                                        <option value="temporary">Befristet</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Prioritaet</label>
+                                    <select id="ac-job-prio"
+                                            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500">
+                                        <option value="medium">Mittel</option>
+                                        <option value="low">Niedrig</option>
+                                        <option value="high">Hoch</option>
+                                        <option value="urgent">Dringend</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Quelle</label>
+                                    <input type="text" id="ac-job-source"
+                                           class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                           placeholder="z.B. Akquise, LinkedIn">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {# Modal Footer #}
+            <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+                <button type="button" @click="showAddCompanyModal = false"
+                        class="px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+                    Abbrechen
+                </button>
+                <button @click="submitForm()" :disabled="submitting"
+                        class="px-6 py-2.5 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                    <svg x-show="submitting" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                    </svg>
+                    Erstellen
+                </button>
+            </div>
         </div>
     </div>
 

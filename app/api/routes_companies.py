@@ -1,10 +1,12 @@
 """Company Routes - API-Endpunkte fuer Unternehmensverwaltung."""
 
+import json
 import logging
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -97,6 +99,7 @@ async def get_company(company_id: UUID, db: AsyncSession = Depends(get_db)):
         "house_number": company.house_number,
         "postal_code": company.postal_code,
         "city": company.city,
+        "phone": company.phone,
         "employee_count": company.employee_count,
         "status": company.status.value if company.status else "active",
         "notes": company.notes,
@@ -156,6 +159,189 @@ async def set_company_status(
         raise HTTPException(status_code=404, detail="Unternehmen nicht gefunden")
     await db.commit()
     return {"message": f"Status auf '{status}' gesetzt", "id": str(company.id)}
+
+
+# ── Create Full (Company + Contact + Job) ────────────
+
+
+class CompanyFullCreate(BaseModel):
+    """Schema fuer Unternehmen + Kontakt + optionaler Job."""
+
+    # Company
+    name: str = Field(min_length=1, max_length=255)
+    domain: str | None = None
+    street: str | None = None
+    house_number: str | None = None
+    postal_code: str | None = None
+    city: str | None = None
+    phone: str | None = None
+
+    # Contact
+    contact_first_name: str | None = None
+    contact_last_name: str | None = None
+    contact_position: str | None = None
+    contact_phone: str | None = None
+    contact_email: str | None = None
+
+    # Job (optional)
+    job_title: str | None = None
+    job_description: str | None = None
+    job_requirements: str | None = None
+    job_location_city: str | None = None
+    job_employment_type: str | None = None
+    job_priority: str | None = None
+    job_source: str | None = None
+
+
+@router.post("/create-full")
+async def create_company_full(data: CompanyFullCreate, db: AsyncSession = Depends(get_db)):
+    """Erstellt Unternehmen + Kontakt + optionalen ATS-Job in einem Request."""
+    service = CompanyService(db)
+
+    # 1. Company erstellen
+    company_data = {
+        k: v for k, v in {
+            "name": data.name,
+            "domain": data.domain,
+            "street": data.street,
+            "house_number": data.house_number,
+            "postal_code": data.postal_code,
+            "city": data.city,
+            "phone": data.phone,
+        }.items() if v is not None
+    }
+    company = await service.create_company(**company_data)
+
+    # 2. Contact erstellen (wenn Daten vorhanden)
+    contact_data = {
+        k: v for k, v in {
+            "first_name": data.contact_first_name,
+            "last_name": data.contact_last_name,
+            "position": data.contact_position,
+            "phone": data.contact_phone,
+            "email": data.contact_email,
+        }.items() if v is not None
+    }
+    contact = None
+    if any(contact_data.values()):
+        contact = await service.add_contact(company.id, **contact_data)
+
+    # 3. ATS-Job erstellen (wenn Titel vorhanden)
+    ats_job = None
+    if data.job_title:
+        try:
+            from app.services.ats_job_service import ATSJobService
+            ats_service = ATSJobService(db)
+            job_data = {
+                "company_id": company.id,
+                "title": data.job_title,
+                "description": data.job_description,
+                "requirements": data.job_requirements,
+                "location_city": data.job_location_city or data.city,
+                "employment_type": data.job_employment_type,
+                "priority": data.job_priority or "medium",
+                "source": data.job_source or "Manuell",
+            }
+            if contact:
+                job_data["contact_id"] = contact.id
+            ats_job = await ats_service.create_job(**job_data)
+        except Exception as e:
+            logger.warning(f"ATS-Job Erstellung fehlgeschlagen: {e}")
+
+    await db.commit()
+
+    return {
+        "company_id": str(company.id),
+        "company_name": company.name,
+        "contact_id": str(contact.id) if contact else None,
+        "ats_job_id": str(ats_job.id) if ats_job else None,
+        "redirect_url": f"/unternehmen/{company.id}",
+        "message": "Unternehmen erfolgreich erstellt",
+    }
+
+
+@router.post("/extract-job-pdf")
+async def extract_job_from_pdf(file: UploadFile = File(...), db: AsyncSession = Depends(get_db)):
+    """Extrahiert Job-Daten aus einem PDF via PyMuPDF + GPT-4."""
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Nur PDF-Dateien erlaubt")
+
+    # PDF lesen
+    pdf_bytes = await file.read()
+    if len(pdf_bytes) > 10 * 1024 * 1024:  # Max 10MB
+        raise HTTPException(status_code=400, detail="PDF zu gross (max 10MB)")
+
+    # Text extrahieren mit PyMuPDF
+    try:
+        from app.services.cv_parser_service import CVParserService
+        parser = CVParserService()
+        raw_text = parser.extract_text_from_pdf(pdf_bytes)
+    except Exception as e:
+        logger.error(f"PDF-Extraktion fehlgeschlagen: {e}")
+        raise HTTPException(status_code=400, detail=f"PDF konnte nicht gelesen werden: {e}")
+
+    if not raw_text or len(raw_text.strip()) < 20:
+        raise HTTPException(status_code=400, detail="PDF enthaelt keinen extrahierbaren Text")
+
+    # GPT-4 fuer strukturierte Extraktion
+    try:
+        from app.config import settings
+        import httpx
+
+        prompt = f"""Analysiere die folgende Stellenbeschreibung und extrahiere die Informationen als JSON.
+Antworte NUR mit dem JSON-Objekt, ohne Markdown oder andere Formatierung.
+
+{{
+  "title": "Jobtitel (z.B. Senior Accountant)",
+  "description": "Stellenbeschreibung / Aufgaben (zusammengefasst, max 2000 Zeichen)",
+  "requirements": "Anforderungen / Qualifikationen (zusammengefasst, max 1000 Zeichen)",
+  "location_city": "Arbeitsort/Stadt (falls erwaehnt)",
+  "employment_type": "fulltime/parttime/contract/temporary (falls erwaehnt)"
+}}
+
+Stellenbeschreibung:
+{raw_text[:4000]}"""
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {settings.openai_api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": "gpt-4o-mini",
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.1,
+                },
+            )
+            result = response.json()
+            content = result["choices"][0]["message"]["content"].strip()
+
+            # JSON parsen (ggf. Markdown-Wrapper entfernen)
+            if content.startswith("```"):
+                content = content.split("\n", 1)[1].rsplit("```", 1)[0]
+            extracted = json.loads(content)
+
+    except Exception as e:
+        logger.warning(f"GPT-4 Extraktion fehlgeschlagen, nutze Rohtext: {e}")
+        # Fallback: Rohtext als Beschreibung
+        extracted = {
+            "title": "",
+            "description": raw_text[:3000],
+            "requirements": "",
+            "location_city": "",
+            "employment_type": "",
+        }
+
+    return {
+        "title": extracted.get("title", ""),
+        "description": extracted.get("description", ""),
+        "requirements": extracted.get("requirements", ""),
+        "location_city": extracted.get("location_city", ""),
+        "employment_type": extracted.get("employment_type", ""),
+        "raw_text_length": len(raw_text),
+    }
 
 
 # ── Contacts ─────────────────────────────────────────

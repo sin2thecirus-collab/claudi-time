@@ -225,6 +225,19 @@ async def _ensure_company_tables() -> None:
     except Exception as e:
         logger.warning(f"location_coords Check uebersprungen: {e}")
 
+    # --- Schritt 3: Sicherstellen dass phone existiert (immer) ---
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("""
+                DO $$ BEGIN
+                    ALTER TABLE companies ADD COLUMN phone VARCHAR(100);
+                EXCEPTION WHEN duplicate_column THEN
+                    NULL;
+                END $$
+            """))
+    except Exception as e:
+        logger.warning(f"phone Check uebersprungen: {e}")
+
 
 async def _ensure_ats_tables() -> None:
     """Erstellt ATS-Tabellen falls sie nicht existieren."""

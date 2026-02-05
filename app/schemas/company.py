@@ -18,6 +18,7 @@ class CompanyBase(BaseModel):
     house_number: str | None = Field(default=None, max_length=20, description="Hausnummer")
     postal_code: str | None = Field(default=None, max_length=10, description="PLZ")
     city: str | None = Field(default=None, max_length=100, description="Stadt")
+    phone: str | None = Field(default=None, max_length=100, description="Telefon Zentrale")
     employee_count: str | None = Field(
         default=None, max_length=50, description="Unternehmensgroesse"
     )
@@ -39,6 +40,7 @@ class CompanyUpdate(BaseModel):
     house_number: str | None = Field(default=None, max_length=20)
     postal_code: str | None = Field(default=None, max_length=10)
     city: str | None = Field(default=None, max_length=100)
+    phone: str | None = Field(default=None, max_length=100)
     employee_count: str | None = Field(default=None, max_length=50)
     notes: str | None = None
     status: str | None = Field(default=None, description="active/blacklist/laufende_prozesse")
@@ -54,6 +56,7 @@ class CompanyResponse(BaseModel):
     house_number: str | None
     postal_code: str | None
     city: str | None
+    phone: str | None
     employee_count: str | None
     status: str
     notes: str | None

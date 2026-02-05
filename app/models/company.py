@@ -42,6 +42,9 @@ class Company(Base):
     postal_code: Mapped[str | None] = mapped_column(String(10))
     city: Mapped[str | None] = mapped_column(String(100))
 
+    # Telefon Zentrale
+    phone: Mapped[str | None] = mapped_column(String(100))
+
     # Koordinaten (PostGIS)
     location_coords: Mapped[str | None] = mapped_column(
         Geography(geometry_type="POINT", srid=4326),
