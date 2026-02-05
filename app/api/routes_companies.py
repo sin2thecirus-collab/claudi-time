@@ -283,64 +283,13 @@ async def extract_job_from_pdf(file: UploadFile = File(...), db: AsyncSession = 
     if not raw_text or len(raw_text.strip()) < 20:
         raise HTTPException(status_code=400, detail="PDF enthaelt keinen extrahierbaren Text")
 
-    # GPT-4 fuer strukturierte Extraktion
-    try:
-        from app.config import settings
-        import httpx
-
-        prompt = f"""Analysiere die folgende Stellenbeschreibung und extrahiere die Informationen als JSON.
-Antworte NUR mit dem JSON-Objekt, ohne Markdown oder andere Formatierung.
-
-{{
-  "title": "Jobtitel (z.B. Senior Accountant)",
-  "description": "Stellenbeschreibung / Aufgaben (zusammengefasst, max 2000 Zeichen)",
-  "requirements": "Anforderungen / Qualifikationen (zusammengefasst, max 1000 Zeichen)",
-  "location_city": "Arbeitsort/Stadt (falls erwaehnt)",
-  "employment_type": "fulltime/parttime/contract/temporary (falls erwaehnt)"
-}}
-
-Stellenbeschreibung:
-{raw_text[:4000]}"""
-
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {settings.openai_api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": "gpt-4o-mini",
-                    "messages": [{"role": "user", "content": prompt}],
-                    "temperature": 0.1,
-                },
-            )
-            result = response.json()
-            content = result["choices"][0]["message"]["content"].strip()
-
-            # JSON parsen (ggf. Markdown-Wrapper entfernen)
-            if content.startswith("```"):
-                content = content.split("\n", 1)[1].rsplit("```", 1)[0]
-            extracted = json.loads(content)
-
-    except Exception as e:
-        logger.warning(f"GPT-4 Extraktion fehlgeschlagen, nutze Rohtext: {e}")
-        # Fallback: Rohtext als Beschreibung
-        extracted = {
-            "title": "",
-            "description": raw_text[:3000],
-            "requirements": "",
-            "location_city": "",
-            "employment_type": "",
-        }
-
+    # Rohtext 1:1 zurueckgeben — kein GPT, kein Zusammenfassen
     return {
-        "title": extracted.get("title", ""),
-        "description": extracted.get("description", ""),
-        "requirements": extracted.get("requirements", ""),
-        "location_city": extracted.get("location_city", ""),
-        "employment_type": extracted.get("employment_type", ""),
-        "raw_text_length": len(raw_text),
+        "title": "",
+        "description": raw_text.strip(),
+        "requirements": "",
+        "location_city": "",
+        "employment_type": "",
     }
 
 
