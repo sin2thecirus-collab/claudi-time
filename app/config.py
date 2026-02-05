@@ -103,6 +103,16 @@ class Settings(BaseSettings):
         description="Cloudflare R2 Bucket-Name",
     )
 
+    # n8n Integration
+    n8n_webhook_url: str = Field(
+        default="",
+        description="n8n Webhook-Basis-URL (z.B. https://n8n-production-aa9c.up.railway.app)",
+    )
+    n8n_api_token: str = Field(
+        default="",
+        description="API-Token fuer n8n-Inbound-Webhooks",
+    )
+
     # Umgebung
     environment: str = Field(
         default="development",

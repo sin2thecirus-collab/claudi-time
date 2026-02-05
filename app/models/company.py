@@ -83,6 +83,9 @@ class Company(Base):
         cascade="all, delete-orphan",
         order_by="CompanyCorrespondence.sent_at.desc()",
     )
+    ats_jobs: Mapped[list["ATSJob"]] = relationship(
+        "ATSJob", back_populates="company",
+    )
 
     # Indizes
     __table_args__ = (

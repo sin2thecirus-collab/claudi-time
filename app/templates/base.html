@@ -131,6 +131,23 @@
                                class="{% if request.url.path.startswith('/unternehmen') %}border-primary-500 text-gray-900{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-lg font-semibold">
                                 Unternehmen
                             </a>
+                            <div class="relative" x-data="{ atsDropdown: false }">
+                                <button @click="atsDropdown = !atsDropdown"
+                                   class="{% if request.url.path.startswith('/ats') %}border-primary-500 text-gray-900{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-lg font-semibold gap-1">
+                                    ATS
+                                    <svg class="w-4 h-4 transition-transform" :class="atsDropdown ? 'rotate-180' : ''" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                                    </svg>
+                                </button>
+                                <div x-show="atsDropdown" @click.away="atsDropdown = false" x-transition
+                                     class="absolute left-0 mt-1 w-44 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50"
+                                     style="display: none;">
+                                    <a href="/ats" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Dashboard</a>
+                                    <a href="/ats/stellen" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Stellen</a>
+                                    <a href="/ats/todos" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Aufgaben</a>
+                                    <a href="/ats/anrufe" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Anrufe</a>
+                                </div>
+                            </div>
                             <a href="/hotlisten"
                                class="{% if request.url.path.startswith('/hotlisten') or request.url.path.startswith('/match-bereiche') or request.url.path.startswith('/deepmatch') %}border-primary-500 text-gray-900{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-lg font-semibold">
                                 Hotlisten
@@ -209,6 +226,10 @@
                     <a href="/unternehmen"
                        class="{% if request.url.path.startswith('/unternehmen') %}border-primary-500 bg-primary-50 text-primary-700{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-700{% endif %} block border-l-4 py-2 pl-3 pr-4 text-base font-medium">
                         Unternehmen
+                    </a>
+                    <a href="/ats"
+                       class="{% if request.url.path.startswith('/ats') %}border-primary-500 bg-primary-50 text-primary-700{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-700{% endif %} block border-l-4 py-2 pl-3 pr-4 text-base font-medium">
+                        ATS
                     </a>
                     <a href="/hotlisten"
                        class="{% if request.url.path.startswith('/hotlisten') or request.url.path.startswith('/match-bereiche') or request.url.path.startswith('/deepmatch') %}border-primary-500 bg-primary-50 text-primary-700{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-700{% endif %} block border-l-4 py-2 pl-3 pr-4 text-base font-medium">

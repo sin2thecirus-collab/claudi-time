@@ -1,0 +1,95 @@
+{# Partial: ATS Todo List - Inline editable todo items #}
+{# Context: todos (list of ATSTodo objects) #}
+
+{% if todos and todos | length > 0 %}
+<div class="space-y-2" id="todo-list">
+    {% for todo in todos %}
+    <div class="todo-item flex items-start gap-3 p-3 bg-white rounded-lg border {{ 'border-red-200 bg-red-50/30' if todo.is_overdue else 'border-gray-200' }} hover:shadow-sm transition-shadow duration-150"
+         id="todo-{{ todo.id }}">
+
+        {# Checkbox #}
+        <div class="flex-shrink-0 pt-0.5">
+            {% if todo.status.value == 'done' %}
+            <div class="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center">
+                <svg class="w-3.5 h-3.5 text-green-600" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                </svg>
+            </div>
+            {% else %}
+            <button hx-put="/api/ats/todos/{{ todo.id }}/complete"
+                    hx-target="#todo-{{ todo.id }}"
+                    hx-swap="outerHTML"
+                    type="button"
+                    class="w-5 h-5 rounded-full border-2 {{ 'border-red-300 hover:border-red-500 hover:bg-red-50' if todo.is_overdue else 'border-gray-300 hover:border-primary-500 hover:bg-primary-50' }} transition-colors cursor-pointer">
+            </button>
+            {% endif %}
+        </div>
+
+        {# Content #}
+        <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+                {# Priority dot #}
+                {% set priority_dot_colors = {
+                    'gray': 'bg-gray-400',
+                    'blue': 'bg-blue-500',
+                    'amber': 'bg-amber-500',
+                    'red': 'bg-red-500'
+                } %}
+                <div class="w-2 h-2 rounded-full flex-shrink-0 {{ priority_dot_colors.get(todo.priority_color, 'bg-gray-400') }}"
+                     title="{{ todo.priority_label }}"></div>
+
+                {# Title #}
+                <p class="text-sm {{ 'line-through text-gray-400' if todo.status.value == 'done' else 'text-gray-900' }} truncate">
+                    {{ todo.title }}
+                </p>
+            </div>
+
+            {# Due date & metadata #}
+            <div class="mt-1 flex items-center gap-3 text-xs">
+                {% if todo.due_date %}
+                <span class="flex items-center gap-1 {{ 'text-red-600 font-medium' if todo.is_overdue else 'text-gray-400' }}">
+                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                    </svg>
+                    {% if todo.is_overdue %}Ueberfaellig: {% endif %}{{ todo.due_date.strftime('%d.%m.%Y') }}
+                </span>
+                {% endif %}
+
+                {% if todo.status.value == 'done' and todo.completed_at %}
+                <span class="flex items-center gap-1 text-green-500">
+                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Erledigt {{ todo.completed_at.strftime('%d.%m.') }}
+                </span>
+                {% endif %}
+
+                {% if todo.status.value == 'in_progress' %}
+                <span class="inline-flex items-center rounded-full px-1.5 py-0.5 bg-blue-100 text-blue-600 font-medium">
+                    In Bearbeitung
+                </span>
+                {% endif %}
+            </div>
+        </div>
+
+        {# Priority badge (on right side) #}
+        {% if todo.priority.value == 'urgent' and todo.status.value != 'done' %}
+        <span class="flex-shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-red-100 text-red-700">
+            Dringend
+        </span>
+        {% elif todo.priority.value == 'high' and todo.status.value != 'done' %}
+        <span class="flex-shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700">
+            Hoch
+        </span>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="flex flex-col items-center justify-center py-8 text-center">
+    <svg class="w-8 h-8 text-gray-300 mb-2" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+    <p class="text-sm text-gray-400">Keine Aufgaben vorhanden</p>
+</div>
+{% endif %}

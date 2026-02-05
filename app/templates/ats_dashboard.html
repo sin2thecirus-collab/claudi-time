@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+
+{% block title %}ATS Dashboard - Pulspoint{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    {# -- Header -- #}
+    <div class="md:flex md:items-center md:justify-between">
+        <div class="min-w-0 flex-1">
+            <h1 class="text-2xl font-bold text-gray-900">ATS Dashboard</h1>
+            <p class="text-sm text-gray-500 mt-1">Bewerbermanagement und Recruiting-Pipeline im Ueberblick</p>
+        </div>
+        <div class="mt-4 flex md:ml-4 md:mt-0 space-x-3">
+            <a href="/ats/stellen"
+               class="inline-flex items-center rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 transition-colors">
+                <svg class="-ml-0.5 mr-1.5 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Neue Stelle
+            </a>
+            <a href="/ats/todos"
+               class="inline-flex items-center rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 transition-colors">
+                <svg class="-ml-0.5 mr-1.5 h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z" />
+                </svg>
+                Alle Todos
+            </a>
+        </div>
+    </div>
+
+    {# -- Statistik-Karten -- #}
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-white rounded-xl border border-gray-200 p-5">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-primary-50 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-primary-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0M12 12.75h.008v.008H12v-.008z" />
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Offene Stellen</p>
+                    <p class="text-2xl font-bold text-gray-900 mt-0.5">{{ job_stats.open }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-gray-200 p-5">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z" />
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Aufgaben offen</p>
+                    <p class="text-2xl font-bold text-gray-900 mt-0.5">{{ todo_stats.open }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-gray-200 p-5">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Ueberfaellig</p>
+                    <p class="text-2xl font-bold text-red-600 mt-0.5">{{ todo_stats.overdue }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-gray-200 p-5">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Besetzt</p>
+                    <p class="text-2xl font-bold text-green-600 mt-0.5">{{ job_stats.filled }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# -- Heutige Aufgaben -- #}
+    <div class="bg-white rounded-xl border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-sm font-semibold text-gray-900">Heutige Aufgaben</h2>
+        </div>
+        <div class="divide-y divide-gray-100">
+            {% if today_todos %}
+                {% for todo in today_todos %}
+                <div class="px-6 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <button hx-put="/api/ats/todos/{{ todo.id }}/complete"
+                                hx-swap="none"
+                                hx-on::after-request="location.reload()"
+                                class="flex-shrink-0 w-5 h-5 rounded border-2 border-gray-300 hover:border-primary-500 transition-colors"
+                                title="Als erledigt markieren">
+                        </button>
+                        <div class="min-w-0">
+                            <p class="text-sm font-medium text-gray-900 truncate">{{ todo.title }}</p>
+                            {% if todo.company_name %}
+                            <p class="text-xs text-gray-500">{{ todo.company_name }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 flex-shrink-0">
+                        {% if todo.priority == 'urgent' %}
+                        <span class="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 ring-1 ring-red-600/20">Dringend</span>
+                        {% elif todo.priority == 'high' %}
+                        <span class="inline-flex items-center rounded-full bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-700 ring-1 ring-orange-600/20">Hoch</span>
+                        {% elif todo.priority == 'medium' %}
+                        <span class="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-amber-600/20">Mittel</span>
+                        {% else %}
+                        <span class="inline-flex items-center rounded-full bg-gray-50 px-2 py-0.5 text-xs font-medium text-gray-600 ring-1 ring-gray-500/20">Niedrig</span>
+                        {% endif %}
+                        <span class="text-xs text-gray-400">{{ todo.due_date }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="px-6 py-8 text-center">
+                    <svg class="mx-auto h-8 w-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p class="mt-2 text-sm text-gray-500">Keine Aufgaben fuer heute</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {# -- Ueberfaellige Aufgaben -- #}
+    {% if overdue_todos %}
+    <div class="bg-white rounded-xl border border-red-200">
+        <div class="px-6 py-4 border-b border-red-200 bg-red-50 rounded-t-xl">
+            <h2 class="text-sm font-semibold text-red-800">Ueberfaellige Aufgaben</h2>
+        </div>
+        <div class="divide-y divide-gray-100">
+            {% for todo in overdue_todos %}
+            <div class="px-6 py-3 flex items-center justify-between hover:bg-red-50/50 transition-colors">
+                <div class="flex items-center gap-3 min-w-0">
+                    <button hx-put="/api/ats/todos/{{ todo.id }}/complete"
+                            hx-swap="none"
+                            hx-on::after-request="location.reload()"
+                            class="flex-shrink-0 w-5 h-5 rounded border-2 border-red-300 hover:border-red-500 transition-colors"
+                            title="Als erledigt markieren">
+                    </button>
+                    <div class="min-w-0">
+                        <p class="text-sm font-medium text-gray-900 truncate">{{ todo.title }}</p>
+                        {% if todo.company_name %}
+                        <p class="text-xs text-gray-500">{{ todo.company_name }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 flex-shrink-0">
+                    {% if todo.priority == 'urgent' %}
+                    <span class="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 ring-1 ring-red-600/20">Dringend</span>
+                    {% elif todo.priority == 'high' %}
+                    <span class="inline-flex items-center rounded-full bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-700 ring-1 ring-orange-600/20">Hoch</span>
+                    {% elif todo.priority == 'medium' %}
+                    <span class="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-amber-600/20">Mittel</span>
+                    {% else %}
+                    <span class="inline-flex items-center rounded-full bg-gray-50 px-2 py-0.5 text-xs font-medium text-gray-600 ring-1 ring-gray-500/20">Niedrig</span>
+                    {% endif %}
+                    <span class="text-xs text-red-500 font-medium">{{ todo.due_date }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {# -- Letzte Stellen -- #}
+    <div class="bg-white rounded-xl border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <h2 class="text-sm font-semibold text-gray-900">Letzte Stellen</h2>
+            <a href="/ats/stellen" class="text-xs text-primary-600 hover:text-primary-500 font-medium">Alle anzeigen</a>
+        </div>
+        <div class="divide-y divide-gray-100">
+            {% if recent_jobs %}
+                {% for job in recent_jobs %}
+                <a href="/ats/stellen/{{ job.id }}" class="block px-6 py-4 hover:bg-gray-50 transition-colors">
+                    <div class="flex items-center justify-between">
+                        <div class="min-w-0 flex-1">
+                            <p class="text-sm font-medium text-gray-900 truncate">{{ job.title }}</p>
+                            <p class="text-xs text-gray-500 mt-0.5">{{ job.company_name }}</p>
+                        </div>
+                        <div class="flex items-center gap-3 flex-shrink-0 ml-4">
+                            <span class="text-xs text-gray-400">{{ job.pipeline_count }} Kandidaten</span>
+                            {% if job.status == 'open' %}
+                            <span class="inline-flex items-center rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 ring-1 ring-green-600/20">Offen</span>
+                            {% elif job.status == 'paused' %}
+                            <span class="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-amber-600/20">Pausiert</span>
+                            {% elif job.status == 'filled' %}
+                            <span class="inline-flex items-center rounded-full bg-primary-50 px-2 py-0.5 text-xs font-medium text-primary-700 ring-1 ring-primary-600/20">Besetzt</span>
+                            {% elif job.status == 'cancelled' %}
+                            <span class="inline-flex items-center rounded-full bg-gray-50 px-2 py-0.5 text-xs font-medium text-gray-600 ring-1 ring-gray-500/20">Storniert</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </a>
+                {% endfor %}
+            {% else %}
+                <div class="px-6 py-8 text-center">
+                    <svg class="mx-auto h-8 w-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0M12 12.75h.008v.008H12v-.008z" />
+                    </svg>
+                    <p class="mt-2 text-sm text-gray-500">Noch keine Stellen angelegt</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}

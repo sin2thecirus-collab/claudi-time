@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+
+{% block title %}ATS Stellen - Pulspoint{% endblock %}
+
+{% block content %}
+<div x-data="{ showNewJobModal: false }">
+
+    {# -- Header -- #}
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">ATS Stellen</h1>
+            <p class="text-sm text-gray-500 mt-1">Alle offenen und geschlossenen Stellen verwalten</p>
+        </div>
+        <button @click="showNewJobModal = true"
+                class="inline-flex items-center rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 transition-colors">
+            <svg class="-ml-0.5 mr-1.5 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            Neue Stelle
+        </button>
+    </div>
+
+    {# -- Filter + Suche -- #}
+    <div class="flex flex-col sm:flex-row gap-3 mb-6">
+        <div class="flex-1 relative">
+            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            </svg>
+            <input type="text"
+                   name="search"
+                   placeholder="Stelle oder Unternehmen suchen..."
+                   value="{{ filters.search or '' }}"
+                   hx-get="/ats/stellen"
+                   hx-trigger="keyup changed delay:300ms"
+                   hx-target="#ats-jobs-container"
+                   hx-select="#ats-jobs-container"
+                   hx-swap="outerHTML"
+                   hx-push-url="true"
+                   hx-include="[name='status'],[name='priority']"
+                   class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm">
+        </div>
+        <select name="status"
+                hx-get="/ats/stellen"
+                hx-trigger="change"
+                hx-target="#ats-jobs-container"
+                hx-select="#ats-jobs-container"
+                hx-swap="outerHTML"
+                hx-push-url="true"
+                hx-include="[name='search'],[name='priority']"
+                class="px-4 py-3 border border-gray-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-primary-500">
+            <option value="">Alle Status</option>
+            <option value="open" {% if filters.status == 'open' %}selected{% endif %}>Offen</option>
+            <option value="paused" {% if filters.status == 'paused' %}selected{% endif %}>Pausiert</option>
+            <option value="filled" {% if filters.status == 'filled' %}selected{% endif %}>Besetzt</option>
+            <option value="cancelled" {% if filters.status == 'cancelled' %}selected{% endif %}>Storniert</option>
+        </select>
+        <select name="priority"
+                hx-get="/ats/stellen"
+                hx-trigger="change"
+                hx-target="#ats-jobs-container"
+                hx-select="#ats-jobs-container"
+                hx-swap="outerHTML"
+                hx-push-url="true"
+                hx-include="[name='search'],[name='status']"
+                class="px-4 py-3 border border-gray-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-primary-500">
+            <option value="">Alle Prioritaeten</option>
+            <option value="low" {% if filters.priority == 'low' %}selected{% endif %}>Niedrig</option>
+            <option value="medium" {% if filters.priority == 'medium' %}selected{% endif %}>Mittel</option>
+            <option value="high" {% if filters.priority == 'high' %}selected{% endif %}>Hoch</option>
+            <option value="urgent" {% if filters.priority == 'urgent' %}selected{% endif %}>Dringend</option>
+        </select>
+    </div>
+
+    {# -- Stellen-Liste -- #}
+    <div id="ats-jobs-container">
+        <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            {% if jobs %}
+            <div class="divide-y divide-gray-100">
+                {% for item in jobs %}
+                {% set job = item.job %}
+                {% set pipeline_count = item.pipeline_count %}
+                <a href="/ats/stellen/{{ job.id }}" class="block px-6 py-4 hover:bg-gray-50 transition-colors">
+                    <div class="flex items-center justify-between">
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-3">
+                                <p class="text-sm font-semibold text-gray-900 truncate">{{ job.title }}</p>
+                                {# Priority Badge #}
+                                {% if job.priority == 'urgent' %}
+                                <span class="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 ring-1 ring-red-600/20">Dringend</span>
+                                {% elif job.priority == 'high' %}
+                                <span class="inline-flex items-center rounded-full bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-700 ring-1 ring-orange-600/20">Hoch</span>
+                                {% elif job.priority == 'medium' %}
+                                <span class="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-amber-600/20">Mittel</span>
+                                {% endif %}
+                            </div>
+                            <div class="flex items-center gap-2 mt-1">
+                                {% if job.company %}
+                                <span class="text-xs text-gray-500">{{ job.company.name }}</span>
+                                <span class="text-gray-300">&middot;</span>
+                                {% endif %}
+                                {% if job.location_city %}
+                                <span class="text-xs text-gray-500">{{ job.location_city }}</span>
+                                <span class="text-gray-300">&middot;</span>
+                                {% endif %}
+                                <span class="text-xs text-gray-400">{{ job.created_at.strftime('%d.%m.%Y') if job.created_at else '' }}</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3 flex-shrink-0 ml-4">
+                            <span class="text-xs text-gray-400">{{ pipeline_count }} Kandidaten</span>
+                            {# Status Badge #}
+                            {% if job.status == 'open' or job.status.value == 'open' %}
+                            <span class="inline-flex items-center rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-700 ring-1 ring-green-600/20">Offen</span>
+                            {% elif job.status == 'paused' or job.status.value == 'paused' %}
+                            <span class="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-amber-600/20">Pausiert</span>
+                            {% elif job.status == 'filled' or job.status.value == 'filled' %}
+                            <span class="inline-flex items-center rounded-full bg-primary-50 px-2.5 py-0.5 text-xs font-medium text-primary-700 ring-1 ring-primary-600/20">Besetzt</span>
+                            {% elif job.status == 'cancelled' or job.status.value == 'cancelled' %}
+                            <span class="inline-flex items-center rounded-full bg-gray-50 px-2.5 py-0.5 text-xs font-medium text-gray-600 ring-1 ring-gray-500/20">Storniert</span>
+                            {% endif %}
+                            <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                            </svg>
+                        </div>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="px-6 py-12 text-center">
+                <svg class="mx-auto h-10 w-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0M12 12.75h.008v.008H12v-.008z" />
+                </svg>
+                <p class="mt-2 text-sm text-gray-500">Keine Stellen gefunden</p>
+                <button @click="showNewJobModal = true"
+                        class="mt-3 text-sm text-primary-600 hover:text-primary-500 font-medium">
+                    Erste Stelle anlegen
+                </button>
+            </div>
+            {% endif %}
+        </div>
+
+        {# -- Pagination -- #}
+        {% if pages > 1 %}
+        <div class="flex items-center justify-between mt-4">
+            <p class="text-sm text-gray-500">{{ total }} Stellen gesamt</p>
+            <div class="flex items-center gap-1">
+                {% if page > 1 %}
+                <a href="/ats/stellen?page={{ page - 1 }}{% if filters.status %}&status={{ filters.status }}{% endif %}{% if filters.priority %}&priority={{ filters.priority }}{% endif %}{% if filters.search %}&search={{ filters.search }}{% endif %}"
+                   class="px-3 py-1.5 text-sm text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Zurueck</a>
+                {% endif %}
+                {% for p in range(1, pages + 1) %}
+                    {% if p == page %}
+                    <span class="px-3 py-1.5 text-sm font-medium text-white bg-primary-600 rounded-lg">{{ p }}</span>
+                    {% elif p == 1 or p == pages or (p >= page - 2 and p <= page + 2) %}
+                    <a href="/ats/stellen?page={{ p }}{% if filters.status %}&status={{ filters.status }}{% endif %}{% if filters.priority %}&priority={{ filters.priority }}{% endif %}{% if filters.search %}&search={{ filters.search }}{% endif %}"
+                       class="px-3 py-1.5 text-sm text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">{{ p }}</a>
+                    {% elif p == page - 3 or p == page + 3 %}
+                    <span class="px-2 text-gray-400">...</span>
+                    {% endif %}
+                {% endfor %}
+                {% if page < pages %}
+                <a href="/ats/stellen?page={{ page + 1 }}{% if filters.status %}&status={{ filters.status }}{% endif %}{% if filters.priority %}&priority={{ filters.priority }}{% endif %}{% if filters.search %}&search={{ filters.search }}{% endif %}"
+                   class="px-3 py-1.5 text-sm text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Weiter</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    {# -- Neue Stelle Modal -- #}
+    <div x-show="showNewJobModal"
+         x-cloak
+         class="fixed inset-0 z-50"
+         @keydown.escape.window="showNewJobModal = false">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75" @click="showNewJobModal = false"></div>
+        <div class="fixed inset-0 z-10 overflow-y-auto">
+            <div class="flex min-h-full items-center justify-center p-4">
+                <div @click.stop
+                     x-show="showNewJobModal"
+                     x-transition:enter="transition ease-out duration-200"
+                     x-transition:enter-start="opacity-0 scale-95"
+                     x-transition:enter-end="opacity-100 scale-100"
+                     x-transition:leave="transition ease-in duration-150"
+                     x-transition:leave-start="opacity-100 scale-100"
+                     x-transition:leave-end="opacity-0 scale-95"
+                     class="relative w-full max-w-lg bg-white rounded-xl shadow-xl">
+
+                    {# Modal Header #}
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-lg font-semibold text-gray-900">Neue Stelle anlegen</h3>
+                            <button @click="showNewJobModal = false" class="text-gray-400 hover:text-gray-500">
+                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    {# Modal Body #}
+                    <form hx-post="/api/ats/jobs"
+                          hx-target="#ats-jobs-container"
+                          hx-swap="innerHTML"
+                          hx-on::after-request="if(event.detail.successful){ showNewJobModal = false; showToast('Stelle erstellt', 'success'); }"
+                          class="px-6 py-4 space-y-4">
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Titel *</label>
+                            <input type="text" name="title" required
+                                   class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                   placeholder="z.B. Senior Backend Developer">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Unternehmen</label>
+                            <input type="text" name="company_search" id="company-search-input"
+                                   class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                   placeholder="Unternehmen suchen..."
+                                   hx-get="/api/companies/search"
+                                   hx-trigger="keyup changed delay:300ms"
+                                   hx-target="#company-search-results"
+                                   hx-swap="innerHTML"
+                                   autocomplete="off">
+                            <input type="hidden" name="company_id" id="selected-company-id">
+                            <div id="company-search-results" class="mt-1"></div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Standort</label>
+                                <input type="text" name="location_city"
+                                       class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                       placeholder="z.B. Muenchen">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Anstellungsart</label>
+                                <select name="employment_type"
+                                        class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500">
+                                    <option value="">-- Waehlen --</option>
+                                    <option value="fulltime">Vollzeit</option>
+                                    <option value="parttime">Teilzeit</option>
+                                    <option value="contract">Freelance</option>
+                                    <option value="temporary">Befristet</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Prioritaet</label>
+                                <select name="priority"
+                                        class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500">
+                                    <option value="medium">Mittel</option>
+                                    <option value="low">Niedrig</option>
+                                    <option value="high">Hoch</option>
+                                    <option value="urgent">Dringend</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Quelle</label>
+                                <input type="text" name="source"
+                                       class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                       placeholder="z.B. Kundenanfrage">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Notizen</label>
+                            <textarea name="notes" rows="3"
+                                      class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                      placeholder="Zusaetzliche Informationen..."></textarea>
+                        </div>
+
+                        {# Modal Footer #}
+                        <div class="flex justify-end gap-3 pt-2">
+                            <button type="button" @click="showNewJobModal = false"
+                                    class="px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+                                Abbrechen
+                            </button>
+                            <button type="submit"
+                                    class="px-4 py-2.5 text-sm font-semibold text-white bg-primary-600 rounded-lg hover:bg-primary-500 shadow-sm">
+                                Stelle anlegen
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function selectCompany(id, name) {
+    document.getElementById('selected-company-id').value = id;
+    document.getElementById('company-search-input').value = name;
+    document.getElementById('company-search-results').innerHTML = '';
+}
+</script>
+{% endblock %}

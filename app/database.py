@@ -226,6 +226,189 @@ async def _ensure_company_tables() -> None:
         logger.warning(f"location_coords Check uebersprungen: {e}")
 
 
+async def _ensure_ats_tables() -> None:
+    """Erstellt ATS-Tabellen falls sie nicht existieren."""
+
+    async with engine.begin() as conn:
+        result = await conn.execute(
+            text(
+                "SELECT table_name FROM information_schema.tables "
+                "WHERE table_schema = 'public' AND table_name = 'ats_jobs'"
+            )
+        )
+        tables_exist = result.fetchone() is not None
+
+    if tables_exist:
+        logger.info("ATS-Tabellen existieren bereits.")
+        return
+
+    logger.info("ATS-Tabellen werden erstellt...")
+
+    async with engine.begin() as conn:
+        # Enum-Typen erstellen
+        for enum_name, enum_values in [
+            ("atsjobpriority", "'low', 'medium', 'high', 'urgent'"),
+            ("atsjobstatus", "'open', 'paused', 'filled', 'cancelled'"),
+            ("pipelinestage", "'matched', 'sent', 'feedback', 'interview_1', 'interview_2', 'interview_3', 'offer', 'placed', 'rejected'"),
+            ("calltype", "'acquisition', 'qualification', 'followup', 'candidate_call'"),
+            ("todostatus", "'open', 'in_progress', 'done', 'cancelled'"),
+            ("todopriority", "'low', 'normal', 'high', 'urgent'"),
+            ("activitytype", "'stage_changed', 'note_added', 'todo_created', 'todo_completed', 'email_sent', 'email_received', 'call_logged', 'candidate_added', 'candidate_removed', 'job_created', 'job_status_changed'"),
+        ]:
+            await conn.execute(text(
+                f"DO $$ BEGIN "
+                f"CREATE TYPE {enum_name} AS ENUM ({enum_values}); "
+                f"EXCEPTION WHEN duplicate_object THEN NULL; END $$"
+            ))
+
+        # ats_jobs Tabelle
+        await conn.execute(text("""
+            CREATE TABLE ats_jobs (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                company_id UUID REFERENCES companies(id) ON DELETE SET NULL,
+                contact_id UUID REFERENCES company_contacts(id) ON DELETE SET NULL,
+                title VARCHAR(255) NOT NULL,
+                description TEXT,
+                requirements TEXT,
+                location_city VARCHAR(100),
+                salary_min INTEGER,
+                salary_max INTEGER,
+                employment_type VARCHAR(50),
+                priority atsjobpriority DEFAULT 'medium',
+                status atsjobstatus DEFAULT 'open',
+                source VARCHAR(100),
+                notes TEXT,
+                filled_at TIMESTAMPTZ,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        """))
+
+        # PostGIS Koordinaten-Spalte fuer ats_jobs
+        await conn.execute(text("""
+            DO $$ BEGIN
+                PERFORM AddGeographyColumn('public', 'ats_jobs', 'location_coords', 4326, 'POINT', 2);
+            EXCEPTION WHEN OTHERS THEN
+                BEGIN
+                    ALTER TABLE ats_jobs ADD COLUMN location_coords TEXT;
+                EXCEPTION WHEN duplicate_column THEN
+                    NULL;
+                END;
+            END $$
+        """))
+
+        # ats_jobs Indizes
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_ats_jobs_company_id ON ats_jobs (company_id)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_ats_jobs_status ON ats_jobs (status)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_ats_jobs_priority ON ats_jobs (priority)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_ats_jobs_created_at ON ats_jobs (created_at)"))
+
+        # ats_pipeline_entries Tabelle
+        await conn.execute(text("""
+            CREATE TABLE ats_pipeline_entries (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                ats_job_id UUID NOT NULL REFERENCES ats_jobs(id) ON DELETE CASCADE,
+                candidate_id UUID REFERENCES candidates(id) ON DELETE SET NULL,
+                stage pipelinestage DEFAULT 'matched',
+                stage_changed_at TIMESTAMPTZ DEFAULT NOW(),
+                rejection_reason TEXT,
+                notes TEXT,
+                sort_order INTEGER DEFAULT 0,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW(),
+                CONSTRAINT uq_ats_pipeline_job_candidate UNIQUE (ats_job_id, candidate_id)
+            )
+        """))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_ats_pipeline_ats_job_id ON ats_pipeline_entries (ats_job_id)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_ats_pipeline_candidate_id ON ats_pipeline_entries (candidate_id)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_ats_pipeline_stage ON ats_pipeline_entries (stage)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_ats_pipeline_created_at ON ats_pipeline_entries (created_at)"))
+
+        # ats_call_notes Tabelle
+        await conn.execute(text("""
+            CREATE TABLE ats_call_notes (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                ats_job_id UUID REFERENCES ats_jobs(id) ON DELETE SET NULL,
+                company_id UUID REFERENCES companies(id) ON DELETE SET NULL,
+                candidate_id UUID REFERENCES candidates(id) ON DELETE SET NULL,
+                contact_id UUID REFERENCES company_contacts(id) ON DELETE SET NULL,
+                call_type calltype NOT NULL,
+                summary TEXT NOT NULL,
+                raw_notes TEXT,
+                action_items JSONB,
+                duration_minutes INTEGER,
+                called_at TIMESTAMPTZ DEFAULT NOW(),
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        """))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_ats_call_notes_company_id ON ats_call_notes (company_id)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_ats_call_notes_candidate_id ON ats_call_notes (candidate_id)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_ats_call_notes_ats_job_id ON ats_call_notes (ats_job_id)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_ats_call_notes_call_type ON ats_call_notes (call_type)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_ats_call_notes_called_at ON ats_call_notes (called_at)"))
+
+        # ats_todos Tabelle
+        await conn.execute(text("""
+            CREATE TABLE ats_todos (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                title VARCHAR(500) NOT NULL,
+                description TEXT,
+                status todostatus DEFAULT 'open',
+                priority todopriority DEFAULT 'normal',
+                due_date DATE,
+                completed_at TIMESTAMPTZ,
+                company_id UUID REFERENCES companies(id) ON DELETE SET NULL,
+                candidate_id UUID REFERENCES candidates(id) ON DELETE SET NULL,
+                ats_job_id UUID REFERENCES ats_jobs(id) ON DELETE SET NULL,
+                call_note_id UUID REFERENCES ats_call_notes(id) ON DELETE SET NULL,
+                pipeline_entry_id UUID REFERENCES ats_pipeline_entries(id) ON DELETE SET NULL,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        """))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_ats_todos_status ON ats_todos (status)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_ats_todos_priority ON ats_todos (priority)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_ats_todos_due_date ON ats_todos (due_date)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_ats_todos_company_id ON ats_todos (company_id)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_ats_todos_candidate_id ON ats_todos (candidate_id)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_ats_todos_ats_job_id ON ats_todos (ats_job_id)"))
+
+        # ats_activities Tabelle
+        await conn.execute(text("""
+            CREATE TABLE ats_activities (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                activity_type activitytype NOT NULL,
+                description VARCHAR(500) NOT NULL,
+                metadata JSONB,
+                ats_job_id UUID REFERENCES ats_jobs(id) ON DELETE SET NULL,
+                pipeline_entry_id UUID REFERENCES ats_pipeline_entries(id) ON DELETE SET NULL,
+                company_id UUID REFERENCES companies(id) ON DELETE SET NULL,
+                candidate_id UUID REFERENCES candidates(id) ON DELETE SET NULL,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        """))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_ats_activities_ats_job_id ON ats_activities (ats_job_id)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_ats_activities_pipeline_entry_id ON ats_activities (pipeline_entry_id)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_ats_activities_company_id ON ats_activities (company_id)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_ats_activities_created_at ON ats_activities (created_at)"))
+
+        # ats_email_templates Tabelle
+        await conn.execute(text("""
+            CREATE TABLE ats_email_templates (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                name VARCHAR(255) NOT NULL UNIQUE,
+                subject VARCHAR(500) NOT NULL,
+                body TEXT NOT NULL,
+                category VARCHAR(100),
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        """))
+
+        logger.info("ATS-Tabellen erfolgreich erstellt.")
+
+
 async def init_db() -> None:
     """Initialisiert die Datenbankverbindung und führt Migrationen aus."""
     async with engine.begin() as conn:
@@ -234,6 +417,7 @@ async def init_db() -> None:
 
     # ── Tabellen-Erstellung (fuer neue Tabellen die nicht via Alembic laufen) ──
     await _ensure_company_tables()
+    await _ensure_ats_tables()
 
     # ── pgvector Extension NICHT noetig — Embeddings werden als JSONB gespeichert ──
     # Railway Standard-PostgreSQL hat kein pgvector vorinstalliert.

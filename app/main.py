@@ -127,6 +127,14 @@ from app.api.routes_companies import router as companies_router
 from app.api.routes_smart_match import router as smart_match_router
 from app.api.routes_titel_zuweisung import router as titel_zuweisung_router
 
+# ATS Router
+from app.api.routes_ats_jobs import router as ats_jobs_router
+from app.api.routes_ats_pipeline import router as ats_pipeline_router
+from app.api.routes_ats_call_notes import router as ats_call_notes_router
+from app.api.routes_ats_todos import router as ats_todos_router
+from app.api.routes_ats_pages import router as ats_pages_router
+from app.api.routes_n8n_webhooks import router as n8n_webhooks_router
+
 # Custom Exception Handlers registrieren
 register_exception_handlers(app)
 
@@ -135,6 +143,7 @@ app.include_router(pages_router)
 app.include_router(hotlisten_router)  # Hotlisten-Seiten + API (/hotlisten, /match-bereiche, /deepmatch)
 app.include_router(match_center_router)  # Match Center (/match-center, /api/match-center)
 app.include_router(titel_zuweisung_router)  # Titel-Zuweisung (/titel-zuweisung, /api/titel-zuweisung)
+app.include_router(ats_pages_router)  # ATS Seiten (/ats, /ats/stellen, /ats/todos, /ats/anrufe)
 
 # API Router registrieren (alle mit /api Prefix)
 app.include_router(jobs_router, prefix="/api")
@@ -147,3 +156,10 @@ app.include_router(statistics_router, prefix="/api")
 app.include_router(alerts_router, prefix="/api")
 app.include_router(companies_router, prefix="/api")
 app.include_router(smart_match_router)  # Smart-Match API (/api/smart-match/...)
+
+# ATS API Router (alle mit /api Prefix)
+app.include_router(ats_jobs_router, prefix="/api")
+app.include_router(ats_pipeline_router, prefix="/api")
+app.include_router(ats_call_notes_router, prefix="/api")
+app.include_router(ats_todos_router, prefix="/api")
+app.include_router(n8n_webhooks_router, prefix="/api")  # n8n Webhooks (/api/n8n/...)

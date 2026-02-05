@@ -1,6 +1,12 @@
 """SQLAlchemy Models für das Matching-Tool."""
 
 from app.models.alert import Alert
+from app.models.ats_activity import ATSActivity, ActivityType
+from app.models.ats_call_note import ATSCallNote, CallType
+from app.models.ats_email_template import ATSEmailTemplate
+from app.models.ats_job import ATSJob, ATSJobPriority, ATSJobStatus
+from app.models.ats_pipeline import ATSPipelineEntry, PipelineStage
+from app.models.ats_todo import ATSTodo, TodoPriority, TodoStatus
 from app.models.candidate import Candidate
 from app.models.company import Company, CompanyStatus
 from app.models.company_contact import CompanyContact
@@ -32,4 +38,17 @@ __all__ = [
     "JobRun",
     "MTTrainingData",
     "MTMatchMemory",
+    "ATSJob",
+    "ATSJobPriority",
+    "ATSJobStatus",
+    "ATSPipelineEntry",
+    "PipelineStage",
+    "ATSCallNote",
+    "CallType",
+    "ATSTodo",
+    "TodoStatus",
+    "TodoPriority",
+    "ATSActivity",
+    "ActivityType",
+    "ATSEmailTemplate",
 ]

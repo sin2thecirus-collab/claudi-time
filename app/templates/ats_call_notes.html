@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+
+{% block title %}Anruf-Notizen - ATS Pulspoint{% endblock %}
+
+{% block content %}
+<div x-data="{ showNewCallModal: false }">
+
+    {# -- Header -- #}
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Anruf-Notizen</h1>
+            <p class="text-sm text-gray-500 mt-1">Telefonate und Gespraeche dokumentieren</p>
+        </div>
+        <button @click="showNewCallModal = true"
+                class="inline-flex items-center rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 transition-colors">
+            <svg class="-ml-0.5 mr-1.5 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
+            </svg>
+            Neuer Anruf
+        </button>
+    </div>
+
+    {# -- Filter -- #}
+    <div class="flex flex-col sm:flex-row gap-3 mb-6">
+        <select name="call_type"
+                hx-get="/ats/anrufe"
+                hx-trigger="change"
+                hx-target="#call-notes-container"
+                hx-select="#call-notes-container"
+                hx-swap="outerHTML"
+                hx-push-url="true"
+                class="px-4 py-3 border border-gray-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-primary-500">
+            <option value="">Alle Anruftypen</option>
+            <option value="acquisition" {% if filters.call_type == 'acquisition' %}selected{% endif %}>Akquise</option>
+            <option value="qualification" {% if filters.call_type == 'qualification' %}selected{% endif %}>Qualifizierung</option>
+            <option value="followup" {% if filters.call_type == 'followup' %}selected{% endif %}>Follow-up</option>
+            <option value="candidate_call" {% if filters.call_type == 'candidate_call' %}selected{% endif %}>Kandidatengespraech</option>
+        </select>
+    </div>
+
+    {# -- Notizen-Liste -- #}
+    <div id="call-notes-container" class="space-y-3">
+        {% if notes %}
+            {% for note in notes %}
+            <div class="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-sm transition-shadow">
+                <div class="flex items-start justify-between gap-4">
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center gap-2 mb-2">
+                            {# Call Type Badge #}
+                            {% if note.call_type == 'acquisition' %}
+                            <span class="inline-flex items-center rounded-full bg-purple-50 px-2.5 py-0.5 text-xs font-medium text-purple-700 ring-1 ring-purple-600/20">Akquise</span>
+                            {% elif note.call_type == 'qualification' %}
+                            <span class="inline-flex items-center rounded-full bg-primary-50 px-2.5 py-0.5 text-xs font-medium text-primary-700 ring-1 ring-primary-600/20">Qualifizierung</span>
+                            {% elif note.call_type == 'followup' %}
+                            <span class="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-amber-600/20">Follow-up</span>
+                            {% elif note.call_type == 'candidate_call' %}
+                            <span class="inline-flex items-center rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-700 ring-1 ring-green-600/20">Kandidatengespraech</span>
+                            {% else %}
+                            <span class="inline-flex items-center rounded-full bg-gray-50 px-2.5 py-0.5 text-xs font-medium text-gray-600 ring-1 ring-gray-500/20">{{ note.call_type }}</span>
+                            {% endif %}
+
+                            {% if note.duration_minutes %}
+                            <span class="text-xs text-gray-400">
+                                <svg class="inline w-3 h-3 mr-0.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                {{ note.duration_minutes }} Min.
+                            </span>
+                            {% endif %}
+
+                            <span class="text-xs text-gray-400">{{ note.called_at.strftime('%d.%m.%Y %H:%M') if note.called_at else '' }}</span>
+                        </div>
+
+                        {# Summary #}
+                        <p class="text-sm text-gray-900">{{ note.summary }}</p>
+
+                        {# Related entities #}
+                        <div class="flex items-center gap-3 mt-2 flex-wrap">
+                            {% if note.company_name %}
+                            <span class="inline-flex items-center gap-1 text-xs text-gray-500">
+                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5M3.75 3v18h16.5V3H3.75z" />
+                                </svg>
+                                {{ note.company_name }}
+                            </span>
+                            {% endif %}
+                            {% if note.candidate_name %}
+                            <span class="inline-flex items-center gap-1 text-xs text-gray-500">
+                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                                </svg>
+                                {{ note.candidate_name }}
+                            </span>
+                            {% endif %}
+                            {% if note.contact_name %}
+                            <span class="inline-flex items-center gap-1 text-xs text-gray-500">
+                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                                {{ note.contact_name }}
+                            </span>
+                            {% endif %}
+                        </div>
+
+                        {# Action Items #}
+                        {% if note.action_items %}
+                        <div class="mt-3 pt-3 border-t border-gray-100">
+                            <div class="flex items-center justify-between">
+                                <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+                                    Action Items ({{ note.action_items | length }})
+                                </p>
+                                <button hx-post="/api/ats/calls/{{ note.id }}/generate-todos"
+                                        hx-swap="none"
+                                        hx-on::after-request="if(event.detail.successful){ showToast('Todos erstellt', 'success'); }"
+                                        class="text-xs text-primary-600 hover:text-primary-500 font-medium">
+                                    Todos generieren
+                                </button>
+                            </div>
+                            <ul class="space-y-1 mt-1">
+                                {% for item in note.action_items %}
+                                <li class="flex items-start gap-2 text-xs text-gray-600">
+                                    <svg class="w-3 h-3 mt-0.5 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                                    </svg>
+                                    {{ item }}
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="bg-white rounded-xl border border-gray-200 px-6 py-12 text-center">
+                <svg class="mx-auto h-10 w-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
+                </svg>
+                <p class="mt-2 text-sm text-gray-500">Keine Anruf-Notizen vorhanden</p>
+                <button @click="showNewCallModal = true"
+                        class="mt-3 text-sm text-primary-600 hover:text-primary-500 font-medium">
+                    Ersten Anruf dokumentieren
+                </button>
+            </div>
+        {% endif %}
+
+        {# -- Pagination -- #}
+        {% if pages > 1 %}
+        <div class="flex items-center justify-between mt-4">
+            <p class="text-sm text-gray-500">{{ total }} Notizen gesamt</p>
+            <div class="flex items-center gap-1">
+                {% if page > 1 %}
+                <a href="/ats/anrufe?page={{ page - 1 }}{% if filters.call_type %}&call_type={{ filters.call_type }}{% endif %}"
+                   class="px-3 py-1.5 text-sm text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Zurueck</a>
+                {% endif %}
+                {% for p in range(1, pages + 1) %}
+                    {% if p == page %}
+                    <span class="px-3 py-1.5 text-sm font-medium text-white bg-primary-600 rounded-lg">{{ p }}</span>
+                    {% elif p == 1 or p == pages or (p >= page - 2 and p <= page + 2) %}
+                    <a href="/ats/anrufe?page={{ p }}{% if filters.call_type %}&call_type={{ filters.call_type }}{% endif %}"
+                       class="px-3 py-1.5 text-sm text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">{{ p }}</a>
+                    {% elif p == page - 3 or p == page + 3 %}
+                    <span class="px-2 text-gray-400">...</span>
+                    {% endif %}
+                {% endfor %}
+                {% if page < pages %}
+                <a href="/ats/anrufe?page={{ page + 1 }}{% if filters.call_type %}&call_type={{ filters.call_type }}{% endif %}"
+                   class="px-3 py-1.5 text-sm text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Weiter</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    {# -- Neuer Anruf Modal -- #}
+    <div x-show="showNewCallModal"
+         x-cloak
+         class="fixed inset-0 z-50"
+         @keydown.escape.window="showNewCallModal = false">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75" @click="showNewCallModal = false"></div>
+        <div class="fixed inset-0 z-10 overflow-y-auto">
+            <div class="flex min-h-full items-center justify-center p-4">
+                <div @click.stop
+                     x-show="showNewCallModal"
+                     x-transition:enter="transition ease-out duration-200"
+                     x-transition:enter-start="opacity-0 scale-95"
+                     x-transition:enter-end="opacity-100 scale-100"
+                     x-transition:leave="transition ease-in duration-150"
+                     x-transition:leave-start="opacity-100 scale-100"
+                     x-transition:leave-end="opacity-0 scale-95"
+                     class="relative w-full max-w-lg bg-white rounded-xl shadow-xl">
+
+                    {# Modal Header #}
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-lg font-semibold text-gray-900">Neuer Anruf</h3>
+                            <button @click="showNewCallModal = false" class="text-gray-400 hover:text-gray-500">
+                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    {# Modal Body #}
+                    <form hx-post="/api/ats/calls"
+                          hx-target="#call-notes-container"
+                          hx-swap="innerHTML"
+                          hx-on::after-request="if(event.detail.successful){ showNewCallModal = false; showToast('Anruf dokumentiert', 'success'); }"
+                          class="px-6 py-4 space-y-4">
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Anruftyp *</label>
+                            <select name="call_type" required
+                                    class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500">
+                                <option value="">-- Waehlen --</option>
+                                <option value="acquisition">Akquise</option>
+                                <option value="qualification">Qualifizierung</option>
+                                <option value="followup">Follow-up</option>
+                                <option value="candidate_call">Kandidatengespraech</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Zusammenfassung *</label>
+                            <textarea name="summary" rows="3" required
+                                      class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                      placeholder="Kurze Zusammenfassung des Gespraechs..."></textarea>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Unternehmen</label>
+                            <input type="text" name="company_search" id="call-company-search"
+                                   class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                   placeholder="Unternehmen suchen..."
+                                   hx-get="/api/companies/search"
+                                   hx-trigger="keyup changed delay:300ms"
+                                   hx-target="#call-company-results"
+                                   hx-swap="innerHTML"
+                                   autocomplete="off">
+                            <input type="hidden" name="company_id" id="call-selected-company-id">
+                            <div id="call-company-results" class="mt-1"></div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Notizen</label>
+                            <textarea name="raw_notes" rows="4"
+                                      class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                      placeholder="Ausfuehrliche Notizen zum Gespraech..."></textarea>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Action Items</label>
+                            <input type="text" name="action_items"
+                                   class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                   placeholder="Komma-getrennt: Angebot senden, Termin planen, ...">
+                            <p class="text-xs text-gray-400 mt-1">Mehrere Items mit Komma trennen</p>
+                        </div>
+
+                        {# Modal Footer #}
+                        <div class="flex justify-end gap-3 pt-2">
+                            <button type="button" @click="showNewCallModal = false"
+                                    class="px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+                                Abbrechen
+                            </button>
+                            <button type="submit"
+                                    class="px-4 py-2.5 text-sm font-semibold text-white bg-primary-600 rounded-lg hover:bg-primary-500 shadow-sm">
+                                Anruf speichern
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function selectCallCompany(id, name) {
+    document.getElementById('call-selected-company-id').value = id;
+    document.getElementById('call-company-search').value = name;
+    document.getElementById('call-company-results').innerHTML = '';
+}
+</script>
+{% endblock %}
