@@ -353,7 +353,7 @@
                                  @dragover.prevent="dragging = true"
                                  @dragenter.prevent="dragging = true"
                                  @dragleave.prevent="dragging = false"
-                                 @drop.prevent="handleDrop($event)"
+                                 @drop.prevent="handleDrop($event)">
                                 <input type="file" id="ac-pdf-input" accept=".pdf" class="hidden" @change="uploadPdf($event)">
                                 <label for="ac-pdf-input" class="cursor-pointer">
                                     <svg class="w-8 h-8 text-gray-400 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
