@@ -232,6 +232,20 @@
                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500">{{ company.notes or '' }}</textarea>
             </div>
 
+            {# -- ATS-Stellen Card -- #}
+            <div class="bg-white rounded-xl border border-gray-200 p-6">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-sm font-semibold text-gray-900">ATS-Stellen ({{ ats_job_count }})</h3>
+                    <a href="/ats/stellen" class="text-xs text-primary-600 hover:text-primary-500 font-medium">Alle anzeigen</a>
+                </div>
+                <div id="company-ats-jobs"
+                     hx-get="/partials/company-ats-jobs/{{ company.id }}"
+                     hx-trigger="load"
+                     hx-swap="innerHTML">
+                    <p class="text-sm text-gray-400 animate-skeleton">Lade ATS-Stellen...</p>
+                </div>
+            </div>
+
             {# -- Zugehoerige Jobs Card -- #}
             <div class="bg-white rounded-xl border border-gray-200 p-6">
                 <h3 class="text-sm font-semibold text-gray-900 mb-3">Zugehoerige Jobs ({{ job_count }})</h3>

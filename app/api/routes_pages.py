@@ -145,8 +145,9 @@ async def company_detail(
     if not company:
         raise HTTPException(status_code=404, detail="Unternehmen nicht gefunden")
 
-    # Job-Count laden
+    # Job-Count laden (normale Jobs)
     from app.models.job import Job
+    from app.models.ats_job import ATSJob
     from sqlalchemy import func, select
     job_count_result = await db.execute(
         select(func.count(Job.id)).where(
@@ -156,12 +157,19 @@ async def company_detail(
     )
     job_count = job_count_result.scalar() or 0
 
+    # ATS-Jobs Count laden
+    ats_job_count_result = await db.execute(
+        select(func.count(ATSJob.id)).where(ATSJob.company_id == company_id)
+    )
+    ats_job_count = ats_job_count_result.scalar() or 0
+
     return templates.TemplateResponse(
         "company_detail.html",
         {
             "request": request,
             "company": company,
             "job_count": job_count,
+            "ats_job_count": ats_job_count,
         }
     )
 
@@ -612,6 +620,36 @@ async def company_jobs_partial(
     )
 
 
+@router.get("/partials/company-ats-jobs/{company_id}", response_class=HTMLResponse)
+async def company_ats_jobs_partial(
+    request: Request,
+    company_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Partial: ATS-Stellen eines Unternehmens fuer HTMX."""
+    from app.models.ats_job import ATSJob
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
+    result = await db.execute(
+        select(ATSJob)
+        .options(selectinload(ATSJob.pipeline_entries))
+        .where(ATSJob.company_id == company_id)
+        .order_by(ATSJob.created_at.desc())
+        .limit(50)
+    )
+    ats_jobs = result.scalars().all()
+
+    return templates.TemplateResponse(
+        "partials/company_ats_jobs.html",
+        {
+            "request": request,
+            "ats_jobs": ats_jobs,
+            "company_id": str(company_id),
+        }
+    )
+
+
 @router.get("/partials/candidate-jobs/{candidate_id}", response_class=HTMLResponse)
 async def candidate_matching_jobs_partial(
     request: Request,
@@ -639,6 +677,40 @@ async def candidate_matching_jobs_partial(
             "request": request,
             "jobs": jobs,
             "total": total,
+            "candidate_id": str(candidate_id),
+        }
+    )
+
+
+@router.get("/partials/candidate-pipeline/{candidate_id}", response_class=HTMLResponse)
+async def candidate_pipeline_partial(
+    request: Request,
+    candidate_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Partial: Pipeline-Status eines Kandidaten bei allen Jobs (HTMX)."""
+    from app.models.ats_pipeline import ATSPipelineEntry, PIPELINE_STAGE_LABELS
+    from app.models.ats_job import ATSJob
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
+    # Hole alle Pipeline-Entries fuer diesen Kandidaten
+    result = await db.execute(
+        select(ATSPipelineEntry)
+        .options(
+            selectinload(ATSPipelineEntry.job).selectinload(ATSJob.company)
+        )
+        .where(ATSPipelineEntry.candidate_id == candidate_id)
+        .order_by(ATSPipelineEntry.updated_at.desc())
+    )
+    pipeline_entries = result.scalars().all()
+
+    return templates.TemplateResponse(
+        "partials/candidate_pipeline.html",
+        {
+            "request": request,
+            "pipeline_entries": pipeline_entries,
+            "stage_labels": PIPELINE_STAGE_LABELS,
             "candidate_id": str(candidate_id),
         }
     )
