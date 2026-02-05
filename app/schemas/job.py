@@ -33,8 +33,9 @@ class JobBase(BaseModel):
 
 
 class JobCreate(JobBase):
-    """Schema für Job-Erstellung (CSV-Import)."""
+    """Schema für Job-Erstellung (CSV-Import und manuell)."""
 
+    company_id: UUID | None = Field(default=None, description="Verknüpftes Unternehmen")
     expires_at: datetime | None = Field(default=None, description="Ablaufdatum")
 
     @field_validator("company_name", "position", mode="before")

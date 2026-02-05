@@ -48,10 +48,20 @@ class JobService:
         Returns:
             Erstellter Job
         """
-        job = Job(**data.model_dump(exclude_unset=True))
+        import hashlib
+
+        job_data = data.model_dump(exclude_unset=True)
+
+        # Content-Hash generieren fuer Duplikaterkennung (falls nicht vorhanden)
+        if "content_hash" not in job_data or not job_data.get("content_hash"):
+            company_name = job_data.get("company_name", "").lower().strip()
+            position = job_data.get("position", "").lower().strip()
+            hash_input = f"manual|{company_name}|{position}|{datetime.now(timezone.utc).isoformat()}"
+            job_data["content_hash"] = hashlib.sha256(hash_input.encode()).hexdigest()
+
+        job = Job(**job_data)
         self.db.add(job)
-        await self.db.commit()
-        await self.db.refresh(job)
+        await self.db.flush()
 
         logger.info(f"Job erstellt: {job.id} - {job.company_name} / {job.position}")
         return job

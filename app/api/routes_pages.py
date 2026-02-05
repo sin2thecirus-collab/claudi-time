@@ -725,6 +725,15 @@ async def import_dialog_partial(request: Request):
     )
 
 
+@router.get("/partials/job-add-dialog", response_class=HTMLResponse)
+async def job_add_dialog_partial(request: Request):
+    """Partial: Job-Hinzufuegen-Dialog fuer Modal."""
+    return templates.TemplateResponse(
+        "components/job_add_dialog.html",
+        {"request": request}
+    )
+
+
 @router.get("/api/health", response_class=HTMLResponse)
 async def health_indicator_partial(request: Request):
     """Partial: Health-Indikator fuer Navigation."""

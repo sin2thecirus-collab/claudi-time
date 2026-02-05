@@ -173,6 +173,42 @@ async def cancel_import(
 
 # ==================== CRUD ====================
 
+
+@router.post(
+    "",
+    status_code=status.HTTP_201_CREATED,
+    summary="Job manuell erstellen",
+    description="Erstellt einen neuen Job manuell (nicht via CSV-Import)",
+)
+@rate_limit(RateLimitTier.WRITE)
+async def create_job(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Erstellt einen neuen Job manuell.
+
+    Das Unternehmen kann ueber company_id mit einem bestehenden Unternehmen
+    verknuepft werden. Bei Auswahl eines Unternehmens werden Adressdaten
+    automatisch uebernommen.
+    """
+    from app.schemas.job import JobCreate
+
+    body = await request.json()
+    data = JobCreate(**body)
+
+    job_service = JobService(db)
+    job = await job_service.create_job(data)
+    await db.commit()
+
+    return {
+        "id": str(job.id),
+        "message": "Job erstellt",
+        "position": job.position,
+        "company_name": job.company_name,
+    }
+
+
 @router.get(
     "",
     response_model=JobListResponse,
