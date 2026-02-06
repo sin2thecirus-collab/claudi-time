@@ -160,8 +160,6 @@ class JobService:
         """
         Soft-Delete eines Jobs.
 
-        CASCADING: Loescht auch alle zugehoerigen ATSJobs aus der Interview-Pipeline.
-
         Args:
             job_id: Job-ID
 
@@ -170,28 +168,9 @@ class JobService:
         """
         job = await self.get_job(job_id)
         job.deleted_at = datetime.now(timezone.utc)
-
-        # CASCADING DELETE: ATSJobs mit diesem source_job_id auch loeschen
-        # Hinweis: source_job_id Spalte wird erst nach Migration 011 verfuegbar sein
-        ats_deleted_count = 0
-        try:
-            from sqlalchemy import text
-            ats_delete_result = await self.db.execute(
-                text("DELETE FROM ats_jobs WHERE source_job_id = :job_id"),
-                {"job_id": job_id}
-            )
-            ats_deleted_count = ats_delete_result.rowcount
-        except Exception as e:
-            # Spalte existiert noch nicht - das ist OK
-            pass
-
         await self.db.commit()
 
-        if ats_deleted_count > 0:
-            logger.info(f"Job soft-deleted: {job_id} (+ {ats_deleted_count} ATSJobs entfernt)")
-        else:
-            logger.info(f"Job soft-deleted: {job_id}")
-
+        logger.info(f"Job soft-deleted: {job_id}")
         return job
 
     async def restore_job(self, job_id: UUID) -> Job:
@@ -214,8 +193,6 @@ class JobService:
     async def batch_delete(self, job_ids: list[UUID]) -> int:
         """
         Soft-Delete mehrerer Jobs.
-
-        CASCADING: Loescht auch alle zugehoerigen ATSJobs aus der Interview-Pipeline.
 
         Args:
             job_ids: Liste der Job-IDs (max. 100)
@@ -240,30 +217,9 @@ class JobService:
         for job in jobs:
             job.deleted_at = now
 
-        # CASCADING DELETE: ATSJobs mit diesen source_job_ids auch loeschen
-        # Hinweis: source_job_id Spalte wird erst nach Migration 011 verfuegbar sein
-        ats_deleted_count = 0
-        try:
-            from sqlalchemy import text
-            # Raw SQL da source_job_id evtl. noch nicht im Model ist
-            placeholders = ", ".join([f":id_{i}" for i in range(len(job_ids))])
-            params = {f"id_{i}": str(jid) for i, jid in enumerate(job_ids)}
-            ats_delete_result = await self.db.execute(
-                text(f"DELETE FROM ats_jobs WHERE source_job_id IN ({placeholders})"),
-                params
-            )
-            ats_deleted_count = ats_delete_result.rowcount
-        except Exception as e:
-            # Spalte existiert noch nicht - das ist OK
-            pass
-
         await self.db.commit()
 
-        if ats_deleted_count > 0:
-            logger.info(f"Batch-Delete: {len(jobs)} Jobs gelöscht (+ {ats_deleted_count} ATSJobs entfernt)")
-        else:
-            logger.info(f"Batch-Delete: {len(jobs)} Jobs gelöscht")
-
+        logger.info(f"Batch-Delete: {len(jobs)} Jobs gelöscht")
         return len(jobs)
 
     async def permanently_delete_job(self, job_id: UUID) -> bool:
