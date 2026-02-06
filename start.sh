@@ -1,6 +1,6 @@
 #!/bin/sh
 # Railway Startup Script
-# Build: 2026-02-06-v9 - Healthcheck timeout 300s
+# Build: 2026-02-06-v7 - Migration 011 source_job_id + deleted_at
 
 echo "Starting Railway deployment..."
 echo "Running alembic migrations..."

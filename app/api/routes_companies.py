@@ -8,7 +8,6 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
-from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -87,52 +86,6 @@ async def company_stats(db: AsyncSession = Depends(get_db)):
     """Gibt Unternehmens-Statistiken zurueck."""
     service = CompanyService(db)
     return await service.get_stats()
-
-
-# ── Unternehmens-Suche (fuer Autocomplete) ─────────────
-# WICHTIG: Muss VOR /{company_id} stehen!
-
-@router.get("/search", response_class=HTMLResponse)
-async def search_companies_quick(
-    q: str = Query(..., min_length=1, description="Suchbegriff (Name)"),
-    limit: int = Query(default=10, ge=1, le=50),
-    db: AsyncSession = Depends(get_db),
-):
-    """
-    Schnelle Unternehmenssuche fuer Autocomplete/Dropdown.
-
-    Gibt HTML fuer Dropdown zurueck (HTMX-kompatibel).
-    Wird z.B. beim Erstellen von ATS-Stellen verwendet.
-    """
-    from sqlalchemy import select
-    from app.models.company import Company
-
-    search_term = f"%{q}%"
-
-    result = await db.execute(
-        select(Company)
-        .where(Company.name.ilike(search_term))
-        .order_by(Company.name)
-        .limit(limit)
-    )
-    companies = result.scalars().all()
-
-    # HTML fuer Dropdown zurueckgeben (HTMX-kompatibel)
-    if not companies:
-        return "<div class='p-2 text-sm text-gray-500'>Keine Unternehmen gefunden</div>"
-
-    html_parts = []
-    for c in companies:
-        # Escape single quotes in company name for JavaScript
-        safe_name = c.name.replace("'", "\\'").replace('"', '&quot;')
-        html_parts.append(
-            f'<div class="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm" '
-            f"onclick=\"selectCompany('{c.id}', '{safe_name}')\">"
-            f'<span class="font-medium">{c.name}</span>'
-            f'{f"<span class=\'text-gray-400 ml-2\'>{c.city}</span>" if c.city else ""}'
-            f'</div>'
-        )
-    return '<div class="border border-gray-200 rounded-lg shadow-sm bg-white max-h-48 overflow-y-auto">' + ''.join(html_parts) + '</div>'
 
 
 @router.get("/{company_id}")
