@@ -98,9 +98,9 @@
                          @dragover.prevent="$el.classList.add('bg-primary-50', 'ring-2', 'ring-inset', 'ring-primary-300')"
                          @dragleave="$el.classList.remove('bg-primary-50', 'ring-2', 'ring-inset', 'ring-primary-300')"
                          @drop="handleDrop($event, '{{ stage }}', '{{ job.id }}')">
-                        {# Kandidaten als kompakte Avatare #}
+                        {# Kandidaten als Avatare mit Namen #}
                         {% if stage_entries %}
-                        <div class="flex flex-wrap gap-1 justify-center">
+                        <div class="flex flex-col gap-1.5 w-full">
                             {% for entry in stage_entries %}
                             {% set candidate = entry.candidate %}
                             {% if candidate %}
@@ -112,17 +112,20 @@
                                  @dragstart="handleDragStart($event, '{{ entry.id }}', '{{ candidate.id }}', '{{ candidate.first_name }} {{ candidate.last_name }}')"
                                  @dragend="handleDragEnd($event)">
                                 <a href="/kandidaten/{{ candidate.id }}"
-                                   class="block w-9 h-9 rounded-full {{ stage_bg_colors.get(stage, 'bg-gray-500') }} flex items-center justify-center text-white text-xs font-bold shadow-sm hover:shadow-md hover:scale-110 cursor-grab active:cursor-grabbing transition-all duration-150"
+                                   class="flex items-center gap-1.5 px-1.5 py-1 rounded-lg hover:bg-gray-50 cursor-grab active:cursor-grabbing transition-colors"
                                    title="{{ candidate.first_name }} {{ candidate.last_name }}"
                                    @click.stop>
-                                    {{ (candidate.first_name or 'U')[0] | upper }}{{ (candidate.last_name or '')[0] | upper }}
+                                    <div class="w-7 h-7 rounded-full {{ stage_bg_colors.get(stage, 'bg-gray-500') }} flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">
+                                        {{ (candidate.first_name or 'U')[0] | upper }}{{ (candidate.last_name or '')[0] | upper }}
+                                    </div>
+                                    <span class="text-xs font-medium text-gray-700 truncate">{{ candidate.first_name }} {{ candidate.last_name }}</span>
                                 </a>
                             </div>
                             {% endif %}
                             {% endfor %}
                         </div>
                         {% else %}
-                        <span class="text-gray-200">—</span>
+                        <span class="text-gray-300 text-xs">—</span>
                         {% endif %}
                     </div>
                     {% endfor %}
