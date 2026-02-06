@@ -93,12 +93,16 @@ async def company_stats(db: AsyncSession = Depends(get_db)):
 
 @router.get("/search", response_class=HTMLResponse)
 async def search_companies_quick(
-    q: str = Query(..., min_length=1),
+    q: str = Query(default=""),
     limit: int = Query(default=10, ge=1, le=50),
     db: AsyncSession = Depends(get_db),
 ):
     """Schnelle Unternehmenssuche fuer Autocomplete."""
-    search_term = f"%{q}%"
+    # Bei leerem oder zu kurzem Suchbegriff: nichts anzeigen
+    if not q or len(q.strip()) < 1:
+        return HTMLResponse("")
+
+    search_term = f"%{q.strip()}%"
     result = await db.execute(
         select(Company)
         .where(Company.name.ilike(search_term))
