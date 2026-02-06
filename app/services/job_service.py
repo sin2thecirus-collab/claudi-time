@@ -441,11 +441,19 @@ class JobService:
 
         jobs_data = []
         for job in jobs:
+            # Company als Dict fuer JSON-Serialisierung
+            company_data = None
+            if job.company:
+                company_data = {
+                    "id": job.company.id,
+                    "name": job.company.name,
+                    "domain": job.company.domain,
+                }
             job_dict = {
                 "id": job.id,
                 "company_name": job.company_name,
                 "company_id": job.company_id,
-                "company": job.company,  # Company-Objekt fuer Domain-Anzeige
+                "company": company_data,
                 "position": job.position,
                 "street_address": job.street_address,
                 "postal_code": job.postal_code,
