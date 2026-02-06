@@ -106,27 +106,36 @@
                     {% for stage in visible_stages %}
                     {% set stage_entries = entries_by_stage.get(stage, []) %}
                     {% set stage_colors = {
-                        'sent': 'bg-indigo-500',
-                        'interview_1': 'bg-purple-500',
-                        'interview_2': 'bg-purple-500',
-                        'interview_3': 'bg-purple-500',
-                        'offer': 'bg-emerald-500',
-                        'placed': 'bg-green-500',
-                        'rejected': 'bg-red-400'
+                        'sent': 'from-indigo-400 to-indigo-600',
+                        'interview_1': 'from-purple-400 to-purple-600',
+                        'interview_2': 'from-purple-500 to-purple-700',
+                        'interview_3': 'from-purple-600 to-purple-800',
+                        'offer': 'from-emerald-400 to-emerald-600',
+                        'placed': 'from-green-400 to-green-600',
+                        'rejected': 'from-red-300 to-red-500'
+                    } %}
+                    {% set stage_ring_colors = {
+                        'sent': 'ring-indigo-200',
+                        'interview_1': 'ring-purple-200',
+                        'interview_2': 'ring-purple-200',
+                        'interview_3': 'ring-purple-200',
+                        'offer': 'ring-emerald-200',
+                        'placed': 'ring-green-200',
+                        'rejected': 'ring-red-200'
                     } %}
 
-                    <div class="col-span-1 px-1 py-1 border-r border-gray-100 last:border-r-0 pipeline-cell pipeline-dropzone"
+                    <div class="col-span-1 px-1 py-2 border-r border-gray-100 last:border-r-0 pipeline-cell pipeline-dropzone"
                          data-stage="{{ stage }}"
                          data-job-id="{{ job.id }}"
                          @dragover.prevent="$el.classList.add('bg-primary-50', 'ring-2', 'ring-primary-300')"
                          @dragleave="$el.classList.remove('bg-primary-50', 'ring-2', 'ring-primary-300')"
                          @drop="handleDrop($event, '{{ stage }}', '{{ job.id }}')">
-                        <div class="pipeline-candidates flex flex-col gap-1 min-h-[32px]">
-                            {# Kandidaten direkt als Badges mit vollem Namen - DRAGGABLE #}
+                        <div class="pipeline-candidates flex flex-col gap-2 min-h-[40px]">
+                            {# Kandidaten als Avatare mit Namen - Slack/Teams Style #}
                             {% for entry in stage_entries %}
                             {% set candidate = entry.candidate %}
                             {% if candidate %}
-                            <div class="pipeline-avatar"
+                            <div class="pipeline-avatar group"
                                  draggable="true"
                                  data-entry-id="{{ entry.id }}"
                                  data-candidate-id="{{ candidate.id }}"
@@ -134,17 +143,24 @@
                                  @dragstart="handleDragStart($event, '{{ entry.id }}', '{{ candidate.id }}', '{{ candidate.first_name }} {{ candidate.last_name }}')"
                                  @dragend="handleDragEnd($event)">
                                 <a href="/kandidaten/{{ candidate.id }}"
-                                   class="flex items-center gap-1 px-2 py-1 rounded {{ stage_colors.get(stage, 'bg-gray-400') }} text-white text-xl font-medium cursor-grab active:cursor-grabbing hover:opacity-90 transition-all"
+                                   class="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-white border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 cursor-grab active:cursor-grabbing transition-all duration-200"
                                    title="{{ candidate.first_name }} {{ candidate.last_name }} - Ziehen zum Verschieben"
                                    @click.stop>
-                                    <span class="truncate max-w-[110px]">{{ candidate.first_name }} {{ candidate.last_name }}</span>
+                                    {# Avatar mit Gradient #}
+                                    <div class="w-7 h-7 rounded-full bg-gradient-to-br {{ stage_colors.get(stage, 'from-gray-400 to-gray-600') }} flex items-center justify-center text-white text-xs font-semibold ring-2 {{ stage_ring_colors.get(stage, 'ring-gray-200') }} ring-offset-1 flex-shrink-0">
+                                        {{ (candidate.first_name or 'U')[0] | upper }}{{ (candidate.last_name or '')[0] | upper }}
+                                    </div>
+                                    {# Name #}
+                                    <span class="text-sm font-medium text-gray-700 group-hover:text-gray-900 truncate max-w-[80px]">{{ candidate.first_name }}</span>
                                 </a>
                             </div>
                             {% endif %}
                             {% endfor %}
                             {# Leere Dropzone wenn keine Kandidaten #}
                             {% if not stage_entries %}
-                            <div class="h-6 border border-dashed border-gray-200 rounded opacity-40"></div>
+                            <div class="h-10 border-2 border-dashed border-gray-100 rounded-lg flex items-center justify-center">
+                                <span class="text-[10px] text-gray-300">Drop</span>
+                            </div>
                             {% endif %}
                         </div>
                     </div>
@@ -191,26 +207,26 @@
     </div>
 
     {# -- Legende -- #}
-    <div class="mt-6 flex items-center justify-center gap-6">
-        <div class="flex items-center gap-2">
-            <div class="w-4 h-4 rounded-full bg-indigo-500"></div>
-            <span class="text-xs text-gray-500">Vorgestellt</span>
+    <div class="mt-6 flex items-center justify-center gap-4 flex-wrap">
+        <div class="flex items-center gap-2 px-3 py-1.5 bg-white rounded-full border border-gray-100 shadow-sm">
+            <div class="w-5 h-5 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 ring-2 ring-indigo-200 ring-offset-1"></div>
+            <span class="text-sm text-gray-600 font-medium">Vorgestellt</span>
         </div>
-        <div class="flex items-center gap-2">
-            <div class="w-4 h-4 rounded-full bg-purple-500"></div>
-            <span class="text-xs text-gray-500">Interview</span>
+        <div class="flex items-center gap-2 px-3 py-1.5 bg-white rounded-full border border-gray-100 shadow-sm">
+            <div class="w-5 h-5 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 ring-2 ring-purple-200 ring-offset-1"></div>
+            <span class="text-sm text-gray-600 font-medium">Interview</span>
         </div>
-        <div class="flex items-center gap-2">
-            <div class="w-4 h-4 rounded-full bg-emerald-500"></div>
-            <span class="text-xs text-gray-500">Angebot</span>
+        <div class="flex items-center gap-2 px-3 py-1.5 bg-white rounded-full border border-gray-100 shadow-sm">
+            <div class="w-5 h-5 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 ring-2 ring-emerald-200 ring-offset-1"></div>
+            <span class="text-sm text-gray-600 font-medium">Angebot</span>
         </div>
-        <div class="flex items-center gap-2">
-            <div class="w-4 h-4 rounded-full bg-green-500"></div>
-            <span class="text-xs text-gray-500">Platziert</span>
+        <div class="flex items-center gap-2 px-3 py-1.5 bg-white rounded-full border border-gray-100 shadow-sm">
+            <div class="w-5 h-5 rounded-full bg-gradient-to-br from-green-400 to-green-600 ring-2 ring-green-200 ring-offset-1"></div>
+            <span class="text-sm text-gray-600 font-medium">Platziert</span>
         </div>
-        <div class="flex items-center gap-2">
-            <div class="w-4 h-4 rounded-full bg-red-400"></div>
-            <span class="text-xs text-gray-500">Verloren</span>
+        <div class="flex items-center gap-2 px-3 py-1.5 bg-white rounded-full border border-gray-100 shadow-sm">
+            <div class="w-5 h-5 rounded-full bg-gradient-to-br from-red-300 to-red-500 ring-2 ring-red-200 ring-offset-1"></div>
+            <span class="text-sm text-gray-600 font-medium">Verloren</span>
         </div>
     </div>
 
