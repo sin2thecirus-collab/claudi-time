@@ -160,6 +160,58 @@ async def list_candidates(
     )
 
 
+# ==================== Kandidaten-Suche (fuer Pipeline-Hinzufuegen) ====================
+# WICHTIG: Muss VOR /{candidate_id} stehen, sonst wird "search" als UUID interpretiert!
+
+@router.get(
+    "/search",
+    summary="Kandidaten schnell suchen (fuer Autocomplete)",
+)
+async def search_candidates_quick(
+    q: str = Query(..., min_length=2, description="Suchbegriff (Name)"),
+    limit: int = Query(default=10, ge=1, le=50),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Schnelle Kandidatensuche fuer Autocomplete/Dropdown.
+
+    Gibt nur ID, Name und Position zurueck (kompakt).
+    Wird z.B. beim Hinzufuegen von Kandidaten zur Pipeline verwendet.
+    """
+    from sqlalchemy import select, or_
+    from app.models.candidate import Candidate
+
+    search_term = f"%{q}%"
+
+    result = await db.execute(
+        select(Candidate)
+        .where(
+            Candidate.deleted_at.is_(None),
+            Candidate.hidden.is_(False),
+            or_(
+                Candidate.first_name.ilike(search_term),
+                Candidate.last_name.ilike(search_term),
+                (Candidate.first_name + " " + Candidate.last_name).ilike(search_term),
+            )
+        )
+        .order_by(Candidate.last_name, Candidate.first_name)
+        .limit(limit)
+    )
+    candidates = result.scalars().all()
+
+    return [
+        {
+            "id": str(c.id),
+            "name": f"{c.first_name or ''} {c.last_name or ''}".strip() or "Unbekannt",
+            "position": c.current_position,
+            "city": c.city,
+        }
+        for c in candidates
+    ]
+
+
+# ==================== Einzelner Kandidat ====================
+
 @router.get(
     "/{candidate_id}",
     response_model=CandidateResponse,
@@ -780,55 +832,6 @@ async def migrate_cvs_to_r2(
         "remaining": remaining,
         "message": f"{migrated} CVs nach R2 migriert, {remaining} verbleibend",
     }
-
-
-# ==================== Kandidaten-Suche (fuer Pipeline-Hinzufuegen) ====================
-
-@router.get(
-    "/search",
-    summary="Kandidaten schnell suchen (fuer Autocomplete)",
-)
-async def search_candidates_quick(
-    q: str = Query(..., min_length=2, description="Suchbegriff (Name)"),
-    limit: int = Query(default=10, ge=1, le=50),
-    db: AsyncSession = Depends(get_db),
-):
-    """
-    Schnelle Kandidatensuche fuer Autocomplete/Dropdown.
-
-    Gibt nur ID, Name und Position zurueck (kompakt).
-    Wird z.B. beim Hinzufuegen von Kandidaten zur Pipeline verwendet.
-    """
-    from sqlalchemy import select, or_
-    from app.models.candidate import Candidate
-
-    search_term = f"%{q}%"
-
-    result = await db.execute(
-        select(Candidate)
-        .where(
-            Candidate.deleted_at.is_(None),
-            Candidate.hidden.is_(False),
-            or_(
-                Candidate.first_name.ilike(search_term),
-                Candidate.last_name.ilike(search_term),
-                (Candidate.first_name + " " + Candidate.last_name).ilike(search_term),
-            )
-        )
-        .order_by(Candidate.last_name, Candidate.first_name)
-        .limit(limit)
-    )
-    candidates = result.scalars().all()
-
-    return [
-        {
-            "id": str(c.id),
-            "name": f"{c.first_name or ''} {c.last_name or ''}".strip() or "Unbekannt",
-            "position": c.current_position,
-            "city": c.city,
-        }
-        for c in candidates
-    ]
 
 
 # ==================== Hilfsfunktionen ====================
