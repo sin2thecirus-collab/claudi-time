@@ -372,7 +372,6 @@ async def list_jobs(
     status_code=status.HTTP_200_OK,
     summary="Mehrere Jobs löschen",
 )
-@rate_limit(RateLimitTier.WRITE)
 async def batch_delete_jobs(
     data: BatchDeleteRequest,
     db: AsyncSession = Depends(get_db),
@@ -382,15 +381,11 @@ async def batch_delete_jobs(
 
     Maximal 100 Jobs pro Anfrage.
     """
-    try:
-        logger.info(f"Batch delete request: {data.ids}")
-        job_service = JobService(db)
-        deleted_count = await job_service.batch_delete(data.ids)
-        logger.info(f"Batch delete success: {deleted_count} jobs deleted")
-        return {"deleted_count": deleted_count}
-    except Exception as e:
-        logger.error(f"Batch delete error: {e}", exc_info=True)
-        raise
+    logger.info(f"Batch delete request: {data.ids}")
+    job_service = JobService(db)
+    deleted_count = await job_service.batch_delete(data.ids)
+    logger.info(f"Batch delete success: {deleted_count} jobs deleted")
+    return {"deleted_count": deleted_count}
 
 
 @router.post(
