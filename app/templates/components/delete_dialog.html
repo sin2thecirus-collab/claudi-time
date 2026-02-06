@@ -27,7 +27,7 @@
     <button type="button"
             hx-{{ delete_method | lower }}="{{ delete_url }}"
             hx-swap="none"
-            hx-on::after-request="closeModal(); htmx.trigger(document.body, 'itemDeleted')"
+            hx-on::after-request="closeModal(); if(event.detail.successful) { showToast('Erfolgreich geloescht', 'success'); htmx.ajax('GET', '/partials/jobs-list?per_page=20', {target: '#jobs-content', swap: 'innerHTML'}); }"
             class="inline-flex w-full justify-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 sm:ml-3 sm:w-auto">
         Loeschen
     </button>
