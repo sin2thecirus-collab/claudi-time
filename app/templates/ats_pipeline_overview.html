@@ -101,7 +101,17 @@
         } %}
 
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            {# Header Row - saubere farbige Zellen #}
+            {# Header Row 1 - Position und Aktionen #}
+            <div class="grid grid-cols-12 border-b border-gray-100 bg-gray-50">
+                <div class="col-span-3 px-5 py-2">
+                    <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Position</span>
+                </div>
+                <div class="col-span-7"></div>
+                <div class="col-span-2 px-5 py-2 text-right">
+                    <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Aktionen</span>
+                </div>
+            </div>
+            {# Header Row 2 - Farbige Stage-Tabs #}
             {% set header_colors = {
                 'sent': {'bg': '#fce4e8', 'text': '#9b2c3d'},
                 'interview_1': {'bg': '#f9d5dc', 'text': '#9b2c3d'},
@@ -112,12 +122,10 @@
                 'rejected': {'bg': '#c3e6cb', 'text': '#155724'}
             } %}
             <div class="grid grid-cols-12 border-b border-gray-200">
-                <div class="col-span-3 px-5 py-2.5 bg-gray-50 flex items-center border-r border-gray-200">
-                    <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Position</span>
-                </div>
+                <div class="col-span-3"></div>
                 {% for stage in visible_stages %}
                 {% set colors = header_colors.get(stage, {'bg': '#f3f4f6', 'text': '#374151'}) %}
-                <div class="col-span-1 flex items-center justify-center text-xs font-semibold py-2.5"
+                <div class="col-span-1 flex items-center justify-center text-xs font-semibold py-2"
                      style="background-color: {{ colors.bg }}; color: {{ colors.text }};">
                     {% if stage == 'sent' %}Vorgestellt
                     {% elif stage == 'interview_1' %}IV 1
@@ -129,9 +137,7 @@
                     {% endif %}
                 </div>
                 {% endfor %}
-                <div class="col-span-2 px-5 py-2.5 bg-gray-50 flex items-center justify-end border-l border-gray-200">
-                    <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Aktionen</span>
-                </div>
+                <div class="col-span-2"></div>
             </div>
 
             {# -- Job Rows -- #}
