@@ -62,6 +62,7 @@ async def list_companies(
             "domain": company.domain,
             "city": company.city,
             "postal_code": company.postal_code,
+            "street": company.street,
             "status": company.status.value if company.status else "active",
             "employee_count": company.employee_count,
             "display_address": company.display_address,

@@ -115,11 +115,33 @@
                     </div>
                 </div>
 
-                {# Stellenbeschreibung #}
+                {# Stellenbeschreibung mit PDF Drag & Drop #}
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Stellenbeschreibung</label>
-                    <textarea id="job-text" rows="3" placeholder="Beschreibung..."
-                              class="w-full rounded-lg border border-gray-300 py-2 px-3 text-sm"></textarea>
+                    <div id="pdf-drop-zone" class="relative">
+                        <textarea id="job-text" rows="4" placeholder="Beschreibung eingeben oder PDF hier ablegen..."
+                                  class="w-full rounded-lg border border-gray-300 py-2 px-3 text-sm transition-colors"></textarea>
+                        {# Drag Overlay #}
+                        <div id="pdf-drag-overlay" class="hidden absolute inset-0 bg-primary-50 border-2 border-dashed border-primary-500 rounded-lg flex items-center justify-center">
+                            <div class="text-center">
+                                <svg class="mx-auto h-8 w-8 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                </svg>
+                                <p class="mt-1 text-sm font-medium text-primary-600">PDF hier ablegen</p>
+                            </div>
+                        </div>
+                        {# Loading Overlay #}
+                        <div id="pdf-loading-overlay" class="hidden absolute inset-0 bg-white/80 rounded-lg flex items-center justify-center">
+                            <div class="text-center">
+                                <svg class="mx-auto h-6 w-6 animate-spin text-primary-600" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                </svg>
+                                <p class="mt-1 text-sm text-gray-600">Text wird extrahiert...</p>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="mt-1 text-xs text-gray-500">PDF-Datei per Drag & Drop hineinziehen (max. 10MB)</p>
                 </div>
 
             </div>
@@ -339,5 +361,82 @@
             submitBtn.disabled = false;
         });
     });
+
+    // PDF Drag & Drop
+    var dropZone = document.getElementById('pdf-drop-zone');
+    var dragOverlay = document.getElementById('pdf-drag-overlay');
+    var loadingOverlay = document.getElementById('pdf-loading-overlay');
+    var jobTextarea = document.getElementById('job-text');
+
+    if (dropZone && dragOverlay && loadingOverlay && jobTextarea) {
+        // Prevent default drag behaviors
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(function(eventName) {
+            dropZone.addEventListener(eventName, function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            });
+        });
+
+        // Highlight drop zone when dragging over
+        ['dragenter', 'dragover'].forEach(function(eventName) {
+            dropZone.addEventListener(eventName, function() {
+                dragOverlay.classList.remove('hidden');
+            });
+        });
+
+        ['dragleave', 'drop'].forEach(function(eventName) {
+            dropZone.addEventListener(eventName, function() {
+                dragOverlay.classList.add('hidden');
+            });
+        });
+
+        // Handle dropped files
+        dropZone.addEventListener('drop', function(e) {
+            var files = e.dataTransfer.files;
+            if (files.length === 0) return;
+
+            var file = files[0];
+
+            // Check if it's a PDF
+            if (file.type !== 'application/pdf') {
+                showToast('Nur PDF-Dateien werden unterstuetzt', 'error');
+                return;
+            }
+
+            // Check file size (max 10MB)
+            if (file.size > 10 * 1024 * 1024) {
+                showToast('Datei ist zu gross (max. 10MB)', 'error');
+                return;
+            }
+
+            // Show loading
+            loadingOverlay.classList.remove('hidden');
+
+            // Upload and extract text
+            var formData = new FormData();
+            formData.append('file', file);
+
+            fetch('/api/companies/extract-job-pdf', {
+                method: 'POST',
+                body: formData
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                loadingOverlay.classList.add('hidden');
+                if (data.text) {
+                    jobTextarea.value = data.text;
+                    showToast('PDF-Text erfolgreich extrahiert', 'success');
+                } else if (data.detail) {
+                    showToast('Fehler: ' + data.detail, 'error');
+                } else {
+                    showToast('Kein Text in PDF gefunden', 'error');
+                }
+            })
+            .catch(function(e) {
+                loadingOverlay.classList.add('hidden');
+                showToast('Fehler beim Extrahieren: ' + e.message, 'error');
+            });
+        });
+    }
 })();
 </script>
