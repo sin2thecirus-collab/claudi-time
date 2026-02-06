@@ -160,17 +160,33 @@ class JobService:
         """
         Soft-Delete eines Jobs.
 
+        CASCADING: Loescht auch alle zugehoerigen ATSJobs aus der Interview-Pipeline.
+
         Args:
             job_id: Job-ID
 
         Returns:
             Gelöschter Job
         """
+        from sqlalchemy import delete
+        from app.models.ats_job import ATSJob
+
         job = await self.get_job(job_id)
         job.deleted_at = datetime.now(timezone.utc)
+
+        # CASCADING DELETE: ATSJobs mit diesem source_job_id auch loeschen
+        ats_delete_result = await self.db.execute(
+            delete(ATSJob).where(ATSJob.source_job_id == job_id)
+        )
+        ats_deleted_count = ats_delete_result.rowcount
+
         await self.db.commit()
 
-        logger.info(f"Job soft-deleted: {job_id}")
+        if ats_deleted_count > 0:
+            logger.info(f"Job soft-deleted: {job_id} (+ {ats_deleted_count} ATSJobs entfernt)")
+        else:
+            logger.info(f"Job soft-deleted: {job_id}")
+
         return job
 
     async def restore_job(self, job_id: UUID) -> Job:
@@ -194,12 +210,17 @@ class JobService:
         """
         Soft-Delete mehrerer Jobs.
 
+        CASCADING: Loescht auch alle zugehoerigen ATSJobs aus der Interview-Pipeline.
+
         Args:
             job_ids: Liste der Job-IDs (max. 100)
 
         Returns:
             Anzahl gelöschter Jobs
         """
+        from sqlalchemy import delete
+        from app.models.ats_job import ATSJob
+
         if len(job_ids) > Limits.BATCH_DELETE_MAX:
             raise ValueError(
                 f"Maximal {Limits.BATCH_DELETE_MAX} Jobs pro Batch erlaubt"
@@ -217,9 +238,19 @@ class JobService:
         for job in jobs:
             job.deleted_at = now
 
+        # CASCADING DELETE: ATSJobs mit diesen source_job_ids auch loeschen
+        ats_delete_result = await self.db.execute(
+            delete(ATSJob).where(ATSJob.source_job_id.in_(job_ids))
+        )
+        ats_deleted_count = ats_delete_result.rowcount
+
         await self.db.commit()
 
-        logger.info(f"Batch-Delete: {len(jobs)} Jobs gelöscht")
+        if ats_deleted_count > 0:
+            logger.info(f"Batch-Delete: {len(jobs)} Jobs gelöscht (+ {ats_deleted_count} ATSJobs entfernt)")
+        else:
+            logger.info(f"Batch-Delete: {len(jobs)} Jobs gelöscht")
+
         return len(jobs)
 
     async def permanently_delete_job(self, job_id: UUID) -> bool:
