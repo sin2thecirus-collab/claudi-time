@@ -68,14 +68,15 @@
     {# -- Pipeline Rows -- #}
     <div class="bg-white rounded-b-xl border border-gray-200 border-t-0 overflow-hidden">
         {% if jobs_by_company %}
+            {% set ns = namespace(row_count=0) %}
             {% for company_key, company_data in jobs_by_company.items() %}
                 {% for job_item in company_data.jobs %}
                 {% set job = job_item.job %}
                 {% set entries_by_stage = job_item.entries_by_stage %}
-                {% set row_index = loop.index0 + loop.parent.index0 %}
 
-                <div class="grid grid-cols-12 gap-0 transition-colors pipeline-row border-b-2 border-gray-200 last:border-b-0 {{ 'bg-gray-50/50' if row_index % 2 == 1 else 'bg-white' }} hover:bg-blue-50/50"
+                <div class="grid grid-cols-12 gap-0 transition-colors pipeline-row border-b-2 border-gray-200 last:border-b-0 {{ 'bg-gray-50/60' if ns.row_count % 2 == 1 else 'bg-white' }} hover:bg-blue-50/50"
                      data-job-id="{{ job.id }}">
+                {% set ns.row_count = ns.row_count + 1 %}
 
                     {# Unternehmen #}
                     <div class="col-span-2 px-4 py-3 border-r border-gray-100 flex items-center">
