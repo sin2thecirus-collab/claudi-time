@@ -157,6 +157,38 @@
                         if (file) this.uploadPdf(file);
                     },
 
+                    formatText(text) {
+                        if (!text) return '';
+
+                        // Normalize line endings
+                        let formatted = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+                        // Remove excessive whitespace within lines
+                        formatted = formatted.replace(/[ \t]+/g, ' ');
+
+                        // Fix common PDF extraction issues (split words)
+                        formatted = formatted.replace(/(\w)‐\n(\w)/g, '$1$2');
+                        formatted = formatted.replace(/(\w)-\n(\w)/g, '$1$2');
+
+                        // Remove multiple consecutive empty lines (keep max 2)
+                        formatted = formatted.replace(/\n{3,}/g, '\n\n');
+
+                        // Trim each line
+                        formatted = formatted.split('\n').map(line => line.trim()).join('\n');
+
+                        // Add extra line break before common section headers
+                        const headers = ['Aufgaben', 'Profil', 'Anforderungen', 'Wir bieten', 'Kontakt', 'Benefits', 'Qualifikationen', 'Ihre Aufgaben', 'Ihr Profil', 'Was wir bieten', 'Ueber uns', 'Über uns'];
+                        headers.forEach(h => {
+                            const regex = new RegExp('\\n(' + h + '[:\\s]?)', 'gi');
+                            formatted = formatted.replace(regex, '\n\n$1');
+                        });
+
+                        // Clean up start and end
+                        formatted = formatted.trim();
+
+                        return formatted;
+                    },
+
                     async uploadPdf(file) {
                         if (file.size > 10 * 1024 * 1024) {
                             if (typeof showToast === 'function') showToast('Datei zu gross (max. 10MB)', 'error');
@@ -178,7 +210,8 @@
                             const data = await resp.json();
                             const extractedText = data.description || data.text || '';
                             if (extractedText) {
-                                document.getElementById('job-text').value = extractedText;
+                                const cleanText = this.formatText(extractedText);
+                                document.getElementById('job-text').value = cleanText;
                                 this.pdfSuccess = true;
                                 if (typeof showToast === 'function') showToast('PDF erfolgreich importiert', 'success');
                             } else {
