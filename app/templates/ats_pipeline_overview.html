@@ -84,7 +84,7 @@
                             <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
                                 {{ company_data.company_name[:2] | upper }}
                             </div>
-                            <span class="text-sm font-medium text-gray-900 truncate">{{ company_data.company_name }}</span>
+                            <span class="text-lg font-medium text-gray-900 truncate">{{ company_data.company_name }}</span>
                         </a>
                         {% else %}
                         <span class="text-sm text-gray-400 italic">Ohne Unternehmen</span>
@@ -95,9 +95,9 @@
                     <div class="col-span-2 px-4 py-3 border-r border-gray-100 flex items-center">
                         <a href="/ats/stellen/{{ job.id }}"
                            class="min-w-0 hover:text-primary-600">
-                            <p class="text-sm font-medium text-gray-900 truncate">{{ job.title }}</p>
+                            <p class="text-lg font-medium text-gray-900 truncate">{{ job.title }}</p>
                             {% if job.location_city %}
-                            <p class="text-xs text-gray-500 truncate">{{ job.location_city }}</p>
+                            <p class="text-sm text-gray-500 truncate">{{ job.location_city }}</p>
                             {% endif %}
                         </a>
                     </div>
@@ -134,7 +134,7 @@
                                  @dragstart="handleDragStart($event, '{{ entry.id }}', '{{ candidate.id }}', '{{ candidate.first_name }} {{ candidate.last_name }}')"
                                  @dragend="handleDragEnd($event)">
                                 <a href="/kandidaten/{{ candidate.id }}"
-                                   class="flex items-center gap-1 px-2 py-1 rounded {{ stage_colors.get(stage, 'bg-gray-400') }} text-white text-[15px] font-medium cursor-grab active:cursor-grabbing hover:opacity-90 transition-all"
+                                   class="flex items-center gap-1 px-2 py-1 rounded {{ stage_colors.get(stage, 'bg-gray-400') }} text-white text-xl font-medium cursor-grab active:cursor-grabbing hover:opacity-90 transition-all"
                                    title="{{ candidate.first_name }} {{ candidate.last_name }} - Ziehen zum Verschieben"
                                    @click.stop>
                                     <span class="truncate max-w-[110px]">{{ candidate.first_name }} {{ candidate.last_name }}</span>
