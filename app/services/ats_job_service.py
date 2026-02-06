@@ -23,8 +23,40 @@ class ATSJobService:
     # ── CRUD ─────────────────────────────────────────
 
     async def create_job(self, title: str, **kwargs) -> ATSJob:
-        """Erstellt eine neue ATS-Stelle."""
-        job = ATSJob(title=title.strip(), **kwargs)
+        """Erstellt eine neue ATS-Stelle und verknuepften Source-Job."""
+        # Import hier um Circular Import zu vermeiden
+        from app.models.job import Job
+
+        # Wenn keine source_job_id angegeben, erstellen wir einen neuen Job
+        source_job_id = kwargs.pop("source_job_id", None)
+
+        if not source_job_id:
+            # Company-Name fuer Job ermitteln
+            company_name = "Unbekannt"
+            company_id = kwargs.get("company_id")
+            if company_id:
+                from app.models.company import Company
+                company = await self.db.get(Company, company_id)
+                if company:
+                    company_name = company.name
+
+            # Neuen Source-Job erstellen
+            source_job = Job(
+                position=title.strip(),
+                company_name=company_name,
+                company_id=company_id,
+                city=kwargs.get("location_city"),
+                work_location_city=kwargs.get("location_city"),
+                job_text=kwargs.get("description"),
+                employment_type=kwargs.get("employment_type"),
+            )
+            self.db.add(source_job)
+            await self.db.flush()
+            source_job_id = source_job.id
+            logger.info(f"Source-Job erstellt: {source_job.id} - {source_job.position}")
+
+        # ATS-Job mit Verknuepfung erstellen
+        job = ATSJob(title=title.strip(), source_job_id=source_job_id, **kwargs)
         self.db.add(job)
         await self.db.flush()
 
@@ -38,7 +70,7 @@ class ATSJobService:
         self.db.add(activity)
         await self.db.flush()
 
-        logger.info(f"ATSJob erstellt: {job.id} - {job.title}")
+        logger.info(f"ATSJob erstellt: {job.id} - {job.title} (source_job_id: {source_job_id})")
         return job
 
     async def get_job(self, job_id: UUID) -> ATSJob | None:
