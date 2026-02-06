@@ -23,15 +23,26 @@
         {% endif %}
     </div>
 
-    {# Unternehmen #}
+    {# Unternehmen (klickbar) #}
     <div class="col-span-2 min-w-0">
+        {% if job.company_id %}
+        <a href="/unternehmen/{{ job.company_id }}"
+           class="text-sm text-primary-600 hover:text-primary-800 hover:underline truncate block">
+            {{ job.company_name }}
+        </a>
+        {% else %}
         <span class="text-sm text-gray-600 truncate block">{{ job.company_name }}</span>
+        {% endif %}
     </div>
 
-    {# Stadt #}
+    {# Vollstaendige Adresse #}
     <div class="col-span-2 min-w-0">
-        <span class="text-sm text-gray-600 truncate block">
-            {{ job.work_location_city or job.city or 'Unbekannt' }}
+        {% set addr_parts = [] %}
+        {% if job.street_address %}{% set _ = addr_parts.append(job.street_address) %}{% endif %}
+        {% if job.postal_code %}{% set _ = addr_parts.append(job.postal_code) %}{% endif %}
+        {% if job.work_location_city %}{% set _ = addr_parts.append(job.work_location_city) %}{% elif job.city %}{% set _ = addr_parts.append(job.city) %}{% endif %}
+        <span class="text-sm text-gray-600 truncate block" title="{{ addr_parts | join(', ') }}">
+            {{ addr_parts | join(', ') or 'Unbekannt' }}
         </span>
     </div>
 

@@ -275,8 +275,8 @@ class JobService:
         Returns:
             PaginatedResponse mit Jobs
         """
-        # Basis-Query
-        query = select(Job)
+        # Basis-Query mit Company-Relationship fuer Domain-Anzeige
+        query = select(Job).options(selectinload(Job.company))
 
         # Gelöschte ausschließen (außer explizit angefordert)
         if not filters.include_deleted:
