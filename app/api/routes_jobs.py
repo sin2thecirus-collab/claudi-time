@@ -381,11 +381,21 @@ async def batch_delete_jobs(
 
     Maximal 100 Jobs pro Anfrage.
     """
-    logger.info(f"Batch delete request: {data.ids}")
-    job_service = JobService(db)
-    deleted_count = await job_service.batch_delete(data.ids)
-    logger.info(f"Batch delete success: {deleted_count} jobs deleted")
-    return {"deleted_count": deleted_count}
+    from fastapi.responses import JSONResponse
+    try:
+        logger.info(f"Batch delete request: {data.ids}")
+        job_service = JobService(db)
+        deleted_count = await job_service.batch_delete(data.ids)
+        logger.info(f"Batch delete success: {deleted_count} jobs deleted")
+        return {"deleted_count": deleted_count}
+    except Exception as e:
+        import traceback
+        error_tb = traceback.format_exc()
+        logger.error(f"Batch delete error: {error_tb}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e), "traceback": error_tb}
+        )
 
 
 @router.post(
