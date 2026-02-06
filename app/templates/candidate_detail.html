@@ -95,9 +95,15 @@
             filteredCompanies: [],
             creatingJob: false,
             async loadJobs() {
-                const response = await fetch('/api/ats/jobs');
-                const data = await response.json();
-                this.jobs = (data.items || []).map(item => item.job || item);
+                try {
+                    const response = await fetch('/api/ats/jobs');
+                    const data = await response.json();
+                    console.log('Jobs API response:', data);
+                    this.jobs = (data.items || data || []).map(item => item.job || item);
+                    console.log('Loaded jobs:', this.jobs);
+                } catch (err) {
+                    console.error('Error loading jobs:', err);
+                }
             },
             async loadCompanies() {
                 const response = await fetch('/api/companies?limit=500');
