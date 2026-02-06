@@ -134,10 +134,10 @@
                                  @dragstart="handleDragStart($event, '{{ entry.id }}', '{{ candidate.id }}', '{{ candidate.first_name }} {{ candidate.last_name }}')"
                                  @dragend="handleDragEnd($event)">
                                 <a href="/kandidaten/{{ candidate.id }}"
-                                   class="flex items-center gap-1 px-1.5 py-0.5 rounded {{ stage_colors.get(stage, 'bg-gray-400') }} text-white text-[11px] font-medium cursor-grab active:cursor-grabbing hover:opacity-90 transition-all"
+                                   class="flex items-center gap-1 px-2 py-1 rounded {{ stage_colors.get(stage, 'bg-gray-400') }} text-white text-[15px] font-medium cursor-grab active:cursor-grabbing hover:opacity-90 transition-all"
                                    title="{{ candidate.first_name }} {{ candidate.last_name }} - Ziehen zum Verschieben"
                                    @click.stop>
-                                    <span class="truncate max-w-[80px]">{{ candidate.first_name }} {{ candidate.last_name }}</span>
+                                    <span class="truncate max-w-[110px]">{{ candidate.first_name }} {{ candidate.last_name }}</span>
                                 </a>
                             </div>
                             {% endif %}
