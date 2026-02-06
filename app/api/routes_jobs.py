@@ -362,6 +362,90 @@ async def list_jobs(
     )
 
 
+# ==================== Batch-Operationen ====================
+# WICHTIG: Batch-Routes MUESSEN vor /{job_id} Routes stehen,
+# da FastAPI sonst "batch" als job_id interpretiert!
+
+
+@router.delete(
+    "/batch",
+    status_code=status.HTTP_200_OK,
+    summary="Mehrere Jobs löschen",
+)
+@rate_limit(RateLimitTier.WRITE)
+async def batch_delete_jobs(
+    request: BatchDeleteRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Löscht mehrere Jobs auf einmal (Soft-Delete).
+
+    Maximal 100 Jobs pro Anfrage.
+    """
+    job_service = JobService(db)
+    deleted_count = await job_service.batch_delete(request.ids)
+
+    return {"deleted_count": deleted_count}
+
+
+@router.post(
+    "/batch/to-pipeline",
+    summary="Mehrere Jobs zur Interview-Pipeline hinzufuegen",
+)
+@rate_limit(RateLimitTier.WRITE)
+async def batch_add_jobs_to_pipeline(
+    request: BatchDeleteRequest,  # Wiederverwendung des Schemas fuer IDs
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Erstellt ATSJobs aus mehreren importierten Jobs und fuegt sie zur Pipeline hinzu.
+
+    Maximal 100 Jobs pro Anfrage.
+    """
+    from sqlalchemy import select
+    from app.services.ats_job_service import ATSJobService
+
+    if len(request.ids) > Limits.BATCH_DELETE_MAX:
+        raise ConflictException(
+            message=f"Maximal {Limits.BATCH_DELETE_MAX} Jobs pro Batch erlaubt"
+        )
+
+    # Jobs laden
+    result = await db.execute(
+        select(Job).where(
+            Job.id.in_(request.ids),
+            Job.deleted_at.is_(None),
+        )
+    )
+    jobs = result.scalars().all()
+
+    ats_service = ATSJobService(db)
+    added_count = 0
+
+    for job in jobs:
+        ats_job = await ats_service.create_job(
+            title=job.position,
+            company_id=job.company_id,
+            location_city=job.work_location_city or job.city,
+            employment_type=job.employment_type,
+            description=job.job_text,
+            source=f"Import: {job.job_url}" if job.job_url else "CSV-Import",
+            source_job_id=job.id,  # Verknuepfung zum Quell-Job fuer Cascading Delete
+        )
+        ats_job.in_pipeline = True
+        added_count += 1
+
+    await db.commit()
+
+    return {
+        "message": f"{added_count} Job(s) zur Pipeline hinzugefuegt",
+        "added_count": added_count,
+    }
+
+
+# ==================== Einzelne Job-Operationen ====================
+
+
 @router.get(
     "/{job_id}",
     response_model=JobResponse,
@@ -451,27 +535,6 @@ async def delete_job(
         raise NotFoundException(message="Job nicht gefunden")
 
 
-@router.delete(
-    "/batch",
-    status_code=status.HTTP_200_OK,
-    summary="Mehrere Jobs löschen",
-)
-@rate_limit(RateLimitTier.WRITE)
-async def batch_delete_jobs(
-    request: BatchDeleteRequest,
-    db: AsyncSession = Depends(get_db),
-):
-    """
-    Löscht mehrere Jobs auf einmal (Soft-Delete).
-
-    Maximal 100 Jobs pro Anfrage.
-    """
-    job_service = JobService(db)
-    deleted_count = await job_service.batch_delete(request.ids)
-
-    return {"deleted_count": deleted_count}
-
-
 @router.post(
     "/{job_id}/restore",
     response_model=JobResponse,
@@ -533,61 +596,6 @@ async def add_job_to_pipeline(
         "message": f"'{job.position}' zur Pipeline hinzugefuegt",
         "ats_job_id": str(ats_job.id),
         "job_id": str(job_id),
-    }
-
-
-@router.post(
-    "/batch/to-pipeline",
-    summary="Mehrere Jobs zur Interview-Pipeline hinzufuegen",
-)
-@rate_limit(RateLimitTier.WRITE)
-async def batch_add_jobs_to_pipeline(
-    request: BatchDeleteRequest,  # Wiederverwendung des Schemas fuer IDs
-    db: AsyncSession = Depends(get_db),
-):
-    """
-    Erstellt ATSJobs aus mehreren importierten Jobs und fuegt sie zur Pipeline hinzu.
-
-    Maximal 100 Jobs pro Anfrage.
-    """
-    from sqlalchemy import select
-    from app.services.ats_job_service import ATSJobService
-
-    if len(request.ids) > Limits.BATCH_DELETE_MAX:
-        raise ConflictException(
-            message=f"Maximal {Limits.BATCH_DELETE_MAX} Jobs pro Batch erlaubt"
-        )
-
-    # Jobs laden
-    result = await db.execute(
-        select(Job).where(
-            Job.id.in_(request.ids),
-            Job.deleted_at.is_(None),
-        )
-    )
-    jobs = result.scalars().all()
-
-    ats_service = ATSJobService(db)
-    added_count = 0
-
-    for job in jobs:
-        ats_job = await ats_service.create_job(
-            title=job.position,
-            company_id=job.company_id,
-            location_city=job.work_location_city or job.city,
-            employment_type=job.employment_type,
-            description=job.job_text,
-            source=f"Import: {job.job_url}" if job.job_url else "CSV-Import",
-            source_job_id=job.id,  # Verknuepfung zum Quell-Job fuer Cascading Delete
-        )
-        ats_job.in_pipeline = True
-        added_count += 1
-
-    await db.commit()
-
-    return {
-        "message": f"{added_count} Job(s) zur Pipeline hinzugefuegt",
-        "added_count": added_count,
     }
 
 
