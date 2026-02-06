@@ -54,6 +54,13 @@ class ATSPipelineService:
         self.db.add(entry)
         await self.db.flush()
 
+        # Job automatisch in Pipeline aktivieren
+        from app.models.ats_job import ATSJob
+        job = await self.db.get(ATSJob, ats_job_id)
+        if job and not job.in_pipeline:
+            job.in_pipeline = True
+            await self.db.flush()
+
         # Activity loggen
         activity = ATSActivity(
             activity_type=ActivityType.CANDIDATE_ADDED,
