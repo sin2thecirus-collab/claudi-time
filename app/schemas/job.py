@@ -65,11 +65,21 @@ class JobUpdate(BaseModel):
     excluded_from_deletion: bool | None = None
 
 
+class CompanyBriefResponse(BaseModel):
+    """Kurzes Company-Schema fuer Job-Listen."""
+
+    id: str
+    name: str
+    domain: str | None = None
+
+
 class JobResponse(BaseModel):
     """Schema für Job-Response."""
 
     id: UUID
     company_name: str
+    company_id: UUID | None = None
+    company: CompanyBriefResponse | None = None
     position: str
     street_address: str | None
     postal_code: str | None
@@ -97,6 +107,9 @@ class JobResponse(BaseModel):
     )
     active_candidate_count: int | None = Field(
         default=None, description="Anzahl aktiver Kandidaten (nur in Listen)"
+    )
+    total_candidate_count: int | None = Field(
+        default=None, description="Gesamtanzahl Kandidaten (nur in Listen)"
     )
 
     model_config = {"from_attributes": True}
