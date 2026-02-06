@@ -1,6 +1,6 @@
 #!/bin/sh
 # Railway Startup Script
-# Build: 2026-02-06-v8 - Company search autocomplete
+# Build: 2026-02-06-v9 - Healthcheck timeout 300s
 
 echo "Starting Railway deployment..."
 echo "Running alembic migrations..."
