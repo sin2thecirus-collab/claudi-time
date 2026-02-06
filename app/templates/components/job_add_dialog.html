@@ -157,8 +157,8 @@
     var createCompanyBtn = document.getElementById('create-company-btn');
     var submitBtn = document.getElementById('submit-job-btn');
 
-    // Load companies
-    fetch('/api/companies?per_page=500')
+    // Load companies (max 100 per API limit)
+    fetch('/api/companies?per_page=100')
         .then(function(r) { return r.json(); })
         .then(function(data) {
             companies = data.items || [];
