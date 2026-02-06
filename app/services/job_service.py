@@ -444,6 +444,8 @@ class JobService:
             job_dict = {
                 "id": job.id,
                 "company_name": job.company_name,
+                "company_id": job.company_id,
+                "company": job.company,  # Company-Objekt fuer Domain-Anzeige
                 "position": job.position,
                 "street_address": job.street_address,
                 "postal_code": job.postal_code,
@@ -466,6 +468,7 @@ class JobService:
                 "updated_at": job.updated_at,
                 "match_count": counts.get(job.id, 0),
                 "active_candidate_count": None,  # Später implementieren
+                "total_candidate_count": None,  # Später implementieren
             }
             jobs_data.append(job_dict)
 

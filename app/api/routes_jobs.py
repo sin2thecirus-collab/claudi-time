@@ -222,8 +222,9 @@ async def link_jobs_to_companies(
 
     Sucht fuer jeden Job ohne company_id ein passendes Unternehmen
     anhand des company_name und setzt die Verknuepfung.
+    Versucht erst exakte Uebereinstimmung, dann "enthaelt" Suche.
     """
-    from sqlalchemy import select, update, func
+    from sqlalchemy import select, func
     from app.models import Job
     from app.models.company import Company
 
@@ -236,17 +237,44 @@ async def link_jobs_to_companies(
     jobs = result.scalars().all()
 
     linked_count = 0
+    details = []
+
     for job in jobs:
-        # Suche passendes Unternehmen (case-insensitive)
+        # 1. Versuch: Exakte Uebereinstimmung (case-insensitive)
         company_query = select(Company).where(
             func.lower(Company.name) == func.lower(job.company_name)
         )
         company_result = await db.execute(company_query)
         company = company_result.scalar_one_or_none()
 
+        # 2. Versuch: Company-Name enthaelt Job.company_name oder umgekehrt
+        if not company and job.company_name:
+            # Suche Company deren Name im Job-Company-Namen vorkommt
+            search_term = job.company_name.strip().lower()
+            company_query = select(Company).where(
+                func.lower(Company.name).contains(search_term)
+            )
+            company_result = await db.execute(company_query)
+            matches = company_result.scalars().all()
+
+            if len(matches) == 1:
+                company = matches[0]
+            elif not matches:
+                # Umgekehrt: Job-Company-Name enthaelt Company-Namen
+                all_companies = await db.execute(select(Company))
+                for c in all_companies.scalars().all():
+                    if c.name.strip().lower() in search_term:
+                        company = c
+                        break
+
         if company:
             job.company_id = company.id
             linked_count += 1
+            details.append({
+                "job_id": str(job.id),
+                "job_company_name": job.company_name,
+                "linked_to": company.name,
+            })
 
     await db.commit()
 
@@ -254,6 +282,7 @@ async def link_jobs_to_companies(
         "message": f"{linked_count} Jobs mit Unternehmen verknuepft",
         "total_unlinked": len(jobs),
         "linked": linked_count,
+        "details": details,
     }
 
 
