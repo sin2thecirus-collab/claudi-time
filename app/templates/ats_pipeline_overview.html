@@ -37,16 +37,16 @@
         <div class="grid grid-cols-12 gap-0">
             {# Unternehmen + Job Spalten #}
             <div class="col-span-2 px-4 py-3 bg-gray-50 border-r border-gray-200">
-                <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Unternehmen</span>
+                <span class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Unternehmen</span>
             </div>
             <div class="col-span-2 px-4 py-3 bg-gray-50 border-r border-gray-200">
-                <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Job</span>
+                <span class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Job</span>
             </div>
             {# Pipeline Stages - 8 Spalten fuer die Stages #}
             {% set visible_stages = ['sent', 'interview_1', 'interview_2', 'interview_3', 'offer', 'placed', 'rejected'] %}
             {% for stage in visible_stages %}
             <div class="col-span-1 px-2 py-3 bg-gray-50 border-r border-gray-200 last:border-r-0 text-center">
-                <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider truncate block">
+                <span class="text-sm font-semibold text-gray-500 uppercase tracking-wider truncate block">
                     {% if stage == 'sent' %}Vorgestellt
                     {% elif stage == 'interview_1' %}IV 1
                     {% elif stage == 'interview_2' %}IV 2
@@ -60,7 +60,7 @@
             </div>
             {% endfor %}
             <div class="col-span-1 px-2 py-3 bg-gray-50 text-center">
-                <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Aktionen</span>
+                <span class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Aktionen</span>
             </div>
         </div>
     </div>
