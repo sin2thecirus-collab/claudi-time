@@ -445,7 +445,7 @@ class JobService:
             company_data = None
             if job.company:
                 company_data = {
-                    "id": job.company.id,
+                    "id": str(job.company.id),
                     "name": job.company.name,
                     "domain": job.company.domain,
                 }
