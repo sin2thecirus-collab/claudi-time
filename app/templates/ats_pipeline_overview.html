@@ -66,14 +66,14 @@
     </div>
 
     {# -- Pipeline Rows -- #}
-    <div class="bg-white rounded-b-xl border border-gray-200 border-t-0 overflow-hidden divide-y divide-gray-100">
+    <div class="bg-white rounded-b-xl border border-gray-200 border-t-0 overflow-hidden divide-y divide-gray-200">
         {% if jobs_by_company %}
             {% for company_key, company_data in jobs_by_company.items() %}
                 {% for job_item in company_data.jobs %}
                 {% set job = job_item.job %}
                 {% set entries_by_stage = job_item.entries_by_stage %}
 
-                <div class="grid grid-cols-12 gap-0 hover:bg-gray-50 transition-colors pipeline-row"
+                <div class="grid grid-cols-12 gap-0 hover:bg-blue-50/30 transition-colors pipeline-row border-l-4 border-l-transparent hover:border-l-primary-400"
                      data-job-id="{{ job.id }}">
 
                     {# Unternehmen #}
