@@ -1,375 +1,343 @@
 {# Job hinzufügen Dialog - Modal für manuelle Job-Erstellung #}
-{# Wird via openModal('/partials/job-add-dialog') geladen #}
 
-<div x-data="jobAddDialog()" x-init="loadCompanies()">
-    <div class="bg-white px-4 pb-4 pt-5 sm:p-6">
-        <div class="sm:flex sm:items-start">
-            <div class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 sm:mx-0 sm:h-10 sm:w-10">
-                <svg class="h-6 w-6 text-primary-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-            </div>
-            <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left flex-1">
-                <h3 class="text-base font-semibold leading-6 text-gray-900">Job hinzufuegen</h3>
-                <div class="mt-2">
-                    <p class="text-sm text-gray-500">
-                        Erstellen Sie einen neuen Job. Waehlen Sie ein bestehendes Unternehmen aus,
-                        oder erstellen Sie ein neues.
-                    </p>
-                </div>
+<style>[x-cloak] { display: none !important; }</style>
 
-                {# Formular #}
-                <div class="mt-4 space-y-4">
+<div class="bg-white px-4 pb-4 pt-5 sm:p-6">
+    <div class="sm:flex sm:items-start">
+        <div class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 sm:mx-0 sm:h-10 sm:w-10">
+            <svg class="h-6 w-6 text-primary-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+        </div>
+        <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left flex-1">
+            <h3 class="text-base font-semibold leading-6 text-gray-900">Job hinzufuegen</h3>
+            <p class="mt-1 text-sm text-gray-500">Waehlen Sie ein Unternehmen oder erstellen Sie ein neues.</p>
 
-                    {# Unternehmen Auswahl #}
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">
-                            Unternehmen <span class="text-red-500">*</span>
-                        </label>
+            <div class="mt-4 space-y-4">
 
-                        {# Loading Indicator #}
-                        <div x-show="loading" class="mt-1 flex items-center gap-2 text-sm text-gray-500">
-                            <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                {# Unternehmen #}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Unternehmen <span class="text-red-500">*</span>
+                    </label>
+
+                    {# Loading Indicator #}
+                    <div id="company-loading" class="flex items-center gap-2 text-sm text-gray-500 py-2">
+                        <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                        </svg>
+                        <span>Lade Unternehmen...</span>
+                    </div>
+
+                    {# Company Select (hidden initially) #}
+                    <div id="company-select-wrapper" class="hidden flex gap-2">
+                        <select id="company-select" class="flex-1 rounded-lg border border-gray-300 bg-white py-2 px-3 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500">
+                            <option value="">-- Unternehmen auswaehlen --</option>
+                        </select>
+                        <button type="button" id="new-company-btn"
+                                class="px-3 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white transition-colors">
+                            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                             </svg>
-                            Lade Unternehmen...
-                        </div>
-
-                        {# Dropdown + Neues Unternehmen Button #}
-                        <div x-show="!loading" class="mt-1 flex gap-2">
-                            <select x-model="selectedCompanyId"
-                                    @change="fillCompanyData()"
-                                    class="block flex-1 rounded-lg border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 text-sm">
-                                <option value="">-- Unternehmen auswaehlen --</option>
-                                <template x-for="company in companies" :key="company.id">
-                                    <option :value="company.id" x-text="company.name + (company.city ? ' (' + company.city + ')' : '')"></option>
-                                </template>
-                            </select>
-
-                            {# Plus Button für neues Unternehmen #}
-                            <button type="button"
-                                    @click="showNewCompanyForm = !showNewCompanyForm"
-                                    :class="showNewCompanyForm ? 'bg-gray-200 text-gray-700' : 'bg-green-600 text-white hover:bg-green-500'"
-                                    class="inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm font-medium shadow-sm transition-colors"
-                                    :title="showNewCompanyForm ? 'Abbrechen' : 'Neues Unternehmen'">
-                                <svg x-show="!showNewCompanyForm" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                                </svg>
-                                <svg x-show="showNewCompanyForm" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                        </div>
-
-                        {# Neues Unternehmen Formular #}
-                        <div x-show="showNewCompanyForm" x-transition class="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg space-y-3">
-                            <p class="text-sm font-medium text-green-800">Neues Unternehmen erstellen:</p>
-
-                            <div>
-                                <label class="block text-xs font-medium text-gray-600">Firmenname *</label>
-                                <input type="text"
-                                       x-model="newCompanyName"
-                                       placeholder="z.B. Muster GmbH"
-                                       class="mt-1 block w-full rounded-md border border-gray-300 py-1.5 px-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500">
-                            </div>
-
-                            <div class="grid grid-cols-3 gap-2">
-                                <div>
-                                    <label class="block text-xs font-medium text-gray-600">PLZ</label>
-                                    <input type="text"
-                                           x-model="newCompanyPostalCode"
-                                           placeholder="12345"
-                                           maxlength="5"
-                                           class="mt-1 block w-full rounded-md border border-gray-300 py-1.5 px-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500">
-                                </div>
-                                <div class="col-span-2">
-                                    <label class="block text-xs font-medium text-gray-600">Stadt</label>
-                                    <input type="text"
-                                           x-model="newCompanyCity"
-                                           placeholder="Hamburg"
-                                           class="mt-1 block w-full rounded-md border border-gray-300 py-1.5 px-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500">
-                                </div>
-                            </div>
-
-                            <div>
-                                <label class="block text-xs font-medium text-gray-600">Strasse & Hausnummer</label>
-                                <input type="text"
-                                       x-model="newCompanyStreet"
-                                       placeholder="Musterstrasse 123"
-                                       class="mt-1 block w-full rounded-md border border-gray-300 py-1.5 px-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500">
-                            </div>
-
-                            <button type="button"
-                                    @click="createNewCompany()"
-                                    :disabled="!newCompanyName || creatingCompany"
-                                    :class="(!newCompanyName || creatingCompany) ? 'bg-gray-300 cursor-not-allowed' : 'bg-green-600 hover:bg-green-500'"
-                                    class="w-full inline-flex items-center justify-center rounded-md px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors">
-                                <svg x-show="creatingCompany" class="h-4 w-4 mr-1 animate-spin" viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                <span x-text="creatingCompany ? 'Erstelle...' : 'Unternehmen erstellen'"></span>
-                            </button>
-                        </div>
-
-                        {# Anzeige des ausgewaehlten Unternehmens #}
-                        <div x-show="selectedCompanyId && !showNewCompanyForm" class="mt-2 text-sm text-gray-600">
-                            <span class="font-medium" x-text="companyName"></span>
-                            <span x-show="city" x-text="' - ' + (postalCode ? postalCode + ' ' : '') + city"></span>
-                        </div>
+                        </button>
                     </div>
 
-                    {# Position #}
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">
-                            Position / Titel <span class="text-red-500">*</span>
-                        </label>
-                        <input type="text"
-                               x-model="position"
-                               placeholder="z.B. Senior Softwareentwickler"
-                               class="mt-1 block w-full rounded-lg border border-gray-300 py-2 px-3 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 text-sm">
-                    </div>
+                    {# Selected Company Display #}
+                    <div id="selected-company" class="hidden mt-2 text-sm text-green-700 font-medium"></div>
 
-                    {# PLZ + Stadt (auto-filled) #}
-                    <div class="grid grid-cols-3 gap-3">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">PLZ</label>
-                            <input type="text"
-                                   x-model="postalCode"
-                                   placeholder="12345"
-                                   maxlength="5"
-                                   class="mt-1 block w-full rounded-lg border border-gray-300 py-2 px-3 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 text-sm bg-gray-50">
+                    {# New Company Form (hidden) #}
+                    <div id="new-company-form" class="hidden mt-3 p-3 bg-green-50 border border-green-200 rounded-lg space-y-2">
+                        <p class="text-sm font-medium text-green-800">Neues Unternehmen:</p>
+                        <input type="text" id="new-company-name" placeholder="Firmenname *"
+                               class="w-full rounded border border-gray-300 py-1.5 px-2 text-sm">
+                        <div class="grid grid-cols-3 gap-2">
+                            <input type="text" id="new-company-plz" placeholder="PLZ" maxlength="5"
+                                   class="rounded border border-gray-300 py-1.5 px-2 text-sm">
+                            <input type="text" id="new-company-city" placeholder="Stadt"
+                                   class="col-span-2 rounded border border-gray-300 py-1.5 px-2 text-sm">
                         </div>
-                        <div class="col-span-2">
-                            <label class="block text-sm font-medium text-gray-700">Stadt</label>
-                            <input type="text"
-                                   x-model="city"
-                                   placeholder="Hamburg"
-                                   class="mt-1 block w-full rounded-lg border border-gray-300 py-2 px-3 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 text-sm bg-gray-50">
-                        </div>
+                        <input type="text" id="new-company-street" placeholder="Strasse"
+                               class="w-full rounded border border-gray-300 py-1.5 px-2 text-sm">
+                        <button type="button" id="create-company-btn"
+                                class="w-full py-2 rounded bg-green-600 hover:bg-green-500 text-white text-sm font-medium transition-colors">
+                            Unternehmen erstellen
+                        </button>
                     </div>
-
-                    {# Strasse (auto-filled) #}
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Strasse & Hausnummer</label>
-                        <input type="text"
-                               x-model="street"
-                               placeholder="Musterstrasse 123"
-                               class="mt-1 block w-full rounded-lg border border-gray-300 py-2 px-3 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 text-sm bg-gray-50">
-                    </div>
-
-                    {# Beschaeftigungsart + Branche #}
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Beschaeftigungsart</label>
-                            <select x-model="employmentType"
-                                    class="mt-1 block w-full rounded-lg border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 text-sm">
-                                <option value="">-- Auswaehlen --</option>
-                                <option value="Vollzeit">Vollzeit</option>
-                                <option value="Teilzeit">Teilzeit</option>
-                                <option value="Festanstellung">Festanstellung</option>
-                                <option value="Freelance">Freelance</option>
-                                <option value="Praktikum">Praktikum</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Branche</label>
-                            <input type="text"
-                                   x-model="industry"
-                                   placeholder="z.B. IT, Finance"
-                                   class="mt-1 block w-full rounded-lg border border-gray-300 py-2 px-3 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 text-sm">
-                        </div>
-                    </div>
-
-                    {# Stellenbeschreibung #}
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Stellenbeschreibung</label>
-                        <textarea x-model="jobText"
-                                  rows="3"
-                                  placeholder="Beschreiben Sie die Stelle..."
-                                  class="mt-1 block w-full rounded-lg border border-gray-300 py-2 px-3 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 text-sm"></textarea>
-                    </div>
-
                 </div>
+
+                {# Position #}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Position / Titel <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" id="job-position" placeholder="z.B. Senior Softwareentwickler"
+                           class="w-full rounded-lg border border-gray-300 py-2 px-3 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500">
+                </div>
+
+                {# PLZ + Stadt #}
+                <div class="grid grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">PLZ</label>
+                        <input type="text" id="job-plz" placeholder="12345" maxlength="5"
+                               class="w-full rounded-lg border border-gray-300 py-2 px-3 text-sm bg-gray-50">
+                    </div>
+                    <div class="col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Stadt</label>
+                        <input type="text" id="job-city" placeholder="Hamburg"
+                               class="w-full rounded-lg border border-gray-300 py-2 px-3 text-sm bg-gray-50">
+                    </div>
+                </div>
+
+                {# Strasse #}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Strasse</label>
+                    <input type="text" id="job-street" placeholder="Musterstrasse 123"
+                           class="w-full rounded-lg border border-gray-300 py-2 px-3 text-sm bg-gray-50">
+                </div>
+
+                {# Beschaeftigungsart + Branche #}
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Beschaeftigungsart</label>
+                        <select id="job-employment-type" class="w-full rounded-lg border border-gray-300 bg-white py-2 px-3 text-sm">
+                            <option value="">-- Auswaehlen --</option>
+                            <option value="Vollzeit">Vollzeit</option>
+                            <option value="Teilzeit">Teilzeit</option>
+                            <option value="Festanstellung">Festanstellung</option>
+                            <option value="Freelance">Freelance</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Branche</label>
+                        <input type="text" id="job-industry" placeholder="z.B. IT"
+                               class="w-full rounded-lg border border-gray-300 py-2 px-3 text-sm">
+                    </div>
+                </div>
+
+                {# Stellenbeschreibung #}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Stellenbeschreibung</label>
+                    <textarea id="job-text" rows="3" placeholder="Beschreibung..."
+                              class="w-full rounded-lg border border-gray-300 py-2 px-3 text-sm"></textarea>
+                </div>
+
             </div>
         </div>
     </div>
-    <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
-        <button type="button"
-                @click="submitJob()"
-                :disabled="submitting || !companyName || !position"
-                :class="(submitting || !companyName || !position) ? 'bg-gray-300 cursor-not-allowed' : 'bg-primary-600 hover:bg-primary-500'"
-                class="inline-flex w-full justify-center rounded-md px-3 py-2 text-sm font-semibold text-white shadow-sm sm:ml-3 sm:w-auto transition-colors">
-            <svg x-show="submitting" class="h-4 w-4 mr-1 animate-spin" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <span x-text="submitting ? 'Erstelle...' : 'Job erstellen'"></span>
-        </button>
-        <button type="button"
-                @click="closeModal()"
-                :disabled="submitting"
-                class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto">
-            Abbrechen
-        </button>
-    </div>
+</div>
+
+{# Footer Buttons #}
+<div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+    <button type="button" id="submit-job-btn"
+            class="w-full sm:w-auto sm:ml-3 px-4 py-2 rounded-md text-sm font-semibold text-white bg-gray-300 cursor-not-allowed transition-colors">
+        Job erstellen
+    </button>
+    <button type="button" onclick="closeModal()"
+            class="mt-3 sm:mt-0 w-full sm:w-auto px-4 py-2 rounded-md bg-white text-sm font-semibold text-gray-900 ring-1 ring-gray-300 hover:bg-gray-50">
+        Abbrechen
+    </button>
 </div>
 
 <script>
-    // Alpine.js Komponente als globale Funktion definieren
-    function jobAddDialog() {
-        return {
-            // Unternehmen
-            companies: [],
-            selectedCompanyId: '',
-            companyName: '',
-            loading: false,
+(function() {
+    // State
+    var companies = [];
+    var selectedCompanyId = null;
+    var selectedCompanyName = '';
+    var showNewForm = false;
 
-            // Neues Unternehmen
-            showNewCompanyForm: false,
-            newCompanyName: '',
-            newCompanyCity: '',
-            newCompanyPostalCode: '',
-            newCompanyStreet: '',
-            creatingCompany: false,
+    // Elements
+    var loadingEl = document.getElementById('company-loading');
+    var selectWrapper = document.getElementById('company-select-wrapper');
+    var selectEl = document.getElementById('company-select');
+    var selectedDisplay = document.getElementById('selected-company');
+    var newCompanyBtn = document.getElementById('new-company-btn');
+    var newCompanyForm = document.getElementById('new-company-form');
+    var createCompanyBtn = document.getElementById('create-company-btn');
+    var submitBtn = document.getElementById('submit-job-btn');
 
-            // Job-Daten
-            position: '',
-            city: '',
-            street: '',
-            postalCode: '',
-            jobText: '',
-            industry: '',
-            employmentType: '',
-            submitting: false,
+    // Load companies
+    fetch('/api/companies?per_page=500')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            companies = data.items || [];
 
-            async loadCompanies() {
-                this.loading = true;
-                try {
-                    const res = await fetch('/api/companies?per_page=500&sort_by=name');
-                    if (res.ok) {
-                        const data = await res.json();
-                        this.companies = data.items || [];
-                        console.log('Unternehmen geladen:', this.companies.length);
-                    } else {
-                        console.error('Fehler beim Laden:', res.status);
-                        showToast('Fehler beim Laden der Unternehmen', 'error');
-                    }
-                } catch (e) {
-                    console.error('Fehler beim Laden der Unternehmen:', e);
-                    showToast('Netzwerkfehler beim Laden', 'error');
-                }
-                this.loading = false;
-            },
+            // Populate select
+            companies.forEach(function(c) {
+                var opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = c.name + (c.city ? ' (' + c.city + ')' : '');
+                selectEl.appendChild(opt);
+            });
 
-            fillCompanyData() {
-                const c = this.companies.find(x => x.id === this.selectedCompanyId);
-                if (c) {
-                    this.companyName = c.name || '';
-                    this.city = c.city || '';
-                    this.street = c.street ? (c.street + (c.house_number ? ' ' + c.house_number : '')) : '';
-                    this.postalCode = c.postal_code || '';
-                } else {
-                    this.companyName = '';
-                    this.city = '';
-                    this.street = '';
-                    this.postalCode = '';
-                }
-            },
+            // Show select, hide loading
+            loadingEl.classList.add('hidden');
+            selectWrapper.classList.remove('hidden');
+        })
+        .catch(function(e) {
+            console.error('Error loading companies:', e);
+            loadingEl.innerHTML = '<span class="text-red-500">Fehler beim Laden</span>';
+        });
 
-            async createNewCompany() {
-                if (!this.newCompanyName) {
-                    showToast('Bitte Firmennamen eingeben', 'error');
-                    return;
-                }
+    // Company select change
+    selectEl.addEventListener('change', function() {
+        selectedCompanyId = this.value;
+        var c = companies.find(function(x) { return x.id === selectedCompanyId; });
+        if (c) {
+            selectedCompanyName = c.name;
+            document.getElementById('job-city').value = c.city || '';
+            document.getElementById('job-street').value = c.street || '';
+            document.getElementById('job-plz').value = c.postal_code || '';
+            selectedDisplay.innerHTML = '✓ ' + c.name + (c.city ? ' - ' + c.city : '');
+            selectedDisplay.classList.remove('hidden');
+        } else {
+            selectedCompanyName = '';
+            selectedDisplay.classList.add('hidden');
+        }
+        updateSubmitButton();
+    });
 
-                this.creatingCompany = true;
-                try {
-                    const payload = {
-                        name: this.newCompanyName.trim(),
-                        city: this.newCompanyCity || null,
-                        postal_code: this.newCompanyPostalCode || null,
-                        street: this.newCompanyStreet || null,
-                    };
+    // New company button
+    newCompanyBtn.addEventListener('click', function() {
+        showNewForm = !showNewForm;
+        if (showNewForm) {
+            newCompanyForm.classList.remove('hidden');
+            newCompanyBtn.classList.remove('bg-green-600', 'hover:bg-green-500');
+            newCompanyBtn.classList.add('bg-gray-400');
+        } else {
+            newCompanyForm.classList.add('hidden');
+            newCompanyBtn.classList.add('bg-green-600', 'hover:bg-green-500');
+            newCompanyBtn.classList.remove('bg-gray-400');
+        }
+    });
 
-                    const res = await fetch('/api/companies', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload),
-                    });
+    // Create company
+    createCompanyBtn.addEventListener('click', function() {
+        var name = document.getElementById('new-company-name').value.trim();
+        if (!name) return;
 
-                    if (res.ok) {
-                        const data = await res.json();
-                        showToast('Unternehmen "' + this.newCompanyName + '" erstellt', 'success');
+        createCompanyBtn.textContent = 'Erstelle...';
+        createCompanyBtn.disabled = true;
 
-                        // Unternehmensliste neu laden und das neue auswaehlen
-                        await this.loadCompanies();
-                        this.selectedCompanyId = data.id;
-                        this.fillCompanyData();
+        fetch('/api/companies', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: name,
+                city: document.getElementById('new-company-city').value || null,
+                postal_code: document.getElementById('new-company-plz').value || null,
+                street: document.getElementById('new-company-street').value || null
+            })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.id) {
+                showToast('Unternehmen erstellt', 'success');
+                selectedCompanyId = data.id;
+                selectedCompanyName = name;
 
-                        // Formular zuruecksetzen
-                        this.showNewCompanyForm = false;
-                        this.newCompanyName = '';
-                        this.newCompanyCity = '';
-                        this.newCompanyPostalCode = '';
-                        this.newCompanyStreet = '';
-                    } else {
-                        const err = await res.json();
-                        showToast(err.detail || 'Fehler beim Erstellen', 'error');
-                    }
-                } catch (e) {
-                    console.error('Fehler:', e);
-                    showToast('Netzwerkfehler', 'error');
-                }
-                this.creatingCompany = false;
-            },
+                // Fill job fields
+                document.getElementById('job-city').value = document.getElementById('new-company-city').value || '';
+                document.getElementById('job-street').value = document.getElementById('new-company-street').value || '';
+                document.getElementById('job-plz').value = document.getElementById('new-company-plz').value || '';
 
-            async submitJob() {
-                if (!this.companyName || !this.position) {
-                    showToast('Bitte Unternehmen und Position ausfuellen', 'error');
-                    return;
-                }
+                // Update display
+                selectedDisplay.innerHTML = '✓ ' + name;
+                selectedDisplay.classList.remove('hidden');
 
-                this.submitting = true;
-                try {
-                    const payload = {
-                        company_name: this.companyName,
-                        position: this.position,
-                        city: this.city || null,
-                        street_address: this.street || null,
-                        postal_code: this.postalCode || null,
-                        job_text: this.jobText || null,
-                        industry: this.industry || null,
-                        employment_type: this.employmentType || null,
-                    };
+                // Hide form
+                newCompanyForm.classList.add('hidden');
+                showNewForm = false;
+                newCompanyBtn.classList.add('bg-green-600', 'hover:bg-green-500');
+                newCompanyBtn.classList.remove('bg-gray-400');
 
-                    if (this.selectedCompanyId) {
-                        payload.company_id = this.selectedCompanyId;
-                    }
+                // Clear form
+                document.getElementById('new-company-name').value = '';
+                document.getElementById('new-company-city').value = '';
+                document.getElementById('new-company-plz').value = '';
+                document.getElementById('new-company-street').value = '';
 
-                    const res = await fetch('/api/jobs', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload),
-                    });
-
-                    if (res.ok) {
-                        const data = await res.json();
-                        showToast('Job "' + data.position + '" erstellt', 'success');
-                        closeModal();
-                        // Jobs-Liste neu laden
-                        htmx.ajax('GET', '/partials/jobs-list?per_page=20', {target: '#jobs-content', swap: 'innerHTML'});
-                    } else {
-                        const err = await res.json();
-                        showToast(err.detail || 'Fehler beim Erstellen', 'error');
-                    }
-                } catch (e) {
-                    console.error('Fehler:', e);
-                    showToast('Netzwerkfehler', 'error');
-                }
-                this.submitting = false;
+                updateSubmitButton();
+            } else {
+                showToast('Fehler: ' + (data.detail || 'Unbekannt'), 'error');
             }
-        };
+            createCompanyBtn.textContent = 'Unternehmen erstellen';
+            createCompanyBtn.disabled = false;
+        })
+        .catch(function(e) {
+            showToast('Netzwerkfehler', 'error');
+            createCompanyBtn.textContent = 'Unternehmen erstellen';
+            createCompanyBtn.disabled = false;
+        });
+    });
+
+    // Update submit button state
+    function updateSubmitButton() {
+        var position = document.getElementById('job-position').value.trim();
+        if (selectedCompanyName && position) {
+            submitBtn.classList.remove('bg-gray-300', 'cursor-not-allowed');
+            submitBtn.classList.add('bg-primary-600', 'hover:bg-primary-500');
+            submitBtn.disabled = false;
+        } else {
+            submitBtn.classList.add('bg-gray-300', 'cursor-not-allowed');
+            submitBtn.classList.remove('bg-primary-600', 'hover:bg-primary-500');
+            submitBtn.disabled = true;
+        }
     }
+
+    document.getElementById('job-position').addEventListener('input', updateSubmitButton);
+
+    // Submit job
+    submitBtn.addEventListener('click', function() {
+        var position = document.getElementById('job-position').value.trim();
+        if (!selectedCompanyName || !position) {
+            showToast('Bitte Unternehmen und Position ausfuellen', 'error');
+            return;
+        }
+
+        submitBtn.textContent = 'Erstelle...';
+        submitBtn.disabled = true;
+
+        var payload = {
+            company_name: selectedCompanyName,
+            position: position,
+            city: document.getElementById('job-city').value || null,
+            street_address: document.getElementById('job-street').value || null,
+            postal_code: document.getElementById('job-plz').value || null,
+            job_text: document.getElementById('job-text').value || null,
+            industry: document.getElementById('job-industry').value || null,
+            employment_type: document.getElementById('job-employment-type').value || null
+        };
+
+        if (selectedCompanyId) {
+            payload.company_id = selectedCompanyId;
+        }
+
+        fetch('/api/jobs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.id) {
+                showToast('Job erstellt', 'success');
+                closeModal();
+                if (typeof htmx !== 'undefined') {
+                    htmx.ajax('GET', '/partials/jobs-list?per_page=20', {target: '#jobs-content', swap: 'innerHTML'});
+                }
+            } else {
+                showToast('Fehler: ' + (data.detail || 'Unbekannt'), 'error');
+                submitBtn.textContent = 'Job erstellen';
+                submitBtn.disabled = false;
+            }
+        })
+        .catch(function(e) {
+            showToast('Netzwerkfehler', 'error');
+            submitBtn.textContent = 'Job erstellen';
+            submitBtn.disabled = false;
+        });
+    });
+})();
 </script>
