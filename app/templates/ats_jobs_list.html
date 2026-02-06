@@ -229,6 +229,7 @@
                     <form hx-post="/api/ats/jobs"
                           hx-target="#ats-jobs-container"
                           hx-swap="innerHTML"
+                          hx-trigger="submit"
                           hx-on::after-request="if(event.detail.successful){ showNewJobModal = false; showToast('Stelle erstellt', 'success'); }"
                           class="px-6 py-4 space-y-4">
 
