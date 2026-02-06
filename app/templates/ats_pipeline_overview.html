@@ -110,18 +110,18 @@
                     <div class="col-span-7 py-2">
                         <div class="flex h-full">
                             {% set arrow_colors = {
-                                'sent': {'bg': 'bg-blue-100', 'text': 'text-blue-800', 'arrow': '#dbeafe'},
-                                'interview_1': {'bg': 'bg-emerald-100', 'text': 'text-emerald-800', 'arrow': '#d1fae5'},
-                                'interview_2': {'bg': 'bg-emerald-200', 'text': 'text-emerald-800', 'arrow': '#a7f3d0'},
-                                'interview_3': {'bg': 'bg-emerald-300', 'text': 'text-emerald-800', 'arrow': '#6ee7b7'},
-                                'offer': {'bg': 'bg-amber-100', 'text': 'text-amber-800', 'arrow': '#fef3c7'},
-                                'placed': {'bg': 'bg-green-200', 'text': 'text-green-800', 'arrow': '#bbf7d0'},
-                                'rejected': {'bg': 'bg-red-100', 'text': 'text-red-700', 'arrow': '#fee2e2'}
+                                'sent': {'bg': '#f8d7da', 'text': '#842029'},
+                                'interview_1': {'bg': '#f5c6cb', 'text': '#842029'},
+                                'interview_2': {'bg': '#f1aeb5', 'text': '#842029'},
+                                'interview_3': {'bg': '#ea868f', 'text': '#fff'},
+                                'offer': {'bg': '#d1e7dd', 'text': '#0f5132'},
+                                'placed': {'bg': '#a3cfbb', 'text': '#0f5132'},
+                                'rejected': {'bg': '#badbcc', 'text': '#0f5132'}
                             } %}
                             {% for stage in visible_stages %}
                             {% set colors = arrow_colors.get(stage, {'bg': 'bg-gray-100', 'text': 'text-gray-600', 'arrow': '#f3f4f6'}) %}
-                            <div class="relative flex-1 flex items-center justify-center {{ colors.bg }} {{ colors.text }} text-xs font-medium"
-                                 style="{% if not loop.first %}margin-left: -10px;{% endif %}{% if not loop.last %}clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%, 10px 50%);{% else %}clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 10px 50%);{% endif %}{% if loop.first %}clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%);{% endif %}padding: 8px 16px;">
+                            <div class="relative flex-1 flex items-center justify-center text-xs font-medium"
+                                 style="background-color: {{ colors.bg }}; color: {{ colors.text }}; {% if not loop.first %}margin-left: -10px;{% endif %}{% if not loop.last %}clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%, 10px 50%);{% else %}clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 10px 50%);{% endif %}{% if loop.first %}clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%);{% endif %}padding: 8px 16px;">
                                 {% if stage == 'sent' %}Vorgestellt
                                 {% elif stage == 'interview_1' %}IV 1
                                 {% elif stage == 'interview_2' %}IV 2
