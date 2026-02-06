@@ -5,123 +5,140 @@
 {% block content %}
 <div x-data="pipelineOverview()">
 
-    {# -- Header -- #}
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div>
-            <h1 class="text-2xl font-bold text-gray-900">Interview Pipeline</h1>
-            <p class="text-sm text-gray-500 mt-1">{{ total_jobs }} Job{{ 's' if total_jobs != 1 else '' }} in der Pipeline</p>
-        </div>
-        <div class="flex items-center gap-3">
-            {# Company Filter mit Autocomplete #}
-            <div class="relative" x-data="companyFilter()">
-                <div class="flex items-center">
-                    <div class="relative">
-                        <input type="text"
-                               x-model="searchTerm"
-                               @input.debounce.200ms="searchCompanies()"
-                               @focus="showDropdown = true"
-                               @click.away="showDropdown = false"
-                               :placeholder="selectedCompanyName || 'Unternehmen suchen...'"
-                               class="w-64 px-4 py-2.5 pl-10 border border-gray-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
-                        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-                        </svg>
-                    </div>
-                    <template x-if="selectedCompanyId">
-                        <button @click="clearFilter()"
-                                class="ml-2 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
-                                title="Filter entfernen">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
-                    </template>
-                </div>
-
-                {# Dropdown mit Suchergebnissen #}
-                <div x-show="showDropdown && (filteredCompanies.length > 0 || searchTerm.length >= 1)"
-                     x-cloak
-                     class="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-64 overflow-y-auto">
-                    <button type="button"
-                            @click="selectCompany(null, 'Alle Unternehmen')"
-                            class="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 border-b border-gray-100"
-                            :class="{ 'bg-primary-50 text-primary-700': !selectedCompanyId }">
-                        Alle Unternehmen
-                    </button>
-                    <template x-for="company in filteredCompanies" :key="company.id">
-                        <button type="button"
-                                @click="selectCompany(company.id, company.name)"
-                                class="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
-                                :class="{ 'bg-primary-50 text-primary-700': selectedCompanyId === company.id }">
-                            <span x-text="company.name"></span>
-                        </button>
-                    </template>
-                    <div x-show="searchTerm.length >= 1 && filteredCompanies.length === 0"
-                         class="px-4 py-3 text-sm text-gray-500 text-center">
-                        Keine Unternehmen gefunden
-                    </div>
-                </div>
+    {# -- Header mit türkisfarbenem Gradient wie StarHunter -- #}
+    <div class="bg-gradient-to-r from-cyan-600 to-teal-500 rounded-t-2xl px-6 py-5 mb-0">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-white">Interview Pipeline</h1>
+                <p class="text-cyan-100 mt-1">{{ total_jobs }} Job{{ 's' if total_jobs != 1 else '' }} in der Pipeline</p>
             </div>
-            <a href="/ats/stellen"
-               class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-                Alle Stellen
-            </a>
+            <div class="flex items-center gap-3">
+                {# Company Filter mit Autocomplete #}
+                <div class="relative" x-data="companyFilter()">
+                    <div class="flex items-center">
+                        <div class="relative">
+                            <input type="text"
+                                   x-model="searchTerm"
+                                   @input.debounce.200ms="searchCompanies()"
+                                   @focus="showDropdown = true"
+                                   @click.away="showDropdown = false"
+                                   :placeholder="selectedCompanyName || 'Unternehmen suchen...'"
+                                   class="w-64 px-4 py-2.5 pl-10 border-0 rounded-lg text-sm bg-white/90 backdrop-blur focus:ring-2 focus:ring-white focus:bg-white placeholder-gray-500 text-gray-900 shadow-lg">
+                            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                            </svg>
+                        </div>
+                        <template x-if="selectedCompanyId">
+                            <button @click="clearFilter()"
+                                    class="ml-2 p-2 text-white/70 hover:text-white hover:bg-white/20 rounded-lg transition-colors"
+                                    title="Filter entfernen">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </template>
+                    </div>
+
+                    {# Dropdown mit Suchergebnissen #}
+                    <div x-show="showDropdown && (filteredCompanies.length > 0 || searchTerm.length >= 1)"
+                         x-cloak
+                         class="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-xl max-h-64 overflow-y-auto">
+                        <button type="button"
+                                @click="selectCompany(null, 'Alle Unternehmen')"
+                                class="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-cyan-50 border-b border-gray-100"
+                                :class="{ 'bg-cyan-50 text-cyan-700 font-medium': !selectedCompanyId }">
+                            Alle Unternehmen
+                        </button>
+                        <template x-for="company in filteredCompanies" :key="company.id">
+                            <button type="button"
+                                    @click="selectCompany(company.id, company.name)"
+                                    class="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-cyan-50 border-b border-gray-100 last:border-b-0"
+                                    :class="{ 'bg-cyan-50 text-cyan-700 font-medium': selectedCompanyId === company.id }">
+                                <span x-text="company.name"></span>
+                            </button>
+                        </template>
+                        <div x-show="searchTerm.length >= 1 && filteredCompanies.length === 0"
+                             class="px-4 py-3 text-sm text-gray-500 text-center">
+                            Keine Unternehmen gefunden
+                        </div>
+                    </div>
+                </div>
+                <a href="/ats/stellen"
+                   class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-cyan-700 bg-white rounded-lg hover:bg-cyan-50 transition-colors shadow-lg">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
+                    Alle Stellen
+                </a>
+            </div>
         </div>
     </div>
 
     {# -- Pipeline Stages Header -- #}
     {% set visible_stages = ['sent', 'interview_1', 'interview_2', 'interview_3', 'offer', 'placed', 'rejected'] %}
-    <div class="grid grid-cols-12 gap-0 px-4 py-2">
-        <div class="col-span-3">
-            <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Unternehmen / Job</span>
+    {% set stage_header_colors = {
+        'sent': 'bg-indigo-500',
+        'interview_1': 'bg-purple-500',
+        'interview_2': 'bg-purple-600',
+        'interview_3': 'bg-purple-700',
+        'offer': 'bg-amber-500',
+        'placed': 'bg-green-500',
+        'rejected': 'bg-red-400'
+    } %}
+    <div class="bg-white border-x border-gray-200 grid grid-cols-12 gap-0">
+        <div class="col-span-3 px-4 py-3 bg-gray-50 border-r border-gray-200">
+            <span class="text-sm font-semibold text-gray-700">Unternehmen / Position</span>
         </div>
         {% for stage in visible_stages %}
-        <div class="col-span-1 text-center">
-            <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                {% if stage == 'sent' %}Vorgestellt
-                {% elif stage == 'interview_1' %}IV 1
-                {% elif stage == 'interview_2' %}IV 2
-                {% elif stage == 'interview_3' %}IV 3
-                {% elif stage == 'offer' %}Angebot
-                {% elif stage == 'placed' %}Platziert
-                {% elif stage == 'rejected' %}Abgesagt
-                {% endif %}
-            </span>
+        <div class="col-span-1 py-3 text-center border-r border-gray-200 last:border-r-0">
+            <div class="inline-flex items-center gap-1.5">
+                <div class="w-2.5 h-2.5 rounded-full {{ stage_header_colors.get(stage, 'bg-gray-400') }}"></div>
+                <span class="text-sm font-semibold text-gray-700">
+                    {% if stage == 'sent' %}Vorgestellt
+                    {% elif stage == 'interview_1' %}IV 1
+                    {% elif stage == 'interview_2' %}IV 2
+                    {% elif stage == 'interview_3' %}IV 3
+                    {% elif stage == 'offer' %}Angebot
+                    {% elif stage == 'placed' %}Platziert
+                    {% elif stage == 'rejected' %}Abgesagt
+                    {% endif %}
+                </span>
+            </div>
         </div>
         {% endfor %}
-        <div class="col-span-2 text-right">
-            <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Aktionen</span>
+        <div class="col-span-2 px-4 py-3 bg-gray-50 text-right">
+            <span class="text-sm font-semibold text-gray-700">Aktionen</span>
         </div>
     </div>
 
     {# -- Pipeline Rows -- #}
-    <div class="space-y-3 mt-3">
+    <div class="bg-white border border-t-0 border-gray-200 rounded-b-2xl divide-y divide-gray-100">
         {% if jobs_by_company %}
             {% for company_key, company_data in jobs_by_company.items() %}
                 {% for job_item in company_data.jobs %}
                 {% set job = job_item.job %}
                 {% set entries_by_stage = job_item.entries_by_stage %}
 
-                <div class="grid grid-cols-12 gap-0 bg-white rounded-xl border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all duration-200 pipeline-row"
+                <div class="grid grid-cols-12 gap-0 hover:bg-gray-50/50 transition-colors pipeline-row"
                      data-job-id="{{ job.id }}">
 
                     {# Unternehmen + Job zusammen #}
                     <div class="col-span-3 px-4 py-4 border-r border-gray-100">
                         <a href="/ats/stellen/{{ job.id }}" class="block group">
-                            {# Unternehmen zuerst - lesbar aber dezenter #}
-                            <p class="text-sm font-medium text-gray-600 truncate">
+                            {# Position zuerst - prominent #}
+                            <p class="text-base font-semibold text-gray-900 group-hover:text-cyan-600 truncate">{{ job.title }}</p>
+                            {# Unternehmen darunter - dezenter aber lesbar #}
+                            <p class="text-sm text-gray-600 truncate mt-0.5 flex items-center gap-1.5">
+                                <svg class="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z" />
+                                </svg>
                                 {% if company_data.company %}{{ company_data.company_name }}{% endif %}
-                                {% if job.location_city %} · {{ job.location_city }}{% endif %}
+                                {% if job.location_city %}<span class="text-gray-400">·</span> {{ job.location_city }}{% endif %}
                             </p>
-                            {# Position prominent #}
-                            <p class="text-base font-semibold text-gray-900 group-hover:text-primary-600 truncate mt-0.5">{{ job.title }}</p>
                         </a>
                     </div>
 
-                    {# Pipeline Stages - nur Avatare #}
+                    {# Pipeline Stages #}
                     {% for stage in visible_stages %}
                     {% set stage_entries = entries_by_stage.get(stage, []) %}
                     {% set stage_bg_colors = {
@@ -129,7 +146,7 @@
                         'interview_1': 'bg-purple-500',
                         'interview_2': 'bg-purple-600',
                         'interview_3': 'bg-purple-700',
-                        'offer': 'bg-emerald-500',
+                        'offer': 'bg-amber-500',
                         'placed': 'bg-green-500',
                         'rejected': 'bg-red-400'
                     } %}
@@ -137,8 +154,8 @@
                     <div class="col-span-1 px-2 py-3 border-r border-gray-100 last:border-r-0 pipeline-cell pipeline-dropzone flex items-center justify-center"
                          data-stage="{{ stage }}"
                          data-job-id="{{ job.id }}"
-                         @dragover.prevent="$el.classList.add('bg-primary-50', 'ring-2', 'ring-inset', 'ring-primary-300')"
-                         @dragleave="$el.classList.remove('bg-primary-50', 'ring-2', 'ring-inset', 'ring-primary-300')"
+                         @dragover.prevent="$el.classList.add('bg-cyan-50', 'ring-2', 'ring-inset', 'ring-cyan-400')"
+                         @dragleave="$el.classList.remove('bg-cyan-50', 'ring-2', 'ring-inset', 'ring-cyan-400')"
                          @drop="handleDrop($event, '{{ stage }}', '{{ job.id }}')">
                         {# Kandidaten als Avatare mit Namen #}
                         {% if stage_entries %}
@@ -154,20 +171,20 @@
                                  @dragstart="handleDragStart($event, '{{ entry.id }}', '{{ candidate.id }}', '{{ candidate.first_name }} {{ candidate.last_name }}')"
                                  @dragend="handleDragEnd($event)">
                                 <a href="/kandidaten/{{ candidate.id }}"
-                                   class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 cursor-grab active:cursor-grabbing transition-colors"
+                                   class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-100 cursor-grab active:cursor-grabbing transition-colors"
                                    title="{{ candidate.first_name }} {{ candidate.last_name }}"
                                    @click.stop>
-                                    <div class="w-8 h-8 rounded-full {{ stage_bg_colors.get(stage, 'bg-gray-500') }} flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                                    <div class="w-8 h-8 rounded-full {{ stage_bg_colors.get(stage, 'bg-gray-500') }} flex items-center justify-center text-white text-xs font-bold flex-shrink-0 shadow-sm">
                                         {{ (candidate.first_name or 'U')[0] | upper }}{{ (candidate.last_name or '')[0] | upper }}
                                     </div>
-                                    <span class="text-sm font-medium text-gray-800 truncate">{{ candidate.first_name }} {{ candidate.last_name }}</span>
+                                    <span class="text-sm font-medium text-gray-900 truncate">{{ candidate.first_name }} {{ candidate.last_name }}</span>
                                 </a>
                             </div>
                             {% endif %}
                             {% endfor %}
                         </div>
                         {% else %}
-                        <span class="text-gray-300">—</span>
+                        <span class="text-gray-300 text-lg">·</span>
                         {% endif %}
                     </div>
                     {% endfor %}
@@ -175,17 +192,18 @@
                     {# Aktionen #}
                     <div class="col-span-2 px-3 py-3 flex items-center justify-end gap-2">
                         <button @click="openAddCandidateModal('{{ job.id }}', '{{ job.title | e }}')"
-                                class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-green-100 hover:text-green-700 rounded-lg transition-colors"
+                                class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-green-50 hover:text-green-700 hover:border-green-300 rounded-lg transition-colors shadow-sm"
                                 title="Kandidat hinzufuegen">
-                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                             </svg>
                             Kandidat
                         </button>
                         <a href="/ats/stellen/{{ job.id }}"
-                           class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-primary-100 hover:text-primary-700 rounded-lg transition-colors">
-                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                           class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-cyan-600 hover:bg-cyan-700 rounded-lg transition-colors shadow-sm">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                             </svg>
                             Details
                         </a>
@@ -194,18 +212,20 @@
                 {% endfor %}
             {% endfor %}
         {% else %}
-        <div class="bg-white rounded-xl border border-gray-200 px-6 py-12 text-center">
-            <svg class="mx-auto h-12 w-12 text-gray-300" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
-            </svg>
-            <p class="mt-3 text-sm text-gray-500">Keine Jobs in der Pipeline</p>
-            <p class="mt-1 text-xs text-gray-400">Klicke auf "To Interview" bei einer Stelle, um sie hier hinzuzufuegen</p>
-            <a href="/ats/stellen"
-               class="mt-4 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary-600 hover:text-primary-500">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+        <div class="px-6 py-16 text-center">
+            <div class="w-16 h-16 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                <svg class="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0M12 12.75h.008v.008H12v-.008z" />
                 </svg>
-                Zu den Stellen
+            </div>
+            <p class="text-lg font-medium text-gray-900">Keine Jobs in der Pipeline</p>
+            <p class="mt-1 text-sm text-gray-500">Fuege Stellen zur Pipeline hinzu, um Kandidaten zu tracken</p>
+            <a href="/ats/stellen"
+               class="mt-6 inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-cyan-600 hover:bg-cyan-700 rounded-lg transition-colors shadow-sm">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Stellen verwalten
             </a>
         </div>
         {% endif %}
