@@ -8,10 +8,13 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.models.company import Company
 from app.schemas.company import (
     CompanyContactCreate,
     CompanyContactResponse,
@@ -86,6 +89,36 @@ async def company_stats(db: AsyncSession = Depends(get_db)):
     """Gibt Unternehmens-Statistiken zurueck."""
     service = CompanyService(db)
     return await service.get_stats()
+
+
+@router.get("/search", response_class=HTMLResponse)
+async def search_companies_quick(
+    q: str = Query(..., min_length=1),
+    limit: int = Query(default=10, ge=1, le=50),
+    db: AsyncSession = Depends(get_db),
+):
+    """Schnelle Unternehmenssuche fuer Autocomplete."""
+    search_term = f"%{q}%"
+    result = await db.execute(
+        select(Company)
+        .where(Company.name.ilike(search_term))
+        .order_by(Company.name)
+        .limit(limit)
+    )
+    companies = result.scalars().all()
+
+    if not companies:
+        return HTMLResponse("<div class='p-2 text-sm text-gray-500'>Keine Unternehmen gefunden</div>")
+
+    html = '<div class="border border-gray-200 rounded-lg shadow-sm bg-white max-h-48 overflow-y-auto">'
+    for c in companies:
+        # Escape für JavaScript - ohne Backslash in f-string (Python 3.11 kompatibel)
+        safe_name = str(c.name).replace("'", "&#39;").replace('"', '&quot;')
+        city_span = "<span class='text-gray-400 ml-2'>" + str(c.city) + "</span>" if c.city else ""
+        company_id = str(c.id)
+        html += '<div class="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm" onclick="selectCompany(' + "'" + company_id + "', '" + safe_name + "')" + '"><span class="font-medium">' + str(c.name) + '</span>' + city_span + '</div>'
+    html += '</div>'
+    return HTMLResponse(html)
 
 
 @router.get("/{company_id}")
