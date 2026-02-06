@@ -78,13 +78,22 @@ async def ats_main(
     )
     all_companies = companies_result.scalars().all()
 
+    # Selected company name finden
+    selected_company_name = None
+    if company_id:
+        for c in all_companies:
+            if str(c.id) == str(company_id):
+                selected_company_name = c.name
+                break
+
     return templates.TemplateResponse("ats_pipeline_overview.html", {
         "request": request,
         "jobs_by_company": jobs_by_company,
         "stages": PIPELINE_STAGE_ORDER,
         "stage_labels": PIPELINE_STAGE_LABELS,
-        "all_companies": all_companies,
+        "all_companies": [{"id": str(c.id), "name": c.name} for c in all_companies],
         "selected_company_id": str(company_id) if company_id else None,
+        "selected_company_name": selected_company_name,
         "total_jobs": len(jobs_in_pipeline),
     })
 
@@ -181,13 +190,22 @@ async def ats_pipeline_overview(
     )
     all_companies = companies_result.scalars().all()
 
+    # Selected company name finden
+    selected_company_name = None
+    if company_id:
+        for c in all_companies:
+            if str(c.id) == str(company_id):
+                selected_company_name = c.name
+                break
+
     return templates.TemplateResponse("ats_pipeline_overview.html", {
         "request": request,
         "jobs_by_company": jobs_by_company,
         "stages": PIPELINE_STAGE_ORDER,
         "stage_labels": PIPELINE_STAGE_LABELS,
-        "all_companies": all_companies,
+        "all_companies": [{"id": str(c.id), "name": c.name} for c in all_companies],
         "selected_company_id": str(company_id) if company_id else None,
+        "selected_company_name": selected_company_name,
         "total_jobs": len(jobs_in_pipeline),
     })
 

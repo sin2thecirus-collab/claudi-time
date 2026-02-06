@@ -12,16 +12,56 @@
             <p class="text-sm text-gray-500 mt-1">{{ total_jobs }} Job{{ 's' if total_jobs != 1 else '' }} in der Pipeline</p>
         </div>
         <div class="flex items-center gap-3">
-            {# Company Filter #}
-            <select onchange="window.location.href = this.value ? '/ats?company_id=' + this.value : '/ats'"
-                    class="px-4 py-2.5 border border-gray-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-primary-500">
-                <option value="">Alle Unternehmen</option>
-                {% for company in all_companies %}
-                <option value="{{ company.id }}" {% if selected_company_id == company.id|string %}selected{% endif %}>
-                    {{ company.name }}
-                </option>
-                {% endfor %}
-            </select>
+            {# Company Filter mit Autocomplete #}
+            <div class="relative" x-data="companyFilter()">
+                <div class="flex items-center">
+                    <div class="relative">
+                        <input type="text"
+                               x-model="searchTerm"
+                               @input.debounce.200ms="searchCompanies()"
+                               @focus="showDropdown = true"
+                               @click.away="showDropdown = false"
+                               :placeholder="selectedCompanyName || 'Unternehmen suchen...'"
+                               class="w-64 px-4 py-2.5 pl-10 border border-gray-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                        </svg>
+                    </div>
+                    <template x-if="selectedCompanyId">
+                        <button @click="clearFilter()"
+                                class="ml-2 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
+                                title="Filter entfernen">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </template>
+                </div>
+
+                {# Dropdown mit Suchergebnissen #}
+                <div x-show="showDropdown && (filteredCompanies.length > 0 || searchTerm.length >= 1)"
+                     x-cloak
+                     class="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-64 overflow-y-auto">
+                    <button type="button"
+                            @click="selectCompany(null, 'Alle Unternehmen')"
+                            class="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 border-b border-gray-100"
+                            :class="{ 'bg-primary-50 text-primary-700': !selectedCompanyId }">
+                        Alle Unternehmen
+                    </button>
+                    <template x-for="company in filteredCompanies" :key="company.id">
+                        <button type="button"
+                                @click="selectCompany(company.id, company.name)"
+                                class="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+                                :class="{ 'bg-primary-50 text-primary-700': selectedCompanyId === company.id }">
+                            <span x-text="company.name"></span>
+                        </button>
+                    </template>
+                    <div x-show="searchTerm.length >= 1 && filteredCompanies.length === 0"
+                         class="px-4 py-3 text-sm text-gray-500 text-center">
+                        Keine Unternehmen gefunden
+                    </div>
+                </div>
+            </div>
             <a href="/ats/stellen"
                class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -506,6 +546,48 @@ function pipelineOverview() {
             if (!avatar) return;
             Object.values(colorMap).forEach(c => avatar.classList.remove(c));
             avatar.classList.add(colorMap[newStage] || 'bg-gray-500');
+        }
+    }
+}
+
+function companyFilter() {
+    return {
+        searchTerm: '',
+        showDropdown: false,
+        filteredCompanies: [],
+        allCompanies: {{ all_companies | tojson | safe }},
+        selectedCompanyId: {{ selected_company_id | tojson | safe if selected_company_id else 'null' }},
+        selectedCompanyName: '{{ selected_company_name | default("", true) }}',
+
+        init() {
+            // Initial alle Unternehmen anzeigen
+            this.filteredCompanies = this.allCompanies.slice(0, 20);
+        },
+
+        searchCompanies() {
+            if (this.searchTerm.length === 0) {
+                this.filteredCompanies = this.allCompanies.slice(0, 20);
+            } else {
+                const term = this.searchTerm.toLowerCase();
+                this.filteredCompanies = this.allCompanies
+                    .filter(c => c.name.toLowerCase().includes(term))
+                    .slice(0, 20);
+            }
+            this.showDropdown = true;
+        },
+
+        selectCompany(id, name) {
+            this.showDropdown = false;
+            this.searchTerm = '';
+            if (id) {
+                window.location.href = '/ats?company_id=' + id;
+            } else {
+                window.location.href = '/ats';
+            }
+        },
+
+        clearFilter() {
+            window.location.href = '/ats';
         }
     }
 }
