@@ -1422,6 +1422,42 @@ async def cleanup_for_restart(
 # ==================== Migrations On-Demand ====================
 
 
+@router.get("/migration-status")
+async def get_migration_status(
+    db: AsyncSession = Depends(get_db),
+):
+    """Zeigt den aktuellen Migrationsstatus."""
+    from sqlalchemy import text
+
+    try:
+        result = await db.execute(
+            text("SELECT version_num FROM alembic_version")
+        )
+        current = result.scalar_one_or_none()
+
+        # Pruefen ob Spalten existieren
+        deleted_at_check = await db.execute(
+            text("SELECT column_name FROM information_schema.columns WHERE table_name = 'ats_jobs' AND column_name = 'deleted_at'")
+        )
+        has_deleted_at = deleted_at_check.fetchone() is not None
+
+        source_job_check = await db.execute(
+            text("SELECT column_name FROM information_schema.columns WHERE table_name = 'ats_jobs' AND column_name = 'source_job_id'")
+        )
+        has_source_job_id = source_job_check.fetchone() is not None
+
+        return {
+            "alembic_version": current,
+            "has_deleted_at": has_deleted_at,
+            "has_source_job_id": has_source_job_id,
+            "migration_011_complete": has_deleted_at and has_source_job_id,
+        }
+    except Exception as e:
+        return {
+            "error": str(e),
+        }
+
+
 @router.post("/run-migrations")
 async def run_migrations(
     db: AsyncSession = Depends(get_db),
