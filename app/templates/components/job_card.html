@@ -117,7 +117,7 @@
             </div>
 
             {# Aktionen #}
-            <div class="flex items-center space-x-2 ml-4">
+            <div class="flex items-center space-x-1 ml-4">
                 {# Extern oeffnen #}
                 {% if job.job_url %}
                 <a href="{{ job.job_url }}"
@@ -140,6 +140,16 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
                 </a>
+
+                {# Zur Pipeline hinzufuegen #}
+                <button type="button"
+                        onclick="addToPipeline('{{ job.id }}', '{{ job.position | e }}', '{{ job.company_name | e }}')"
+                        class="p-2 text-gray-400 hover:text-green-600 rounded-md hover:bg-gray-100"
+                        title="Zur Interview-Pipeline hinzufuegen">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 4.5h14.25M3 9h9.75M3 13.5h9.75m4.5-4.5v12m0 0l-3.75-3.75M17.25 21l3.75-3.75" />
+                    </svg>
+                </button>
 
                 {# Loeschen #}
                 <button type="button"

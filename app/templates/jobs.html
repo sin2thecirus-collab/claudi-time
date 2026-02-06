@@ -120,14 +120,26 @@
          class="mb-4 p-3 bg-primary-50 border border-primary-200 rounded-xl flex items-center justify-between">
         <span class="text-sm font-medium text-primary-700"
               x-text="selectedCount + ' Job(s) ausgewaehlt'"></span>
-        <button type="button"
-                @click="batchDeleteJobs()"
-                class="inline-flex items-center text-sm font-medium text-red-600 hover:text-red-800">
-            <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-            </svg>
-            Loeschen
-        </button>
+        <div class="flex items-center space-x-4">
+            {# Zur Pipeline #}
+            <button type="button"
+                    @click="batchAddToPipeline()"
+                    class="inline-flex items-center text-sm font-medium text-green-600 hover:text-green-800">
+                <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 4.5h14.25M3 9h9.75M3 13.5h9.75m4.5-4.5v12m0 0l-3.75-3.75M17.25 21l3.75-3.75" />
+                </svg>
+                Zur Pipeline
+            </button>
+            {# Loeschen #}
+            <button type="button"
+                    @click="batchDeleteJobs()"
+                    class="inline-flex items-center text-sm font-medium text-red-600 hover:text-red-800">
+                <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                </svg>
+                Loeschen
+            </button>
+        </div>
     </div>
 
     {# -- Jobs-Content (HTMX geladen) -- #}
@@ -167,7 +179,7 @@
         const ids = Array.from(checked).map(cb => cb.value);
 
         try {
-            const response = await fetch('/jobs/batch', {
+            const response = await fetch('/api/jobs/batch', {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ids: ids }),
@@ -176,11 +188,71 @@
             if (response.ok) {
                 const data = await response.json();
                 showToast(data.deleted_count + ' Job(s) geloescht', 'success');
+                // Zaehler zuruecksetzen
+                const batchEl = document.getElementById('batch-actions');
+                if (batchEl && batchEl._x_dataStack) {
+                    batchEl._x_dataStack[0].selectedCount = 0;
+                }
                 // Liste neu laden
-                htmx.trigger('#jobs-content', 'htmx:load');
                 htmx.ajax('GET', '/partials/jobs-list?per_page=20', {target: '#jobs-content', swap: 'innerHTML'});
             } else {
                 showToast('Fehler beim Loeschen', 'error');
+            }
+        } catch(e) {
+            showToast('Netzwerkfehler', 'error');
+        }
+    }
+
+    // Einzelnen Job zur Pipeline hinzufuegen
+    async function addToPipeline(jobId, position, companyName) {
+        try {
+            const response = await fetch('/api/jobs/' + jobId + '/to-pipeline', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title: position,
+                    company_name: companyName,
+                }),
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                showToast('"' + position + '" zur Pipeline hinzugefuegt', 'success');
+            } else {
+                const errorData = await response.json();
+                showToast(errorData.detail || 'Fehler beim Hinzufuegen zur Pipeline', 'error');
+            }
+        } catch(e) {
+            showToast('Netzwerkfehler', 'error');
+        }
+    }
+
+    // Mehrere Jobs zur Pipeline hinzufuegen
+    async function batchAddToPipeline() {
+        const checked = document.querySelectorAll('input[name="selected_jobs"]:checked');
+        if (checked.length === 0) return;
+
+        const ids = Array.from(checked).map(cb => cb.value);
+
+        try {
+            const response = await fetch('/api/jobs/batch/to-pipeline', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: ids }),
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                showToast(data.added_count + ' Job(s) zur Pipeline hinzugefuegt', 'success');
+                // Zaehler zuruecksetzen
+                const batchEl = document.getElementById('batch-actions');
+                if (batchEl && batchEl._x_dataStack) {
+                    batchEl._x_dataStack[0].selectedCount = 0;
+                }
+                // Checkboxen abwaehlen
+                checked.forEach(cb => cb.checked = false);
+            } else {
+                showToast('Fehler beim Hinzufuegen zur Pipeline', 'error');
             }
         } catch(e) {
             showToast('Netzwerkfehler', 'error');
