@@ -10,14 +10,23 @@ from app.config import Limits
 
 
 def validate_postal_code(value: str | None) -> str | None:
-    """Validiert deutsche Postleitzahlen (5 Ziffern)."""
+    """Validiert internationale Postleitzahlen.
+
+    Unterstützte Formate:
+    - Deutschland: 5 Ziffern (z.B. 12345)
+    - Niederlande: 4 Ziffern + 2 Buchstaben (z.B. 2909 LK)
+    - Österreich/Schweiz: 4 Ziffern (z.B. 1010)
+    - UK: alphanumerisch (z.B. SW1A 1AA)
+    - Allgemein: 3-10 alphanumerische Zeichen
+    """
     if value is None:
         return None
     value = value.strip()
     if not value:
         return None
-    if not re.match(r"^\d{5}$", value):
-        raise ValueError("Postleitzahl muss 5 Ziffern haben")
+    # Generische Validierung: 3-10 Zeichen, alphanumerisch mit Leerzeichen/Bindestrich
+    if not re.match(r"^[A-Za-z0-9][A-Za-z0-9\s\-]{1,9}$", value):
+        raise ValueError("Postleitzahl muss 3-10 alphanumerische Zeichen haben")
     return value
 
 
