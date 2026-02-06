@@ -716,10 +716,44 @@ async def get_candidates_for_job(
 # ==================== Hilfsfunktionen ====================
 
 def _job_to_response(job) -> JobResponse:
-    """Konvertiert ein Job-Model zu einem Response-Schema."""
+    """Konvertiert ein Job-Model oder Dict zu einem Response-Schema."""
+    # Unterstuetzt sowohl Job-Objekte als auch Dicts (von _add_match_counts)
+    if isinstance(job, dict):
+        return JobResponse(
+            id=job["id"],
+            company_name=job["company_name"],
+            company_id=job.get("company_id"),
+            company=job.get("company"),
+            position=job["position"],
+            street_address=job.get("street_address"),
+            postal_code=job.get("postal_code"),
+            city=job.get("city"),
+            work_location_city=job.get("work_location_city"),
+            display_city=job.get("display_city"),
+            job_url=job.get("job_url"),
+            job_text=job.get("job_text"),
+            employment_type=job.get("employment_type"),
+            industry=job.get("industry"),
+            company_size=job.get("company_size"),
+            has_coordinates=job.get("has_coordinates", False),
+            expires_at=job.get("expires_at"),
+            excluded_from_deletion=job.get("excluded_from_deletion", False),
+            is_deleted=job.get("is_deleted", False),
+            is_expired=job.get("is_expired", False),
+            imported_at=job.get("imported_at"),
+            last_updated_at=job.get("last_updated_at"),
+            created_at=job.get("created_at"),
+            updated_at=job.get("updated_at"),
+            match_count=job.get("match_count"),
+            active_candidate_count=job.get("active_candidate_count"),
+        )
+
+    # Job-Objekt Handling
     return JobResponse(
         id=job.id,
         company_name=job.company_name,
+        company_id=getattr(job, "company_id", None),
+        company=None,
         position=job.position,
         street_address=job.street_address,
         postal_code=job.postal_code,
