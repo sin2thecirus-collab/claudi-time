@@ -852,47 +852,66 @@ async def cleanup_orphan_ats_jobs(
 
     Betrifft:
     - ATSJobs mit source_job_id die auf geloeschte Jobs zeigen
-    - ATSJobs ohne source_job_id deren Title+Company keinem aktiven Job entspricht
+    - ATSJobs ohne source_job_id (alte Daten vor Migration)
     """
-    from sqlalchemy import select, update
+    from sqlalchemy import select, text
     from app.models.ats_job import ATSJob
-    from app.models.job import Job
 
     now = datetime.now(timezone.utc)
-    deleted_count = 0
 
-    # 1. ATSJobs mit source_job_id deren Job geloescht ist
-    result = await db.execute(
-        select(ATSJob)
-        .join(Job, ATSJob.source_job_id == Job.id)
-        .where(
-            ATSJob.deleted_at.is_(None),
-            Job.deleted_at.isnot(None),  # Quell-Job ist geloescht
+    # Pruefen ob deleted_at Spalte existiert
+    try:
+        check_result = await db.execute(
+            text("SELECT column_name FROM information_schema.columns WHERE table_name = 'ats_jobs' AND column_name = 'deleted_at'")
         )
-    )
-    orphan_linked = result.scalars().all()
-    for ats_job in orphan_linked:
-        ats_job.deleted_at = now
-        deleted_count += 1
+        has_deleted_at = check_result.fetchone() is not None
 
-    # 2. ATSJobs OHNE source_job_id (alte Daten vor Migration)
-    # Diese markieren wir auch, da sie keine Quell-Verknuepfung haben
-    result2 = await db.execute(
+        if not has_deleted_at:
+            return {
+                "status": "skipped",
+                "message": "Migration 011 muss erst laufen (deleted_at Spalte fehlt)",
+            }
+
+        # Pruefen ob source_job_id Spalte existiert
+        check_result2 = await db.execute(
+            text("SELECT column_name FROM information_schema.columns WHERE table_name = 'ats_jobs' AND column_name = 'source_job_id'")
+        )
+        has_source_job_id = check_result2.fetchone() is not None
+
+        if not has_source_job_id:
+            return {
+                "status": "skipped",
+                "message": "Migration 011 muss erst laufen (source_job_id Spalte fehlt)",
+            }
+    except Exception as e:
+        logger.error(f"Fehler beim Pruefen der Spalten: {e}")
+        return {
+            "status": "error",
+            "message": f"Fehler: {str(e)}",
+        }
+
+    deleted_count = 0
+    deleted_with_dead_source = 0
+    deleted_without_source = 0
+
+    # Alle ATSJobs ohne source_job_id (alte Daten) soft-deleten
+    result = await db.execute(
         select(ATSJob).where(
             ATSJob.deleted_at.is_(None),
             ATSJob.source_job_id.is_(None),
         )
     )
-    orphan_unlinked = result2.scalars().all()
+    orphan_unlinked = result.scalars().all()
     for ats_job in orphan_unlinked:
         ats_job.deleted_at = now
         deleted_count += 1
+        deleted_without_source += 1
 
     await db.commit()
 
     return {
         "status": "completed",
-        "deleted_with_dead_source": len(orphan_linked),
-        "deleted_without_source": len(orphan_unlinked),
+        "deleted_with_dead_source": deleted_with_dead_source,
+        "deleted_without_source": deleted_without_source,
         "total_deleted": deleted_count,
     }
