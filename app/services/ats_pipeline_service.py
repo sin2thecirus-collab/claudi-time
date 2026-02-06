@@ -28,14 +28,18 @@ class ATSPipelineService:
     # ── Kandidat Management ──────────────────────────
 
     async def add_candidate(
-        self, ats_job_id: UUID, candidate_id: UUID, notes: str | None = None
+        self, ats_job_id: UUID, candidate_id: UUID,
+        stage: str | None = None, notes: str | None = None
     ) -> ATSPipelineEntry:
         """Fuegt einen Kandidaten zur Pipeline hinzu."""
+        # Stage bestimmen (Default: SENT weil MATCHED nicht in Uebersicht sichtbar)
+        stage_enum = PipelineStage(stage) if stage else PipelineStage.SENT
+
         # Naechste sort_order ermitteln
         max_order_result = await self.db.execute(
             select(func.max(ATSPipelineEntry.sort_order)).where(
                 ATSPipelineEntry.ats_job_id == ats_job_id,
-                ATSPipelineEntry.stage == PipelineStage.MATCHED,
+                ATSPipelineEntry.stage == stage_enum,
             )
         )
         max_order = max_order_result.scalar() or 0
@@ -43,7 +47,7 @@ class ATSPipelineService:
         entry = ATSPipelineEntry(
             ats_job_id=ats_job_id,
             candidate_id=candidate_id,
-            stage=PipelineStage.MATCHED,
+            stage=stage_enum,
             sort_order=max_order + 1,
             notes=notes,
         )

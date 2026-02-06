@@ -17,6 +17,7 @@ router = APIRouter(prefix="/ats/pipeline", tags=["ATS Pipeline"])
 
 class AddCandidateRequest(BaseModel):
     candidate_id: UUID
+    stage: Optional[str] = "sent"  # Default: Vorgestellt (da MATCHED nicht in Pipeline-Uebersicht sichtbar)
     notes: Optional[str] = None
 
 
@@ -79,6 +80,7 @@ async def add_candidate_to_pipeline(
         entry = await service.add_candidate(
             ats_job_id=job_id,
             candidate_id=data.candidate_id,
+            stage=data.stage,
             notes=data.notes,
         )
     except Exception as e:
