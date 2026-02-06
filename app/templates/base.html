@@ -141,9 +141,9 @@
                                class="{% if request.url.path.startswith('/unternehmen') %}border-primary-500 text-gray-900{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-lg font-semibold">
                                 Unternehmen
                             </a>
-                            <div class="relative" x-data="{ atsDropdown: false }">
+                            <div class="relative inline-flex items-center" x-data="{ atsDropdown: false }">
                                 <button @click="atsDropdown = !atsDropdown"
-                                   class="{% if request.url.path.startswith('/ats') %}border-primary-500 text-gray-900{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-lg font-semibold gap-1">
+                                   class="{% if request.url.path.startswith('/ats') %}border-primary-500 text-gray-900{% else %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700{% endif %} inline-flex items-center border-b-2 px-1 pt-1 text-lg font-semibold gap-1 h-full">
                                     ATS
                                     <svg class="w-4 h-4 transition-transform" :class="atsDropdown ? 'rotate-180' : ''" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                                         <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
