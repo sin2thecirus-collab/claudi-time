@@ -374,7 +374,7 @@ async def list_jobs(
 )
 @rate_limit(RateLimitTier.WRITE)
 async def batch_delete_jobs(
-    request: BatchDeleteRequest,
+    data: BatchDeleteRequest,
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -383,9 +383,9 @@ async def batch_delete_jobs(
     Maximal 100 Jobs pro Anfrage.
     """
     try:
-        logger.info(f"Batch delete request: {request.ids}")
+        logger.info(f"Batch delete request: {data.ids}")
         job_service = JobService(db)
-        deleted_count = await job_service.batch_delete(request.ids)
+        deleted_count = await job_service.batch_delete(data.ids)
         logger.info(f"Batch delete success: {deleted_count} jobs deleted")
         return {"deleted_count": deleted_count}
     except Exception as e:
@@ -399,7 +399,7 @@ async def batch_delete_jobs(
 )
 @rate_limit(RateLimitTier.WRITE)
 async def batch_add_jobs_to_pipeline(
-    request: BatchDeleteRequest,  # Wiederverwendung des Schemas fuer IDs
+    data: BatchDeleteRequest,  # Wiederverwendung des Schemas fuer IDs
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -410,7 +410,7 @@ async def batch_add_jobs_to_pipeline(
     from sqlalchemy import select
     from app.services.ats_job_service import ATSJobService
 
-    if len(request.ids) > Limits.BATCH_DELETE_MAX:
+    if len(data.ids) > Limits.BATCH_DELETE_MAX:
         raise ConflictException(
             message=f"Maximal {Limits.BATCH_DELETE_MAX} Jobs pro Batch erlaubt"
         )
@@ -418,7 +418,7 @@ async def batch_add_jobs_to_pipeline(
     # Jobs laden
     result = await db.execute(
         select(Job).where(
-            Job.id.in_(request.ids),
+            Job.id.in_(data.ids),
             Job.deleted_at.is_(None),
         )
     )
