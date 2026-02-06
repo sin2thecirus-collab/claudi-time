@@ -422,8 +422,8 @@ function pipelineOverview() {
                     if (typeof showToast === 'function') {
                         showToast(`${candidateName} nach "${this.getStageLabel(newStage)}" verschoben`, 'success');
                     }
-                    // Seite neu laden um Aenderungen anzuzeigen
-                    setTimeout(() => location.reload(), 500);
+                    // DOM direkt aktualisieren - kein Reload
+                    this.moveCandidateInDOM(entryId, newStage, jobId);
                 } else {
                     const error = await response.json();
                     if (typeof showToast === 'function') {
@@ -451,6 +451,59 @@ function pipelineOverview() {
                 'rejected': 'Verloren'
             };
             return labels[stage] || stage;
+        },
+
+        moveCandidateInDOM(entryId, newStage, jobId) {
+            const avatarEl = document.querySelector(`[data-entry-id="${entryId}"]`);
+            if (!avatarEl) return;
+
+            const jobRow = document.querySelector(`.pipeline-row[data-job-id="${jobId}"]`);
+            const targetDropzone = jobRow.querySelector(`.pipeline-dropzone[data-stage="${newStage}"]`);
+
+            // Container finden oder erstellen
+            let targetContainer = targetDropzone.querySelector('.flex.flex-col');
+            if (!targetContainer) {
+                const dash = targetDropzone.querySelector('span');
+                if (dash) dash.remove();
+                targetContainer = document.createElement('div');
+                targetContainer.className = 'flex flex-col gap-2 w-full';
+                targetDropzone.appendChild(targetContainer);
+            }
+
+            // Alte Position merken fuer Cleanup
+            const oldContainer = avatarEl.parentElement;
+
+            // Element verschieben
+            targetContainer.appendChild(avatarEl);
+
+            // Avatar-Farbe aktualisieren
+            this.updateAvatarColor(avatarEl, newStage);
+
+            // Alte Dropzone aufraeumen
+            if (oldContainer && oldContainer.children.length === 0) {
+                const oldDropzone = oldContainer.parentElement;
+                oldContainer.remove();
+                const dash = document.createElement('span');
+                dash.className = 'text-gray-300';
+                dash.textContent = '—';
+                oldDropzone.appendChild(dash);
+            }
+        },
+
+        updateAvatarColor(avatarEl, newStage) {
+            const colorMap = {
+                'sent': 'bg-indigo-500',
+                'interview_1': 'bg-purple-500',
+                'interview_2': 'bg-purple-600',
+                'interview_3': 'bg-purple-700',
+                'offer': 'bg-emerald-500',
+                'placed': 'bg-green-500',
+                'rejected': 'bg-red-400'
+            };
+            const avatar = avatarEl.querySelector('.rounded-full');
+            if (!avatar) return;
+            Object.values(colorMap).forEach(c => avatar.classList.remove(c));
+            avatar.classList.add(colorMap[newStage] || 'bg-gray-500');
         }
     }
 }
