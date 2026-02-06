@@ -121,32 +121,33 @@
                          @dragover.prevent="$el.classList.add('bg-primary-50', 'ring-2', 'ring-primary-300')"
                          @dragleave="$el.classList.remove('bg-primary-50', 'ring-2', 'ring-primary-300')"
                          @drop="handleDrop($event, '{{ stage }}', '{{ job.id }}')">
-                        <div class="pipeline-candidates flex flex-wrap items-center justify-center gap-1 min-h-[28px]">
-                            {# Avatar-Kreise (alle anzeigen fuer Drag) #}
+                        <div class="pipeline-candidates flex flex-col items-start gap-1 min-h-[28px]">
+                            {# Kandidaten-Badges mit vollem Namen #}
                             {% for entry in stage_entries %}
                             {% set candidate = entry.candidate %}
                             {% if candidate %}
-                            <div class="relative group pipeline-avatar"
+                            <div class="pipeline-avatar w-full"
                                  draggable="true"
                                  data-entry-id="{{ entry.id }}"
                                  data-candidate-id="{{ candidate.id }}"
                                  data-candidate-name="{{ candidate.first_name }} {{ candidate.last_name }}"
                                  @dragstart="handleDragStart($event, '{{ entry.id }}', '{{ candidate.id }}', '{{ candidate.first_name }} {{ candidate.last_name }}')"
                                  @dragend="handleDragEnd($event)">
-                                <div class="w-7 h-7 rounded-full {{ stage_colors.get(stage, 'bg-gray-400') }} flex items-center justify-center text-white text-xs font-medium cursor-grab active:cursor-grabbing hover:ring-2 hover:ring-offset-1 hover:ring-primary-400 transition-all"
-                                     title="{{ candidate.first_name }} {{ candidate.last_name }} - Ziehen zum Verschieben">
-                                    {{ (candidate.first_name or 'U')[0] }}
-                                </div>
-                                {# Tooltip mit Name #}
-                                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                                    {{ candidate.first_name }} {{ candidate.last_name }}
-                                </div>
+                                <a href="/kandidaten/{{ candidate.id }}"
+                                   class="flex items-center gap-1.5 px-2 py-1 rounded-md {{ stage_colors.get(stage, 'bg-gray-400') }} text-white text-xs font-medium cursor-grab active:cursor-grabbing hover:opacity-90 transition-all truncate"
+                                   title="{{ candidate.first_name }} {{ candidate.last_name }} - Klicken fuer Details, Ziehen zum Verschieben"
+                                   @click.stop>
+                                    <span class="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-[10px] flex-shrink-0">
+                                        {{ (candidate.first_name or 'U')[0] }}
+                                    </span>
+                                    <span class="truncate">{{ candidate.first_name }} {{ candidate.last_name }}</span>
+                                </a>
                             </div>
                             {% endif %}
                             {% endfor %}
                             {# Leere Dropzone wenn keine Kandidaten #}
                             {% if not stage_entries %}
-                            <div class="w-6 h-6 rounded-full border-2 border-dashed border-gray-200 opacity-50"></div>
+                            <div class="w-full h-6 border-2 border-dashed border-gray-200 rounded opacity-50"></div>
                             {% endif %}
                         </div>
                     </div>
