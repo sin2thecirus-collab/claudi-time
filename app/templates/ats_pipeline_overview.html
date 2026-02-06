@@ -115,39 +115,49 @@
                         'rejected': 'bg-red-400'
                     } %}
 
-                    <div class="col-span-1 px-2 py-3 border-r border-gray-100 last:border-r-0 pipeline-cell pipeline-dropzone"
+                    <div class="col-span-1 px-1 py-2 border-r border-gray-100 last:border-r-0 pipeline-cell pipeline-dropzone relative group/cell"
                          data-stage="{{ stage }}"
                          data-job-id="{{ job.id }}"
                          @dragover.prevent="$el.classList.add('bg-primary-50', 'ring-2', 'ring-primary-300')"
                          @dragleave="$el.classList.remove('bg-primary-50', 'ring-2', 'ring-primary-300')"
                          @drop="handleDrop($event, '{{ stage }}', '{{ job.id }}')">
-                        <div class="pipeline-candidates flex flex-col items-start gap-1 min-h-[28px]">
-                            {# Kandidaten-Badges mit vollem Namen #}
-                            {% for entry in stage_entries %}
-                            {% set candidate = entry.candidate %}
-                            {% if candidate %}
-                            <div class="pipeline-avatar w-full"
-                                 draggable="true"
-                                 data-entry-id="{{ entry.id }}"
-                                 data-candidate-id="{{ candidate.id }}"
-                                 data-candidate-name="{{ candidate.first_name }} {{ candidate.last_name }}"
-                                 @dragstart="handleDragStart($event, '{{ entry.id }}', '{{ candidate.id }}', '{{ candidate.first_name }} {{ candidate.last_name }}')"
-                                 @dragend="handleDragEnd($event)">
-                                <a href="/kandidaten/{{ candidate.id }}"
-                                   class="flex items-center gap-1.5 px-2 py-1 rounded-md {{ stage_colors.get(stage, 'bg-gray-400') }} text-white text-xs font-medium cursor-grab active:cursor-grabbing hover:opacity-90 transition-all truncate"
-                                   title="{{ candidate.first_name }} {{ candidate.last_name }} - Klicken fuer Details, Ziehen zum Verschieben"
-                                   @click.stop>
-                                    <span class="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-[10px] flex-shrink-0">
-                                        {{ (candidate.first_name or 'U')[0] }}
-                                    </span>
-                                    <span class="truncate">{{ candidate.first_name }} {{ candidate.last_name }}</span>
-                                </a>
+                        <div class="pipeline-candidates flex flex-col items-center gap-0.5 min-h-[28px]">
+                            {# Kandidaten - Anzahl Badge mit Hover-Popup fuer Namen #}
+                            {% if stage_entries %}
+                            <div class="relative">
+                                {# Anzahl Badge #}
+                                <div class="w-7 h-7 rounded-full {{ stage_colors.get(stage, 'bg-gray-400') }} flex items-center justify-center text-white text-xs font-bold cursor-pointer"
+                                     title="{% for e in stage_entries %}{{ e.candidate.first_name }} {{ e.candidate.last_name }}{% if not loop.last %}, {% endif %}{% endfor %}">
+                                    {{ stage_entries | length }}
+                                </div>
+                                {# Hover Popup mit allen Namen #}
+                                <div class="absolute left-1/2 -translate-x-1/2 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[180px] z-50 hidden group-hover/cell:block">
+                                    {% for entry in stage_entries %}
+                                    {% set candidate = entry.candidate %}
+                                    {% if candidate %}
+                                    <div class="pipeline-avatar"
+                                         draggable="true"
+                                         data-entry-id="{{ entry.id }}"
+                                         data-candidate-id="{{ candidate.id }}"
+                                         data-candidate-name="{{ candidate.first_name }} {{ candidate.last_name }}"
+                                         @dragstart="handleDragStart($event, '{{ entry.id }}', '{{ candidate.id }}', '{{ candidate.first_name }} {{ candidate.last_name }}')"
+                                         @dragend="handleDragEnd($event)">
+                                        <a href="/kandidaten/{{ candidate.id }}"
+                                           class="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 cursor-grab active:cursor-grabbing"
+                                           @click.stop>
+                                            <span class="w-6 h-6 rounded-full {{ stage_colors.get(stage, 'bg-gray-400') }} flex items-center justify-center text-white text-[10px] font-medium flex-shrink-0">
+                                                {{ (candidate.first_name or 'U')[0] }}
+                                            </span>
+                                            <span class="text-sm text-gray-900 truncate">{{ candidate.first_name }} {{ candidate.last_name }}</span>
+                                        </a>
+                                    </div>
+                                    {% endif %}
+                                    {% endfor %}
+                                </div>
                             </div>
-                            {% endif %}
-                            {% endfor %}
-                            {# Leere Dropzone wenn keine Kandidaten #}
-                            {% if not stage_entries %}
-                            <div class="w-full h-6 border-2 border-dashed border-gray-200 rounded opacity-50"></div>
+                            {% else %}
+                            {# Leere Dropzone #}
+                            <div class="w-6 h-6 rounded-full border-2 border-dashed border-gray-200 opacity-50"></div>
                             {% endif %}
                         </div>
                     </div>
