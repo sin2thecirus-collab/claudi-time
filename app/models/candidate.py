@@ -73,6 +73,11 @@ class Candidate(Base):
     manual_job_titles: Mapped[list[str] | None] = mapped_column(ARRAY(String))  # z.B. ["Finanzbuchhalter/in", "Kreditorenbuchhalter/in"]
     manual_job_titles_set_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
+    # Gehalt, Kuendigungsfrist, ERP-Kenntnisse (fuer Pipeline-Ansicht)
+    salary: Mapped[str | None] = mapped_column(String(100))  # z.B. "55.000 €", "60.000-70.000 €"
+    notice_period: Mapped[str | None] = mapped_column(String(100))  # z.B. "3 Monate", "6 Wochen"
+    erp: Mapped[list[str] | None] = mapped_column(ARRAY(String))  # z.B. ["SAP", "DATEV", "Addison"]
+
     # Sterne-Bewertung (1-5, manuell vergeben)
     rating: Mapped[int | None] = mapped_column(Integer)
     rating_set_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

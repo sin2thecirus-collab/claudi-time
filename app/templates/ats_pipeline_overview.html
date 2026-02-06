@@ -1,611 +1,670 @@
 {% extends "base.html" %}
 
-{% block title %}Interview Pipeline - Pulspoint{% endblock %}
+{% block title %}Pipeline - Pulspoint{% endblock %}
+
+{% block head %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;0,9..40,800;1,9..40,400&display=swap" rel="stylesheet">
+<style>
+    .pipeline-wrap { font-family: 'DM Sans', 'Segoe UI', -apple-system, sans-serif; }
+    .pipeline-wrap ::-webkit-scrollbar { width: 6px; height: 6px; }
+    .pipeline-wrap ::-webkit-scrollbar-track { background: transparent; }
+    .pipeline-wrap ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+
+    @keyframes slideInRight {
+        from { transform: translateX(100%); opacity: 0 }
+        to   { transform: translateX(0);    opacity: 1 }
+    }
+    @keyframes fadeUp {
+        from { opacity: 0; transform: translateY(12px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    .anim-slide-in { animation: slideInRight 0.3s ease-out forwards; }
+    .anim-fade-up  { animation: fadeUp 0.4s ease-out forwards; }
+
+    .card-hover { transition: all 0.2s cubic-bezier(0.4,0,0.2,1); }
+    .card-hover:hover {
+        border-color: #c7d2fe;
+        box-shadow: 0 4px 16px rgba(99,102,241,0.12);
+        transform: translateY(-2px);
+    }
+
+    .funnel-bar { transition: width 0.8s cubic-bezier(0.4,0,0.2,1); }
+</style>
+{% endblock %}
 
 {% block content %}
-<div x-data="pipelineOverview()" class="min-h-screen bg-gray-50">
+{# ── Pipeline Data als JSON fuer Alpine.js ── #}
+{% set phases_config = [
+    {"id": "sent",        "label": "Vorgestellt",  "color": "#6366f1", "bg": "#eef2ff"},
+    {"id": "interview_1", "label": "Interview 1",  "color": "#0ea5e9", "bg": "#e0f2fe"},
+    {"id": "interview_2", "label": "Interview 2",  "color": "#8b5cf6", "bg": "#f3e8ff"},
+    {"id": "interview_3", "label": "Interview 3",  "color": "#d946ef", "bg": "#fae8ff"},
+    {"id": "offer",       "label": "Angebot",      "color": "#f59e0b", "bg": "#fef3c7"},
+    {"id": "placed",      "label": "Platziert",    "color": "#10b981", "bg": "#d1fae5"},
+    {"id": "rejected",    "label": "Abgesagt",     "color": "#94a3b8", "bg": "#f1f5f9"}
+] %}
 
-    {# -- Cleaner Header -- #}
-    <div class="bg-white border-b border-gray-200">
-        <div class="max-w-full mx-auto px-6 py-5">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                    <h1 class="text-2xl font-bold text-gray-900">Pipeline</h1>
-                    <p class="text-sm text-gray-500 mt-1">{{ total_jobs }} aktive Stelle{{ 'n' if total_jobs != 1 else '' }}</p>
-                </div>
-                <div class="flex items-center gap-3">
-                    {# Company Filter mit Autocomplete #}
-                    <div class="relative" x-data="companyFilter()">
-                        <div class="flex items-center">
-                            <div class="relative">
-                                <input type="text"
-                                       x-model="searchTerm"
-                                       @input.debounce.200ms="searchCompanies()"
-                                       @focus="showDropdown = true"
-                                       @click.away="showDropdown = false"
-                                       :placeholder="selectedCompanyName || 'Unternehmen suchen...'"
-                                       class="w-64 px-4 py-2 pl-10 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-400">
-                                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-                                </svg>
-                            </div>
-                            <template x-if="selectedCompanyId">
-                                <button @click="clearFilter()"
-                                        class="ml-2 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                                        title="Filter entfernen">
-                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-                            </template>
-                        </div>
+{% set avatar_colors = ["#6366f1","#0ea5e9","#8b5cf6","#d946ef","#f59e0b","#10b981","#ef4444","#ec4899","#14b8a6","#f97316"] %}
 
-                        {# Dropdown mit Suchergebnissen #}
-                        <div x-show="showDropdown && (filteredCompanies.length > 0 || searchTerm.length >= 1)"
-                             x-cloak
-                             class="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
-                            <button type="button"
-                                    @click="selectCompany(null, 'Alle Unternehmen')"
-                                    class="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 border-b border-gray-100"
-                                    :class="{ 'bg-blue-50 text-blue-700 font-medium': !selectedCompanyId }">
-                                Alle Unternehmen
-                            </button>
-                            <template x-for="company in filteredCompanies" :key="company.id">
-                                <button type="button"
-                                        @click="selectCompany(company.id, company.name)"
-                                        class="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 border-b border-gray-100 last:border-b-0"
-                                        :class="{ 'bg-blue-50 text-blue-700 font-medium': selectedCompanyId === company.id }">
-                                    <span x-text="company.name"></span>
-                                </button>
-                            </template>
-                            <div x-show="searchTerm.length >= 1 && filteredCompanies.length === 0"
-                                 class="px-4 py-3 text-sm text-gray-500 text-center">
-                                Keine Unternehmen gefunden
-                            </div>
-                        </div>
-                    </div>
-                    <a href="/ats/stellen"
-                       class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-                        </svg>
-                        Alle Stellen
-                    </a>
+<div class="pipeline-wrap min-h-screen"
+     style="background: linear-gradient(135deg, #f8fafd 0%, #f0f4f8 100%);"
+     x-data="pipelineApp()"
+     x-init="init()">
+
+    {# ════════════════════════════════════════════════════
+       HEADER
+    ════════════════════════════════════════════════════ #}
+    <div class="px-7 pt-6 pb-0">
+        <div class="flex items-center justify-between mb-6">
+            <div>
+                <h1 class="text-[26px] font-[800] text-[#0f172a] tracking-tight leading-tight">Pipeline</h1>
+                <p class="text-[13px] text-[#64748b] mt-1 font-medium"
+                   x-text="activePos ? activePos.company : '{{ total_jobs }} aktive Stelle{{ 'n' if total_jobs != 1 else '' }}'">
+                </p>
+            </div>
+            <div class="flex items-center gap-3">
+                {# Suche #}
+                <div class="relative">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-[14px] text-[#94a3b8] pointer-events-none">&#x2315;</span>
+                    <input type="text"
+                           x-model="searchQuery"
+                           placeholder="Kandidat suchen..."
+                           class="pl-9 pr-4 py-2.5 rounded-xl border border-[#e2e8f0] text-[13px] w-[220px] outline-none bg-white text-[#1e293b] font-medium"
+                           style="font-family: inherit;">
                 </div>
+                {# Board / Tabelle Toggle #}
+                <div class="flex bg-[#e8ecf1] rounded-[10px] p-[3px]">
+                    <button @click="view = 'board'"
+                            :class="view === 'board' ? 'bg-white text-[#1e293b] shadow-sm' : 'bg-transparent text-[#64748b]'"
+                            class="px-4 py-2 rounded-lg text-[12px] font-semibold cursor-pointer transition-all"
+                            style="font-family: inherit;">Board</button>
+                    <button @click="view = 'table'"
+                            :class="view === 'table' ? 'bg-white text-[#1e293b] shadow-sm' : 'bg-transparent text-[#64748b]'"
+                            class="px-4 py-2 rounded-lg text-[12px] font-semibold cursor-pointer transition-all"
+                            style="font-family: inherit;">Tabelle</button>
+                </div>
+            </div>
+        </div>
+
+        {# ════════════════════════════════════════════════════
+           POSITION TABS
+        ════════════════════════════════════════════════════ #}
+        {% if positions|length > 0 %}
+        <div class="flex gap-2 mb-5 flex-wrap">
+            {% for pos in positions %}
+            <button @click="setActivePosition('{{ pos.id }}')"
+                    :class="activePosition === '{{ pos.id }}'
+                        ? 'border-2 border-indigo-500 bg-indigo-50 text-indigo-700'
+                        : 'border border-[#e2e8f0] bg-white text-[#64748b] hover:border-[#c7d2fe]'"
+                    class="px-4 py-2 rounded-[10px] text-[13px] font-semibold cursor-pointer flex items-center gap-2 transition-all"
+                    style="font-family: inherit;">
+                {{ pos.name }}
+                <span :class="activePosition === '{{ pos.id }}'
+                           ? 'bg-indigo-500 text-white'
+                           : 'bg-[#e2e8f0] text-[#64748b]'"
+                      class="text-[11px] font-bold px-[7px] py-[1px] rounded-md">
+                    {{ pos.candidates }}
+                </span>
+                {% if not pos.active %}
+                <span class="text-[10px] text-[#94a3b8] font-medium">pausiert</span>
+                {% endif %}
+            </button>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {# ════════════════════════════════════════════════════
+           METRIC CARDS
+        ════════════════════════════════════════════════════ #}
+        <div class="flex gap-3 mb-6">
+            {# In Pipeline #}
+            <div class="flex-1 min-w-[150px] bg-white rounded-[14px] p-[18px_20px] border border-[#e8ecf1] anim-fade-up">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-[11.5px] text-[#64748b] font-medium">In Pipeline</span>
+                    <span class="text-[18px]">&#x1F465;</span>
+                </div>
+                <div class="text-[28px] font-[800] text-[#1e293b] tracking-tight leading-none" x-text="metrics.inPipeline"></div>
+                <div class="text-[11px] text-indigo-500 font-semibold mt-1.5">aktive Kandidaten</div>
+            </div>
+            {# Platziert #}
+            <div class="flex-1 min-w-[150px] bg-white rounded-[14px] p-[18px_20px] border border-[#e8ecf1] anim-fade-up" style="animation-delay: 100ms;">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-[11.5px] text-[#64748b] font-medium">Platziert</span>
+                    <span class="text-[18px]">&#x1F3AF;</span>
+                </div>
+                <div class="text-[28px] font-[800] text-[#1e293b] tracking-tight leading-none" x-text="metrics.placed"></div>
+                <div class="text-[11px] text-emerald-500 font-semibold mt-1.5">erfolgreich</div>
+            </div>
+            {# Durchschn. Tage #}
+            <div class="flex-1 min-w-[150px] bg-white rounded-[14px] p-[18px_20px] border border-[#e8ecf1] anim-fade-up" style="animation-delay: 200ms;">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-[11.5px] text-[#64748b] font-medium">&empty; Tage / Phase</span>
+                    <span class="text-[18px]">&#x23F1;</span>
+                </div>
+                <div class="text-[28px] font-[800] text-[#1e293b] tracking-tight leading-none" x-text="metrics.avgDays"></div>
+                <div class="text-[11px] font-semibold mt-1.5"
+                     :class="metrics.avgDays <= 5 ? 'text-emerald-500' : 'text-amber-500'"
+                     x-text="metrics.avgDays <= 5 ? 'Guter Durchlauf' : 'Achtung: Stau m\u00f6glich'"></div>
+            </div>
+            {# Conversion #}
+            <div class="flex-1 min-w-[150px] bg-white rounded-[14px] p-[18px_20px] border border-[#e8ecf1] anim-fade-up" style="animation-delay: 300ms;">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-[11.5px] text-[#64748b] font-medium">Conversion</span>
+                    <span class="text-[18px]">&#x1F4C8;</span>
+                </div>
+                <div class="text-[28px] font-[800] text-[#1e293b] tracking-tight leading-none" x-text="metrics.conversion + '%'"></div>
+                <div class="text-[11px] text-violet-500 font-semibold mt-1.5">Vorgestellt &rarr; IV1</div>
             </div>
         </div>
     </div>
 
-    {# -- Pipeline Content -- #}
-    <div class="max-w-full mx-auto px-6 py-6">
+    {# ════════════════════════════════════════════════════
+       BOARD VIEW
+    ════════════════════════════════════════════════════ #}
+    <div x-show="view === 'board'" class="px-7 pb-6">
 
-        {# -- Stage Labels Row -- #}
-        {% set visible_stages = ['sent', 'interview_1', 'interview_2', 'interview_3', 'offer', 'placed', 'rejected'] %}
-        {% set stage_colors = {
-            'sent': 'bg-blue-100 text-blue-700',
-            'interview_1': 'bg-violet-100 text-violet-700',
-            'interview_2': 'bg-violet-100 text-violet-700',
-            'interview_3': 'bg-violet-100 text-violet-700',
-            'offer': 'bg-amber-100 text-amber-700',
-            'placed': 'bg-emerald-100 text-emerald-700',
-            'rejected': 'bg-red-100 text-red-700'
-        } %}
-        {% set stage_dot_colors = {
-            'sent': 'bg-blue-500',
-            'interview_1': 'bg-violet-500',
-            'interview_2': 'bg-violet-500',
-            'interview_3': 'bg-violet-500',
-            'offer': 'bg-amber-500',
-            'placed': 'bg-emerald-500',
-            'rejected': 'bg-red-500'
-        } %}
+        {# Kanban Columns #}
+        <div class="flex gap-3 overflow-x-auto pb-5">
+            {% for phase in phases_config %}
+            <div class="flex-1 min-w-[200px] max-w-[280px]"
+                 x-show="true">
 
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            {# Header Row 1 - Position und Aktionen #}
-            <div class="grid grid-cols-12 border-b border-gray-100 bg-gray-50">
-                <div class="col-span-3 px-5 py-3">
-                    <span class="text-sm font-semibold text-gray-600 uppercase tracking-wider">Position</span>
-                </div>
-                <div class="col-span-7"></div>
-                <div class="col-span-2 px-5 py-3 text-right">
-                    <span class="text-sm font-semibold text-gray-600 uppercase tracking-wider">Aktionen</span>
-                </div>
-            </div>
-            {# Header Row 2 - Farbige Stage-Tabs #}
-            {% set header_colors = {
-                'sent': {'bg': '#fce4e8', 'text': '#9b2c3d'},
-                'interview_1': {'bg': '#f9d5dc', 'text': '#9b2c3d'},
-                'interview_2': {'bg': '#f5c6cb', 'text': '#9b2c3d'},
-                'interview_3': {'bg': '#e8939f', 'text': '#ffffff'},
-                'offer': {'bg': '#d4edda', 'text': '#155724'},
-                'placed': {'bg': '#b8e0c4', 'text': '#155724'},
-                'rejected': {'bg': '#c3e6cb', 'text': '#155724'}
-            } %}
-            <div class="grid grid-cols-12 border-b border-gray-200">
-                <div class="col-span-3"></div>
-                {% for stage in visible_stages %}
-                {% set colors = header_colors.get(stage, {'bg': '#f3f4f6', 'text': '#374151'}) %}
-                <div class="col-span-1 flex items-center justify-center text-sm font-semibold py-3"
-                     style="background-color: {{ colors.bg }}; color: {{ colors.text }};">
-                    {% if stage == 'sent' %}Vorgestellt
-                    {% elif stage == 'interview_1' %}IV 1
-                    {% elif stage == 'interview_2' %}IV 2
-                    {% elif stage == 'interview_3' %}IV 3
-                    {% elif stage == 'offer' %}Angebot
-                    {% elif stage == 'placed' %}Platziert
-                    {% elif stage == 'rejected' %}Abgesagt
-                    {% endif %}
-                </div>
-                {% endfor %}
-                <div class="col-span-2"></div>
-            </div>
-
-            {# -- Job Rows -- #}
-            {% if jobs_by_company %}
-                {% for company_key, company_data in jobs_by_company.items() %}
-                    {% for job_item in company_data.jobs %}
-                    {% set job = job_item.job %}
-                    {% set entries_by_stage = job_item.entries_by_stage %}
-
-                    <div class="grid grid-cols-12 border-b border-gray-100 last:border-b-0 hover:bg-gray-50/50 transition-colors pipeline-row"
-                         data-job-id="{{ job.id }}">
-
-                        {# Job Info #}
-                        <div class="col-span-3 px-5 py-4">
-                            <a href="/ats/stellen/{{ job.id }}" class="block group">
-                                <p class="text-base font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">{{ job.title }}</p>
-                                <div class="flex items-center gap-2 mt-1">
-                                    <span class="text-sm text-gray-500">{% if company_data.company %}{{ company_data.company_name }}{% endif %}</span>
-                                    {% if job.location_city %}
-                                    <span class="text-gray-300">•</span>
-                                    <span class="text-sm text-gray-500">{{ job.location_city }}</span>
-                                    {% endif %}
-                                </div>
-                            </a>
-                        </div>
-
-                        {# Pipeline Stages #}
-                        {% for stage in visible_stages %}
-                        {% set stage_entries = entries_by_stage.get(stage, []) %}
-                        {% set avatar_colors = {
-                            'sent': 'bg-blue-500',
-                            'interview_1': 'bg-violet-500',
-                            'interview_2': 'bg-violet-600',
-                            'interview_3': 'bg-violet-700',
-                            'offer': 'bg-amber-500',
-                            'placed': 'bg-emerald-500',
-                            'rejected': 'bg-red-400'
-                        } %}
-
-                        <div class="col-span-1 px-2 py-3 pipeline-dropzone flex items-center justify-center min-h-[60px]"
-                             data-stage="{{ stage }}"
-                             data-job-id="{{ job.id }}"
-                             @dragover.prevent="$el.classList.add('bg-blue-50', 'ring-2', 'ring-inset', 'ring-blue-300')"
-                             @dragleave="$el.classList.remove('bg-blue-50', 'ring-2', 'ring-inset', 'ring-blue-300')"
-                             @drop="handleDrop($event, '{{ stage }}', '{{ job.id }}')">
-                            {% if stage_entries %}
-                            <div class="flex flex-col gap-1.5 w-full">
-                                {% for entry in stage_entries %}
-                                {% set candidate = entry.candidate %}
-                                {% if candidate %}
-                                <div class="pipeline-avatar"
-                                     draggable="true"
-                                     data-entry-id="{{ entry.id }}"
-                                     data-candidate-id="{{ candidate.id }}"
-                                     data-candidate-name="{{ candidate.first_name }} {{ candidate.last_name }}"
-                                     @dragstart="handleDragStart($event, '{{ entry.id }}', '{{ candidate.id }}', '{{ candidate.first_name }} {{ candidate.last_name }}')"
-                                     @dragend="handleDragEnd($event)">
-                                    <a href="/kandidaten/{{ candidate.id }}"
-                                       class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white hover:shadow-sm cursor-grab active:cursor-grabbing transition-all border border-transparent hover:border-gray-200"
-                                       title="{{ candidate.first_name }} {{ candidate.last_name }}"
-                                       @click.stop>
-                                        <div class="w-8 h-8 rounded-full {{ avatar_colors.get(stage, 'bg-gray-400') }} flex items-center justify-center text-white text-sm font-semibold flex-shrink-0 shadow-sm">
-                                            {{ (candidate.first_name or 'U')[0] | upper }}{{ (candidate.last_name or '')[0] | upper }}
-                                        </div>
-                                        <span class="text-sm font-medium text-gray-700 truncate">{{ candidate.first_name }} {{ candidate.last_name }}</span>
-                                    </a>
-                                </div>
-                                {% endif %}
-                                {% endfor %}
-                            </div>
-                            {% else %}
-                            <span class="text-gray-200">—</span>
-                            {% endif %}
-                        </div>
-                        {% endfor %}
-
-                        {# Actions #}
-                        <div class="col-span-2 px-4 py-3 flex items-center justify-end gap-2">
-                            <button @click="openAddCandidateModal('{{ job.id }}', '{{ job.title | e }}')"
-                                    class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                                    title="Kandidat hinzufuegen">
-                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                                </svg>
-                                Hinzufügen
-                            </button>
-                            <a href="/ats/stellen/{{ job.id }}"
-                               class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
-                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-                                </svg>
-                                Details
-                            </a>
-                        </div>
+                {# Column Header #}
+                <div class="flex items-center justify-between mb-3 px-1">
+                    <div class="flex items-center gap-2">
+                        <div class="w-[10px] h-[10px] rounded-[3px]" style="background: {{ phase.color }};"></div>
+                        <span class="text-[13px] font-bold text-[#334155] tracking-tight">{{ phase.label }}</span>
                     </div>
-                    {% endfor %}
-                {% endfor %}
-            {% else %}
-            <div class="px-6 py-16 text-center">
-                <div class="w-14 h-14 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                    <svg class="w-7 h-7 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0M12 12.75h.008v.008H12v-.008z" />
-                    </svg>
-                </div>
-                <p class="text-base font-medium text-gray-900">Keine Jobs in der Pipeline</p>
-                <p class="mt-1 text-sm text-gray-500">Füge Stellen zur Pipeline hinzu, um Kandidaten zu tracken</p>
-                <a href="/ats/stellen"
-                   class="mt-5 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                    </svg>
-                    Stellen verwalten
-                </a>
-            </div>
-            {% endif %}
-        </div>
-    </div>
-
-
-    {# -- Kandidat hinzufuegen Modal -- #}
-    <div x-show="addCandidateOpen"
-         x-cloak
-         class="fixed inset-0 z-50"
-         @keydown.escape.window="addCandidateOpen = false">
-        <div class="fixed inset-0 bg-black/40 backdrop-blur-sm" @click="addCandidateOpen = false"></div>
-        <div class="fixed inset-0 z-10 overflow-y-auto">
-            <div class="flex min-h-full items-center justify-center p-4">
-                <div @click.stop
-                     x-show="addCandidateOpen"
-                     x-transition
-                     class="relative w-full max-w-md bg-white rounded-xl shadow-2xl">
-
-                    <div class="px-5 py-4 border-b border-gray-100">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <h3 class="text-base font-semibold text-gray-900">Kandidat hinzufügen</h3>
-                                <p class="text-xs text-gray-500 mt-0.5" x-text="selectedJobTitle"></p>
-                            </div>
-                            <button @click="addCandidateOpen = false" class="text-gray-400 hover:text-gray-500 p-1 rounded-lg hover:bg-gray-100">
-                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                        </div>
+                    <div class="text-[12px] font-bold w-[26px] h-[26px] rounded-lg flex items-center justify-center"
+                         style="background: {{ phase.color }}18; color: {{ phase.color }};"
+                         x-text="candidatesInPhase('{{ phase.id }}').length">
                     </div>
+                </div>
 
-                    <div class="px-5 py-4 space-y-4">
-                        {# Kandidaten-Suche #}
-                        <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1.5">Kandidat suchen</label>
-                            <input type="text"
-                                   x-model="candidateSearch"
-                                   @input.debounce.300ms="searchCandidates()"
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                   placeholder="Name eingeben..."
-                                   autocomplete="off">
+                {# Column Body (Drop Zone) #}
+                <div class="rounded-[14px] p-2 min-h-[120px] flex flex-col gap-2"
+                     style="background: {{ phase.bg }}80; border: 1px dashed {{ phase.color }}30;"
+                     @dragover.prevent="$el.style.borderColor = '{{ phase.color }}'"
+                     @dragleave="$el.style.borderColor = '{{ phase.color }}30'"
+                     @drop="handleDrop($event, '{{ phase.id }}')">
 
-                            {# Suchergebnisse #}
-                            <div x-show="searchResults.length > 0"
-                                 class="mt-2 border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-48 overflow-y-auto">
-                                <template x-for="candidate in searchResults" :key="candidate.id">
-                                    <button type="button"
-                                            @click="selectCandidate(candidate)"
-                                            class="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-3">
-                                        <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-semibold"
-                                             x-text="candidate.name.charAt(0).toUpperCase()"></div>
-                                        <div class="min-w-0 flex-1">
-                                            <p class="text-sm font-medium text-gray-900 truncate" x-text="candidate.name"></p>
-                                            <p class="text-xs text-gray-500 truncate" x-text="candidate.position || candidate.city || '-'"></p>
-                                        </div>
-                                    </button>
+                    {# Candidate Cards #}
+                    <template x-for="card in candidatesInPhase('{{ phase.id }}')" :key="card.entry_id">
+                        <div @click="selectCandidate(card)"
+                             draggable="true"
+                             @dragstart="handleDragStart($event, card)"
+                             @dragend="handleDragEnd($event)"
+                             class="bg-white rounded-xl p-[14px_16px] cursor-pointer border border-[#e8ecf1] card-hover">
+
+                            {# Avatar + Name #}
+                            <div class="flex items-center gap-2.5 mb-2.5">
+                                <div class="w-9 h-9 rounded-[10px] flex items-center justify-center text-white text-[13px] font-bold tracking-wide flex-shrink-0"
+                                     :style="'background: linear-gradient(135deg, ' + getAvatarColor(card.id) + ', ' + getAvatarColor(card.id) + 'cc)'">
+                                    <span x-text="card.avatar"></span>
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <div class="font-semibold text-[13.5px] text-[#1e293b] leading-tight truncate" x-text="card.name"></div>
+                                    <div class="text-[11.5px] text-[#64748b] mt-0.5 truncate" x-text="card.role"></div>
+                                </div>
+                            </div>
+
+                            {# Stars + Days #}
+                            <div class="flex items-center justify-between">
+                                {# Star Rating #}
+                                <div class="flex gap-[2px]">
+                                    <template x-for="i in 5" :key="i">
+                                        <span class="text-[11px]" :style="'color:' + (i <= card.rating ? '#f59e0b' : '#e2e8f0')">&#9733;</span>
+                                    </template>
+                                </div>
+                                {# Days Indicator #}
+                                <template x-if="card.phase !== 'placed' && card.phase !== 'rejected'">
+                                    <div class="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-[2px] rounded-[10px]"
+                                         :style="'color:' + daysColor(card.days) + '; background:' + daysColor(card.days) + '12'">
+                                        <span class="w-1.5 h-1.5 rounded-full inline-block" :style="'background:' + daysColor(card.days)"></span>
+                                        <span x-text="card.days + 'd'"></span>
+                                    </div>
                                 </template>
                             </div>
 
-                            {# Ausgewaehlter Kandidat #}
-                            <div x-show="selectedCandidate"
-                                 class="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-semibold"
-                                         x-text="selectedCandidate?.name?.charAt(0).toUpperCase() || ''"></div>
-                                    <div>
-                                        <p class="text-sm font-medium text-gray-900" x-text="selectedCandidate?.name"></p>
-                                        <p class="text-xs text-gray-500" x-text="selectedCandidate?.position || '-'"></p>
-                                    </div>
-                                </div>
-                                <button type="button" @click="selectedCandidate = null" class="text-gray-400 hover:text-gray-600">
-                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
+                            {# Tags (ERP + Salary) #}
+                            <div class="flex gap-1.5 mt-2.5 flex-wrap">
+                                <template x-if="card.erp">
+                                    <span class="text-[10.5px] px-2 py-[2px] rounded-md bg-[#f1f5f9] text-[#475569] font-medium"
+                                          x-text="card.erp"></span>
+                                </template>
+                                <template x-if="card.salary">
+                                    <span class="text-[10.5px] px-2 py-[2px] rounded-md bg-[#f1f5f9] text-[#475569] font-medium"
+                                          x-text="card.salary"></span>
+                                </template>
                             </div>
-
-                            {# Keine Ergebnisse #}
-                            <p x-show="candidateSearch.length >= 2 && searchResults.length === 0 && !searching"
-                               class="mt-2 text-sm text-gray-500 text-center py-2">
-                                Keine Kandidaten gefunden
-                            </p>
                         </div>
+                    </template>
 
-                        {# Stage Auswahl #}
-                        <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1.5">Start-Phase</label>
-                            <select x-model="selectedStage"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500">
-                                <option value="matched">Gematcht</option>
-                                <option value="sent">Vorgestellt</option>
-                                <option value="feedback">Feedback</option>
-                                <option value="interview_1">Interview 1</option>
-                                <option value="interview_2">Interview 2</option>
-                                <option value="interview_3">Interview 3</option>
-                                <option value="offer">Angebot</option>
-                            </select>
+                    {# Empty State #}
+                    <template x-if="candidatesInPhase('{{ phase.id }}').length === 0">
+                        <div class="flex items-center justify-center h-20 text-[#94a3b8] text-[12px] italic">
+                            Keine Kandidaten
                         </div>
+                    </template>
 
-                        <div class="flex justify-end gap-2 pt-2">
-                            <button type="button" @click="addCandidateOpen = false"
-                                    class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">
-                                Abbrechen
-                            </button>
-                            <button type="button"
-                                    @click="addCandidateToPipeline()"
-                                    :disabled="!selectedCandidate"
-                                    :class="selectedCandidate ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-300 cursor-not-allowed'"
-                                    class="px-4 py-2 text-sm font-semibold text-white rounded-lg">
-                                Hinzufügen
-                            </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        {# ── Conversion Funnel ── #}
+        <div class="mt-4 max-w-[600px]">
+            <div class="bg-white rounded-2xl p-[20px_24px] border border-[#e8ecf1]">
+                <div class="text-[13px] font-bold text-[#334155] mb-4 tracking-tight">Conversion Funnel</div>
+                <div class="flex flex-col gap-2">
+                    {% for phase in phases_config %}
+                    {% if phase.id != 'rejected' %}
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-[90px] text-[11px] text-[#64748b] font-medium text-right flex-shrink-0">{{ phase.label }}</div>
+                        <div class="flex-1 relative h-[28px]">
+                            <div class="h-full rounded-lg flex items-center pl-2.5 funnel-bar"
+                                 :style="'width:' + funnelWidth('{{ phase.id }}') + '%; background: linear-gradient(90deg, {{ phase.color }}, {{ phase.color }}bb);'">
+                                <span class="text-white text-[12px] font-bold" x-text="funnelCount('{{ phase.id }}')"></span>
+                            </div>
                         </div>
+                        {% if phase.id != 'placed' %}
+                        <div class="w-[40px] text-right flex-shrink-0 text-[11px] font-semibold"
+                             :class="funnelConvRate('{{ phase.id }}') >= 50 ? 'text-emerald-500' : 'text-amber-500'"
+                             x-text="funnelConvRateStr('{{ phase.id }}')">
+                        </div>
+                        {% endif %}
                     </div>
+                    {% endif %}
+                    {% endfor %}
                 </div>
             </div>
         </div>
     </div>
+
+    {# ════════════════════════════════════════════════════
+       TABLE VIEW
+    ════════════════════════════════════════════════════ #}
+    <div x-show="view === 'table'" class="px-7 pb-6">
+        <div class="bg-white rounded-2xl border border-[#e8ecf1] overflow-hidden">
+            <table class="w-full text-[13px]" style="border-collapse: collapse;">
+                <thead>
+                    <tr class="bg-[#f8fafc]">
+                        <th class="px-4 py-3 text-left font-semibold text-[#64748b] text-[11.5px] uppercase tracking-wider border-b border-[#e8ecf1]">Kandidat</th>
+                        <th class="px-4 py-3 text-left font-semibold text-[#64748b] text-[11.5px] uppercase tracking-wider border-b border-[#e8ecf1]">Rolle</th>
+                        <th class="px-4 py-3 text-left font-semibold text-[#64748b] text-[11.5px] uppercase tracking-wider border-b border-[#e8ecf1]">Phase</th>
+                        <th class="px-4 py-3 text-left font-semibold text-[#64748b] text-[11.5px] uppercase tracking-wider border-b border-[#e8ecf1]">Gehalt</th>
+                        <th class="px-4 py-3 text-left font-semibold text-[#64748b] text-[11.5px] uppercase tracking-wider border-b border-[#e8ecf1]">K&uuml;ndigungsfrist</th>
+                        <th class="px-4 py-3 text-left font-semibold text-[#64748b] text-[11.5px] uppercase tracking-wider border-b border-[#e8ecf1]">ERP</th>
+                        <th class="px-4 py-3 text-left font-semibold text-[#64748b] text-[11.5px] uppercase tracking-wider border-b border-[#e8ecf1]">Tage</th>
+                        <th class="px-4 py-3 text-left font-semibold text-[#64748b] text-[11.5px] uppercase tracking-wider border-b border-[#e8ecf1]">Bewertung</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="c in filteredCandidates" :key="c.entry_id">
+                        <tr @click="selectCandidate(c)"
+                            class="cursor-pointer hover:bg-[#f8fafc] transition-colors">
+                            <td class="px-4 py-3 border-b border-[#f1f5f9]">
+                                <div class="flex items-center gap-2.5">
+                                    <div class="w-8 h-8 rounded-lg flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0"
+                                         :style="'background: linear-gradient(135deg, ' + getAvatarColor(c.id) + ', ' + getAvatarColor(c.id) + 'cc)'">
+                                        <span x-text="c.avatar"></span>
+                                    </div>
+                                    <span class="font-semibold" x-text="c.name"></span>
+                                </div>
+                            </td>
+                            <td class="px-4 py-3 border-b border-[#f1f5f9] text-[#64748b]" x-text="c.role"></td>
+                            <td class="px-4 py-3 border-b border-[#f1f5f9]">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-[3px] rounded-lg text-[12px] font-semibold"
+                                      :style="'background:' + getPhaseConfig(c.phase).bg + '; color:' + getPhaseConfig(c.phase).color">
+                                    <span class="w-1.5 h-1.5 rounded-sm" :style="'background:' + getPhaseConfig(c.phase).color"></span>
+                                    <span x-text="getPhaseConfig(c.phase).label"></span>
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 border-b border-[#f1f5f9] font-semibold" x-text="c.salary || '-'"></td>
+                            <td class="px-4 py-3 border-b border-[#f1f5f9] text-[#64748b]" x-text="c.notice || '-'"></td>
+                            <td class="px-4 py-3 border-b border-[#f1f5f9]">
+                                <span x-show="c.erp"
+                                      class="bg-[#f1f5f9] px-2 py-[2px] rounded-md text-[11.5px] font-medium"
+                                      x-text="c.erp"></span>
+                                <span x-show="!c.erp" class="text-[#94a3b8]">-</span>
+                            </td>
+                            <td class="px-4 py-3 border-b border-[#f1f5f9]">
+                                <template x-if="c.phase !== 'placed' && c.phase !== 'rejected'">
+                                    <div class="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-[2px] rounded-[10px]"
+                                         :style="'color:' + daysColor(c.days) + '; background:' + daysColor(c.days) + '12'">
+                                        <span class="w-1.5 h-1.5 rounded-full inline-block" :style="'background:' + daysColor(c.days)"></span>
+                                        <span x-text="c.days + 'd'"></span>
+                                    </div>
+                                </template>
+                            </td>
+                            <td class="px-4 py-3 border-b border-[#f1f5f9]">
+                                <div class="flex gap-[2px]">
+                                    <template x-for="i in 5" :key="i">
+                                        <span class="text-[11px]" :style="'color:' + (i <= c.rating ? '#f59e0b' : '#e2e8f0')">&#9733;</span>
+                                    </template>
+                                </div>
+                            </td>
+                        </tr>
+                    </template>
+                    <template x-if="filteredCandidates.length === 0">
+                        <tr>
+                            <td colspan="8" class="px-4 py-12 text-center text-[#94a3b8] text-sm">
+                                <template x-if="searchQuery">
+                                    <span>Keine Kandidaten f&uuml;r "<span x-text="searchQuery"></span>" gefunden</span>
+                                </template>
+                                <template x-if="!searchQuery">
+                                    <span>Keine Kandidaten in dieser Position</span>
+                                </template>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {# ════════════════════════════════════════════════════
+       DETAIL PANEL (Slide-in von rechts)
+    ════════════════════════════════════════════════════ #}
+    <template x-if="selectedCard">
+        <div>
+            {# Backdrop #}
+            <div @click="selectedCard = null"
+                 class="fixed inset-0 z-[999]"
+                 style="background: rgba(15,23,42,0.3); backdrop-filter: blur(4px);">
+            </div>
+            {# Panel #}
+            <div class="fixed top-0 right-0 bottom-0 w-[400px] bg-white z-[1000] overflow-y-auto anim-slide-in"
+                 style="box-shadow: -8px 0 40px rgba(0,0,0,0.12); padding: 32px 28px;">
+
+                {# Close + Header #}
+                <div class="flex justify-between items-center mb-7">
+                    <span class="text-[12px] font-semibold text-[#64748b] uppercase tracking-[0.08em]">Kandidaten-Detail</span>
+                    <button @click="selectedCard = null"
+                            class="bg-[#f1f5f9] border-none rounded-lg w-8 h-8 cursor-pointer text-[16px] text-[#64748b] flex items-center justify-center hover:bg-[#e2e8f0]">
+                        &#x2715;
+                    </button>
+                </div>
+
+                {# Avatar + Name #}
+                <div class="flex items-center gap-4 mb-6">
+                    <div class="w-14 h-14 rounded-[14px] flex items-center justify-center text-white text-[20px] font-bold"
+                         :style="'background: linear-gradient(135deg, ' + getAvatarColor(selectedCard.id) + ', ' + getAvatarColor(selectedCard.id) + 'aa)'">
+                        <span x-text="selectedCard.avatar"></span>
+                    </div>
+                    <div>
+                        <div class="text-[20px] font-[800] text-[#1e293b] tracking-tight" x-text="selectedCard.name"></div>
+                        <div class="text-[14px] text-[#64748b] mt-0.5" x-text="selectedCard.role"></div>
+                    </div>
+                </div>
+
+                {# Phase Badge #}
+                <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-[10px] mb-6"
+                     :style="'background:' + getPhaseConfig(selectedCard.phase).bg">
+                    <div class="w-2 h-2 rounded-[3px]" :style="'background:' + getPhaseConfig(selectedCard.phase).color"></div>
+                    <span class="text-[13px] font-semibold" :style="'color:' + getPhaseConfig(selectedCard.phase).color"
+                          x-text="getPhaseConfig(selectedCard.phase).label"></span>
+                </div>
+
+                {# Detail Rows #}
+                <div class="flex flex-col gap-0">
+                    <template x-for="item in detailRows" :key="item.label">
+                        <div class="flex justify-between items-center py-3 border-b border-[#f1f5f9]">
+                            <span class="text-[13px] text-[#64748b] font-medium" x-text="item.label"></span>
+                            <template x-if="item.type === 'stars'">
+                                <div class="flex gap-[2px]">
+                                    <template x-for="i in 5" :key="i">
+                                        <span class="text-[11px]" :style="'color:' + (i <= selectedCard.rating ? '#f59e0b' : '#e2e8f0')">&#9733;</span>
+                                    </template>
+                                </div>
+                            </template>
+                            <template x-if="item.type !== 'stars'">
+                                <span class="text-[13px] text-[#1e293b] font-semibold" x-text="item.value"></span>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+
+                {# Notizen #}
+                <div class="mt-6">
+                    <div class="text-[12px] font-semibold text-[#64748b] mb-2 uppercase tracking-[0.06em]">Notizen</div>
+                    <div class="bg-[#f8fafc] rounded-xl p-4 text-[13px] text-[#475569] leading-relaxed border border-[#e8ecf1]"
+                         x-text="selectedCard.notes || 'Keine Notizen'"></div>
+                </div>
+
+                {# Action Buttons #}
+                <div class="flex gap-2.5 mt-7">
+                    <a :href="'/kandidaten/' + selectedCard.id"
+                       class="flex-1 py-3 rounded-[10px] text-white text-[13px] font-semibold text-center no-underline"
+                       style="background: linear-gradient(135deg, #6366f1, #8b5cf6); letter-spacing: -0.01em;">
+                        CRM-Profil &rarr;
+                    </a>
+                    <button @click="selectedCard = null"
+                            class="px-4 py-3 rounded-[10px] bg-[#f1f5f9] text-[#475569] border-none text-[13px] font-semibold cursor-pointer hover:bg-[#e2e8f0]">
+                        Schlie&szlig;en
+                    </button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    {# ════════════════════════════════════════════════════
+       EMPTY STATE (keine Positionen)
+    ════════════════════════════════════════════════════ #}
+    {% if positions|length == 0 %}
+    <div class="px-7 py-16 text-center">
+        <div class="w-14 h-14 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-4">
+            <svg class="w-7 h-7 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0M12 12.75h.008v.008H12v-.008z" />
+            </svg>
+        </div>
+        <p class="text-base font-medium text-gray-900">Keine Jobs in der Pipeline</p>
+        <p class="mt-1 text-sm text-gray-500">F&uuml;ge Stellen zur Pipeline hinzu, um Kandidaten zu tracken</p>
+        <a href="/ats/stellen"
+           class="mt-5 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            Stellen verwalten
+        </a>
+    </div>
+    {% endif %}
 
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-function pipelineOverview() {
-    return {
-        // Drag & Drop
-        draggedEntry: null,
-        draggedCandidateId: null,
-        draggedCandidateName: null,
+function pipelineApp() {
+    // ── Daten aus Jinja2 ──
+    const positions = {{ positions | tojson | safe }};
+    const pipelineByJob = {{ pipeline_by_job | tojson | safe }};
+    const PHASES = [
+        {id:"sent",        label:"Vorgestellt",  color:"#6366f1", bg:"#eef2ff"},
+        {id:"interview_1", label:"Interview 1",  color:"#0ea5e9", bg:"#e0f2fe"},
+        {id:"interview_2", label:"Interview 2",  color:"#8b5cf6", bg:"#f3e8ff"},
+        {id:"interview_3", label:"Interview 3",  color:"#d946ef", bg:"#fae8ff"},
+        {id:"offer",       label:"Angebot",      color:"#f59e0b", bg:"#fef3c7"},
+        {id:"placed",      label:"Platziert",    color:"#10b981", bg:"#d1fae5"},
+        {id:"rejected",    label:"Abgesagt",     color:"#94a3b8", bg:"#f1f5f9"},
+    ];
+    const AVATAR_COLORS = ["#6366f1","#0ea5e9","#8b5cf6","#d946ef","#f59e0b","#10b981","#ef4444","#ec4899","#14b8a6","#f97316"];
 
-        // Add Candidate Modal
-        addCandidateOpen: false,
-        selectedJobId: null,
-        selectedJobTitle: '',
-        candidateSearch: '',
-        searchResults: [],
-        selectedCandidate: null,
-        selectedStage: 'sent',
-        searching: false,
+    return {
+        // State
+        activePosition: positions.length > 0 ? positions[0].id : null,
+        selectedCard: null,
+        view: 'board',
+        searchQuery: '',
+        draggedCard: null,
+
+        // Computed-like references
+        positions: positions,
 
         init() {
-            console.log('Pipeline Overview initialized');
+            console.log('Pipeline JSX-Design geladen:', positions.length, 'Positionen');
         },
 
-        openAddCandidateModal(jobId, jobTitle) {
-            this.selectedJobId = jobId;
-            this.selectedJobTitle = jobTitle;
-            this.candidateSearch = '';
-            this.searchResults = [];
-            this.selectedCandidate = null;
-            this.selectedStage = 'sent';
-            this.addCandidateOpen = true;
+        // ── Position Tabs ──
+        get activePos() {
+            return positions.find(p => p.id === this.activePosition) || null;
         },
 
-        async searchCandidates() {
-            if (this.candidateSearch.length < 2) {
-                this.searchResults = [];
-                return;
+        setActivePosition(id) {
+            this.activePosition = id;
+            this.selectedCard = null;
+        },
+
+        // ── Alle Kandidaten der aktiven Position (gefiltert) ──
+        get allCandidates() {
+            if (!this.activePosition) return [];
+            return pipelineByJob[this.activePosition] || [];
+        },
+
+        get filteredCandidates() {
+            const q = this.searchQuery.toLowerCase().trim();
+            if (!q) return this.allCandidates;
+            return this.allCandidates.filter(c =>
+                c.name.toLowerCase().includes(q) ||
+                c.role.toLowerCase().includes(q)
+            );
+        },
+
+        candidatesInPhase(phaseId) {
+            return this.filteredCandidates.filter(c => c.phase === phaseId);
+        },
+
+        // ── Metrics ──
+        get metrics() {
+            const all = this.filteredCandidates;
+            const inPipeline = all.filter(c => c.phase !== 'rejected' && c.phase !== 'placed').length;
+            const placed = all.filter(c => c.phase === 'placed').length;
+            const totalDays = all.reduce((sum, c) => sum + c.days, 0);
+            const avgDays = all.length > 0 ? Math.round(totalDays / all.length) : 0;
+
+            // Conversion: Vorgestellt -> IV1
+            const sentCount = all.filter(c => c.phase === 'sent').length;
+            const iv1Count = all.filter(c => c.phase === 'interview_1').length;
+            const totalSentOrBeyond = all.filter(c => c.phase !== 'rejected').length;
+            const conversion = totalSentOrBeyond > 0 && sentCount > 0
+                ? Math.round((iv1Count / sentCount) * 100)
+                : (totalSentOrBeyond > 0 ? Math.round((all.filter(c => ['interview_1','interview_2','interview_3','offer','placed'].includes(c.phase)).length / totalSentOrBeyond) * 100) : 0);
+
+            return { inPipeline, placed, avgDays, conversion };
+        },
+
+        // ── Funnel ──
+        funnelCount(phaseId) {
+            return this.candidatesInPhase(phaseId).length;
+        },
+
+        funnelWidth(phaseId) {
+            const counts = PHASES.filter(p => p.id !== 'rejected').map(p => this.candidatesInPhase(p.id).length);
+            const maxCount = Math.max(...counts, 1);
+            const count = this.candidatesInPhase(phaseId).length;
+            return Math.max((count / maxCount) * 100, 8);
+        },
+
+        funnelConvRate(phaseId) {
+            const phasesNoRej = PHASES.filter(p => p.id !== 'rejected');
+            const idx = phasesNoRej.findIndex(p => p.id === phaseId);
+            if (idx < 0 || idx >= phasesNoRej.length - 1) return null;
+            const current = this.candidatesInPhase(phaseId).length;
+            const next = this.candidatesInPhase(phasesNoRej[idx + 1].id).length;
+            return current > 0 ? Math.round((next / current) * 100) : 0;
+        },
+
+        funnelConvRateStr(phaseId) {
+            const rate = this.funnelConvRate(phaseId);
+            return rate !== null ? rate + '% \u2192' : '';
+        },
+
+        // ── Detail Panel ──
+        selectCandidate(card) {
+            this.selectedCard = card;
+        },
+
+        get detailRows() {
+            if (!this.selectedCard) return [];
+            const c = this.selectedCard;
+            return [
+                { label: 'Gehaltswunsch', value: c.salary || '-', type: 'text' },
+                { label: 'K\u00fcndigungsfrist', value: c.notice || '-', type: 'text' },
+                { label: 'ERP-Kenntnisse', value: c.erp || '-', type: 'text' },
+                { label: 'Tage in Phase', value: c.days + ' Tage', type: 'text' },
+                { label: 'Bewertung', value: '', type: 'stars' },
+            ];
+        },
+
+        // ── Helpers ──
+        getAvatarColor(id) {
+            // Einfacher Hash aus der ID
+            let hash = 0;
+            const s = String(id);
+            for (let i = 0; i < s.length; i++) {
+                hash = s.charCodeAt(i) + ((hash << 5) - hash);
             }
-
-            this.searching = true;
-            try {
-                const response = await fetch(`/api/candidates/search?q=${encodeURIComponent(this.candidateSearch)}&limit=10`);
-                if (response.ok) {
-                    this.searchResults = await response.json();
-                }
-            } catch (err) {
-                console.error('Kandidaten-Suche fehlgeschlagen:', err);
-            }
-            this.searching = false;
+            return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
         },
 
-        selectCandidate(candidate) {
-            this.selectedCandidate = candidate;
-            this.searchResults = [];
-            this.candidateSearch = '';
+        getPhaseConfig(phaseId) {
+            return PHASES.find(p => p.id === phaseId) || { id: phaseId, label: phaseId, color: '#94a3b8', bg: '#f1f5f9' };
         },
 
-        async addCandidateToPipeline() {
-            if (!this.selectedCandidate || !this.selectedJobId) return;
-
-            try {
-                const response = await fetch(`/api/ats/pipeline/${this.selectedJobId}/candidates`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        candidate_id: this.selectedCandidate.id,
-                        stage: this.selectedStage,
-                    })
-                });
-
-                if (response.ok) {
-                    if (typeof showToast === 'function') {
-                        showToast(`${this.selectedCandidate.name} hinzugefügt`, 'success');
-                    }
-                    this.addCandidateOpen = false;
-                    setTimeout(() => location.reload(), 500);
-                } else {
-                    const error = await response.json();
-                    if (typeof showToast === 'function') {
-                        showToast(error.detail || 'Fehler beim Hinzufügen', 'error');
-                    }
-                }
-            } catch (err) {
-                console.error('Kandidat hinzufügen fehlgeschlagen:', err);
-                if (typeof showToast === 'function') {
-                    showToast('Netzwerkfehler', 'error');
-                }
-            }
+        daysColor(days) {
+            if (days > 7) return '#ef4444';
+            if (days > 4) return '#f59e0b';
+            return '#10b981';
         },
 
-        handleDragStart(event, entryId, candidateId, candidateName) {
-            this.draggedEntry = entryId;
-            this.draggedCandidateId = candidateId;
-            this.draggedCandidateName = candidateName;
-            event.dataTransfer.setData('text/plain', entryId);
+        // ── Drag & Drop ──
+        handleDragStart(event, card) {
+            this.draggedCard = card;
+            event.dataTransfer.setData('text/plain', card.entry_id);
             event.dataTransfer.effectAllowed = 'move';
-            event.target.closest('.pipeline-avatar').classList.add('opacity-50', 'scale-95');
+            event.target.style.opacity = '0.5';
         },
 
         handleDragEnd(event) {
-            event.target.closest('.pipeline-avatar').classList.remove('opacity-50', 'scale-95');
-            document.querySelectorAll('.pipeline-dropzone').forEach(el => {
-                el.classList.remove('bg-blue-50', 'ring-2', 'ring-blue-300');
-            });
-            this.draggedEntry = null;
-            this.draggedCandidateId = null;
-            this.draggedCandidateName = null;
+            event.target.style.opacity = '1';
+            this.draggedCard = null;
         },
 
-        async handleDrop(event, newStage, jobId) {
+        async handleDrop(event, newPhase) {
             event.preventDefault();
-            const dropzone = event.currentTarget;
-            dropzone.classList.remove('bg-blue-50', 'ring-2', 'ring-blue-300');
+            event.currentTarget.style.borderColor = '';
+            if (!this.draggedCard) return;
+            const entryId = this.draggedCard.entry_id;
+            const oldPhase = this.draggedCard.phase;
+            if (oldPhase === newPhase) return;
 
-            if (!this.draggedEntry) return;
-
-            const entryId = this.draggedEntry;
-            const candidateName = this.draggedCandidateName;
+            // Optimistic Update
+            this.draggedCard.phase = newPhase;
 
             try {
                 const response = await fetch(`/api/ats/pipeline/entries/${entryId}/stage`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ stage: newStage })
+                    body: JSON.stringify({ stage: newPhase })
                 });
-
                 if (response.ok) {
                     if (typeof showToast === 'function') {
-                        showToast(`${candidateName} verschoben`, 'success');
+                        showToast(this.draggedCard.name + ' verschoben', 'success');
                     }
-                    this.moveCandidateInDOM(entryId, newStage, jobId);
                 } else {
-                    const error = await response.json();
+                    // Revert
+                    this.draggedCard.phase = oldPhase;
                     if (typeof showToast === 'function') {
-                        showToast(error.detail || 'Fehler', 'error');
+                        showToast('Fehler beim Verschieben', 'error');
                     }
                 }
             } catch (err) {
-                console.error('Drag & Drop error:', err);
-                if (typeof showToast === 'function') {
-                    showToast('Netzwerkfehler', 'error');
-                }
+                this.draggedCard.phase = oldPhase;
+                console.error('D&D error:', err);
             }
         },
-
-        moveCandidateInDOM(entryId, newStage, jobId) {
-            const avatarEl = document.querySelector(`[data-entry-id="${entryId}"]`);
-            if (!avatarEl) return;
-
-            const jobRow = document.querySelector(`.pipeline-row[data-job-id="${jobId}"]`);
-            const targetDropzone = jobRow.querySelector(`.pipeline-dropzone[data-stage="${newStage}"]`);
-
-            let targetContainer = targetDropzone.querySelector('.flex.flex-col');
-            if (!targetContainer) {
-                const dash = targetDropzone.querySelector('span');
-                if (dash) dash.remove();
-                targetContainer = document.createElement('div');
-                targetContainer.className = 'flex flex-col gap-1.5 w-full';
-                targetDropzone.appendChild(targetContainer);
-            }
-
-            const oldContainer = avatarEl.parentElement;
-            targetContainer.appendChild(avatarEl);
-            this.updateAvatarColor(avatarEl, newStage);
-
-            if (oldContainer && oldContainer.children.length === 0) {
-                const oldDropzone = oldContainer.parentElement;
-                oldContainer.remove();
-                const dash = document.createElement('span');
-                dash.className = 'text-gray-200';
-                dash.textContent = '—';
-                oldDropzone.appendChild(dash);
-            }
-        },
-
-        updateAvatarColor(avatarEl, newStage) {
-            const colorMap = {
-                'sent': 'bg-blue-500',
-                'interview_1': 'bg-violet-500',
-                'interview_2': 'bg-violet-600',
-                'interview_3': 'bg-violet-700',
-                'offer': 'bg-amber-500',
-                'placed': 'bg-emerald-500',
-                'rejected': 'bg-red-400'
-            };
-            const avatar = avatarEl.querySelector('.rounded-full');
-            if (!avatar) return;
-            Object.values(colorMap).forEach(c => avatar.classList.remove(c));
-            avatar.classList.add(colorMap[newStage] || 'bg-gray-400');
-        }
-    }
-}
-
-function companyFilter() {
-    return {
-        searchTerm: '',
-        showDropdown: false,
-        filteredCompanies: [],
-        allCompanies: {{ all_companies | tojson | safe }},
-        selectedCompanyId: {{ selected_company_id | tojson | safe if selected_company_id else 'null' }},
-        selectedCompanyName: '{{ selected_company_name | default("", true) }}',
-
-        init() {
-            this.filteredCompanies = this.allCompanies.slice(0, 20);
-        },
-
-        searchCompanies() {
-            if (this.searchTerm.length === 0) {
-                this.filteredCompanies = this.allCompanies.slice(0, 20);
-            } else {
-                const term = this.searchTerm.toLowerCase();
-                this.filteredCompanies = this.allCompanies
-                    .filter(c => c.name.toLowerCase().includes(term))
-                    .slice(0, 20);
-            }
-            this.showDropdown = true;
-        },
-
-        selectCompany(id, name) {
-            this.showDropdown = false;
-            this.searchTerm = '';
-            if (id) {
-                window.location.href = '/ats?company_id=' + id;
-            } else {
-                window.location.href = '/ats';
-            }
-        },
-
-        clearFilter() {
-            window.location.href = '/ats';
-        }
-    }
+    };
 }
 </script>
 {% endblock %}

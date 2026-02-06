@@ -402,6 +402,96 @@
                 </div>
             </div>
 
+            {# Pipeline-Daten: Gehalt, Kuendigungsfrist, ERP, Rating #}
+            <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg"
+                 x-data="pipelineFields()">
+                <div class="px-5 py-3 flex items-center justify-between">
+                    <h3 class="text-xl font-semibold leading-6 text-gray-900">Pipeline-Daten</h3>
+                    <span class="inline-flex items-center rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-700 ring-1 ring-inset ring-indigo-700/10">Fuer Pipeline</span>
+                </div>
+                <div class="border-t border-gray-200 px-5 py-4">
+                    <dl class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+
+                        {# Gehaltswunsch #}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Gehaltswunsch</dt>
+                            <dd class="mt-1">
+                                <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="salary">
+                                    <span class="detail-edit-display text-lg text-gray-900 cursor-pointer hover:bg-yellow-50 hover:ring-1 hover:ring-yellow-300 rounded px-1 py-0.5 transition-all" onclick="startDetailEdit(this)" title="Gehalt bearbeiten">{{ candidate.salary or 'Nicht angegeben' }}</span>
+                                    <input type="text" class="detail-edit-input hidden rounded-md border-0 py-1 px-2 text-lg text-gray-900 ring-1 ring-inset ring-primary-400 focus:ring-2 focus:ring-primary-600 w-full" value="{{ candidate.salary or '' }}" placeholder="z.B. 55.000 €" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)">
+                                </div>
+                            </dd>
+                        </div>
+
+                        {# Kuendigungsfrist #}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Kuendigungsfrist</dt>
+                            <dd class="mt-1">
+                                <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="notice_period">
+                                    <span class="detail-edit-display text-lg text-gray-900 cursor-pointer hover:bg-yellow-50 hover:ring-1 hover:ring-yellow-300 rounded px-1 py-0.5 transition-all" onclick="startDetailEdit(this)" title="Kuendigungsfrist bearbeiten">{{ candidate.notice_period or 'Nicht angegeben' }}</span>
+                                    <input type="text" class="detail-edit-input hidden rounded-md border-0 py-1 px-2 text-lg text-gray-900 ring-1 ring-inset ring-primary-400 focus:ring-2 focus:ring-primary-600 w-full" value="{{ candidate.notice_period or '' }}" placeholder="z.B. 3 Monate" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)">
+                                </div>
+                            </dd>
+                        </div>
+
+                        {# ERP-Kenntnisse #}
+                        <div class="sm:col-span-2">
+                            <dt class="text-sm font-medium text-gray-500">ERP-Kenntnisse</dt>
+                            <dd class="mt-2">
+                                {% if candidate.erp and candidate.erp | length > 0 %}
+                                <div class="flex flex-wrap gap-2" id="erp-tags">
+                                    {% for erp_item in candidate.erp %}
+                                    <span class="inline-flex items-center rounded-full bg-purple-50 px-3.5 py-1.5 text-base font-medium text-purple-700 ring-1 ring-inset ring-purple-700/10">
+                                        {{ erp_item }}
+                                        <button type="button" class="ml-1.5 text-purple-400 hover:text-purple-600" onclick="removeErp('{{ erp_item }}')" title="Entfernen">&times;</button>
+                                    </span>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <p class="text-base text-gray-400" id="erp-empty">Keine ERP-Kenntnisse angegeben</p>
+                                {% endif %}
+                                <div class="mt-2 flex items-center gap-2">
+                                    <input type="text" x-model="newErp" @keydown.enter.prevent="addErp()"
+                                           class="rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm py-1.5 px-3 w-48"
+                                           placeholder="z.B. SAP, DATEV...">
+                                    <button type="button" @click="addErp()"
+                                            class="inline-flex items-center rounded-md bg-purple-50 px-3 py-1.5 text-sm font-medium text-purple-700 hover:bg-purple-100 ring-1 ring-inset ring-purple-200 transition-colors">
+                                        <svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                        </svg>
+                                        Hinzufuegen
+                                    </button>
+                                </div>
+                            </dd>
+                        </div>
+
+                        {# Bewertung (Sterne) #}
+                        <div class="sm:col-span-2">
+                            <dt class="text-sm font-medium text-gray-500">Bewertung</dt>
+                            <dd class="mt-2 flex items-center gap-3">
+                                <div class="flex items-center gap-1">
+                                    {% for i in range(1, 6) %}
+                                    <button type="button" @click="setRating({{ i }})"
+                                            class="focus:outline-none transition-transform hover:scale-110"
+                                            title="{{ i }} Stern{{ 'e' if i > 1 else '' }}">
+                                        <svg class="w-7 h-7 {% if candidate.rating and i <= candidate.rating %}text-amber-400{% else %}text-gray-300 hover:text-amber-200{% endif %}" fill="currentColor" viewBox="0 0 20 20" id="star-{{ i }}">
+                                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                        </svg>
+                                    </button>
+                                    {% endfor %}
+                                </div>
+                                <span class="text-sm text-gray-500" x-text="currentRating ? currentRating + '/5' : 'Nicht bewertet'"></span>
+                                <button type="button" x-show="currentRating > 0" @click="clearRating()"
+                                        class="text-xs text-gray-400 hover:text-red-500 ml-2 transition-colors">
+                                    Entfernen
+                                </button>
+                            </dd>
+                        </div>
+
+                    </dl>
+                </div>
+            </div>
+
             {# Berufserfahrung #}
             <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg">
                 <div class="px-5 py-3 flex items-center justify-between">
@@ -549,6 +639,101 @@
 </div>
 
 <script>
+// ==================== Pipeline-Daten (ERP + Rating) ====================
+
+function pipelineFields() {
+    return {
+        newErp: '',
+        currentRating: {{ candidate.rating or 0 }},
+        currentErp: {{ (candidate.erp or []) | tojson | safe }},
+
+        async addErp() {
+            var val = this.newErp.trim();
+            if (!val) return;
+            // Komma-getrennte Eingaben unterstuetzen
+            var items = val.split(',').map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; });
+            var merged = this.currentErp.concat(items);
+            // Duplikate entfernen
+            merged = merged.filter(function(v, i, a) { return a.indexOf(v) === i; });
+            await this.saveErp(merged);
+            this.newErp = '';
+        },
+
+        async removeErp(item) {
+            var filtered = this.currentErp.filter(function(e) { return e !== item; });
+            await this.saveErp(filtered);
+        },
+
+        async saveErp(erpList) {
+            var candidateId = '{{ candidate.id }}';
+            try {
+                var response = await fetch('/api/candidates/' + candidateId, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ erp: erpList })
+                });
+                if (response.ok) {
+                    this.currentErp = erpList;
+                    if (typeof showToast === 'function') showToast('ERP gespeichert', 'success');
+                    // Seite neu laden um Tags korrekt anzuzeigen
+                    setTimeout(function() { location.reload(); }, 500);
+                }
+            } catch (err) {
+                console.error('ERP speichern fehlgeschlagen:', err);
+            }
+        },
+
+        async setRating(value) {
+            var candidateId = '{{ candidate.id }}';
+            try {
+                var response = await fetch('/api/candidates/' + candidateId, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ rating: value })
+                });
+                if (response.ok) {
+                    this.currentRating = value;
+                    // Sterne visuell updaten
+                    for (var i = 1; i <= 5; i++) {
+                        var star = document.getElementById('star-' + i);
+                        if (star) {
+                            star.classList.remove('text-amber-400', 'text-gray-300');
+                            star.classList.add(i <= value ? 'text-amber-400' : 'text-gray-300');
+                        }
+                    }
+                    if (typeof showToast === 'function') showToast('Bewertung gespeichert', 'success');
+                }
+            } catch (err) {
+                console.error('Rating speichern fehlgeschlagen:', err);
+            }
+        },
+
+        async clearRating() {
+            var candidateId = '{{ candidate.id }}';
+            try {
+                var response = await fetch('/api/candidates/' + candidateId, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ rating: null })
+                });
+                if (response.ok) {
+                    this.currentRating = 0;
+                    for (var i = 1; i <= 5; i++) {
+                        var star = document.getElementById('star-' + i);
+                        if (star) {
+                            star.classList.remove('text-amber-400');
+                            star.classList.add('text-gray-300');
+                        }
+                    }
+                    if (typeof showToast === 'function') showToast('Bewertung entfernt', 'success');
+                }
+            } catch (err) {
+                console.error('Rating entfernen fehlgeschlagen:', err);
+            }
+        }
+    };
+}
+
 function deleteCandidate(candidateId, candidateName) {
     if (!confirm('Kandidat ' + candidateName + ' wirklich loeschen? Der Kandidat wird beim naechsten CRM-Sync ignoriert.')) {
         return;
@@ -732,7 +917,7 @@ function saveDetailEdit(input) {
     var oldText = display.textContent.trim();
 
     // Placeholder-Texte als leer behandeln
-    var placeholders = ['Keine Position angegeben', 'Kein Unternehmen', 'Vorname', 'Nachname'];
+    var placeholders = ['Keine Position angegeben', 'Kein Unternehmen', 'Vorname', 'Nachname', 'Nicht angegeben'];
     if (placeholders.indexOf(oldText) !== -1) {
         oldText = '';
     }
@@ -758,7 +943,9 @@ function saveDetailEdit(input) {
                 'current_position': 'Keine Position angegeben',
                 'current_company': 'Kein Unternehmen',
                 'first_name': 'Vorname',
-                'last_name': 'Nachname'
+                'last_name': 'Nachname',
+                'salary': 'Nicht angegeben',
+                'notice_period': 'Nicht angegeben'
             };
             display.textContent = newValue || fallbackTexts[field] || '—';
             if (typeof showToast === 'function') {

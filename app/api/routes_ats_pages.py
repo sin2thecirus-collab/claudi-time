@@ -24,7 +24,10 @@ async def ats_main(
     company_id: UUID | None = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
-    """ATS Hauptseite — Horizontale Pipeline-Uebersicht."""
+    """ATS Hauptseite — Kanban-Pipeline im JSX-Design."""
+    import math
+    from datetime import datetime as dt, timezone as tz
+
     from sqlalchemy import select
     from sqlalchemy.orm import selectinload
     from app.models.ats_job import ATSJob
@@ -39,7 +42,7 @@ async def ats_main(
             selectinload(ATSJob.pipeline_entries).selectinload(ATSPipelineEntry.candidate),
         )
         .where(ATSJob.in_pipeline == True)
-        .where(ATSJob.deleted_at.is_(None))  # Soft-deleted ausschliessen
+        .where(ATSJob.deleted_at.is_(None))
         .order_by(ATSJob.created_at.desc())
     )
 
@@ -49,36 +52,63 @@ async def ats_main(
     result = await db.execute(query)
     jobs_in_pipeline = result.scalars().all()
 
-    # Gruppiere Jobs nach Company
-    jobs_by_company = {}
+    # ── Positions (fuer Tabs) ──
+    positions = []
     for job in jobs_in_pipeline:
-        company_name = job.company.name if job.company else "Ohne Unternehmen"
-        company_key = str(job.company_id) if job.company_id else "none"
-        if company_key not in jobs_by_company:
-            jobs_by_company[company_key] = {
-                "company": job.company,
-                "company_name": company_name,
-                "jobs": [],
-            }
-        # Pipeline-Entries nach Stage gruppieren
-        entries_by_stage = {}
-        for entry in job.pipeline_entries:
-            stage_key = entry.stage.value
-            if stage_key not in entries_by_stage:
-                entries_by_stage[stage_key] = []
-            entries_by_stage[stage_key].append(entry)
-        jobs_by_company[company_key]["jobs"].append({
-            "job": job,
-            "entries_by_stage": entries_by_stage,
+        total_entries = len(job.pipeline_entries)
+        positions.append({
+            "id": str(job.id),
+            "name": job.title,
+            "company": job.company.name if job.company else "",
+            "candidates": total_entries,
+            "active": job.status.value in ("open", "active") if hasattr(job, "status") else True,
         })
 
-    # Alle Companies für Filter laden
+    # ── Kandidaten-Karten pro Job aufbauen ──
+    now = dt.now(tz.utc)
+    pipeline_by_job = {}
+    for job in jobs_in_pipeline:
+        job_id_str = str(job.id)
+        cards = []
+        for entry in job.pipeline_entries:
+            c = entry.candidate
+            if not c:
+                continue
+            # Tage in aktueller Phase
+            if entry.stage_changed_at:
+                days_in_stage = (now - entry.stage_changed_at).days
+            else:
+                days_in_stage = (now - entry.created_at).days if entry.created_at else 0
+            # Avatar-Initialen
+            fn = (c.first_name or "U")[0].upper()
+            ln = (c.last_name or "")[0].upper()
+            avatar = f"{fn}{ln}"
+            # ERP als komma-separierter String (fuer Tags)
+            erp_str = ", ".join(c.erp) if c.erp else ""
+            cards.append({
+                "id": str(c.id),
+                "entry_id": str(entry.id),
+                "name": c.full_name,
+                "role": c.current_position or c.hotlist_job_title or "-",
+                "phase": entry.stage.value,
+                "days": days_in_stage,
+                "salary": c.salary or "",
+                "notice": c.notice_period or "",
+                "erp": erp_str,
+                "erp_list": c.erp or [],
+                "avatar": avatar,
+                "rating": c.rating or 0,
+                "notes": entry.notes or "",
+                "city": c.city or "",
+            })
+        pipeline_by_job[job_id_str] = cards
+
+    # ── Alle Companies fuer Filter ──
     companies_result = await db.execute(
         select(Company).order_by(Company.name)
     )
     all_companies = companies_result.scalars().all()
 
-    # Selected company name finden
     selected_company_name = None
     if company_id:
         for c in all_companies:
@@ -88,7 +118,8 @@ async def ats_main(
 
     return templates.TemplateResponse("ats_pipeline_overview.html", {
         "request": request,
-        "jobs_by_company": jobs_by_company,
+        "positions": positions,
+        "pipeline_by_job": pipeline_by_job,
         "stages": PIPELINE_STAGE_ORDER,
         "stage_labels": PIPELINE_STAGE_LABELS,
         "all_companies": [{"id": str(c.id), "name": c.name} for c in all_companies],
@@ -137,77 +168,12 @@ async def ats_pipeline_overview(
     company_id: UUID | None = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
-    """Pipeline-Uebersicht — Alle Jobs in Pipeline mit horizontaler Ansicht."""
-    from sqlalchemy import select
-    from sqlalchemy.orm import selectinload
-    from app.models.ats_job import ATSJob
-    from app.models.company import Company
-
-    # Alle Jobs die in_pipeline=True haben und NICHT geloescht sind
-    query = (
-        select(ATSJob)
-        .options(
-            selectinload(ATSJob.company),
-            selectinload(ATSJob.pipeline_entries),
-        )
-        .where(ATSJob.in_pipeline == True)
-        .where(ATSJob.deleted_at.is_(None))  # Soft-deleted ausschliessen
-        .order_by(ATSJob.created_at.desc())
-    )
-
+    """Pipeline-Uebersicht — Redirect auf /ats (gleiche Ansicht)."""
+    from fastapi.responses import RedirectResponse
+    url = "/ats"
     if company_id:
-        query = query.where(ATSJob.company_id == company_id)
-
-    result = await db.execute(query)
-    jobs_in_pipeline = result.scalars().all()
-
-    # Gruppiere Jobs nach Company
-    jobs_by_company = {}
-    for job in jobs_in_pipeline:
-        company_name = job.company.name if job.company else "Ohne Unternehmen"
-        company_key = str(job.company_id) if job.company_id else "none"
-        if company_key not in jobs_by_company:
-            jobs_by_company[company_key] = {
-                "company": job.company,
-                "company_name": company_name,
-                "jobs": [],
-            }
-        # Pipeline-Entries nach Stage gruppieren
-        entries_by_stage = {}
-        for entry in job.pipeline_entries:
-            stage_key = entry.stage.value
-            if stage_key not in entries_by_stage:
-                entries_by_stage[stage_key] = []
-            entries_by_stage[stage_key].append(entry)
-        jobs_by_company[company_key]["jobs"].append({
-            "job": job,
-            "entries_by_stage": entries_by_stage,
-        })
-
-    # Alle Companies für Filter laden
-    companies_result = await db.execute(
-        select(Company).order_by(Company.name)
-    )
-    all_companies = companies_result.scalars().all()
-
-    # Selected company name finden
-    selected_company_name = None
-    if company_id:
-        for c in all_companies:
-            if str(c.id) == str(company_id):
-                selected_company_name = c.name
-                break
-
-    return templates.TemplateResponse("ats_pipeline_overview.html", {
-        "request": request,
-        "jobs_by_company": jobs_by_company,
-        "stages": PIPELINE_STAGE_ORDER,
-        "stage_labels": PIPELINE_STAGE_LABELS,
-        "all_companies": [{"id": str(c.id), "name": c.name} for c in all_companies],
-        "selected_company_id": str(company_id) if company_id else None,
-        "selected_company_name": selected_company_name,
-        "total_jobs": len(jobs_in_pipeline),
-    })
+        url += f"?company_id={company_id}"
+    return RedirectResponse(url=url, status_code=302)
 
 
 @router.get("/ats/pipeline-design", response_class=HTMLResponse)

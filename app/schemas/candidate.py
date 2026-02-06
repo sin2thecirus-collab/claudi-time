@@ -76,6 +76,10 @@ class CandidateUpdate(BaseModel):
     city: CityName = None
     cv_text: str | None = None
     cv_url: str | None = Field(default=None, max_length=500)
+    salary: str | None = Field(default=None, max_length=100, description="Gehaltswunsch z.B. '55.000 €'")
+    notice_period: str | None = Field(default=None, max_length=100, description="Kuendigungsfrist z.B. '3 Monate'")
+    erp: list[str] | None = Field(default=None, description="ERP-Kenntnisse z.B. ['SAP', 'DATEV']")
+    rating: int | None = Field(default=None, description="Sterne-Bewertung 1-5")
 
 
 class CandidateResponse(BaseModel):
@@ -101,6 +105,10 @@ class CandidateResponse(BaseModel):
     street_address: str | None
     postal_code: str | None
     city: str | None
+    salary: str | None
+    notice_period: str | None
+    erp: list[str] | None
+    rating: int | None
     has_coordinates: bool
     cv_url: str | None
     cv_parsed_at: datetime | None

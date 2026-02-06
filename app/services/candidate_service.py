@@ -148,6 +148,10 @@ class CandidateService:
                         "skills", "current_position", "cv_text"}
         stale_changed = stale_fields & set(update_data.keys())
 
+        # Rating-Timestamp tracken
+        if "rating" in update_data:
+            update_data["rating_set_at"] = datetime.now(timezone.utc)
+
         for key, value in update_data.items():
             setattr(candidate, key, value)
 
@@ -644,6 +648,10 @@ class CandidateService:
             street_address=candidate.street_address,
             postal_code=candidate.postal_code,
             city=candidate.city,
+            salary=candidate.salary,
+            notice_period=candidate.notice_period,
+            erp=candidate.erp,
+            rating=candidate.rating,
             has_coordinates=candidate.address_coords is not None,
             cv_url=candidate.cv_url,
             cv_parsed_at=candidate.cv_parsed_at,
