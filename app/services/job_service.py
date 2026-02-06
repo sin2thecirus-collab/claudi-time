@@ -168,9 +168,6 @@ class JobService:
         Returns:
             Gelöschter Job
         """
-        from sqlalchemy import delete
-        from app.models.ats_job import ATSJob
-
         job = await self.get_job(job_id)
         job.deleted_at = datetime.now(timezone.utc)
 
@@ -226,9 +223,6 @@ class JobService:
         Returns:
             Anzahl gelöschter Jobs
         """
-        from sqlalchemy import delete
-        from app.models.ats_job import ATSJob
-
         if len(job_ids) > Limits.BATCH_DELETE_MAX:
             raise ValueError(
                 f"Maximal {Limits.BATCH_DELETE_MAX} Jobs pro Batch erlaubt"
