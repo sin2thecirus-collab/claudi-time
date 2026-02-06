@@ -34,42 +34,38 @@
 
     {# -- Pipeline Stages Header -- #}
     {% set visible_stages = ['sent', 'interview_1', 'interview_2', 'interview_3', 'offer', 'placed', 'rejected'] %}
-    <div class="bg-white rounded-t-xl border border-gray-200 border-b-0 overflow-hidden">
-        <div class="grid grid-cols-12 gap-0">
-            {# Unternehmen + Job Spalten - breiter #}
-            <div class="col-span-3 px-4 py-3 bg-gray-50 border-r border-gray-200">
-                <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Unternehmen / Job</span>
-            </div>
-            {# Pipeline Stages - 7 Spalten, jeweils col-span-1 #}
-            {% for stage in visible_stages %}
-            <div class="col-span-1 px-2 py-3 bg-gray-50 border-r border-gray-200 last:border-r-0 text-center">
-                <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    {% if stage == 'sent' %}Vorgestellt
-                    {% elif stage == 'interview_1' %}IV 1
-                    {% elif stage == 'interview_2' %}IV 2
-                    {% elif stage == 'interview_3' %}IV 3
-                    {% elif stage == 'offer' %}Angebot
-                    {% elif stage == 'placed' %}Platziert
-                    {% elif stage == 'rejected' %}Abgesagt
-                    {% endif %}
-                </span>
-            </div>
-            {% endfor %}
-            <div class="col-span-2 px-2 py-3 bg-gray-50 text-right">
-                <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Aktionen</span>
-            </div>
+    <div class="grid grid-cols-12 gap-0 px-4 py-2">
+        <div class="col-span-3">
+            <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Unternehmen / Job</span>
+        </div>
+        {% for stage in visible_stages %}
+        <div class="col-span-1 text-center">
+            <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                {% if stage == 'sent' %}Vorgestellt
+                {% elif stage == 'interview_1' %}IV 1
+                {% elif stage == 'interview_2' %}IV 2
+                {% elif stage == 'interview_3' %}IV 3
+                {% elif stage == 'offer' %}Angebot
+                {% elif stage == 'placed' %}Platziert
+                {% elif stage == 'rejected' %}Abgesagt
+                {% endif %}
+            </span>
+        </div>
+        {% endfor %}
+        <div class="col-span-2 text-right">
+            <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Aktionen</span>
         </div>
     </div>
 
     {# -- Pipeline Rows -- #}
-    <div class="bg-white rounded-b-xl border border-gray-200 border-t-0 overflow-hidden divide-y divide-gray-100">
+    <div class="space-y-3 mt-3">
         {% if jobs_by_company %}
             {% for company_key, company_data in jobs_by_company.items() %}
                 {% for job_item in company_data.jobs %}
                 {% set job = job_item.job %}
                 {% set entries_by_stage = job_item.entries_by_stage %}
 
-                <div class="grid grid-cols-12 gap-0 hover:bg-gray-50/50 transition-colors pipeline-row"
+                <div class="grid grid-cols-12 gap-0 bg-white rounded-xl border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all duration-200 pipeline-row"
                      data-job-id="{{ job.id }}">
 
                     {# Unternehmen + Job zusammen #}
@@ -153,7 +149,7 @@
                 {% endfor %}
             {% endfor %}
         {% else %}
-        <div class="px-6 py-12 text-center">
+        <div class="bg-white rounded-xl border border-gray-200 px-6 py-12 text-center">
             <svg class="mx-auto h-12 w-12 text-gray-300" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
             </svg>
