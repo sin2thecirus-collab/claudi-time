@@ -185,7 +185,7 @@
                                 <select id="pipeline-job" x-model="selectedJob" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
                                     <option value="">Stelle auswaehlen...</option>
                                     <template x-for="job in jobs" :key="job.id">
-                                        <option :value="job.id" x-text="job.title + (job.company ? ' - ' + job.company.name : '')"></option>
+                                        <option :value="job.id" x-text="job.company_name ? job.company_name + ' - ' + job.title : job.title"></option>
                                     </template>
                                 </select>
                             </div>
