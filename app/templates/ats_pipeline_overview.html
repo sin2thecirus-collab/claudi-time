@@ -103,12 +103,12 @@
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             {# Header Row 1 - Position und Aktionen #}
             <div class="grid grid-cols-12 border-b border-gray-100 bg-gray-50">
-                <div class="col-span-3 px-5 py-2">
-                    <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Position</span>
+                <div class="col-span-3 px-5 py-3">
+                    <span class="text-sm font-semibold text-gray-600 uppercase tracking-wider">Position</span>
                 </div>
                 <div class="col-span-7"></div>
-                <div class="col-span-2 px-5 py-2 text-right">
-                    <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Aktionen</span>
+                <div class="col-span-2 px-5 py-3 text-right">
+                    <span class="text-sm font-semibold text-gray-600 uppercase tracking-wider">Aktionen</span>
                 </div>
             </div>
             {# Header Row 2 - Farbige Stage-Tabs #}
@@ -125,7 +125,7 @@
                 <div class="col-span-3"></div>
                 {% for stage in visible_stages %}
                 {% set colors = header_colors.get(stage, {'bg': '#f3f4f6', 'text': '#374151'}) %}
-                <div class="col-span-1 flex items-center justify-center text-xs font-semibold py-2"
+                <div class="col-span-1 flex items-center justify-center text-sm font-semibold py-3"
                      style="background-color: {{ colors.bg }}; color: {{ colors.text }};">
                     {% if stage == 'sent' %}Vorgestellt
                     {% elif stage == 'interview_1' %}IV 1
@@ -153,12 +153,12 @@
                         {# Job Info #}
                         <div class="col-span-3 px-5 py-4">
                             <a href="/ats/stellen/{{ job.id }}" class="block group">
-                                <p class="text-sm font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">{{ job.title }}</p>
+                                <p class="text-base font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">{{ job.title }}</p>
                                 <div class="flex items-center gap-2 mt-1">
-                                    <span class="text-xs text-gray-500">{% if company_data.company %}{{ company_data.company_name }}{% endif %}</span>
+                                    <span class="text-sm text-gray-500">{% if company_data.company %}{{ company_data.company_name }}{% endif %}</span>
                                     {% if job.location_city %}
                                     <span class="text-gray-300">•</span>
-                                    <span class="text-xs text-gray-500">{{ job.location_city }}</span>
+                                    <span class="text-sm text-gray-500">{{ job.location_city }}</span>
                                     {% endif %}
                                 </div>
                             </a>
@@ -199,10 +199,10 @@
                                        class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white hover:shadow-sm cursor-grab active:cursor-grabbing transition-all border border-transparent hover:border-gray-200"
                                        title="{{ candidate.first_name }} {{ candidate.last_name }}"
                                        @click.stop>
-                                        <div class="w-7 h-7 rounded-full {{ avatar_colors.get(stage, 'bg-gray-400') }} flex items-center justify-center text-white text-xs font-semibold flex-shrink-0 shadow-sm">
+                                        <div class="w-8 h-8 rounded-full {{ avatar_colors.get(stage, 'bg-gray-400') }} flex items-center justify-center text-white text-sm font-semibold flex-shrink-0 shadow-sm">
                                             {{ (candidate.first_name or 'U')[0] | upper }}{{ (candidate.last_name or '')[0] | upper }}
                                         </div>
-                                        <span class="text-xs font-medium text-gray-700 truncate">{{ candidate.first_name }} {{ candidate.last_name }}</span>
+                                        <span class="text-sm font-medium text-gray-700 truncate">{{ candidate.first_name }} {{ candidate.last_name }}</span>
                                     </a>
                                 </div>
                                 {% endif %}
@@ -217,16 +217,16 @@
                         {# Actions #}
                         <div class="col-span-2 px-4 py-3 flex items-center justify-end gap-2">
                             <button @click="openAddCandidateModal('{{ job.id }}', '{{ job.title | e }}')"
-                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                                    class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
                                     title="Kandidat hinzufuegen">
-                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                                 </svg>
                                 Hinzufügen
                             </button>
                             <a href="/ats/stellen/{{ job.id }}"
-                               class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
-                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                               class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
                                 </svg>
                                 Details
