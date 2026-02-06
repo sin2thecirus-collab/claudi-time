@@ -837,3 +837,62 @@ async def clean_existing_job_texts(
         "cleaned": cleaned_count,
         "skipped_already_structured": skipped_count,
     }
+
+
+@router.post(
+    "/maintenance/cleanup-orphan-ats-jobs",
+    summary="Verwaiste ATSJobs soft-deleten",
+    tags=["Maintenance"],
+)
+async def cleanup_orphan_ats_jobs(
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Soft-deleted ATSJobs deren Quell-Job nicht mehr existiert oder geloescht wurde.
+
+    Betrifft:
+    - ATSJobs mit source_job_id die auf geloeschte Jobs zeigen
+    - ATSJobs ohne source_job_id deren Title+Company keinem aktiven Job entspricht
+    """
+    from sqlalchemy import select, update
+    from app.models.ats_job import ATSJob
+    from app.models.job import Job
+
+    now = datetime.now(timezone.utc)
+    deleted_count = 0
+
+    # 1. ATSJobs mit source_job_id deren Job geloescht ist
+    result = await db.execute(
+        select(ATSJob)
+        .join(Job, ATSJob.source_job_id == Job.id)
+        .where(
+            ATSJob.deleted_at.is_(None),
+            Job.deleted_at.isnot(None),  # Quell-Job ist geloescht
+        )
+    )
+    orphan_linked = result.scalars().all()
+    for ats_job in orphan_linked:
+        ats_job.deleted_at = now
+        deleted_count += 1
+
+    # 2. ATSJobs OHNE source_job_id (alte Daten vor Migration)
+    # Diese markieren wir auch, da sie keine Quell-Verknuepfung haben
+    result2 = await db.execute(
+        select(ATSJob).where(
+            ATSJob.deleted_at.is_(None),
+            ATSJob.source_job_id.is_(None),
+        )
+    )
+    orphan_unlinked = result2.scalars().all()
+    for ats_job in orphan_unlinked:
+        ats_job.deleted_at = now
+        deleted_count += 1
+
+    await db.commit()
+
+    return {
+        "status": "completed",
+        "deleted_with_dead_source": len(orphan_linked),
+        "deleted_without_source": len(orphan_unlinked),
+        "total_deleted": deleted_count,
+    }
