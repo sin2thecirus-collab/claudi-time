@@ -53,8 +53,15 @@ class ATSJob(Base):
         ForeignKey("company_contacts.id", ondelete="SET NULL"),
         nullable=True,
     )
-    # HINWEIS: source_job_id wird erst nach Migration 011 verfuegbar sein
-    # Bis dahin wird Cascading Delete im Code via try/except gehandhabt
+    # Verknuepfung zum Quell-Job (fuer Cascading Delete und Sync)
+    source_job_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("jobs.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    # Soft-Delete Timestamp
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     # Stellen-Informationen
     title: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -109,6 +116,10 @@ class ATSJob(Base):
     contact: Mapped["CompanyContact | None"] = relationship(
         "CompanyContact",
     )
+    source_job: Mapped["Job | None"] = relationship(
+        "Job",
+        foreign_keys=[source_job_id],
+    )
     pipeline_entries: Mapped[list["ATSPipelineEntry"]] = relationship(
         "ATSPipelineEntry", back_populates="ats_job", cascade="all, delete-orphan",
     )
@@ -134,6 +145,11 @@ class ATSJob(Base):
     def is_open(self) -> bool:
         """Prueft, ob die Stelle offen ist."""
         return self.status == ATSJobStatus.OPEN
+
+    @property
+    def is_deleted(self) -> bool:
+        """Prueft, ob die Stelle soft-deleted ist."""
+        return self.deleted_at is not None
 
     @property
     def salary_display(self) -> str:

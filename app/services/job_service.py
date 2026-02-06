@@ -158,7 +158,7 @@ class JobService:
 
     async def soft_delete_job(self, job_id: UUID) -> Job:
         """
-        Soft-Delete eines Jobs.
+        Soft-Delete eines Jobs mit Cascading zu verknuepften ATSJobs.
 
         Args:
             job_id: Job-ID
@@ -166,16 +166,29 @@ class JobService:
         Returns:
             Gelöschter Job
         """
+        from sqlalchemy import update
+        from app.models.ats_job import ATSJob
+
         job = await self.get_job(job_id)
-        job.deleted_at = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc)
+        job.deleted_at = now
+
+        # Cascading: Alle verknuepften ATSJobs auch soft-deleten
+        cascade_result = await self.db.execute(
+            update(ATSJob)
+            .where(ATSJob.source_job_id == job_id)
+            .values(deleted_at=now)
+        )
+
         await self.db.commit()
 
-        logger.info(f"Job soft-deleted: {job_id}")
+        cascaded_count = cascade_result.rowcount
+        logger.info(f"Job soft-deleted: {job_id}, {cascaded_count} ATSJobs cascaded")
         return job
 
     async def restore_job(self, job_id: UUID) -> Job:
         """
-        Stellt einen soft-deleted Job wieder her.
+        Stellt einen soft-deleted Job mit verknuepften ATSJobs wieder her.
 
         Args:
             job_id: Job-ID
@@ -183,16 +196,28 @@ class JobService:
         Returns:
             Wiederhergestellter Job
         """
+        from sqlalchemy import update
+        from app.models.ats_job import ATSJob
+
         job = await self.get_job(job_id)
         job.deleted_at = None
+
+        # Cascading: Alle verknuepften ATSJobs wiederherstellen
+        cascade_result = await self.db.execute(
+            update(ATSJob)
+            .where(ATSJob.source_job_id == job_id)
+            .values(deleted_at=None)
+        )
+
         await self.db.commit()
 
-        logger.info(f"Job wiederhergestellt: {job_id}")
+        cascaded_count = cascade_result.rowcount
+        logger.info(f"Job wiederhergestellt: {job_id}, {cascaded_count} ATSJobs restored")
         return job
 
     async def batch_delete(self, job_ids: list[UUID]) -> int:
         """
-        Soft-Delete mehrerer Jobs.
+        Soft-Delete mehrerer Jobs mit Cascading zu verknuepften ATSJobs.
 
         Args:
             job_ids: Liste der Job-IDs (max. 100)
@@ -200,6 +225,9 @@ class JobService:
         Returns:
             Anzahl gelöschter Jobs
         """
+        from sqlalchemy import update
+        from app.models.ats_job import ATSJob
+
         if len(job_ids) > Limits.BATCH_DELETE_MAX:
             raise ValueError(
                 f"Maximal {Limits.BATCH_DELETE_MAX} Jobs pro Batch erlaubt"
@@ -217,9 +245,17 @@ class JobService:
         for job in jobs:
             job.deleted_at = now
 
+        # Cascading: Alle verknuepften ATSJobs auch soft-deleten
+        cascade_result = await self.db.execute(
+            update(ATSJob)
+            .where(ATSJob.source_job_id.in_(job_ids))
+            .values(deleted_at=now)
+        )
+
         await self.db.commit()
 
-        logger.info(f"Batch-Delete: {len(jobs)} Jobs gelöscht")
+        cascaded_count = cascade_result.rowcount
+        logger.info(f"Batch-Delete: {len(jobs)} Jobs geloescht, {cascaded_count} ATSJobs cascaded")
         return len(jobs)
 
     async def permanently_delete_job(self, job_id: UUID) -> bool:

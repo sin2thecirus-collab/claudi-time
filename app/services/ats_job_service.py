@@ -115,10 +115,16 @@ class ATSJobService:
         sort_by: str = "created_at",
         page: int = 1,
         per_page: int = 25,
+        include_deleted: bool = False,
     ) -> dict:
         """Listet ATS-Stellen mit Filter und Pagination."""
         query = select(ATSJob).options(selectinload(ATSJob.company))
         count_query = select(func.count(ATSJob.id))
+
+        # Soft-deleted Jobs ausschliessen (Standard)
+        if not include_deleted:
+            query = query.where(ATSJob.deleted_at.is_(None))
+            count_query = count_query.where(ATSJob.deleted_at.is_(None))
 
         # Filter
         if company_id:
@@ -184,25 +190,42 @@ class ATSJobService:
             "pages": pages,
         }
 
-    async def get_jobs_for_company(self, company_id: UUID) -> list[ATSJob]:
+    async def get_jobs_for_company(self, company_id: UUID, include_deleted: bool = False) -> list[ATSJob]:
         """Holt alle ATS-Stellen fuer ein Unternehmen."""
-        result = await self.db.execute(
+        query = (
             select(ATSJob)
             .where(ATSJob.company_id == company_id)
             .order_by(ATSJob.created_at.desc())
         )
+
+        # Soft-deleted Jobs ausschliessen (Standard)
+        if not include_deleted:
+            query = query.where(ATSJob.deleted_at.is_(None))
+
+        result = await self.db.execute(query)
         return list(result.scalars().all())
 
     # ── Statistics ───────────────────────────────────
 
     async def get_stats(self) -> dict:
-        """Gibt ATS-Stellen-Statistiken zurueck."""
-        total = await self.db.execute(select(func.count(ATSJob.id)))
+        """Gibt ATS-Stellen-Statistiken zurueck (nur nicht-geloeschte)."""
+        # Nur nicht-geloeschte Jobs zaehlen
+        base_filter = ATSJob.deleted_at.is_(None)
+
+        total = await self.db.execute(
+            select(func.count(ATSJob.id)).where(base_filter)
+        )
         open_count = await self.db.execute(
-            select(func.count(ATSJob.id)).where(ATSJob.status == ATSJobStatus.OPEN)
+            select(func.count(ATSJob.id)).where(
+                base_filter,
+                ATSJob.status == ATSJobStatus.OPEN
+            )
         )
         filled = await self.db.execute(
-            select(func.count(ATSJob.id)).where(ATSJob.status == ATSJobStatus.FILLED)
+            select(func.count(ATSJob.id)).where(
+                base_filter,
+                ATSJob.status == ATSJobStatus.FILLED
+            )
         )
         return {
             "total": total.scalar() or 0,

@@ -31,7 +31,7 @@ async def ats_main(
     from app.models.ats_pipeline import ATSPipelineEntry
     from app.models.company import Company
 
-    # Alle Jobs die in_pipeline=True haben, mit Company und Pipeline-Entries
+    # Alle Jobs die in_pipeline=True haben und NICHT geloescht sind
     query = (
         select(ATSJob)
         .options(
@@ -39,6 +39,7 @@ async def ats_main(
             selectinload(ATSJob.pipeline_entries).selectinload(ATSPipelineEntry.candidate),
         )
         .where(ATSJob.in_pipeline == True)
+        .where(ATSJob.deleted_at.is_(None))  # Soft-deleted ausschliessen
         .order_by(ATSJob.created_at.desc())
     )
 
@@ -133,7 +134,7 @@ async def ats_pipeline_overview(
     from app.models.ats_job import ATSJob
     from app.models.company import Company
 
-    # Alle Jobs die in_pipeline=True haben, mit Company und Pipeline-Entries
+    # Alle Jobs die in_pipeline=True haben und NICHT geloescht sind
     query = (
         select(ATSJob)
         .options(
@@ -141,6 +142,7 @@ async def ats_pipeline_overview(
             selectinload(ATSJob.pipeline_entries),
         )
         .where(ATSJob.in_pipeline == True)
+        .where(ATSJob.deleted_at.is_(None))  # Soft-deleted ausschliessen
         .order_by(ATSJob.created_at.desc())
     )
 

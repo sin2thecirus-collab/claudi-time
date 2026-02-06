@@ -157,9 +157,12 @@ async def company_detail(
     )
     job_count = job_count_result.scalar() or 0
 
-    # ATS-Jobs Count laden
+    # ATS-Jobs Count laden (nur nicht-geloeschte)
     ats_job_count_result = await db.execute(
-        select(func.count(ATSJob.id)).where(ATSJob.company_id == company_id)
+        select(func.count(ATSJob.id)).where(
+            ATSJob.company_id == company_id,
+            ATSJob.deleted_at.is_(None),
+        )
     )
     ats_job_count = ats_job_count_result.scalar() or 0
 
@@ -634,7 +637,10 @@ async def company_ats_jobs_partial(
     result = await db.execute(
         select(ATSJob)
         .options(selectinload(ATSJob.pipeline_entries))
-        .where(ATSJob.company_id == company_id)
+        .where(
+            ATSJob.company_id == company_id,
+            ATSJob.deleted_at.is_(None),  # Soft-deleted ausschliessen
+        )
         .order_by(ATSJob.created_at.desc())
         .limit(50)
     )

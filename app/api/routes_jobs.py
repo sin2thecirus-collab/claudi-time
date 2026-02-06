@@ -431,7 +431,7 @@ async def batch_add_jobs_to_pipeline(
             employment_type=job.employment_type,
             description=job.job_text,
             source=f"Import: {job.job_url}" if job.job_url else "CSV-Import",
-            # source_job_id wird erst nach Migration 011 verfuegbar sein
+            source_job_id=job.id,  # Verknuepfung fuer Cascading Delete
         )
         ats_job.in_pipeline = True
         added_count += 1
@@ -587,7 +587,7 @@ async def add_job_to_pipeline(
         employment_type=job.employment_type,
         description=job.job_text,
         source=f"Import: {job.job_url}" if job.job_url else "CSV-Import",
-        # source_job_id wird erst nach Migration 011 verfuegbar sein
+        source_job_id=job.id,  # Verknuepfung fuer Cascading Delete
     )
     # In Pipeline setzen
     ats_job.in_pipeline = True
