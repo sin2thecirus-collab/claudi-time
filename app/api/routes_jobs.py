@@ -894,14 +894,32 @@ async def cleanup_orphan_ats_jobs(
     deleted_with_dead_source = 0
     deleted_without_source = 0
 
-    # Alle ATSJobs ohne source_job_id (alte Daten) soft-deleten
-    result = await db.execute(
+    # 1. ATSJobs mit source_job_id deren Quell-Job geloescht wurde
+    from app.models.job import Job
+    result1 = await db.execute(
+        select(ATSJob)
+        .outerjoin(Job, ATSJob.source_job_id == Job.id)
+        .where(
+            ATSJob.deleted_at.is_(None),
+            ATSJob.source_job_id.isnot(None),
+            # Entweder Job existiert nicht mehr ODER Job ist soft-deleted
+            (Job.id.is_(None) | Job.deleted_at.isnot(None))
+        )
+    )
+    orphan_with_dead_source = result1.scalars().all()
+    for ats_job in orphan_with_dead_source:
+        ats_job.deleted_at = now
+        deleted_count += 1
+        deleted_with_dead_source += 1
+
+    # 2. ATSJobs ohne source_job_id (alte Daten vor Migration)
+    result2 = await db.execute(
         select(ATSJob).where(
             ATSJob.deleted_at.is_(None),
             ATSJob.source_job_id.is_(None),
         )
     )
-    orphan_unlinked = result.scalars().all()
+    orphan_unlinked = result2.scalars().all()
     for ats_job in orphan_unlinked:
         ats_job.deleted_at = now
         deleted_count += 1
