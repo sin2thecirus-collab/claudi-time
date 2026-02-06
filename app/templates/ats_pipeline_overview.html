@@ -153,7 +153,16 @@
                     {% endfor %}
 
                     {# Aktionen #}
-                    <div class="col-span-1 px-2 py-3 flex items-center justify-center">
+                    <div class="col-span-1 px-2 py-3 flex items-center justify-center gap-1">
+                        {# Kandidat hinzufuegen Button #}
+                        <button @click="openAddCandidateModal('{{ job.id }}', '{{ job.title | e }}')"
+                                class="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                title="Kandidat hinzufuegen">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.766z" />
+                            </svg>
+                        </button>
+                        {# Details Link #}
                         <a href="/ats/stellen/{{ job.id }}"
                            class="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
                            title="Details anzeigen">
@@ -207,6 +216,120 @@
         </div>
     </div>
 
+    {# -- Kandidat hinzufuegen Modal -- #}
+    <div x-show="addCandidateOpen"
+         x-cloak
+         class="fixed inset-0 z-50"
+         @keydown.escape.window="addCandidateOpen = false">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75" @click="addCandidateOpen = false"></div>
+        <div class="fixed inset-0 z-10 overflow-y-auto">
+            <div class="flex min-h-full items-center justify-center p-4">
+                <div @click.stop
+                     x-show="addCandidateOpen"
+                     x-transition
+                     class="relative w-full max-w-lg bg-white rounded-xl shadow-xl">
+
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="text-lg font-semibold text-gray-900">Kandidat hinzufuegen</h3>
+                                <p class="text-sm text-gray-500 mt-0.5" x-text="'zu: ' + selectedJobTitle"></p>
+                            </div>
+                            <button @click="addCandidateOpen = false" class="text-gray-400 hover:text-gray-500">
+                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="px-6 py-4 space-y-4">
+                        {# Kandidaten-Suche #}
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Kandidat suchen *</label>
+                            <input type="text"
+                                   x-model="candidateSearch"
+                                   @input.debounce.300ms="searchCandidates()"
+                                   class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                                   placeholder="Name eingeben..."
+                                   autocomplete="off">
+
+                            {# Suchergebnisse #}
+                            <div x-show="searchResults.length > 0"
+                                 class="mt-2 border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-60 overflow-y-auto">
+                                <template x-for="candidate in searchResults" :key="candidate.id">
+                                    <button type="button"
+                                            @click="selectCandidate(candidate)"
+                                            class="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-3">
+                                        <div class="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 text-xs font-medium"
+                                             x-text="candidate.name.charAt(0).toUpperCase()"></div>
+                                        <div class="min-w-0 flex-1">
+                                            <p class="text-sm font-medium text-gray-900 truncate" x-text="candidate.name"></p>
+                                            <p class="text-xs text-gray-500 truncate" x-text="candidate.position || candidate.city || '-'"></p>
+                                        </div>
+                                    </button>
+                                </template>
+                            </div>
+
+                            {# Ausgewaehlter Kandidat #}
+                            <div x-show="selectedCandidate"
+                                 class="mt-2 p-3 bg-primary-50 border border-primary-200 rounded-lg flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded-full bg-primary-500 flex items-center justify-center text-white text-xs font-medium"
+                                         x-text="selectedCandidate?.name?.charAt(0).toUpperCase() || ''"></div>
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-900" x-text="selectedCandidate?.name"></p>
+                                        <p class="text-xs text-gray-500" x-text="selectedCandidate?.position || '-'"></p>
+                                    </div>
+                                </div>
+                                <button type="button" @click="selectedCandidate = null" class="text-gray-400 hover:text-gray-600">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+
+                            {# Keine Ergebnisse #}
+                            <p x-show="candidateSearch.length >= 2 && searchResults.length === 0 && !searching"
+                               class="mt-2 text-sm text-gray-500 text-center py-2">
+                                Keine Kandidaten gefunden
+                            </p>
+                        </div>
+
+                        {# Stage Auswahl #}
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Start-Phase</label>
+                            <select x-model="selectedStage"
+                                    class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500">
+                                <option value="matched">Gematcht</option>
+                                <option value="sent">Vorgestellt</option>
+                                <option value="feedback">Feedback</option>
+                                <option value="interview_1">Interview 1</option>
+                                <option value="interview_2">Interview 2</option>
+                                <option value="interview_3">Interview 3</option>
+                                <option value="offer">Angebot</option>
+                            </select>
+                        </div>
+
+                        <div class="flex justify-end gap-3 pt-2">
+                            <button type="button" @click="addCandidateOpen = false"
+                                    class="px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+                                Abbrechen
+                            </button>
+                            <button type="button"
+                                    @click="addCandidateToPipeline()"
+                                    :disabled="!selectedCandidate"
+                                    :class="selectedCandidate ? 'bg-primary-600 hover:bg-primary-500' : 'bg-gray-300 cursor-not-allowed'"
+                                    class="px-4 py-2.5 text-sm font-semibold text-white rounded-lg shadow-sm">
+                                Hinzufuegen
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
 {% endblock %}
 
@@ -214,12 +337,90 @@
 <script>
 function pipelineOverview() {
     return {
+        // Drag & Drop
         draggedEntry: null,
         draggedCandidateId: null,
         draggedCandidateName: null,
 
+        // Add Candidate Modal
+        addCandidateOpen: false,
+        selectedJobId: null,
+        selectedJobTitle: '',
+        candidateSearch: '',
+        searchResults: [],
+        selectedCandidate: null,
+        selectedStage: 'sent',
+        searching: false,
+
         init() {
             console.log('Pipeline Overview initialized with Drag & Drop');
+        },
+
+        openAddCandidateModal(jobId, jobTitle) {
+            this.selectedJobId = jobId;
+            this.selectedJobTitle = jobTitle;
+            this.candidateSearch = '';
+            this.searchResults = [];
+            this.selectedCandidate = null;
+            this.selectedStage = 'sent';
+            this.addCandidateOpen = true;
+        },
+
+        async searchCandidates() {
+            if (this.candidateSearch.length < 2) {
+                this.searchResults = [];
+                return;
+            }
+
+            this.searching = true;
+            try {
+                const response = await fetch(`/api/candidates/search?q=${encodeURIComponent(this.candidateSearch)}&limit=10`);
+                if (response.ok) {
+                    this.searchResults = await response.json();
+                }
+            } catch (err) {
+                console.error('Kandidaten-Suche fehlgeschlagen:', err);
+            }
+            this.searching = false;
+        },
+
+        selectCandidate(candidate) {
+            this.selectedCandidate = candidate;
+            this.searchResults = [];
+            this.candidateSearch = '';
+        },
+
+        async addCandidateToPipeline() {
+            if (!this.selectedCandidate || !this.selectedJobId) return;
+
+            try {
+                const response = await fetch(`/api/ats/pipeline/${this.selectedJobId}/candidates`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        candidate_id: this.selectedCandidate.id,
+                    })
+                });
+
+                if (response.ok) {
+                    if (typeof showToast === 'function') {
+                        showToast(`${this.selectedCandidate.name} zur Pipeline hinzugefuegt`, 'success');
+                    }
+                    this.addCandidateOpen = false;
+                    // Seite neu laden um Aenderungen anzuzeigen
+                    setTimeout(() => location.reload(), 500);
+                } else {
+                    const error = await response.json();
+                    if (typeof showToast === 'function') {
+                        showToast(error.detail || 'Fehler beim Hinzufuegen', 'error');
+                    }
+                }
+            } catch (err) {
+                console.error('Kandidat hinzufuegen fehlgeschlagen:', err);
+                if (typeof showToast === 'function') {
+                    showToast('Netzwerkfehler', 'error');
+                }
+            }
         },
 
         handleDragStart(event, entryId, candidateId, candidateName) {
