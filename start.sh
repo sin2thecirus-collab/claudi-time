@@ -1,6 +1,6 @@
 #!/bin/sh
 # Railway Startup Script
-# Build: 2026-02-06-v7 - Migration 011 source_job_id + deleted_at
+# Build: 2026-02-06-v8 - Company search autocomplete
 
 echo "Starting Railway deployment..."
 echo "Running alembic migrations..."
