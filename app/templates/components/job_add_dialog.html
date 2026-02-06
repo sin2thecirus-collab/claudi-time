@@ -525,8 +525,10 @@
         .then(function(data) {
             pdfLoading.classList.add('hidden');
 
-            if (data.text) {
-                jobTextarea.value = data.text;
+            // API gibt 'description' zurueck, nicht 'text'
+            var extractedText = data.description || data.text;
+            if (extractedText) {
+                jobTextarea.value = extractedText;
                 pdfSuccess.classList.remove('hidden');
                 showToast('PDF erfolgreich importiert', 'success');
             } else if (data.detail) {
