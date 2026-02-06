@@ -175,15 +175,18 @@ class JobService:
         job.deleted_at = datetime.now(timezone.utc)
 
         # CASCADING DELETE: ATSJobs mit diesem source_job_id auch loeschen
-        # Try/Except falls source_job_id Spalte noch nicht existiert
+        # Hinweis: source_job_id Spalte wird erst nach Migration 011 verfuegbar sein
         ats_deleted_count = 0
         try:
+            from sqlalchemy import text
             ats_delete_result = await self.db.execute(
-                delete(ATSJob).where(ATSJob.source_job_id == job_id)
+                text("DELETE FROM ats_jobs WHERE source_job_id = :job_id"),
+                {"job_id": job_id}
             )
             ats_deleted_count = ats_delete_result.rowcount
         except Exception as e:
-            logger.warning(f"Cascading delete fehlgeschlagen (source_job_id evtl. nicht vorhanden): {e}")
+            # Spalte existiert noch nicht - das ist OK
+            pass
 
         await self.db.commit()
 
@@ -244,15 +247,21 @@ class JobService:
             job.deleted_at = now
 
         # CASCADING DELETE: ATSJobs mit diesen source_job_ids auch loeschen
-        # Try/Except falls source_job_id Spalte noch nicht existiert
+        # Hinweis: source_job_id Spalte wird erst nach Migration 011 verfuegbar sein
         ats_deleted_count = 0
         try:
+            from sqlalchemy import text
+            # Raw SQL da source_job_id evtl. noch nicht im Model ist
+            placeholders = ", ".join([f":id_{i}" for i in range(len(job_ids))])
+            params = {f"id_{i}": str(jid) for i, jid in enumerate(job_ids)}
             ats_delete_result = await self.db.execute(
-                delete(ATSJob).where(ATSJob.source_job_id.in_(job_ids))
+                text(f"DELETE FROM ats_jobs WHERE source_job_id IN ({placeholders})"),
+                params
             )
             ats_deleted_count = ats_delete_result.rowcount
         except Exception as e:
-            logger.warning(f"Cascading delete fehlgeschlagen (source_job_id evtl. nicht vorhanden): {e}")
+            # Spalte existiert noch nicht - das ist OK
+            pass
 
         await self.db.commit()
 

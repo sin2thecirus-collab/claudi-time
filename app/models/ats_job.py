@@ -53,12 +53,8 @@ class ATSJob(Base):
         ForeignKey("company_contacts.id", ondelete="SET NULL"),
         nullable=True,
     )
-    # Verknuepfung zum Quell-Job (falls aus Import erstellt)
-    source_job_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("jobs.id", ondelete="CASCADE"),
-        nullable=True,
-    )
+    # HINWEIS: source_job_id wird erst nach Migration 011 verfuegbar sein
+    # Bis dahin wird Cascading Delete im Code via try/except gehandhabt
 
     # Stellen-Informationen
     title: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -132,7 +128,6 @@ class ATSJob(Base):
         Index("ix_ats_jobs_status", "status"),
         Index("ix_ats_jobs_priority", "priority"),
         Index("ix_ats_jobs_created_at", "created_at"),
-        Index("ix_ats_jobs_source_job_id", "source_job_id"),
     )
 
     @property
