@@ -147,11 +147,11 @@
                                    title="{{ candidate.first_name }} {{ candidate.last_name }} - Ziehen zum Verschieben"
                                    @click.stop>
                                     {# Avatar mit Gradient #}
-                                    <div class="w-7 h-7 rounded-full bg-gradient-to-br {{ stage_colors.get(stage, 'from-gray-400 to-gray-600') }} flex items-center justify-center text-white text-xs font-semibold ring-2 {{ stage_ring_colors.get(stage, 'ring-gray-200') }} ring-offset-1 flex-shrink-0">
+                                    <div class="w-8 h-8 rounded-full bg-gradient-to-br {{ stage_colors.get(stage, 'from-gray-400 to-gray-600') }} flex items-center justify-center text-white text-xs font-semibold ring-2 {{ stage_ring_colors.get(stage, 'ring-gray-200') }} ring-offset-1 flex-shrink-0">
                                         {{ (candidate.first_name or 'U')[0] | upper }}{{ (candidate.last_name or '')[0] | upper }}
                                     </div>
-                                    {# Name #}
-                                    <span class="text-sm font-medium text-gray-700 group-hover:text-gray-900 truncate max-w-[80px]">{{ candidate.first_name }}</span>
+                                    {# Vor- und Nachname #}
+                                    <span class="text-base font-medium text-gray-700 group-hover:text-gray-900 truncate max-w-[100px]">{{ candidate.first_name }} {{ candidate.last_name }}</span>
                                 </a>
                             </div>
                             {% endif %}
