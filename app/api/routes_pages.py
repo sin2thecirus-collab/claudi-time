@@ -704,7 +704,7 @@ async def candidate_pipeline_partial(
     result = await db.execute(
         select(ATSPipelineEntry)
         .options(
-            selectinload(ATSPipelineEntry.job).selectinload(ATSJob.company)
+            selectinload(ATSPipelineEntry.ats_job).selectinload(ATSJob.company)
         )
         .where(ATSPipelineEntry.candidate_id == candidate_id)
         .order_by(ATSPipelineEntry.updated_at.desc())
