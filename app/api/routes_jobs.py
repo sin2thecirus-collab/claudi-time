@@ -209,6 +209,54 @@ async def create_job(
     }
 
 
+@router.post(
+    "/link-companies",
+    summary="Jobs mit Unternehmen verknuepfen",
+    description="Verknuepft alle Jobs ohne company_id mit passenden Unternehmen (basierend auf company_name)",
+)
+async def link_jobs_to_companies(
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Verknuepft bestehende Jobs mit Unternehmen.
+
+    Sucht fuer jeden Job ohne company_id ein passendes Unternehmen
+    anhand des company_name und setzt die Verknuepfung.
+    """
+    from sqlalchemy import select, update, func
+    from app.models import Job
+    from app.models.company import Company
+
+    # Finde alle Jobs ohne company_id
+    jobs_query = select(Job).where(
+        Job.company_id.is_(None),
+        Job.deleted_at.is_(None)
+    )
+    result = await db.execute(jobs_query)
+    jobs = result.scalars().all()
+
+    linked_count = 0
+    for job in jobs:
+        # Suche passendes Unternehmen (case-insensitive)
+        company_query = select(Company).where(
+            func.lower(Company.name) == func.lower(job.company_name)
+        )
+        company_result = await db.execute(company_query)
+        company = company_result.scalar_one_or_none()
+
+        if company:
+            job.company_id = company.id
+            linked_count += 1
+
+    await db.commit()
+
+    return {
+        "message": f"{linked_count} Jobs mit Unternehmen verknuepft",
+        "total_unlinked": len(jobs),
+        "linked": linked_count,
+    }
+
+
 @router.get(
     "",
     response_model=JobListResponse,
