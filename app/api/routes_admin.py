@@ -1458,6 +1458,38 @@ async def get_migration_status(
         }
 
 
+@router.post("/fix-migration-011")
+async def fix_migration_011(
+    db: AsyncSession = Depends(get_db),
+):
+    """Fuegt fehlende Spalte deleted_at manuell hinzu falls Migration 011 unvollstaendig war."""
+    from sqlalchemy import text
+
+    try:
+        # Pruefen ob deleted_at Spalte fehlt
+        check = await db.execute(
+            text("SELECT column_name FROM information_schema.columns WHERE table_name = 'ats_jobs' AND column_name = 'deleted_at'")
+        )
+        if check.fetchone() is not None:
+            return {"status": "skipped", "message": "deleted_at Spalte existiert bereits"}
+
+        # Spalte hinzufuegen
+        await db.execute(
+            text("ALTER TABLE ats_jobs ADD COLUMN deleted_at TIMESTAMP WITH TIME ZONE")
+        )
+        await db.commit()
+
+        # Index erstellen falls nicht existiert
+        await db.execute(
+            text("CREATE INDEX IF NOT EXISTS ix_ats_jobs_deleted_at ON ats_jobs (deleted_at)")
+        )
+        await db.commit()
+
+        return {"status": "success", "message": "deleted_at Spalte und Index hinzugefuegt"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
 @router.post("/run-migrations")
 async def run_migrations(
     db: AsyncSession = Depends(get_db),
