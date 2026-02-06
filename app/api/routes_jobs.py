@@ -569,14 +569,33 @@ async def add_job_to_pipeline(
     Erstellt einen ATSJob aus einem importierten Job und fuegt ihn zur Pipeline hinzu.
 
     Der importierte Job bleibt bestehen, es wird eine Kopie als ATSJob erstellt.
+    Falls bereits ein ATSJob mit dieser source_job_id existiert, wird dieser zurueckgegeben.
     """
     from app.services.ats_job_service import ATSJobService
+    from app.models.ats_job import ATSJob
 
     job_service = JobService(db)
     job = await job_service.get_job(job_id)
 
     if not job:
         raise NotFoundException(message="Job nicht gefunden")
+
+    # Pruefen ob bereits ein ATSJob mit dieser source_job_id existiert
+    existing_result = await db.execute(
+        select(ATSJob).where(
+            ATSJob.source_job_id == job_id,
+            ATSJob.deleted_at.is_(None),
+        )
+    )
+    existing_ats_job = existing_result.scalar_one_or_none()
+
+    if existing_ats_job:
+        return {
+            "message": f"'{job.position}' ist bereits in der Pipeline",
+            "ats_job_id": str(existing_ats_job.id),
+            "job_id": str(job_id),
+            "already_exists": True,
+        }
 
     # ATSJob erstellen mit Daten aus dem importierten Job
     ats_service = ATSJobService(db)
