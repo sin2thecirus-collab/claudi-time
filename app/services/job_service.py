@@ -175,10 +175,15 @@ class JobService:
         job.deleted_at = datetime.now(timezone.utc)
 
         # CASCADING DELETE: ATSJobs mit diesem source_job_id auch loeschen
-        ats_delete_result = await self.db.execute(
-            delete(ATSJob).where(ATSJob.source_job_id == job_id)
-        )
-        ats_deleted_count = ats_delete_result.rowcount
+        # Try/Except falls source_job_id Spalte noch nicht existiert
+        ats_deleted_count = 0
+        try:
+            ats_delete_result = await self.db.execute(
+                delete(ATSJob).where(ATSJob.source_job_id == job_id)
+            )
+            ats_deleted_count = ats_delete_result.rowcount
+        except Exception as e:
+            logger.warning(f"Cascading delete fehlgeschlagen (source_job_id evtl. nicht vorhanden): {e}")
 
         await self.db.commit()
 
@@ -239,10 +244,15 @@ class JobService:
             job.deleted_at = now
 
         # CASCADING DELETE: ATSJobs mit diesen source_job_ids auch loeschen
-        ats_delete_result = await self.db.execute(
-            delete(ATSJob).where(ATSJob.source_job_id.in_(job_ids))
-        )
-        ats_deleted_count = ats_delete_result.rowcount
+        # Try/Except falls source_job_id Spalte noch nicht existiert
+        ats_deleted_count = 0
+        try:
+            ats_delete_result = await self.db.execute(
+                delete(ATSJob).where(ATSJob.source_job_id.in_(job_ids))
+            )
+            ats_deleted_count = ats_delete_result.rowcount
+        except Exception as e:
+            logger.warning(f"Cascading delete fehlgeschlagen (source_job_id evtl. nicht vorhanden): {e}")
 
         await self.db.commit()
 
