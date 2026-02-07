@@ -346,90 +346,96 @@ async def _run_r2_migration(batch_size: int, max_candidates: int):
             _r2_migration_status["errors"].append("R2 Storage nicht konfiguriert")
             return
 
-        async with async_session_maker() as db:
-            offset = 0
-            while offset < max_candidates:
-                result = await db.execute(
-                    select(Candidate)
-                    .where(
-                        Candidate.cv_url.isnot(None),
-                        Candidate.cv_url != "",
-                        Candidate.cv_stored_path.is_(None),
-                        Candidate.deleted_at.is_(None),
+        # EIN httpx Client fuer alle Downloads (Connection-Pool)
+        async with httpx.AsyncClient(
+            follow_redirects=True,
+            timeout=httpx.Timeout(20.0, connect=10.0),
+            limits=httpx.Limits(max_connections=5, max_keepalive_connections=3),
+        ) as http_client:
+
+            async with async_session_maker() as db:
+                processed = 0
+                while processed < max_candidates:
+                    result = await db.execute(
+                        select(Candidate)
+                        .where(
+                            Candidate.cv_url.isnot(None),
+                            Candidate.cv_url != "",
+                            Candidate.cv_stored_path.is_(None),
+                            Candidate.deleted_at.is_(None),
+                        )
+                        .order_by(Candidate.id)
+                        .limit(batch_size)
                     )
-                    .order_by(Candidate.id)
-                    .limit(batch_size)
-                )
-                candidates = result.scalars().all()
+                    candidates = result.scalars().all()
 
-                if not candidates:
-                    break
+                    if not candidates:
+                        break
 
-                for candidate in candidates:
-                    # Stop-Mechanismus pruefen
-                    if _r2_migration_status.get("stop_requested"):
-                        logger.info("R2-Migration wurde manuell gestoppt.")
-                        _r2_migration_status["running"] = False
-                        _r2_migration_status["finished_at"] = datetime.now(timezone.utc).isoformat()
-                        _r2_migration_status["current_candidate"] = None
-                        await db.commit()
-                        return
+                    for candidate in candidates:
+                        # Stop-Mechanismus pruefen
+                        if _r2_migration_status.get("stop_requested"):
+                            logger.info("R2-Migration wurde manuell gestoppt.")
+                            _r2_migration_status["running"] = False
+                            _r2_migration_status["finished_at"] = datetime.now(timezone.utc).isoformat()
+                            _r2_migration_status["current_candidate"] = None
+                            await db.commit()
+                            return
 
-                    name = f"{candidate.first_name or ''} {candidate.last_name or ''}".strip() or "Unbekannt"
-                    _r2_migration_status["current_candidate"] = name
+                        name = f"{candidate.first_name or ''} {candidate.last_name or ''}".strip() or "Unbekannt"
+                        _r2_migration_status["current_candidate"] = name
+                        processed += 1
 
-                    try:
-                        # CV von CRM-URL herunterladen
-                        async with httpx.AsyncClient(
-                            follow_redirects=True,
-                            timeout=60.0,
-                        ) as client:
-                            response = await client.get(candidate.cv_url)
+                        try:
+                            # CV von CRM-URL herunterladen (20s Timeout)
+                            response = await http_client.get(candidate.cv_url)
 
-                        if response.status_code != 200:
+                            if response.status_code != 200:
+                                _r2_migration_status["failed"] += 1
+                                _r2_migration_status["errors"].append(
+                                    f"{name}: HTTP {response.status_code}"
+                                )
+                                continue
+
+                            if len(response.content) < 100:
+                                _r2_migration_status["skipped"] += 1
+                                _r2_migration_status["errors"].append(
+                                    f"{name}: Datei zu klein ({len(response.content)} Bytes)"
+                                )
+                                continue
+
+                            # Nach R2 hochladen (Dateiname = Kandidatenname)
+                            key = r2.upload_cv(
+                                str(candidate.id),
+                                response.content,
+                                first_name=candidate.first_name,
+                                last_name=candidate.last_name,
+                                hotlist_category=candidate.hotlist_category,
+                            )
+                            candidate.cv_stored_path = key
+                            _r2_migration_status["migrated"] += 1
+                            _r2_migration_status["recently_migrated"].append(
+                                f"{name} -> {key}"
+                            )
+                            _r2_migration_status["recently_migrated"] = _r2_migration_status["recently_migrated"][-10:]
+
+                        except httpx.TimeoutException:
                             _r2_migration_status["failed"] += 1
-                            _r2_migration_status["errors"].append(
-                                f"{name}: HTTP {response.status_code}"
-                            )
-                            continue
+                            _r2_migration_status["errors"].append(f"{name}: Timeout (20s)")
+                        except Exception as e:
+                            _r2_migration_status["failed"] += 1
+                            _r2_migration_status["errors"].append(f"{name}: {e}")
 
-                        if len(response.content) < 100:
-                            _r2_migration_status["skipped"] += 1
-                            _r2_migration_status["errors"].append(
-                                f"{name}: Datei zu klein ({len(response.content)} Bytes)"
-                            )
-                            continue
+                        # Kurze Pause - gibt DB-Pool und Netzwerk frei
+                        await asyncio.sleep(0.3)
 
-                        # Nach R2 hochladen (Dateiname = Kandidatenname)
-                        key = r2.upload_cv(
-                            str(candidate.id),
-                            response.content,
-                            first_name=candidate.first_name,
-                            last_name=candidate.last_name,
-                            hotlist_category=candidate.hotlist_category,
-                        )
-                        candidate.cv_stored_path = key
-                        _r2_migration_status["migrated"] += 1
-                        _r2_migration_status["recently_migrated"].append(
-                            f"{name} -> {key}"
-                        )
-                        _r2_migration_status["recently_migrated"] = _r2_migration_status["recently_migrated"][-10:]
-
-                    except Exception as e:
-                        _r2_migration_status["failed"] += 1
-                        _r2_migration_status["errors"].append(f"{name}: {e}")
-
-                    # Kurze Pause - gibt DB-Pool und Netzwerk frei
+                    await db.commit()
+                    logger.info(
+                        f"R2-Migration: {_r2_migration_status['migrated']} migriert, "
+                        f"{_r2_migration_status['failed']} fehlgeschlagen ({processed}/{max_candidates})"
+                    )
+                    # Pause zwischen Batches
                     await asyncio.sleep(0.5)
-
-                await db.commit()
-                offset += batch_size
-                logger.info(
-                    f"R2-Migration: {_r2_migration_status['migrated']} migriert, "
-                    f"{_r2_migration_status['failed']} fehlgeschlagen ({offset}/{max_candidates})"
-                )
-                # Pause zwischen Batches
-                await asyncio.sleep(1.0)
 
     except Exception as e:
         logger.error(f"R2-Migration Background Task fehlgeschlagen: {e}", exc_info=True)
