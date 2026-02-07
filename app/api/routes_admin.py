@@ -293,6 +293,28 @@ async def stop_r2_migration():
     return {"success": False, "message": "Keine R2-Migration laeuft aktuell."}
 
 
+@router.post(
+    "/reset-r2-migration-status",
+    summary="R2-Migration Status zuruecksetzen (nach Neustart/Crash)",
+)
+async def reset_r2_migration_status():
+    """Setzt den globalen R2-Migration-Status zurueck (falls nach Neustart haengengeblieben)."""
+    global _r2_migration_status
+    _r2_migration_status = {
+        "running": False,
+        "migrated": 0,
+        "failed": 0,
+        "skipped": 0,
+        "total_to_migrate": 0,
+        "errors": [],
+        "recently_migrated": [],
+        "started_at": None,
+        "finished_at": None,
+        "current_candidate": None,
+    }
+    return {"success": True, "message": "R2-Migration-Status zurueckgesetzt"}
+
+
 async def _run_r2_migration(batch_size: int, max_candidates: int):
     """Background Task: Migriert CVs von CRM-URLs nach R2 Storage."""
     import httpx

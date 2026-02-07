@@ -969,9 +969,14 @@ async def r2_migration_status_html(
     # Button HTML
     if is_running:
         btn_html = (
+            '<div class="flex flex-col gap-1">'
             '<button id="r2-stop-btn" class="inline-flex items-center rounded-md '
             'bg-red-50 px-3 py-2 text-xs font-medium text-red-700 ring-1 ring-inset '
             'ring-red-600/20 hover:bg-red-100 cursor-pointer">Stoppen</button>'
+            '<button id="r2-reset-btn" class="inline-flex items-center rounded-md '
+            'bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-500 ring-1 ring-inset '
+            'ring-gray-300 hover:bg-gray-100 cursor-pointer">Reset</button>'
+            '</div>'
         )
     elif remaining == 0:
         btn_html = (
@@ -1027,6 +1032,7 @@ async def r2_migration_status_html(
         var wrapper = document.getElementById('admin-r2-migration');
         var startBtn = document.getElementById('r2-start-btn');
         var stopBtn = document.getElementById('r2-stop-btn');
+        var resetBtn = document.getElementById('r2-reset-btn');
         var isRunning = {'true' if is_running else 'false'};
 
         function refreshStatus() {{
@@ -1060,6 +1066,18 @@ async def r2_migration_status_html(
                     method: 'POST'
                 }}).then(function() {{
                     setTimeout(refreshStatus, 1000);
+                }});
+            }});
+        }}
+
+        if (resetBtn) {{
+            resetBtn.addEventListener('click', function() {{
+                resetBtn.textContent = 'Wird zurueckgesetzt...';
+                resetBtn.disabled = true;
+                fetch('/api/admin/reset-r2-migration-status', {{
+                    method: 'POST'
+                }}).then(function() {{
+                    setTimeout(refreshStatus, 500);
                 }});
             }});
         }}
