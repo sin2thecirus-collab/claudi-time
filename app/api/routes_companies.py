@@ -113,11 +113,13 @@ async def trigger_crm_import(
 @router.get("/crm-import-status")
 async def get_import_status():
     """Gibt den aktuellen Import-Status zurueck."""
+    all_logs = _import_status.get("log", [])
     return {
         "running": _import_status.get("running", False),
         "stats": _import_status.get("stats", {}),
-        "log_count": len(_import_status.get("log", [])),
-        "last_logs": _import_status.get("log", [])[-20:],
+        "log_count": len(all_logs),
+        "first_logs": all_logs[:10],
+        "last_logs": all_logs[-20:],
     }
 
 
@@ -932,8 +934,24 @@ async def _run_crm_import(dry_run: bool = False, max_pages: int | None = None, s
             # ── Phase 2: Kontakte (Slug-basiertes Matching) ──
             if not skip_contacts:
                 log("=== Phase 2: Kontakte importieren (Slug-Matching) ===")
-                contact_stats = {"imported": 0, "skipped_empty": 0, "skipped_no_company": 0, "errors": 0}
+                contact_stats = {"imported": 0, "skipped_empty": 0, "skipped_no_company": 0, "skipped_duplicate": 0, "errors": 0}
                 log(f"Slug-Map hat {len(slug_to_company_id)} Eintraege")
+
+                # Bestehende Kontakte laden fuer Duplikat-Check (email+company_id)
+                existing_contacts: set[str] = set()
+                if not dry_run:
+                    async with async_session_maker() as session:
+                        result = await session.execute(
+                            select(CompanyContact.email, CompanyContact.company_id, CompanyContact.first_name, CompanyContact.last_name)
+                        )
+                        for email, cid, fn, ln in result.all():
+                            # Key: email+company_id oder firstname+lastname+company_id
+                            if email:
+                                existing_contacts.add(f"{email.lower()}|{cid}")
+                            else:
+                                key = f"{(fn or '').lower()}|{(ln or '').lower()}|{cid}"
+                                existing_contacts.add(key)
+                    log(f"Bestehende Kontakte: {len(existing_contacts)} (fuer Duplikat-Check)")
 
                 async for page_num, contacts, total in client.get_all_contacts_paginated(per_page=100, max_pages=max_pages):
                     log(f"Seite {page_num}: {len(contacts)} Kontakte (ca. {total} gesamt)")
@@ -957,7 +975,7 @@ async def _run_crm_import(dry_run: bool = False, max_pages: int | None = None, s
                                     continue
 
                                 # Slug-basiertes Matching statt Name
-                                mapped.pop("_company_name", None)  # Nicht mehr benoetigt
+                                mapped.pop("_company_name", None)
                                 company_slug = ct.get("company_slug", "")
                                 if not company_slug:
                                     contact_stats["skipped_no_company"] += 1
@@ -968,7 +986,20 @@ async def _run_crm_import(dry_run: bool = False, max_pages: int | None = None, s
                                     contact_stats["skipped_no_company"] += 1
                                     continue
 
-                                mapped["company_id"] = uuid_mod.UUID(cid_str)
+                                company_uuid = uuid_mod.UUID(cid_str)
+
+                                # Duplikat-Check
+                                email = mapped.get("email")
+                                if email:
+                                    dup_key = f"{email.lower()}|{company_uuid}"
+                                else:
+                                    dup_key = f"{(mapped.get('first_name') or '').lower()}|{(mapped.get('last_name') or '').lower()}|{company_uuid}"
+                                if dup_key in existing_contacts:
+                                    contact_stats["skipped_duplicate"] += 1
+                                    continue
+                                existing_contacts.add(dup_key)
+
+                                mapped["company_id"] = company_uuid
                                 batch.append(CompanyContact(**mapped))
                                 contact_stats["imported"] += 1
 
@@ -992,11 +1023,13 @@ async def _run_crm_import(dry_run: bool = False, max_pages: int | None = None, s
                                         contact_stats["errors"] += 1
                                         contact_stats["imported"] -= 1
 
+                    # Live-Stats Update
+                    _import_status["stats"]["contacts"] = dict(contact_stats)
                     if contact_stats["imported"] % 500 == 0 and contact_stats["imported"] > 0:
-                        log(f"  Fortschritt: {contact_stats['imported']} Kontakte...")
+                        log(f"  Fortschritt: {contact_stats['imported']} Kontakte importiert, {contact_stats['skipped_duplicate']} Duplikate, {contact_stats['skipped_no_company']} ohne Firma...")
 
                 log(f"Kontakte fertig: {contact_stats}")
-                _import_status["stats"]["contacts"] = contact_stats
+                _import_status["stats"]["contacts"] = dict(contact_stats)
 
         log("=== IMPORT ABGESCHLOSSEN ===")
 
