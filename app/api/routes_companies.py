@@ -95,19 +95,15 @@ async def company_stats(db: AsyncSession = Depends(get_db)):
 # ── CRM Import Endpoints (TEMPORAER — nach Import loeschen!) ──
 
 @router.post("/crm-import-trigger")
-async def trigger_crm_import(
+async def trigger_csv_import(
     background_tasks: BackgroundTasks,
-    dry_run: bool = Query(False),
-    max_pages: int | None = Query(None),
-    skip_contacts: bool = Query(False),
-    skip_companies: bool = Query(False),
 ):
-    """Startet CRM-Import als Background-Task."""
+    """Startet CSV-Import als Background-Task."""
     if _import_status.get("running"):
-        return JSONResponse(status_code=409, content={"error": "Import laeuft bereits", "log": _import_status["log"][-10:]})
+        return JSONResponse(status_code=409, content={"error": "Import laeuft bereits"})
 
-    background_tasks.add_task(_run_crm_import, dry_run=dry_run, max_pages=max_pages, skip_contacts=skip_contacts, skip_companies=skip_companies)
-    return {"message": f"Import gestartet (dry_run={dry_run}, max_pages={max_pages}, skip_companies={skip_companies})", "status_url": "/api/companies/crm-import-status"}
+    background_tasks.add_task(_run_csv_import)
+    return {"message": "CSV-Import gestartet", "status_url": "/api/companies/crm-import-status"}
 
 
 @router.get("/crm-import-status")
@@ -121,48 +117,6 @@ async def get_import_status():
         "first_logs": all_logs[:10],
         "last_logs": all_logs[-20:],
     }
-
-
-@router.get("/crm-debug-contacts")
-async def debug_crm_contacts():
-    """TEMPORAER: Zeigt rohe CRM-Daten zum Debugging."""
-    from app.services.crm_client import RecruitCRMClient
-    async with RecruitCRMClient() as client:
-        # Contacts
-        ct_result = await client.get_contacts(page=1, per_page=100)
-        raw_contacts = ct_result.get("data", [])[:3]
-        ct_debug = []
-        for ct in raw_contacts:
-            ct_debug.append({
-                "all_keys": list(ct.keys()),
-                "company_slug": ct.get("company_slug"),
-                "company_name": ct.get("company_name"),
-                "first_name": ct.get("first_name"),
-                "last_name": ct.get("last_name"),
-            })
-
-        # Companies
-        co_result = await client.get_companies(page=1, per_page=100)
-        raw_companies = co_result.get("data", [])[:3]
-        co_debug = []
-        for co in raw_companies:
-            co_debug.append({
-                "all_keys": list(co.keys()),
-                "slug": co.get("slug"),
-                "company_name": co.get("company_name"),
-            })
-
-        return {"contacts": ct_debug, "companies": co_debug}
-
-
-@router.delete("/crm-delete-all-except/{keep_id}")
-async def delete_all_except(keep_id: UUID, db: AsyncSession = Depends(get_db)):
-    """TEMPORAER: Loescht alle Unternehmen AUSSER die angegebene ID."""
-    count_result = await db.execute(select(sa_func.count(Company.id)).where(Company.id != keep_id))
-    to_delete = count_result.scalar() or 0
-    await db.execute(sa_delete(Company).where(Company.id != keep_id))
-    await db.commit()
-    return {"deleted": to_delete, "kept": str(keep_id)}
 
 
 @router.get("/search/json")
@@ -788,248 +742,223 @@ async def delete_company_note(note_id: UUID, db: AsyncSession = Depends(get_db))
 
 
 # ══════════════════════════════════════════════════════════════
-#  TEMPORAERER CRM-Import Endpoint (nach Import loeschen!)
+#  TEMPORAERER CSV-Import Endpoint (nach Import loeschen!)
 # ══════════════════════════════════════════════════════════════
 
 import asyncio
+import csv
+import os
 import uuid as uuid_mod
 
 # Global import status
 _import_status: dict[str, Any] = {"running": False, "log": [], "stats": {}}
 
 
-async def _run_crm_import(dry_run: bool = False, max_pages: int | None = None, skip_contacts: bool = False, skip_companies: bool = False):
-    """Background-Task fuer CRM Import."""
+async def _run_csv_import():
+    """Background-Task fuer CSV Import aus scripts/crm-data/."""
     global _import_status
-    _import_status = {"running": True, "log": [], "stats": {}, "dry_run": dry_run}
+    _import_status = {"running": True, "log": [], "stats": {}}
 
     def log(msg: str):
-        logger.info(f"[CRM-Import] {msg}")
+        logger.info(f"[CSV-Import] {msg}")
         _import_status["log"].append(msg)
 
     try:
-        from app.services.crm_client import RecruitCRMClient
         from app.database import async_session_maker
 
-        # Slug-Map: CRM company_slug -> MT company_id (wird in Phase 1 gebaut, in Phase 2 genutzt)
+        # CSV-Dateien finden
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        csv_dir = os.path.join(base_dir, "scripts", "crm-data")
+        company_csv = os.path.join(csv_dir, "company_data.csv")
+        contact_csv = os.path.join(csv_dir, "contact_data.csv")
+
+        if not os.path.exists(company_csv) or not os.path.exists(contact_csv):
+            log(f"FEHLER: CSV-Dateien nicht gefunden in {csv_dir}")
+            return
+
         slug_to_company_id: dict[str, str] = {}
 
-        async with RecruitCRMClient() as client:
-            # ── Phase 1: Unternehmen ──
-            if skip_companies:
-                log("=== Phase 1: Unternehmen UEBERSPRUNGEN (skip_companies=True) ===")
-                # Slug-Map muss trotzdem aus CRM gebaut werden
-                log("Baue Slug-Map aus CRM + DB...")
-                name_to_id: dict[str, str] = {}
+        # ── Phase 1: Unternehmen aus CSV ──
+        log("=== Phase 1: Unternehmen aus CSV importieren ===")
+        with open(company_csv, "r", encoding="utf-8") as f:
+            companies_raw = list(csv.DictReader(f))
+        log(f"CSV: {len(companies_raw)} Unternehmen gelesen")
+
+        # Clean Slate
+        async with async_session_maker() as session:
+            count_result = await session.execute(select(sa_func.count(Company.id)))
+            existing = count_result.scalar() or 0
+            if existing > 0:
+                log(f"Loesche {existing} bestehende Unternehmen...")
+                await session.execute(sa_delete(Company))
+                await session.commit()
+                log("Geloescht.")
+
+        company_stats = {"imported": 0, "skipped": 0, "duplicates": 0, "errors": 0}
+        seen_names: set[str] = set()
+        batch: list = []
+
+        for row in companies_raw:
+            name = (row.get("Company") or "").strip()
+            if not name:
+                company_stats["skipped"] += 1
+                continue
+
+            name_lower = name.lower()
+            slug = (row.get("Slug") or "").strip()
+
+            if name_lower in seen_names:
+                company_stats["duplicates"] += 1
+                continue
+            seen_names.add(name_lower)
+
+            domain = (row.get("Website") or "").strip()
+            if domain:
+                domain = domain.replace("https://", "").replace("http://", "").rstrip("/")
+
+            address = (row.get("Full Address") or "").strip() or None
+            city = (row.get("City") or "").strip() or None
+            phone = (row.get("Telefonzentrale") or "").strip() or None
+
+            company_id = uuid_mod.uuid4()
+            company = Company(
+                id=company_id, name=name, domain=domain or None,
+                address=address, city=city, phone=phone, status="active",
+            )
+            batch.append(company)
+            if slug:
+                slug_to_company_id[slug] = str(company_id)
+            company_stats["imported"] += 1
+
+            if len(batch) >= 100:
                 async with async_session_maker() as session:
-                    result = await session.execute(select(Company.name, Company.id))
-                    for name, cid in result.all():
-                        name_to_id[name.lower().strip()] = str(cid)
-                log(f"  {len(name_to_id)} Unternehmen in DB")
-                async for page_num, companies, total in client.get_all_companies_paginated(per_page=100, max_pages=max_pages):
-                    for c in companies:
-                        slug = c.get("slug", "")
-                        cname = (c.get("company_name") or "").strip()
-                        if slug and cname:
-                            db_id = name_to_id.get(cname.lower().strip())
-                            if db_id:
-                                slug_to_company_id[slug] = db_id
-                log(f"  Slug-Map: {len(slug_to_company_id)} Zuordnungen")
-            else:
-                log("=== Phase 1: Unternehmen importieren ===")
-                company_stats = {"imported": 0, "skipped_empty": 0, "errors": 0}
-
-                if not dry_run:
-                    async with async_session_maker() as session:
-                        count_result = await session.execute(select(sa_func.count(Company.id)))
-                        existing = count_result.scalar() or 0
-                        if existing > 0:
-                            log(f"Loesche {existing} bestehende Unternehmen (Clean Slate)...")
-                            await session.execute(sa_delete(Company))
-                            await session.commit()
-                            log("Bestehende Unternehmen geloescht.")
-
-                async for page_num, companies, total in client.get_all_companies_paginated(per_page=100, max_pages=max_pages):
-                    log(f"Seite {page_num}: {len(companies)} Unternehmen (ca. {total} gesamt)")
-
-                    if dry_run:
-                        for c in companies:
-                            mapped = client.map_to_company_data(c)
-                            if mapped and mapped.get("name"):
-                                company_stats["imported"] += 1
-                            else:
-                                company_stats["skipped_empty"] += 1
-                        continue
-
-                    # Slug-Map Eintraege vorbereiten (slug -> name, spaeter name -> id)
-                    page_slug_names: list[tuple[str, str]] = []
-                    async with async_session_maker() as session:
-                        batch = []
-                        for c in companies:
+                    try:
+                        session.add_all(batch)
+                        await session.commit()
+                    except Exception:
+                        await session.rollback()
+                        for c in batch:
                             try:
-                                mapped = client.map_to_company_data(c)
-                                if not mapped or not mapped.get("name"):
-                                    company_stats["skipped_empty"] += 1
-                                    continue
-                                company_obj = Company(**mapped)
-                                batch.append(company_obj)
-                                company_stats["imported"] += 1
-                                # Slug merken
-                                slug = c.get("slug", "")
-                                if slug:
-                                    page_slug_names.append((slug, str(company_obj.id)))
-                            except Exception as e:
-                                company_stats["errors"] += 1
-                                log(f"  Fehler: {e}")
-
-                        if batch:
-                            try:
-                                session.add_all(batch)
-                                await session.commit()
-                                # Slug-Map befuellen nach erfolgreichem Commit
-                                for slug, cid in page_slug_names:
-                                    slug_to_company_id[slug] = cid
-                            except Exception as e:
-                                await session.rollback()
-                                log(f"  Batch-Fehler ({e}), einzeln einfuegen...")
-                                for company in batch:
-                                    try:
-                                        async with async_session_maker() as ss:
-                                            ss.add(company)
-                                            await ss.commit()
-                                    except Exception:
-                                        company_stats["errors"] += 1
-                                        company_stats["imported"] -= 1
-                                # Slug-Map: Alle Slugs mappen, auch Duplikate → bestehende DB-ID
                                 async with async_session_maker() as ss:
-                                    for slug, _ in page_slug_names:
-                                        if slug not in slug_to_company_id:
-                                            # Firma per Name in DB suchen
-                                            for c in companies:
-                                                if c.get("slug") == slug:
-                                                    cname = (c.get("company_name") or "").strip()
-                                                    if cname:
-                                                        res = await ss.execute(
-                                                            select(Company.id).where(Company.name == cname).limit(1)
-                                                        )
-                                                        row = res.scalar_one_or_none()
-                                                        if row:
-                                                            slug_to_company_id[slug] = str(row)
-                                                    break
-                                        else:
-                                            # Bereits gemappt (erfolgreich eingefuegt)
-                                            pass
-                                # Alle page_slug_names nochmal durchgehen fuer erfolgreiche
-                                for slug, cid in page_slug_names:
-                                    if slug not in slug_to_company_id:
-                                        slug_to_company_id[slug] = cid
+                                    ss.add(c)
+                                    await ss.commit()
+                            except Exception:
+                                company_stats["errors"] += 1
+                                company_stats["imported"] -= 1
+                batch = []
+                _import_status["stats"]["companies"] = dict(company_stats)
+                if company_stats["imported"] % 1000 == 0:
+                    log(f"  Fortschritt: {company_stats['imported']} Unternehmen...")
 
-                    if company_stats["imported"] % 500 == 0 and company_stats["imported"] > 0:
-                        log(f"  Fortschritt: {company_stats['imported']} importiert...")
+        if batch:
+            async with async_session_maker() as session:
+                try:
+                    session.add_all(batch)
+                    await session.commit()
+                except Exception:
+                    await session.rollback()
+                    for c in batch:
+                        try:
+                            async with async_session_maker() as ss:
+                                ss.add(c)
+                                await ss.commit()
+                        except Exception:
+                            company_stats["errors"] += 1
+                            company_stats["imported"] -= 1
 
-                log(f"Unternehmen fertig: {company_stats}")
-                log(f"Slug-Map: {len(slug_to_company_id)} Zuordnungen")
-                _import_status["stats"]["companies"] = company_stats
+        # Duplikat-Slugs aufloesen
+        async with async_session_maker() as session:
+            for row in companies_raw:
+                slug = (row.get("Slug") or "").strip()
+                if slug and slug not in slug_to_company_id:
+                    name = (row.get("Company") or "").strip()
+                    if name:
+                        res = await session.execute(select(Company.id).where(Company.name == name).limit(1))
+                        found = res.scalar_one_or_none()
+                        if found:
+                            slug_to_company_id[slug] = str(found)
 
-            # ── Phase 2: Kontakte (Slug-basiertes Matching) ──
-            if not skip_contacts:
-                log("=== Phase 2: Kontakte importieren (Slug-Matching) ===")
-                contact_stats = {"imported": 0, "skipped_empty": 0, "skipped_no_company": 0, "skipped_duplicate": 0, "errors": 0}
-                log(f"Slug-Map hat {len(slug_to_company_id)} Eintraege")
+        log(f"Unternehmen fertig: {company_stats}")
+        log(f"Slug-Map: {len(slug_to_company_id)} Zuordnungen")
+        _import_status["stats"]["companies"] = dict(company_stats)
 
-                # Bestehende Kontakte laden fuer Duplikat-Check (email+company_id)
-                existing_contacts: set[str] = set()
-                if not dry_run:
-                    async with async_session_maker() as session:
-                        result = await session.execute(
-                            select(CompanyContact.email, CompanyContact.company_id, CompanyContact.first_name, CompanyContact.last_name)
-                        )
-                        for email, cid, fn, ln in result.all():
-                            # Key: email+company_id oder firstname+lastname+company_id
-                            if email:
-                                existing_contacts.add(f"{email.lower()}|{cid}")
-                            else:
-                                key = f"{(fn or '').lower()}|{(ln or '').lower()}|{cid}"
-                                existing_contacts.add(key)
-                    log(f"Bestehende Kontakte: {len(existing_contacts)} (fuer Duplikat-Check)")
+        # ── Phase 2: Kontakte aus CSV ──
+        log("=== Phase 2: Kontakte aus CSV importieren ===")
+        with open(contact_csv, "r", encoding="utf-8") as f:
+            contacts_raw = list(csv.DictReader(f))
+        log(f"CSV: {len(contacts_raw)} Kontakte gelesen")
 
-                async for page_num, contacts, total in client.get_all_contacts_paginated(per_page=100, max_pages=max_pages):
-                    log(f"Seite {page_num}: {len(contacts)} Kontakte (ca. {total} gesamt)")
+        contact_stats = {"imported": 0, "skipped_empty": 0, "skipped_no_company": 0, "errors": 0}
+        batch = []
 
-                    if dry_run:
-                        for ct in contacts:
-                            mapped = client.map_to_contact_data(ct)
-                            if mapped and (mapped.get("first_name") or mapped.get("last_name")):
-                                contact_stats["imported"] += 1
-                            else:
-                                contact_stats["skipped_empty"] += 1
-                        continue
+        for row in contacts_raw:
+            first_name = (row.get("First Name") or "").strip() or None
+            last_name = (row.get("Last Name") or "").strip() or None
 
-                    async with async_session_maker() as session:
-                        batch = []
-                        for ct in contacts:
+            if not first_name and not last_name:
+                contact_stats["skipped_empty"] += 1
+                continue
+
+            company_slug = (row.get("Company Slug") or "").strip()
+            if not company_slug or company_slug not in slug_to_company_id:
+                contact_stats["skipped_no_company"] += 1
+                continue
+
+            cid_str = slug_to_company_id[company_slug]
+            salutation = (row.get("Anrede") or "").strip() or None
+            position = (row.get("Designation") or "").strip() or None
+            email = (row.get("Email") or "").strip() or None
+            phone = (row.get("Contact Number") or "").strip() or None
+            mobile = (row.get("Mobil") or "").strip() or None
+            city = (row.get("City") or "").strip() or None
+
+            contact = CompanyContact(
+                id=uuid_mod.uuid4(),
+                company_id=uuid_mod.UUID(cid_str),
+                salutation=salutation, first_name=first_name, last_name=last_name,
+                position=position, email=email, phone=phone, mobile=mobile, city=city,
+            )
+            batch.append(contact)
+            contact_stats["imported"] += 1
+
+            if len(batch) >= 100:
+                async with async_session_maker() as session:
+                    try:
+                        session.add_all(batch)
+                        await session.commit()
+                    except Exception:
+                        await session.rollback()
+                        for c in batch:
                             try:
-                                mapped = client.map_to_contact_data(ct)
-                                if not mapped or (not mapped.get("first_name") and not mapped.get("last_name")):
-                                    contact_stats["skipped_empty"] += 1
-                                    continue
-
-                                # Slug-basiertes Matching statt Name
-                                mapped.pop("_company_name", None)
-                                company_slug = ct.get("company_slug", "")
-                                if not company_slug:
-                                    contact_stats["skipped_no_company"] += 1
-                                    continue
-
-                                cid_str = slug_to_company_id.get(company_slug)
-                                if not cid_str:
-                                    contact_stats["skipped_no_company"] += 1
-                                    continue
-
-                                company_uuid = uuid_mod.UUID(cid_str)
-
-                                # Duplikat-Check
-                                email = mapped.get("email")
-                                if email:
-                                    dup_key = f"{email.lower()}|{company_uuid}"
-                                else:
-                                    dup_key = f"{(mapped.get('first_name') or '').lower()}|{(mapped.get('last_name') or '').lower()}|{company_uuid}"
-                                if dup_key in existing_contacts:
-                                    contact_stats["skipped_duplicate"] += 1
-                                    continue
-                                existing_contacts.add(dup_key)
-
-                                mapped["company_id"] = company_uuid
-                                batch.append(CompanyContact(**mapped))
-                                contact_stats["imported"] += 1
-
-                            except Exception as e:
+                                async with async_session_maker() as ss:
+                                    ss.add(c)
+                                    await ss.commit()
+                            except Exception:
                                 contact_stats["errors"] += 1
-                                log(f"  Kontakt-Fehler: {e}")
-
-                        if batch:
-                            try:
-                                session.add_all(batch)
-                                await session.commit()
-                            except Exception as e:
-                                await session.rollback()
-                                log(f"  Batch-Fehler ({e}), einzeln...")
-                                for contact in batch:
-                                    try:
-                                        async with async_session_maker() as ss:
-                                            ss.add(contact)
-                                            await ss.commit()
-                                    except Exception:
-                                        contact_stats["errors"] += 1
-                                        contact_stats["imported"] -= 1
-
-                    # Live-Stats Update
-                    _import_status["stats"]["contacts"] = dict(contact_stats)
-                    if contact_stats["imported"] % 500 == 0 and contact_stats["imported"] > 0:
-                        log(f"  Fortschritt: {contact_stats['imported']} Kontakte importiert, {contact_stats['skipped_duplicate']} Duplikate, {contact_stats['skipped_no_company']} ohne Firma...")
-
-                log(f"Kontakte fertig: {contact_stats}")
+                                contact_stats["imported"] -= 1
+                batch = []
                 _import_status["stats"]["contacts"] = dict(contact_stats)
+                if contact_stats["imported"] % 1000 == 0:
+                    log(f"  Fortschritt: {contact_stats['imported']} Kontakte...")
+
+        if batch:
+            async with async_session_maker() as session:
+                try:
+                    session.add_all(batch)
+                    await session.commit()
+                except Exception:
+                    await session.rollback()
+                    for c in batch:
+                        try:
+                            async with async_session_maker() as ss:
+                                ss.add(c)
+                                await ss.commit()
+                        except Exception:
+                            contact_stats["errors"] += 1
+                            contact_stats["imported"] -= 1
+
+        log(f"Kontakte fertig: {contact_stats}")
+        _import_status["stats"]["contacts"] = dict(contact_stats)
 
         log("=== IMPORT ABGESCHLOSSEN ===")
 
