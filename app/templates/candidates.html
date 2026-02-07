@@ -63,6 +63,9 @@
         background: #fff; border-radius: 16px; border: 1px solid #e6e9ef;
         overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
+    .kl-table-card table {
+        table-layout: fixed; width: 100%;
+    }
 
     /* ── Table Header ── */
     .kl-th {
@@ -423,6 +426,44 @@
 </div>
 
 <script>
+// ==================== Data Quality Helpers ====================
+
+/**
+ * Prüft ob ein Kandidaten-Name gültig ist (nicht "Not Available", leer, etc.)
+ */
+function isValidName(name) {
+    if (!name) return false;
+    var invalid = ['not available', 'n/a', 'na', 'none', 'null', 'undefined', '-', '—', ''];
+    return invalid.indexOf(name.trim().toLowerCase()) === -1;
+}
+
+/**
+ * Normalisiert ALL-CAPS oder all-lowercase Namen zu Title Case.
+ * "THOMAS MÜLLER" → "Thomas Müller"
+ * "anna schmidt" → "Anna Schmidt"
+ * Lässt gemischte Namen ("McDonald") unverändert.
+ */
+function normalizeName(name) {
+    if (!name) return '';
+    var trimmed = name.trim();
+    // Prüfe ob ALL CAPS oder all lowercase
+    if (trimmed === trimmed.toUpperCase() || trimmed === trimmed.toLowerCase()) {
+        return trimmed.replace(/\S+/g, function(word) {
+            return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+        });
+    }
+    return trimmed;
+}
+
+/**
+ * Kürzt Text auf maxLen Zeichen + "…" wenn nötig.
+ */
+function truncateText(text, maxLen) {
+    if (!text) return '';
+    if (text.length <= maxLen) return text;
+    return text.substring(0, maxLen).trim() + '…';
+}
+
 // ==================== Filter Panel Toggle ====================
 function toggleFilterPanel() {
     var panel = document.getElementById('kl-filter-panel');

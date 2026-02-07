@@ -52,7 +52,17 @@
 </div>
 
 {# ── Table ── #}
-<table style="width: 100%; border-collapse: collapse;">
+<table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+    <colgroup>
+        <col class="selection-col hidden" style="width: 44px;">
+        <col style="width: 28%;">  {# Name #}
+        <col style="width: 18%;">  {# Position #}
+        <col style="width: 15%;">  {# Unternehmen #}
+        <col style="width: 12%;">  {# Stadt #}
+        <col style="width: 10%;">  {# Status #}
+        <col style="width: 5%;">   {# CV #}
+        <col style="width: 12%;">  {# Aktionen #}
+    </colgroup>
     <thead>
         <tr>
             <th class="kl-th selection-col hidden" style="width: 44px; padding-left: 18px;">
@@ -67,13 +77,39 @@
             <th class="kl-th">Stadt</th>
             <th class="kl-th">Status</th>
             <th class="kl-th" style="text-align: center;">CV</th>
-            <th class="kl-th" style="width: 100px; text-align: right; padding-right: 18px;">Aktionen</th>
+            <th class="kl-th" style="text-align: right; padding-right: 18px;">Aktionen</th>
         </tr>
     </thead>
     <tbody>
         {% set avatar_colors = ['#818cf8', '#f472b6', '#34d399', '#fbbf24', '#60a5fa', '#a78bfa', '#f87171', '#2dd4bf'] %}
         {% for candidate in candidates %}
         {% set color_idx = loop.index0 % avatar_colors | length %}
+
+        {# ── Data Quality: Name normalisieren ── #}
+        {% set raw_first = candidate.first_name or '' %}
+        {% set raw_last = candidate.last_name or '' %}
+        {# "Not Available", "N/A", etc. als ungültig behandeln #}
+        {% set invalid_names = ['not available', 'n/a', 'na', 'none', 'null', '-', '—'] %}
+        {% set first_valid = raw_first if raw_first | lower | trim not in invalid_names else '' %}
+        {% set last_valid = raw_last if raw_last | lower | trim not in invalid_names else '' %}
+        {# ALL CAPS → Title Case #}
+        {% if first_valid == first_valid | upper and first_valid | length > 1 %}
+            {% set first_display = first_valid | title %}
+        {% else %}
+            {% set first_display = first_valid %}
+        {% endif %}
+        {% if last_valid == last_valid | upper and last_valid | length > 1 %}
+            {% set last_display = last_valid | title %}
+        {% else %}
+            {% set last_display = last_valid %}
+        {% endif %}
+        {% set has_valid_name = first_display or last_display %}
+        {% set display_name = ((first_display ~ ' ' ~ last_display) | trim) if has_valid_name else 'Unbekannt' %}
+
+        {# ── Data Quality: Position kürzen wenn zu lang (Beschreibung statt Titel) ── #}
+        {% set raw_position = candidate.current_position or '' %}
+        {% set position_display = raw_position[:45] ~ '…' if raw_position | length > 48 else raw_position %}
+
         <tr id="row-{{ candidate.id }}"
             class="kl-row {% if candidate.hidden %}kl-row-hidden{% endif %}"
             style="animation-delay: {{ loop.index0 * 0.03 }}s; {% if candidate.hidden %}opacity: 0.5;{% endif %}"
@@ -89,15 +125,15 @@
             </td>
 
             {# Name + Avatar + Skills #}
-            <td style="padding-left: 18px;">
+            <td style="padding-left: 18px; overflow: hidden;">
                 <div style="display: flex; align-items: center; gap: 12px;">
                     <div class="kl-avatar" style="background: {{ avatar_colors[color_idx] }}; color: #fff;">
-                        {{ (candidate.first_name or 'X')[0] | upper }}{{ (candidate.last_name or 'X')[0] | upper }}
+                        {{ (first_display or 'X')[0] | upper }}{{ (last_display or 'X')[0] | upper }}
                     </div>
-                    <div style="min-width: 0;">
+                    <div style="min-width: 0; overflow: hidden;">
                         <div style="display: flex; align-items: center; gap: 6px;">
-                            <span class="kl-name-text" style="font-size: 13.5px; font-weight: 700; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                                {{ candidate.first_name or '' }} {{ candidate.last_name or '' }}
+                            <span class="kl-name-text" style="font-size: 13.5px; font-weight: 700; color: {% if has_valid_name %}#0f172a{% else %}#94a3b8{% endif %}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; {% if not has_valid_name %}font-style: italic;{% endif %}">
+                                {{ display_name }}
                             </span>
                             {% if candidate.age %}
                             <span style="font-size: 11px; color: #94a3b8; font-weight: 500;">({{ candidate.age }})</span>
@@ -121,45 +157,51 @@
                 </div>
             </td>
 
-            {# Position (editable) #}
-            <td onclick="event.stopPropagation()">
+            {# Position (editable) — truncated with tooltip if long #}
+            <td onclick="event.stopPropagation()" style="overflow: hidden;">
                 <div class="inline-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="current_position">
-                    <span class="inline-edit-display kl-inline-display {% if not candidate.current_position %}{% endif %}"
+                    <span class="inline-edit-display kl-inline-display"
                           onclick="startInlineEdit(this)"
-                          title="Klicken zum Bearbeiten"
-                          style="font-size: 13px; {% if candidate.current_position %}color: #334155; font-weight: 600;{% else %}color: #cbd5e1; font-style: italic;{% endif %}">{{ candidate.current_position or '—' }}</span>
+                          title="{{ raw_position if raw_position else 'Klicken zum Bearbeiten' }}"
+                          style="font-size: 13px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; {% if position_display %}color: #334155; font-weight: 600;{% else %}color: #cbd5e1; font-style: italic;{% endif %}">{{ position_display or '—' }}</span>
                     <input type="text"
                            class="inline-edit-input kl-inline-input hidden"
-                           value="{{ candidate.current_position or '' }}"
+                           value="{{ raw_position }}"
                            onblur="saveInlineEdit(this)"
                            onkeydown="handleInlineEditKey(event, this)">
                 </div>
             </td>
 
             {# Company (editable) #}
-            <td onclick="event.stopPropagation()">
+            {% set raw_company = candidate.current_company or '' %}
+            {% set company_invalid = raw_company | lower | trim in ['not available', 'n/a', 'na', 'none', 'null', '-', '—', 'kein unternehmen'] %}
+            {% set company_display = '' if company_invalid else raw_company %}
+            <td onclick="event.stopPropagation()" style="overflow: hidden;">
                 <div class="inline-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="current_company">
                     <span class="inline-edit-display kl-inline-display"
                           onclick="startInlineEdit(this)"
-                          title="Klicken zum Bearbeiten"
-                          style="font-size: 13px; {% if candidate.current_company %}color: #64748b;{% else %}color: #cbd5e1; font-style: italic;{% endif %}">{{ candidate.current_company or '—' }}</span>
+                          title="{{ raw_company if raw_company else 'Klicken zum Bearbeiten' }}"
+                          style="font-size: 13px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; {% if company_display %}color: #64748b;{% else %}color: #cbd5e1; font-style: italic;{% endif %}">{{ company_display or '—' }}</span>
                     <input type="text"
                            class="inline-edit-input kl-inline-input hidden"
-                           value="{{ candidate.current_company or '' }}"
+                           value="{{ company_display }}"
                            onblur="saveInlineEdit(this)"
                            onkeydown="handleInlineEditKey(event, this)">
                 </div>
             </td>
 
-            {# City #}
-            <td>
-                {% if candidate.city %}
-                <div style="display: flex; align-items: center; gap: 4px;">
+            {# City — nur Stadt anzeigen, "Keine Adresse" → "—" #}
+            {% set raw_city = candidate.city or '' %}
+            {% set city_invalid = raw_city | lower | trim in ['not available', 'n/a', 'na', 'none', 'null', '-', '—', 'keine adresse'] %}
+            {% set city_display = '' if city_invalid else raw_city %}
+            <td style="overflow: hidden;">
+                {% if city_display %}
+                <div style="display: flex; align-items: center; gap: 4px; overflow: hidden;">
                     <svg style="width: 12px; height: 12px; color: #cbd5e1; flex-shrink: 0;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
                         <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
                     </svg>
-                    <span style="font-size: 13px; color: #64748b;">{{ candidate.city }}</span>
+                    <span style="font-size: 13px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ city_display }}</span>
                 </div>
                 {% else %}
                 <span style="font-size: 13px; color: #cbd5e1;">—</span>
