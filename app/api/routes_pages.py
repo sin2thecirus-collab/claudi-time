@@ -966,6 +966,35 @@ async def r2_migration_status_html(
         badge_color = "bg-yellow-100 text-yellow-700"
         badge_text = f"{remaining} offen"
 
+    # Button HTML
+    if is_running:
+        btn_html = (
+            '<button id="r2-stop-btn" class="inline-flex items-center rounded-md '
+            'bg-red-50 px-3 py-2 text-xs font-medium text-red-700 ring-1 ring-inset '
+            'ring-red-600/20 hover:bg-red-100 cursor-pointer">Stoppen</button>'
+        )
+    elif remaining == 0:
+        btn_html = (
+            '<span class="inline-flex items-center rounded-md bg-green-50 px-3 py-2 '
+            'text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">'
+            '&#x2705; Fertig</span>'
+        )
+    else:
+        btn_html = (
+            '<button id="r2-start-btn" class="inline-flex items-center rounded-md '
+            'bg-violet-50 px-3 py-2 text-xs font-medium text-violet-700 ring-1 ring-inset '
+            'ring-violet-600/20 hover:bg-violet-100 cursor-pointer">Migration starten</button>'
+        )
+
+    # Running info
+    running_info = ""
+    if is_running:
+        running_info = (
+            f'<div class="mt-1 text-xs text-blue-600">'
+            f'Aktuell: {current} | Migriert: {migrated} | Fehler: {failed}'
+            f'</div>'
+        )
+
     html = f"""
     <div class="flex items-center justify-between py-3 px-4 bg-gray-50 rounded-lg border border-gray-200">
         <div class="flex-1 min-w-0">
@@ -984,16 +1013,62 @@ async def r2_migration_status_html(
                 <span>Gesamt: <strong>{total_with_cv}</strong></span>
                 <span>Fortschritt: <strong>{percent}%</strong></span>
             </div>
-            {'<div class="mt-1 text-xs text-blue-600">Aktuell: ' + current + ' | Migriert: ' + str(migrated) + ' | Fehler: ' + str(failed) + '</div>' if is_running else ''}
+            {running_info}
             <div class="mt-2 w-full bg-gray-200 rounded-full h-2">
                 <div class="bg-violet-500 h-2 rounded-full transition-all" style="width: {percent}%"></div>
             </div>
         </div>
         <div class="ml-4 flex-shrink-0">
-            {'<button hx-post="/api/admin/stop-r2-migration" hx-swap="none" hx-on::after-request="setTimeout(function(){{document.getElementById(&quot;admin-r2-migration&quot;).dispatchEvent(new Event(&quot;htmx:load&quot;))}}, 500)" class="inline-flex items-center rounded-md bg-red-50 px-3 py-2 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/20 hover:bg-red-100">Stoppen</button>' if is_running else '<button hx-post="/api/admin/migrate-all-cvs-to-r2?batch_size=20&max_candidates=5000" hx-swap="none" hx-on::after-request="setTimeout(function(){{document.getElementById(&quot;admin-r2-migration&quot;).dispatchEvent(new Event(&quot;htmx:load&quot;))}}, 1000)" class="inline-flex items-center rounded-md bg-violet-50 px-3 py-2 text-xs font-medium text-violet-700 ring-1 ring-inset ring-violet-600/20 hover:bg-violet-100">' + ('&#x2705; Fertig' if remaining == 0 else 'Migration starten') + '</button>'}
+            {btn_html}
         </div>
     </div>
-    {'<script>setTimeout(function(){{ var el = document.getElementById(&quot;admin-r2-migration&quot;); if(el) {{ el.setAttribute(&quot;hx-trigger&quot;, &quot;load, every 5s&quot;); htmx.process(el); }} }}, 100);</script>' if is_running else ''}
+    <script>
+    (function() {{
+        var wrapper = document.getElementById('admin-r2-migration');
+        var startBtn = document.getElementById('r2-start-btn');
+        var stopBtn = document.getElementById('r2-stop-btn');
+        var isRunning = {'true' if is_running else 'false'};
+
+        function refreshStatus() {{
+            if (wrapper) {{
+                wrapper.setAttribute('hx-get', '/api/admin/r2-migration/status-html');
+                wrapper.setAttribute('hx-trigger', 'load');
+                wrapper.setAttribute('hx-swap', 'innerHTML');
+                htmx.process(wrapper);
+                htmx.trigger(wrapper, 'load');
+            }}
+        }}
+
+        if (startBtn) {{
+            startBtn.addEventListener('click', function() {{
+                startBtn.textContent = 'Wird gestartet...';
+                startBtn.disabled = true;
+                fetch('/api/admin/migrate-all-cvs-to-r2?batch_size=20&max_candidates=5000', {{
+                    method: 'POST',
+                    headers: {{'Content-Type': 'application/json'}}
+                }}).then(function() {{
+                    setTimeout(refreshStatus, 1500);
+                }});
+            }});
+        }}
+
+        if (stopBtn) {{
+            stopBtn.addEventListener('click', function() {{
+                stopBtn.textContent = 'Wird gestoppt...';
+                stopBtn.disabled = true;
+                fetch('/api/admin/stop-r2-migration', {{
+                    method: 'POST'
+                }}).then(function() {{
+                    setTimeout(refreshStatus, 1000);
+                }});
+            }});
+        }}
+
+        if (isRunning) {{
+            setTimeout(refreshStatus, 5000);
+        }}
+    }})();
+    </script>
     """
 
     return HTMLResponse(content=html)
