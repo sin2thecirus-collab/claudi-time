@@ -20,13 +20,43 @@ from pathlib import Path
 # Projekt-Root zum Path hinzufuegen
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+# WICHTIG: Direkte Imports statt ueber __init__.py (vermeidet Circular Imports)
+import importlib.util
+import types
+
 from sqlalchemy import delete, func, select, text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.config import settings
-from app.database import async_session_maker, engine
+
+# Models direkt importieren (app.models.__init__.py ist safe)
 from app.models.company import Company
 from app.models.company_contact import CompanyContact
-from app.services.crm_client import RecruitCRMClient
+
+
+def _load_module_directly(module_name: str, file_path: str):
+    """Laedt ein Python-Modul OHNE die __init__.py des Packages zu triggern."""
+    spec = importlib.util.spec_from_file_location(module_name, file_path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+# CRM Client direkt laden (umgeht app.services.__init__.py komplett)
+_project_root = Path(__file__).resolve().parent.parent
+# Dummy-Package registrieren damit "from app.services ..." nicht die __init__.py laed
+if "app.services" not in sys.modules:
+    sys.modules["app.services"] = types.ModuleType("app.services")
+_crm_module = _load_module_directly(
+    "app.services.crm_client",
+    str(_project_root / "app" / "services" / "crm_client.py"),
+)
+RecruitCRMClient = _crm_module.RecruitCRMClient
+
+# Eigene Engine/Session erstellen (unabhaengig von app.database)
+_engine = create_async_engine(settings.database_url, echo=False, pool_size=5)
+async_session_maker = async_sessionmaker(_engine, class_=AsyncSession, expire_on_commit=False)
 
 logging.basicConfig(
     level=logging.INFO,
