@@ -1,4 +1,4 @@
-<!-- Quick-Add Kandidat: 2-Phasen-Flow (CV Upload → Formular) -->
+<!-- Quick-Add Kandidat: 3-Phasen-Flow (CV Upload → Duplikat-Check → Formular) -->
 <div x-data="{
     phase: 'upload',
     uploading: false,
@@ -7,6 +7,10 @@
     cvKey: null,
     cvText: null,
     saving: false,
+
+    // Duplikat-Erkennung
+    duplicateData: null,
+    merging: false,
 
     // Formular-Felder
     form: {
@@ -39,6 +43,54 @@
         if (file) this.uploadCV(file);
     },
 
+    _buildPayload() {
+        const skillsArr = this.form.skills
+            ? this.form.skills.split(',').map(s => s.trim()).filter(Boolean)
+            : [];
+        const itSkillsArr = this.form.it_skills
+            ? this.form.it_skills.split(',').map(s => s.trim()).filter(Boolean)
+            : [];
+        return {
+            first_name: this.form.first_name || null,
+            last_name: this.form.last_name || null,
+            birth_date: this.form.birth_date || null,
+            current_position: this.form.current_position || null,
+            current_company: this.form.current_company || null,
+            email: this.form.email || null,
+            phone: this.form.phone || null,
+            street_address: this.form.street_address || null,
+            postal_code: this.form.postal_code || null,
+            city: this.form.city || null,
+            salary: this.form.salary || null,
+            notice_period: this.form.notice_period || null,
+            skills: skillsArr.length ? skillsArr : null,
+            it_skills: itSkillsArr.length ? itSkillsArr : null,
+            languages: this.form.languages.length ? this.form.languages : null,
+            work_history: this.parsed ? this.parsed.work_history : null,
+            education: this.parsed ? this.parsed.education : null,
+            further_education: this.parsed ? this.parsed.further_education : null,
+            cv_stored_path: this.cvKey || null,
+            cv_text: this.cvText || null,
+        };
+    },
+
+    _fillFormFromParsed(p) {
+        this.form.first_name = p.first_name || '';
+        this.form.last_name = p.last_name || '';
+        this.form.birth_date = p.birth_date || '';
+        this.form.estimated_age = p.estimated_age || null;
+        this.form.current_position = p.current_position || '';
+        this.form.current_company = p.current_company || '';
+        this.form.email = p.email || '';
+        this.form.phone = p.phone || '';
+        this.form.street_address = p.street_address || '';
+        this.form.postal_code = p.postal_code || '';
+        this.form.city = p.city || '';
+        this.form.skills = (p.skills || []).join(', ');
+        this.form.it_skills = (p.it_skills || []).join(', ');
+        this.form.languages = p.languages || [];
+    },
+
     async uploadCV(file) {
         if (!file.name.toLowerCase().endsWith('.pdf')) {
             showToast('Nur PDF-Dateien erlaubt', 'error');
@@ -66,36 +118,87 @@
                 return;
             }
 
-            // Geparste Daten in Formular uebernehmen
             this.parsed = data.parsed;
             this.cvKey = data.cv_key;
             this.cvText = data.cv_text;
+            this._fillFormFromParsed(data.parsed);
 
-            this.form.first_name = data.parsed.first_name || '';
-            this.form.last_name = data.parsed.last_name || '';
-            this.form.birth_date = data.parsed.birth_date || '';
-            this.form.estimated_age = data.parsed.estimated_age || null;
-            this.form.current_position = data.parsed.current_position || '';
-            this.form.current_company = data.parsed.current_company || '';
-            this.form.email = data.parsed.email || '';
-            this.form.phone = data.parsed.phone || '';
-            this.form.street_address = data.parsed.street_address || '';
-            this.form.postal_code = data.parsed.postal_code || '';
-            this.form.city = data.parsed.city || '';
-            this.form.skills = (data.parsed.skills || []).join(', ');
-            this.form.it_skills = (data.parsed.it_skills || []).join(', ');
-            this.form.languages = data.parsed.languages || [];
-
-            this.phase = 'form';
-            this.uploading = false;
+            // Duplikat-Check
+            await this._checkDuplicate();
         } catch (err) {
             showToast('Fehler: ' + err.message, 'error');
             this.uploading = false;
         }
     },
 
+    async _checkDuplicate() {
+        try {
+            const payload = this._buildPayload();
+            const res = await fetch('/api/candidates/check-duplicate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const dupData = await res.json();
+
+            if (dupData.duplicate_found) {
+                this.duplicateData = dupData;
+                this.phase = 'duplicate';
+            } else {
+                this.phase = 'form';
+            }
+        } catch (e) {
+            // Bei Fehler einfach zum Formular weiter
+            this.phase = 'form';
+        }
+        this.uploading = false;
+    },
+
     skipCV() {
         this.phase = 'form';
+    },
+
+    // Duplikat: Aenderungen uebernehmen (merge)
+    async mergeDuplicate() {
+        this.merging = true;
+        const payload = this._buildPayload();
+        const candidateId = this.duplicateData.candidate.id;
+
+        try {
+            const res = await fetch('/api/candidates/' + candidateId + '/merge-cv', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => null);
+                throw new Error(errData?.detail || 'HTTP ' + res.status);
+            }
+
+            const result = await res.json();
+            showToast('Profil von ' + (result.name || '') + ' aktualisiert!', 'success');
+            closeQuickAdd();
+
+            setTimeout(() => {
+                window.location.href = '/kandidaten/' + result.id;
+            }, 500);
+        } catch (err) {
+            showToast('Fehler: ' + err.message, 'error');
+            this.merging = false;
+        }
+    },
+
+    // Duplikat: Trotzdem neu anlegen
+    createAnyway() {
+        this.duplicateData = null;
+        this.phase = 'form';
+    },
+
+    // Duplikat: Zum bestehenden Profil weiterleiten
+    goToExisting() {
+        closeQuickAdd();
+        window.location.href = '/kandidaten/' + this.duplicateData.candidate.id;
     },
 
     async saveCandidate() {
@@ -105,37 +208,7 @@
         }
 
         this.saving = true;
-
-        // Skills/IT-Skills String -> Array
-        const skillsArr = this.form.skills
-            ? this.form.skills.split(',').map(s => s.trim()).filter(Boolean)
-            : [];
-        const itSkillsArr = this.form.it_skills
-            ? this.form.it_skills.split(',').map(s => s.trim()).filter(Boolean)
-            : [];
-
-        const payload = {
-            first_name: this.form.first_name || null,
-            last_name: this.form.last_name || null,
-            birth_date: this.form.birth_date || null,
-            current_position: this.form.current_position || null,
-            current_company: this.form.current_company || null,
-            email: this.form.email || null,
-            phone: this.form.phone || null,
-            street_address: this.form.street_address || null,
-            postal_code: this.form.postal_code || null,
-            city: this.form.city || null,
-            salary: this.form.salary || null,
-            notice_period: this.form.notice_period || null,
-            skills: skillsArr.length ? skillsArr : null,
-            it_skills: itSkillsArr.length ? itSkillsArr : null,
-            languages: this.form.languages.length ? this.form.languages : null,
-            work_history: this.parsed ? this.parsed.work_history : null,
-            education: this.parsed ? this.parsed.education : null,
-            further_education: this.parsed ? this.parsed.further_education : null,
-            cv_stored_path: this.cvKey || null,
-            cv_text: this.cvText || null,
-        };
+        const payload = this._buildPayload();
 
         try {
             const res = await fetch('/api/candidates', {
@@ -153,7 +226,6 @@
             showToast('Kandidat ' + (result.name || '') + ' erstellt!', 'success');
             closeQuickAdd();
 
-            // Zur Detailseite weiterleiten
             setTimeout(() => {
                 window.location.href = '/kandidaten/' + result.id;
             }, 500);
@@ -205,7 +277,142 @@
         </div>
     </template>
 
-    <!-- PHASE 2: Formular -->
+    <!-- PHASE 2: Duplikat erkannt -->
+    <template x-if="phase === 'duplicate'">
+        <div class="p-6 space-y-5 flex-1 overflow-y-auto">
+
+            <!-- Header: Duplikat-Warnung -->
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                <div class="flex items-start gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+                        <svg class="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-sm font-bold text-amber-800">Duplikat erkannt!</p>
+                        <p class="text-xs text-amber-700 mt-0.5">
+                            <span class="font-semibold" x-text="duplicateData.candidate.name"></span>
+                            existiert bereits im System
+                            <span class="text-amber-500">(erkannt via <span x-text="duplicateData.match_reasons.join(', ')"></span>)</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bestehende Kandidaten-Info -->
+            <div class="bg-white border border-gray-200 rounded-xl p-4">
+                <div class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Bestehendes Profil</div>
+                <div class="space-y-1.5">
+                    <div class="flex items-center gap-2 text-sm">
+                        <span class="font-semibold text-gray-800" x-text="duplicateData.candidate.name"></span>
+                    </div>
+                    <div class="text-xs text-gray-500 space-y-0.5">
+                        <div x-show="duplicateData.candidate.current_position">
+                            <span class="text-gray-400">Position:</span>
+                            <span x-text="duplicateData.candidate.current_position"></span>
+                        </div>
+                        <div x-show="duplicateData.candidate.email">
+                            <span class="text-gray-400">E-Mail:</span>
+                            <span x-text="duplicateData.candidate.email"></span>
+                        </div>
+                        <div x-show="duplicateData.candidate.city">
+                            <span class="text-gray-400">Stadt:</span>
+                            <span x-text="duplicateData.candidate.city"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Aenderungen oder Keine -->
+            <template x-if="duplicateData.has_changes">
+                <div>
+                    <div class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                        <svg class="w-3.5 h-3.5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" /></svg>
+                        <span x-text="duplicateData.changes.length + ' Aenderung' + (duplicateData.changes.length > 1 ? 'en' : '') + ' erkannt'"></span>
+                    </div>
+                    <div class="space-y-2">
+                        <template x-for="(change, i) in duplicateData.changes" :key="i">
+                            <div class="bg-blue-50 border border-blue-100 rounded-lg px-3 py-2.5">
+                                <div class="text-xs font-semibold text-blue-800 mb-1" x-text="change.label"></div>
+                                <!-- String-Felder: alt → neu -->
+                                <template x-if="change.old !== undefined && !change.summary">
+                                    <div class="flex items-center gap-2 text-xs">
+                                        <span class="text-red-500 line-through" x-show="change.old" x-text="Array.isArray(change.old) ? change.old.join(', ') : change.old"></span>
+                                        <span x-show="change.old" class="text-gray-300">&rarr;</span>
+                                        <span class="text-green-700 font-medium" x-text="Array.isArray(change.new) ? change.new.join(', ') : change.new"></span>
+                                        <span x-show="!change.old" class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700">NEU</span>
+                                    </div>
+                                </template>
+                                <!-- Listen/JSONB-Felder: Summary -->
+                                <template x-if="change.summary">
+                                    <div class="text-xs text-blue-700" x-text="change.summary"></div>
+                                </template>
+                                <!-- Hinzugefuegte/Entfernte Items bei Listen -->
+                                <template x-if="change.added && change.added.length > 0">
+                                    <div class="text-xs text-green-600 mt-0.5">
+                                        + <span x-text="change.added.join(', ')"></span>
+                                    </div>
+                                </template>
+                                <template x-if="change.removed && change.removed.length > 0">
+                                    <div class="text-xs text-red-500 mt-0.5">
+                                        - <span x-text="change.removed.join(', ')"></span>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </template>
+
+            <template x-if="!duplicateData.has_changes">
+                <div class="bg-gray-50 border border-gray-200 rounded-xl p-6 text-center">
+                    <div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
+                        <svg class="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                    </div>
+                    <p class="text-sm font-semibold text-gray-700">Keine Aenderungen erkannt</p>
+                    <p class="text-xs text-gray-500 mt-1">Das CV enthaelt die gleichen Daten wie das bestehende Profil.</p>
+                </div>
+            </template>
+
+            <!-- Action-Buttons -->
+            <div class="pt-4 border-t border-gray-200 space-y-2 sticky bottom-0 bg-white pb-2">
+                <!-- Aenderungen uebernehmen (nur wenn es Aenderungen gibt) -->
+                <button x-show="duplicateData.has_changes"
+                        @click="mergeDuplicate()"
+                        :disabled="merging"
+                        class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
+                    <template x-if="!merging">
+                        <span class="flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" /></svg>
+                            Aenderungen uebernehmen
+                        </span>
+                    </template>
+                    <template x-if="merging">
+                        <span class="flex items-center gap-2">
+                            <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            Wird aktualisiert...
+                        </span>
+                    </template>
+                </button>
+
+                <!-- Zum bestehenden Profil -->
+                <button @click="goToExisting()"
+                        class="w-full flex items-center justify-center gap-2 px-4 py-3 border border-gray-300 text-gray-700 rounded-xl font-medium text-sm hover:bg-gray-50 transition-colors">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>
+                    Zum bestehenden Profil
+                </button>
+
+                <!-- Trotzdem neu anlegen -->
+                <button @click="createAnyway()"
+                        class="w-full text-xs text-gray-400 hover:text-gray-600 py-2 transition-colors">
+                    Trotzdem als neuen Kandidaten anlegen
+                </button>
+            </div>
+        </div>
+    </template>
+
+    <!-- PHASE 3: Formular -->
     <template x-if="phase === 'form'">
         <div class="p-6 space-y-5">
 

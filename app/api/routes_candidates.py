@@ -211,6 +211,323 @@ async def search_candidates_quick(
 
 
 
+# ==================== Duplikat-Erkennung mit Diff ====================
+
+@router.post(
+    "/check-duplicate",
+    summary="Prueft ob ein Kandidat bereits existiert und vergleicht alle Felder",
+)
+async def check_duplicate_candidate(
+    data: dict,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Prueft ob ein Kandidat mit gleicher E-Mail, Telefon oder Name bereits existiert.
+    Vergleicht das geparste CV detailliert mit dem bestehenden Profil.
+    Gibt Diff zurueck: welche Felder sich geaendert haben (alt vs. neu).
+    """
+    from sqlalchemy import select, or_, and_, func as sql_func
+    from app.models.candidate import Candidate
+
+    conditions = []
+
+    # 1. E-Mail-Duplikat (staerkster Indikator)
+    email = (data.get("email") or "").strip().lower()
+    if email:
+        conditions.append(sql_func.lower(Candidate.email) == email)
+
+    # 2. Telefonnummer-Duplikat (normalisiert: nur Ziffern vergleichen)
+    phone = (data.get("phone") or "").strip()
+    phone_digits = ""
+    if phone:
+        phone_digits = "".join(c for c in phone if c.isdigit())
+        if len(phone_digits) >= 6:
+            phone_suffix = phone_digits[-8:]
+            conditions.append(
+                sql_func.right(
+                    sql_func.regexp_replace(Candidate.phone, r'[^0-9]', '', 'g'),
+                    8
+                ) == phone_suffix
+            )
+
+    # 3. Name-Kombination (Vor- + Nachname)
+    first_name = (data.get("first_name") or "").strip()
+    last_name = (data.get("last_name") or "").strip()
+    if first_name and last_name:
+        name_condition = and_(
+            sql_func.lower(Candidate.first_name) == first_name.lower(),
+            sql_func.lower(Candidate.last_name) == last_name.lower(),
+        )
+        conditions.append(name_condition)
+
+    if not conditions:
+        return {"duplicate_found": False, "changes": [], "candidate": None}
+
+    # Suche: Nicht geloeschte Kandidaten
+    stmt = (
+        select(Candidate)
+        .where(
+            Candidate.deleted_at.is_(None),
+            or_(*conditions),
+        )
+        .order_by(Candidate.updated_at.desc())
+        .limit(1)
+    )
+    result = await db.execute(stmt)
+    existing = result.scalar_one_or_none()
+
+    if not existing:
+        return {"duplicate_found": False, "changes": [], "candidate": None}
+
+    # Match-Gruende bestimmen
+    match_reasons = []
+    if email and existing.email and existing.email.lower() == email:
+        match_reasons.append("E-Mail")
+    if phone and existing.phone:
+        ex_digits = "".join(ch for ch in (existing.phone or "") if ch.isdigit())
+        if len(ex_digits) >= 6 and len(phone_digits) >= 6:
+            if ex_digits[-8:] == phone_digits[-8:]:
+                match_reasons.append("Telefon")
+    if first_name and last_name and existing.first_name and existing.last_name:
+        if existing.first_name.lower() == first_name.lower() and existing.last_name.lower() == last_name.lower():
+            match_reasons.append("Name")
+
+    # ==================== Detaillierter Feld-Vergleich ====================
+    changes = []
+
+    def compare_str(label: str, field_key: str, old_val, new_val):
+        """Vergleicht String-Felder (case-insensitive)."""
+        old_s = (old_val or "").strip()
+        new_s = (new_val or "").strip()
+        if not new_s:
+            return  # Neuer Wert leer → kein Update
+        if old_s.lower() != new_s.lower():
+            changes.append({
+                "field": field_key,
+                "label": label,
+                "old": old_s or None,
+                "new": new_s,
+                "type": "new" if not old_s else "changed",
+            })
+
+    def compare_list(label: str, field_key: str, old_list, new_list):
+        """Vergleicht Listen (z.B. Skills, IT-Skills)."""
+        old_set = set(s.lower().strip() for s in (old_list or []) if s)
+        new_set = set(s.lower().strip() for s in (new_list or []) if s)
+        if not new_set:
+            return
+        if old_set != new_set:
+            added = new_set - old_set
+            removed = old_set - new_set
+            if added or removed:
+                changes.append({
+                    "field": field_key,
+                    "label": label,
+                    "old": sorted(old_set) if old_set else None,
+                    "new": sorted(new_set),
+                    "added": sorted(added) if added else [],
+                    "removed": sorted(removed) if removed else [],
+                    "type": "new" if not old_set else "changed",
+                })
+
+    def compare_json_list(label: str, field_key: str, old_items, new_items):
+        """Vergleicht JSONB-Listen (Werdegang, Ausbildung, etc.)."""
+        old_count = len(old_items or [])
+        new_count = len(new_items or [])
+        if not new_items:
+            return
+        if old_count != new_count:
+            changes.append({
+                "field": field_key,
+                "label": label,
+                "old_count": old_count,
+                "new_count": new_count,
+                "type": "new" if old_count == 0 else "changed",
+                "summary": f"{old_count} → {new_count} Eintraege",
+            })
+        elif old_count > 0:
+            # Gleiche Anzahl → pruefen ob Inhalt sich geaendert hat
+            import json
+            old_normalized = json.dumps(old_items, sort_keys=True, ensure_ascii=False)
+            new_normalized = json.dumps(new_items, sort_keys=True, ensure_ascii=False)
+            if old_normalized != new_normalized:
+                changes.append({
+                    "field": field_key,
+                    "label": label,
+                    "old_count": old_count,
+                    "new_count": new_count,
+                    "type": "changed",
+                    "summary": f"{new_count} Eintraege (aktualisiert)",
+                })
+
+    # Persoenliche Daten
+    compare_str("Vorname", "first_name", existing.first_name, data.get("first_name"))
+    compare_str("Nachname", "last_name", existing.last_name, data.get("last_name"))
+    compare_str("E-Mail", "email", existing.email, data.get("email"))
+    compare_str("Telefon", "phone", existing.phone, data.get("phone"))
+    compare_str("Geburtsdatum", "birth_date",
+                str(existing.birth_date) if existing.birth_date else "",
+                data.get("birth_date"))
+
+    # Berufliche Daten
+    compare_str("Position", "current_position", existing.current_position, data.get("current_position"))
+    compare_str("Unternehmen", "current_company", existing.current_company, data.get("current_company"))
+    compare_str("Gehalt", "salary", existing.salary, data.get("salary"))
+    compare_str("Kuendigungsfrist", "notice_period", existing.notice_period, data.get("notice_period"))
+
+    # Adresse
+    compare_str("Strasse", "street_address", existing.street_address, data.get("street_address"))
+    compare_str("PLZ", "postal_code", existing.postal_code, data.get("postal_code"))
+    compare_str("Stadt", "city", existing.city, data.get("city"))
+
+    # Listen
+    compare_list("Skills", "skills", existing.skills, data.get("skills"))
+    compare_list("IT-Skills", "it_skills", existing.it_skills, data.get("it_skills"))
+
+    # JSONB-Listen (Werdegang, Ausbildung, Sprachen)
+    compare_json_list("Werdegang", "work_history", existing.work_history, data.get("work_history"))
+    compare_json_list("Ausbildung", "education", existing.education, data.get("education"))
+    compare_json_list("Weiterbildung", "further_education", existing.further_education, data.get("further_education"))
+
+    # Sprachen separat vergleichen
+    old_langs = existing.languages or []
+    new_langs = data.get("languages") or []
+    if new_langs:
+        old_lang_set = set()
+        for lang in old_langs:
+            if isinstance(lang, dict):
+                old_lang_set.add((lang.get("language", "").lower(), (lang.get("level") or "").lower()))
+        new_lang_set = set()
+        for lang in new_langs:
+            if isinstance(lang, dict):
+                new_lang_set.add((lang.get("language", "").lower(), (lang.get("level") or "").lower()))
+        if old_lang_set != new_lang_set:
+            changes.append({
+                "field": "languages",
+                "label": "Sprachen",
+                "old_count": len(old_langs),
+                "new_count": len(new_langs),
+                "type": "new" if not old_langs else "changed",
+                "summary": f"{len(old_langs)} → {len(new_langs)} Sprachen",
+            })
+
+    return {
+        "duplicate_found": True,
+        "candidate": {
+            "id": str(existing.id),
+            "name": existing.full_name,
+            "email": existing.email,
+            "phone": existing.phone,
+            "city": existing.city,
+            "current_position": existing.current_position,
+            "has_cv": bool(existing.cv_stored_path or existing.cv_url),
+        },
+        "match_reasons": match_reasons,
+        "changes": changes,
+        "has_changes": len(changes) > 0,
+    }
+
+
+# ==================== Duplikat-Update (Quick-Add Merge) ====================
+
+@router.post(
+    "/{candidate_id}/merge-cv",
+    summary="CV-Daten in bestehendes Profil mergen (Quick-Add Duplikat)",
+)
+@rate_limit(RateLimitTier.WRITE)
+async def merge_cv_into_existing(
+    candidate_id: UUID,
+    data: dict,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Merged geparste CV-Daten in ein bestehendes Kandidaten-Profil.
+    Wird aufgerufen wenn Quick-Add ein Duplikat erkennt und es Aenderungen gibt.
+    Startet anschliessend Geocoding + Kategorisierung + Finance-Klassifizierung neu.
+    """
+    from datetime import date as date_type, datetime as dt_cls, timezone as tz_cls
+    from sqlalchemy import select
+    from app.models.candidate import Candidate
+
+    # Kandidat laden
+    result = await db.execute(
+        select(Candidate).where(
+            Candidate.id == candidate_id,
+            Candidate.deleted_at.is_(None),
+        )
+    )
+    candidate = result.scalar_one_or_none()
+    if not candidate:
+        raise NotFoundException(message="Kandidat nicht gefunden")
+
+    # Felder aktualisieren (nur wenn neuer Wert vorhanden)
+    str_fields = [
+        "first_name", "last_name", "email", "phone",
+        "current_position", "current_company",
+        "street_address", "postal_code", "city",
+        "salary", "notice_period",
+    ]
+    for field in str_fields:
+        new_val = (data.get(field) or "").strip()
+        if new_val:
+            setattr(candidate, field, new_val)
+
+    # birth_date parsen
+    if data.get("birth_date"):
+        try:
+            bd = data["birth_date"]
+            if isinstance(bd, str):
+                if "." in bd:
+                    parts = bd.split(".")
+                    if len(parts) == 3:
+                        candidate.birth_date = date_type(int(parts[2]), int(parts[1]), int(parts[0]))
+                elif "-" in bd:
+                    parts = bd.split("-")
+                    if len(parts) == 3:
+                        candidate.birth_date = date_type(int(parts[0]), int(parts[1]), int(parts[2]))
+        except (ValueError, IndexError):
+            pass
+
+    # Listen-Felder (ersetzen wenn neuer Wert vorhanden)
+    if data.get("skills"):
+        candidate.skills = data["skills"]
+    if data.get("it_skills"):
+        candidate.it_skills = data["it_skills"]
+
+    # JSONB-Felder
+    if data.get("languages"):
+        candidate.languages = data["languages"]
+    if data.get("work_history"):
+        candidate.work_history = data["work_history"]
+    if data.get("education"):
+        candidate.education = data["education"]
+    if data.get("further_education"):
+        candidate.further_education = data["further_education"]
+
+    # CV-Daten aktualisieren
+    if data.get("cv_stored_path"):
+        candidate.cv_stored_path = data["cv_stored_path"]
+    if data.get("cv_text"):
+        candidate.cv_text = data["cv_text"]
+        candidate.cv_parsed_at = dt_cls.now(tz_cls.utc)
+
+    await db.commit()
+    await db.refresh(candidate)
+
+    # Background-Processing: Geocoding + Kategorisierung + Finance-Klassifizierung
+    background_tasks.add_task(
+        _process_candidate_after_create,
+        candidate.id,
+    )
+
+    return {
+        "id": str(candidate.id),
+        "name": candidate.full_name,
+        "merged": True,
+    }
+
+
 # ==================== CV parsen ohne Kandidat (Quick-Add) ====================
 
 @router.post(
