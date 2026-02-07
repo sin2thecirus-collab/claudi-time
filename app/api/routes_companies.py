@@ -890,18 +890,37 @@ async def _run_crm_import(dry_run: bool = False, max_pages: int | None = None, s
                             except Exception as e:
                                 await session.rollback()
                                 log(f"  Batch-Fehler ({e}), einzeln einfuegen...")
-                                for i, company in enumerate(batch):
+                                for company in batch:
                                     try:
                                         async with async_session_maker() as ss:
                                             ss.add(company)
                                             await ss.commit()
-                                            # Slug fuer einzeln eingefuegte auch merken
-                                            if i < len(page_slug_names):
-                                                s, cid = page_slug_names[i]
-                                                slug_to_company_id[s] = cid
                                     except Exception:
                                         company_stats["errors"] += 1
                                         company_stats["imported"] -= 1
+                                # Slug-Map: Alle Slugs mappen, auch Duplikate → bestehende DB-ID
+                                async with async_session_maker() as ss:
+                                    for slug, _ in page_slug_names:
+                                        if slug not in slug_to_company_id:
+                                            # Firma per Name in DB suchen
+                                            for c in companies:
+                                                if c.get("slug") == slug:
+                                                    cname = (c.get("company_name") or "").strip()
+                                                    if cname:
+                                                        res = await ss.execute(
+                                                            select(Company.id).where(Company.name == cname).limit(1)
+                                                        )
+                                                        row = res.scalar_one_or_none()
+                                                        if row:
+                                                            slug_to_company_id[slug] = str(row)
+                                                    break
+                                        else:
+                                            # Bereits gemappt (erfolgreich eingefuegt)
+                                            pass
+                                # Alle page_slug_names nochmal durchgehen fuer erfolgreiche
+                                for slug, cid in page_slug_names:
+                                    if slug not in slug_to_company_id:
+                                        slug_to_company_id[slug] = cid
 
                     if company_stats["imported"] % 500 == 0 and company_stats["imported"] > 0:
                         log(f"  Fortschritt: {company_stats['imported']} importiert...")
