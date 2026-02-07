@@ -91,6 +91,34 @@ async def company_stats(db: AsyncSession = Depends(get_db)):
     return await service.get_stats()
 
 
+# ── CRM Import Endpoints (TEMPORAER — nach Import loeschen!) ──
+
+@router.post("/crm-import-trigger")
+async def trigger_crm_import(
+    background_tasks: BackgroundTasks,
+    dry_run: bool = Query(False),
+    max_pages: int | None = Query(None),
+    skip_contacts: bool = Query(False),
+):
+    """Startet CRM-Import als Background-Task."""
+    if _import_status.get("running"):
+        return JSONResponse(status_code=409, content={"error": "Import laeuft bereits", "log": _import_status["log"][-10:]})
+
+    background_tasks.add_task(_run_crm_import, dry_run=dry_run, max_pages=max_pages, skip_contacts=skip_contacts)
+    return {"message": f"Import gestartet (dry_run={dry_run}, max_pages={max_pages})", "status_url": "/api/companies/crm-import-status"}
+
+
+@router.get("/crm-import-status")
+async def get_import_status():
+    """Gibt den aktuellen Import-Status zurueck."""
+    return {
+        "running": _import_status.get("running", False),
+        "stats": _import_status.get("stats", {}),
+        "log_count": len(_import_status.get("log", [])),
+        "last_logs": _import_status.get("log", [])[-20:],
+    }
+
+
 @router.get("/search/json")
 async def search_companies_json(
     q: str = Query(default="", min_length=1),
@@ -805,27 +833,4 @@ async def _run_crm_import(dry_run: bool = False, max_pages: int | None = None, s
         _import_status["running"] = False
 
 
-@router.post("/crm-import-trigger")
-async def trigger_crm_import(
-    background_tasks: BackgroundTasks,
-    dry_run: bool = Query(False),
-    max_pages: int | None = Query(None),
-    skip_contacts: bool = Query(False),
-):
-    """Startet CRM-Import als Background-Task. TEMPORAER — nach Import loeschen!"""
-    if _import_status.get("running"):
-        return JSONResponse(status_code=409, content={"error": "Import laeuft bereits", "log": _import_status["log"][-10:]})
-
-    background_tasks.add_task(_run_crm_import, dry_run=dry_run, max_pages=max_pages, skip_contacts=skip_contacts)
-    return {"message": f"Import gestartet (dry_run={dry_run}, max_pages={max_pages})", "status_url": "/api/companies/crm-import-status"}
-
-
-@router.get("/crm-import-status")
-async def get_import_status():
-    """Gibt den aktuellen Import-Status zurueck."""
-    return {
-        "running": _import_status.get("running", False),
-        "stats": _import_status.get("stats", {}),
-        "log_count": len(_import_status.get("log", [])),
-        "last_logs": _import_status.get("log", [])[-20:],
-    }
+# (Import endpoints moved above /{company_id} to avoid route conflict)
