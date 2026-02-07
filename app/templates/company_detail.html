@@ -184,6 +184,7 @@
         <div class="pp-tabs pp-anim" style="animation-delay: 200ms;">
             <button class="pp-tab" :class="{ active: tab==='overview' }" @click="tab='overview'"><span style="font-size:15px;">&#x1F4CB;</span> Übersicht</button>
             <button class="pp-tab" :class="{ active: tab==='contacts' }" @click="tab='contacts'"><span style="font-size:15px;">&#x1F464;</span> Kontakte</button>
+            <button class="pp-tab" :class="{ active: tab==='activities' }" @click="tab='activities'"><span style="font-size:15px;">&#x1F4C8;</span> Aktivitäten</button>
             <button class="pp-tab" :class="{ active: tab==='emails' }" @click="tab='emails'"><span style="font-size:15px;">&#x1F4E7;</span> E-Mails</button>
             <button class="pp-tab" :class="{ active: tab==='calls' }" @click="tab='calls'"><span style="font-size:15px;">&#x1F4DE;</span> Anrufe</button>
             <button class="pp-tab" :class="{ active: tab==='tasks' }" @click="tab='tasks'"><span style="font-size:15px;">&#x2705;</span> Aufgaben</button>
@@ -283,6 +284,12 @@
                 <div x-show="tab==='contacts'" x-cloak style="padding-top:12px;">
                     <div class="pp-section"><div class="pp-section-head"><span class="pp-section-title">&#x1F464; Alle Kontakte</span><button onclick="toggleContactForm()" class="pp-btn pp-btn-accent pp-btn-sm">&#xFF0B; Hinzufügen</button></div>
                     <div class="pp-section-body"><div hx-get="/partials/company-contacts/{{ company.id }}" hx-trigger="load" hx-swap="innerHTML"><p class="pp-skeleton">Lade Kontakte...</p></div></div></div>
+                </div>
+
+                {# ── Tab: Aktivitäten ── #}
+                <div x-show="tab==='activities'" x-cloak style="padding-top:12px;">
+                    <div class="pp-section"><div class="pp-section-head"><span class="pp-section-title">&#x1F4C8; Alle Aktivitäten</span><span style="font-size:12px;color:var(--pp-s400);font-weight:500;">Chronologisch — neueste zuerst</span></div>
+                    <div class="pp-section-body"><div id="activities-container" hx-get="/partials/company/{{ company.id }}/activities" hx-trigger="load" hx-swap="innerHTML"><p class="pp-skeleton">Lade Aktivitäten...</p></div></div></div>
                 </div>
 
                 {# ── Tab: E-Mails ── #}

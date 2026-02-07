@@ -1319,6 +1319,141 @@ async def contact_correspondence_partial(
     })
 
 
+@router.get("/partials/company/{company_id}/activities", response_class=HTMLResponse)
+async def company_activities_partial(
+    company_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Partial: ALLE Aktivitaeten eines Unternehmens + aller Kontakte, chronologisch."""
+    from app.models.ats_call_note import ATSCallNote
+    from app.models.company_correspondence import CompanyCorrespondence
+    from app.models.ats_todo import ATSTodo
+    from app.models.company_contact import CompanyContact as CC
+    from sqlalchemy.orm import selectinload
+
+    # 1. Alle Contact-IDs dieses Unternehmens laden
+    contact_result = await db.execute(
+        select(CC.id).where(CC.company_id == company_id)
+    )
+    contact_ids = [row[0] for row in contact_result.all()]
+
+    # 2. Anrufe laden (Firma + Kontakte)
+    from sqlalchemy import or_
+    call_conditions = [ATSCallNote.company_id == company_id]
+    if contact_ids:
+        call_conditions.append(ATSCallNote.contact_id.in_(contact_ids))
+    call_result = await db.execute(
+        select(ATSCallNote)
+        .options(selectinload(ATSCallNote.contact))
+        .where(or_(*call_conditions))
+        .order_by(ATSCallNote.called_at.desc())
+        .limit(100)
+    )
+    call_notes = call_result.scalars().all()
+
+    # 3. E-Mails laden (Firma + Kontakte)
+    corr_conditions = [CompanyCorrespondence.company_id == company_id]
+    if contact_ids:
+        corr_conditions.append(CompanyCorrespondence.contact_id.in_(contact_ids))
+    corr_result = await db.execute(
+        select(CompanyCorrespondence)
+        .options(selectinload(CompanyCorrespondence.contact))
+        .where(or_(*corr_conditions))
+        .order_by(CompanyCorrespondence.sent_at.desc())
+        .limit(100)
+    )
+    correspondence = corr_result.scalars().all()
+
+    # 4. Aufgaben laden (Firma + Kontakte)
+    todo_conditions = [ATSTodo.company_id == company_id]
+    if contact_ids:
+        todo_conditions.append(ATSTodo.contact_id.in_(contact_ids))
+    todo_result = await db.execute(
+        select(ATSTodo)
+        .options(selectinload(ATSTodo.contact))
+        .where(or_(*todo_conditions))
+        .order_by(ATSTodo.created_at.desc())
+        .limit(100)
+    )
+    todos = todo_result.scalars().all()
+
+    # 5. Alles zusammenfuehren + sortieren
+    activities = []
+
+    # Call-Type Labels
+    _call_type_labels = {
+        "acquisition": "Akquise",
+        "qualification": "Qualifizierung",
+        "followup": "Nachfassen",
+        "candidate_call": "Kandidatengespraech",
+    }
+    _todo_status_labels = {
+        "open": "Offen",
+        "in_progress": "In Bearbeitung",
+        "done": "Erledigt",
+        "cancelled": "Abgebrochen",
+    }
+    _todo_priority_labels = {
+        "low": "Niedrig",
+        "normal": "Normal",
+        "high": "Hoch",
+        "urgent": "Dringend",
+    }
+
+    for note in call_notes:
+        contact_name = note.contact.full_name if note.contact else None
+        activities.append({
+            "type": "call",
+            "title": note.summary or "Anruf",
+            "body": note.raw_notes,
+            "contact_name": contact_name,
+            "date": note.called_at or note.created_at,
+            "duration": note.duration_minutes,
+            "call_type": _call_type_labels.get(note.call_type.value, note.call_type.value) if note.call_type else None,
+            "status": None,
+            "priority": None,
+        })
+
+    for corr in correspondence:
+        contact_name = corr.contact.full_name if hasattr(corr, "contact") and corr.contact else None
+        direction = "email_out" if corr.direction.value == "outbound" else "email_in"
+        activities.append({
+            "type": direction,
+            "title": corr.subject or "E-Mail",
+            "body": corr.body,
+            "contact_name": contact_name,
+            "date": corr.sent_at or corr.created_at,
+            "duration": None,
+            "call_type": None,
+            "status": None,
+            "priority": None,
+        })
+
+    for todo in todos:
+        contact_name = todo.contact.full_name if hasattr(todo, "contact") and todo.contact else None
+        activities.append({
+            "type": "todo",
+            "title": todo.title or "Aufgabe",
+            "body": todo.description,
+            "contact_name": contact_name,
+            "date": todo.created_at,
+            "duration": None,
+            "call_type": None,
+            "status": _todo_status_labels.get(todo.status.value, todo.status.value) if todo.status else None,
+            "priority": _todo_priority_labels.get(todo.priority.value, todo.priority.value) if todo.priority else None,
+        })
+
+    # Sortieren: neueste zuerst
+    activities.sort(key=lambda a: a["date"] or datetime.min, reverse=True)
+
+    return templates.TemplateResponse("partials/company_activities.html", {
+        "request": request,
+        "activities": activities,
+        "company_id": str(company_id),
+    })
+
+
 @router.get("/partials/company/{company_id}/call-notes", response_class=HTMLResponse)
 async def company_call_notes_partial(
     company_id: UUID,
