@@ -805,7 +805,7 @@ async def _run_crm_import(dry_run: bool = False, max_pages: int | None = None, s
         _import_status["running"] = False
 
 
-@router.post("/import/crm-companies")
+@router.post("/crm-import-trigger")
 async def trigger_crm_import(
     background_tasks: BackgroundTasks,
     dry_run: bool = Query(False),
@@ -817,10 +817,10 @@ async def trigger_crm_import(
         return JSONResponse(status_code=409, content={"error": "Import laeuft bereits", "log": _import_status["log"][-10:]})
 
     background_tasks.add_task(_run_crm_import, dry_run=dry_run, max_pages=max_pages, skip_contacts=skip_contacts)
-    return {"message": f"Import gestartet (dry_run={dry_run}, max_pages={max_pages})", "status_url": "/api/companies/import/status"}
+    return {"message": f"Import gestartet (dry_run={dry_run}, max_pages={max_pages})", "status_url": "/api/companies/crm-import-status"}
 
 
-@router.get("/import/status")
+@router.get("/crm-import-status")
 async def get_import_status():
     """Gibt den aktuellen Import-Status zurueck."""
     return {
