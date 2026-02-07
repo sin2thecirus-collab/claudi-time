@@ -1,39 +1,306 @@
 {% extends "base.html" %}
+{% block title %}Kandidaten - Pulspoint{% endblock %}
 
-{% block title %}Kandidaten - Matching-Tool{% endblock %}
+{% block head %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+    .kl-wrap, .kl-wrap * { font-family: 'Outfit', 'DM Sans', -apple-system, sans-serif; }
+    .kl-wrap { background: #f4f5f8; color: #1e293b; min-height: 100vh; }
+    .kl-wrap ::-webkit-scrollbar { width: 5px; }
+    .kl-wrap ::-webkit-scrollbar-track { background: transparent; }
+    .kl-wrap ::-webkit-scrollbar-thumb { background: #d4d9e3; border-radius: 3px; }
+
+    /* ── Animations ── */
+    @keyframes klFadeUp {
+        from { opacity: 0; transform: translateY(16px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes klRowFadeUp {
+        from { opacity: 0; transform: translateY(8px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    .kl-anim { opacity: 0; animation: klFadeUp 0.5s cubic-bezier(0.4,0,0.2,1) forwards; }
+
+    /* ── Stat Cards ── */
+    .kl-stat-card {
+        background: rgba(255,255,255,0.15); backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,0.2); border-radius: 12px;
+        padding: 12px 20px; min-width: 140px; text-align: center;
+    }
+    .kl-stat-value { font-size: 22px; font-weight: 800; color: #fff; }
+    .kl-stat-label { font-size: 11px; font-weight: 500; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
+
+    /* ── Category Chips ── */
+    .kl-chip {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 8px 18px; border-radius: 10px;
+        font-size: 13px; font-weight: 600; cursor: pointer;
+        background: #fff; color: #64748b; border: 1.5px solid #e2e5ec;
+        transition: all 0.2s; user-select: none;
+    }
+    .kl-chip:hover { background: #f8fafc; color: #475569; }
+    .kl-chip-active {
+        background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
+        color: #fff !important; border-color: transparent !important;
+        box-shadow: 0 2px 8px rgba(99,102,241,0.3);
+    }
+
+    /* ── Search Input ── */
+    .kl-search {
+        width: 100%; padding: 10px 14px 10px 40px; border-radius: 12px;
+        border: 1.5px solid #e2e5ec; background: #fff; font-size: 13.5px;
+        color: #1e293b; font-family: inherit; transition: all 0.2s;
+        outline: none;
+    }
+    .kl-search:focus {
+        border-color: #818cf8; box-shadow: 0 0 0 3px rgba(129,140,248,0.15);
+    }
+    .kl-search::placeholder { color: #94a3b8; }
+
+    /* ── Table Card ── */
+    .kl-table-card {
+        background: #fff; border-radius: 16px; border: 1px solid #e6e9ef;
+        overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+
+    /* ── Table Header ── */
+    .kl-th {
+        font-size: 11px; font-weight: 700; color: #94a3b8;
+        text-transform: uppercase; letter-spacing: 0.06em;
+        padding: 14px 16px; text-align: left; white-space: nowrap;
+        background: #fafbfd; border-bottom: 1px solid #f0f2f5;
+    }
+
+    /* ── Table Rows ── */
+    .kl-row {
+        border-bottom: 1px solid #f5f6f8; transition: all 0.15s; cursor: pointer;
+        opacity: 0; animation: klRowFadeUp 0.35s cubic-bezier(0.4,0,0.2,1) forwards;
+    }
+    .kl-row:hover { background: #f8fafc; }
+    .kl-row.kl-selected { background: #f5f3ff; }
+    .kl-row:last-child { border-bottom: none; }
+    .kl-row td { padding: 14px 16px; font-size: 13.5px; vertical-align: middle; }
+
+    /* ── Avatar ── */
+    .kl-avatar {
+        width: 38px; height: 38px; border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        font-weight: 700; font-size: 13px; flex-shrink: 0;
+        border: 2px solid rgba(255,255,255,0.8);
+    }
+
+    /* ── Skill Tags ── */
+    .kl-skill-tag {
+        display: inline-flex; align-items: center;
+        padding: 2px 8px; border-radius: 6px;
+        font-size: 11px; font-weight: 600;
+        background: #f0f2f5; color: #64748b;
+        white-space: nowrap;
+    }
+    .kl-skill-tag-tech { background: #ecfdf5; color: #059669; }
+    .kl-skill-tag-fach { background: #eef2ff; color: #4f46e5; }
+
+    /* ── Status Badge ── */
+    .kl-status {
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 4px 10px; border-radius: 8px;
+        font-size: 11.5px; font-weight: 600;
+    }
+    .kl-status-dot { width: 6px; height: 6px; border-radius: 50%; }
+    .kl-status-active { background: #ecfdf5; color: #059669; }
+    .kl-status-active .kl-status-dot { background: #10b981; }
+    .kl-status-inactive { background: #fefce8; color: #a16207; }
+    .kl-status-inactive .kl-status-dot { background: #f59e0b; }
+    .kl-status-hidden { background: #f1f5f9; color: #64748b; }
+    .kl-status-hidden .kl-status-dot { background: #94a3b8; }
+
+    /* ── CV Indicator ── */
+    .kl-cv-yes { color: #6366f1; }
+    .kl-cv-no { color: #d4d9e3; }
+
+    /* ── Batch Bar ── */
+    .kl-batch-bar {
+        background: linear-gradient(135deg, #4338ca 0%, #6366f1 100%);
+        border-radius: 14px; padding: 14px 22px;
+        display: flex; align-items: center; justify-content: space-between;
+        box-shadow: 0 4px 20px rgba(67,56,202,0.25);
+        position: sticky; bottom: 20px; z-index: 40;
+        margin: 16px 0;
+    }
+    .kl-batch-bar-btn {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 8px 16px; border-radius: 10px;
+        font-size: 12.5px; font-weight: 630; cursor: pointer;
+        font-family: inherit; transition: all 0.2s; border: none;
+    }
+    .kl-batch-bar-btn-primary { background: rgba(255,255,255,0.2); color: #fff; }
+    .kl-batch-bar-btn-primary:hover { background: rgba(255,255,255,0.3); }
+    .kl-batch-bar-btn-danger { background: rgba(239,68,68,0.2); color: #fecaca; }
+    .kl-batch-bar-btn-danger:hover { background: rgba(239,68,68,0.3); }
+
+    /* ── Pagination ── */
+    .kl-page-btn {
+        display: inline-flex; align-items: center; justify-content: center;
+        min-width: 36px; height: 36px; border-radius: 10px;
+        font-size: 13px; font-weight: 600; cursor: pointer;
+        background: #fff; color: #64748b; border: 1.5px solid #e2e5ec;
+        transition: all 0.2s; font-family: inherit;
+    }
+    .kl-page-btn:hover { background: #f8fafc; color: #475569; }
+    .kl-page-btn-active {
+        background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
+        color: #fff !important; border-color: transparent !important;
+        box-shadow: 0 2px 8px rgba(99,102,241,0.25);
+    }
+    .kl-page-btn-disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+
+    /* ── Filter Panel ── */
+    .kl-filter-panel {
+        background: #fff; border-radius: 14px; border: 1px solid #e6e9ef;
+        overflow: hidden; transition: all 0.3s;
+    }
+    .kl-filter-input {
+        width: 100%; padding: 9px 14px; border-radius: 10px;
+        border: 1.5px solid #e2e5ec; background: #fafbfd; font-size: 13px;
+        color: #1e293b; font-family: inherit; transition: all 0.2s; outline: none;
+    }
+    .kl-filter-input:focus {
+        border-color: #818cf8; box-shadow: 0 0 0 3px rgba(129,140,248,0.1);
+        background: #fff;
+    }
+    .kl-filter-input::placeholder { color: #94a3b8; }
+
+    /* ── Inline Edit ── */
+    .kl-inline-display {
+        cursor: pointer; border-radius: 6px; padding: 2px 6px;
+        transition: all 0.15s;
+    }
+    .kl-inline-display:hover { background: rgba(99,102,241,0.06); }
+    .kl-inline-input {
+        width: 100%; padding: 4px 10px; border-radius: 8px;
+        border: 1.5px solid #818cf8; font-size: 13px;
+        color: #1e293b; font-family: inherit; outline: none;
+        box-shadow: 0 0 0 3px rgba(129,140,248,0.15);
+    }
+
+    /* ── Select Toggle Button ── */
+    .kl-select-btn {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 8px 16px; border-radius: 10px;
+        font-size: 12.5px; font-weight: 630; cursor: pointer;
+        font-family: inherit; transition: all 0.2s;
+        border: 1.5px solid #e2e5ec; background: #fff; color: #475569;
+    }
+    .kl-select-btn:hover { background: #f8fafc; }
+    .kl-select-btn-active {
+        background: #f1f5f9; color: #334155; border-color: #cbd5e1;
+    }
+
+    /* ── Per-Page Select ── */
+    .kl-per-page {
+        padding: 7px 32px 7px 12px; border-radius: 10px;
+        border: 1.5px solid #e2e5ec; background: #fff; font-size: 13px;
+        color: #1e293b; font-family: inherit; cursor: pointer; outline: none;
+        appearance: none; -webkit-appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+        background-position: right 8px center; background-repeat: no-repeat; background-size: 16px;
+    }
+    .kl-per-page:focus { border-color: #818cf8; box-shadow: 0 0 0 3px rgba(129,140,248,0.1); }
+
+    /* ── Action Buttons in rows ── */
+    .kl-action-btn {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 32px; height: 32px; border-radius: 8px;
+        background: transparent; border: none; cursor: pointer;
+        color: #94a3b8; transition: all 0.15s;
+    }
+    .kl-action-btn:hover { background: #f1f5f9; color: #475569; }
+    .kl-action-btn-danger:hover { background: #fef2f2; color: #dc2626; }
+    .kl-action-btn-primary:hover { background: #eef2ff; color: #6366f1; }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="space-y-8">
-    {# Header #}
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
-        <div>
-            <h1 class="text-4xl font-bold text-gray-900">Kandidaten</h1>
-            <p class="mt-1.5 text-lg text-gray-500">Alle synchronisierten Kandidaten aus dem CRM</p>
+<div class="kl-wrap">
+
+    {# ════════════════════════════════════════════════════
+       VIOLET HERO HEADER
+    ════════════════════════════════════════════════════ #}
+    <div style="background: linear-gradient(135deg, #1e1b4b 0%, #312e81 40%, #4338ca 100%); padding: 32px 40px 28px; position: relative; overflow: hidden;">
+        {# Decorative circles #}
+        <div style="position: absolute; top: -80px; right: -40px; width: 220px; height: 220px; border-radius: 50%; background: radial-gradient(circle, rgba(129,140,248,0.12) 0%, transparent 70%);"></div>
+        <div style="position: absolute; bottom: -50px; left: 20%; width: 160px; height: 160px; border-radius: 50%; background: radial-gradient(circle, rgba(167,139,250,0.08) 0%, transparent 70%);"></div>
+
+        {# Breadcrumb #}
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: rgba(255,255,255,0.5); margin-bottom: 20px; font-weight: 500;">
+            <a href="/" style="color: rgba(255,255,255,0.6); text-decoration: none;">&#x1F3E0;</a>
+            <span>&#x203A;</span>
+            <span style="color: rgba(255,255,255,0.85);">Kandidaten</span>
         </div>
 
-        {# Suche + Seitengroesse + Auswahl-Button #}
-        <div class="flex items-center space-x-5">
-            {# Auswahl-Modus Toggle #}
-            <button id="btn-selection-toggle"
-                    type="button"
-                    onclick="toggleSelectionMode()"
-                    class="inline-flex items-center rounded-md bg-white px-4 py-2.5 text-base font-semibold text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 transition-colors whitespace-nowrap">
-                Auswaehlen
-            </button>
-            {# Seitengroesse #}
-            <div class="flex items-center space-x-3">
-                <label for="per-page-select" class="text-base text-gray-500 whitespace-nowrap">Anzeigen:</label>
-                <select id="per-page-select"
-                        name="per_page"
-                        onchange="changePerPage(this.value)"
-                        class="block rounded-md border-0 py-2.5 pl-4 pr-10 text-base text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-primary-600">
-                    <option value="25" selected>25</option>
-                    <option value="50">50</option>
-                    <option value="100">100</option>
-                </select>
+        {# Title + Subtitle #}
+        <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; flex-wrap: wrap;">
+            <div>
+                <h1 style="font-size: 28px; font-weight: 800; color: #fff; letter-spacing: -0.03em; margin: 0;">Kandidaten</h1>
+                <p style="font-size: 14px; color: rgba(255,255,255,0.5); margin-top: 4px; font-weight: 400;">Alle synchronisierten Kandidaten aus dem CRM</p>
             </div>
-            {# Suche #}
-            <div class="relative">
+        </div>
+
+        {# Stats Bar #}
+        <div style="display: flex; gap: 14px; margin-top: 22px; flex-wrap: wrap;">
+            <div class="kl-stat-card">
+                <div class="kl-stat-value" id="kl-stat-total">—</div>
+                <div class="kl-stat-label">Ergebnisse</div>
+            </div>
+            <div class="kl-stat-card">
+                <div class="kl-stat-value" id="kl-stat-page">—</div>
+                <div class="kl-stat-label">Seite</div>
+            </div>
+            <div class="kl-stat-card">
+                <div class="kl-stat-value" id="kl-stat-perpage">25</div>
+                <div class="kl-stat-label">Pro Seite</div>
+            </div>
+        </div>
+    </div>
+
+    {# ════════════════════════════════════════════════════
+       FILTER & SEARCH AREA
+    ════════════════════════════════════════════════════ #}
+    <div style="padding: 22px 40px 0;" class="kl-anim" style="animation-delay: 0.1s;">
+
+        {# Row: Chips + Search + Select + Per-Page #}
+        <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+
+            {# Category Chips (Alpine.js) #}
+            <div x-data="{ activeCategory: '' }" style="display: flex; gap: 6px; flex-shrink: 0;" id="kl-category-chips">
+                <button type="button"
+                        :class="activeCategory === '' ? 'kl-chip kl-chip-active' : 'kl-chip'"
+                        @click="activeCategory = ''; $refs.categoryInput.value = ''; htmx.trigger($refs.categoryInput, 'change')">
+                    Alle
+                </button>
+                <button type="button"
+                        :class="activeCategory === 'FINANCE' ? 'kl-chip kl-chip-active' : 'kl-chip'"
+                        @click="activeCategory = 'FINANCE'; $refs.categoryInput.value = 'FINANCE'; htmx.trigger($refs.categoryInput, 'change')">
+                    Finance
+                </button>
+                <button type="button"
+                        :class="activeCategory === 'ENGINEERING' ? 'kl-chip kl-chip-active' : 'kl-chip'"
+                        @click="activeCategory = 'ENGINEERING'; $refs.categoryInput.value = 'ENGINEERING'; htmx.trigger($refs.categoryInput, 'change')">
+                    Engineering
+                </button>
+                <input type="hidden" name="category" x-ref="categoryInput" value=""
+                       hx-get="/partials/candidates-list"
+                       hx-trigger="change"
+                       hx-target="#candidates-list"
+                       hx-include="[name='search'], [name='per_page'], [name='position'], [name='skills'], [name='city'], [name='category']">
+            </div>
+
+            {# Search #}
+            <div style="position: relative; flex: 1; min-width: 200px; max-width: 360px;">
+                <svg style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: #94a3b8; pointer-events: none;" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd" />
+                </svg>
                 <input type="text"
                        id="candidate-search"
                        name="search"
@@ -42,135 +309,160 @@
                        hx-trigger="keyup changed delay:300ms"
                        hx-target="#candidates-list"
                        hx-include="[name='search'], [name='per_page'], [name='position'], [name='skills'], [name='city'], [name='category']"
-                       class="block w-80 rounded-md border-0 py-3 pl-12 pr-4 text-lg text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-primary-600 leading-6">
-                <div class="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
-                    <svg class="h-6 w-6 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd" />
-                    </svg>
-                </div>
+                       class="kl-search">
             </div>
-        </div>
-    </div>
 
-    {# Kategorie-Riegel (Segmented Control) #}
-    <div x-data="{ activeCategory: '' }" class="flex items-center justify-center">
-        <div class="inline-flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-            <button type="button"
-                    :class="activeCategory === 'FINANCE' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
-                    @click="activeCategory = 'FINANCE'; $refs.categoryInput.value = 'FINANCE'; htmx.trigger($refs.categoryInput, 'change')"
-                    class="rounded-md px-5 py-2.5 text-base font-medium transition-all">
-                Finance
-            </button>
-            <button type="button"
-                    :class="activeCategory === '' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
-                    @click="activeCategory = ''; $refs.categoryInput.value = ''; htmx.trigger($refs.categoryInput, 'change')"
-                    class="rounded-md px-5 py-2.5 text-base font-medium transition-all">
-                Alle
-            </button>
-            <button type="button"
-                    :class="activeCategory === 'ENGINEERING' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
-                    @click="activeCategory = 'ENGINEERING'; $refs.categoryInput.value = 'ENGINEERING'; htmx.trigger($refs.categoryInput, 'change')"
-                    class="rounded-md px-5 py-2.5 text-base font-medium transition-all">
-                Engineering
-            </button>
-        </div>
-        <input type="hidden" name="category" x-ref="categoryInput" value=""
-               hx-get="/partials/candidates-list"
-               hx-trigger="change"
-               hx-target="#candidates-list"
-               hx-include="[name='search'], [name='per_page'], [name='position'], [name='skills'], [name='city'], [name='category']">
-    </div>
+            {# Spacer #}
+            <div style="flex: 1;"></div>
 
-    {# Erweiterte Filter - automatisch oeffnen wenn URL-Parameter vorhanden #}
-    <div x-data="{ filtersOpen: new URLSearchParams(window.location.search).get('position') || new URLSearchParams(window.location.search).get('skills') || new URLSearchParams(window.location.search).get('city') ? true : false }" class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg">
-        <button @click="filtersOpen = !filtersOpen"
-                type="button"
-                class="w-full flex items-center justify-between px-5 py-3 text-left hover:bg-gray-50 transition-colors rounded-lg">
-            <div class="flex items-center space-x-2">
-                <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            {# Select Mode Button #}
+            <button id="btn-selection-toggle"
+                    type="button"
+                    onclick="toggleSelectionMode()"
+                    class="kl-select-btn">
+                <svg style="width: 14px; height: 14px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Auswählen
+            </button>
+
+            {# Erweiterte Filter Toggle #}
+            <button type="button" id="kl-filter-toggle" onclick="toggleFilterPanel()"
+                    class="kl-select-btn" style="position: relative;">
+                <svg style="width: 14px; height: 14px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" />
                 </svg>
-                <span class="font-medium text-gray-900">Erweiterte Filter</span>
-                <span id="filter-active-badge" class="hidden inline-flex items-center rounded-full bg-primary-100 px-2.5 py-0.5 text-xs font-medium text-primary-700">Aktiv</span>
+                Filter
+                <span id="filter-active-badge" class="hidden" style="position: absolute; top: -4px; right: -4px; width: 8px; height: 8px; border-radius: 50%; background: #6366f1;"></span>
+            </button>
+
+            {# Per-Page #}
+            <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+                <span style="font-size: 12px; color: #94a3b8; font-weight: 500;">Anzeigen:</span>
+                <select id="per-page-select"
+                        name="per_page"
+                        onchange="changePerPage(this.value)"
+                        class="kl-per-page">
+                    <option value="25" selected>25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
             </div>
-            <svg :class="{ 'rotate-180': filtersOpen }" class="h-5 w-5 text-gray-400 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-            </svg>
-        </button>
-        <div x-show="filtersOpen" x-transition class="border-t border-gray-200 px-5 py-4" style="display: none;">
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4" id="candidate-filters">
-                {# Position #}
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Position</label>
-                    <input type="text"
-                           name="position"
-                           placeholder="z.B. Buchhalter, Controller..."
-                           hx-get="/partials/candidates-list"
-                           hx-trigger="keyup changed delay:300ms"
-                           hx-target="#candidates-list"
-                           hx-include="[name='search'], [name='per_page'], [name='position'], [name='skills'], [name='city'], [name='category']"
-                           oninput="updateFilterBadge()"
-                           class="block w-full rounded-md border-0 py-2.5 pl-4 pr-4 text-base text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-primary-600">
+        </div>
+
+        {# Expandable Filter Panel #}
+        <div id="kl-filter-panel" class="kl-filter-panel" style="display: none; margin-top: 14px;">
+            <div style="padding: 18px 22px;">
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;" id="candidate-filters">
+                    <div>
+                        <label style="display: block; font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;">Position</label>
+                        <input type="text"
+                               name="position"
+                               placeholder="z.B. Buchhalter, Controller..."
+                               hx-get="/partials/candidates-list"
+                               hx-trigger="keyup changed delay:300ms"
+                               hx-target="#candidates-list"
+                               hx-include="[name='search'], [name='per_page'], [name='position'], [name='skills'], [name='city'], [name='category']"
+                               oninput="updateFilterBadge()"
+                               class="kl-filter-input">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;">IT-Kenntnisse / Skills</label>
+                        <input type="text"
+                               name="skills"
+                               placeholder="z.B. SAP, DATEV, Python..."
+                               hx-get="/partials/candidates-list"
+                               hx-trigger="keyup changed delay:300ms"
+                               hx-target="#candidates-list"
+                               hx-include="[name='search'], [name='per_page'], [name='position'], [name='skills'], [name='city'], [name='category']"
+                               oninput="updateFilterBadge()"
+                               class="kl-filter-input">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;">Stadt</label>
+                        <input type="text"
+                               name="city"
+                               placeholder="z.B. Berlin, Hamburg..."
+                               hx-get="/partials/candidates-list"
+                               hx-trigger="keyup changed delay:300ms"
+                               hx-target="#candidates-list"
+                               hx-include="[name='search'], [name='per_page'], [name='position'], [name='skills'], [name='city'], [name='category']"
+                               oninput="updateFilterBadge()"
+                               class="kl-filter-input">
+                    </div>
                 </div>
-                {# IT-Kenntnisse / Skills #}
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">IT-Kenntnisse / Skills</label>
-                    <input type="text"
-                           name="skills"
-                           placeholder="z.B. SAP, DATEV, Python..."
-                           hx-get="/partials/candidates-list"
-                           hx-trigger="keyup changed delay:300ms"
-                           hx-target="#candidates-list"
-                           hx-include="[name='search'], [name='per_page'], [name='position'], [name='skills'], [name='city'], [name='category']"
-                           oninput="updateFilterBadge()"
-                           class="block w-full rounded-md border-0 py-2.5 pl-4 pr-4 text-base text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-primary-600">
+                <div style="display: flex; justify-content: flex-end; margin-top: 12px;">
+                    <button type="button" onclick="resetCandidateFilters()"
+                            style="font-size: 12px; font-weight: 600; color: #94a3b8; cursor: pointer; background: none; border: none; font-family: inherit; transition: color 0.15s;"
+                            onmouseover="this.style.color='#6366f1'" onmouseout="this.style.color='#94a3b8'">
+                        Filter zurücksetzen
+                    </button>
                 </div>
-                {# Stadt #}
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Stadt</label>
-                    <input type="text"
-                           name="city"
-                           placeholder="z.B. Berlin, Hamburg..."
-                           hx-get="/partials/candidates-list"
-                           hx-trigger="keyup changed delay:300ms"
-                           hx-target="#candidates-list"
-                           hx-include="[name='search'], [name='per_page'], [name='position'], [name='skills'], [name='city'], [name='category']"
-                           oninput="updateFilterBadge()"
-                           class="block w-full rounded-md border-0 py-2.5 pl-4 pr-4 text-base text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-primary-600">
-                </div>
-            </div>
-            <div class="mt-3 flex justify-end">
-                <button type="button" onclick="resetCandidateFilters()"
-                        class="text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors">
-                    Filter zuruecksetzen
-                </button>
             </div>
         </div>
     </div>
 
-    {# Kandidaten-Tabelle #}
-    <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg overflow-hidden">
-        <div id="candidates-list"
-             hx-swap="innerHTML">
-            {# Loading State #}
-            <div class="p-10 text-center">
-                <div class="inline-flex items-center space-x-3 text-gray-500">
-                    <svg class="animate-spin h-6 w-6" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+    {# ════════════════════════════════════════════════════
+       TABLE CONTAINER
+    ════════════════════════════════════════════════════ #}
+    <div style="padding: 18px 40px 40px;">
+        <div class="kl-table-card kl-anim" style="animation-delay: 0.2s;">
+            <div id="candidates-list" hx-swap="innerHTML">
+                {# Loading State #}
+                <div style="padding: 60px 20px; text-align: center;">
+                    <svg style="width: 32px; height: 32px; color: #818cf8; margin: 0 auto 12px; animation: spin 1s linear infinite;" viewBox="0 0 24 24" fill="none">
+                        <circle style="opacity: 0.25;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path style="opacity: 0.75;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    <span class="text-lg">Kandidaten werden geladen...</span>
+                    <p style="font-size: 14px; color: #94a3b8; font-weight: 500;">Kandidaten werden geladen...</p>
                 </div>
             </div>
         </div>
     </div>
+
 </div>
 
 <script>
-// ==================== URL State Management ====================
-// Synchronisiert Filter, Seite, Kategorie mit der Browser-URL
-// Damit beim Zurueck-Button alles erhalten bleibt
+// ==================== Filter Panel Toggle ====================
+function toggleFilterPanel() {
+    var panel = document.getElementById('kl-filter-panel');
+    var btn = document.getElementById('kl-filter-toggle');
+    if (panel.style.display === 'none') {
+        panel.style.display = 'block';
+        if (btn) btn.classList.add('kl-select-btn-active');
+    } else {
+        panel.style.display = 'none';
+        if (btn) btn.classList.remove('kl-select-btn-active');
+    }
+}
 
+// Auto-open filter panel if URL has filter params
+(function() {
+    var params = new URLSearchParams(window.location.search);
+    if (params.get('position') || params.get('skills') || params.get('city')) {
+        var panel = document.getElementById('kl-filter-panel');
+        var btn = document.getElementById('kl-filter-toggle');
+        if (panel) panel.style.display = 'block';
+        if (btn) btn.classList.add('kl-select-btn-active');
+    }
+})();
+
+// ==================== Stats Update ====================
+function updateStatsFromPartial() {
+    var el = document.getElementById('kl-stats-data');
+    if (!el) return;
+    var total = el.dataset.total || '0';
+    var page = el.dataset.page || '1';
+    var perPage = el.dataset.perPage || '25';
+    var statTotal = document.getElementById('kl-stat-total');
+    var statPage = document.getElementById('kl-stat-page');
+    var statPerPage = document.getElementById('kl-stat-perpage');
+    if (statTotal) statTotal.textContent = total;
+    if (statPage) statPage.textContent = page;
+    if (statPerPage) statPerPage.textContent = perPage;
+}
+
+// ==================== URL State Management ====================
 function getUrlParams() {
     return new URLSearchParams(window.location.search);
 }
@@ -213,10 +505,8 @@ function pushStateToUrl(page) {
     }
 }
 
-// URL-State in Formular-Inputs wiederherstellen
 function restoreStateFromUrl() {
     var params = getUrlParams();
-
     var search = document.getElementById('candidate-search');
     if (search && params.get('search')) search.value = params.get('search');
 
@@ -235,39 +525,36 @@ function restoreStateFromUrl() {
     var perPage = document.getElementById('per-page-select');
     if (perPage && params.get('per_page')) perPage.value = params.get('per_page');
 
-    // Kategorie-Riegel visuell synchronisieren
+    // Sync Alpine.js category chips
     var catVal = params.get('category') || '';
-    // Alpine.js activeCategory setzen via DOM-Event
-    var catButtons = document.querySelectorAll('[x-data] button[type="button"]');
-    // Besser: Alpine direkt ueber $data ansprechen
-    var catContainer = document.querySelector('[x-data]');
-    if (catContainer && catContainer.__x) {
-        catContainer.__x.$data.activeCategory = catVal;
-    } else if (catContainer && catContainer._x_dataStack) {
+    var catContainer = document.getElementById('kl-category-chips');
+    if (catContainer && catContainer._x_dataStack) {
         catContainer._x_dataStack[0].activeCategory = catVal;
+    } else if (catContainer && catContainer.__x) {
+        catContainer.__x.$data.activeCategory = catVal;
     }
 
     updateFilterBadge();
 }
 
-// Aktuelle Seite aus dem HTMX-Response extrahieren
 var _currentPage = 1;
 var _isInitialLoad = true;
 
-// Nach oben scrollen bei Seitenwechsel + URL updaten
+// After HTMX settles — update stats + URL
 document.body.addEventListener('htmx:afterSettle', function(event) {
     if (event.detail.target && event.detail.target.id === 'candidates-list') {
-        // Beim initial-load nicht scrollen (Seite wird gerade erst aufgebaut)
+        // Update stats
+        updateStatsFromPartial();
+
         if (!_isInitialLoad) {
-            window.scrollTo(0, 0);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
-        // Aktuelle Seite aus dem Response extrahieren
-        var activePageEl = document.querySelector('#candidates-list .border-primary-500');
+        // Extract current page from active page button
+        var activePageEl = document.querySelector('#candidates-list .kl-page-btn-active');
         if (activePageEl) {
             _currentPage = parseInt(activePageEl.textContent.trim()) || 1;
         }
         if (_isInitialLoad) {
-            // Erster Load: replaceState statt pushState (kein Extra-Eintrag im History)
             var state = getCurrentState();
             var newUrl = '/kandidaten' + buildQueryString(state, _currentPage);
             history.replaceState({ candidatePage: true, page: _currentPage }, '', newUrl);
@@ -278,12 +565,10 @@ document.body.addEventListener('htmx:afterSettle', function(event) {
     }
 });
 
-// popstate: Wenn Benutzer Zurueck/Vorwaerts klickt
+// popstate: browser back/forward
 window.addEventListener('popstate', function(event) {
-    // Nur reagieren wenn wir auf /kandidaten sind
     if (window.location.pathname === '/kandidaten') {
         restoreStateFromUrl();
-        // Liste mit den URL-Parametern neu laden
         var params = getUrlParams();
         var page = params.get('page') || '1';
         var perPage = params.get('per_page') || '25';
@@ -315,11 +600,10 @@ function resetCandidateFilters() {
     });
     var search = document.getElementById('candidate-search');
     if (search) search.value = '';
-    // Kategorie-Riegel zuruecksetzen
     var category = document.querySelector('[name="category"]');
     if (category) category.value = '';
-    // Alpine.js Kategorie-State zuruecksetzen
-    var catContainer = document.querySelector('[x-data]');
+    // Reset Alpine.js category state
+    var catContainer = document.getElementById('kl-category-chips');
     if (catContainer && catContainer._x_dataStack) {
         catContainer._x_dataStack[0].activeCategory = '';
     }
@@ -344,15 +628,11 @@ function updateFilterBadge() {
 }
 
 // ==================== Initialisierung ====================
-// Beim Laden: State aus URL wiederherstellen und Liste laden
 (function() {
     function initCandidates() {
         var params = getUrlParams();
-
-        // State aus URL in Formular-Inputs wiederherstellen
         restoreStateFromUrl();
 
-        // Initiale Liste laden (mit URL-Parametern falls vorhanden)
         var page = params.get('page') || '1';
         var perPage = params.get('per_page') || '25';
         var url = '/partials/candidates-list?page=' + page + '&per_page=' + perPage;
@@ -364,7 +644,6 @@ function updateFilterBadge() {
         htmx.ajax('GET', url, {target:'#candidates-list', swap:'innerHTML'});
     }
 
-    // Warten bis DOM + Alpine.js bereit sind
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', function() {
             setTimeout(initCandidates, 50);
