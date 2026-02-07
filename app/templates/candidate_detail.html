@@ -5,7 +5,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-    .kd-wrap { font-family: 'Outfit', 'DM Sans', -apple-system, sans-serif; background: #f4f5f8; color: #1e293b; }
+    .kd-wrap, .kd-wrap * { font-family: 'Outfit', 'DM Sans', -apple-system, sans-serif; }
+    .kd-wrap { background: #f4f5f8; color: #1e293b; }
     .kd-wrap ::-webkit-scrollbar { width: 5px; }
     .kd-wrap ::-webkit-scrollbar-track { background: transparent; }
     .kd-wrap ::-webkit-scrollbar-thumb { background: #d4d9e3; border-radius: 3px; }
@@ -552,6 +553,42 @@
                         {% for job in work_list %}{% if job is mapping %}
                         {% set is_first = loop.first %}
                         {% set is_last = loop.last %}
+                        {# ── Dauer berechnen ── #}
+                        {% set dur_text = job.duration | default('') %}
+                        {% if not dur_text and job.start_date %}
+                            {% set sd = job.start_date | string %}
+                            {% set ed = job.end_date | default('') | string %}
+                            {% set s_parts = sd.split('/') %}
+                            {% if s_parts | length == 2 %}
+                                {% set s_month = s_parts[0] | int %}
+                                {% set s_year = s_parts[1] | int %}
+                                {% if ed and ed != 'None' and ed != 'null' and ed != 'heute' and ed != 'today' %}
+                                    {% set e_parts = ed.split('/') %}
+                                    {% if e_parts | length == 2 %}
+                                        {% set e_month = e_parts[0] | int %}
+                                        {% set e_year = e_parts[1] | int %}
+                                    {% else %}
+                                        {% set e_month = now().month %}
+                                        {% set e_year = now().year %}
+                                    {% endif %}
+                                {% else %}
+                                    {% set e_month = now().month %}
+                                    {% set e_year = now().year %}
+                                {% endif %}
+                                {% set total_months = (e_year - s_year) * 12 + (e_month - s_month) %}
+                                {% if total_months > 0 %}
+                                    {% set d_years = total_months // 12 %}
+                                    {% set d_months = total_months % 12 %}
+                                    {% if d_years > 0 and d_months > 0 %}
+                                        {% set dur_text = d_years ~ ' J. ' ~ d_months ~ ' Mon.' %}
+                                    {% elif d_years > 0 %}
+                                        {% set dur_text = d_years ~ ' Jahr' ~ ('e' if d_years != 1 else '') %}
+                                    {% else %}
+                                        {% set dur_text = d_months ~ ' Mon.' %}
+                                    {% endif %}
+                                {% endif %}
+                            {% endif %}
+                        {% endif %}
                         <div style="display: flex; gap: 16px; padding: 18px 0; {% if not is_last %}border-bottom: 1px solid #f0f2f5;{% endif %}">
                             {# Timeline dot + line #}
                             <div style="display: flex; flex-direction: column; align-items: center; padding-top: 4px; flex-shrink: 0; width: 20px;">
@@ -574,12 +611,12 @@
                                     <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
                                         {% if job.start_date %}
                                         <span style="font-size: 12px; color: #94a3b8; font-weight: 500; white-space: nowrap;">
-                                            {{ job.start_date }}{% if job.end_date %} &ndash; {{ job.end_date }}{% else %} &ndash; heute{% endif %}
+                                            {{ job.start_date }}{% if job.end_date and job.end_date != 'None' %} &ndash; {{ job.end_date }}{% else %} &ndash; heute{% endif %}
                                         </span>
                                         {% endif %}
-                                        {% if job.duration %}
+                                        {% if dur_text %}
                                         <span style="font-size: 11px; font-weight: 650; padding: 3px 10px; border-radius: 8px; background: {% if is_first %}#eef2ff{% else %}#f4f6f8{% endif %}; color: {% if is_first %}#4f46e5{% else %}#64748b{% endif %}; white-space: nowrap;">
-                                            {{ job.duration }}
+                                            {{ dur_text }}
                                         </span>
                                         {% endif %}
                                     </div>
@@ -620,7 +657,8 @@
                     <div style="display: flex; flex-direction: column; gap: 10px;">
                         {% for skill in candidate.it_skills %}
                         {% if skill and skill != 'None' and skill != 'null' %}
-                        {% set is_core = skill.lower() in ['sap', 'sap s/4hana', 'sap-sem-bcs', 'sap fi', 'sap co', 'sap mm', 'sap bcs', 'cch tagetik', 'datev', 'addison', 'oracle', 'navision', 'dynamics'] or 'sap' in skill.lower() or 'erp' in skill.lower() or 'datev' in skill.lower() %}
+                        {% set sk_low = skill.lower() %}
+                        {% set is_core = sk_low in ['sap', 'sap s/4hana', 'sap-sem-bcs', 'sap fi', 'sap co', 'sap mm', 'sap bcs', 'cch tagetik', 'datev', 'addison', 'oracle', 'navision', 'dynamics', 'lucanet', 'sigma', 'hyperion', 'cognos', 'jedox', 'board', 'anaplan'] or 'sap' in sk_low or 'erp' in sk_low or 'datev' in sk_low or 'tagetik' in sk_low or 'lucanet' in sk_low or 'konsolidierung' in sk_low or 'hyperion' in sk_low or 'cognos' in sk_low %}
                         <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: 10px; background: {% if is_core %}#eef2ff{% else %}#f8fafc{% endif %}; border: 1px solid {% if is_core %}#ddd6fe{% else %}#eef0f4{% endif %};">
                             <div style="display: flex; align-items: center; gap: 10px;">
                                 {% if is_core %}
@@ -698,9 +736,11 @@
                     <div style="display: flex; flex-wrap: wrap; gap: 7px;">
                         {% for skill in candidate.skills %}
                         {% if skill and skill != 'None' and skill != 'null' %}
-                        {# Simple heuristic: tech keywords → tech, otherwise fach #}
-                        {% set is_tech = skill.lower() in ['sap', 'excel', 'word', 'powerpoint', 'outlook', 'teams', 'python', 'sql', 'javascript', 'html', 'css', 'r', 'tableau', 'power bi', 'datev'] or 'microsoft' in skill.lower() or 'sap' in skill.lower() or 'office' in skill.lower() or 'software' in skill.lower() %}
-                        <span class="{% if is_tech %}skill-tech{% else %}skill-fach{% endif %}" style="font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 8px;">{{ skill }}</span>
+                        {# Heuristic: tech keywords → green, fach (finance/accounting) → indigo, soft skills → amber #}
+                        {% set sk_low = skill.lower() %}
+                        {% set is_tech = sk_low in ['sap', 'excel', 'word', 'powerpoint', 'outlook', 'teams', 'python', 'sql', 'javascript', 'html', 'css', 'r', 'tableau', 'power bi', 'datev', 'addison'] or 'microsoft' in sk_low or 'sap' in sk_low or 'office' in sk_low or 'software' in sk_low or 'erp' in sk_low or 'it' == sk_low or 'edv' in sk_low %}
+                        {% set is_soft = 'kommunikation' in sk_low or 'führung' in sk_low or 'team' in sk_low or 'management' in sk_low or 'organisation' in sk_low or 'präsentation' in sk_low or 'verhandlung' in sk_low or 'coaching' in sk_low or 'moderation' in sk_low or 'motivation' in sk_low or 'analytisch' in sk_low %}
+                        <span class="{% if is_tech %}skill-tech{% elif is_soft %}skill-soft{% else %}skill-fach{% endif %}" style="font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 8px;">{{ skill }}</span>
                         {% endif %}
                         {% endfor %}
                     </div>
@@ -722,20 +762,28 @@
                     {% if candidate.further_education and candidate.further_education is iterable and candidate.further_education is not string and candidate.further_education | length > 0 %}
                     <div style="display: flex; flex-direction: column; gap: 8px;">
                         {% for wb in candidate.further_education %}{% if wb is mapping %}
-                        {% set wb_name = wb.degree if (wb.degree and wb.degree != 'None' and wb.degree != 'null') else (wb.qualification if (wb.qualification and wb.qualification != 'None' and wb.qualification != 'null') else 'Weiterbildung') %}
+                        {% set wb_name = wb.degree if (wb.degree and wb.degree != 'None' and wb.degree != 'null') else (wb.qualification if (wb.qualification and wb.qualification != 'None' and wb.qualification != 'null') else '') %}
                         {% set wb_inst = wb.institution | default('') %}
+                        {% if wb_inst == 'None' or wb_inst == 'null' %}{% set wb_inst = '' %}{% endif %}
                         {% set wb_year = wb.year | default(wb.end_date | default('')) %}
-                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: 10px; background: #f8fafc; border: 1px solid #eef0f4;">
+                        {% if wb_year == 'None' or wb_year == 'null' %}{% set wb_year = '' %}{% endif %}
+                        {# Generische Einträge ohne Details dezenter darstellen #}
+                        {% set is_generic = wb_name.lower() in ['seminar', 'e-learning', 'kurs', 'workshop', 'webinar', 'schulung', 'weiterbildung', ''] and not wb_inst %}
+                        {% if wb_name %}
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: 10px; background: {% if is_generic %}#fcfcfd{% else %}#f8fafc{% endif %}; border: 1px solid {% if is_generic %}#f0f2f5{% else %}#eef0f4{% endif %}; {% if is_generic %}opacity: 0.7;{% endif %}">
                             <div>
-                                <div style="font-size: 13.5px; font-weight: 650; color: #1e293b;">{{ wb_name }}</div>
-                                {% if wb_inst and wb_inst != 'None' and wb_inst != 'null' %}
+                                <div style="font-size: 13.5px; font-weight: {% if is_generic %}550{% else %}650{% endif %}; color: {% if is_generic %}#64748b{% else %}#1e293b{% endif %};">
+                                    {{ wb_name }}{% if is_generic and not wb_inst %} <span style="font-size: 11px; color: #94a3b8; font-weight: 400; font-style: italic;">(ohne Details)</span>{% endif %}
+                                </div>
+                                {% if wb_inst %}
                                 <div style="font-size: 12px; color: #94a3b8; margin-top: 2px; font-weight: 500;">{{ wb_inst }}</div>
                                 {% endif %}
                             </div>
-                            {% if wb_year and wb_year != 'None' and wb_year != 'null' %}
+                            {% if wb_year %}
                             <span style="font-size: 12px; color: #64748b; font-weight: 600; background: #eef0f4; padding: 3px 10px; border-radius: 6px;">{{ wb_year }}</span>
                             {% endif %}
                         </div>
+                        {% endif %}
                         {% endif %}{% endfor %}
                     </div>
                     {% else %}
