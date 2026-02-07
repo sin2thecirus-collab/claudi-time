@@ -4,13 +4,13 @@ import hashlib
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile
+from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import delete as sa_delete, func as sa_func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -664,10 +664,7 @@ async def delete_document(document_id: UUID, db: AsyncSession = Depends(get_db))
 # ══════════════════════════════════════════════════════════════
 
 import asyncio
-import uuid
-from fastapi import BackgroundTasks
-from fastapi.responses import JSONResponse
-from sqlalchemy import delete as sa_delete, func as sa_func
+import uuid as uuid_mod
 
 # Global import status
 _import_status: dict[str, Any] = {"running": False, "log": [], "stats": {}}
@@ -793,7 +790,7 @@ async def _run_crm_import(dry_run: bool = False, max_pages: int | None = None, s
                                     contact_stats["skipped_no_company"] += 1
                                     continue
 
-                                mapped["company_id"] = uuid.UUID(cid_str)
+                                mapped["company_id"] = uuid_mod.UUID(cid_str)
                                 batch.append(CompanyContact(**mapped))
                                 contact_stats["imported"] += 1
 
