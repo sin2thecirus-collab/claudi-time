@@ -1,91 +1,236 @@
 {% extends "base.html" %}
-{% block title %}{{ candidate.full_name or (candidate.first_name ~ ' ' ~ candidate.last_name) }} - Matching-Tool{% endblock %}
+{% block title %}{{ candidate.full_name or (candidate.first_name ~ ' ' ~ candidate.last_name) }} - Pulspoint{% endblock %}
+
+{% block head %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+    .kd-wrap { font-family: 'Outfit', 'DM Sans', -apple-system, sans-serif; background: #f4f5f8; color: #1e293b; }
+    .kd-wrap ::-webkit-scrollbar { width: 5px; }
+    .kd-wrap ::-webkit-scrollbar-track { background: transparent; }
+    .kd-wrap ::-webkit-scrollbar-thumb { background: #d4d9e3; border-radius: 3px; }
+
+    @keyframes kdFadeUp {
+        from { opacity: 0; transform: translateY(16px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes kdSlideIn {
+        from { opacity: 0; transform: translateX(12px); }
+        to   { opacity: 1; transform: translateX(0); }
+    }
+    .kd-anim { opacity: 0; animation: kdFadeUp 0.5s cubic-bezier(0.4,0,0.2,1) forwards; }
+    .kd-anim-side { opacity: 0; animation: kdSlideIn 0.5s cubic-bezier(0.4,0,0.2,1) forwards; }
+
+    .kd-section {
+        background: #fff; border-radius: 16px; border: 1px solid #e6e9ef; overflow: hidden;
+    }
+    .kd-section-header {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 16px 22px; border-bottom: 1px solid #f0f2f5;
+        background: linear-gradient(135deg, #fafbfd 0%, #f7f8fb 100%);
+    }
+    .kd-section-title {
+        display: flex; align-items: center; gap: 10px;
+        font-size: 15px; font-weight: 750; color: #0f172a; letter-spacing: -0.02em;
+    }
+    .kd-section-body { padding: 18px 22px; }
+
+    .kd-sidebar-card {
+        background: #fff; border-radius: 14px; border: 1px solid #e6e9ef; overflow: hidden;
+    }
+    .kd-sidebar-header {
+        padding: 14px 18px; border-bottom: 1px solid #f0f2f5;
+        display: flex; align-items: center; justify-content: space-between;
+        background: linear-gradient(135deg, #fafbfd, #f7f8fb);
+        font-size: 13px; font-weight: 700; color: #334155;
+    }
+    .kd-sidebar-body { padding: 14px 18px; }
+
+    .kd-exp-dot-current {
+        width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0;
+        background: linear-gradient(135deg, #6366f1, #818cf8);
+        border: 3px solid #e0e7ff;
+    }
+    .kd-exp-dot-past {
+        width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0;
+        background: #d4d9e3; border: 3px solid #f0f2f5;
+    }
+    .kd-exp-line {
+        width: 2px; flex: 1; margin-top: 6px;
+        background: linear-gradient(to bottom, #e2e5ec, transparent);
+    }
+
+    .kd-lang-bar {
+        height: 8px; border-radius: 4px; overflow: hidden; background: #f0f2f5;
+    }
+    .kd-lang-fill {
+        height: 100%; border-radius: 4px; transition: width 0.8s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    .kd-quickbtn {
+        display: inline-flex; align-items: center; gap: 7px;
+        padding: 9px 16px; border-radius: 10px;
+        font-size: 12.5px; font-weight: 630; cursor: pointer;
+        font-family: inherit; transition: all 0.2s; border: 1.5px solid #e2e5ec;
+        background: #fff; color: #475569;
+    }
+    .kd-quickbtn:hover { background: #f8fafc; }
+    .kd-quickbtn-primary {
+        background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; border: none;
+        box-shadow: 0 2px 8px rgba(99,102,241,0.25);
+    }
+    .kd-quickbtn-primary:hover { background: linear-gradient(135deg, #4f46e5, #7c3aed); }
+    .kd-quickbtn-accent {
+        background: #fff; color: #4f46e5; border: 1.5px solid #c7d2fe;
+    }
+    .kd-quickbtn-accent:hover { background: #eef2ff; }
+    .kd-quickbtn-danger {
+        background: #fff; color: #dc2626; border: 1.5px solid #fecaca;
+    }
+    .kd-quickbtn-danger:hover { background: #fef2f2; }
+
+    /* Nav item */
+    .kd-nav-btn {
+        display: flex; align-items: center; gap: 8px;
+        padding: 8px 12px; border-radius: 8px;
+        background: transparent; border: none; cursor: pointer; width: 100%; text-align: left;
+        font-family: inherit; transition: all 0.15s; font-size: 12px; font-weight: 500; color: #64748b;
+    }
+    .kd-nav-btn:hover { background: #f8fafc; }
+    .kd-nav-btn.active { background: #eef2ff; font-weight: 650; color: #4f46e5; }
+
+    /* Inline edit overrides for new design */
+    .kd-wrap .detail-edit-display {
+        cursor: pointer; border-radius: 4px; padding: 1px 4px;
+        transition: all 0.15s;
+    }
+    .kd-wrap .detail-edit-display:hover {
+        background: rgba(99,102,241,0.06);
+    }
+    .kd-wrap .detail-edit-input {
+        font-family: inherit; border-radius: 8px;
+    }
+
+    /* Skill category colors */
+    .skill-fach { background: #eef2ff; color: #4f46e5; border: 1px solid #c7d2fe; }
+    .skill-tech { background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; }
+    .skill-soft { background: #fefce8; color: #a16207; border: 1px solid #fde68a; }
+
+    /* Copy button */
+    .kd-copy-btn {
+        background: #f4f6f8; border: none; border-radius: 6px; padding: 3px 8px;
+        font-size: 11px; cursor: pointer; color: #94a3b8; font-weight: 600;
+        transition: all 0.2s; font-family: inherit;
+    }
+    .kd-copy-btn:hover { background: #e8ecf1; color: #64748b; }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="space-y-4">
-    <nav class="flex" aria-label="Breadcrumb"><ol class="flex items-center space-x-2"><li><a href="/" class="text-gray-400 hover:text-gray-500"><svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9.293 2.293a1 1 0 011.414 0l7 7A1 1 0 0117 11h-1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-3a1 1 0 00-1-1H9a1 1 0 00-1 1v3a1 1 0 01-1 1H5a1 1 0 01-1-1v-6H3a1 1 0 01-.707-1.707l7-7z" clip-rule="evenodd" /></svg></a></li><li><div class="flex items-center"><svg class="h-5 w-5 flex-shrink-0 text-gray-300" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" /></svg><a href="/kandidaten" class="ml-2 text-sm font-medium text-gray-500 hover:text-gray-700">Kandidaten</a></div></li><li><div class="flex items-center"><svg class="h-5 w-5 flex-shrink-0 text-gray-300" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" /></svg><span class="ml-2 text-sm font-medium text-gray-500">{{ candidate.full_name or 'Details' }}</span></div></li></ol></nav>
+<div class="kd-wrap min-h-screen" x-data="{ activeSection: 'experience' }">
 
-    {# ===== Hero-Banner Header ===== #}
-    <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg overflow-hidden">
-        <div class="bg-gradient-to-br from-gray-50 to-gray-100 px-8 py-6">
-            <div class="flex items-center space-x-6">
-                <span class="inline-flex h-20 w-20 items-center justify-center rounded-full bg-primary-100 ring-4 ring-white flex-shrink-0 shadow-sm">
-                    <span class="text-2xl font-bold text-primary-700">{{ (candidate.first_name or 'X')[0] | upper }}{{ (candidate.last_name or 'X')[0] | upper }}</span>
-                </span>
-                <div class="flex-1 min-w-0">
-                    {# Name - editierbar (Vorname + Nachname) #}
-                    <div class="flex items-center gap-2">
-                        <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="first_name">
-                            <span class="detail-edit-display text-3xl font-bold text-gray-900 cursor-pointer hover:bg-yellow-50 hover:ring-1 hover:ring-yellow-300 rounded px-1 py-0.5 transition-all" onclick="startDetailEdit(this)" title="Vorname bearbeiten">{{ candidate.first_name or 'Vorname' }}</span>
-                            <input type="text" class="detail-edit-input hidden rounded-md border-0 py-1 px-2 text-2xl font-bold text-gray-900 ring-1 ring-inset ring-primary-400 focus:ring-2 focus:ring-primary-600 w-48" value="{{ candidate.first_name or '' }}" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)">
-                        </div>
-                        <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="last_name">
-                            <span class="detail-edit-display text-3xl font-bold text-gray-900 cursor-pointer hover:bg-yellow-50 hover:ring-1 hover:ring-yellow-300 rounded px-1 py-0.5 transition-all" onclick="startDetailEdit(this)" title="Nachname bearbeiten">{{ candidate.last_name or 'Nachname' }}</span>
-                            <input type="text" class="detail-edit-input hidden rounded-md border-0 py-1 px-2 text-2xl font-bold text-gray-900 ring-1 ring-inset ring-primary-400 focus:ring-2 focus:ring-primary-600 w-48" value="{{ candidate.last_name or '' }}" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)">
-                        </div>
-                    </div>
-                    {# Position + Firma - editierbar #}
-                    <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="current_position">
-                            <span class="detail-edit-display text-lg text-gray-500 cursor-pointer hover:bg-yellow-50 hover:ring-1 hover:ring-yellow-300 rounded px-1 py-0.5 transition-all" onclick="startDetailEdit(this)" title="Position bearbeiten">{{ candidate.current_position or 'Keine Position angegeben' }}</span>
-                            <input type="text" class="detail-edit-input hidden rounded-md border-0 py-1 px-2 text-base text-gray-900 ring-1 ring-inset ring-primary-400 focus:ring-2 focus:ring-primary-600" value="{{ candidate.current_position or '' }}" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)">
-                        </div>
-                        <span class="text-gray-300 mx-1">&bull;</span>
-                        <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="current_company">
-                            <span class="detail-edit-display text-lg text-gray-400 cursor-pointer hover:bg-yellow-50 hover:ring-1 hover:ring-yellow-300 rounded px-1 py-0.5 transition-all" onclick="startDetailEdit(this)" title="Unternehmen bearbeiten">{{ candidate.current_company or 'Kein Unternehmen' }}</span>
-                            <input type="text" class="detail-edit-input hidden rounded-md border-0 py-1 px-2 text-base text-gray-900 ring-1 ring-inset ring-primary-400 focus:ring-2 focus:ring-primary-600" value="{{ candidate.current_company or '' }}" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)">
-                        </div>
-                    </div>
-                    {# Jobtitel + Rating #}
-                    {% if candidate.manual_job_titles and candidate.manual_job_titles | length > 0 %}
-                    <div class="mt-2 flex flex-wrap items-center gap-2">
-                        {% for title in candidate.manual_job_titles %}
-                        <span class="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1 text-sm font-medium text-green-700 ring-1 ring-inset ring-green-200">
-                            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" /><path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6z" /></svg>
-                            {{ title }}
-                        </span>
-                        {% endfor %}
-                        {% if candidate.rating %}
-                        <span class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-3 py-1 text-sm font-medium text-amber-700 ring-1 ring-inset ring-amber-200">
-                            {% for i in range(1, 11) %}
-                            <svg class="w-3 h-3 {% if i <= candidate.rating %}text-amber-400{% else %}text-gray-300{% endif %}" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                            </svg>
-                            {% endfor %}
-                        </span>
-                        {% endif %}
-                    </div>
-                    {% endif %}
+    {# ════════════════════════════════════════════════════
+       VIOLET HERO HEADER
+    ════════════════════════════════════════════════════ #}
+    <div style="background: linear-gradient(135deg, #1e1b4b 0%, #312e81 40%, #4338ca 100%); padding: 28px 40px 0; position: relative; overflow: hidden;">
+        {# Decorative circle #}
+        <div style="position: absolute; top: -60px; right: -60px; width: 200px; height: 200px; border-radius: 50%; background: radial-gradient(circle, rgba(129,140,248,0.15) 0%, transparent 70%);"></div>
 
-                    {# Meta-Badges #}
-                    <div class="mt-2 flex flex-wrap items-center gap-2">
-                        {% if candidate.birth_date or candidate.age %}
-                        <span class="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-sm text-gray-500 ring-1 ring-inset ring-gray-200">
-                            <svg class="h-3.5 w-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>
-                            {% if candidate.birth_date %}{{ candidate.birth_date.strftime('%d.%m.%Y') }}{% endif %}{% if candidate.age %} ({{ candidate.age }} Jahre){% endif %}
-                        </span>
-                        {% endif %}
-                        {% if candidate.city %}
-                        <span class="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-sm text-gray-500 ring-1 ring-inset ring-gray-200">
-                            <svg class="h-3.5 w-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" /></svg>
-                            {{ candidate.city }}{% if candidate.postal_code %}, {{ candidate.postal_code }}{% endif %}
-                        </span>
-                        {% endif %}
-                        <span class="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-sm text-gray-400 ring-1 ring-inset ring-gray-200">
-                            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                            Seit {{ candidate.created_at.strftime('%d.%m.%Y') if candidate.created_at else 'Unbekannt' }}
-                        </span>
+        {# Breadcrumb #}
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: rgba(255,255,255,0.5); margin-bottom: 20px; font-weight: 500;">
+            <a href="/" style="cursor: pointer; color: rgba(255,255,255,0.6); text-decoration: none;">&#x1F3E0;</a>
+            <span>&#x203A;</span>
+            <a href="/kandidaten" style="cursor: pointer; color: rgba(255,255,255,0.6); text-decoration: none;">Kandidaten</a>
+            <span>&#x203A;</span>
+            <span style="color: rgba(255,255,255,0.85);">{{ candidate.full_name or 'Details' }}</span>
+        </div>
+
+        {# Avatar + Name + Meta #}
+        <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 22px;">
+            <div style="width: 68px; height: 68px; border-radius: 18px; background: linear-gradient(135deg, #818cf8 0%, #a78bfa 100%); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 24px; font-weight: 800; border: 3px solid rgba(255,255,255,0.2); box-shadow: 0 4px 20px rgba(0,0,0,0.2); flex-shrink: 0;">
+                {{ (candidate.first_name or 'X')[0] | upper }}{{ (candidate.last_name or 'X')[0] | upper }}
+            </div>
+            <div style="flex: 1; min-width: 0;">
+                {# Name - editable #}
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="first_name">
+                        <span class="detail-edit-display" onclick="startDetailEdit(this)" title="Vorname bearbeiten" style="font-size: 26px; font-weight: 800; color: #fff; letter-spacing: -0.03em; cursor: pointer;">{{ candidate.first_name or 'Vorname' }}</span>
+                        <input type="text" class="detail-edit-input hidden" value="{{ candidate.first_name or '' }}" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)" style="font-size: 22px; font-weight: 800; color: #1e293b; padding: 2px 8px; border-radius: 8px; border: 2px solid #818cf8; width: 200px;">
+                    </div>
+                    <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="last_name">
+                        <span class="detail-edit-display" onclick="startDetailEdit(this)" title="Nachname bearbeiten" style="font-size: 26px; font-weight: 800; color: #fff; letter-spacing: -0.03em; cursor: pointer;">{{ candidate.last_name or 'Nachname' }}</span>
+                        <input type="text" class="detail-edit-input hidden" value="{{ candidate.last_name or '' }}" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)" style="font-size: 22px; font-weight: 800; color: #1e293b; padding: 2px 8px; border-radius: 8px; border: 2px solid #818cf8; width: 200px;">
                     </div>
                 </div>
+
+                {# Position + Company - editable #}
+                <div style="display: flex; align-items: center; gap: 6px; margin-top: 4px; flex-wrap: wrap;">
+                    <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="current_position">
+                        <span class="detail-edit-display" onclick="startDetailEdit(this)" title="Position bearbeiten" style="font-size: 14px; color: rgba(255,255,255,0.7); font-weight: 500; cursor: pointer;">{{ candidate.current_position or 'Keine Position angegeben' }}</span>
+                        <input type="text" class="detail-edit-input hidden" value="{{ candidate.current_position or '' }}" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)" style="font-size: 14px; color: #1e293b; padding: 2px 8px; border-radius: 8px; border: 2px solid #818cf8;">
+                    </div>
+                    {% if candidate.current_company %}
+                    <span style="color: rgba(255,255,255,0.4);">&middot;</span>
+                    {% endif %}
+                    <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="current_company">
+                        <span class="detail-edit-display" onclick="startDetailEdit(this)" title="Unternehmen bearbeiten" style="font-size: 14px; color: rgba(255,255,255,0.5); font-weight: 500; cursor: pointer;">{{ candidate.current_company or 'Kein Unternehmen' }}</span>
+                        <input type="text" class="detail-edit-input hidden" value="{{ candidate.current_company or '' }}" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)" style="font-size: 14px; color: #1e293b; padding: 2px 8px; border-radius: 8px; border: 2px solid #818cf8;">
+                    </div>
+                </div>
+
+                {# Meta badges #}
+                <div style="display: flex; gap: 12px; margin-top: 10px; flex-wrap: wrap;">
+                    {% if candidate.birth_date or candidate.age %}
+                    <span style="display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: rgba(255,255,255,0.6); font-weight: 500; background: rgba(255,255,255,0.08); padding: 4px 10px; border-radius: 8px;">
+                        <span style="font-size: 12px;">&#x1F4C5;</span>
+                        {% if candidate.birth_date %}{{ candidate.birth_date.strftime('%d.%m.%Y') }}{% endif %}{% if candidate.age %} ({{ candidate.age }} Jahre){% endif %}
+                    </span>
+                    {% endif %}
+                    {% if candidate.city %}
+                    <span style="display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: rgba(255,255,255,0.6); font-weight: 500; background: rgba(255,255,255,0.08); padding: 4px 10px; border-radius: 8px;">
+                        <span style="font-size: 12px;">&#x1F4CD;</span>
+                        {{ candidate.city }}{% if candidate.postal_code %}, {{ candidate.postal_code }}{% endif %}
+                    </span>
+                    {% endif %}
+                    <span style="display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: rgba(255,255,255,0.6); font-weight: 500; background: rgba(255,255,255,0.08); padding: 4px 10px; border-radius: 8px;">
+                        <span style="font-size: 12px;">&#x1F554;</span>
+                        Seit {{ candidate.created_at.strftime('%d.%m.%Y') if candidate.created_at else 'Unbekannt' }}
+                    </span>
+                    {% if candidate.work_history and candidate.work_history is iterable and candidate.work_history is not string and candidate.work_history | length > 0 %}
+                    <span style="display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: rgba(255,255,255,0.6); font-weight: 500; background: rgba(255,255,255,0.08); padding: 4px 10px; border-radius: 8px;">
+                        <span style="font-size: 12px;">&#x1F4CA;</span>
+                        {{ candidate.work_history | length }} Position{{ 'en' if candidate.work_history | length != 1 else '' }}
+                    </span>
+                    {% endif %}
+                </div>
+
+                {# Job title tags + Rating #}
+                {% if candidate.manual_job_titles and candidate.manual_job_titles | length > 0 %}
+                <div style="display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; align-items: center;">
+                    {% for title in candidate.manual_job_titles %}
+                    <span style="display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 8px; background: rgba(16,185,129,0.15); color: #6ee7b7;">
+                        &#x1F3F7; {{ title }}
+                    </span>
+                    {% endfor %}
+                    {% if candidate.rating %}
+                    <span style="display: inline-flex; align-items: center; gap: 2px; font-size: 13px; padding: 2px 8px; border-radius: 8px; background: rgba(245,158,11,0.15);">
+                        {% for i in range(1, 6) %}
+                        <span style="color: {% if i <= candidate.rating %}#f59e0b{% else %}rgba(255,255,255,0.2){% endif %};">&#9733;</span>
+                        {% endfor %}
+                    </span>
+                    {% endif %}
+                </div>
+                {% endif %}
             </div>
         </div>
-        {# Button-Leiste mit Alpine.js fuer Pipeline-Modal #}
+
+        {# Quick Action Buttons #}
         <div x-data="{
             showPipelineModal: false,
             jobs: [],
             selectedJob: '',
             selectedStage: 'sent',
             loading: false,
-            // Neue Stelle erstellen
             showNewJobForm: false,
             newJobTitle: '',
             newJobCompanyId: '',
@@ -116,14 +261,9 @@
                 this.companies = data.items || [];
             },
             filterCompanies() {
-                if (!this.newJobCompanyName) {
-                    this.filteredCompanies = [];
-                    return;
-                }
+                if (!this.newJobCompanyName) { this.filteredCompanies = []; return; }
                 const term = this.newJobCompanyName.toLowerCase();
-                this.filteredCompanies = this.companies
-                    .filter(c => c.name.toLowerCase().includes(term))
-                    .slice(0, 10);
+                this.filteredCompanies = this.companies.filter(c => c.name.toLowerCase().includes(term)).slice(0, 10);
             },
             selectCompany(company) {
                 this.newJobCompanyId = company.id;
@@ -136,25 +276,16 @@
                 const response = await fetch('/api/ats/jobs', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        title: this.newJobTitle,
-                        company_id: this.newJobCompanyId,
-                        location_city: this.newJobCity || null
-                    })
+                    body: JSON.stringify({ title: this.newJobTitle, company_id: this.newJobCompanyId, location_city: this.newJobCity || null })
                 });
                 if (response.ok) {
                     const job = await response.json();
                     this.jobs.push(job);
                     this.selectedJob = job.id;
                     this.showNewJobForm = false;
-                    this.newJobTitle = '';
-                    this.newJobCompanyId = '';
-                    this.newJobCompanyName = '';
-                    this.newJobCity = '';
+                    this.newJobTitle = ''; this.newJobCompanyId = ''; this.newJobCompanyName = ''; this.newJobCity = '';
                     showToast('Stelle erstellt', 'success');
-                } else {
-                    showToast('Fehler beim Erstellen', 'error');
-                }
+                } else { showToast('Fehler beim Erstellen', 'error'); }
                 this.creatingJob = false;
             },
             async addToPipeline() {
@@ -163,170 +294,112 @@
                 const response = await fetch('/api/ats/pipeline/' + this.selectedJob + '/candidates', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        candidate_id: '{{ candidate.id }}',
-                        stage: this.selectedStage
-                    })
+                    body: JSON.stringify({ candidate_id: '{{ candidate.id }}', stage: this.selectedStage })
                 });
                 if (response.ok) {
                     showToast('Kandidat zur Pipeline hinzugefuegt', 'success');
-                    this.showPipelineModal = false;
-                    this.selectedJob = '';
-                    this.selectedStage = 'sent';
+                    this.showPipelineModal = false; this.selectedJob = ''; this.selectedStage = 'sent';
                     htmx.trigger('#candidate-pipeline', 'load');
-                } else if (response.status === 409) {
-                    showToast('Kandidat ist bereits in dieser Pipeline', 'warning');
-                } else {
-                    showToast('Fehler beim Hinzufuegen', 'error');
-                }
+                } else if (response.status === 409) { showToast('Kandidat ist bereits in dieser Pipeline', 'warning'); }
+                else { showToast('Fehler beim Hinzufuegen', 'error'); }
                 this.loading = false;
             }
-        }" class="bg-gray-50 border-t border-gray-200 px-6 py-2.5 flex items-center gap-3">
-            {% if candidate.crm_id %}
-            <a href="https://app.recruitcrm.io/candidate/{{ candidate.crm_id }}" target="_blank" class="inline-flex items-center rounded-md bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
-                <svg class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>
-                Im CRM oeffnen
-            </a>
-            {% endif %}
-            {% if candidate.cv_url %}
-            <a href="{{ candidate.cv_url }}" target="_blank" class="inline-flex items-center rounded-md bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
-                <svg class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m.75 12l3 3m0 0l3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
-                CV herunterladen
-            </a>
-            <button type="button" onclick="openCvPreview()" class="inline-flex items-center rounded-md bg-primary-50 px-4 py-2 text-sm font-semibold text-primary-700 shadow-sm ring-1 ring-inset ring-primary-300 hover:bg-primary-100">
-                <svg class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                CV ansehen
-            </button>
-            {% endif %}
-            {# Zur Pipeline Button #}
-            <button type="button" @click="showPipelineModal = true; loadJobs()"
-                    class="inline-flex items-center rounded-md bg-green-50 px-4 py-2 text-sm font-semibold text-green-700 shadow-sm ring-1 ring-inset ring-green-300 hover:bg-green-100">
-                <svg class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-                Zur Pipeline
-            </button>
-            <div class="flex-1"></div>
-            {% if not candidate.hidden %}
-            <button type="button" hx-put="/api/candidates/{{ candidate.id }}/hide" hx-swap="none" hx-on::after-request="showToast('Kandidat ausgeblendet', 'success')" class="inline-flex items-center rounded-md px-3 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-200">
-                <svg class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" /></svg>
-                Ausblenden
-            </button>
-            {% else %}
-            <button type="button" hx-put="/api/candidates/{{ candidate.id }}/unhide" hx-swap="none" hx-on::after-request="showToast('Kandidat wieder eingeblendet', 'success')" class="inline-flex items-center rounded-md bg-green-50 px-3 py-2 text-sm font-semibold text-green-700 hover:bg-green-100">
-                <svg class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                Wieder einblenden
-            </button>
-            {% endif %}
-            <button type="button" onclick="deleteCandidate('{{ candidate.id }}', '{{ candidate.first_name }} {{ candidate.last_name }}')" class="inline-flex items-center rounded-md bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 ring-1 ring-inset ring-red-200">
-                <svg class="h-4 w-4 mr-1.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clip-rule="evenodd" /></svg>
-                Loeschen
-            </button>
+        }" style="display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-top: 1px solid rgba(255,255,255,0.1);">
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                {% if candidate.crm_id %}
+                <a href="https://app.recruitcrm.io/candidate/{{ candidate.crm_id }}" target="_blank" class="kd-quickbtn" style="color: rgba(255,255,255,0.7); border-color: rgba(255,255,255,0.15); background: rgba(255,255,255,0.05); text-decoration: none;">
+                    <span style="font-size: 14px;">&#x2197;</span> Im CRM &ouml;ffnen
+                </a>
+                {% endif %}
+                {% if candidate.cv_url %}
+                <a href="{{ candidate.cv_url }}" target="_blank" class="kd-quickbtn" style="color: rgba(255,255,255,0.7); border-color: rgba(255,255,255,0.15); background: rgba(255,255,255,0.05); text-decoration: none;">
+                    <span style="font-size: 14px;">&#x1F4C4;</span> CV herunterladen
+                </a>
+                <button type="button" onclick="openCvPreview()" class="kd-quickbtn kd-quickbtn-accent">
+                    <span style="font-size: 14px;">&#x1F441;</span> CV ansehen
+                </button>
+                {% endif %}
+                <button type="button" @click="showPipelineModal = true; loadJobs()" class="kd-quickbtn kd-quickbtn-primary">
+                    <span style="font-size: 14px;">+</span> Zur Pipeline
+                </button>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                {% if not candidate.hidden %}
+                <button type="button" hx-put="/api/candidates/{{ candidate.id }}/hide" hx-swap="none" hx-on::after-request="showToast('Kandidat ausgeblendet', 'success')" class="kd-quickbtn" style="color: rgba(255,255,255,0.5); border-color: rgba(255,255,255,0.1); background: transparent;">
+                    <span style="font-size: 14px;">&#x1F441;</span> Ausblenden
+                </button>
+                {% else %}
+                <button type="button" hx-put="/api/candidates/{{ candidate.id }}/unhide" hx-swap="none" hx-on::after-request="showToast('Kandidat wieder eingeblendet', 'success')" class="kd-quickbtn" style="color: #6ee7b7; border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.1);">
+                    <span style="font-size: 14px;">&#x1F441;</span> Einblenden
+                </button>
+                {% endif %}
+                <button type="button" onclick="deleteCandidate('{{ candidate.id }}', '{{ candidate.first_name }} {{ candidate.last_name }}')" class="kd-quickbtn kd-quickbtn-danger">
+                    <span style="font-size: 14px;">&#x1F5D1;</span> L&ouml;schen
+                </button>
+            </div>
 
-            {# Pipeline Modal #}
-            <div x-show="showPipelineModal" x-cloak
-                 class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-                <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                    <div x-show="showPipelineModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
-                         x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
-                         class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="showPipelineModal = false"></div>
-                    <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
-                    <div x-show="showPipelineModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-                         x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200"
-                         x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-                         class="inline-block align-bottom bg-white rounded-lg px-6 pt-7 pb-6 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full sm:p-8">
-                        <div>
-                            <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100">
-                                <svg class="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                                </svg>
+            {# ── Pipeline Modal (same logic, restyled) ── #}
+            <div x-show="showPipelineModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
+                <div class="flex items-center justify-center min-h-screen p-4">
+                    <div x-show="showPipelineModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm" @click="showPipelineModal = false"></div>
+                    <div x-show="showPipelineModal" x-transition class="relative bg-white rounded-2xl p-8 max-w-xl w-full shadow-2xl z-10" style="font-family: inherit;">
+                        <div class="text-center mb-6">
+                            <div class="mx-auto flex items-center justify-center h-14 w-14 rounded-2xl bg-indigo-100 mb-4">
+                                <svg class="h-7 w-7 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                             </div>
-                            <div class="mt-4 text-center sm:mt-6">
-                                <h3 class="text-2xl leading-7 font-medium text-gray-900" id="modal-title">Zur Pipeline hinzufuegen</h3>
-                                <p class="mt-3 text-base text-gray-500">Waehlen Sie eine Stelle und die Pipeline-Phase aus.</p>
-                            </div>
+                            <h3 class="text-xl font-bold text-gray-900">Zur Pipeline hinzuf&uuml;gen</h3>
+                            <p class="mt-1 text-sm text-gray-500">Stelle und Phase w&auml;hlen</p>
                         </div>
-                        <div class="mt-6 space-y-5">
+                        <div class="space-y-4">
                             <div>
-                                <label class="block text-base font-medium text-gray-700">Stelle</label>
-                                <div class="relative mt-2" @click.away="showJobDropdown = false">
-                                    <button type="button" @click="showJobDropdown = !showJobDropdown"
-                                            class="relative w-full cursor-pointer rounded-md bg-white py-3 pl-4 pr-10 text-left text-base shadow-sm ring-1 ring-inset ring-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500">
-                                        <span class="block truncate" x-text="selectedJobName || 'Stelle auswaehlen...'"></span>
-                                        <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
-                                            <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                                                <path fill-rule="evenodd" d="M10 3a.75.75 0 01.55.24l3.25 3.5a.75.75 0 11-1.1 1.02L10 4.852 7.3 7.76a.75.75 0 01-1.1-1.02l3.25-3.5A.75.75 0 0110 3zm-3.76 9.2a.75.75 0 011.06.04l2.7 2.908 2.7-2.908a.75.75 0 111.1 1.02l-3.25 3.5a.75.75 0 01-1.1 0l-3.25-3.5a.75.75 0 01.04-1.06z" clip-rule="evenodd" />
-                                            </svg>
-                                        </span>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Stelle</label>
+                                <div class="relative" @click.away="showJobDropdown = false">
+                                    <button type="button" @click="showJobDropdown = !showJobDropdown" class="relative w-full cursor-pointer rounded-xl bg-white py-3 pl-4 pr-10 text-left text-sm shadow-sm ring-1 ring-inset ring-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500" style="font-family: inherit;">
+                                        <span class="block truncate" x-text="selectedJobName || 'Stelle ausw\u00e4hlen...'"></span>
+                                        <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3"><svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a.75.75 0 01.55.24l3.25 3.5a.75.75 0 11-1.1 1.02L10 4.852 7.3 7.76a.75.75 0 01-1.1-1.02l3.25-3.5A.75.75 0 0110 3zm-3.76 9.2a.75.75 0 011.06.04l2.7 2.908 2.7-2.908a.75.75 0 111.1 1.02l-3.25 3.5a.75.75 0 01-1.1 0l-3.25-3.5a.75.75 0 01.04-1.06z" clip-rule="evenodd" /></svg></span>
                                     </button>
-                                    <div x-show="showJobDropdown" x-cloak
-                                         class="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-                                        <template x-if="jobs.length === 0">
-                                            <div class="px-4 py-3 text-gray-500">Keine Stellen vorhanden</div>
-                                        </template>
+                                    <div x-show="showJobDropdown" x-cloak class="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-xl bg-white py-1 text-sm shadow-lg ring-1 ring-black/5">
+                                        <template x-if="jobs.length === 0"><div class="px-4 py-3 text-gray-500">Keine Stellen vorhanden</div></template>
                                         <template x-for="job in jobs" :key="job.id">
-                                            <button type="button" @click="selectJob(job)"
-                                                    class="relative w-full cursor-pointer select-none py-3 pl-4 pr-9 text-left hover:bg-primary-50"
-                                                    :class="selectedJob === job.id ? 'bg-primary-100 text-primary-900' : 'text-gray-900'">
+                                            <button type="button" @click="selectJob(job)" class="relative w-full cursor-pointer select-none py-3 pl-4 pr-9 text-left hover:bg-indigo-50" :class="selectedJob === job.id ? 'bg-indigo-100 text-indigo-900' : 'text-gray-900'" style="font-family: inherit;">
                                                 <span class="block truncate" x-text="job.company_name ? job.company_name + ' - ' + job.title : job.title"></span>
-                                                <span x-show="selectedJob === job.id" class="absolute inset-y-0 right-0 flex items-center pr-4 text-primary-600">
-                                                    <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                                        <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
-                                                    </svg>
-                                                </span>
                                             </button>
                                         </template>
                                     </div>
                                 </div>
-                                {# Link zum Neue Stelle Formular #}
-                                <div class="mt-3">
-                                    <button type="button" @click="showNewJobForm = !showNewJobForm; if(showNewJobForm && companies.length === 0) loadCompanies()"
-                                            class="text-base text-primary-600 hover:text-primary-800 flex items-center gap-1.5 font-medium">
-                                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                                        </svg>
+                                <div class="mt-2">
+                                    <button type="button" @click="showNewJobForm = !showNewJobForm; if(showNewJobForm && companies.length === 0) loadCompanies()" class="text-sm text-indigo-600 hover:text-indigo-800 flex items-center gap-1 font-semibold" style="font-family: inherit;">
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                                         <span x-text="showNewJobForm ? 'Abbrechen' : 'Neue Stelle erstellen'"></span>
                                     </button>
                                 </div>
-                                {# Inline Formular fuer neue Stelle #}
-                                <div x-show="showNewJobForm" x-cloak class="mt-4 p-5 bg-gray-50 rounded-lg border border-gray-200 space-y-4">
+                                <div x-show="showNewJobForm" x-cloak class="mt-3 p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-3">
                                     <div>
-                                        <label class="block text-base font-medium text-gray-700">Stellentitel *</label>
-                                        <input type="text" x-model="newJobTitle" class="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-base py-2.5" placeholder="z.B. Senior Accountant">
+                                        <label class="block text-sm font-medium text-gray-700">Stellentitel *</label>
+                                        <input type="text" x-model="newJobTitle" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm py-2" placeholder="z.B. Senior Accountant" style="font-family: inherit;">
                                     </div>
                                     <div class="relative" @click.away="filteredCompanies = []">
-                                        <label class="block text-base font-medium text-gray-700">Unternehmen *</label>
-                                        <input type="text" x-model="newJobCompanyName" @input="filterCompanies()" @focus="filterCompanies()"
-                                               class="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-base py-2.5" placeholder="Unternehmen suchen...">
-                                        <div x-show="filteredCompanies.length > 0" class="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                                        <label class="block text-sm font-medium text-gray-700">Unternehmen *</label>
+                                        <input type="text" x-model="newJobCompanyName" @input="filterCompanies()" @focus="filterCompanies()" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm py-2" placeholder="Unternehmen suchen..." style="font-family: inherit;">
+                                        <div x-show="filteredCompanies.length > 0" class="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
                                             <template x-for="company in filteredCompanies" :key="company.id">
-                                                <button type="button" @click="selectCompany(company)" class="w-full text-left px-4 py-3 text-base hover:bg-gray-100" x-text="company.name"></button>
+                                                <button type="button" @click="selectCompany(company)" class="w-full text-left px-4 py-2 text-sm hover:bg-gray-100" x-text="company.name" style="font-family: inherit;"></button>
                                             </template>
                                         </div>
                                     </div>
                                     <div>
-                                        <label class="block text-base font-medium text-gray-700">Ort (optional)</label>
-                                        <input type="text" x-model="newJobCity" class="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-base py-2.5" placeholder="z.B. Berlin">
+                                        <label class="block text-sm font-medium text-gray-700">Ort (optional)</label>
+                                        <input type="text" x-model="newJobCity" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm py-2" placeholder="z.B. Berlin" style="font-family: inherit;">
                                     </div>
-                                    <div class="flex gap-3 pt-2">
-                                        <button type="button" @click="createJob()" :disabled="!newJobTitle || !newJobCompanyId || creatingJob"
-                                                class="inline-flex items-center px-5 py-2.5 text-base font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-md disabled:opacity-50 disabled:cursor-not-allowed">
-                                            <svg x-show="creatingJob" class="animate-spin -ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24">
-                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                                            </svg>
-                                            Stelle erstellen
-                                        </button>
-                                        <button type="button" @click="showNewJobForm = false"
-                                                class="px-5 py-2.5 text-base font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
-                                            Abbrechen
-                                        </button>
+                                    <div class="flex gap-2 pt-1">
+                                        <button type="button" @click="createJob()" :disabled="!newJobTitle || !newJobCompanyId || creatingJob" class="inline-flex items-center px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg disabled:opacity-50" style="font-family: inherit;">Stelle erstellen</button>
+                                        <button type="button" @click="showNewJobForm = false" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50" style="font-family: inherit;">Abbrechen</button>
                                     </div>
                                 </div>
                             </div>
                             <div>
-                                <label for="pipeline-stage" class="block text-base font-medium text-gray-700">Phase</label>
-                                <select id="pipeline-stage" x-model="selectedStage" class="mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500">
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Phase</label>
+                                <select x-model="selectedStage" class="block w-full rounded-xl border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm py-3" style="font-family: inherit;">
                                     <option value="sent">Vorgestellt</option>
                                     <option value="interview_1">Interview 1</option>
                                     <option value="interview_2">Interview 2</option>
@@ -335,18 +408,11 @@
                                 </select>
                             </div>
                         </div>
-                        <div class="mt-7 sm:mt-8 sm:grid sm:grid-cols-2 sm:gap-4 sm:grid-flow-row-dense">
-                            <button type="button" @click="addToPipeline()" :disabled="!selectedJob || loading"
-                                    class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-5 py-3 bg-green-600 text-lg font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:col-start-2 disabled:opacity-50 disabled:cursor-not-allowed">
-                                <svg x-show="loading" class="animate-spin -ml-1 mr-2 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                Hinzufuegen
-                            </button>
-                            <button type="button" @click="showPipelineModal = false"
-                                    class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-5 py-3 bg-white text-lg font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:mt-0 sm:col-start-1">
-                                Abbrechen
+                        <div class="mt-6 grid grid-cols-2 gap-3">
+                            <button type="button" @click="showPipelineModal = false" class="py-3 rounded-xl bg-gray-100 text-gray-700 text-sm font-semibold hover:bg-gray-200" style="font-family: inherit;">Abbrechen</button>
+                            <button type="button" @click="addToPipeline()" :disabled="!selectedJob || loading" class="py-3 rounded-xl text-white text-sm font-semibold disabled:opacity-50" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); font-family: inherit;">
+                                <svg x-show="loading" class="animate-spin inline -ml-1 mr-1.5 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                                Hinzuf&uuml;gen
                             </button>
                         </div>
                     </div>
@@ -355,282 +421,440 @@
         </div>
     </div>
 
-    {# ===== Hauptbereich: 2 Spalten ===== #}
-    <div class="lg:grid lg:grid-cols-3 lg:gap-4">
-        {# === Linke Spalte (2/3) === #}
-        <div class="lg:col-span-2 space-y-3">
+    {# ════════════════════════════════════════════════════
+       MAIN CONTENT: 2-Column Layout
+    ════════════════════════════════════════════════════ #}
+    <div style="display: flex; gap: 24px; padding: 24px 40px; max-width: 1400px; margin: 0 auto;">
 
-            {# Kontaktdaten - mit Kopier-Buttons, groessere Schrift #}
-            <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg">
-                <div class="px-5 py-3"><h3 class="text-xl font-semibold leading-6 text-gray-900">Kontaktdaten</h3></div>
-                <div class="border-t border-gray-200 px-5 py-3">
-                    <dl class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {# ── LEFT COLUMN (main content) ── #}
+        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 18px;">
+
+            {# ── Kontaktdaten ── #}
+            <div class="kd-section kd-anim" style="animation-delay: 100ms;" id="contact">
+                <div class="kd-section-header">
+                    <div class="kd-section-title"><span>&#x1F4C7;</span> Kontaktdaten</div>
+                </div>
+                <div class="kd-section-body">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                        {# Email #}
                         <div>
-                            <dt class="text-sm font-medium text-gray-500">E-Mail</dt>
-                            <dd class="mt-1 flex items-center gap-2">
+                            <div style="font-size: 11px; color: #94a3b8; font-weight: 600; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.06em;">E-Mail</div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
                                 {% if candidate.email %}
-                                <a href="mailto:{{ candidate.email }}" class="text-lg text-primary-600 hover:text-primary-500">{{ candidate.email }}</a>
-                                <button type="button" onclick="copyToClipboard('{{ candidate.email }}', 'E-Mail')" class="flex-shrink-0 p-1.5 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-colors" title="E-Mail kopieren">
-                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-                                </button>
-                                {% else %}<span class="text-lg text-gray-400">Keine Angabe</span>{% endif %}
-                            </dd>
+                                <span style="font-size: 13.5px; font-weight: 600; color: #4f46e5;">{{ candidate.email }}</span>
+                                <button type="button" onclick="copyToClipboard('{{ candidate.email }}', 'E-Mail')" class="kd-copy-btn">&#x1F4CB;</button>
+                                {% else %}
+                                <span style="font-size: 13.5px; font-weight: 600; color: #c4c9d4; font-style: italic;">Nicht angegeben</span>
+                                {% endif %}
+                            </div>
                         </div>
+                        {# Phone #}
                         <div>
-                            <dt class="text-sm font-medium text-gray-500">Telefon</dt>
-                            <dd class="mt-1 flex items-center gap-2">
+                            <div style="font-size: 11px; color: #94a3b8; font-weight: 600; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.06em;">Telefon</div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
                                 {% if candidate.phone %}
-                                <a href="tel:{{ candidate.phone }}" class="text-lg text-primary-600 hover:text-primary-500">{{ candidate.phone }}</a>
-                                <button type="button" onclick="copyToClipboard('{{ candidate.phone }}', 'Telefonnummer')" class="flex-shrink-0 p-1.5 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-colors" title="Telefonnummer kopieren">
-                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-                                </button>
-                                {% else %}<span class="text-lg text-gray-400">Keine Angabe</span>{% endif %}
-                            </dd>
+                                <span style="font-size: 13.5px; font-weight: 600; color: #4f46e5;">{{ candidate.phone }}</span>
+                                <button type="button" onclick="copyToClipboard('{{ candidate.phone }}', 'Telefonnummer')" class="kd-copy-btn">&#x1F4CB;</button>
+                                {% else %}
+                                <span style="font-size: 13.5px; font-weight: 600; color: #c4c9d4; font-style: italic;">Nicht angegeben</span>
+                                {% endif %}
+                            </div>
                         </div>
-                        <div class="sm:col-span-2">
-                            <dt class="text-sm font-medium text-gray-500">Adresse</dt>
-                            <dd class="mt-1 flex items-center gap-2">
+                        {# Address #}
+                        <div style="grid-column: 1 / -1;">
+                            <div style="font-size: 11px; color: #94a3b8; font-weight: 600; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.06em;">Adresse</div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
                                 {% if candidate.street_address or candidate.postal_code or candidate.city %}
-                                <span class="text-lg text-gray-900" id="address-text">{% if candidate.street_address %}{{ candidate.street_address }}{% endif %}{% if candidate.postal_code or candidate.city %}{% if candidate.street_address %}, {% endif %}{{ candidate.postal_code }} {{ candidate.city }}{% endif %}</span>
-                                <button type="button" onclick="copyToClipboard(document.getElementById('address-text').textContent.trim(), 'Adresse')" class="flex-shrink-0 p-1.5 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-colors" title="Adresse kopieren">
-                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-                                </button>
-                                {% else %}<span class="text-lg text-gray-400">Keine Angabe</span>{% endif %}
-                            </dd>
+                                <span style="font-size: 13.5px; font-weight: 600; color: #1e293b;" id="address-text">{% if candidate.street_address %}{{ candidate.street_address }}{% endif %}{% if candidate.postal_code or candidate.city %}{% if candidate.street_address %}, {% endif %}{{ candidate.postal_code }} {{ candidate.city }}{% endif %}</span>
+                                <button type="button" onclick="copyToClipboard(document.getElementById('address-text').textContent.trim(), 'Adresse')" class="kd-copy-btn">&#x1F4CB;</button>
+                                {% else %}
+                                <span style="font-size: 13.5px; font-weight: 600; color: #c4c9d4; font-style: italic;">Nicht angegeben</span>
+                                {% endif %}
+                            </div>
                         </div>
-                    </dl>
+                    </div>
                 </div>
             </div>
 
-            {# Pipeline-Daten: Gehalt, Kuendigungsfrist, ERP, Rating #}
-            <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg"
+            {# ── Pipeline-Daten ── #}
+            <div class="kd-section kd-anim" style="animation-delay: 200ms;" id="pipeline-data"
                  x-data="pipelineFields()">
-                <div class="px-5 py-3 flex items-center justify-between">
-                    <h3 class="text-xl font-semibold leading-6 text-gray-900">Pipeline-Daten</h3>
-                    <span class="inline-flex items-center rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-700 ring-1 ring-inset ring-indigo-700/10">Fuer Pipeline</span>
+                <div class="kd-section-header">
+                    <div class="kd-section-title"><span>&#x1F3AF;</span> Pipeline-Daten</div>
+                    <span style="font-size: 11.5px; font-weight: 650; padding: 5px 12px; border-radius: 8px; background: #eef2ff; color: #4f46e5; border: 1.5px solid #c7d2fe;">F&uuml;r Pipeline</span>
                 </div>
-                <div class="border-t border-gray-200 px-5 py-4">
-                    <dl class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-
-                        {# Gehaltswunsch #}
+                <div class="kd-section-body">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
+                        {# Gehalt #}
                         <div>
-                            <dt class="text-sm font-medium text-gray-500">Gehaltswunsch</dt>
-                            <dd class="mt-1">
-                                <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="salary">
-                                    <span class="detail-edit-display text-lg text-gray-900 cursor-pointer hover:bg-yellow-50 hover:ring-1 hover:ring-yellow-300 rounded px-1 py-0.5 transition-all" onclick="startDetailEdit(this)" title="Gehalt bearbeiten">{{ candidate.salary or 'Nicht angegeben' }}</span>
-                                    <input type="text" class="detail-edit-input hidden rounded-md border-0 py-1 px-2 text-lg text-gray-900 ring-1 ring-inset ring-primary-400 focus:ring-2 focus:ring-primary-600 w-full" value="{{ candidate.salary or '' }}" placeholder="z.B. 55.000 €" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)">
-                                </div>
-                            </dd>
+                            <div style="font-size: 11px; color: #94a3b8; font-weight: 600; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em;">Gehaltswunsch</div>
+                            <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="salary">
+                                <span class="detail-edit-display" onclick="startDetailEdit(this)" title="Gehalt bearbeiten" style="font-size: 13.5px; font-weight: 600; color: {% if candidate.salary %}#1e293b{% else %}#c4c9d4{% endif %}; {% if not candidate.salary %}font-style: italic;{% endif %} cursor: pointer;">{{ candidate.salary or 'Nicht angegeben' }}</span>
+                                <input type="text" class="detail-edit-input hidden" value="{{ candidate.salary or '' }}" placeholder="z.B. 55.000 &euro;" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)" style="font-size: 13px; padding: 4px 8px; border-radius: 8px; border: 1.5px solid #c7d2fe; width: 100%; font-family: inherit;">
+                            </div>
                         </div>
-
                         {# Kuendigungsfrist #}
                         <div>
-                            <dt class="text-sm font-medium text-gray-500">Kuendigungsfrist</dt>
-                            <dd class="mt-1">
-                                <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="notice_period">
-                                    <span class="detail-edit-display text-lg text-gray-900 cursor-pointer hover:bg-yellow-50 hover:ring-1 hover:ring-yellow-300 rounded px-1 py-0.5 transition-all" onclick="startDetailEdit(this)" title="Kuendigungsfrist bearbeiten">{{ candidate.notice_period or 'Nicht angegeben' }}</span>
-                                    <input type="text" class="detail-edit-input hidden rounded-md border-0 py-1 px-2 text-lg text-gray-900 ring-1 ring-inset ring-primary-400 focus:ring-2 focus:ring-primary-600 w-full" value="{{ candidate.notice_period or '' }}" placeholder="z.B. 3 Monate" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)">
-                                </div>
-                            </dd>
+                            <div style="font-size: 11px; color: #94a3b8; font-weight: 600; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em;">K&uuml;ndigungsfrist</div>
+                            <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="notice_period">
+                                <span class="detail-edit-display" onclick="startDetailEdit(this)" title="K&uuml;ndigungsfrist bearbeiten" style="font-size: 13.5px; font-weight: 600; color: {% if candidate.notice_period %}#1e293b{% else %}#c4c9d4{% endif %}; {% if not candidate.notice_period %}font-style: italic;{% endif %} cursor: pointer;">{{ candidate.notice_period or 'Nicht angegeben' }}</span>
+                                <input type="text" class="detail-edit-input hidden" value="{{ candidate.notice_period or '' }}" placeholder="z.B. 3 Monate" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)" style="font-size: 13px; padding: 4px 8px; border-radius: 8px; border: 1.5px solid #c7d2fe; width: 100%; font-family: inherit;">
+                            </div>
                         </div>
-
-                        {# ERP-Kenntnisse #}
-                        <div class="sm:col-span-2">
-                            <dt class="text-sm font-medium text-gray-500">ERP-Kenntnisse</dt>
-                            <dd class="mt-2">
-                                {% if candidate.erp and candidate.erp | length > 0 %}
-                                <div class="flex flex-wrap gap-2" id="erp-tags">
-                                    {% for erp_item in candidate.erp %}
-                                    <span class="inline-flex items-center rounded-full bg-purple-50 px-3.5 py-1.5 text-base font-medium text-purple-700 ring-1 ring-inset ring-purple-700/10">
-                                        {{ erp_item }}
-                                        <button type="button" class="ml-1.5 text-purple-400 hover:text-purple-600" onclick="removeErp('{{ erp_item }}')" title="Entfernen">&times;</button>
-                                    </span>
-                                    {% endfor %}
-                                </div>
-                                {% else %}
-                                <p class="text-base text-gray-400" id="erp-empty">Keine ERP-Kenntnisse angegeben</p>
-                                {% endif %}
-                                <div class="mt-2 flex items-center gap-2">
-                                    <input type="text" x-model="newErp" @keydown.enter.prevent="addErp()"
-                                           class="rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm py-1.5 px-3 w-48"
-                                           placeholder="z.B. SAP, DATEV...">
-                                    <button type="button" @click="addErp()"
-                                            class="inline-flex items-center rounded-md bg-purple-50 px-3 py-1.5 text-sm font-medium text-purple-700 hover:bg-purple-100 ring-1 ring-inset ring-purple-200 transition-colors">
-                                        <svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                                        </svg>
-                                        Hinzufuegen
-                                    </button>
-                                </div>
-                            </dd>
-                        </div>
-
-                        {# Bewertung (Sterne) #}
-                        <div class="sm:col-span-2">
-                            <dt class="text-sm font-medium text-gray-500">Bewertung</dt>
-                            <dd class="mt-2 flex items-center gap-3">
-                                <div class="flex items-center gap-1">
+                        {# Rating #}
+                        <div>
+                            <div style="font-size: 11px; color: #94a3b8; font-weight: 600; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em;">Bewertung</div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <div style="display: flex; gap: 3px;">
                                     {% for i in range(1, 6) %}
-                                    <button type="button" @click="setRating({{ i }})"
-                                            class="focus:outline-none transition-transform hover:scale-110"
-                                            title="{{ i }} Stern{{ 'e' if i > 1 else '' }}">
-                                        <svg class="w-7 h-7 {% if candidate.rating and i <= candidate.rating %}text-amber-400{% else %}text-gray-300 hover:text-amber-200{% endif %}" fill="currentColor" viewBox="0 0 20 20" id="star-{{ i }}">
-                                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                                        </svg>
+                                    <button type="button" @click="setRating({{ i }})" style="background: none; border: none; cursor: pointer; padding: 0; font-size: 18px; transition: transform 0.15s;" onmouseenter="this.style.transform='scale(1.2)'" onmouseleave="this.style.transform='scale(1)'">
+                                        <span id="star-{{ i }}" style="color: {% if candidate.rating and i <= candidate.rating %}#f59e0b{% else %}#e2e5ec{% endif %};">&#9733;</span>
                                     </button>
                                     {% endfor %}
                                 </div>
-                                <span class="text-sm text-gray-500" x-text="currentRating ? currentRating + '/5' : 'Nicht bewertet'"></span>
-                                <button type="button" x-show="currentRating > 0" @click="clearRating()"
-                                        class="text-xs text-gray-400 hover:text-red-500 ml-2 transition-colors">
-                                    Entfernen
-                                </button>
-                            </dd>
+                                <span style="font-size: 11.5px; color: #64748b; font-weight: 500;" x-text="currentRating ? currentRating + '/5' : 'Nicht bewertet'"></span>
+                                <button type="button" x-show="currentRating > 0" @click="clearRating()" style="font-size: 11px; color: #94a3b8; background: none; border: none; cursor: pointer; font-family: inherit; padding: 2px 6px; border-radius: 4px;" onmouseenter="this.style.color='#ef4444'" onmouseleave="this.style.color='#94a3b8'">&#x2715;</button>
+                            </div>
                         </div>
-
-                    </dl>
+                    </div>
+                    {# ERP #}
+                    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #f0f2f5;">
+                        <div style="font-size: 11px; color: #94a3b8; font-weight: 600; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.06em;">ERP-Kenntnisse</div>
+                        {% if candidate.erp and candidate.erp | length > 0 %}
+                        <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;">
+                            {% for erp_item in candidate.erp %}
+                            <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 8px; background: #eef2ff; color: #4f46e5; border: 1px solid #c7d2fe;">
+                                {{ erp_item }}
+                                <button type="button" onclick="removeErp('{{ erp_item }}')" style="background: none; border: none; cursor: pointer; color: #a5b4fc; font-size: 14px; padding: 0; margin-left: 2px; line-height: 1;" onmouseenter="this.style.color='#ef4444'" onmouseleave="this.style.color='#a5b4fc'">&times;</button>
+                            </span>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div style="font-size: 12px; color: #c4c9d4; font-style: italic; margin-bottom: 10px;">Keine ERP-Kenntnisse angegeben</div>
+                        {% endif %}
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <input type="text" x-model="newErp" @keydown.enter.prevent="addErp()" placeholder="z.B. SAP, DATEV..." style="padding: 8px 12px; border-radius: 8px; border: 1.5px solid #e2e5ec; font-size: 12.5px; font-weight: 500; color: #1e293b; outline: none; width: 180px; font-family: inherit;">
+                            <button type="button" @click="addErp()" style="padding: 8px 14px; border-radius: 8px; background: #eef2ff; border: 1.5px solid #c7d2fe; color: #4f46e5; font-size: 12px; font-weight: 650; cursor: pointer; font-family: inherit;">+ Hinzuf&uuml;gen</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            {# Berufserfahrung #}
-            <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg">
-                <div class="px-5 py-3 flex items-center justify-between">
-                    <h3 class="text-xl font-semibold leading-6 text-gray-900">Berufserfahrung</h3>
-                    <button type="button"
-                            onclick="copyWerdegang()"
-                            class="inline-flex items-center rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors"
-                            title="Komplettes Profil in Zwischenablage kopieren">
-                        <svg class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9.75a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
-                        </svg>
-                        Profil kopieren
-                    </button>
+            {# ── Berufserfahrung (Timeline) ── #}
+            <div class="kd-section kd-anim" style="animation-delay: 300ms;" id="experience">
+                <div class="kd-section-header">
+                    <div class="kd-section-title"><span>&#x1F4BC;</span> Berufserfahrung</div>
+                    <button type="button" onclick="copyWerdegang()" style="display: flex; align-items: center; gap: 6px; background: #f4f6f8; border: 1.5px solid #e2e5ec; border-radius: 8px; padding: 5px 12px; font-size: 11.5px; font-weight: 650; color: #475569; cursor: pointer; font-family: inherit;">&#x1F4CB; Profil kopieren</button>
                 </div>
-                <div class="border-t border-gray-200">
+                <div class="kd-section-body">
                     {% if candidate.work_history and candidate.work_history is iterable and candidate.work_history is not string and candidate.work_history | length > 0 %}
-                    <ul class="divide-y divide-gray-200">
-                        {% for job in candidate.work_history %}{% if job is mapping %}
-                        <li class="px-5 py-3">
-                            <div class="flex items-start justify-between">
-                                <div>
-                                    <p class="text-lg font-semibold text-gray-900">{{ job.position | default(job.title | default('Unbekannte Position')) }}</p>
-                                    <p class="text-base text-gray-500">{{ job.company | default('Unbekanntes Unternehmen') }}</p>
-                                </div>
-                                <div class="text-sm text-gray-400 text-right whitespace-nowrap ml-4">{% if job.start_date %}{{ job.start_date }}{% endif %}{% if job.end_date %} - {{ job.end_date }}{% elif job.start_date %} - heute{% endif %}</div>
+                        {% set work_list = candidate.work_history %}
+                        {% for job in work_list %}{% if job is mapping %}
+                        {% set is_first = loop.first %}
+                        {% set is_last = loop.last %}
+                        <div style="display: flex; gap: 16px; padding: 18px 0; {% if not is_last %}border-bottom: 1px solid #f0f2f5;{% endif %}">
+                            {# Timeline dot + line #}
+                            <div style="display: flex; flex-direction: column; align-items: center; padding-top: 4px; flex-shrink: 0; width: 20px;">
+                                <div class="{% if is_first %}kd-exp-dot-current{% else %}kd-exp-dot-past{% endif %}"></div>
+                                {% if not is_last %}
+                                <div class="kd-exp-line"></div>
+                                {% endif %}
                             </div>
-                            {% if job.description and job.description != 'null' %}
-                            <ul class="mt-2 text-base text-gray-600 list-none space-y-1">{% for line in job.description.split('\n') %}{% if line.strip() %}<li class="flex"><span class="flex-shrink-0 mr-2 text-gray-400">&bull;</span><span>{{ line.strip().lstrip('•').strip() }}</span></li>{% endif %}{% endfor %}</ul>
-                            {% endif %}
-                        </li>
+                            {# Content #}
+                            <div style="flex: 1; min-width: 0;">
+                                <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 6px; flex-wrap: wrap;">
+                                    <div>
+                                        <div style="font-size: 14.5px; font-weight: 720; color: #0f172a; letter-spacing: -0.01em; line-height: 1.3;">
+                                            {{ job.position | default(job.title | default('Unbekannte Position')) }}
+                                        </div>
+                                        <div style="font-size: 13px; color: #64748b; margin-top: 3px; font-weight: 500;">
+                                            {{ job.company | default('Unbekanntes Unternehmen') }}
+                                        </div>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+                                        {% if job.start_date %}
+                                        <span style="font-size: 12px; color: #94a3b8; font-weight: 500; white-space: nowrap;">
+                                            {{ job.start_date }}{% if job.end_date %} &ndash; {{ job.end_date }}{% else %} &ndash; heute{% endif %}
+                                        </span>
+                                        {% endif %}
+                                        {% if job.duration %}
+                                        <span style="font-size: 11px; font-weight: 650; padding: 3px 10px; border-radius: 8px; background: {% if is_first %}#eef2ff{% else %}#f4f6f8{% endif %}; color: {% if is_first %}#4f46e5{% else %}#64748b{% endif %}; white-space: nowrap;">
+                                            {{ job.duration }}
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {# Tasks/Description #}
+                                {% if job.description and job.description != 'null' and job.description != 'None' %}
+                                <div style="display: flex; flex-direction: column; gap: 5px; margin-top: 10px;">
+                                    {% for line in job.description.split('\n') %}
+                                    {% set clean_line = line.strip().lstrip('•').lstrip('-').lstrip('–').strip() %}
+                                    {% if clean_line and clean_line != 'None' and clean_line != 'null' %}
+                                    <div style="display: flex; gap: 8px; font-size: 13px; color: #475569; line-height: 1.55;">
+                                        <span style="color: #c7ccd6; margin-top: 2px; flex-shrink: 0; font-size: 6px; line-height: 22px;">&#x25CF;</span>
+                                        <span>{{ clean_line }}</span>
+                                    </div>
+                                    {% endif %}
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
                         {% endif %}{% endfor %}
-                    </ul>
                     {% else %}
-                    <div class="px-5 py-4"><p class="text-base text-gray-400">Keine Angaben</p></div>
+                    <div style="display: flex; flex-direction: column; align-items: center; padding: 20px 0;">
+                        <div style="font-size: 24px; margin-bottom: 8px; opacity: 0.4;">&#x1F4BC;</div>
+                        <div style="font-size: 12px; font-weight: 600; color: #94a3b8;">Keine Berufserfahrung hinterlegt</div>
+                    </div>
                     {% endif %}
                 </div>
             </div>
 
-            {# IT-Kenntnisse #}
-            <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg">
-                <div class="px-5 py-3"><h3 class="text-xl font-semibold leading-6 text-gray-900">IT-Kenntnisse</h3></div>
-                <div class="border-t border-gray-200 px-5 py-3">
+            {# ── IT-Kenntnisse (Core/Standard Tiering) ── #}
+            <div class="kd-section kd-anim" style="animation-delay: 400ms;" id="it-skills">
+                <div class="kd-section-header">
+                    <div class="kd-section-title"><span>&#x1F4BB;</span> IT-Kenntnisse</div>
+                </div>
+                <div class="kd-section-body">
                     {% if candidate.it_skills and candidate.it_skills | length > 0 %}
-                    <div class="flex flex-wrap gap-2">{% for skill in candidate.it_skills %}<span class="inline-flex items-center rounded-full bg-blue-50 px-3.5 py-1.5 text-base font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">{{ skill }}</span>{% endfor %}</div>
-                    {% else %}<p class="text-base text-gray-400">Keine Angaben</p>{% endif %}
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        {% for skill in candidate.it_skills %}
+                        {% if skill and skill != 'None' and skill != 'null' %}
+                        {% set is_core = skill.lower() in ['sap', 'sap s/4hana', 'sap-sem-bcs', 'sap fi', 'sap co', 'sap mm', 'sap bcs', 'cch tagetik', 'datev', 'addison', 'oracle', 'navision', 'dynamics'] or 'sap' in skill.lower() or 'erp' in skill.lower() or 'datev' in skill.lower() %}
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: 10px; background: {% if is_core %}#eef2ff{% else %}#f8fafc{% endif %}; border: 1px solid {% if is_core %}#ddd6fe{% else %}#eef0f4{% endif %};">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                {% if is_core %}
+                                <span style="font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 5px; background: #6366f1; color: #fff; text-transform: uppercase; letter-spacing: 0.05em;">CORE</span>
+                                {% endif %}
+                                <span style="font-size: 13.5px; font-weight: 680; color: #1e293b;">{{ skill }}</span>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div style="display: flex; flex-direction: column; align-items: center; padding: 20px 0;">
+                        <div style="font-size: 24px; margin-bottom: 8px; opacity: 0.4;">&#x1F4BB;</div>
+                        <div style="font-size: 12px; font-weight: 600; color: #94a3b8;">Keine IT-Kenntnisse hinterlegt</div>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
 
-            {# Sprachen #}
-            <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg">
-                <div class="px-5 py-3"><h3 class="text-xl font-semibold leading-6 text-gray-900">Sprachen</h3></div>
-                <div class="border-t border-gray-200 px-5 py-3">
+            {# ── Sprachen (Progress Bars) ── #}
+            <div class="kd-section kd-anim" style="animation-delay: 500ms;" id="languages">
+                <div class="kd-section-header">
+                    <div class="kd-section-title"><span>&#x1F310;</span> Sprachen</div>
+                </div>
+                <div class="kd-section-body">
                     {% if candidate.languages and candidate.languages is iterable and candidate.languages is not string and candidate.languages | length > 0 %}
-                    <div class="space-y-2">{% for lang in candidate.languages %}{% if lang is mapping %}<div class="flex items-center justify-between"><span class="text-lg font-medium text-gray-900">{{ lang.language | default('Unbekannt') }}</span>{% if lang.level %}<span class="inline-flex items-center rounded-full bg-green-50 px-2.5 py-0.5 text-sm font-medium text-green-700 ring-1 ring-inset ring-green-700/10">{{ lang.level }}</span>{% endif %}</div>{% endif %}{% endfor %}</div>
-                    {% else %}<p class="text-base text-gray-400">Keine Angaben</p>{% endif %}
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                        {% for lang in candidate.languages %}{% if lang is mapping %}
+                        {% set lang_name = lang.language | default('Unbekannt') %}
+                        {% set lang_level = lang.level | default('') %}
+                        {% set is_native = 'mutter' in lang_level.lower() if lang_level else false %}
+                        {% set pct = 100 if is_native else (95 if 'flie' in lang_level.lower() else (85 if 'verhandlung' in lang_level.lower() else (70 if 'gut' in lang_level.lower() else (50 if 'grund' in lang_level.lower() else 60)))) if lang_level else 50 %}
+                        <div style="display: flex; align-items: center; gap: 14px; padding: 8px 0;">
+                            <div style="width: 80px; font-size: 13px; font-weight: 650; color: #1e293b;">{{ lang_name }}</div>
+                            <div style="flex: 1;">
+                                <div class="kd-lang-bar">
+                                    <div class="kd-lang-fill" style="width: {{ pct }}%; background: linear-gradient(90deg, {% if is_native %}#10b981, #34d399{% else %}#6366f1, #a78bfa{% endif %});"></div>
+                                </div>
+                            </div>
+                            {% if lang_level and lang_level != 'None' and lang_level != 'null' %}
+                            <div style="font-size: 11.5px; color: #64748b; font-weight: 500; min-width: 180px; text-align: right;">{{ lang_level }}</div>
+                            {% endif %}
+                        </div>
+                        {% endif %}{% endfor %}
+                    </div>
+                    {% else %}
+                    <div style="display: flex; flex-direction: column; align-items: center; padding: 20px 0;">
+                        <div style="font-size: 24px; margin-bottom: 8px; opacity: 0.4;">&#x1F310;</div>
+                        <div style="font-size: 12px; font-weight: 600; color: #94a3b8;">Keine Sprachen hinterlegt</div>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
 
-            {# Skills #}
-            <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg">
-                <div class="px-5 py-3"><h3 class="text-xl font-semibold leading-6 text-gray-900">Skills & Kenntnisse</h3></div>
-                <div class="border-t border-gray-200 px-5 py-3">
+            {# ── Skills & Kenntnisse (Color Categories) ── #}
+            <div class="kd-section kd-anim" style="animation-delay: 600ms;" id="skills">
+                <div class="kd-section-header">
+                    <div class="kd-section-title"><span>&#x1F9E9;</span> Skills &amp; Kenntnisse</div>
+                </div>
+                <div class="kd-section-body">
                     {% if candidate.skills and candidate.skills | length > 0 %}
-                    <div class="flex flex-wrap gap-2">{% for skill in candidate.skills %}<span class="inline-flex items-center rounded-full bg-primary-50 px-3.5 py-1.5 text-base font-medium text-primary-700 ring-1 ring-inset ring-primary-700/10">{{ skill }}</span>{% endfor %}</div>
-                    {% else %}<p class="text-base text-gray-400">Keine Angaben</p>{% endif %}
+                    {# Legend #}
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                        <span style="display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: #94a3b8; font-weight: 500;">
+                            <span style="width: 8px; height: 8px; border-radius: 3px; background: #4f46e5;"></span> Fachlich
+                        </span>
+                        <span style="display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: #94a3b8; font-weight: 500;">
+                            <span style="width: 8px; height: 8px; border-radius: 3px; background: #059669;"></span> Technisch
+                        </span>
+                        <span style="display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: #94a3b8; font-weight: 500;">
+                            <span style="width: 8px; height: 8px; border-radius: 3px; background: #a16207;"></span> Sonstige
+                        </span>
+                    </div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 7px;">
+                        {% for skill in candidate.skills %}
+                        {% if skill and skill != 'None' and skill != 'null' %}
+                        {# Simple heuristic: tech keywords → tech, otherwise fach #}
+                        {% set is_tech = skill.lower() in ['sap', 'excel', 'word', 'powerpoint', 'outlook', 'teams', 'python', 'sql', 'javascript', 'html', 'css', 'r', 'tableau', 'power bi', 'datev'] or 'microsoft' in skill.lower() or 'sap' in skill.lower() or 'office' in skill.lower() or 'software' in skill.lower() %}
+                        <span class="{% if is_tech %}skill-tech{% else %}skill-fach{% endif %}" style="font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 8px;">{{ skill }}</span>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div style="display: flex; flex-direction: column; align-items: center; padding: 20px 0;">
+                        <div style="font-size: 24px; margin-bottom: 8px; opacity: 0.4;">&#x1F9E9;</div>
+                        <div style="font-size: 12px; font-weight: 600; color: #94a3b8;">Keine Skills hinterlegt</div>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
 
-            {# Zertifikate & Weiterbildungen #}
-            <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg">
-                <div class="px-5 py-3"><h3 class="text-xl font-semibold leading-6 text-gray-900">Zertifikate & Weiterbildungen</h3></div>
-                <div class="border-t border-gray-200">
+            {# ── Zertifikate & Weiterbildungen ── #}
+            <div class="kd-section kd-anim" style="animation-delay: 700ms;" id="certifications">
+                <div class="kd-section-header">
+                    <div class="kd-section-title"><span>&#x1F393;</span> Zertifikate &amp; Weiterbildungen</div>
+                </div>
+                <div class="kd-section-body">
                     {% if candidate.further_education and candidate.further_education is iterable and candidate.further_education is not string and candidate.further_education | length > 0 %}
-                    <ul class="divide-y divide-gray-200">{% for wb in candidate.further_education %}{% if wb is mapping %}<li class="px-5 py-3"><div class="flex items-start justify-between"><div><p class="text-lg font-medium text-gray-900">{% if wb.degree and wb.degree != 'None' and wb.degree != 'null' %}{{ wb.degree }}{% elif wb.qualification and wb.qualification != 'None' and wb.qualification != 'null' %}{{ wb.qualification }}{% else %}Weiterbildung{% endif %}</p><p class="text-sm text-gray-500">{{ wb.institution | default('Unbekannter Anbieter') }}</p></div><div class="text-sm text-gray-400 text-right whitespace-nowrap ml-4">{% if wb.year %}{{ wb.year }}{% elif wb.end_date %}{{ wb.end_date }}{% endif %}</div></div></li>{% endif %}{% endfor %}</ul>
-                    {% else %}<div class="px-5 py-4"><p class="text-base text-gray-400">Keine Angaben</p></div>{% endif %}
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        {% for wb in candidate.further_education %}{% if wb is mapping %}
+                        {% set wb_name = wb.degree if (wb.degree and wb.degree != 'None' and wb.degree != 'null') else (wb.qualification if (wb.qualification and wb.qualification != 'None' and wb.qualification != 'null') else 'Weiterbildung') %}
+                        {% set wb_inst = wb.institution | default('') %}
+                        {% set wb_year = wb.year | default(wb.end_date | default('')) %}
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: 10px; background: #f8fafc; border: 1px solid #eef0f4;">
+                            <div>
+                                <div style="font-size: 13.5px; font-weight: 650; color: #1e293b;">{{ wb_name }}</div>
+                                {% if wb_inst and wb_inst != 'None' and wb_inst != 'null' %}
+                                <div style="font-size: 12px; color: #94a3b8; margin-top: 2px; font-weight: 500;">{{ wb_inst }}</div>
+                                {% endif %}
+                            </div>
+                            {% if wb_year and wb_year != 'None' and wb_year != 'null' %}
+                            <span style="font-size: 12px; color: #64748b; font-weight: 600; background: #eef0f4; padding: 3px 10px; border-radius: 6px;">{{ wb_year }}</span>
+                            {% endif %}
+                        </div>
+                        {% endif %}{% endfor %}
+                    </div>
+                    {% else %}
+                    <div style="display: flex; flex-direction: column; align-items: center; padding: 20px 0;">
+                        <div style="font-size: 24px; margin-bottom: 8px; opacity: 0.4;">&#x1F393;</div>
+                        <div style="font-size: 12px; font-weight: 600; color: #94a3b8;">Keine Zertifikate hinterlegt</div>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
 
-            {# Ausbildung #}
-            <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg">
-                <div class="px-5 py-3"><h3 class="text-xl font-semibold leading-6 text-gray-900">Ausbildung</h3></div>
-                <div class="border-t border-gray-200">
+            {# ── Ausbildung ── #}
+            <div class="kd-section kd-anim" style="animation-delay: 800ms;" id="education">
+                <div class="kd-section-header">
+                    <div class="kd-section-title"><span>&#x1F4DA;</span> Ausbildung</div>
+                </div>
+                <div class="kd-section-body">
                     {% if candidate.education and candidate.education is iterable and candidate.education is not string and candidate.education | length > 0 %}
-                    <ul class="divide-y divide-gray-200">{% for edu in candidate.education %}{% if edu is mapping %}<li class="px-5 py-3"><div class="flex items-start justify-between"><div><p class="text-lg font-medium text-gray-900">{% if edu.degree and edu.degree != 'None' and edu.degree != 'null' %}{{ edu.degree }}{% elif edu.qualification and edu.qualification != 'None' and edu.qualification != 'null' %}{{ edu.qualification }}{% else %}Ausbildung{% endif %}</p><p class="text-sm text-gray-500">{{ edu.institution | default(edu.school | default('Unbekannte Institution')) }}</p></div><div class="text-sm text-gray-400 text-right whitespace-nowrap ml-4">{% if edu.year %}{{ edu.year }}{% elif edu.end_date %}{{ edu.end_date }}{% endif %}</div></div></li>{% endif %}{% endfor %}</ul>
-                    {% else %}<div class="px-5 py-4"><p class="text-base text-gray-400">Keine Angaben</p></div>{% endif %}
+                    {% for edu in candidate.education %}{% if edu is mapping %}
+                    {% set edu_name = edu.degree if (edu.degree and edu.degree != 'None' and edu.degree != 'null') else (edu.qualification if (edu.qualification and edu.qualification != 'None' and edu.qualification != 'null') else 'Ausbildung') %}
+                    {% set edu_inst = edu.institution | default(edu.school | default('')) %}
+                    {% set edu_year = edu.year | default(edu.end_date | default('')) %}
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: 10px; background: #f8fafc; border: 1px solid #eef0f4;">
+                        <div>
+                            <div style="font-size: 14px; font-weight: 680; color: #1e293b;">{{ edu_name }}</div>
+                            {% if edu_inst and edu_inst != 'None' and edu_inst != 'null' %}
+                            <div style="font-size: 12.5px; color: #64748b; margin-top: 2px; font-weight: 500;">{{ edu_inst }}</div>
+                            {% endif %}
+                        </div>
+                        {% if edu_year and edu_year != 'None' and edu_year != 'null' %}
+                        <span style="font-size: 12px; color: #64748b; font-weight: 600; background: #eef0f4; padding: 3px 10px; border-radius: 6px;">{{ edu_year }}</span>
+                        {% endif %}
+                    </div>
+                    {% endif %}{% endfor %}
+                    {% else %}
+                    <div style="display: flex; flex-direction: column; align-items: center; padding: 20px 0;">
+                        <div style="font-size: 24px; margin-bottom: 8px; opacity: 0.4;">&#x1F4DA;</div>
+                        <div style="font-size: 12px; font-weight: 600; color: #94a3b8;">Keine Ausbildung hinterlegt</div>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
+
         </div>
 
-        {# === Rechte Spalte (1/3) - kompakter === #}
-        <div class="mt-3 lg:mt-0 space-y-3">
-            {# Pipeline-Status bei Jobs #}
-            <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg">
-                <div class="px-4 py-2.5 flex items-center justify-between">
-                    <h3 class="text-lg font-semibold leading-6 text-gray-900">Pipeline-Status</h3>
-                    <a href="/ats/pipeline" class="text-xs text-primary-600 hover:text-primary-500 font-medium">Pipeline</a>
+        {# ── RIGHT SIDEBAR (sticky) ── #}
+        <div style="width: 280px; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px; position: sticky; top: 20px; align-self: flex-start;">
+
+            {# Navigation #}
+            <div class="kd-sidebar-card kd-anim-side" style="animation-delay: 150ms;">
+                <div class="kd-sidebar-header">Navigation</div>
+                <div class="kd-sidebar-body" style="display: flex; flex-direction: column; gap: 2px;">
+                    {% set nav_items = [
+                        {"id": "experience", "icon": "&#x1F4BC;", "label": "Berufserfahrung"},
+                        {"id": "it-skills", "icon": "&#x1F4BB;", "label": "IT-Kenntnisse"},
+                        {"id": "languages", "icon": "&#x1F310;", "label": "Sprachen"},
+                        {"id": "skills", "icon": "&#x1F9E9;", "label": "Skills"},
+                        {"id": "certifications", "icon": "&#x1F393;", "label": "Zertifikate"},
+                        {"id": "education", "icon": "&#x1F4DA;", "label": "Ausbildung"}
+                    ] %}
+                    {% for nav in nav_items %}
+                    <button type="button"
+                            @click="activeSection = '{{ nav.id }}'; document.getElementById('{{ nav.id }}')?.scrollIntoView({behavior: 'smooth', block: 'start'})"
+                            class="kd-nav-btn" :class="activeSection === '{{ nav.id }}' ? 'active' : ''">
+                        <span style="font-size: 13px;">{{ nav.icon }}</span>
+                        {{ nav.label }}
+                    </button>
+                    {% endfor %}
                 </div>
-                <div id="candidate-pipeline" hx-get="/partials/candidate-pipeline/{{ candidate.id }}" hx-trigger="load" hx-swap="innerHTML" class="border-t border-gray-200">
-                    <div class="p-2">{% include 'components/loading_spinner.html' %}</div>
+            </div>
+
+            {# Pipeline-Status #}
+            <div class="kd-sidebar-card kd-anim-side" style="animation-delay: 250ms;">
+                <div class="kd-sidebar-header">
+                    Pipeline-Status
+                    <a href="/ats/pipeline" style="font-size: 11px; font-weight: 600; color: #4f46e5; text-decoration: none;">Pipeline &rarr;</a>
+                </div>
+                <div id="candidate-pipeline" hx-get="/partials/candidate-pipeline/{{ candidate.id }}" hx-trigger="load" hx-swap="innerHTML" class="kd-sidebar-body">
+                    <div style="display: flex; flex-direction: column; align-items: center; padding: 12px 0;">
+                        <div style="font-size: 28px; margin-bottom: 6px; opacity: 0.5;">&#x1F4CB;</div>
+                        <div style="font-size: 12px; font-weight: 600; color: #94a3b8; text-align: center;">L&auml;dt...</div>
+                    </div>
                 </div>
             </div>
 
             {# Passende Jobs #}
-            <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg">
-                <div class="px-4 py-2.5"><h3 class="text-lg font-semibold leading-6 text-gray-900">Passende Jobs</h3></div>
-                <div id="matching-jobs" hx-get="/partials/candidate-jobs/{{ candidate.id }}" hx-trigger="load" hx-swap="innerHTML" class="border-t border-gray-200">
-                    <div class="p-2">{% include 'components/loading_spinner.html' %}</div>
+            <div class="kd-sidebar-card kd-anim-side" style="animation-delay: 350ms;">
+                <div class="kd-sidebar-header">Passende Jobs</div>
+                <div id="matching-jobs" hx-get="/partials/candidate-jobs/{{ candidate.id }}" hx-trigger="load" hx-swap="innerHTML" class="kd-sidebar-body">
+                    <div style="display: flex; flex-direction: column; align-items: center; padding: 8px 0;">
+                        <div style="font-size: 12px; color: #94a3b8; text-align: center; font-weight: 500;">L&auml;dt...</div>
+                    </div>
                 </div>
             </div>
 
-            {# CV-Status - kompakter #}
-            <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg">
-                <div class="px-4 py-2.5"><h3 class="text-lg font-semibold leading-6 text-gray-900">CV-Status</h3></div>
-                <div class="border-t border-gray-200 px-4 py-2.5">
-                    <dl class="space-y-2">
-                        <div class="flex justify-between text-sm">
-                            <dt class="text-gray-500">CV vorhanden:</dt>
-                            <dd class="font-medium {% if candidate.cv_url %}text-green-600{% else %}text-gray-400{% endif %}">{% if candidate.cv_url %}Ja{% else %}Nein{% endif %}</dd>
+            {# CV-Status #}
+            <div class="kd-sidebar-card kd-anim-side" style="animation-delay: 450ms;">
+                <div class="kd-sidebar-header">CV-Status</div>
+                <div class="kd-sidebar-body">
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 12px; color: #94a3b8; font-weight: 500;">CV vorhanden</span>
+                            <span style="font-size: 12px; font-weight: 660; color: {% if candidate.cv_url %}#059669{% else %}#94a3b8{% endif %};">{% if candidate.cv_url %}Ja{% else %}Nein{% endif %}</span>
                         </div>
                         {% if candidate.cv_parsed_at %}
-                        <div class="flex justify-between text-sm">
-                            <dt class="text-gray-500">Zuletzt geparst:</dt>
-                            <dd class="font-medium text-gray-900">{{ candidate.cv_parsed_at.strftime('%d.%m.%Y %H:%M') }}</dd>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 12px; color: #94a3b8; font-weight: 500;">Zuletzt geparst</span>
+                            <span style="font-size: 12px; font-weight: 660; color: #1e293b;">{{ candidate.cv_parsed_at.strftime('%d.%m.%Y %H:%M') }}</span>
                         </div>
                         {% endif %}
                         {% if candidate.crm_synced_at %}
-                        <div class="flex justify-between text-sm">
-                            <dt class="text-gray-500">Letzter CRM-Sync:</dt>
-                            <dd class="font-medium text-gray-900">{{ candidate.crm_synced_at.strftime('%d.%m.%Y %H:%M') }}</dd>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 12px; color: #94a3b8; font-weight: 500;">Letzter CRM-Sync</span>
+                            <span style="font-size: 12px; font-weight: 660; color: #1e293b;">{{ candidate.crm_synced_at.strftime('%d.%m.%Y %H:%M') }}</span>
                         </div>
                         {% endif %}
-                    </dl>
-                    {% if candidate.cv_url %}
-                    <div class="mt-3">
-                        <button type="button" hx-post="/api/candidates/{{ candidate.id }}/parse-cv" hx-swap="none" hx-on::after-request="showToast('CV wird neu geparst...', 'info'); setTimeout(() => location.reload(), 3000)" class="w-full inline-flex justify-center items-center rounded-md bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100">
-                            <svg class="h-4 w-4 mr-1.5 htmx-indicator animate-spin" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                            CV neu parsen
-                        </button>
                     </div>
+                    {% if candidate.cv_url %}
+                    <button type="button" hx-post="/api/candidates/{{ candidate.id }}/parse-cv" hx-swap="none" hx-on::after-request="showToast('CV wird neu geparst...', 'info'); setTimeout(() => location.reload(), 3000)" style="width: 100%; margin-top: 12px; padding: 9px 0; border-radius: 8px; background: #f4f6f8; border: 1.5px solid #e2e5ec; color: #475569; font-size: 12px; font-weight: 650; cursor: pointer; font-family: inherit;">CV neu parsen</button>
                     {% endif %}
                 </div>
             </div>
@@ -638,9 +862,40 @@
     </div>
 </div>
 
+{# CV-Vorschau Slide-Over Panel #}
+{% if candidate.cv_url %}
+<div id="cv-preview-overlay" class="hidden relative z-50">
+    <div class="cv-overlay-bg fixed inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity duration-300 ease-in-out opacity-0" onclick="closeCvPreview()"></div>
+    <div class="fixed inset-0 overflow-hidden">
+        <div class="absolute inset-0 overflow-hidden">
+            <div class="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10">
+                <div id="cv-preview-panel" class="pointer-events-auto w-screen max-w-2xl transform transition-transform duration-300 ease-in-out translate-x-full">
+                    <div class="flex h-full flex-col bg-white shadow-xl" style="font-family: 'Outfit', sans-serif;">
+                        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200" style="background: linear-gradient(135deg, #fafbfd, #f7f8fb);">
+                            <div>
+                                <h2 class="text-lg font-bold text-gray-900">CV-Vorschau</h2>
+                                <p class="text-sm text-gray-500">{{ candidate.full_name }}</p>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <a href="{{ candidate.cv_url }}" target="_blank" class="kd-quickbtn" style="font-size: 11.5px; padding: 7px 12px;">&#x2197; Neuer Tab</a>
+                                <button type="button" onclick="closeCvPreview()" style="background: #f1f5f9; border: none; border-radius: 8px; width: 32px; height: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #64748b; font-size: 16px;">&#x2715;</button>
+                            </div>
+                        </div>
+                        <div class="flex-1 overflow-hidden relative">
+                            <iframe id="cv-preview-iframe" src="" class="w-full h-full border-0" title="CV-Vorschau"></iframe>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
 <script>
 // ==================== Pipeline-Daten (ERP + Rating) ====================
-
 function pipelineFields() {
     return {
         newErp: '',
@@ -650,10 +905,8 @@ function pipelineFields() {
         async addErp() {
             var val = this.newErp.trim();
             if (!val) return;
-            // Komma-getrennte Eingaben unterstuetzen
             var items = val.split(',').map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; });
             var merged = this.currentErp.concat(items);
-            // Duplikate entfernen
             merged = merged.filter(function(v, i, a) { return a.indexOf(v) === i; });
             await this.saveErp(merged);
             this.newErp = '';
@@ -675,12 +928,9 @@ function pipelineFields() {
                 if (response.ok) {
                     this.currentErp = erpList;
                     if (typeof showToast === 'function') showToast('ERP gespeichert', 'success');
-                    // Seite neu laden um Tags korrekt anzuzeigen
                     setTimeout(function() { location.reload(); }, 500);
                 }
-            } catch (err) {
-                console.error('ERP speichern fehlgeschlagen:', err);
-            }
+            } catch (err) { console.error('ERP speichern fehlgeschlagen:', err); }
         },
 
         async setRating(value) {
@@ -693,19 +943,13 @@ function pipelineFields() {
                 });
                 if (response.ok) {
                     this.currentRating = value;
-                    // Sterne visuell updaten
                     for (var i = 1; i <= 5; i++) {
                         var star = document.getElementById('star-' + i);
-                        if (star) {
-                            star.classList.remove('text-amber-400', 'text-gray-300');
-                            star.classList.add(i <= value ? 'text-amber-400' : 'text-gray-300');
-                        }
+                        if (star) { star.style.color = i <= value ? '#f59e0b' : '#e2e5ec'; }
                     }
                     if (typeof showToast === 'function') showToast('Bewertung gespeichert', 'success');
                 }
-            } catch (err) {
-                console.error('Rating speichern fehlgeschlagen:', err);
-            }
+            } catch (err) { console.error('Rating speichern fehlgeschlagen:', err); }
         },
 
         async clearRating() {
@@ -720,60 +964,43 @@ function pipelineFields() {
                     this.currentRating = 0;
                     for (var i = 1; i <= 5; i++) {
                         var star = document.getElementById('star-' + i);
-                        if (star) {
-                            star.classList.remove('text-amber-400');
-                            star.classList.add('text-gray-300');
-                        }
+                        if (star) { star.style.color = '#e2e5ec'; }
                     }
                     if (typeof showToast === 'function') showToast('Bewertung entfernt', 'success');
                 }
-            } catch (err) {
-                console.error('Rating entfernen fehlgeschlagen:', err);
-            }
+            } catch (err) { console.error('Rating entfernen fehlgeschlagen:', err); }
         }
     };
 }
 
-function deleteCandidate(candidateId, candidateName) {
-    if (!confirm('Kandidat ' + candidateName + ' wirklich loeschen? Der Kandidat wird beim naechsten CRM-Sync ignoriert.')) {
-        return;
+// Global removeErp for Jinja-rendered buttons
+function removeErp(item) {
+    var comp = document.querySelector('[x-data="pipelineFields()"]');
+    if (comp && comp.__x) {
+        comp.__x.$data.removeErp(item);
     }
-    fetch('/api/candidates/' + candidateId, {
-        method: 'DELETE'
-    })
-    .then(function(response) { return response.json(); })
-    .then(function(data) {
-        if (data.success) {
-            window.location.href = '/kandidaten';
-        }
-    });
+}
+
+function deleteCandidate(candidateId, candidateName) {
+    if (!confirm('Kandidat ' + candidateName + ' wirklich l\u00f6schen?')) return;
+    fetch('/api/candidates/' + candidateId, { method: 'DELETE' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) { if (d.success) window.location.href = '/kandidaten'; });
 }
 
 // ==================== Kopieren ====================
-
 function copyToClipboard(text, label) {
     navigator.clipboard.writeText(text).then(function() {
-        if (typeof showToast === 'function') {
-            showToast(label + ' kopiert', 'success');
-        }
+        if (typeof showToast === 'function') showToast(label + ' kopiert', 'success');
     }).catch(function() {
-        // Fallback fuer aeltere Browser
-        var textarea = document.createElement('textarea');
-        textarea.value = text;
-        textarea.style.position = 'fixed';
-        textarea.style.opacity = '0';
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textarea);
-        if (typeof showToast === 'function') {
-            showToast(label + ' kopiert', 'success');
-        }
+        var ta = document.createElement('textarea');
+        ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+        if (typeof showToast === 'function') showToast(label + ' kopiert', 'success');
     });
 }
 
-// ==================== Werdegang kopieren ====================
-
+// ==================== Profil kopieren ====================
 var _werdegangData = {{ (candidate.work_history or []) | tojson | safe }};
 var _itSkillsData = {{ (candidate.it_skills or []) | tojson | safe }};
 var _languagesData = {{ (candidate.languages or []) | tojson | safe }};
@@ -783,22 +1010,14 @@ var _skillsData = {{ (candidate.skills or []) | tojson | safe }};
 var _candidateName = {{ (candidate.full_name or ((candidate.first_name or '') ~ ' ' ~ (candidate.last_name or ''))) | tojson | safe }};
 
 function buildFullProfileText(name, workHistory, itSkills, languages, furtherEdu, education, skills) {
-    var lines = [];
-    var hasContent = false;
-
-    // 1. Berufserfahrung
+    var lines = []; var hasContent = false;
     if (workHistory && workHistory.length > 0) {
-        hasContent = true;
-        lines.push('--- BERUFSERFAHRUNG ---');
-        lines.push('');
+        hasContent = true; lines.push('--- BERUFSERFAHRUNG ---'); lines.push('');
         for (var i = 0; i < workHistory.length; i++) {
             var job = workHistory[i];
             if (!job || typeof job !== 'object') continue;
             var dateRange = '';
-            if (job.start_date) {
-                dateRange = job.start_date;
-                dateRange += job.end_date ? ' - ' + job.end_date : ' - heute';
-            }
+            if (job.start_date) { dateRange = job.start_date; dateRange += job.end_date ? ' - ' + job.end_date : ' - heute'; }
             if (dateRange) lines.push(dateRange);
             lines.push(job.position || job.title || 'Unbekannte Position');
             lines.push(job.company || 'Unbekanntes Unternehmen');
@@ -806,19 +1025,9 @@ function buildFullProfileText(name, workHistory, itSkills, languages, furtherEdu
             lines.push('');
         }
     }
-
-    // 2. IT-Kenntnisse
-    if (itSkills && itSkills.length > 0) {
-        hasContent = true;
-        lines.push('--- IT-KENNTNISSE ---');
-        lines.push(itSkills.join(', '));
-        lines.push('');
-    }
-
-    // 3. Sprachen
+    if (itSkills && itSkills.length > 0) { hasContent = true; lines.push('--- IT-KENNTNISSE ---'); lines.push(itSkills.join(', ')); lines.push(''); }
     if (languages && languages.length > 0) {
-        hasContent = true;
-        lines.push('--- SPRACHEN ---');
+        hasContent = true; lines.push('--- SPRACHEN ---');
         for (var i = 0; i < languages.length; i++) {
             var lang = languages[i];
             if (!lang || typeof lang !== 'object') continue;
@@ -828,83 +1037,54 @@ function buildFullProfileText(name, workHistory, itSkills, languages, furtherEdu
         }
         lines.push('');
     }
-
-    // 4. Zertifikate & Weiterbildungen
     if (furtherEdu && furtherEdu.length > 0) {
-        hasContent = true;
-        lines.push('--- ZERTIFIKATE & WEITERBILDUNGEN ---');
+        hasContent = true; lines.push('--- ZERTIFIKATE & WEITERBILDUNGEN ---');
         for (var i = 0; i < furtherEdu.length; i++) {
-            var wb = furtherEdu[i];
-            if (!wb || typeof wb !== 'object') continue;
-            var wbTitle = wb.degree || wb.qualification || 'Weiterbildung';
-            var wbInst = wb.institution || '';
-            var wbDate = wb.year || wb.end_date || '';
-            var wbLine = wbTitle;
-            if (wbInst) wbLine += ' | ' + wbInst;
-            if (wbDate) wbLine += ' | ' + wbDate;
+            var wb = furtherEdu[i]; if (!wb || typeof wb !== 'object') continue;
+            var wbLine = wb.degree || wb.qualification || 'Weiterbildung';
+            if (wb.institution) wbLine += ' | ' + wb.institution;
+            if (wb.year || wb.end_date) wbLine += ' | ' + (wb.year || wb.end_date);
             lines.push(wbLine);
         }
         lines.push('');
     }
-
-    // 5. Ausbildung
     if (education && education.length > 0) {
-        hasContent = true;
-        lines.push('--- AUSBILDUNG ---');
+        hasContent = true; lines.push('--- AUSBILDUNG ---');
         for (var i = 0; i < education.length; i++) {
-            var edu = education[i];
-            if (!edu || typeof edu !== 'object') continue;
-            var eduTitle = edu.degree || edu.qualification || 'Ausbildung';
-            var eduInst = edu.institution || edu.school || '';
-            var eduDate = edu.year || edu.end_date || '';
-            var eduLine = eduTitle;
-            if (eduInst) eduLine += ' | ' + eduInst;
-            if (eduDate) eduLine += ' | ' + eduDate;
+            var edu = education[i]; if (!edu || typeof edu !== 'object') continue;
+            var eduLine = edu.degree || edu.qualification || 'Ausbildung';
+            if (edu.institution || edu.school) eduLine += ' | ' + (edu.institution || edu.school);
+            if (edu.year || edu.end_date) eduLine += ' | ' + (edu.year || edu.end_date);
             lines.push(eduLine);
         }
         lines.push('');
     }
-
-    // 6. Skills & Kenntnisse
-    if (skills && skills.length > 0) {
-        hasContent = true;
-        lines.push('--- SKILLS & KENNTNISSE ---');
-        lines.push(skills.join(', '));
-        lines.push('');
-    }
-
+    if (skills && skills.length > 0) { hasContent = true; lines.push('--- SKILLS & KENNTNISSE ---'); lines.push(skills.join(', ')); lines.push(''); }
     if (!hasContent) return null;
     return lines.join('\n').trim();
 }
 
 function copyWerdegang() {
     var text = buildFullProfileText(_candidateName, _werdegangData, _itSkillsData, _languagesData, _furtherEducationData, _educationData, _skillsData);
-    if (!text) {
-        if (typeof showToast === 'function') showToast('Kein Profil vorhanden', 'warning');
-        return;
-    }
+    if (!text) { if (typeof showToast === 'function') showToast('Kein Profil vorhanden', 'warning'); return; }
     copyToClipboard(text, 'Profil');
 }
 
-// ==================== Inline Edit (Detailseite) ====================
-
+// ==================== Inline Edit ====================
 function startDetailEdit(displayEl) {
     var wrapper = displayEl.closest('.detail-edit-wrapper');
     var input = wrapper.querySelector('.detail-edit-input');
     displayEl.classList.add('hidden');
     input.classList.remove('hidden');
-    input.focus();
-    input.select();
+    input.focus(); input.select();
 }
 
 function handleDetailEditKey(event, input) {
-    if (event.key === 'Enter') {
-        input.blur();
-    } else if (event.key === 'Escape') {
+    if (event.key === 'Enter') { input.blur(); }
+    else if (event.key === 'Escape') {
         var wrapper = input.closest('.detail-edit-wrapper');
         var display = wrapper.querySelector('.detail-edit-display');
-        input.classList.add('hidden');
-        display.classList.remove('hidden');
+        input.classList.add('hidden'); display.classList.remove('hidden');
     }
 }
 
@@ -915,70 +1095,35 @@ function saveDetailEdit(input) {
     var field = wrapper.dataset.field;
     var newValue = input.value.trim();
     var oldText = display.textContent.trim();
-
-    // Placeholder-Texte als leer behandeln
     var placeholders = ['Keine Position angegeben', 'Kein Unternehmen', 'Vorname', 'Nachname', 'Nicht angegeben'];
-    if (placeholders.indexOf(oldText) !== -1) {
-        oldText = '';
-    }
-
-    if (newValue === oldText) {
-        input.classList.add('hidden');
-        display.classList.remove('hidden');
-        return;
-    }
-
-    var body = {};
-    body[field] = newValue || null;
-
-    fetch('/api/candidates/' + candidateId, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-    })
-    .then(function(response) { return response.json(); })
+    if (placeholders.indexOf(oldText) !== -1) oldText = '';
+    if (newValue === oldText) { input.classList.add('hidden'); display.classList.remove('hidden'); return; }
+    var body = {}; body[field] = newValue || null;
+    fetch('/api/candidates/' + candidateId, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    .then(function(r) { return r.json(); })
     .then(function(data) {
         if (data.id) {
-            var fallbackTexts = {
-                'current_position': 'Keine Position angegeben',
-                'current_company': 'Kein Unternehmen',
-                'first_name': 'Vorname',
-                'last_name': 'Nachname',
-                'salary': 'Nicht angegeben',
-                'notice_period': 'Nicht angegeben'
-            };
-            display.textContent = newValue || fallbackTexts[field] || '—';
-            if (typeof showToast === 'function') {
-                showToast('Gespeichert', 'success');
-            }
+            var fallbackTexts = { 'current_position': 'Keine Position angegeben', 'current_company': 'Kein Unternehmen', 'first_name': 'Vorname', 'last_name': 'Nachname', 'salary': 'Nicht angegeben', 'notice_period': 'Nicht angegeben' };
+            display.textContent = newValue || fallbackTexts[field] || '\u2014';
+            if (typeof showToast === 'function') showToast('Gespeichert', 'success');
         }
     })
-    .catch(function() {
-        input.value = oldText;
-    })
-    .finally(function() {
-        input.classList.add('hidden');
-        display.classList.remove('hidden');
-    });
+    .catch(function() { input.value = oldText; })
+    .finally(function() { input.classList.add('hidden'); display.classList.remove('hidden'); });
 }
 
-// ==================== CV-Vorschau Slide-Over ====================
-
+// ==================== CV-Vorschau ====================
 function openCvPreview() {
     var overlay = document.getElementById('cv-preview-overlay');
     var panel = document.getElementById('cv-preview-panel');
     var iframe = document.getElementById('cv-preview-iframe');
-
     iframe.src = '/api/candidates/{{ candidate.id }}/cv-preview';
-
     overlay.classList.remove('hidden');
     requestAnimationFrame(function() {
         overlay.querySelector('.cv-overlay-bg').classList.remove('opacity-0');
         overlay.querySelector('.cv-overlay-bg').classList.add('opacity-100');
-        panel.classList.remove('translate-x-full');
-        panel.classList.add('translate-x-0');
+        panel.classList.remove('translate-x-full'); panel.classList.add('translate-x-0');
     });
-
     document.body.style.overflow = 'hidden';
 }
 
@@ -986,68 +1131,18 @@ function closeCvPreview() {
     var overlay = document.getElementById('cv-preview-overlay');
     var panel = document.getElementById('cv-preview-panel');
     var iframe = document.getElementById('cv-preview-iframe');
-
-    panel.classList.remove('translate-x-0');
-    panel.classList.add('translate-x-full');
+    panel.classList.remove('translate-x-0'); panel.classList.add('translate-x-full');
     overlay.querySelector('.cv-overlay-bg').classList.remove('opacity-100');
     overlay.querySelector('.cv-overlay-bg').classList.add('opacity-0');
-
-    setTimeout(function() {
-        overlay.classList.add('hidden');
-        iframe.src = '';
-    }, 300);
-
+    setTimeout(function() { overlay.classList.add('hidden'); iframe.src = ''; }, 300);
     document.body.style.overflow = '';
 }
 
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         var overlay = document.getElementById('cv-preview-overlay');
-        if (overlay && !overlay.classList.contains('hidden')) {
-            closeCvPreview();
-        }
+        if (overlay && !overlay.classList.contains('hidden')) closeCvPreview();
     }
 });
 </script>
-
-{# CV-Vorschau Slide-Over Panel #}
-{% if candidate.cv_url %}
-<div id="cv-preview-overlay" class="hidden relative z-50" aria-labelledby="cv-preview-title" role="dialog" aria-modal="true">
-    <div class="cv-overlay-bg fixed inset-0 bg-gray-500/75 transition-opacity duration-300 ease-in-out opacity-0" onclick="closeCvPreview()"></div>
-    <div class="fixed inset-0 overflow-hidden">
-        <div class="absolute inset-0 overflow-hidden">
-            <div class="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10">
-                <div id="cv-preview-panel" class="pointer-events-auto w-screen max-w-2xl transform transition-transform duration-300 ease-in-out translate-x-full">
-                    <div class="flex h-full flex-col bg-white shadow-xl">
-                        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
-                            <div>
-                                <h2 id="cv-preview-title" class="text-lg font-semibold text-gray-900">CV-Vorschau</h2>
-                                <p class="text-sm text-gray-500">{{ candidate.full_name or (candidate.first_name ~ ' ' ~ candidate.last_name) }}</p>
-                            </div>
-                            <div class="flex items-center gap-3">
-                                <a href="{{ candidate.cv_url }}" target="_blank" class="inline-flex items-center rounded-md bg-white px-3.5 py-1.5 text-base font-medium text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50" title="In neuem Tab oeffnen">
-                                    <svg class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>
-                                    Neuer Tab
-                                </a>
-                                <button type="button" onclick="closeCvPreview()" class="rounded-md bg-white p-2 text-gray-400 hover:text-gray-600 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50" title="Schliessen (ESC)">
-                                    <span class="sr-only">Schliessen</span>
-                                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="flex-1 overflow-hidden relative">
-                            <iframe id="cv-preview-iframe" src="" class="w-full h-full border-0" title="CV-Vorschau"></iframe>
-                            <div id="cv-preview-fallback" class="hidden absolute inset-0 flex flex-col items-center justify-center bg-gray-50 p-8">
-                                <svg class="h-16 w-16 text-gray-300" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
-                                <p class="mt-4 text-sm text-gray-500">CV konnte nicht geladen werden.</p>
-                                <a href="{{ candidate.cv_url }}" target="_blank" class="mt-3 text-sm font-medium text-primary-600 hover:text-primary-500">Direkt herunterladen</a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-{% endif %}
 {% endblock %}
