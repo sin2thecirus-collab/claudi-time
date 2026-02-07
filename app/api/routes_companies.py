@@ -119,6 +119,16 @@ async def get_import_status():
     }
 
 
+@router.delete("/crm-delete-all-except/{keep_id}")
+async def delete_all_except(keep_id: UUID, db: AsyncSession = Depends(get_db)):
+    """TEMPORAER: Loescht alle Unternehmen AUSSER die angegebene ID."""
+    count_result = await db.execute(select(sa_func.count(Company.id)).where(Company.id != keep_id))
+    to_delete = count_result.scalar() or 0
+    await db.execute(sa_delete(Company).where(Company.id != keep_id))
+    await db.commit()
+    return {"deleted": to_delete, "kept": str(keep_id)}
+
+
 @router.get("/search/json")
 async def search_companies_json(
     q: str = Query(default="", min_length=1),
