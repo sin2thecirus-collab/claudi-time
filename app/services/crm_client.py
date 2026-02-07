@@ -587,7 +587,19 @@ class RecruitCRMClient:
             if max_pages and page > max_pages:
                 break
 
-            result = await self.get_companies(page=page, per_page=per_page)
+            # Rate-Limit Retry (max 3 Versuche)
+            for attempt in range(3):
+                try:
+                    result = await self.get_companies(page=page, per_page=per_page)
+                    break
+                except CRMRateLimitError as e:
+                    wait = e.retry_after if attempt < 2 else 120
+                    logger.warning(f"Rate-Limit bei Seite {page}, warte {wait}s (Versuch {attempt+1}/3)")
+                    await asyncio.sleep(wait)
+            else:
+                logger.error(f"Rate-Limit: 3 Versuche fehlgeschlagen bei Seite {page}")
+                break
+
             meta = result["meta"]
             has_more = meta.get("has_next", False)
             estimated_total = meta.get("total", estimated_total)
@@ -719,7 +731,19 @@ class RecruitCRMClient:
             if max_pages and page > max_pages:
                 break
 
-            result = await self.get_contacts(page=page, per_page=per_page)
+            # Rate-Limit Retry (max 3 Versuche)
+            for attempt in range(3):
+                try:
+                    result = await self.get_contacts(page=page, per_page=per_page)
+                    break
+                except CRMRateLimitError as e:
+                    wait = e.retry_after if attempt < 2 else 120
+                    logger.warning(f"Rate-Limit bei Seite {page}, warte {wait}s (Versuch {attempt+1}/3)")
+                    await asyncio.sleep(wait)
+            else:
+                logger.error(f"Rate-Limit: 3 Versuche fehlgeschlagen bei Seite {page}")
+                break
+
             meta = result["meta"]
             has_more = meta.get("has_next", False)
             estimated_total = meta.get("total", estimated_total)

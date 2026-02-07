@@ -100,13 +100,14 @@ async def trigger_crm_import(
     dry_run: bool = Query(False),
     max_pages: int | None = Query(None),
     skip_contacts: bool = Query(False),
+    skip_companies: bool = Query(False),
 ):
     """Startet CRM-Import als Background-Task."""
     if _import_status.get("running"):
         return JSONResponse(status_code=409, content={"error": "Import laeuft bereits", "log": _import_status["log"][-10:]})
 
-    background_tasks.add_task(_run_crm_import, dry_run=dry_run, max_pages=max_pages, skip_contacts=skip_contacts)
-    return {"message": f"Import gestartet (dry_run={dry_run}, max_pages={max_pages})", "status_url": "/api/companies/crm-import-status"}
+    background_tasks.add_task(_run_crm_import, dry_run=dry_run, max_pages=max_pages, skip_contacts=skip_contacts, skip_companies=skip_companies)
+    return {"message": f"Import gestartet (dry_run={dry_run}, max_pages={max_pages}, skip_companies={skip_companies})", "status_url": "/api/companies/crm-import-status"}
 
 
 @router.get("/crm-import-status")
@@ -763,7 +764,7 @@ import uuid as uuid_mod
 _import_status: dict[str, Any] = {"running": False, "log": [], "stats": {}}
 
 
-async def _run_crm_import(dry_run: bool = False, max_pages: int | None = None, skip_contacts: bool = False):
+async def _run_crm_import(dry_run: bool = False, max_pages: int | None = None, skip_contacts: bool = False, skip_companies: bool = False):
     """Background-Task fuer CRM Import."""
     global _import_status
     _import_status = {"running": True, "log": [], "stats": {}, "dry_run": dry_run}
@@ -778,66 +779,70 @@ async def _run_crm_import(dry_run: bool = False, max_pages: int | None = None, s
 
         async with RecruitCRMClient() as client:
             # ── Phase 1: Unternehmen ──
-            log("=== Phase 1: Unternehmen importieren ===")
-            company_stats = {"imported": 0, "skipped_empty": 0, "errors": 0}
+            if skip_companies:
+                log("=== Phase 1: Unternehmen UEBERSPRUNGEN (skip_companies=True) ===")
+            else:
+                log("=== Phase 1: Unternehmen importieren ===")
+            if not skip_companies:
+                company_stats = {"imported": 0, "skipped_empty": 0, "errors": 0}
 
-            if not dry_run:
-                async with async_session_maker() as session:
-                    count_result = await session.execute(select(sa_func.count(Company.id)))
-                    existing = count_result.scalar() or 0
-                    if existing > 0:
-                        log(f"Loesche {existing} bestehende Unternehmen (Clean Slate)...")
-                        await session.execute(sa_delete(Company))
-                        await session.commit()
-                        log("Bestehende Unternehmen geloescht.")
-
-            async for page_num, companies, total in client.get_all_companies_paginated(per_page=100, max_pages=max_pages):
-                log(f"Seite {page_num}: {len(companies)} Unternehmen (ca. {total} gesamt)")
-
-                if dry_run:
-                    for c in companies:
-                        mapped = client.map_to_company_data(c)
-                        if mapped and mapped.get("name"):
-                            company_stats["imported"] += 1
-                        else:
-                            company_stats["skipped_empty"] += 1
-                    continue
-
-                async with async_session_maker() as session:
-                    batch = []
-                    for c in companies:
-                        try:
-                            mapped = client.map_to_company_data(c)
-                            if not mapped or not mapped.get("name"):
-                                company_stats["skipped_empty"] += 1
-                                continue
-                            batch.append(Company(**mapped))
-                            company_stats["imported"] += 1
-                        except Exception as e:
-                            company_stats["errors"] += 1
-                            log(f"  Fehler: {e}")
-
-                    if batch:
-                        try:
-                            session.add_all(batch)
+                if not dry_run:
+                    async with async_session_maker() as session:
+                        count_result = await session.execute(select(sa_func.count(Company.id)))
+                        existing = count_result.scalar() or 0
+                        if existing > 0:
+                            log(f"Loesche {existing} bestehende Unternehmen (Clean Slate)...")
+                            await session.execute(sa_delete(Company))
                             await session.commit()
-                        except Exception as e:
-                            await session.rollback()
-                            log(f"  Batch-Fehler ({e}), einzeln einfuegen...")
-                            for company in batch:
-                                try:
-                                    async with async_session_maker() as ss:
-                                        ss.add(company)
-                                        await ss.commit()
-                                except Exception:
-                                    company_stats["errors"] += 1
-                                    company_stats["imported"] -= 1
+                            log("Bestehende Unternehmen geloescht.")
 
-                if company_stats["imported"] % 500 == 0 and company_stats["imported"] > 0:
-                    log(f"  Fortschritt: {company_stats['imported']} importiert...")
+                async for page_num, companies, total in client.get_all_companies_paginated(per_page=100, max_pages=max_pages):
+                    log(f"Seite {page_num}: {len(companies)} Unternehmen (ca. {total} gesamt)")
 
-            log(f"Unternehmen fertig: {company_stats}")
-            _import_status["stats"]["companies"] = company_stats
+                    if dry_run:
+                        for c in companies:
+                            mapped = client.map_to_company_data(c)
+                            if mapped and mapped.get("name"):
+                                company_stats["imported"] += 1
+                            else:
+                                company_stats["skipped_empty"] += 1
+                        continue
+
+                    async with async_session_maker() as session:
+                        batch = []
+                        for c in companies:
+                            try:
+                                mapped = client.map_to_company_data(c)
+                                if not mapped or not mapped.get("name"):
+                                    company_stats["skipped_empty"] += 1
+                                    continue
+                                batch.append(Company(**mapped))
+                                company_stats["imported"] += 1
+                            except Exception as e:
+                                company_stats["errors"] += 1
+                                log(f"  Fehler: {e}")
+
+                        if batch:
+                            try:
+                                session.add_all(batch)
+                                await session.commit()
+                            except Exception as e:
+                                await session.rollback()
+                                log(f"  Batch-Fehler ({e}), einzeln einfuegen...")
+                                for company in batch:
+                                    try:
+                                        async with async_session_maker() as ss:
+                                            ss.add(company)
+                                            await ss.commit()
+                                    except Exception:
+                                        company_stats["errors"] += 1
+                                        company_stats["imported"] -= 1
+
+                    if company_stats["imported"] % 500 == 0 and company_stats["imported"] > 0:
+                        log(f"  Fortschritt: {company_stats['imported']} importiert...")
+
+                log(f"Unternehmen fertig: {company_stats}")
+                _import_status["stats"]["companies"] = company_stats
 
             # ── Phase 2: Kontakte ──
             if not skip_contacts:
