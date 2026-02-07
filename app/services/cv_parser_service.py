@@ -35,17 +35,19 @@ REGELN:
 - Datum: "MM/YYYY" oder "YYYY", aktuell = "heute"
 - Bulletpoints: JEDE Taetigkeit mit "• " beginnen, mit "\\n" trennen
 - institution und degree bei education/further_education NIEMALS null wenn Info im CV vorhanden!
+- NAMEN UND POSITIONEN: IMMER in korrekter Gross-/Kleinschreibung! "LARA HARTMANN" -> "Lara Hartmann", "STEUERFACHANGESTELLTE" -> "Steuerfachangestellte". NIEMALS komplett in Grossbuchstaben!
 
 KATEGORIEN:
 
-1. current_position: Aktuelle/letzte Berufsbezeichnung
+1. current_position: Aktuelle/letzte Berufsbezeichnung (korrekte Schreibweise!)
+2. current_company: Aktueller/letzter Arbeitgeber aus dem Werdegang
 
-2. work_history: ALLE Jobs (auch Praktika, Nebenjobs), neueste zuerst
+3. work_history: ALLE Jobs (auch Praktika, Nebenjobs), neueste zuerst
    - {company, position, start_date, end_date, description}
    - description: Taetigkeiten als Bullets oder null
    - NICHT hier: Ausbildungen, Weiterbildungen, IHK, Zertifikate -> education/further_education
 
-3. education: Schulen, Berufsausbildungen (NICHT IHK!), Studium
+4. education: Schulen, Berufsausbildungen (NICHT IHK!), Studium
    - {institution, degree, field_of_study, start_date, end_date}
    - institution: PFLICHT! Name der Schule/Uni/Bildungseinrichtung. NIEMALS null wenn im CV erkennbar!
    - degree: PFLICHT! Abschluss/Ausbildungsberuf. NIEMALS null wenn im CV erkennbar!
@@ -55,7 +57,7 @@ KATEGORIEN:
    - "Ausbildung zum/zur X" -> degree = Beruf, ABER: IHK-Pruefungen (Bilanzbuchhalter, Fachwirt, etc.) -> further_education!
    - Studium ohne Abschluss: degree = null
 
-4. further_education: IHK-Pruefungen (Bilanzbuchhalter, Fachwirt, Betriebswirt IHK), Meister, Seminare, Zertifikate
+5. further_education: IHK-Pruefungen (Bilanzbuchhalter, Fachwirt, Betriebswirt IHK), Meister, Seminare, Zertifikate
    - {institution, degree, field_of_study, start_date, end_date}
    - institution: PFLICHT! Name der IHK/Bildungstraeger/Akademie. NIEMALS null wenn erkennbar!
    - degree: PFLICHT! Bezeichnung der Weiterbildung/Pruefung. NIEMALS null!
@@ -63,20 +65,30 @@ KATEGORIEN:
    - WICHTIG: Auch wenn im CV unter "Ausbildung" gelistet - IHK = immer further_education!
    - Gesamten CV durchsuchen!
 
-5. it_skills: Software/Tools (SAP, DATEV, Excel, ERP, CRM, Programmiersprachen)
+6. it_skills: Software/Tools (SAP, DATEV, Excel, ERP, CRM, Programmiersprachen)
 
-6. languages: [{language, level}] - Level wie im CV (B2, Muttersprache, fliessend, etc.)
+7. languages: [{language, level}] - Level wie im CV (B2, Muttersprache, fliessend, etc.)
 
-7. skills: Fachkenntnisse (NICHT IT, NICHT Sprachen), Fuehrerschein
+8. skills: Fachkenntnisse (NICHT IT, NICHT Sprachen), Fuehrerschein
 
-8. Persoenlich: first_name, last_name, birth_date (DD.MM.YYYY)
+9. Persoenlich: first_name, last_name, email, phone, birth_date (DD.MM.YYYY)
+   - NAMEN: Korrekte Gross-/Kleinschreibung! "LARA" -> "Lara", "SOPHIE" -> "Sophie"
+   - email: E-Mail-Adresse aus dem CV extrahieren! Steht oft in der Kopfzeile/Kontaktdaten.
+   - phone: Telefonnummer (Festnetz oder Mobil) extrahieren!
    - birth_date IMMER suchen! Haeufige Formate:
      "geboren am 15.03.1985", "geb. 15.03.85", "Geburtsdatum: 15.03.1985"
      "* 15.03.1985", "Jahrgang 1985", "15. Maerz 1985"
      Wenn nur Jahr: "01.01.YYYY". Steht oft am Anfang oder Ende des CVs.
+   - Wenn KEIN Geburtsdatum auffindbar: estimated_age anhand des Werdegangs schaetzen!
+     Berufsstart-Jahr abziehen von aktuellem Jahr + ca. 20 Jahre Lebenserfahrung.
+     Beispiel: Berufsstart 2010 → geschaetzt 2026-2010+20 = 36 Jahre → estimated_age: 36
+
+10. Adresse: street_address, postal_code, city
+    - Steht meistens in der Kopfzeile des CVs bei den Kontaktdaten!
+    - "Musterstr. 12, 60311 Frankfurt" -> street_address: "Musterstr. 12", postal_code: "60311", city: "Frankfurt"
 
 JSON-Ausgabe:
-{"current_position":"...","work_history":[{"company":"...","position":"...","start_date":"...","end_date":"...","description":"• Task1\\n• Task2"}],"education":[{"institution":"...","degree":"...","field_of_study":"...","start_date":"...","end_date":"..."}],"further_education":[...],"it_skills":["..."],"languages":[{"language":"...","level":"..."}],"skills":["..."],"first_name":"...","last_name":"...","birth_date":"..."}"""
+{"current_position":"...","current_company":"...","work_history":[{"company":"...","position":"...","start_date":"...","end_date":"...","description":"• Task1\\n• Task2"}],"education":[{"institution":"...","degree":"...","field_of_study":"...","start_date":"...","end_date":"..."}],"further_education":[...],"it_skills":["..."],"languages":[{"language":"...","level":"..."}],"skills":["..."],"first_name":"...","last_name":"...","email":"...","phone":"...","birth_date":"...","estimated_age":null,"street_address":"...","postal_code":"...","city":"..."}"""
 
 
 @dataclass
@@ -438,6 +450,20 @@ class CVParserService:
             return None
         return value
 
+    @staticmethod
+    def _normalize_case(value: str | None) -> str | None:
+        """Normalisiert ALL CAPS zu Title Case. Laesst gemischte Schreibweise in Ruhe."""
+        if not value or not isinstance(value, str):
+            return value
+        stripped = value.strip()
+        if not stripped:
+            return None
+        # Nur konvertieren wenn KOMPLETT Grossbuchstaben (mindestens 2 Buchstaben)
+        alpha_chars = [c for c in stripped if c.isalpha()]
+        if len(alpha_chars) >= 2 and all(c.isupper() for c in alpha_chars):
+            return stripped.title()
+        return stripped
+
     def _map_to_cv_result(self, data: dict) -> CVParseResult:
         """Mappt OpenAI-Response auf CVParseResult."""
         work_history = None
@@ -445,7 +471,7 @@ class CVParserService:
             work_history = [
                 WorkHistoryEntry(
                     company=self._clean_null(entry.get("company")),
-                    position=self._clean_null(entry.get("position")),
+                    position=self._normalize_case(self._clean_null(entry.get("position"))),
                     start_date=self._clean_null(entry.get("start_date")),
                     end_date=self._clean_null(entry.get("end_date")),
                     description=self._clean_null(entry.get("description")),
@@ -494,14 +520,26 @@ class CVParserService:
                 if isinstance(entry, dict) and entry.get("language")
             ]
 
+        # estimated_age: int oder None
+        estimated_age = data.get("estimated_age")
+        if estimated_age is not None:
+            try:
+                estimated_age = int(estimated_age)
+            except (ValueError, TypeError):
+                estimated_age = None
+
         return CVParseResult(
-            first_name=data.get("first_name"),
-            last_name=data.get("last_name"),
+            first_name=self._normalize_case(data.get("first_name")),
+            last_name=self._normalize_case(data.get("last_name")),
+            email=self._clean_null(data.get("email")),
+            phone=self._clean_null(data.get("phone")),
             birth_date=data.get("birth_date"),
-            street_address=data.get("street_address"),
-            postal_code=data.get("postal_code"),
-            city=data.get("city"),
-            current_position=data.get("current_position"),
+            estimated_age=estimated_age,
+            street_address=self._clean_null(data.get("street_address")),
+            postal_code=self._clean_null(data.get("postal_code")),
+            city=self._clean_null(data.get("city")),
+            current_position=self._normalize_case(data.get("current_position")),
+            current_company=self._clean_null(data.get("current_company")),
             skills=data.get("skills"),
             languages=languages,
             it_skills=data.get("it_skills"),
@@ -598,13 +636,29 @@ class CVParserService:
         if cv_data.birth_date:
             candidate.birth_date = self._parse_birth_date(cv_data.birth_date)
 
-        # Adresse kommt aus CRM API, nicht aus CV
+        # E-Mail und Telefon (aus CV uebernehmen wenn leer)
+        if cv_data.email and not candidate.email:
+            candidate.email = cv_data.email
+        if cv_data.phone and not candidate.phone:
+            candidate.phone = cv_data.phone
+
+        # Adresse aus CV uebernehmen wenn leer
+        if cv_data.street_address and not candidate.street_address:
+            candidate.street_address = cv_data.street_address
+        if cv_data.postal_code and not candidate.postal_code:
+            candidate.postal_code = cv_data.postal_code
+        if cv_data.city and not candidate.city:
+            candidate.city = cv_data.city
 
         # Position (immer aus CV uebernehmen, ausser manuell bearbeitet)
         # Rohwert aus CV — wird spaeter durch verifizierte Rolle ueberschrieben (Schritt 4.5)
         manual = candidate.manual_overrides or {}
         if "current_position" not in manual and cv_data.current_position:
             candidate.current_position = cv_data.current_position
+
+        # Aktuelles Unternehmen (aus CV uebernehmen wenn leer)
+        if cv_data.current_company and not candidate.current_company:
+            candidate.current_company = cv_data.current_company
 
         # Skills (erweitern, nicht überschreiben)
         if cv_data.skills:

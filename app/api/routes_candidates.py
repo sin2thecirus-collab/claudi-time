@@ -277,11 +277,12 @@ async def parse_cv_for_quickadd(
         "parsed": {
             "first_name": parsed.first_name,
             "last_name": parsed.last_name,
+            "email": parsed.email,
+            "phone": parsed.phone,
             "birth_date": parsed.birth_date,
+            "estimated_age": parsed.estimated_age,
             "current_position": parsed.current_position,
-            "current_company": None,
-            "email": None,
-            "phone": None,
+            "current_company": parsed.current_company,
             "street_address": parsed.street_address,
             "postal_code": parsed.postal_code,
             "city": parsed.city,
@@ -348,6 +349,9 @@ async def create_candidate(
             logger.warning(f"Konnte birth_date nicht parsen: {data.get('birth_date')} - {e}")
 
     # Kandidat erstellen
+    from datetime import datetime as dt_cls, timezone as tz_cls
+    now = dt_cls.now(tz_cls.utc)
+
     candidate = Candidate(
         first_name=data.get("first_name"),
         last_name=data.get("last_name"),
@@ -369,6 +373,7 @@ async def create_candidate(
         further_education=data.get("further_education"),
         cv_stored_path=data.get("cv_stored_path"),
         cv_text=data.get("cv_text"),
+        cv_parsed_at=now if data.get("cv_text") else None,
     )
 
     db.add(candidate)

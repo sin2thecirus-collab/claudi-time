@@ -13,6 +13,7 @@
         first_name: '',
         last_name: '',
         birth_date: '',
+        estimated_age: null,
         current_position: '',
         current_company: '',
         email: '',
@@ -73,6 +74,7 @@
             this.form.first_name = data.parsed.first_name || '';
             this.form.last_name = data.parsed.last_name || '';
             this.form.birth_date = data.parsed.birth_date || '';
+            this.form.estimated_age = data.parsed.estimated_age || null;
             this.form.current_position = data.parsed.current_position || '';
             this.form.current_company = data.parsed.current_company || '';
             this.form.email = data.parsed.email || '';
@@ -104,7 +106,7 @@
 
         this.saving = true;
 
-        // Skills/IT-Skills String → Array
+        // Skills/IT-Skills String -> Array
         const skillsArr = this.form.skills
             ? this.form.skills.split(',').map(s => s.trim()).filter(Boolean)
             : [];
@@ -162,7 +164,7 @@
     }
 }" class="h-full flex flex-col">
 
-    <!-- ═══ PHASE 1: CV Upload ═══ -->
+    <!-- PHASE 1: CV Upload -->
     <template x-if="phase === 'upload'">
         <div class="p-6 flex flex-col items-center justify-center flex-1">
             <!-- Drag-Drop Zone -->
@@ -174,45 +176,40 @@
                  class="w-full border-2 border-dashed rounded-2xl p-12 text-center transition-all duration-200 cursor-pointer"
                  @click="$refs.fileInput.click()">
                 <input type="file" x-ref="fileInput" accept=".pdf" class="hidden" @change="handleFileSelect($event)">
-
                 <div class="mx-auto w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
                      :class="dragOver ? 'bg-primary-100' : 'bg-white border border-gray-200'">
                     <svg class="w-8 h-8" :class="dragOver ? 'text-primary-600' : 'text-gray-400'" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                     </svg>
                 </div>
-
                 <p class="text-sm font-semibold text-gray-700 mb-1">CV hier hinziehen oder klicken</p>
                 <p class="text-xs text-gray-500">PDF, max. 10 MB</p>
             </div>
-
             <!-- Upload-Spinner -->
             <div x-show="uploading" class="w-full text-center py-16">
                 <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
                 <p class="text-sm font-semibold text-gray-700">CV wird analysiert...</p>
-                <p class="text-xs text-gray-500 mt-1">Text-Extraktion + KI-Parsing (3-5 Sekunden)</p>
+                <p class="text-xs text-gray-500 mt-1">Text-Extraktion + KI-Parsing (ca. 5 Sekunden)</p>
             </div>
-
-            <!-- Oder: Ohne CV -->
+            <!-- Ohne CV -->
             <div x-show="!uploading" class="mt-6 text-center">
                 <div class="flex items-center gap-3 mb-3">
                     <div class="flex-1 h-px bg-gray-200"></div>
                     <span class="text-xs text-gray-400 font-medium">oder</span>
                     <div class="flex-1 h-px bg-gray-200"></div>
                 </div>
-                <button @click="skipCV()"
-                        class="text-sm text-primary-600 hover:text-primary-700 font-medium hover:underline">
+                <button @click="skipCV()" class="text-sm text-primary-600 hover:text-primary-700 font-medium hover:underline">
                     Ohne CV manuell anlegen
                 </button>
             </div>
         </div>
     </template>
 
-    <!-- ═══ PHASE 2: Formular ═══ -->
+    <!-- PHASE 2: Formular -->
     <template x-if="phase === 'form'">
         <div class="p-6 space-y-5">
 
-            <!-- Erfolgs-Banner (wenn CV geparst) -->
+            <!-- Erfolgs-Banner -->
             <div x-show="parsed" class="bg-green-50 border border-green-200 rounded-xl p-3 flex items-center gap-3">
                 <div class="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0">
                     <svg class="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
@@ -221,7 +218,7 @@
                 </div>
                 <div>
                     <p class="text-sm font-semibold text-green-800">CV erfolgreich geparst</p>
-                    <p class="text-xs text-green-600">Daten wurden automatisch eingetragen. Bitte pruefen und korrigieren.</p>
+                    <p class="text-xs text-green-600">Alle Daten automatisch eingetragen. Bitte pruefen und ggf. korrigieren.</p>
                 </div>
             </div>
 
@@ -245,7 +242,10 @@
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">Geburtsdatum</label>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">
+                            Geburtsdatum
+                            <span x-show="!form.birth_date && form.estimated_age" class="text-amber-600 font-normal">(geschaetzt: ~<span x-text="form.estimated_age"></span> J.)</span>
+                        </label>
                         <input type="text" x-model="form.birth_date" placeholder="TT.MM.JJJJ"
                                class="w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm">
                     </div>
@@ -337,7 +337,7 @@
                 </div>
             </fieldset>
 
-            <!-- Sprachen (wenn vorhanden) -->
+            <!-- Sprachen -->
             <template x-if="form.languages && form.languages.length > 0">
                 <fieldset class="space-y-2">
                     <legend class="text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
@@ -347,15 +347,68 @@
                     <template x-for="(lang, i) in form.languages" :key="i">
                         <div class="flex items-center gap-2 text-sm text-gray-700 bg-gray-50 rounded-lg px-3 py-2">
                             <span class="font-medium" x-text="lang.language || lang.name || 'Unbekannt'"></span>
-                            <span class="text-gray-400">—</span>
+                            <span class="text-gray-400">&mdash;</span>
                             <span class="text-gray-500" x-text="lang.level || lang.proficiency || ''"></span>
                         </div>
                     </template>
                 </fieldset>
             </template>
 
+            <!-- Werdegang (aus CV geparst, read-only Vorschau) -->
+            <template x-if="parsed && parsed.work_history && parsed.work_history.length > 0">
+                <fieldset class="space-y-2">
+                    <legend class="text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
+                        <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" /></svg>
+                        Werdegang (aus CV) &mdash; <span class="font-normal text-gray-400" x-text="parsed.work_history.length + ' Stationen'"></span>
+                    </legend>
+                    <template x-for="(wh, i) in parsed.work_history" :key="i">
+                        <div class="bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
+                            <div class="flex items-start justify-between">
+                                <div>
+                                    <span class="text-sm font-semibold text-gray-800" x-text="wh.position || 'Unbekannte Position'"></span>
+                                    <span class="text-xs text-gray-400 ml-1" x-show="wh.company" x-text="'bei ' + wh.company"></span>
+                                </div>
+                                <span class="text-xs text-gray-400 flex-shrink-0" x-text="(wh.start_date || '?') + ' - ' + (wh.end_date || 'heute')"></span>
+                            </div>
+                        </div>
+                    </template>
+                </fieldset>
+            </template>
+
+            <!-- Ausbildung (aus CV geparst) -->
+            <template x-if="parsed && parsed.education && parsed.education.length > 0">
+                <fieldset class="space-y-2">
+                    <legend class="text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
+                        <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342" /></svg>
+                        Ausbildung (aus CV)
+                    </legend>
+                    <template x-for="(edu, i) in parsed.education" :key="i">
+                        <div class="bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
+                            <div class="text-sm font-semibold text-gray-800" x-text="edu.degree || edu.field_of_study || 'Ausbildung'"></div>
+                            <div class="text-xs text-gray-500" x-show="edu.institution" x-text="edu.institution"></div>
+                        </div>
+                    </template>
+                </fieldset>
+            </template>
+
+            <!-- Weiterbildung (aus CV geparst) -->
+            <template x-if="parsed && parsed.further_education && parsed.further_education.length > 0">
+                <fieldset class="space-y-2">
+                    <legend class="text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
+                        <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.497m5.007 0a7.454 7.454 0 01-.982-3.172M9.497 14.25a7.454 7.454 0 00.981-3.172M5.25 4.236c-.982.143-1.954.317-2.916.52A6.003 6.003 0 007.73 9.728M5.25 4.236V4.5c0 2.108.966 3.99 2.48 5.228M5.25 4.236V2.721C7.456 2.41 9.71 2.25 12 2.25c2.291 0 4.545.16 6.75.47v1.516M7.73 9.728a6.726 6.726 0 002.748 1.35m8.272-6.842V4.5c0 2.108-.966 3.99-2.48 5.228m2.48-5.492a46.32 46.32 0 012.916.52 6.003 6.003 0 01-5.395 4.972m0 0a6.726 6.726 0 01-2.749 1.35m0 0a6.772 6.772 0 01-3.044 0" /></svg>
+                        Weiterbildung (aus CV)
+                    </legend>
+                    <template x-for="(fe, i) in parsed.further_education" :key="i">
+                        <div class="bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
+                            <div class="text-sm font-semibold text-gray-800" x-text="fe.degree || fe.field_of_study || 'Weiterbildung'"></div>
+                            <div class="text-xs text-gray-500" x-show="fe.institution" x-text="fe.institution"></div>
+                        </div>
+                    </template>
+                </fieldset>
+            </template>
+
             <!-- Speichern Button -->
-            <div class="pt-4 border-t border-gray-200 flex gap-3">
+            <div class="pt-4 border-t border-gray-200 flex gap-3 sticky bottom-0 bg-white pb-2">
                 <button @click="saveCandidate()"
                         :disabled="saving"
                         class="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed">

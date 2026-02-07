@@ -151,11 +151,15 @@ class CVParseResult(BaseModel):
 
     first_name: str | None = None
     last_name: str | None = None
+    email: str | None = None
+    phone: str | None = None
     birth_date: str | None = None  # String, da CV-Format variiert
+    estimated_age: int | None = None  # Geschaetztes Alter wenn kein Geburtsdatum
     street_address: str | None = None
     postal_code: str | None = None
     city: str | None = None
     current_position: str | None = None
+    current_company: str | None = None
     skills: list[str] | None = None
     languages: list[LanguageEntry] | None = None
     it_skills: list[str] | None = None
