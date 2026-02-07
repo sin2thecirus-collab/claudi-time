@@ -161,14 +161,14 @@ async def import_contacts(
     """
     stats = {"imported": 0, "skipped_empty": 0, "skipped_no_company": 0, "errors": 0}
 
-    # Company-Name → ID Mapping laden
+    # Company-Name → ID Mapping laden (nur bei echtem Import noetig)
     company_map: dict[str, str] = {}
-    async with async_session_maker() as session:
-        result = await session.execute(select(Company.name, Company.id))
-        for name, company_id in result.all():
-            company_map[name.lower().strip()] = str(company_id)
-
-    logger.info(f"Company-Map geladen: {len(company_map)} Unternehmen")
+    if not dry_run:
+        async with async_session_maker() as session:
+            result = await session.execute(select(Company.name, Company.id))
+            for name, company_id in result.all():
+                company_map[name.lower().strip()] = str(company_id)
+        logger.info(f"Company-Map geladen: {len(company_map)} Unternehmen")
 
     # Kontakte paginiert abrufen
     async for page_num, contacts, total in client.get_all_contacts_paginated(
@@ -180,14 +180,11 @@ async def import_contacts(
             for crm_contact in contacts:
                 mapped = client.map_to_contact_data(crm_contact)
                 if mapped and (mapped.get("first_name") or mapped.get("last_name")):
-                    company_name = mapped.pop("_company_name", None)
-                    if company_name and company_name.lower().strip() in company_map:
-                        stats["imported"] += 1
-                        if stats["imported"] <= 5:
-                            name = f"{mapped.get('first_name', '')} {mapped.get('last_name', '')}".strip()
-                            logger.info(f"  [DRY] {name} @ {company_name}")
-                    else:
-                        stats["skipped_no_company"] += 1
+                    stats["imported"] += 1
+                    if stats["imported"] <= 5:
+                        name = f"{mapped.get('first_name', '')} {mapped.get('last_name', '')}".strip()
+                        company_name = mapped.get("_company_name", "-")
+                        logger.info(f"  [DRY] {name} @ {company_name}")
                 else:
                     stats["skipped_empty"] += 1
             continue
