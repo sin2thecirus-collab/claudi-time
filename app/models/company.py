@@ -100,6 +100,10 @@ class Company(Base):
     documents: Mapped[list["CompanyDocument"]] = relationship(
         "CompanyDocument", back_populates="company", cascade="all, delete-orphan",
     )
+    notes_list: Mapped[list["CompanyNote"]] = relationship(
+        "CompanyNote", back_populates="company", cascade="all, delete-orphan",
+        order_by="CompanyNote.created_at.desc()",
+    )
 
     @property
     def display_address(self) -> str:

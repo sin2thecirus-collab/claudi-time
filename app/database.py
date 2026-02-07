@@ -674,5 +674,29 @@ async def init_db() -> None:
     except Exception as e:
         logger.warning(f"ats_todos contact_id FK uebersprungen: {e}")
 
+    # ── Phase 5: company_notes Tabelle ──
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS company_notes (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+                    contact_id UUID REFERENCES company_contacts(id) ON DELETE SET NULL,
+                    title VARCHAR(500),
+                    content TEXT NOT NULL,
+                    created_at TIMESTAMPTZ DEFAULT NOW()
+                )
+            """))
+            await conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_company_notes_company_id "
+                "ON company_notes (company_id)"
+            ))
+            await conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_company_notes_created_at "
+                "ON company_notes (created_at)"
+            ))
+    except Exception as e:
+        logger.warning(f"company_notes Tabelle uebersprungen: {e}")
+
     # ── Embedding-Indexes nicht noetig (JSONB, kein pgvector) ──
     # Similarity-Suche laeuft in Python, nicht in SQL.

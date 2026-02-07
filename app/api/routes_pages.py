@@ -1518,3 +1518,27 @@ async def company_documents_partial(
         "documents": documents,
         "company_id": str(company_id),
     })
+
+
+@router.get("/partials/company/{company_id}/notes", response_class=HTMLResponse)
+async def company_notes_partial(
+    company_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Partial: Notizen-Verlauf eines Unternehmens (neueste zuerst)."""
+    from app.models.company_note import CompanyNote
+    from sqlalchemy.orm import selectinload
+
+    result = await db.execute(
+        select(CompanyNote)
+        .options(selectinload(CompanyNote.contact))
+        .where(CompanyNote.company_id == company_id)
+        .order_by(CompanyNote.created_at.desc())
+    )
+    notes = result.scalars().all()
+    return templates.TemplateResponse("partials/company_notes.html", {
+        "request": request,
+        "notes": notes,
+        "company_id": str(company_id),
+    })

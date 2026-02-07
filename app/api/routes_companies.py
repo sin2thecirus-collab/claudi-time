@@ -17,6 +17,7 @@ from app.database import get_db
 from app.models.company import Company
 from app.models.company_contact import CompanyContact
 from app.models.company_document import CompanyDocument
+from app.models.company_note import CompanyNote
 from app.schemas.company import (
     CompanyContactCreate,
     CompanyContactResponse,
@@ -667,6 +668,88 @@ async def delete_document(document_id: UUID, db: AsyncSession = Depends(get_db))
     await db.delete(doc)
     await db.commit()
     return {"message": "Dokument geloescht"}
+
+
+# ══════════════════════════════════════════════════════════════
+#  Company Notes (Notizen-Verlauf)
+# ══════════════════════════════════════════════════════════════
+
+
+class CompanyNoteCreate(BaseModel):
+    """Schema fuer neue Notiz."""
+
+    content: str = Field(..., min_length=1)
+    title: str | None = None
+    contact_id: UUID | None = None
+
+
+@router.get("/{company_id}/notes")
+async def list_company_notes(company_id: UUID, db: AsyncSession = Depends(get_db)):
+    """Listet alle Notizen eines Unternehmens (neueste zuerst)."""
+    from sqlalchemy.orm import selectinload
+
+    result = await db.execute(
+        select(CompanyNote)
+        .options(selectinload(CompanyNote.contact))
+        .where(CompanyNote.company_id == company_id)
+        .order_by(CompanyNote.created_at.desc())
+    )
+    notes = result.scalars().all()
+    return [
+        {
+            "id": str(n.id),
+            "company_id": str(n.company_id),
+            "contact_id": str(n.contact_id) if n.contact_id else None,
+            "contact_name": n.contact.full_name if n.contact else None,
+            "title": n.title,
+            "content": n.content,
+            "created_at": n.created_at.isoformat() if n.created_at else None,
+        }
+        for n in notes
+    ]
+
+
+@router.post("/{company_id}/notes")
+async def create_company_note(
+    company_id: UUID,
+    data: CompanyNoteCreate,
+    db: AsyncSession = Depends(get_db),
+):
+    """Erstellt eine neue Notiz fuer ein Unternehmen."""
+    company = await db.get(Company, company_id)
+    if not company:
+        raise HTTPException(status_code=404, detail="Unternehmen nicht gefunden")
+
+    note = CompanyNote(
+        company_id=company_id,
+        contact_id=data.contact_id,
+        title=data.title,
+        content=data.content,
+    )
+    db.add(note)
+    await db.commit()
+    await db.refresh(note)
+
+    return {
+        "id": str(note.id),
+        "company_id": str(note.company_id),
+        "title": note.title,
+        "content": note.content,
+        "created_at": note.created_at.isoformat() if note.created_at else None,
+        "message": "Notiz erstellt",
+    }
+
+
+@router.delete("/notes/{note_id}")
+async def delete_company_note(note_id: UUID, db: AsyncSession = Depends(get_db)):
+    """Loescht eine Notiz."""
+    note = await db.get(CompanyNote, note_id)
+    if not note:
+        raise HTTPException(status_code=404, detail="Notiz nicht gefunden")
+
+    await db.delete(note)
+    await db.commit()
+    return {"message": "Notiz geloescht"}
 
 
 # ══════════════════════════════════════════════════════════════

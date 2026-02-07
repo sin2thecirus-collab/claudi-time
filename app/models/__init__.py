@@ -12,6 +12,7 @@ from app.models.company import Company, CompanyStatus
 from app.models.company_contact import CompanyContact
 from app.models.company_correspondence import CompanyCorrespondence, CorrespondenceDirection
 from app.models.company_document import CompanyDocument
+from app.models.company_note import CompanyNote
 from app.models.import_job import ImportJob
 from app.models.job import Job
 from app.models.job_run import JobRun
@@ -31,6 +32,7 @@ __all__ = [
     "CompanyCorrespondence",
     "CorrespondenceDirection",
     "CompanyDocument",
+    "CompanyNote",
     "PriorityCity",
     "FilterPreset",
     "DailyStatistics",

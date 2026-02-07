@@ -70,10 +70,6 @@
     .pp-tab { padding:12px 18px; font-size:16.5px; font-weight:500; cursor:pointer; border:none; background:transparent; color:var(--pp-s400); border-bottom:2px solid transparent; margin-bottom:-2px; transition:all 0.2s; display:flex; align-items:center; gap:7px; white-space:nowrap; font-family:var(--pp-ff); }
     .pp-tab:hover { color:var(--pp-s600); }
     .pp-tab.active { color:var(--pp-blue); font-weight:700; border-bottom-color:var(--pp-blue); }
-    .pp-tab-sep { width:1px; height:22px; background:var(--pp-s200); margin:0 8px; flex-shrink:0; }
-    .pp-tab-action { padding:12px 16px; font-size:16.5px; font-weight:500; cursor:pointer; border:none; background:transparent; color:var(--pp-s400); border-bottom:2px solid transparent; margin-bottom:-2px; transition:all 0.2s; display:flex; align-items:center; gap:7px; white-space:nowrap; font-family:var(--pp-ff); }
-    .pp-tab-action:hover { color:var(--pp-blue); }
-
     /* Sections */
     .pp-sec { background:#fff; border-radius:12px; border:1px solid var(--pp-s200); overflow:hidden; }
     .pp-sec-h { display:flex; align-items:center; justify-content:space-between; padding:14px 18px 10px; }
@@ -190,21 +186,19 @@
         </div>
 
         {# ════ CONTENT GRID ════ #}
-        <div style="display:grid; grid-template-columns:1fr 340px; gap:24px; align-items:start;">
+        <div style="display:grid; grid-template-columns:1fr 400px; gap:24px; align-items:start;">
 
             {# ═══ LEFT COLUMN ═══ #}
             <div style="min-width:0;">
 
-                {# Tab Bar — Tabs links, Quick Actions direkt danach #}
+                {# Tab Bar #}
                 <div class="pp-tabs pp-anim" style="animation-delay:200ms;">
                     <button class="pp-tab" :class="{ active: tab==='overview' }" @click="tab='overview'"><span style="font-size:18.5px;">&#x1F4CB;</span> Übersicht</button>
                     <button class="pp-tab" :class="{ active: tab==='contacts' }" @click="tab='contacts'"><span style="font-size:18.5px;">&#x1F464;</span> Kontakte</button>
                     <button class="pp-tab" :class="{ active: tab==='activities' }" @click="tab='activities'"><span style="font-size:18.5px;">&#x1F4C8;</span> Aktivitäten</button>
                     <button class="pp-tab" :class="{ active: tab==='emails' }" @click="tab='emails'"><span style="font-size:18.5px;">&#x1F4E7;</span> E-Mails</button>
+                    <button class="pp-tab" :class="{ active: tab==='notes' }" @click="tab='notes'"><span style="font-size:18.5px;">&#x1F4DD;</span> Notizen</button>
                     <button class="pp-tab" :class="{ active: tab==='documents' }" @click="tab='documents'"><span style="font-size:18.5px;">&#x1F4C1;</span> Dokumente</button>
-                    <div class="pp-tab-sep"></div>
-                    <button class="pp-tab-action" onclick="toggleCorrForm()"><span style="font-size:18.5px;">&#x1F4E7;</span> E-Mail</button>
-                    <button class="pp-tab-action" onclick="document.getElementById('company-notes').focus()"><span style="font-size:18.5px;">&#x1F4DD;</span> Notiz</button>
                 </div>
 
                 {# ── Übersicht ── #}
@@ -230,8 +224,8 @@
                         </div>
                     </div>
 
-                    {# 3-Spalten Grid: Stellen | Aufgaben | Notizen #}
-                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px;">
+                    {# 2-Spalten Grid: Stellen | Aufgaben #}
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
                         <div class="pp-sec pp-anim" style="animation-delay:300ms;">
                             <div class="pp-sec-h"><span class="pp-sec-t"><span style="font-size:18.5px;">&#x1F3AF;</span> Stellen</span></div>
                             <div class="pp-sec-b"><div id="company-ats-jobs" hx-get="/partials/company-ats-jobs/{{ company.id }}" hx-trigger="load" hx-swap="innerHTML"><p class="pp-load">Lade Stellen...</p></div></div>
@@ -239,13 +233,6 @@
                         <div class="pp-sec pp-anim" style="animation-delay:350ms;">
                             <div class="pp-sec-h"><span class="pp-sec-t"><span style="font-size:18.5px;">&#x2705;</span> Aufgaben</span></div>
                             <div class="pp-sec-b"><div id="todos-container" hx-get="/partials/company/{{ company.id }}/todos" hx-trigger="load" hx-swap="innerHTML"><p class="pp-load">Lade Aufgaben...</p></div></div>
-                        </div>
-                        <div class="pp-sec pp-anim" style="animation-delay:400ms;">
-                            <div class="pp-sec-h"><span class="pp-sec-t"><span style="font-size:18.5px;">&#x1F4DD;</span> Notizen</span></div>
-                            <div class="pp-sec-b">
-                                <textarea id="company-notes" placeholder="Notizen zum Unternehmen..." rows="5" onblur="saveNotes()" class="pp-ta" style="font-size:15.5px;">{{ company.notes or '' }}</textarea>
-                                <div style="text-align:right;margin-top:4px;font-size:13.5px;color:var(--pp-s400);">Auto-Save bei Fokusverlust</div>
-                            </div>
                         </div>
                     </div>
 
@@ -269,6 +256,26 @@
                     <div class="pp-sec">
                         <div class="pp-sec-h"><span class="pp-sec-t"><span style="font-size:18.5px;">&#x1F4C8;</span> Alle Aktivitäten</span><span style="font-size:14.5px;color:var(--pp-s400);font-weight:500;">Chronologisch — neueste zuerst</span></div>
                         <div class="pp-sec-b"><div hx-get="/partials/company/{{ company.id }}/activities" hx-trigger="load" hx-swap="innerHTML"><p class="pp-load">Lade Aktivitäten...</p></div></div>
+                    </div>
+                </div>
+
+                {# ── Tab: Notizen ── #}
+                <div x-show="tab==='notes'" x-cloak style="padding-top:14px;">
+                    <div class="pp-sec">
+                        <div class="pp-sec-h"><span class="pp-sec-t"><span style="font-size:18.5px;">&#x1F4DD;</span> Alle Notizen</span><button onclick="toggleNoteForm()" class="pp-btn pp-btn-a pp-btn-sm">&#xFF0B; Neue Notiz</button></div>
+                        <div class="pp-sec-b">
+                            <div id="notes-container" hx-get="/partials/company/{{ company.id }}/notes" hx-trigger="load" hx-swap="innerHTML"><p class="pp-load">Lade Notizen...</p></div>
+                            <div id="note-form" style="display:none" class="pp-iform">
+                                <div style="display:flex;flex-direction:column;gap:12px;">
+                                    <input type="text" id="note-title" placeholder="Titel (optional)" class="pp-inp">
+                                    <textarea id="note-content" placeholder="Notiz schreiben..." rows="4" class="pp-ta"></textarea>
+                                </div>
+                                <div style="display:flex;gap:10px;margin-top:14px;">
+                                    <button onclick="saveCompanyNote()" class="pp-btn pp-btn-p pp-btn-sm">Speichern</button>
+                                    <button onclick="toggleNoteForm()" class="pp-btn pp-btn-sm">Abbrechen</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -320,7 +327,7 @@
                 </div>
             </div>
 
-            {# ═══ SIDEBAR 340px ═══ #}
+            {# ═══ SIDEBAR 400px ═══ #}
             <div style="display:flex;flex-direction:column;gap:12px;position:sticky;top:16px;margin-top:56px;">
                 <div class="pp-side pp-anim-side" style="animation-delay:150ms;">
                     <div class="pp-side-h"><span style="display:flex;align-items:center;gap:7px;"><span style="font-size:18.5px;">&#x1F3AF;</span> ATS-Stellen <span class="pp-side-cnt">{{ ats_job_count }}</span></span><a href="/ats/stellen" style="font-size:14.5px;color:var(--pp-blue);font-weight:600;text-decoration:none;">Alle &#x2192;</a></div>
@@ -358,12 +365,6 @@ function setStatus(status) {
         .then(r => r.json())
         .then(() => { showToast('Status geaendert', 'success'); setTimeout(() => location.reload(), 500); })
         .catch(() => showToast('Fehler', 'error'));
-}
-
-function saveNotes() {
-    const notes = document.getElementById('company-notes').value;
-    fetch(`/api/companies/${COMPANY_ID}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ notes: notes }) })
-        .then(() => showToast('Notizen gespeichert', 'success'));
 }
 
 function toggleContactForm() { const f = document.getElementById('contact-form'); f.style.display = f.style.display === 'none' ? 'block' : 'none'; }
@@ -408,5 +409,18 @@ function uploadDocument() {
         .catch(() => { showToast('Upload fehlgeschlagen', 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Hochladen'; btn.style.opacity = '1'; } });
 }
 function deleteDocument(docId) { if (!confirm('Dokument loeschen?')) return; fetch(`/api/companies/documents/${docId}`, { method: 'DELETE' }).then(r => r.json()).then(() => { showToast('Geloescht', 'success'); htmx.trigger('#documents-container', 'load'); }).catch(() => showToast('Fehler', 'error')); }
+
+function toggleNoteForm() { const f = document.getElementById('note-form'); f.style.display = f.style.display === 'none' ? 'block' : 'none'; }
+
+function saveCompanyNote() {
+    const content = document.getElementById('note-content').value;
+    if (!content.trim()) { showToast('Notiz darf nicht leer sein', 'error'); return; }
+    const data = { content: content, title: document.getElementById('note-title').value || null };
+    fetch(`/api/companies/${COMPANY_ID}/notes`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+        .then(r => r.json()).then(() => { showToast('Notiz erstellt', 'success'); toggleNoteForm(); document.getElementById('note-content').value = ''; document.getElementById('note-title').value = ''; htmx.trigger('#notes-container', 'load'); })
+        .catch(() => showToast('Fehler', 'error'));
+}
+
+function deleteCompanyNote(noteId) { if (!confirm('Notiz loeschen?')) return; fetch(`/api/companies/notes/${noteId}`, { method: 'DELETE' }).then(r => r.json()).then(() => { showToast('Geloescht', 'success'); htmx.trigger('#notes-container', 'load'); }).catch(() => showToast('Fehler', 'error')); }
 </script>
 {% endblock %}
