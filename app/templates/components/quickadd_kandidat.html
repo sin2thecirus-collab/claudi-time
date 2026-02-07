@@ -370,6 +370,8 @@
                                 </div>
                                 <span class="text-xs text-gray-400 flex-shrink-0" x-text="(wh.start_date || '?') + ' - ' + (wh.end_date || 'heute')"></span>
                             </div>
+                            <!-- Taetigkeiten -->
+                            <div x-show="wh.description" class="mt-1.5 text-xs text-gray-500 whitespace-pre-line leading-relaxed" x-text="wh.description"></div>
                         </div>
                     </template>
                 </fieldset>
