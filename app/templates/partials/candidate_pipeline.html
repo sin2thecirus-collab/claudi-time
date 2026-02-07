@@ -3,7 +3,7 @@
 {% if pipeline_entries and pipeline_entries | length > 0 %}
 <div class="divide-y divide-gray-100">
     {% for entry in pipeline_entries %}
-    {% set job = entry.job %}
+    {% set job = entry.ats_job %}
     {% set company = job.company if job else None %}
     {% set stage_colors = {
         'matched': 'bg-gray-100 text-gray-700',
@@ -25,8 +25,8 @@
                 {% endif %}
             </div>
             {# Stage Badge #}
-            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {{ stage_colors.get(entry.stage.value, 'bg-gray-100 text-gray-700') }} whitespace-nowrap">
-                {{ stage_labels.get(entry.stage.value, entry.stage.value) }}
+            <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {{ stage_colors.get(entry.stage.value if entry.stage is string else entry.stage.value, 'bg-gray-100 text-gray-700') }} whitespace-nowrap">
+                {{ stage_labels.get(entry.stage, entry.stage.value) }}
             </span>
         </div>
         {% if entry.notes %}
