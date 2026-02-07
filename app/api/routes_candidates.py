@@ -4,7 +4,7 @@ import logging
 from uuid import UUID
 
 import httpx
-from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Query, UploadFile, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -438,6 +438,163 @@ async def reparse_single_cv(
         "name_changed": name_changed,
         "position": candidate.current_position or "—",
     }
+
+
+@router.post(
+    "/{candidate_id}/upload-cv",
+    summary="CV hochladen und verarbeiten",
+)
+@rate_limit(RateLimitTier.WRITE)
+async def upload_candidate_cv(
+    candidate_id: UUID,
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(..., description="PDF-Datei"),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Laedt ein CV-PDF hoch, speichert es in R2 und startet
+    automatisch CV-Parsing + Geocoding + Kategorisierung + Finance-Klassifizierung.
+    """
+    from sqlalchemy import select
+    from app.models.candidate import Candidate
+    from app.services.r2_storage_service import R2StorageService
+
+    # Kandidat laden
+    result = await db.execute(
+        select(Candidate).where(
+            Candidate.id == candidate_id,
+            Candidate.deleted_at.is_(None),
+        )
+    )
+    candidate = result.scalar_one_or_none()
+    if not candidate:
+        raise NotFoundException(message="Kandidat nicht gefunden")
+
+    # Datei-Validierung
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
+        return {"success": False, "message": "Nur PDF-Dateien erlaubt"}
+
+    pdf_bytes = await file.read()
+    if len(pdf_bytes) < 100:
+        return {"success": False, "message": "Datei ist zu klein (leer?)"}
+    if len(pdf_bytes) > 10 * 1024 * 1024:
+        return {"success": False, "message": "Datei zu gross (max. 10 MB)"}
+
+    # R2 Upload
+    r2 = R2StorageService()
+    if not r2.is_available:
+        return {"success": False, "message": "R2 Storage nicht verfuegbar"}
+
+    try:
+        key = r2.upload_cv(
+            str(candidate.id),
+            pdf_bytes,
+            first_name=candidate.first_name,
+            last_name=candidate.last_name,
+            hotlist_category=candidate.hotlist_category,
+        )
+    except Exception as e:
+        logger.error(f"R2 Upload fehlgeschlagen fuer {candidate_id}: {e}")
+        return {"success": False, "message": f"Upload fehlgeschlagen: {e}"}
+
+    # DB aktualisieren
+    candidate.cv_stored_path = key
+    candidate.cv_url = candidate.cv_url or f"r2://{key}"
+    await db.commit()
+
+    # Background-Processing starten
+    background_tasks.add_task(
+        _process_cv_after_upload,
+        candidate_id,
+        pdf_bytes,
+    )
+
+    return {
+        "success": True,
+        "cv_key": key,
+        "message": "CV hochgeladen, wird verarbeitet...",
+    }
+
+
+async def _process_cv_after_upload(candidate_id: UUID, pdf_bytes: bytes):
+    """Background-Task: CV-Parsing + Geocoding + Kategorisierung + Finance-Klassifizierung."""
+    from app.database import async_session_maker
+    from app.services.cv_parser_service import CVParserService
+    from app.services.geocoding_service import GeocodingService
+    from app.services.categorization_service import CategorizationService
+    from app.services.finance_classifier_service import FinanceClassifierService
+    from sqlalchemy import select
+    from app.models.candidate import Candidate
+
+    async with async_session_maker() as db:
+        try:
+            # Kandidat laden
+            result = await db.execute(
+                select(Candidate).where(Candidate.id == candidate_id)
+            )
+            candidate = result.scalar_one_or_none()
+            if not candidate:
+                logger.error(f"CV-Processing: Kandidat {candidate_id} nicht gefunden")
+                return
+
+            # Schritt 1: CV-Parsing (Text-Extraktion + OpenAI)
+            logger.info(f"CV-Processing Schritt 1/4: Parsing fuer {candidate_id}")
+            async with CVParserService(db) as parser:
+                cv_text = parser.extract_text_from_pdf(pdf_bytes)
+                if cv_text:
+                    parse_result = await parser.parse_cv_text(cv_text)
+                    if parse_result.success and parse_result.data:
+                        await parser._update_candidate_from_cv(
+                            candidate, parse_result.data, cv_text
+                        )
+                        logger.info(f"CV-Parsing OK fuer {candidate_id}")
+                    else:
+                        logger.warning(
+                            f"CV-Parsing fehlgeschlagen fuer {candidate_id}: "
+                            f"{parse_result.error}"
+                        )
+                        # cv_text trotzdem speichern
+                        candidate.cv_text = cv_text
+
+            # Schritt 2: Geocoding
+            logger.info(f"CV-Processing Schritt 2/4: Geocoding fuer {candidate_id}")
+            try:
+                geo_service = GeocodingService(db)
+                await geo_service.geocode_candidate(candidate)
+            except Exception as e:
+                logger.warning(f"Geocoding fehlgeschlagen fuer {candidate_id}: {e}")
+
+            # Schritt 3: Kategorisierung
+            logger.info(f"CV-Processing Schritt 3/4: Kategorisierung fuer {candidate_id}")
+            try:
+                cat_service = CategorizationService(db)
+                cat_result = cat_service.categorize_candidate(candidate)
+                cat_service.apply_to_candidate(candidate, cat_result)
+            except Exception as e:
+                logger.warning(f"Kategorisierung fehlgeschlagen fuer {candidate_id}: {e}")
+
+            # Schritt 4: Finance-Klassifizierung (nur fuer FINANCE-Kandidaten)
+            if candidate.hotlist_category == "FINANCE":
+                logger.info(f"CV-Processing Schritt 4/4: Finance-Klassifizierung fuer {candidate_id}")
+                try:
+                    fin_service = FinanceClassifierService(db)
+                    fin_result = await fin_service.classify_candidate(candidate)
+                    if fin_result.success:
+                        fin_service.apply_to_candidate(candidate, fin_result)
+                except Exception as e:
+                    logger.warning(f"Finance-Klassifizierung fehlgeschlagen fuer {candidate_id}: {e}")
+            else:
+                logger.info(f"CV-Processing Schritt 4/4: uebersprungen (nicht FINANCE) fuer {candidate_id}")
+
+            await db.commit()
+            logger.info(f"CV-Processing komplett fuer {candidate_id}")
+
+        except Exception as e:
+            logger.error(f"CV-Processing fehlgeschlagen fuer {candidate_id}: {e}")
+            try:
+                await db.rollback()
+            except Exception:
+                pass
 
 
 @router.delete(
