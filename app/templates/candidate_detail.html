@@ -801,8 +801,23 @@
                         {% set wb_name = wb.degree if (wb.degree and wb.degree != 'None' and wb.degree != 'null') else (wb.qualification if (wb.qualification and wb.qualification != 'None' and wb.qualification != 'null') else '') %}
                         {% set wb_inst = wb.institution | default('') %}
                         {% if wb_inst == 'None' or wb_inst == 'null' %}{% set wb_inst = '' %}{% endif %}
-                        {% set wb_year = wb.year | default(wb.end_date | default('')) %}
+                        {% set wb_start = wb.start_date | default('') %}
+                        {% if wb_start == 'None' or wb_start == 'null' %}{% set wb_start = '' %}{% endif %}
+                        {% set wb_end = wb.end_date | default('') %}
+                        {% if wb_end == 'None' or wb_end == 'null' %}{% set wb_end = '' %}{% endif %}
+                        {% set wb_year = wb.year | default('') %}
                         {% if wb_year == 'None' or wb_year == 'null' %}{% set wb_year = '' %}{% endif %}
+                        {% if wb_start and wb_end %}
+                            {% set wb_timerange = wb_start ~ ' – ' ~ wb_end %}
+                        {% elif wb_start %}
+                            {% set wb_timerange = 'ab ' ~ wb_start %}
+                        {% elif wb_end %}
+                            {% set wb_timerange = wb_end %}
+                        {% elif wb_year %}
+                            {% set wb_timerange = wb_year %}
+                        {% else %}
+                            {% set wb_timerange = '' %}
+                        {% endif %}
                         {# Generische Einträge ohne Details dezenter darstellen #}
                         {% set is_generic = wb_name.lower() in ['seminar', 'e-learning', 'kurs', 'workshop', 'webinar', 'schulung', 'weiterbildung', ''] and not wb_inst %}
                         {% if wb_name %}
@@ -815,8 +830,8 @@
                                 <div style="font-size: 12px; color: #94a3b8; margin-top: 2px; font-weight: 500;">{{ wb_inst }}</div>
                                 {% endif %}
                             </div>
-                            {% if wb_year %}
-                            <span style="font-size: 12px; color: #64748b; font-weight: 600; background: #eef0f4; padding: 3px 10px; border-radius: 6px;">{{ wb_year }}</span>
+                            {% if wb_timerange %}
+                            <span style="font-size: 12px; color: #64748b; font-weight: 600; background: #eef0f4; padding: 3px 10px; border-radius: 6px; white-space: nowrap;">{{ wb_timerange }}</span>
                             {% endif %}
                         </div>
                         {% endif %}
@@ -841,7 +856,23 @@
                     {% for edu in candidate.education %}{% if edu is mapping %}
                     {% set edu_name = edu.degree if (edu.degree and edu.degree != 'None' and edu.degree != 'null') else (edu.qualification if (edu.qualification and edu.qualification != 'None' and edu.qualification != 'null') else 'Ausbildung') %}
                     {% set edu_inst = edu.institution | default(edu.school | default('')) %}
-                    {% set edu_year = edu.year | default(edu.end_date | default('')) %}
+                    {% set edu_start = edu.start_date | default('') %}
+                    {% if edu_start == 'None' or edu_start == 'null' %}{% set edu_start = '' %}{% endif %}
+                    {% set edu_end = edu.end_date | default('') %}
+                    {% if edu_end == 'None' or edu_end == 'null' %}{% set edu_end = '' %}{% endif %}
+                    {% set edu_year = edu.year | default('') %}
+                    {% if edu_year == 'None' or edu_year == 'null' %}{% set edu_year = '' %}{% endif %}
+                    {% if edu_start and edu_end %}
+                        {% set edu_timerange = edu_start ~ ' – ' ~ edu_end %}
+                    {% elif edu_start %}
+                        {% set edu_timerange = 'ab ' ~ edu_start %}
+                    {% elif edu_end %}
+                        {% set edu_timerange = edu_end %}
+                    {% elif edu_year %}
+                        {% set edu_timerange = edu_year %}
+                    {% else %}
+                        {% set edu_timerange = '' %}
+                    {% endif %}
                     <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: 10px; background: #f8fafc; border: 1px solid #eef0f4;">
                         <div>
                             <div style="font-size: 14px; font-weight: 680; color: #1e293b;">{{ edu_name }}</div>
@@ -849,8 +880,8 @@
                             <div style="font-size: 12.5px; color: #64748b; margin-top: 2px; font-weight: 500;">{{ edu_inst }}</div>
                             {% endif %}
                         </div>
-                        {% if edu_year and edu_year != 'None' and edu_year != 'null' %}
-                        <span style="font-size: 12px; color: #64748b; font-weight: 600; background: #eef0f4; padding: 3px 10px; border-radius: 6px;">{{ edu_year }}</span>
+                        {% if edu_timerange %}
+                        <span style="font-size: 12px; color: #64748b; font-weight: 600; background: #eef0f4; padding: 3px 10px; border-radius: 6px; white-space: nowrap;">{{ edu_timerange }}</span>
                         {% endif %}
                     </div>
                     {% endif %}{% endfor %}

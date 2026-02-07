@@ -386,8 +386,15 @@
                     </legend>
                     <template x-for="(edu, i) in parsed.education" :key="i">
                         <div class="bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
-                            <div class="text-sm font-semibold text-gray-800" x-text="edu.degree || edu.field_of_study || 'Ausbildung'"></div>
-                            <div class="text-xs text-gray-500" x-show="edu.institution" x-text="edu.institution"></div>
+                            <div class="flex items-start justify-between">
+                                <div>
+                                    <div class="text-sm font-semibold text-gray-800" x-text="edu.degree || edu.field_of_study || 'Ausbildung'"></div>
+                                    <div class="text-xs text-gray-500" x-show="edu.institution" x-text="edu.institution"></div>
+                                </div>
+                                <span class="text-xs text-gray-400 flex-shrink-0 ml-2"
+                                      x-show="edu.start_date || edu.end_date"
+                                      x-text="(edu.start_date && edu.end_date) ? edu.start_date + ' – ' + edu.end_date : (edu.end_date || edu.start_date || '')"></span>
+                            </div>
                         </div>
                     </template>
                 </fieldset>
@@ -402,8 +409,15 @@
                     </legend>
                     <template x-for="(fe, i) in parsed.further_education" :key="i">
                         <div class="bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
-                            <div class="text-sm font-semibold text-gray-800" x-text="fe.degree || fe.field_of_study || 'Weiterbildung'"></div>
-                            <div class="text-xs text-gray-500" x-show="fe.institution" x-text="fe.institution"></div>
+                            <div class="flex items-start justify-between">
+                                <div>
+                                    <div class="text-sm font-semibold text-gray-800" x-text="fe.degree || fe.field_of_study || 'Weiterbildung'"></div>
+                                    <div class="text-xs text-gray-500" x-show="fe.institution" x-text="fe.institution"></div>
+                                </div>
+                                <span class="text-xs text-gray-400 flex-shrink-0 ml-2"
+                                      x-show="fe.start_date || fe.end_date"
+                                      x-text="(fe.start_date && fe.end_date) ? fe.start_date + ' – ' + fe.end_date : (fe.end_date || fe.start_date || '')"></span>
+                            </div>
                         </div>
                     </template>
                 </fieldset>
