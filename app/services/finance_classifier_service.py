@@ -70,6 +70,9 @@ WICHTIGE GRUNDREGELN (ABSOLUT)
 - Bilanzbuchhalter NUR mit formaler Qualifikation
 - Mehrere Jobtitel sind ausdrücklich erlaubt
 - Keine Annahmen, keine Interpretation, keine Vermutungen
+- Kontext beachten: Steuerkanzlei vs. KMU vs. Konzern — gleiche Taetigkeit kann unterschiedliche Kompetenztiefe bedeuten
+- "Mitwirkung bei Abschluessen" oder "Unterstuetzung bei Jahresabschluss" ist NICHT "eigenstaendige Erstellung"
+- Quereinsteiger: Finanzwirt = Finanzamt/Steuerrecht, NICHT Unternehmensbuchhaltung!
 
 SCHRITT 1 – AUSSCHLUSS: LEITENDE POSITION
 

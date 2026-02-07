@@ -586,6 +586,16 @@ async def _process_cv_after_upload(candidate_id: UUID, pdf_bytes: bytes):
             else:
                 logger.info(f"CV-Processing Schritt 4/4: uebersprungen (nicht FINANCE) fuer {candidate_id}")
 
+            # Schritt 4.5: Verifizierte Position setzen (nach Klassifizierung)
+            manual = candidate.manual_overrides or {}
+            if "current_position" not in manual and candidate.hotlist_job_title:
+                if candidate.hotlist_category in ("FINANCE", "ENGINEERING"):
+                    candidate.current_position = candidate.hotlist_job_title
+                    logger.info(
+                        f"CV-Processing: Position verifiziert auf "
+                        f"'{candidate.hotlist_job_title}' fuer {candidate_id}"
+                    )
+
             await db.commit()
             logger.info(f"CV-Processing komplett fuer {candidate_id}")
 

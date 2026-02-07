@@ -34,6 +34,7 @@ REGELN:
 - Fehlende Info = null (JSON null, nicht String "null")
 - Datum: "MM/YYYY" oder "YYYY", aktuell = "heute"
 - Bulletpoints: JEDE Taetigkeit mit "• " beginnen, mit "\\n" trennen
+- institution und degree bei education/further_education NIEMALS null wenn Info im CV vorhanden!
 
 KATEGORIEN:
 
@@ -46,6 +47,8 @@ KATEGORIEN:
 
 3. education: Schulen, Berufsausbildungen (NICHT IHK!), Studium
    - {institution, degree, field_of_study, start_date, end_date}
+   - institution: PFLICHT! Name der Schule/Uni/Bildungseinrichtung. NIEMALS null wenn im CV erkennbar!
+   - degree: PFLICHT! Abschluss/Ausbildungsberuf. NIEMALS null wenn im CV erkennbar!
    - degree extrahieren aus "Abschluss:" oder Schultyp:
      * Berufsoberschule/FOS = "Hochschulreife", Gymnasium = "Abitur"
      * Wirtschaftsschule = "Wirtschaftsschulabschluss", Realschule = "Mittlere Reife"
@@ -54,6 +57,9 @@ KATEGORIEN:
 
 4. further_education: IHK-Pruefungen (Bilanzbuchhalter, Fachwirt, Betriebswirt IHK), Meister, Seminare, Zertifikate
    - {institution, degree, field_of_study, start_date, end_date}
+   - institution: PFLICHT! Name der IHK/Bildungstraeger/Akademie. NIEMALS null wenn erkennbar!
+   - degree: PFLICHT! Bezeichnung der Weiterbildung/Pruefung. NIEMALS null!
+   - Auch Teilinfos extrahieren (z.B. nur "IHK" statt vollem Namen)
    - WICHTIG: Auch wenn im CV unter "Ausbildung" gelistet - IHK = immer further_education!
    - Gesamten CV durchsuchen!
 
@@ -64,6 +70,10 @@ KATEGORIEN:
 7. skills: Fachkenntnisse (NICHT IT, NICHT Sprachen), Fuehrerschein
 
 8. Persoenlich: first_name, last_name, birth_date (DD.MM.YYYY)
+   - birth_date IMMER suchen! Haeufige Formate:
+     "geboren am 15.03.1985", "geb. 15.03.85", "Geburtsdatum: 15.03.1985"
+     "* 15.03.1985", "Jahrgang 1985", "15. Maerz 1985"
+     Wenn nur Jahr: "01.01.YYYY". Steht oft am Anfang oder Ende des CVs.
 
 JSON-Ausgabe:
 {"current_position":"...","work_history":[{"company":"...","position":"...","start_date":"...","end_date":"...","description":"• Task1\\n• Task2"}],"education":[{"institution":"...","degree":"...","field_of_study":"...","start_date":"...","end_date":"..."}],"further_education":[...],"it_skills":["..."],"languages":[{"language":"...","level":"..."}],"skills":["..."],"first_name":"...","last_name":"...","birth_date":"..."}"""
@@ -590,9 +600,10 @@ class CVParserService:
 
         # Adresse kommt aus CRM API, nicht aus CV
 
-        # Position (nur setzen wenn nicht manuell bearbeitet und nicht vorhanden)
+        # Position (immer aus CV uebernehmen, ausser manuell bearbeitet)
+        # Rohwert aus CV — wird spaeter durch verifizierte Rolle ueberschrieben (Schritt 4.5)
         manual = candidate.manual_overrides or {}
-        if "current_position" not in manual and not candidate.current_position and cv_data.current_position:
+        if "current_position" not in manual and cv_data.current_position:
             candidate.current_position = cv_data.current_position
 
         # Skills (erweitern, nicht überschreiben)
