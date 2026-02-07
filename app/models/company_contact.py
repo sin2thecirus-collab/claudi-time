@@ -34,6 +34,8 @@ class CompanyContact(Base):
     position: Mapped[str | None] = mapped_column(String(255))
     email: Mapped[str | None] = mapped_column(String(500))
     phone: Mapped[str | None] = mapped_column(String(100))
+    mobile: Mapped[str | None] = mapped_column(String(100))
+    city: Mapped[str | None] = mapped_column(String(255))
 
     # Notizen
     notes: Mapped[str | None] = mapped_column(Text)

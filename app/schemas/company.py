@@ -14,10 +14,8 @@ class CompanyBase(BaseModel):
 
     name: str = Field(min_length=1, max_length=255, description="Firmenname")
     domain: str | None = Field(default=None, max_length=255, description="Website/Domain")
-    street: str | None = Field(default=None, max_length=255, description="Strasse")
-    house_number: str | None = Field(default=None, max_length=20, description="Hausnummer")
-    postal_code: str | None = Field(default=None, max_length=10, description="PLZ")
-    city: str | None = Field(default=None, max_length=100, description="Stadt")
+    address: str | None = Field(default=None, description="Vollstaendige Adresse")
+    city: str | None = Field(default=None, max_length=100, description="Stadt (fuer Suche)")
     phone: str | None = Field(default=None, max_length=100, description="Telefon Zentrale")
     employee_count: str | None = Field(
         default=None, max_length=50, description="Unternehmensgroesse"
@@ -36,9 +34,7 @@ class CompanyUpdate(BaseModel):
 
     name: str | None = Field(default=None, min_length=1, max_length=255)
     domain: str | None = Field(default=None, max_length=255)
-    street: str | None = Field(default=None, max_length=255)
-    house_number: str | None = Field(default=None, max_length=20)
-    postal_code: str | None = Field(default=None, max_length=10)
+    address: str | None = Field(default=None)
     city: str | None = Field(default=None, max_length=100)
     phone: str | None = Field(default=None, max_length=100)
     employee_count: str | None = Field(default=None, max_length=50)
@@ -52,9 +48,7 @@ class CompanyResponse(BaseModel):
     id: UUID
     name: str
     domain: str | None
-    street: str | None
-    house_number: str | None
-    postal_code: str | None
+    address: str | None
     city: str | None
     phone: str | None
     employee_count: str | None
@@ -93,6 +87,8 @@ class CompanyContactCreate(BaseModel):
     position: str | None = Field(default=None, max_length=255)
     email: str | None = Field(default=None, max_length=500)
     phone: str | None = Field(default=None, max_length=100)
+    mobile: str | None = Field(default=None, max_length=100)
+    city: str | None = Field(default=None, max_length=255, description="Arbeitsort/Standort")
     notes: str | None = None
 
 
@@ -105,6 +101,8 @@ class CompanyContactUpdate(BaseModel):
     position: str | None = Field(default=None, max_length=255)
     email: str | None = Field(default=None, max_length=500)
     phone: str | None = Field(default=None, max_length=100)
+    mobile: str | None = Field(default=None, max_length=100)
+    city: str | None = Field(default=None, max_length=255)
     notes: str | None = None
 
 
@@ -120,6 +118,8 @@ class CompanyContactResponse(BaseModel):
     position: str | None
     email: str | None
     phone: str | None
+    mobile: str | None
+    city: str | None
     notes: str | None
     created_at: datetime
     updated_at: datetime
@@ -154,5 +154,23 @@ class CompanyCorrespondenceResponse(BaseModel):
 
     # Optional: Kontaktname
     contact_name: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
+# ── CompanyDocument ──────────────────────────────────
+
+
+class CompanyDocumentResponse(BaseModel):
+    """Schema fuer Document-Response."""
+
+    id: UUID
+    company_id: UUID
+    filename: str
+    file_path: str
+    file_size: int | None
+    mime_type: str | None
+    notes: str | None
+    created_at: datetime
 
     model_config = {"from_attributes": True}

@@ -80,14 +80,14 @@
             <div class="bg-white rounded-xl border border-gray-200 p-6">
                 <h3 class="text-sm font-semibold text-gray-900 mb-4">Adresse</h3>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {# Strasse #}
+                    {# Adresse (kombiniert) #}
                     <div>
-                        <label class="text-xs text-gray-500">Strasse</label>
-                        <div class="flex items-center gap-2 mt-0.5">
-                            <span class="text-sm text-gray-900">{{ company.street or '-' }} {{ company.house_number or '' }}</span>
-                            {% if company.street %}
-                            <button onclick="copyToClipboard('{{ company.street }} {{ company.house_number or '' }}')"
-                                    class="text-gray-400 hover:text-primary-600 transition-colors" title="Kopieren">
+                        <label class="text-xs text-gray-500">Adresse</label>
+                        <div class="flex items-start gap-2 mt-0.5">
+                            <span class="text-sm text-gray-900 whitespace-pre-line">{{ company.address or '-' }}</span>
+                            {% if company.address %}
+                            <button onclick="copyToClipboard('{{ company.address }}')"
+                                    class="text-gray-400 hover:text-primary-600 transition-colors flex-shrink-0 mt-0.5" title="Kopieren">
                                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9.75a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
                                 </svg>
@@ -95,13 +95,13 @@
                             {% endif %}
                         </div>
                     </div>
-                    {# PLZ + Stadt #}
+                    {# Stadt (Suche) #}
                     <div>
-                        <label class="text-xs text-gray-500">PLZ / Stadt</label>
+                        <label class="text-xs text-gray-500">Stadt (Suche)</label>
                         <div class="flex items-center gap-2 mt-0.5">
-                            <span class="text-sm text-gray-900">{{ company.postal_code or '' }} {{ company.city or '-' }}</span>
+                            <span class="text-sm text-gray-900">{{ company.city or '-' }}</span>
                             {% if company.city %}
-                            <button onclick="copyToClipboard('{{ company.postal_code or '' }} {{ company.city }}')"
+                            <button onclick="copyToClipboard('{{ company.city }}')"
                                     class="text-gray-400 hover:text-primary-600 transition-colors" title="Kopieren">
                                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9.75a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
@@ -215,6 +215,49 @@
                         <button onclick="saveCorrespondence()" class="px-4 py-2 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700">Speichern</button>
                         <button onclick="toggleCorrForm()" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Abbrechen</button>
                     </div>
+                </div>
+            </div>
+
+            {# -- Anrufprotokoll Card -- #}
+            <div class="bg-white rounded-xl border border-gray-200 p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-sm font-semibold text-gray-900">Anrufprotokoll</h3>
+                </div>
+                <div id="call-notes-container"
+                     hx-get="/partials/company/{{ company.id }}/call-notes"
+                     hx-trigger="load"
+                     hx-swap="innerHTML">
+                    <p class="text-sm text-gray-400 animate-skeleton">Lade Anrufprotokolle...</p>
+                </div>
+            </div>
+
+            {# -- Aufgaben Card -- #}
+            <div class="bg-white rounded-xl border border-gray-200 p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-sm font-semibold text-gray-900">Aufgaben</h3>
+                </div>
+                <div id="todos-container"
+                     hx-get="/partials/company/{{ company.id }}/todos"
+                     hx-trigger="load"
+                     hx-swap="innerHTML">
+                    <p class="text-sm text-gray-400 animate-skeleton">Lade Aufgaben...</p>
+                </div>
+            </div>
+
+            {# -- Dokumente Card -- #}
+            <div class="bg-white rounded-xl border border-gray-200 p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-sm font-semibold text-gray-900">Dokumente</h3>
+                    <button onclick="toggleDocForm()"
+                            class="text-xs text-primary-600 hover:text-primary-500 font-medium">
+                        + Hochladen
+                    </button>
+                </div>
+                <div id="documents-container"
+                     hx-get="/partials/company/{{ company.id }}/documents"
+                     hx-trigger="load"
+                     hx-swap="innerHTML">
+                    <p class="text-sm text-gray-400 animate-skeleton">Lade Dokumente...</p>
                 </div>
             </div>
         </div>
@@ -373,6 +416,82 @@ function deleteCorrespondence(corrId) {
     fetch(`/api/companies/correspondence/${corrId}`, { method: 'DELETE' })
         .then(r => r.json())
         .then(() => { showToast('Geloescht', 'success'); htmx.trigger('#correspondence-container', 'load'); })
+        .catch(() => showToast('Fehler', 'error'));
+}
+
+// --- Call Notes ---
+function deleteCompanyCallNote(noteId) {
+    if (!confirm('Anrufprotokoll loeschen?')) return;
+    fetch(`/api/ats/call-notes/${noteId}`, { method: 'DELETE' })
+        .then(r => r.json())
+        .then(() => { showToast('Geloescht', 'success'); htmx.trigger('#call-notes-container', 'load'); })
+        .catch(() => showToast('Fehler', 'error'));
+}
+
+// --- Todos ---
+function deleteCompanyTodo(todoId) {
+    if (!confirm('Aufgabe loeschen?')) return;
+    fetch(`/api/ats/todos/${todoId}`, { method: 'DELETE' })
+        .then(r => r.json())
+        .then(() => { showToast('Geloescht', 'success'); htmx.trigger('#todos-container', 'load'); })
+        .catch(() => showToast('Fehler', 'error'));
+}
+
+// --- Documents ---
+var selectedDocFile = null;
+
+function toggleDocForm() {
+    const f = document.getElementById('doc-upload-form');
+    if (f) f.style.display = f.style.display === 'none' ? 'block' : 'none';
+}
+
+function handleFileDrop(event) {
+    const files = event.dataTransfer.files;
+    if (files.length > 0) setDocFile(files[0]);
+}
+
+function handleFileSelect(input) {
+    if (input.files.length > 0) setDocFile(input.files[0]);
+}
+
+function setDocFile(file) {
+    selectedDocFile = file;
+    const nameEl = document.getElementById('doc-file-name');
+    if (nameEl) { nameEl.textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)'; nameEl.classList.remove('hidden'); }
+    const btn = document.getElementById('doc-upload-btn');
+    if (btn) btn.disabled = false;
+}
+
+function uploadDocument() {
+    if (!selectedDocFile) return;
+    const formData = new FormData();
+    formData.append('file', selectedDocFile);
+    const notes = document.getElementById('doc-notes');
+    if (notes && notes.value) formData.append('notes', notes.value);
+
+    const btn = document.getElementById('doc-upload-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Hochladen...'; }
+
+    fetch(`/api/companies/${COMPANY_ID}/documents`, { method: 'POST', body: formData })
+        .then(r => r.json())
+        .then(() => {
+            showToast('Dokument hochgeladen', 'success');
+            toggleDocForm();
+            selectedDocFile = null;
+            if (notes) notes.value = '';
+            const nameEl = document.getElementById('doc-file-name');
+            if (nameEl) nameEl.classList.add('hidden');
+            if (btn) { btn.disabled = true; btn.textContent = 'Hochladen'; }
+            htmx.trigger('#documents-container', 'load');
+        })
+        .catch(() => { showToast('Upload fehlgeschlagen', 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Hochladen'; } });
+}
+
+function deleteDocument(docId) {
+    if (!confirm('Dokument loeschen?')) return;
+    fetch(`/api/companies/documents/${docId}`, { method: 'DELETE' })
+        .then(r => r.json())
+        .then(() => { showToast('Geloescht', 'success'); htmx.trigger('#documents-container', 'load'); })
         .catch(() => showToast('Fehler', 'error'));
 }
 </script>

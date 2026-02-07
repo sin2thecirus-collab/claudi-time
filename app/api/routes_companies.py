@@ -15,6 +15,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.company import Company
+from app.models.company_contact import CompanyContact
+from app.models.company_document import CompanyDocument
 from app.schemas.company import (
     CompanyContactCreate,
     CompanyContactResponse,
@@ -63,10 +65,8 @@ async def list_companies(
             "id": str(company.id),
             "name": company.name,
             "domain": company.domain,
+            "address": company.address,
             "city": company.city,
-            "postal_code": company.postal_code,
-            "street": company.street,
-            "house_number": company.house_number,
             "status": company.status.value if company.status else "active",
             "employee_count": company.employee_count,
             "display_address": company.display_address,
@@ -128,7 +128,6 @@ async def search_companies_quick(
     db: AsyncSession = Depends(get_db),
 ):
     """Schnelle Unternehmenssuche fuer Autocomplete."""
-    # Bei leerem oder zu kurzem Suchbegriff: nichts anzeigen
     if not q or len(q.strip()) < 1:
         return HTMLResponse("")
 
@@ -146,7 +145,6 @@ async def search_companies_quick(
 
     html = '<div class="border border-gray-200 rounded-lg shadow-sm bg-white max-h-48 overflow-y-auto">'
     for c in companies:
-        # Escape für JavaScript - ohne Backslash in f-string (Python 3.11 kompatibel)
         safe_name = str(c.name).replace("'", "&#39;").replace('"', '&quot;')
         city_span = "<span class='text-gray-400 ml-2'>" + str(c.city) + "</span>" if c.city else ""
         company_id = str(c.id)
@@ -166,9 +164,7 @@ async def get_company(company_id: UUID, db: AsyncSession = Depends(get_db)):
         "id": str(company.id),
         "name": company.name,
         "domain": company.domain,
-        "street": company.street,
-        "house_number": company.house_number,
-        "postal_code": company.postal_code,
+        "address": company.address,
         "city": company.city,
         "phone": company.phone,
         "employee_count": company.employee_count,
@@ -241,9 +237,7 @@ class CompanyFullCreate(BaseModel):
     # Company
     name: str = Field(min_length=1, max_length=255)
     domain: str | None = None
-    street: str | None = None
-    house_number: str | None = None
-    postal_code: str | None = None
+    address: str | None = None
     city: str | None = None
     phone: str | None = None
 
@@ -274,9 +268,7 @@ async def create_company_full(data: CompanyFullCreate, db: AsyncSession = Depend
         k: v for k, v in {
             "name": data.name,
             "domain": data.domain,
-            "street": data.street,
-            "house_number": data.house_number,
-            "postal_code": data.postal_code,
+            "address": data.address,
             "city": data.city,
             "phone": data.phone,
         }.items() if v is not None
@@ -371,12 +363,10 @@ async def extract_job_from_pdf(file: UploadFile = File(...), db: AsyncSession = 
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Nur PDF-Dateien erlaubt")
 
-    # PDF lesen
     pdf_bytes = await file.read()
-    if len(pdf_bytes) > 10 * 1024 * 1024:  # Max 10MB
+    if len(pdf_bytes) > 10 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="PDF zu gross (max 10MB)")
 
-    # Text extrahieren mit PyMuPDF
     try:
         from app.services.cv_parser_service import CVParserService
         parser = CVParserService(db)
@@ -388,7 +378,6 @@ async def extract_job_from_pdf(file: UploadFile = File(...), db: AsyncSession = 
     if not raw_text or len(raw_text.strip()) < 20:
         raise HTTPException(status_code=400, detail="PDF enthaelt keinen extrahierbaren Text")
 
-    # Rohtext 1:1 zurueckgeben — kein GPT, kein Zusammenfassen
     return {
         "title": "",
         "description": raw_text.strip(),
@@ -399,6 +388,39 @@ async def extract_job_from_pdf(file: UploadFile = File(...), db: AsyncSession = 
 
 
 # ── Contacts ─────────────────────────────────────────
+
+
+@router.get("/contacts/{contact_id}")
+async def get_contact(contact_id: UUID, db: AsyncSession = Depends(get_db)):
+    """Holt einen einzelnen Kontakt mit Company-Daten."""
+    from sqlalchemy.orm import selectinload
+    result = await db.execute(
+        select(CompanyContact)
+        .options(selectinload(CompanyContact.company))
+        .where(CompanyContact.id == contact_id)
+    )
+    contact = result.scalar_one_or_none()
+    if not contact:
+        raise HTTPException(status_code=404, detail="Kontakt nicht gefunden")
+    return {
+        "id": str(contact.id),
+        "company_id": str(contact.company_id),
+        "salutation": contact.salutation,
+        "first_name": contact.first_name,
+        "last_name": contact.last_name,
+        "full_name": contact.full_name,
+        "position": contact.position,
+        "email": contact.email,
+        "phone": contact.phone,
+        "mobile": contact.mobile,
+        "city": contact.city,
+        "notes": contact.notes,
+        "created_at": contact.created_at.isoformat() if contact.created_at else None,
+        "updated_at": contact.updated_at.isoformat() if contact.updated_at else None,
+        "company_name": contact.company.name if contact.company else None,
+        "company_address": contact.company.display_address if contact.company else None,
+        "company_phone": contact.company.phone if contact.company else None,
+    }
 
 
 @router.get("/{company_id}/contacts")
@@ -417,6 +439,8 @@ async def list_contacts(company_id: UUID, db: AsyncSession = Depends(get_db)):
             "position": c.position,
             "email": c.email,
             "phone": c.phone,
+            "mobile": c.mobile,
+            "city": c.city,
             "notes": c.notes,
             "created_at": c.created_at.isoformat() if c.created_at else None,
         }
@@ -513,3 +537,95 @@ async def delete_correspondence(
         raise HTTPException(status_code=404, detail="Korrespondenz nicht gefunden")
     await db.commit()
     return {"message": "Korrespondenz geloescht"}
+
+
+# ── Documents ────────────────────────────────────────
+
+
+@router.get("/{company_id}/documents")
+async def list_documents(company_id: UUID, db: AsyncSession = Depends(get_db)):
+    """Listet Dokumente eines Unternehmens."""
+    result = await db.execute(
+        select(CompanyDocument)
+        .where(CompanyDocument.company_id == company_id)
+        .order_by(CompanyDocument.created_at.desc())
+    )
+    docs = result.scalars().all()
+    return [
+        {
+            "id": str(d.id),
+            "company_id": str(d.company_id),
+            "filename": d.filename,
+            "file_path": d.file_path,
+            "file_size": d.file_size,
+            "mime_type": d.mime_type,
+            "notes": d.notes,
+            "created_at": d.created_at.isoformat() if d.created_at else None,
+        }
+        for d in docs
+    ]
+
+
+@router.post("/{company_id}/documents")
+async def upload_document(
+    company_id: UUID,
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+):
+    """Laedt ein Dokument zu einem Unternehmen hoch (R2 Storage)."""
+    company = await db.get(Company, company_id)
+    if not company:
+        raise HTTPException(status_code=404, detail="Unternehmen nicht gefunden")
+
+    file_bytes = await file.read()
+    if len(file_bytes) > 20 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Datei zu gross (max 20MB)")
+
+    filename = file.filename or "dokument"
+    mime_type = file.content_type or "application/octet-stream"
+    short_id = str(company.id)[:8]
+    r2_key = f"documents/company_{short_id}/{filename}"
+
+    try:
+        from app.services.r2_storage_service import R2StorageService
+        r2 = R2StorageService()
+        r2.upload_file(r2_key, file_bytes, content_type=mime_type)
+    except Exception as e:
+        logger.error(f"R2 Upload fehlgeschlagen: {e}")
+        raise HTTPException(status_code=500, detail=f"Upload fehlgeschlagen: {e}")
+
+    doc = CompanyDocument(
+        company_id=company_id,
+        filename=filename,
+        file_path=r2_key,
+        file_size=len(file_bytes),
+        mime_type=mime_type,
+    )
+    db.add(doc)
+    await db.commit()
+
+    return {
+        "id": str(doc.id),
+        "filename": doc.filename,
+        "file_size": doc.file_size,
+        "message": "Dokument hochgeladen",
+    }
+
+
+@router.delete("/documents/{document_id}")
+async def delete_document(document_id: UUID, db: AsyncSession = Depends(get_db)):
+    """Loescht ein Dokument (DB + R2)."""
+    doc = await db.get(CompanyDocument, document_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Dokument nicht gefunden")
+
+    try:
+        from app.services.r2_storage_service import R2StorageService
+        r2 = R2StorageService()
+        r2.delete_file(doc.file_path)
+    except Exception as e:
+        logger.warning(f"R2 Cleanup fehlgeschlagen: {e}")
+
+    await db.delete(doc)
+    await db.commit()
+    return {"message": "Dokument geloescht"}

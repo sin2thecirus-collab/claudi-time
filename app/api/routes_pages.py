@@ -9,8 +9,11 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sqlalchemy import select
+
 from app.database import get_db
 from app.models.job_run import JobSource, JobType
+from app.models.company_contact import CompanyContact
 from app.services.job_runner_service import JobRunnerService
 from app.schemas.filters import JobFilterParams
 from app.services.job_service import JobService
@@ -1214,3 +1217,169 @@ async def trigger_cleanup_html(
     background_tasks.add_task(_run_cleanup, db, job_run.id)
 
     return await cleanup_status_partial(request, db)
+
+
+# ============================================================================
+# Kontakt-Detailseite
+# ============================================================================
+
+
+@router.get("/kontakte/{contact_id}", response_class=HTMLResponse)
+async def contact_detail_page(
+    contact_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Kontakt-Detailseite."""
+    from sqlalchemy.orm import selectinload
+
+    result = await db.execute(
+        select(CompanyContact)
+        .options(selectinload(CompanyContact.company))
+        .where(CompanyContact.id == contact_id)
+    )
+    contact = result.scalar_one_or_none()
+    if not contact:
+        raise HTTPException(status_code=404, detail="Kontakt nicht gefunden")
+    return templates.TemplateResponse("contact_detail.html", {
+        "request": request,
+        "contact": contact,
+        "company": contact.company,
+    })
+
+
+# ============================================================================
+# Kontakt & Unternehmen Partials (HTMX)
+# ============================================================================
+
+
+@router.get("/partials/contact/{contact_id}/call-notes", response_class=HTMLResponse)
+async def contact_call_notes_partial(
+    contact_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Partial: Anrufprotokolle eines Kontakts."""
+    from app.models.ats_call_note import ATSCallNote
+
+    result = await db.execute(
+        select(ATSCallNote)
+        .where(ATSCallNote.contact_id == contact_id)
+        .order_by(ATSCallNote.called_at.desc())
+    )
+    call_notes = result.scalars().all()
+    return templates.TemplateResponse("partials/contact_call_notes.html", {
+        "request": request,
+        "call_notes": call_notes,
+        "contact_id": str(contact_id),
+    })
+
+
+@router.get("/partials/contact/{contact_id}/todos", response_class=HTMLResponse)
+async def contact_todos_partial(
+    contact_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Partial: Aufgaben eines Kontakts."""
+    from app.models.ats_todo import ATSTodo
+
+    result = await db.execute(
+        select(ATSTodo)
+        .where(ATSTodo.contact_id == contact_id)
+        .order_by(ATSTodo.created_at.desc())
+    )
+    todos = result.scalars().all()
+    return templates.TemplateResponse("partials/contact_todos.html", {
+        "request": request,
+        "todos": todos,
+        "contact_id": str(contact_id),
+    })
+
+
+@router.get("/partials/contact/{contact_id}/correspondence", response_class=HTMLResponse)
+async def contact_correspondence_partial(
+    contact_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Partial: Korrespondenz eines Kontakts."""
+    from app.models.company_correspondence import CompanyCorrespondence
+
+    result = await db.execute(
+        select(CompanyCorrespondence)
+        .where(CompanyCorrespondence.contact_id == contact_id)
+        .order_by(CompanyCorrespondence.sent_at.desc())
+    )
+    correspondence = result.scalars().all()
+    return templates.TemplateResponse("partials/contact_correspondence.html", {
+        "request": request,
+        "correspondence": correspondence,
+        "contact_id": str(contact_id),
+    })
+
+
+@router.get("/partials/company/{company_id}/call-notes", response_class=HTMLResponse)
+async def company_call_notes_partial(
+    company_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Partial: Anrufprotokolle eines Unternehmens."""
+    from app.models.ats_call_note import ATSCallNote
+
+    result = await db.execute(
+        select(ATSCallNote)
+        .where(ATSCallNote.company_id == company_id)
+        .order_by(ATSCallNote.called_at.desc())
+    )
+    call_notes = result.scalars().all()
+    return templates.TemplateResponse("partials/company_call_notes.html", {
+        "request": request,
+        "call_notes": call_notes,
+        "company_id": str(company_id),
+    })
+
+
+@router.get("/partials/company/{company_id}/todos", response_class=HTMLResponse)
+async def company_todos_partial(
+    company_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Partial: Aufgaben eines Unternehmens."""
+    from app.models.ats_todo import ATSTodo
+
+    result = await db.execute(
+        select(ATSTodo)
+        .where(ATSTodo.company_id == company_id)
+        .order_by(ATSTodo.created_at.desc())
+    )
+    todos = result.scalars().all()
+    return templates.TemplateResponse("partials/company_todos.html", {
+        "request": request,
+        "todos": todos,
+        "company_id": str(company_id),
+    })
+
+
+@router.get("/partials/company/{company_id}/documents", response_class=HTMLResponse)
+async def company_documents_partial(
+    company_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Partial: Dokumente eines Unternehmens."""
+    from app.models.company_document import CompanyDocument
+
+    result = await db.execute(
+        select(CompanyDocument)
+        .where(CompanyDocument.company_id == company_id)
+        .order_by(CompanyDocument.created_at.desc())
+    )
+    documents = result.scalars().all()
+    return templates.TemplateResponse("partials/company_documents.html", {
+        "request": request,
+        "documents": documents,
+        "company_id": str(company_id),
+    })

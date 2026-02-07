@@ -376,11 +376,9 @@
                             'data-id="' + c.id + '" ' +
                             'data-name="' + escapeHtml(c.name) + '" ' +
                             'data-city="' + escapeHtml(c.city || '') + '" ' +
-                            'data-street="' + escapeHtml(c.street || '') + '" ' +
-                            'data-house="' + escapeHtml(c.house_number || '') + '" ' +
-                            'data-plz="' + escapeHtml(c.postal_code || '') + '">' +
+                            'data-address="' + escapeHtml(c.address || c.display_address || '') + '">' +
                             '<div class="font-medium text-gray-900">' + escapeHtml(c.name) + '</div>' +
-                            (c.city ? '<div class="text-xs text-gray-500">' + escapeHtml(c.city) + (c.postal_code ? ' (' + c.postal_code + ')' : '') + '</div>' : '') +
+                            (c.city ? '<div class="text-xs text-gray-500">' + escapeHtml(c.city) + '</div>' : '') +
                             '</div>';
                 });
                 dropdownContent.innerHTML = html;
@@ -392,9 +390,7 @@
                             id: this.dataset.id,
                             name: this.dataset.name,
                             city: this.dataset.city,
-                            street: this.dataset.street,
-                            house_number: this.dataset.house,
-                            postal_code: this.dataset.plz
+                            address: this.dataset.address
                         });
                     });
                 });
@@ -409,16 +405,10 @@
         selectedCompanyName = company.name;
         selectedCompanyData = company;
 
-        // Fill fields
+        // Fill fields from company
         document.getElementById('job-city').value = company.city || '';
-        document.getElementById('job-plz').value = company.postal_code || '';
-
-        // Combine street + house number
-        var fullStreet = company.street || '';
-        if (company.house_number) {
-            fullStreet += ' ' + company.house_number;
-        }
-        document.getElementById('job-street').value = fullStreet;
+        document.getElementById('job-street').value = company.address || '';
+        document.getElementById('job-plz').value = '';
 
         // Update display
         selectedText.textContent = company.name + (company.city ? ' - ' + company.city : '');

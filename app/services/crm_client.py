@@ -1,6 +1,7 @@
 """Recruit CRM API Client.
 
-Dieser Client kommuniziert mit der Recruit CRM API, um Kandidaten abzurufen.
+Dieser Client kommuniziert mit der Recruit CRM API, um Kandidaten,
+Unternehmen und Kontakte abzurufen.
 Dokumentation: https://docs.recruitcrm.io/
 """
 
@@ -520,6 +521,261 @@ class RecruitCRMClient:
                     result["city"] = part.strip()
 
         return result
+
+    # ── Companies ────────────────────────────────────────
+
+    async def get_companies(
+        self,
+        page: int = 1,
+        per_page: int = 100,
+    ) -> dict[str, Any]:
+        """Ruft Unternehmen paginiert ab.
+
+        Args:
+            page: Seitennummer (1-basiert)
+            per_page: Eintraege pro Seite (max. 100)
+
+        Returns:
+            Dictionary mit 'data' (Liste) und 'meta' (Pagination)
+        """
+        params: dict[str, Any] = {}
+        if page > 1:
+            params["page"] = page
+
+        logger.info(f"CRM get_companies: page={page}")
+        response = await self._request("GET", "/companies", params=params if params else None)
+
+        data = response.get("data", [])
+        current_page = response.get("current_page", page)
+        items_per_page = response.get("per_page", per_page)
+        to_index = response.get("to", len(data))
+        has_next = response.get("next_page_url") is not None
+
+        if has_next:
+            estimated_total = to_index + items_per_page
+            estimated_last_page = current_page + 1
+        else:
+            estimated_total = to_index if to_index else len(data)
+            estimated_last_page = current_page
+
+        return {
+            "data": data,
+            "meta": {
+                "current_page": current_page,
+                "per_page": items_per_page,
+                "total": estimated_total,
+                "last_page": estimated_last_page,
+                "has_next": has_next,
+            },
+        }
+
+    async def get_all_companies_paginated(
+        self,
+        per_page: int = 100,
+        max_pages: int | None = None,
+    ):
+        """Generator, der alle Unternehmen seitenweise abruft.
+
+        Yields:
+            Tuple (page_number, companies_list, total_count)
+        """
+        page = 1
+        has_more = True
+        estimated_total = 0
+
+        while has_more:
+            if max_pages and page > max_pages:
+                break
+
+            result = await self.get_companies(page=page, per_page=per_page)
+            meta = result["meta"]
+            has_more = meta.get("has_next", False)
+            estimated_total = meta.get("total", estimated_total)
+            companies = result["data"]
+
+            if not companies:
+                break
+
+            yield page, companies, estimated_total
+            page += 1
+
+    def map_to_company_data(self, crm_data: dict[str, Any]) -> dict[str, Any]:
+        """Mappt CRM-Unternehmensdaten auf das interne Format.
+
+        Recruit CRM Company-Felder:
+        - company_name, website, phone, city, postal_code, address
+        - no_of_employees (String oder Zahl)
+
+        Returns:
+            Dictionary fuer Company-Erstellung (OHNE crm_id!)
+        """
+        # Name (Pflichtfeld)
+        name = (crm_data.get("company_name") or "").strip()
+        if not name:
+            return {}
+
+        # Domain bereinigen (kein https://, kein www.)
+        raw_domain = crm_data.get("website") or ""
+        domain = raw_domain.strip()
+        if domain:
+            domain = domain.replace("https://", "").replace("http://", "").rstrip("/")
+            if not domain.startswith("www."):
+                domain = domain  # Behalten wie es ist
+
+        # Adresse zusammenbauen (EIN Feld)
+        raw_address = (crm_data.get("address") or "").strip()
+        postal_code = (crm_data.get("postal_code") or "").strip()
+        city_raw = (crm_data.get("city") or crm_data.get("locality") or "").strip()
+
+        # Adresse zusammensetzen: street, PLZ Stadt
+        address_parts = []
+        # Strassenteil aus raw_address extrahieren (ohne Stadt/PLZ/Land)
+        street = self._extract_street_from_address(raw_address, postal_code or None, city_raw or None)
+        if street:
+            address_parts.append(street)
+        plz_city = " ".join(p for p in [postal_code, city_raw] if p)
+        if plz_city:
+            address_parts.append(plz_city)
+        address = ", ".join(address_parts) if address_parts else None
+
+        # Telefon
+        phone = (crm_data.get("phone") or "").strip() or None
+
+        # Mitarbeiteranzahl
+        emp = crm_data.get("no_of_employees")
+        employee_count = str(emp).strip() if emp else None
+
+        return {
+            "name": name,
+            "domain": domain or None,
+            "address": address,
+            "city": city_raw or None,
+            "phone": phone,
+            "employee_count": employee_count,
+        }
+
+    # ── Contacts ──────────────────────────────────────────
+
+    async def get_contacts(
+        self,
+        page: int = 1,
+        per_page: int = 100,
+    ) -> dict[str, Any]:
+        """Ruft Kontakte paginiert ab.
+
+        Args:
+            page: Seitennummer (1-basiert)
+            per_page: Eintraege pro Seite (max. 100)
+
+        Returns:
+            Dictionary mit 'data' (Liste) und 'meta' (Pagination)
+        """
+        params: dict[str, Any] = {}
+        if page > 1:
+            params["page"] = page
+
+        logger.info(f"CRM get_contacts: page={page}")
+        response = await self._request("GET", "/contacts", params=params if params else None)
+
+        data = response.get("data", [])
+        current_page = response.get("current_page", page)
+        items_per_page = response.get("per_page", per_page)
+        to_index = response.get("to", len(data))
+        has_next = response.get("next_page_url") is not None
+
+        if has_next:
+            estimated_total = to_index + items_per_page
+            estimated_last_page = current_page + 1
+        else:
+            estimated_total = to_index if to_index else len(data)
+            estimated_last_page = current_page
+
+        return {
+            "data": data,
+            "meta": {
+                "current_page": current_page,
+                "per_page": items_per_page,
+                "total": estimated_total,
+                "last_page": estimated_last_page,
+                "has_next": has_next,
+            },
+        }
+
+    async def get_all_contacts_paginated(
+        self,
+        per_page: int = 100,
+        max_pages: int | None = None,
+    ):
+        """Generator, der alle Kontakte seitenweise abruft.
+
+        Yields:
+            Tuple (page_number, contacts_list, total_count)
+        """
+        page = 1
+        has_more = True
+        estimated_total = 0
+
+        while has_more:
+            if max_pages and page > max_pages:
+                break
+
+            result = await self.get_contacts(page=page, per_page=per_page)
+            meta = result["meta"]
+            has_more = meta.get("has_next", False)
+            estimated_total = meta.get("total", estimated_total)
+            contacts = result["data"]
+
+            if not contacts:
+                break
+
+            yield page, contacts, estimated_total
+            page += 1
+
+    def map_to_contact_data(self, crm_data: dict[str, Any]) -> dict[str, Any]:
+        """Mappt CRM-Kontaktdaten auf das interne Format.
+
+        Recruit CRM Contact-Felder:
+        - first_name, last_name, email, phone, mobile_number
+        - designation (Position), city/locality
+        - company_name (Name des zugehoerigen Unternehmens)
+
+        Returns:
+            Dictionary fuer CompanyContact-Erstellung (OHNE crm_id!)
+        """
+        first_name = (crm_data.get("first_name") or "").strip() or None
+        last_name = (crm_data.get("last_name") or "").strip() or None
+
+        if not first_name and not last_name:
+            return {}
+
+        # Anrede aus "title" oder "salutation" Feld
+        salutation = (crm_data.get("title") or crm_data.get("salutation") or "").strip() or None
+
+        # Position
+        position = (crm_data.get("designation") or crm_data.get("position") or "").strip() or None
+
+        # Kontaktdaten
+        email = (crm_data.get("email") or "").strip() or None
+        phone = (crm_data.get("phone") or "").strip() or None
+        mobile = (crm_data.get("mobile_number") or crm_data.get("mobile") or "").strip() or None
+
+        # Stadt/Arbeitsort
+        city = (crm_data.get("city") or crm_data.get("locality") or "").strip() or None
+
+        # Firmenname fuer Zuordnung (wird beim Import verwendet)
+        company_name = (crm_data.get("company_name") or "").strip() or None
+
+        return {
+            "salutation": salutation,
+            "first_name": first_name,
+            "last_name": last_name,
+            "position": position,
+            "email": email,
+            "phone": phone,
+            "mobile": mobile,
+            "city": city,
+            "_company_name": company_name,  # Intern, fuer Zuordnung beim Import
+        }
 
     async def __aenter__(self) -> "RecruitCRMClient":
         """Context-Manager Entry."""

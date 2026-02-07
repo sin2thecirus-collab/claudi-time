@@ -36,10 +36,8 @@ class Company(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     domain: Mapped[str | None] = mapped_column(String(255))
 
-    # Adresse
-    street: Mapped[str | None] = mapped_column(String(255))
-    house_number: Mapped[str | None] = mapped_column(String(20))
-    postal_code: Mapped[str | None] = mapped_column(String(10))
+    # Adresse (ein Feld fuer einfaches Kopieren)
+    address: Mapped[str | None] = mapped_column(Text)
     city: Mapped[str | None] = mapped_column(String(100))
 
     # Telefon Zentrale
@@ -98,16 +96,12 @@ class Company(Base):
         Index("ix_companies_created_at", "created_at"),
     )
 
+    # Relationships fuer Documents
+    documents: Mapped[list["CompanyDocument"]] = relationship(
+        "CompanyDocument", back_populates="company", cascade="all, delete-orphan",
+    )
+
     @property
     def display_address(self) -> str:
         """Gibt die formatierte Adresse zurueck."""
-        parts = []
-        if self.street:
-            addr = self.street
-            if self.house_number:
-                addr += f" {self.house_number}"
-            parts.append(addr)
-        if self.postal_code or self.city:
-            loc = " ".join(p for p in [self.postal_code, self.city] if p)
-            parts.append(loc)
-        return ", ".join(parts) if parts else ""
+        return self.address or ""

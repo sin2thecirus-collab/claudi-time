@@ -232,6 +232,52 @@ class R2StorageService:
             logger.error(f"R2 Loeschung fehlgeschlagen fuer {key}: {e}")
             return False
 
+    def upload_file(
+        self,
+        key: str,
+        file_content: bytes,
+        content_type: str = "application/octet-stream",
+    ) -> str:
+        """
+        Generischer File-Upload nach R2.
+
+        Args:
+            key: R2 Object Key (Pfad im Bucket)
+            file_content: Datei-Bytes
+            content_type: MIME-Type
+
+        Returns:
+            R2 Object Key
+        """
+        if not self.is_available:
+            raise RuntimeError("R2 Storage nicht konfiguriert")
+
+        try:
+            self.client.put_object(
+                Bucket=self.bucket,
+                Key=key,
+                Body=file_content,
+                ContentType=content_type,
+            )
+            logger.info(f"Datei hochgeladen: {key} ({len(file_content)} Bytes)")
+            return key
+        except ClientError as e:
+            logger.error(f"R2 Upload fehlgeschlagen fuer {key}: {e}")
+            raise
+
+    def delete_file(self, key: str) -> bool:
+        """Loescht eine Datei aus R2."""
+        if not self.is_available:
+            return False
+
+        try:
+            self.client.delete_object(Bucket=self.bucket, Key=key)
+            logger.info(f"Datei geloescht: {key}")
+            return True
+        except ClientError as e:
+            logger.error(f"R2 Loeschung fehlgeschlagen fuer {key}: {e}")
+            return False
+
     def cv_exists(self, key: str) -> bool:
         """Prueft ob ein CV in R2 existiert."""
         if not self.is_available:

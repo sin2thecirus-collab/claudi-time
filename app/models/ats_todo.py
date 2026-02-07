@@ -108,6 +108,11 @@ class ATSTodo(Base):
         ForeignKey("ats_pipeline_entries.id", ondelete="SET NULL"),
         nullable=True,
     )
+    contact_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("company_contacts.id", ondelete="SET NULL"),
+        nullable=True,
+    )
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
@@ -127,6 +132,7 @@ class ATSTodo(Base):
     call_note: Mapped["ATSCallNote | None"] = relationship(
         "ATSCallNote", back_populates="todos",
     )
+    contact: Mapped["CompanyContact | None"] = relationship("CompanyContact")
 
     # Indizes
     __table_args__ = (
@@ -136,6 +142,7 @@ class ATSTodo(Base):
         Index("ix_ats_todos_company_id", "company_id"),
         Index("ix_ats_todos_candidate_id", "candidate_id"),
         Index("ix_ats_todos_ats_job_id", "ats_job_id"),
+        Index("ix_ats_todos_contact_id", "contact_id"),
     )
 
     @property

@@ -487,6 +487,13 @@ async def init_db() -> None:
         ("jobs", "manual_job_title_set_at", "TIMESTAMPTZ"),
         # ATS Jobs: Pipeline-Uebersicht Flag
         ("ats_jobs", "in_pipeline", "BOOLEAN DEFAULT FALSE"),
+        # Phase 5: Company address consolidation
+        ("companies", "address", "TEXT"),
+        # Phase 5: Contact city + mobile
+        ("company_contacts", "city", "VARCHAR(255)"),
+        ("company_contacts", "mobile", "VARCHAR(100)"),
+        # Phase 5: Todo contact_id FK
+        ("ats_todos", "contact_id", "UUID"),
     ]
     for table_name, col_name, col_type in migrations:
         try:
@@ -627,6 +634,45 @@ async def init_db() -> None:
             logger.info("MT Lern-Tabellen erstellt/geprueft.")
     except Exception as e:
         logger.warning(f"MT Lern-Tabellen Erstellung uebersprungen: {e}")
+
+    # ── Phase 5: company_documents Tabelle ──
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS company_documents (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+                    filename VARCHAR(500) NOT NULL,
+                    file_path TEXT NOT NULL,
+                    file_size INTEGER,
+                    mime_type VARCHAR(100),
+                    notes TEXT,
+                    created_at TIMESTAMPTZ DEFAULT NOW()
+                )
+            """))
+            await conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_company_documents_company_id "
+                "ON company_documents (company_id)"
+            ))
+    except Exception as e:
+        logger.warning(f"company_documents Tabelle uebersprungen: {e}")
+
+    # ── Phase 5: ats_todos contact_id FK hinzufuegen ──
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("""
+                DO $$ BEGIN
+                    ALTER TABLE ats_todos ADD CONSTRAINT fk_ats_todos_contact_id
+                        FOREIGN KEY (contact_id) REFERENCES company_contacts(id) ON DELETE SET NULL;
+                EXCEPTION WHEN duplicate_object THEN NULL;
+                         WHEN undefined_column THEN NULL;
+                END $$
+            """))
+            await conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_ats_todos_contact_id ON ats_todos (contact_id)"
+            ))
+    except Exception as e:
+        logger.warning(f"ats_todos contact_id FK uebersprungen: {e}")
 
     # ── Embedding-Indexes nicht noetig (JSONB, kein pgvector) ──
     # Similarity-Suche laeuft in Python, nicht in SQL.

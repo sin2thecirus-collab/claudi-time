@@ -1,0 +1,50 @@
+{# Partial: Anrufprotokoll eines Unternehmens #}
+
+{% if call_notes and call_notes | length > 0 %}
+<div class="space-y-3">
+    {% for note in call_notes %}
+    <div class="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+        {# Call Type Badge #}
+        <div class="flex-shrink-0 mt-0.5">
+            {% if note.call_type.value == 'acquisition' %}
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-blue-600 bg-blue-50">Akquisition</span>
+            {% elif note.call_type.value == 'qualification' %}
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-green-600 bg-green-50">Qualifikation</span>
+            {% elif note.call_type.value == 'followup' %}
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-amber-600 bg-amber-50">Follow-up</span>
+            {% elif note.call_type.value == 'candidate_call' %}
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-purple-600 bg-purple-50">Kandidaten-Anruf</span>
+            {% else %}
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-gray-600 bg-gray-100">{{ note.call_type.value }}</span>
+            {% endif %}
+        </div>
+        <div class="flex-1 min-w-0">
+            <p class="text-sm text-gray-900">{{ note.summary }}</p>
+            <div class="flex items-center gap-3 mt-1.5">
+                {% if note.contact %}
+                <span class="text-xs text-primary-600">{{ note.contact.full_name }}</span>
+                {% endif %}
+                {% if note.duration_minutes %}
+                <span class="text-xs text-gray-500">
+                    <svg class="w-3 h-3 inline mr-0.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    {{ note.duration_minutes }} Min.
+                </span>
+                {% endif %}
+                {% if note.called_at %}
+                <span class="text-xs text-gray-400">{{ note.called_at | datetime }}</span>
+                {% endif %}
+            </div>
+        </div>
+        <button onclick="deleteCompanyCallNote('{{ note.id }}')" class="text-gray-400 hover:text-red-500 p-1 flex-shrink-0" title="Loeschen">
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        </button>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<p class="text-sm text-gray-400">Keine Anrufe vorhanden</p>
+{% endif %}
