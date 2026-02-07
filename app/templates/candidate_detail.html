@@ -800,7 +800,7 @@
                     <button type="button"
                             @click="activeSection = '{{ nav.id }}'; document.getElementById('{{ nav.id }}')?.scrollIntoView({behavior: 'smooth', block: 'start'})"
                             class="kd-nav-btn" :class="activeSection === '{{ nav.id }}' ? 'active' : ''">
-                        <span style="font-size: 13px;">{{ nav.icon }}</span>
+                        <span style="font-size: 13px;">{{ nav.icon | safe }}</span>
                         {{ nav.label }}
                     </button>
                     {% endfor %}
