@@ -123,24 +123,34 @@ async def get_import_status():
 
 @router.get("/crm-debug-contacts")
 async def debug_crm_contacts():
-    """TEMPORAER: Zeigt rohe CRM-Kontaktdaten zum Debugging."""
+    """TEMPORAER: Zeigt rohe CRM-Daten zum Debugging."""
     from app.services.crm_client import RecruitCRMClient
     async with RecruitCRMClient() as client:
-        result = await client.get_contacts(page=1, per_page=100)
-        raw_contacts = result.get("data", [])[:5]
-        # Zeige alle Felder der ersten 5 Kontakte
-        debug_info = []
+        # Contacts
+        ct_result = await client.get_contacts(page=1, per_page=100)
+        raw_contacts = ct_result.get("data", [])[:3]
+        ct_debug = []
         for ct in raw_contacts:
-            debug_info.append({
+            ct_debug.append({
                 "all_keys": list(ct.keys()),
+                "company_slug": ct.get("company_slug"),
                 "company_name": ct.get("company_name"),
-                "company": ct.get("company"),
-                "company_id": ct.get("company_id"),
                 "first_name": ct.get("first_name"),
                 "last_name": ct.get("last_name"),
-                "raw_sample": {k: v for k, v in ct.items() if v and str(v).strip()}
             })
-        return {"count": len(raw_contacts), "debug": debug_info}
+
+        # Companies
+        co_result = await client.get_companies(page=1, per_page=100)
+        raw_companies = co_result.get("data", [])[:3]
+        co_debug = []
+        for co in raw_companies:
+            co_debug.append({
+                "all_keys": list(co.keys()),
+                "slug": co.get("slug"),
+                "company_name": co.get("company_name"),
+            })
+
+        return {"contacts": ct_debug, "companies": co_debug}
 
 
 @router.delete("/crm-delete-all-except/{keep_id}")
