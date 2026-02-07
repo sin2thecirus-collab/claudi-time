@@ -134,26 +134,19 @@
 {% set raw_last = candidate.last_name or '' %}
 {% set first_valid = raw_first if raw_first | lower | trim not in invalid_names else '' %}
 {% set last_valid = raw_last if raw_last | lower | trim not in invalid_names else '' %}
-{% if first_valid == first_valid | upper and first_valid | length > 1 %}
-    {% set first_display = first_valid | title %}
-{% else %}
-    {% set first_display = first_valid %}
-{% endif %}
-{% if last_valid == last_valid | upper and last_valid | length > 1 %}
-    {% set last_display = last_valid | title %}
-{% else %}
-    {% set last_display = last_valid %}
-{% endif %}
+{# ALL CAPS → Title Case (ohne if/else wg. Jinja2 Scoping) #}
+{% set first_display = (first_valid | title) if (first_valid == first_valid | upper and first_valid | length > 1) else first_valid %}
+{% set last_display = (last_valid | title) if (last_valid == last_valid | upper and last_valid | length > 1) else last_valid %}
 {% set has_valid_name = first_display or last_display %}
 {% set display_name = ((first_display ~ ' ' ~ last_display) | trim) if has_valid_name else 'Unbekannt' %}
 {% set raw_position = candidate.current_position or '' %}
-{% set position_invalid = raw_position | lower | trim in invalid_names + ['keine position angegeben', 'not available'] %}
+{% set position_invalid = raw_position | lower | trim in (invalid_names + ['keine position angegeben']) %}
 {% set position_display = '' if position_invalid else raw_position %}
 {% set raw_company = candidate.current_company or '' %}
-{% set company_invalid = raw_company | lower | trim in invalid_names + ['kein unternehmen'] %}
+{% set company_invalid = raw_company | lower | trim in (invalid_names + ['kein unternehmen']) %}
 {% set company_display = '' if company_invalid else raw_company %}
 {% set raw_city = candidate.city or '' %}
-{% set city_invalid = raw_city | lower | trim in invalid_names + ['keine adresse'] %}
+{% set city_invalid = raw_city | lower | trim in (invalid_names + ['keine adresse']) %}
 {% set city_display = '' if city_invalid else raw_city %}
 {# ── End Data Quality ── #}
 <div class="kd-wrap min-h-screen" x-data="{ activeSection: 'experience' }">

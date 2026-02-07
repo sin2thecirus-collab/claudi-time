@@ -92,17 +92,9 @@
         {% set invalid_names = ['not available', 'n/a', 'na', 'none', 'null', '-', '—'] %}
         {% set first_valid = raw_first if raw_first | lower | trim not in invalid_names else '' %}
         {% set last_valid = raw_last if raw_last | lower | trim not in invalid_names else '' %}
-        {# ALL CAPS → Title Case #}
-        {% if first_valid == first_valid | upper and first_valid | length > 1 %}
-            {% set first_display = first_valid | title %}
-        {% else %}
-            {% set first_display = first_valid %}
-        {% endif %}
-        {% if last_valid == last_valid | upper and last_valid | length > 1 %}
-            {% set last_display = last_valid | title %}
-        {% else %}
-            {% set last_display = last_valid %}
-        {% endif %}
+        {# ALL CAPS → Title Case (inline statt if/else wg. Jinja2 Scoping) #}
+        {% set first_display = (first_valid | title) if (first_valid == first_valid | upper and first_valid | length > 1) else first_valid %}
+        {% set last_display = (last_valid | title) if (last_valid == last_valid | upper and last_valid | length > 1) else last_valid %}
         {% set has_valid_name = first_display or last_display %}
         {% set display_name = ((first_display ~ ' ' ~ last_display) | trim) if has_valid_name else 'Unbekannt' %}
 
