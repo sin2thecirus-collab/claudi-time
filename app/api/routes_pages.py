@@ -1065,7 +1065,7 @@ async def r2_migration_status_html(
         }}
 
         if (isRunning) {{
-            setTimeout(refreshStatus, 5000);
+            setInterval(refreshStatus, 5000);
         }}
     }})();
     </script>
