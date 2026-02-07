@@ -55,6 +55,14 @@
                      hx-swap="innerHTML">
                     {% include 'components/loading_spinner.html' %}
                 </div>
+
+                {# R2 CV-Migration #}
+                <div id="admin-r2-migration"
+                     hx-get="/api/admin/r2-migration/status-html"
+                     hx-trigger="load"
+                     hx-swap="innerHTML">
+                    {% include 'components/loading_spinner.html' %}
+                </div>
             </div>
         </div>
     </div>

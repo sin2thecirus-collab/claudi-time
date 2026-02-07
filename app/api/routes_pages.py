@@ -912,6 +912,93 @@ async def cleanup_status_partial(
     )
 
 
+@router.get("/api/admin/r2-migration/status-html", response_class=HTMLResponse)
+async def r2_migration_status_html(
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """Partial: R2-Migration-Status fuer Admin-Seite."""
+    from sqlalchemy import select, func
+    from app.models.candidate import Candidate
+    from app.api.routes_admin import _r2_migration_status
+
+    # DB-Zahlen abfragen
+    in_r2_result = await db.execute(
+        select(func.count(Candidate.id)).where(
+            Candidate.cv_stored_path.isnot(None),
+            Candidate.deleted_at.is_(None),
+        )
+    )
+    in_r2 = in_r2_result.scalar() or 0
+
+    remaining_result = await db.execute(
+        select(func.count(Candidate.id)).where(
+            Candidate.cv_url.isnot(None),
+            Candidate.cv_url != "",
+            Candidate.cv_stored_path.is_(None),
+            Candidate.deleted_at.is_(None),
+        )
+    )
+    remaining = remaining_result.scalar() or 0
+
+    total_with_cv_result = await db.execute(
+        select(func.count(Candidate.id)).where(
+            Candidate.cv_url.isnot(None),
+            Candidate.deleted_at.is_(None),
+        )
+    )
+    total_with_cv = total_with_cv_result.scalar() or 0
+
+    percent = round((in_r2 / total_with_cv * 100), 1) if total_with_cv > 0 else 0
+    is_running = _r2_migration_status.get("running", False)
+    migrated = _r2_migration_status.get("migrated", 0)
+    failed = _r2_migration_status.get("failed", 0)
+    current = _r2_migration_status.get("current_candidate", "")
+
+    # Status-Farbe
+    if is_running:
+        badge_color = "bg-blue-100 text-blue-700"
+        badge_text = "Laeuft..."
+    elif remaining == 0 and total_with_cv > 0:
+        badge_color = "bg-green-100 text-green-700"
+        badge_text = "Vollstaendig"
+    else:
+        badge_color = "bg-yellow-100 text-yellow-700"
+        badge_text = f"{remaining} offen"
+
+    html = f"""
+    <div class="flex items-center justify-between py-3 px-4 bg-gray-50 rounded-lg border border-gray-200">
+        <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-3">
+                <div class="flex-shrink-0">
+                    <span class="text-xl">&#x2601;</span>
+                </div>
+                <div>
+                    <h4 class="text-sm font-semibold text-gray-900">R2 CV-Migration</h4>
+                    <p class="text-xs text-gray-500">CVs von CRM-URLs nach R2 Storage sichern</p>
+                </div>
+            </div>
+            <div class="mt-2 flex items-center gap-4 text-xs text-gray-600">
+                <span>&#x2705; In R2: <strong>{in_r2}</strong></span>
+                <span>&#x26A0;&#xFE0F; Nur CRM: <strong>{remaining}</strong></span>
+                <span>Gesamt: <strong>{total_with_cv}</strong></span>
+                <span>Fortschritt: <strong>{percent}%</strong></span>
+            </div>
+            {'<div class="mt-1 text-xs text-blue-600">Aktuell: ' + current + ' | Migriert: ' + str(migrated) + ' | Fehler: ' + str(failed) + '</div>' if is_running else ''}
+            <div class="mt-2 w-full bg-gray-200 rounded-full h-2">
+                <div class="bg-violet-500 h-2 rounded-full transition-all" style="width: {percent}%"></div>
+            </div>
+        </div>
+        <div class="ml-4 flex-shrink-0">
+            {'<button hx-post="/api/admin/stop-r2-migration" hx-swap="none" hx-on::after-request="setTimeout(function(){{document.getElementById(&quot;admin-r2-migration&quot;).dispatchEvent(new Event(&quot;htmx:load&quot;))}}, 500)" class="inline-flex items-center rounded-md bg-red-50 px-3 py-2 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/20 hover:bg-red-100">Stoppen</button>' if is_running else '<button hx-post="/api/admin/migrate-all-cvs-to-r2?batch_size=20&max_candidates=5000" hx-swap="none" hx-on::after-request="setTimeout(function(){{document.getElementById(&quot;admin-r2-migration&quot;).dispatchEvent(new Event(&quot;htmx:load&quot;))}}, 1000)" class="inline-flex items-center rounded-md bg-violet-50 px-3 py-2 text-xs font-medium text-violet-700 ring-1 ring-inset ring-violet-600/20 hover:bg-violet-100">' + ('&#x2705; Fertig' if remaining == 0 else 'Migration starten') + '</button>'}
+        </div>
+    </div>
+    {'<script>setTimeout(function(){{ var el = document.getElementById(&quot;admin-r2-migration&quot;); if(el) {{ el.setAttribute(&quot;hx-trigger&quot;, &quot;load, every 5s&quot;); htmx.process(el); }} }}, 100);</script>' if is_running else ''}
+    """
+
+    return HTMLResponse(content=html)
+
+
 # ============================================================================
 # Admin Job Trigger Endpoints (HTML Response fuer HTMX)
 # ============================================================================

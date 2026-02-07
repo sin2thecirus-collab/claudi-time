@@ -162,6 +162,270 @@ _cv_parsing_status: dict = {
 }
 
 
+# Globaler Status fuer R2-CV-Migration Background Task
+_r2_migration_status: dict = {
+    "running": False,
+    "migrated": 0,
+    "failed": 0,
+    "skipped": 0,
+    "total_to_migrate": 0,
+    "errors": [],
+    "recently_migrated": [],
+    "started_at": None,
+    "finished_at": None,
+    "current_candidate": None,
+}
+
+
+@router.post(
+    "/migrate-all-cvs-to-r2",
+    summary="Alle CVs nach R2 migrieren (Background Task)",
+)
+async def migrate_all_cvs_to_r2(
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+    batch_size: int = Query(default=20, description="Kandidaten pro Batch"),
+    max_candidates: int = Query(default=5000, description="Maximale Anzahl"),
+):
+    """
+    Startet die vollstaendige CV-Migration nach R2 als Background Task.
+    Holt PDFs von CRM-URLs und laedt sie nach R2 hoch.
+    Dateinamen werden automatisch mit Kandidatennamen versehen.
+    Status ueber GET /api/admin/migrate-all-cvs-to-r2/status abrufen.
+    """
+    from sqlalchemy import select, func
+    from app.models.candidate import Candidate
+
+    global _r2_migration_status
+
+    if _r2_migration_status["running"]:
+        return {
+            "success": False,
+            "message": "R2-Migration laeuft bereits",
+            "status": _r2_migration_status,
+        }
+
+    # Anzahl zu migrierender Kandidaten ermitteln
+    count_result = await db.execute(
+        select(func.count(Candidate.id)).where(
+            Candidate.cv_url.isnot(None),
+            Candidate.cv_url != "",
+            Candidate.cv_stored_path.is_(None),
+            Candidate.deleted_at.is_(None),
+        )
+    )
+    total_to_migrate = count_result.scalar() or 0
+
+    if total_to_migrate == 0:
+        return {"success": True, "message": "Keine CVs zum Migrieren", "total": 0}
+
+    # Background Task starten
+    background_tasks.add_task(
+        _run_r2_migration, batch_size, min(total_to_migrate, max_candidates)
+    )
+
+    return {
+        "success": True,
+        "message": f"R2-Migration gestartet fuer {min(total_to_migrate, max_candidates)} Kandidaten",
+        "total_to_migrate": total_to_migrate,
+        "max_candidates": max_candidates,
+        "status_url": "/api/admin/migrate-all-cvs-to-r2/status",
+    }
+
+
+@router.get(
+    "/migrate-all-cvs-to-r2/status",
+    summary="R2-Migration Status abfragen",
+)
+async def get_r2_migration_status(db: AsyncSession = Depends(get_db)):
+    """Gibt den aktuellen Status der R2-CV-Migration zurueck."""
+    from sqlalchemy import select, func
+    from app.models.candidate import Candidate
+
+    # Tatsaechliche DB-Werte abfragen
+    in_r2_result = await db.execute(
+        select(func.count(Candidate.id)).where(
+            Candidate.cv_stored_path.isnot(None),
+            Candidate.deleted_at.is_(None),
+        )
+    )
+    in_r2 = in_r2_result.scalar() or 0
+
+    remaining_result = await db.execute(
+        select(func.count(Candidate.id)).where(
+            Candidate.cv_url.isnot(None),
+            Candidate.cv_url != "",
+            Candidate.cv_stored_path.is_(None),
+            Candidate.deleted_at.is_(None),
+        )
+    )
+    remaining = remaining_result.scalar() or 0
+
+    total_with_cv_result = await db.execute(
+        select(func.count(Candidate.id)).where(
+            Candidate.cv_url.isnot(None),
+            Candidate.deleted_at.is_(None),
+        )
+    )
+    total_with_cv = total_with_cv_result.scalar() or 0
+
+    return {
+        "status": _r2_migration_status,
+        "db": {
+            "total_with_cv": total_with_cv,
+            "in_r2": in_r2,
+            "remaining": remaining,
+            "percent_complete": round((in_r2 / total_with_cv * 100), 1) if total_with_cv > 0 else 0,
+        },
+    }
+
+
+@router.post(
+    "/stop-r2-migration",
+    summary="Laufende R2-Migration stoppen",
+)
+async def stop_r2_migration():
+    """Stoppt die laufende R2-Migration nach dem aktuellen Kandidaten."""
+    global _r2_migration_status
+    if _r2_migration_status.get("running"):
+        _r2_migration_status["stop_requested"] = True
+        return {"success": True, "message": "Stop-Signal gesendet. Migration wird nach aktuellem Kandidaten gestoppt."}
+    return {"success": False, "message": "Keine R2-Migration laeuft aktuell."}
+
+
+async def _run_r2_migration(batch_size: int, max_candidates: int):
+    """Background Task: Migriert CVs von CRM-URLs nach R2 Storage."""
+    import httpx
+    from datetime import datetime, timezone
+    from sqlalchemy import select
+    from app.database import async_session_maker
+    from app.models.candidate import Candidate
+    from app.services.r2_storage_service import R2StorageService
+
+    global _r2_migration_status
+
+    _r2_migration_status = {
+        "running": True,
+        "migrated": 0,
+        "failed": 0,
+        "skipped": 0,
+        "total_to_migrate": max_candidates,
+        "errors": [],
+        "recently_migrated": [],
+        "started_at": datetime.now(timezone.utc).isoformat(),
+        "finished_at": None,
+        "current_candidate": None,
+    }
+
+    try:
+        r2 = R2StorageService()
+        if not r2.is_available:
+            _r2_migration_status["running"] = False
+            _r2_migration_status["errors"].append("R2 Storage nicht konfiguriert")
+            return
+
+        async with async_session_maker() as db:
+            offset = 0
+            while offset < max_candidates:
+                result = await db.execute(
+                    select(Candidate)
+                    .where(
+                        Candidate.cv_url.isnot(None),
+                        Candidate.cv_url != "",
+                        Candidate.cv_stored_path.is_(None),
+                        Candidate.deleted_at.is_(None),
+                    )
+                    .order_by(Candidate.id)
+                    .limit(batch_size)
+                )
+                candidates = result.scalars().all()
+
+                if not candidates:
+                    break
+
+                for candidate in candidates:
+                    # Stop-Mechanismus pruefen
+                    if _r2_migration_status.get("stop_requested"):
+                        logger.info("R2-Migration wurde manuell gestoppt.")
+                        _r2_migration_status["running"] = False
+                        _r2_migration_status["finished_at"] = datetime.now(timezone.utc).isoformat()
+                        _r2_migration_status["current_candidate"] = None
+                        await db.commit()
+                        return
+
+                    name = f"{candidate.first_name or ''} {candidate.last_name or ''}".strip() or "Unbekannt"
+                    _r2_migration_status["current_candidate"] = name
+
+                    try:
+                        # CV von CRM-URL herunterladen
+                        async with httpx.AsyncClient(
+                            follow_redirects=True,
+                            timeout=60.0,
+                        ) as client:
+                            response = await client.get(candidate.cv_url)
+
+                        if response.status_code != 200:
+                            _r2_migration_status["failed"] += 1
+                            _r2_migration_status["errors"].append(
+                                f"{name}: HTTP {response.status_code}"
+                            )
+                            continue
+
+                        if len(response.content) < 100:
+                            _r2_migration_status["skipped"] += 1
+                            _r2_migration_status["errors"].append(
+                                f"{name}: Datei zu klein ({len(response.content)} Bytes)"
+                            )
+                            continue
+
+                        # Nach R2 hochladen (Dateiname = Kandidatenname)
+                        key = r2.upload_cv(
+                            str(candidate.id),
+                            response.content,
+                            first_name=candidate.first_name,
+                            last_name=candidate.last_name,
+                            hotlist_category=candidate.hotlist_category,
+                        )
+                        candidate.cv_stored_path = key
+                        _r2_migration_status["migrated"] += 1
+                        _r2_migration_status["recently_migrated"].append(
+                            f"{name} -> {key}"
+                        )
+                        _r2_migration_status["recently_migrated"] = _r2_migration_status["recently_migrated"][-10:]
+
+                    except Exception as e:
+                        _r2_migration_status["failed"] += 1
+                        _r2_migration_status["errors"].append(f"{name}: {e}")
+
+                    # Kurze Pause - gibt DB-Pool und Netzwerk frei
+                    await asyncio.sleep(0.5)
+
+                await db.commit()
+                offset += batch_size
+                logger.info(
+                    f"R2-Migration: {_r2_migration_status['migrated']} migriert, "
+                    f"{_r2_migration_status['failed']} fehlgeschlagen ({offset}/{max_candidates})"
+                )
+                # Pause zwischen Batches
+                await asyncio.sleep(1.0)
+
+    except Exception as e:
+        logger.error(f"R2-Migration Background Task fehlgeschlagen: {e}", exc_info=True)
+        _r2_migration_status["errors"].append(f"FATAL: {e}")
+
+    _r2_migration_status["running"] = False
+    _r2_migration_status["finished_at"] = datetime.now(timezone.utc).isoformat()
+    _r2_migration_status["current_candidate"] = None
+    # Nur die letzten 50 Fehler behalten
+    _r2_migration_status["errors"] = _r2_migration_status["errors"][-50:]
+
+    logger.info(
+        f"=== R2-MIGRATION FERTIG === {_r2_migration_status['migrated']} migriert, "
+        f"{_r2_migration_status['failed']} fehlgeschlagen, "
+        f"{_r2_migration_status['skipped']} uebersprungen"
+    )
+
+
 @router.post(
     "/reset-cv-parsing",
     summary="CV-Parsing zurücksetzen (alle erneut parsen)",
