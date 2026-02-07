@@ -121,6 +121,28 @@ async def get_import_status():
     }
 
 
+@router.get("/crm-debug-contacts")
+async def debug_crm_contacts():
+    """TEMPORAER: Zeigt rohe CRM-Kontaktdaten zum Debugging."""
+    from app.services.crm_client import RecruitCRMClient
+    async with RecruitCRMClient() as client:
+        result = await client.get_contacts(page=1, per_page=100)
+        raw_contacts = result.get("data", [])[:5]
+        # Zeige alle Felder der ersten 5 Kontakte
+        debug_info = []
+        for ct in raw_contacts:
+            debug_info.append({
+                "all_keys": list(ct.keys()),
+                "company_name": ct.get("company_name"),
+                "company": ct.get("company"),
+                "company_id": ct.get("company_id"),
+                "first_name": ct.get("first_name"),
+                "last_name": ct.get("last_name"),
+                "raw_sample": {k: v for k, v in ct.items() if v and str(v).strip()}
+            })
+        return {"count": len(raw_contacts), "debug": debug_info}
+
+
 @router.delete("/crm-delete-all-except/{keep_id}")
 async def delete_all_except(keep_id: UUID, db: AsyncSession = Depends(get_db)):
     """TEMPORAER: Loescht alle Unternehmen AUSSER die angegebene ID."""
