@@ -809,13 +809,32 @@ async def _run_crm_import(dry_run: bool = False, max_pages: int | None = None, s
         from app.services.crm_client import RecruitCRMClient
         from app.database import async_session_maker
 
+        # Slug-Map: CRM company_slug -> MT company_id (wird in Phase 1 gebaut, in Phase 2 genutzt)
+        slug_to_company_id: dict[str, str] = {}
+
         async with RecruitCRMClient() as client:
             # ── Phase 1: Unternehmen ──
             if skip_companies:
                 log("=== Phase 1: Unternehmen UEBERSPRUNGEN (skip_companies=True) ===")
+                # Slug-Map muss trotzdem aus CRM gebaut werden
+                log("Baue Slug-Map aus CRM + DB...")
+                name_to_id: dict[str, str] = {}
+                async with async_session_maker() as session:
+                    result = await session.execute(select(Company.name, Company.id))
+                    for name, cid in result.all():
+                        name_to_id[name.lower().strip()] = str(cid)
+                log(f"  {len(name_to_id)} Unternehmen in DB")
+                async for page_num, companies, total in client.get_all_companies_paginated(per_page=100, max_pages=max_pages):
+                    for c in companies:
+                        slug = c.get("slug", "")
+                        cname = (c.get("company_name") or "").strip()
+                        if slug and cname:
+                            db_id = name_to_id.get(cname.lower().strip())
+                            if db_id:
+                                slug_to_company_id[slug] = db_id
+                log(f"  Slug-Map: {len(slug_to_company_id)} Zuordnungen")
             else:
                 log("=== Phase 1: Unternehmen importieren ===")
-            if not skip_companies:
                 company_stats = {"imported": 0, "skipped_empty": 0, "errors": 0}
 
                 if not dry_run:
@@ -840,6 +859,8 @@ async def _run_crm_import(dry_run: bool = False, max_pages: int | None = None, s
                                 company_stats["skipped_empty"] += 1
                         continue
 
+                    # Slug-Map Eintraege vorbereiten (slug -> name, spaeter name -> id)
+                    page_slug_names: list[tuple[str, str]] = []
                     async with async_session_maker() as session:
                         batch = []
                         for c in companies:
@@ -848,8 +869,13 @@ async def _run_crm_import(dry_run: bool = False, max_pages: int | None = None, s
                                 if not mapped or not mapped.get("name"):
                                     company_stats["skipped_empty"] += 1
                                     continue
-                                batch.append(Company(**mapped))
+                                company_obj = Company(**mapped)
+                                batch.append(company_obj)
                                 company_stats["imported"] += 1
+                                # Slug merken
+                                slug = c.get("slug", "")
+                                if slug:
+                                    page_slug_names.append((slug, str(company_obj.id)))
                             except Exception as e:
                                 company_stats["errors"] += 1
                                 log(f"  Fehler: {e}")
@@ -858,14 +884,21 @@ async def _run_crm_import(dry_run: bool = False, max_pages: int | None = None, s
                             try:
                                 session.add_all(batch)
                                 await session.commit()
+                                # Slug-Map befuellen nach erfolgreichem Commit
+                                for slug, cid in page_slug_names:
+                                    slug_to_company_id[slug] = cid
                             except Exception as e:
                                 await session.rollback()
                                 log(f"  Batch-Fehler ({e}), einzeln einfuegen...")
-                                for company in batch:
+                                for i, company in enumerate(batch):
                                     try:
                                         async with async_session_maker() as ss:
                                             ss.add(company)
                                             await ss.commit()
+                                            # Slug fuer einzeln eingefuegte auch merken
+                                            if i < len(page_slug_names):
+                                                s, cid = page_slug_names[i]
+                                                slug_to_company_id[s] = cid
                                     except Exception:
                                         company_stats["errors"] += 1
                                         company_stats["imported"] -= 1
@@ -874,20 +907,14 @@ async def _run_crm_import(dry_run: bool = False, max_pages: int | None = None, s
                         log(f"  Fortschritt: {company_stats['imported']} importiert...")
 
                 log(f"Unternehmen fertig: {company_stats}")
+                log(f"Slug-Map: {len(slug_to_company_id)} Zuordnungen")
                 _import_status["stats"]["companies"] = company_stats
 
-            # ── Phase 2: Kontakte ──
+            # ── Phase 2: Kontakte (Slug-basiertes Matching) ──
             if not skip_contacts:
-                log("=== Phase 2: Kontakte importieren ===")
+                log("=== Phase 2: Kontakte importieren (Slug-Matching) ===")
                 contact_stats = {"imported": 0, "skipped_empty": 0, "skipped_no_company": 0, "errors": 0}
-
-                company_map: dict[str, str] = {}
-                if not dry_run:
-                    async with async_session_maker() as session:
-                        result = await session.execute(select(Company.name, Company.id))
-                        for name, cid in result.all():
-                            company_map[name.lower().strip()] = str(cid)
-                    log(f"Company-Map: {len(company_map)} Unternehmen")
+                log(f"Slug-Map hat {len(slug_to_company_id)} Eintraege")
 
                 async for page_num, contacts, total in client.get_all_contacts_paginated(per_page=100, max_pages=max_pages):
                     log(f"Seite {page_num}: {len(contacts)} Kontakte (ca. {total} gesamt)")
@@ -910,12 +937,14 @@ async def _run_crm_import(dry_run: bool = False, max_pages: int | None = None, s
                                     contact_stats["skipped_empty"] += 1
                                     continue
 
-                                company_name = mapped.pop("_company_name", None)
-                                if not company_name:
+                                # Slug-basiertes Matching statt Name
+                                mapped.pop("_company_name", None)  # Nicht mehr benoetigt
+                                company_slug = ct.get("company_slug", "")
+                                if not company_slug:
                                     contact_stats["skipped_no_company"] += 1
                                     continue
 
-                                cid_str = company_map.get(company_name.lower().strip())
+                                cid_str = slug_to_company_id.get(company_slug)
                                 if not cid_str:
                                     contact_stats["skipped_no_company"] += 1
                                     continue
