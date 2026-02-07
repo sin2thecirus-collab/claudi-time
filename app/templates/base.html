@@ -82,6 +82,22 @@
             animation: modal-in 0.2s ease-out;
         }
 
+        /* Quick-Add Slide-Over Animation */
+        @keyframes slideOverIn {
+            from { transform: translateX(100%); }
+            to   { transform: translateX(0); }
+        }
+        @keyframes slideOverOut {
+            from { transform: translateX(0); }
+            to   { transform: translateX(100%); }
+        }
+        .quickadd-panel-enter {
+            animation: slideOverIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+        .quickadd-panel-leave {
+            animation: slideOverOut 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+
         /* Scrollbar Style */
         ::-webkit-scrollbar {
             width: 8px;
@@ -264,57 +280,57 @@
                                  class="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-200 py-2 z-50"
                                  style="display: none;">
                                 <div class="px-3 py-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">Neu erstellen</div>
-                                <a href="/kandidaten" @click="quickAdd = false"
-                                   class="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                                <button @click="quickAdd = false; openQuickAdd('kandidat')"
+                                   class="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
                                     <span class="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-50 text-blue-600">
                                         <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 00-13.074.003z" /></svg>
                                     </span>
-                                    <div>
+                                    <div class="text-left">
                                         <div class="font-semibold">Kandidat</div>
                                         <div class="text-xs text-gray-400">Kandidat hinzuf&uuml;gen</div>
                                     </div>
-                                </a>
-                                <a href="/unternehmen" @click="quickAdd = false"
-                                   class="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                                </button>
+                                <button @click="quickAdd = false; openQuickAdd('unternehmen')"
+                                   class="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
                                     <span class="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600">
                                         <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 16.5v-13h-.25a.75.75 0 010-1.5h12.5a.75.75 0 010 1.5H16v13h.25a.75.75 0 010 1.5h-3.5a.75.75 0 01-.75-.75v-2.5a.75.75 0 00-.75-.75h-2.5a.75.75 0 00-.75.75v2.5a.75.75 0 01-.75.75h-3.5a.75.75 0 010-1.5H4zm3-11a.5.5 0 01.5-.5h1a.5.5 0 01.5.5v1a.5.5 0 01-.5.5h-1a.5.5 0 01-.5-.5v-1zm.5 3.5a.5.5 0 00-.5.5v1a.5.5 0 00.5.5h1a.5.5 0 00.5-.5v-1a.5.5 0 00-.5-.5h-1zm3.5-3.5a.5.5 0 01.5-.5h1a.5.5 0 01.5.5v1a.5.5 0 01-.5.5h-1a.5.5 0 01-.5-.5v-1zm.5 3.5a.5.5 0 00-.5.5v1a.5.5 0 00.5.5h1a.5.5 0 00.5-.5v-1a.5.5 0 00-.5-.5h-1z" clip-rule="evenodd" /></svg>
                                     </span>
-                                    <div>
+                                    <div class="text-left">
                                         <div class="font-semibold">Unternehmen</div>
                                         <div class="text-xs text-gray-400">Unternehmen hinzuf&uuml;gen</div>
                                     </div>
-                                </a>
-                                <a href="/unternehmen" @click="quickAdd = false"
-                                   class="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                                    <span class="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-50 text-amber-600">
+                                </button>
+                                <button @click="quickAdd = false; showToast('Kontakt-Detailseite wird noch gebaut', 'info')"
+                                   class="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-400 hover:bg-gray-50 transition-colors cursor-not-allowed opacity-60">
+                                    <span class="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-50 text-amber-400">
                                         <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 00-13.074.003z" /></svg>
                                     </span>
-                                    <div>
+                                    <div class="text-left">
                                         <div class="font-semibold">Kontakt</div>
-                                        <div class="text-xs text-gray-400">Unternehmenskontakt hinzuf&uuml;gen</div>
+                                        <div class="text-xs">Kommt bald...</div>
                                     </div>
-                                </a>
+                                </button>
                                 <div class="border-t border-gray-100 my-1"></div>
-                                <a href="/jobs" @click="quickAdd = false"
-                                   class="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                                <button @click="quickAdd = false; openQuickAdd('job')"
+                                   class="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
                                     <span class="flex items-center justify-center w-8 h-8 rounded-lg bg-purple-50 text-purple-600">
                                         <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 3.75A2.75 2.75 0 018.75 1h2.5A2.75 2.75 0 0114 3.75v.443c.572.055 1.14.122 1.706.2C17.053 4.582 18 5.75 18 7.07v3.469c0 1.126-.694 2.191-1.83 2.54-1.952.599-4.024.921-6.17.921s-4.219-.322-6.17-.921C2.694 12.73 2 11.665 2 10.539V7.07c0-1.321.947-2.489 2.294-2.676A41.047 41.047 0 016 4.193V3.75zm6.5 0v.325a41.622 41.622 0 00-5 0V3.75c0-.69.56-1.25 1.25-1.25h2.5c.69 0 1.25.56 1.25 1.25zM10 10a1 1 0 00-1 1v.01a1 1 0 001 1h.01a1 1 0 001-1V11a1 1 0 00-1-1H10z" clip-rule="evenodd" /><path d="M3 15.055v-.684c.126.053.255.1.39.142 2.092.642 4.313.987 6.61.987 2.297 0 4.518-.345 6.61-.987.135-.041.264-.089.39-.142v.684c0 1.347-.985 2.53-2.363 2.686a41.454 41.454 0 01-9.274 0C3.985 17.585 3 16.402 3 15.055z" /></svg>
                                     </span>
-                                    <div>
+                                    <div class="text-left">
                                         <div class="font-semibold">Job</div>
                                         <div class="text-xs text-gray-400">Job hinzuf&uuml;gen</div>
                                     </div>
-                                </a>
-                                <a href="/ats" @click="quickAdd = false"
-                                   class="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                                </button>
+                                <button @click="quickAdd = false; openQuickAdd('stelle')"
+                                   class="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
                                     <span class="flex items-center justify-center w-8 h-8 rounded-lg bg-rose-50 text-rose-600">
                                         <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M15.988 3.012A2.25 2.25 0 0118 5.25v6.5A2.25 2.25 0 0115.75 14H13.5l-3.712 3.713a.75.75 0 01-1.288-.532V14h-2.25A2.25 2.25 0 014 11.75V5.25A2.25 2.25 0 016.25 3h9.5c.085 0 .16.005.238.012z" clip-rule="evenodd" /></svg>
                                     </span>
-                                    <div>
+                                    <div class="text-left">
                                         <div class="font-semibold">Stelle</div>
                                         <div class="text-xs text-gray-400">Stelle hinzuf&uuml;gen</div>
                                     </div>
-                                </a>
+                                </button>
                             </div>
                         </div>
                         <div id="health-indicator"
@@ -451,6 +467,37 @@
         </div>
     </div>
 
+    <!-- Quick-Add Slide-Over -->
+    <div id="quickadd-overlay"
+         class="fixed inset-0 z-50 hidden"
+         style="display: none;">
+        <!-- Backdrop -->
+        <div id="quickadd-backdrop"
+             class="absolute inset-0 bg-gray-900/50 backdrop-blur-sm transition-opacity duration-300 opacity-0"
+             onclick="closeQuickAdd()"></div>
+        <!-- Panel (rechts, volle Hoehe) -->
+        <div id="quickadd-panel"
+             class="absolute inset-y-0 right-0 w-full max-w-xl bg-white shadow-2xl flex flex-col quickadd-panel-enter overflow-hidden">
+            <!-- Header -->
+            <div id="quickadd-header" class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50 flex-shrink-0">
+                <h2 id="quickadd-title" class="text-lg font-bold text-gray-900"></h2>
+                <button onclick="closeQuickAdd()"
+                        class="p-1.5 rounded-lg hover:bg-gray-200 text-gray-500 hover:text-gray-700 transition-colors">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <!-- Content (scrollbar) -->
+            <div id="quickadd-content" class="flex-1 overflow-y-auto">
+                <!-- Wird per fetch() geladen -->
+                <div class="flex items-center justify-center h-64">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Global Scripts -->
     <script>
         // HTMX Konfiguration
@@ -544,6 +591,99 @@
                 document.body.removeChild(ta);
                 showToast(label + ' kopiert', 'success');
             });
+        }
+
+        // ═══════════════════════════════════════════
+        // Quick-Add Slide-Over
+        // ═══════════════════════════════════════════
+        var _quickAddTitles = {
+            kandidat:    'Neuer Kandidat',
+            unternehmen: 'Neues Unternehmen',
+            kontakt:     'Neuer Kontakt',
+            job:         'Neuer Job',
+            stelle:      'Neue Stelle',
+        };
+
+        function openQuickAdd(type) {
+            var overlay  = document.getElementById('quickadd-overlay');
+            var backdrop = document.getElementById('quickadd-backdrop');
+            var panel    = document.getElementById('quickadd-panel');
+            var title    = document.getElementById('quickadd-title');
+            var content  = document.getElementById('quickadd-content');
+
+            // Titel setzen
+            title.textContent = _quickAddTitles[type] || 'Neu erstellen';
+
+            // Loading-Spinner anzeigen
+            content.innerHTML = '<div class="flex items-center justify-center h-64"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div></div>';
+
+            // Overlay anzeigen
+            overlay.style.display = '';
+            overlay.classList.remove('hidden');
+
+            // Backdrop einblenden
+            requestAnimationFrame(function() {
+                backdrop.classList.remove('opacity-0');
+                backdrop.classList.add('opacity-100');
+            });
+
+            // Panel-Animation
+            panel.classList.remove('quickadd-panel-leave');
+            panel.classList.add('quickadd-panel-enter');
+
+            // Body-Scroll sperren
+            document.body.style.overflow = 'hidden';
+
+            // Partial per fetch() laden
+            fetch('/partials/quickadd-' + type)
+                .then(function(res) {
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    return res.text();
+                })
+                .then(function(html) {
+                    content.innerHTML = html;
+                    // Alpine.js initialisieren fuer den neuen Content
+                    if (window.Alpine) {
+                        Alpine.initTree(content);
+                    }
+                })
+                .catch(function(err) {
+                    content.innerHTML = '<div class="p-8 text-center text-red-600"><p class="font-semibold">Fehler beim Laden</p><p class="text-sm mt-1">' + err.message + '</p></div>';
+                });
+
+            // ESC-Handler
+            document.addEventListener('keydown', _quickAddEscHandler);
+        }
+
+        function closeQuickAdd() {
+            var overlay  = document.getElementById('quickadd-overlay');
+            var backdrop = document.getElementById('quickadd-backdrop');
+            var panel    = document.getElementById('quickadd-panel');
+
+            // Backdrop ausblenden
+            backdrop.classList.remove('opacity-100');
+            backdrop.classList.add('opacity-0');
+
+            // Panel aussliden
+            panel.classList.remove('quickadd-panel-enter');
+            panel.classList.add('quickadd-panel-leave');
+
+            // Body-Scroll freigeben
+            document.body.style.overflow = '';
+
+            // Nach Animation verstecken
+            setTimeout(function() {
+                overlay.style.display = 'none';
+                overlay.classList.add('hidden');
+                document.getElementById('quickadd-content').innerHTML = '';
+            }, 300);
+
+            // ESC-Handler entfernen
+            document.removeEventListener('keydown', _quickAddEscHandler);
+        }
+
+        function _quickAddEscHandler(e) {
+            if (e.key === 'Escape') closeQuickAdd();
         }
 
         // HTMX Events fuer Toasts

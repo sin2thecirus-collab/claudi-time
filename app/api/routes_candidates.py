@@ -1,7 +1,7 @@
 """Candidates API Routes - Endpoints für Kandidaten."""
 
 import logging
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Query, UploadFile, status
@@ -208,6 +208,241 @@ async def search_candidates_quick(
         }
         for c in candidates
     ]
+
+
+
+# ==================== CV parsen ohne Kandidat (Quick-Add) ====================
+
+@router.post(
+    "/parse-cv",
+    summary="CV parsen ohne Kandidat (fuer Quick-Add)",
+)
+@rate_limit(RateLimitTier.AI)
+async def parse_cv_for_quickadd(
+    file: UploadFile = File(..., description="PDF-Datei"),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Parst ein CV-PDF und gibt strukturierte Daten zurueck,
+    ohne einen Kandidaten anzulegen. Fuer den Quick-Add Workflow.
+    """
+    from app.services.cv_parser_service import CVParserService
+    from app.services.r2_storage_service import R2StorageService
+
+    # Datei-Validierung
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
+        return {"success": False, "message": "Nur PDF-Dateien erlaubt"}
+
+    pdf_bytes = await file.read()
+    if len(pdf_bytes) < 100:
+        return {"success": False, "message": "Datei ist zu klein (leer?)"}
+    if len(pdf_bytes) > 10 * 1024 * 1024:
+        return {"success": False, "message": "Datei zu gross (max. 10 MB)"}
+
+    # Text extrahieren
+    async with CVParserService(db) as parser:
+        cv_text = parser.extract_text_from_pdf(pdf_bytes)
+        if not cv_text:
+            return {"success": False, "message": "Konnte keinen Text aus dem PDF extrahieren"}
+
+        # OpenAI Parsing (synchron warten)
+        parse_result = await parser.parse_cv_text(cv_text)
+
+    if not parse_result.success or not parse_result.data:
+        return {
+            "success": False,
+            "message": parse_result.error or "CV-Parsing fehlgeschlagen",
+        }
+
+    parsed = parse_result.data
+
+    # R2 Upload mit temporaerer ID
+    cv_key = None
+    try:
+        r2 = R2StorageService()
+        if r2.is_available:
+            cv_key = r2.upload_cv(
+                "temp-" + str(uuid4()),
+                pdf_bytes,
+                first_name=parsed.first_name or "Unbekannt",
+                last_name=parsed.last_name or "Unbekannt",
+            )
+    except Exception as e:
+        logger.warning(f"R2 Upload fuer Quick-Add fehlgeschlagen: {e}")
+
+    return {
+        "success": True,
+        "cv_key": cv_key,
+        "cv_text": cv_text,
+        "parsed": {
+            "first_name": parsed.first_name,
+            "last_name": parsed.last_name,
+            "birth_date": parsed.birth_date,
+            "current_position": parsed.current_position,
+            "current_company": None,
+            "email": None,
+            "phone": None,
+            "street_address": parsed.street_address,
+            "postal_code": parsed.postal_code,
+            "city": parsed.city,
+            "skills": parsed.skills or [],
+            "it_skills": parsed.it_skills or [],
+            "languages": [
+                lang.model_dump() if hasattr(lang, "model_dump") else lang
+                for lang in (parsed.languages or [])
+            ],
+            "work_history": [
+                entry.model_dump() if hasattr(entry, "model_dump") else entry
+                for entry in (parsed.work_history or [])
+            ],
+            "education": [
+                entry.model_dump() if hasattr(entry, "model_dump") else entry
+                for entry in (parsed.education or [])
+            ],
+            "further_education": [
+                entry.model_dump() if hasattr(entry, "model_dump") else entry
+                for entry in (parsed.further_education or [])
+            ],
+        },
+    }
+
+
+# ==================== Neuen Kandidaten erstellen ====================
+
+@router.post(
+    "",
+    status_code=status.HTTP_201_CREATED,
+    summary="Neuen Kandidaten erstellen",
+)
+@rate_limit(RateLimitTier.WRITE)
+async def create_candidate(
+    data: dict,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Erstellt einen neuen Kandidaten aus den uebergebenen Daten.
+    Startet Geocoding + Kategorisierung + Finance-Klassifizierung im Hintergrund.
+    """
+    from datetime import date as date_type
+    from app.models.candidate import Candidate
+
+    # birth_date String -> date parsen
+    birth_date_val = None
+    if data.get("birth_date"):
+        try:
+            bd = data["birth_date"]
+            if isinstance(bd, str):
+                # Unterstuetzte Formate: DD.MM.YYYY, YYYY-MM-DD
+                if "." in bd:
+                    parts = bd.split(".")
+                    if len(parts) == 3:
+                        birth_date_val = date_type(int(parts[2]), int(parts[1]), int(parts[0]))
+                elif "-" in bd:
+                    parts = bd.split("-")
+                    if len(parts) == 3:
+                        birth_date_val = date_type(int(parts[0]), int(parts[1]), int(parts[2]))
+            elif isinstance(bd, date_type):
+                birth_date_val = bd
+        except (ValueError, IndexError) as e:
+            logger.warning(f"Konnte birth_date nicht parsen: {data.get('birth_date')} - {e}")
+
+    # Kandidat erstellen
+    candidate = Candidate(
+        first_name=data.get("first_name"),
+        last_name=data.get("last_name"),
+        email=data.get("email"),
+        phone=data.get("phone"),
+        birth_date=birth_date_val,
+        current_position=data.get("current_position"),
+        current_company=data.get("current_company"),
+        street_address=data.get("street_address"),
+        postal_code=data.get("postal_code"),
+        city=data.get("city"),
+        salary=data.get("salary"),
+        notice_period=data.get("notice_period"),
+        skills=data.get("skills"),
+        it_skills=data.get("it_skills"),
+        languages=data.get("languages"),
+        work_history=data.get("work_history"),
+        education=data.get("education"),
+        further_education=data.get("further_education"),
+        cv_stored_path=data.get("cv_stored_path"),
+        cv_text=data.get("cv_text"),
+    )
+
+    db.add(candidate)
+    await db.commit()
+    await db.refresh(candidate)
+
+    # Background-Processing: Geocoding + Kategorisierung + Finance-Klassifizierung
+    background_tasks.add_task(
+        _process_candidate_after_create,
+        candidate.id,
+    )
+
+    return {"id": str(candidate.id), "name": candidate.full_name}
+
+
+async def _process_candidate_after_create(candidate_id: UUID):
+    """Background-Task: Geocoding + Kategorisierung + Finance-Klassifizierung fuer neuen Kandidaten."""
+    from app.database import async_session_maker
+    from app.services.geocoding_service import GeocodingService
+    from app.services.categorization_service import CategorizationService
+    from app.services.finance_classifier_service import FinanceClassifierService
+    from sqlalchemy import select
+    from app.models.candidate import Candidate
+
+    async with async_session_maker() as db:
+        try:
+            # Kandidat laden
+            result = await db.execute(
+                select(Candidate).where(Candidate.id == candidate_id)
+            )
+            candidate = result.scalar_one_or_none()
+            if not candidate:
+                logger.error(f"Post-Create Processing: Kandidat {candidate_id} nicht gefunden")
+                return
+
+            # Schritt 1: Geocoding
+            logger.info(f"Post-Create Schritt 1/3: Geocoding fuer {candidate_id}")
+            try:
+                geo_service = GeocodingService(db)
+                await geo_service.geocode_candidate(candidate)
+            except Exception as e:
+                logger.warning(f"Geocoding fehlgeschlagen fuer {candidate_id}: {e}")
+
+            # Schritt 2: Kategorisierung
+            logger.info(f"Post-Create Schritt 2/3: Kategorisierung fuer {candidate_id}")
+            try:
+                cat_service = CategorizationService(db)
+                cat_result = cat_service.categorize_candidate(candidate)
+                cat_service.apply_to_candidate(candidate, cat_result)
+            except Exception as e:
+                logger.warning(f"Kategorisierung fehlgeschlagen fuer {candidate_id}: {e}")
+
+            # Schritt 3: Finance-Klassifizierung (nur fuer FINANCE-Kandidaten)
+            if candidate.hotlist_category == "FINANCE":
+                logger.info(f"Post-Create Schritt 3/3: Finance-Klassifizierung fuer {candidate_id}")
+                try:
+                    fin_service = FinanceClassifierService(db)
+                    fin_result = await fin_service.classify_candidate(candidate)
+                    if fin_result.success:
+                        fin_service.apply_to_candidate(candidate, fin_result)
+                except Exception as e:
+                    logger.warning(f"Finance-Klassifizierung fehlgeschlagen fuer {candidate_id}: {e}")
+            else:
+                logger.info(f"Post-Create Schritt 3/3: uebersprungen (nicht FINANCE) fuer {candidate_id}")
+
+            await db.commit()
+            logger.info(f"Post-Create Processing komplett fuer {candidate_id}")
+
+        except Exception as e:
+            logger.error(f"Post-Create Processing fehlgeschlagen fuer {candidate_id}: {e}")
+            try:
+                await db.rollback()
+            except Exception:
+                pass
 
 
 # ==================== Einzelner Kandidat ====================

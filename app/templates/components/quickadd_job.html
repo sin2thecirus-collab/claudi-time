@@ -1,0 +1,228 @@
+<!-- Quick-Add Job -->
+<div x-data="{
+    saving: false,
+    form: {
+        company_name: '',
+        company_id: null,
+        position: '',
+        city: '',
+        postal_code: '',
+        street_address: '',
+        job_text: '',
+        employment_type: '',
+        industry: '',
+    },
+
+    // Unternehmen-Suche
+    companySearch: '',
+    companyResults: [],
+    showCompanyDropdown: false,
+    searchTimeout: null,
+
+    searchCompany() {
+        clearTimeout(this.searchTimeout);
+        if (this.companySearch.length < 2) {
+            this.companyResults = [];
+            this.showCompanyDropdown = false;
+            return;
+        }
+        this.searchTimeout = setTimeout(async () => {
+            try {
+                const res = await fetch('/api/companies/search/json?q=' + encodeURIComponent(this.companySearch) + '&limit=8');
+                if (res.ok) {
+                    this.companyResults = await res.json();
+                    this.showCompanyDropdown = this.companyResults.length > 0;
+                }
+            } catch (e) { /* silent */ }
+        }, 250);
+    },
+
+    selectCompany(company) {
+        this.form.company_id = company.id;
+        this.form.company_name = company.name;
+        this.companySearch = company.name;
+        this.showCompanyDropdown = false;
+    },
+
+    clearCompany() {
+        this.form.company_id = null;
+        this.form.company_name = '';
+        this.companySearch = '';
+        this.companyResults = [];
+    },
+
+    async save() {
+        if (!this.form.position.trim()) {
+            showToast('Bitte Position eingeben', 'warning');
+            return;
+        }
+
+        this.saving = true;
+
+        const payload = {
+            company_name: this.form.company_name || this.companySearch || null,
+            company_id: this.form.company_id || null,
+            position: this.form.position.trim(),
+            city: this.form.city.trim() || null,
+            postal_code: this.form.postal_code.trim() || null,
+            street_address: this.form.street_address.trim() || null,
+            job_text: this.form.job_text.trim() || null,
+            employment_type: this.form.employment_type || null,
+            industry: this.form.industry || null,
+        };
+
+        try {
+            const res = await fetch('/api/jobs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+
+            if (!res.ok) {
+                const err = await res.json().catch(() => null);
+                throw new Error(err?.detail || 'HTTP ' + res.status);
+            }
+
+            const result = await res.json();
+            showToast('Job erstellt!', 'success');
+            closeQuickAdd();
+
+            setTimeout(() => {
+                window.location.href = '/jobs/' + result.id;
+            }, 500);
+        } catch (err) {
+            showToast('Fehler: ' + err.message, 'error');
+            this.saving = false;
+        }
+    }
+}" class="p-6 space-y-5">
+
+    <!-- Unternehmen-Suche -->
+    <fieldset class="space-y-3">
+        <legend class="text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
+            <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5M3.75 3v18h16.5V3H3.75z" /></svg>
+            Unternehmen
+        </legend>
+        <div class="relative">
+            <label class="block text-xs font-medium text-gray-600 mb-1">Unternehmen suchen oder eingeben</label>
+            <div class="relative">
+                <input type="text"
+                       x-model="companySearch"
+                       @input="searchCompany()"
+                       @focus="if (companyResults.length) showCompanyDropdown = true"
+                       placeholder="Unternehmenname tippen..."
+                       class="w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm pr-8">
+                <button x-show="companySearch"
+                        @click="clearCompany()"
+                        class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <!-- Dropdown -->
+            <div x-show="showCompanyDropdown" @click.away="showCompanyDropdown = false"
+                 class="absolute z-10 mt-1 w-full bg-white rounded-lg shadow-lg border border-gray-200 max-h-48 overflow-y-auto">
+                <template x-for="c in companyResults" :key="c.id">
+                    <button @click="selectCompany(c)"
+                            class="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2">
+                        <span class="font-medium" x-text="c.name"></span>
+                        <span class="text-xs text-gray-400" x-text="c.city || ''"></span>
+                    </button>
+                </template>
+            </div>
+            <!-- Ausgewaehltes Unternehmen Badge -->
+            <div x-show="form.company_id" class="mt-2 inline-flex items-center gap-1 bg-primary-50 text-primary-700 px-2.5 py-1 rounded-lg text-xs font-medium">
+                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                <span x-text="form.company_name"></span>
+            </div>
+        </div>
+    </fieldset>
+
+    <!-- Job-Daten -->
+    <fieldset class="space-y-3">
+        <legend class="text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
+            <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+            Job-Details
+        </legend>
+        <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Position *</label>
+            <input type="text" x-model="form.position" placeholder="z.B. Finanzbuchhalter (m/w/d)"
+                   class="w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Beschaeftigungsart</label>
+                <select x-model="form.employment_type"
+                        class="w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm">
+                    <option value="">-- Waehlen --</option>
+                    <option value="Vollzeit">Vollzeit</option>
+                    <option value="Teilzeit">Teilzeit</option>
+                    <option value="Arbeitnehmerueberlassung">Arbeitnehmerueberlassung</option>
+                    <option value="Freelance">Freelance</option>
+                    <option value="Praktikum">Praktikum</option>
+                    <option value="Ausbildung">Ausbildung</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Branche</label>
+                <input type="text" x-model="form.industry" placeholder="z.B. Steuerberatung"
+                       class="w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm">
+            </div>
+        </div>
+    </fieldset>
+
+    <!-- Standort -->
+    <fieldset class="space-y-3">
+        <legend class="text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
+            <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 0115 0z" /></svg>
+            Standort
+        </legend>
+        <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Strasse</label>
+            <input type="text" x-model="form.street_address" placeholder="Musterstr. 12"
+                   class="w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm">
+        </div>
+        <div class="grid grid-cols-3 gap-3">
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">PLZ</label>
+                <input type="text" x-model="form.postal_code" placeholder="60311"
+                       class="w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm">
+            </div>
+            <div class="col-span-2">
+                <label class="block text-xs font-medium text-gray-600 mb-1">Stadt</label>
+                <input type="text" x-model="form.city" placeholder="Frankfurt am Main"
+                       class="w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm">
+            </div>
+        </div>
+    </fieldset>
+
+    <!-- Jobbeschreibung -->
+    <div>
+        <label class="block text-xs font-medium text-gray-600 mb-1">Jobbeschreibung</label>
+        <textarea x-model="form.job_text" rows="4" placeholder="Stellenbeschreibung, Anforderungen..."
+                  class="w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm"></textarea>
+    </div>
+
+    <!-- Buttons -->
+    <div class="pt-4 border-t border-gray-200 flex gap-3">
+        <button @click="save()"
+                :disabled="saving"
+                class="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
+            <template x-if="!saving">
+                <span class="flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                    Job erstellen
+                </span>
+            </template>
+            <template x-if="saving">
+                <span class="flex items-center gap-2">
+                    <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Wird erstellt...
+                </span>
+            </template>
+        </button>
+        <button @click="closeQuickAdd()"
+                class="px-4 py-3 border border-gray-300 text-gray-700 rounded-xl font-medium text-sm hover:bg-gray-50 transition-colors">
+            Abbrechen
+        </button>
+    </div>
+</div>

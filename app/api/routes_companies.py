@@ -91,6 +91,36 @@ async def company_stats(db: AsyncSession = Depends(get_db)):
     return await service.get_stats()
 
 
+@router.get("/search/json")
+async def search_companies_json(
+    q: str = Query(default="", min_length=1),
+    limit: int = Query(default=10, ge=1, le=50),
+    db: AsyncSession = Depends(get_db),
+):
+    """JSON-Unternehmenssuche fuer Quick-Add Modals."""
+    if not q or len(q.strip()) < 1:
+        return []
+
+    search_term = f"%{q.strip()}%"
+    result = await db.execute(
+        select(Company)
+        .where(Company.name.ilike(search_term))
+        .order_by(Company.name)
+        .limit(limit)
+    )
+    companies = result.scalars().all()
+
+    return [
+        {
+            "id": str(c.id),
+            "name": c.name,
+            "city": c.city,
+            "domain": c.domain,
+        }
+        for c in companies
+    ]
+
+
 @router.get("/search", response_class=HTMLResponse)
 async def search_companies_quick(
     q: str = Query(default=""),

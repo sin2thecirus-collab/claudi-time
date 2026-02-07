@@ -722,6 +722,42 @@ async def candidate_pipeline_partial(
     )
 
 
+@router.get("/partials/quickadd-kandidat", response_class=HTMLResponse)
+async def quickadd_kandidat_partial(request: Request):
+    """Partial: Quick-Add Kandidat (CV Upload + Formular)."""
+    return templates.TemplateResponse(
+        "components/quickadd_kandidat.html",
+        {"request": request}
+    )
+
+
+@router.get("/partials/quickadd-unternehmen", response_class=HTMLResponse)
+async def quickadd_unternehmen_partial(request: Request):
+    """Partial: Quick-Add Unternehmen."""
+    return templates.TemplateResponse(
+        "components/quickadd_unternehmen.html",
+        {"request": request}
+    )
+
+
+@router.get("/partials/quickadd-job", response_class=HTMLResponse)
+async def quickadd_job_partial(request: Request):
+    """Partial: Quick-Add Job."""
+    return templates.TemplateResponse(
+        "components/quickadd_job.html",
+        {"request": request}
+    )
+
+
+@router.get("/partials/quickadd-stelle", response_class=HTMLResponse)
+async def quickadd_stelle_partial(request: Request):
+    """Partial: Quick-Add Stelle."""
+    return templates.TemplateResponse(
+        "components/quickadd_stelle.html",
+        {"request": request}
+    )
+
+
 @router.get("/partials/import-dialog", response_class=HTMLResponse)
 async def import_dialog_partial(request: Request):
     """Partial: Import-Dialog fuer Modal."""
