@@ -105,11 +105,29 @@
     }
     .cd-tab:hover { color: var(--pp-text); }
     .cd-tab.active {
-        color: var(--pp-accent);
-        background: var(--pp-accentSoft);
+        position: relative;
         border-bottom-color: var(--pp-accent);
+        background: linear-gradient(90deg, #4F8CFF, #B8D4FF);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    .cd-tab.active::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: var(--pp-accentSoft);
+        border-radius: 10px 10px 0 0;
+        border-bottom: 2px solid var(--pp-accent);
+        z-index: -1;
     }
     .cd-tab .icon { font-size: 16px; }
+    .cd-tab.active .icon {
+        -webkit-text-fill-color: initial;
+        -webkit-background-clip: initial;
+        background-clip: initial;
+        background: none;
+    }
 
     /* Main Grid */
     .cd-grid {
@@ -120,6 +138,15 @@
     .cd-sidebar {
         padding: 28px 24px; background: rgba(24,26,35,0.4);
         display: flex; flex-direction: column;
+    }
+
+    /* Overview Cards */
+    .cd-overview-card {
+        background: var(--pp-surface);
+        border: 1px solid var(--pp-border);
+        border-radius: 14px;
+        padding: 20px;
+        overflow: hidden;
     }
 
     /* Section Header */
@@ -411,78 +438,81 @@
         <div class="cd-main">
 
             {# ── Übersicht ── #}
-            <div x-show="tab==='overview'" style="display:flex; flex-direction:column;">
+            <div x-show="tab==='overview'" style="display:flex; flex-direction:column; gap:20px;">
 
-                {# Kontakte #}
-                <div class="cd-anim" style="animation-delay:100ms;">
-                    <div class="cd-sec-hdr">
-                        <div class="cd-sec-hdr-left">
-                            <span class="icon">👥</span>
-                            <span class="title">Kontakte</span>
-                            <span class="count">{{ contact_count if contact_count is defined else '0' }}</span>
+                {# ── ROW 1: Kontakte + Aufgaben ── #}
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+
+                    {# Kontakte #}
+                    <div class="cd-anim cd-overview-card" style="animation-delay:100ms;">
+                        <div class="cd-sec-hdr">
+                            <div class="cd-sec-hdr-left">
+                                <span class="icon">👥</span>
+                                <span class="title">Kontakte</span>
+                                <span class="count">{{ contact_count if contact_count is defined else '0' }}</span>
+                            </div>
+                            <button class="cd-sec-action" onclick="toggleContactForm()">+ Hinzufügen</button>
                         </div>
-                        <button class="cd-sec-action" onclick="toggleContactForm()">+ Hinzufügen</button>
-                    </div>
-                    <div id="contacts-container" hx-get="/partials/company-contacts/{{ company.id }}" hx-trigger="load" hx-swap="innerHTML">
-                        <p class="cd-load">Lade Kontakte...</p>
-                    </div>
-                    <div id="contact-form" style="display:none" class="cd-iform">
-                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-                            <input type="text" id="cf-first-name" placeholder="Vorname" class="cd-inp">
-                            <input type="text" id="cf-last-name" placeholder="Nachname" class="cd-inp">
-                            <input type="text" id="cf-position" placeholder="Position" class="cd-inp">
-                            <input type="text" id="cf-phone" placeholder="Telefon" class="cd-inp">
-                            <input type="email" id="cf-email" placeholder="E-Mail" class="cd-inp" style="grid-column:span 2;">
+                        <div id="contacts-container" hx-get="/partials/company-contacts/{{ company.id }}" hx-trigger="load" hx-swap="innerHTML">
+                            <p class="cd-load">Lade Kontakte...</p>
                         </div>
-                        <div style="display:flex; gap:10px; margin-top:14px;">
-                            <button onclick="saveContact()" class="cd-btn cd-btn-primary">Speichern</button>
-                            <button onclick="toggleContactForm()" class="cd-btn">Abbrechen</button>
+                        <div id="contact-form" style="display:none" class="cd-iform">
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                                <input type="text" id="cf-first-name" placeholder="Vorname" class="cd-inp">
+                                <input type="text" id="cf-last-name" placeholder="Nachname" class="cd-inp">
+                                <input type="text" id="cf-position" placeholder="Position" class="cd-inp">
+                                <input type="text" id="cf-phone" placeholder="Telefon" class="cd-inp">
+                                <input type="email" id="cf-email" placeholder="E-Mail" class="cd-inp" style="grid-column:span 2;">
+                            </div>
+                            <div style="display:flex; gap:10px; margin-top:14px;">
+                                <button onclick="saveContact()" class="cd-btn cd-btn-primary">Speichern</button>
+                                <button onclick="toggleContactForm()" class="cd-btn">Abbrechen</button>
+                            </div>
                         </div>
                     </div>
-                    <div style="margin-bottom:32px;"></div>
+
+                    {# Aufgaben #}
+                    <div class="cd-anim cd-overview-card" style="animation-delay:200ms;">
+                        <div class="cd-sec-hdr">
+                            <div class="cd-sec-hdr-left">
+                                <span class="icon">✅</span>
+                                <span class="title">Aufgaben</span>
+                            </div>
+                            <button class="cd-sec-action" onclick="openQuickAdd('aufgabe', {company_id: '{{ company.id }}'})">+ Neu</button>
+                        </div>
+                        <div id="todos-container" hx-get="/partials/company/{{ company.id }}/todos" hx-trigger="load, refreshTodos from:body" hx-swap="innerHTML">
+                            <p class="cd-load">Lade Aufgaben...</p>
+                        </div>
+                    </div>
                 </div>
 
-                {# Aufgaben — full width #}
-                <div class="cd-anim" style="animation-delay:200ms;">
-                    <div class="cd-sec-hdr">
-                        <div class="cd-sec-hdr-left">
-                            <span class="icon">✅</span>
-                            <span class="title">Aufgaben</span>
-                        </div>
-                        <button class="cd-sec-action" onclick="openQuickAdd('aufgabe', {company_id: '{{ company.id }}'})">+ Neu</button>
-                    </div>
-                    <div id="todos-container" hx-get="/partials/company/{{ company.id }}/todos" hx-trigger="load, refreshTodos from:body" hx-swap="innerHTML">
-                        <p class="cd-load">Lade Aufgaben...</p>
-                    </div>
-                    <div style="margin-bottom:32px;"></div>
-                </div>
+                {# ── ROW 2: Anruf-Protokoll + Letzte Aktivitäten ── #}
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
 
-                {# Anruf-Protokoll #}
-                <div class="cd-anim" style="animation-delay:300ms;">
-                    <div class="cd-sec-hdr">
-                        <div class="cd-sec-hdr-left">
-                            <span class="icon">📞</span>
-                            <span class="title">Anruf-Protokoll</span>
-                            <span class="count">{{ call_count if call_count is defined else '0' }}</span>
+                    {# Anruf-Protokoll #}
+                    <div class="cd-anim cd-overview-card" style="animation-delay:300ms;">
+                        <div class="cd-sec-hdr">
+                            <div class="cd-sec-hdr-left">
+                                <span class="icon">📞</span>
+                                <span class="title">Anruf-Protokoll</span>
+                                <span class="count">{{ call_count if call_count is defined else '0' }}</span>
+                            </div>
+                            <button class="cd-sec-action" @click="showCallModal = true">+ Anruf</button>
                         </div>
-                        <button class="cd-sec-action" @click="showCallModal = true">+ Anruf</button>
+                        <div id="call-log-container" hx-get="/partials/company/{{ company.id }}/call-log" hx-trigger="load, refreshCallLog from:body" hx-swap="innerHTML">
+                            <p class="cd-load">Lade Anrufe...</p>
+                        </div>
                     </div>
-                    <div id="call-log-container" hx-get="/partials/company/{{ company.id }}/call-log" hx-trigger="load, refreshCallLog from:body" hx-swap="innerHTML">
-                        <p class="cd-load">Lade Anrufe...</p>
-                    </div>
-                    <div style="margin-bottom:32px;"></div>
-                </div>
 
-                {# Letzte Aktivitäten #}
-                <div class="cd-anim" style="animation-delay:400ms;">
-                    <div class="cd-sec-hdr">
-                        <div class="cd-sec-hdr-left">
-                            <span class="icon">📈</span>
-                            <span class="title">Letzte Aktivitäten</span>
+                    {# Letzte Aktivitäten #}
+                    <div class="cd-anim cd-overview-card" style="animation-delay:400ms;">
+                        <div class="cd-sec-hdr">
+                            <div class="cd-sec-hdr-left">
+                                <span class="icon">📈</span>
+                                <span class="title">Letzte Aktivitäten</span>
+                            </div>
+                            <button class="cd-sec-action" @click="tab='activities'">Alle →</button>
                         </div>
-                        <button class="cd-sec-action" @click="tab='activities'">Alle →</button>
-                    </div>
-                    <div class="cd-card">
                         <div id="activities-container" hx-get="/partials/company/{{ company.id }}/activities" hx-trigger="load" hx-swap="innerHTML">
                             <p class="cd-load">Lade Aktivitäten...</p>
                         </div>
