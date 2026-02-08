@@ -10,7 +10,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import delete as sa_delete, func as sa_func, select
+from sqlalchemy import delete as sa_delete, func as sa_func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -119,6 +119,46 @@ async def search_companies_json(
             "domain": c.domain,
         }
         for c in companies
+    ]
+
+
+@router.get("/contacts/search/json")
+async def search_contacts_json(
+    q: str = Query(default="", min_length=1),
+    limit: int = Query(default=10, ge=1, le=50),
+    db: AsyncSession = Depends(get_db),
+):
+    """JSON-Kontaktsuche fuer Aufgaben-Verknuepfung."""
+    if not q or len(q.strip()) < 1:
+        return []
+
+    search_term = f"%{q.strip()}%"
+    from sqlalchemy.orm import selectinload
+
+    result = await db.execute(
+        select(CompanyContact)
+        .options(selectinload(CompanyContact.company))
+        .where(
+            or_(
+                CompanyContact.first_name.ilike(search_term),
+                CompanyContact.last_name.ilike(search_term),
+                (CompanyContact.first_name + " " + CompanyContact.last_name).ilike(search_term),
+            )
+        )
+        .order_by(CompanyContact.last_name, CompanyContact.first_name)
+        .limit(limit)
+    )
+    contacts = result.scalars().all()
+
+    return [
+        {
+            "id": str(c.id),
+            "name": c.full_name,
+            "position": c.position,
+            "company_name": c.company.name if c.company else None,
+            "company_id": str(c.company_id) if c.company_id else None,
+        }
+        for c in contacts
     ]
 
 

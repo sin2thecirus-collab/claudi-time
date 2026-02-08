@@ -61,6 +61,41 @@ async def create_ats_job(data: ATSJobCreate, db: AsyncSession = Depends(get_db))
     }
 
 
+@router.get("/search/json")
+async def search_ats_jobs_json(
+    q: str = Query(default="", min_length=1),
+    limit: int = Query(default=10, ge=1, le=50),
+    db: AsyncSession = Depends(get_db),
+):
+    """JSON-Stellensuche fuer Aufgaben-Verknuepfung."""
+    if not q or len(q.strip()) < 1:
+        return []
+
+    from sqlalchemy import or_, select
+    from sqlalchemy.orm import selectinload
+    from app.models.ats_job import ATSJob
+
+    search_term = f"%{q.strip()}%"
+    result = await db.execute(
+        select(ATSJob)
+        .options(selectinload(ATSJob.company))
+        .where(ATSJob.title.ilike(search_term))
+        .order_by(ATSJob.created_at.desc())
+        .limit(limit)
+    )
+    jobs = result.scalars().all()
+
+    return [
+        {
+            "id": str(j.id),
+            "title": j.title,
+            "company_name": j.company.name if j.company else None,
+            "location_city": j.location_city,
+        }
+        for j in jobs
+    ]
+
+
 @router.get("")
 async def list_ats_jobs(
     company_id: Optional[UUID] = Query(None),

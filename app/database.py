@@ -579,6 +579,42 @@ async def init_db() -> None:
     except Exception as e:
         logger.warning(f"Index ix_matches_matching_method uebersprungen: {e}")
 
+    # ── Todo Priority Enum Migration (5 Stufen) ──
+    try:
+        async with engine.begin() as conn:
+            # Neue Werte zum todopriority Enum hinzufuegen
+            for new_val in ["unwichtig", "mittelmaessig", "wichtig", "dringend", "sehr_dringend"]:
+                await conn.execute(text(f"""
+                    DO $$ BEGIN
+                        ALTER TYPE todopriority ADD VALUE IF NOT EXISTS '{new_val}';
+                    EXCEPTION WHEN OTHERS THEN NULL;
+                    END $$
+                """))
+
+            # Bestehende Todos auf neue Werte migrieren
+            for old_val, new_val in [
+                ("low", "unwichtig"),
+                ("normal", "mittelmaessig"),
+                ("high", "wichtig"),
+                ("urgent", "dringend"),
+            ]:
+                result = await conn.execute(text(f"""
+                    UPDATE ats_todos SET priority = '{new_val}'
+                    WHERE priority = '{old_val}'
+                """))
+                if result.rowcount and result.rowcount > 0:
+                    logger.info(f"Todo Priority Migration: {result.rowcount}x {old_val} → {new_val}")
+
+            # Default-Wert aktualisieren
+            await conn.execute(text("""
+                DO $$ BEGIN
+                    ALTER TABLE ats_todos ALTER COLUMN priority SET DEFAULT 'wichtig';
+                EXCEPTION WHEN OTHERS THEN NULL;
+                END $$
+            """))
+    except Exception as e:
+        logger.warning(f"Todo Priority Migration uebersprungen: {e}")
+
     # ── MT Lern-Tabellen erstellen ──
     try:
         async with engine.begin() as conn:

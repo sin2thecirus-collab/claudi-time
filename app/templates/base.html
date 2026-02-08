@@ -602,9 +602,10 @@
             kontakt:     'Neuer Kontakt',
             job:         'Neuer Job',
             stelle:      'Neue Stelle',
+            aufgabe:     'Neue Aufgabe',
         };
 
-        function openQuickAdd(type) {
+        function openQuickAdd(type, params) {
             var overlay  = document.getElementById('quickadd-overlay');
             var backdrop = document.getElementById('quickadd-backdrop');
             var panel    = document.getElementById('quickadd-panel');
@@ -635,7 +636,12 @@
             document.body.style.overflow = 'hidden';
 
             // Partial per fetch() laden
-            fetch('/partials/quickadd-' + type)
+            var fetchUrl = '/partials/quickadd-' + type;
+            if (params) {
+                var qs = new URLSearchParams(params).toString();
+                if (qs) fetchUrl += '?' + qs;
+            }
+            fetch(fetchUrl)
                 .then(function(res) {
                     if (!res.ok) throw new Error('HTTP ' + res.status);
                     return res.text();

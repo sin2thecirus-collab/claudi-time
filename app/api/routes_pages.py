@@ -761,6 +761,37 @@ async def quickadd_stelle_partial(request: Request):
     )
 
 
+@router.get("/partials/quickadd-aufgabe", response_class=HTMLResponse)
+async def quickadd_aufgabe_partial(
+    request: Request,
+    company_id: Optional[UUID] = None,
+    contact_id: Optional[UUID] = None,
+    candidate_id: Optional[UUID] = None,
+    ats_job_id: Optional[UUID] = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """Partial: Quick-Add Aufgabe (Slide-Over Formular)."""
+    from app.models.company import Company
+    from app.models.candidate import Candidate
+    from app.models.ats_job import ATSJob
+
+    prefill_company = await db.get(Company, company_id) if company_id else None
+    prefill_contact = await db.get(CompanyContact, contact_id) if contact_id else None
+    prefill_candidate = await db.get(Candidate, candidate_id) if candidate_id else None
+    prefill_job = await db.get(ATSJob, ats_job_id) if ats_job_id else None
+
+    return templates.TemplateResponse(
+        "components/quickadd_aufgabe.html",
+        {
+            "request": request,
+            "prefill_company": prefill_company,
+            "prefill_contact": prefill_contact,
+            "prefill_candidate": prefill_candidate,
+            "prefill_job": prefill_job,
+        }
+    )
+
+
 @router.get("/partials/import-dialog", response_class=HTMLResponse)
 async def import_dialog_partial(request: Request):
     """Partial: Import-Dialog fuer Modal."""
@@ -1227,11 +1258,17 @@ async def contact_todos_partial(
 ):
     """Partial: Aufgaben eines Kontakts."""
     from app.models.ats_todo import ATSTodo
+    from sqlalchemy.orm import selectinload
 
     result = await db.execute(
         select(ATSTodo)
+        .options(
+            selectinload(ATSTodo.company),
+            selectinload(ATSTodo.candidate),
+            selectinload(ATSTodo.ats_job),
+        )
         .where(ATSTodo.contact_id == contact_id)
-        .order_by(ATSTodo.created_at.desc())
+        .order_by(ATSTodo.status.asc(), ATSTodo.priority.desc(), ATSTodo.due_date.asc().nullslast(), ATSTodo.created_at.desc())
     )
     todos = result.scalars().all()
     return templates.TemplateResponse("partials/contact_todos.html", {
@@ -1428,11 +1465,17 @@ async def company_todos_partial(
 ):
     """Partial: Aufgaben eines Unternehmens."""
     from app.models.ats_todo import ATSTodo
+    from sqlalchemy.orm import selectinload
 
     result = await db.execute(
         select(ATSTodo)
+        .options(
+            selectinload(ATSTodo.contact),
+            selectinload(ATSTodo.candidate),
+            selectinload(ATSTodo.ats_job),
+        )
         .where(ATSTodo.company_id == company_id)
-        .order_by(ATSTodo.created_at.desc())
+        .order_by(ATSTodo.status.asc(), ATSTodo.priority.desc(), ATSTodo.due_date.asc().nullslast(), ATSTodo.created_at.desc())
     )
     todos = result.scalars().all()
     return templates.TemplateResponse("partials/company_todos.html", {

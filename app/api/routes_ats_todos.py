@@ -19,13 +19,14 @@ router = APIRouter(prefix="/ats/todos", tags=["ATS Todos"])
 class TodoCreate(BaseModel):
     title: str
     description: Optional[str] = None
-    priority: Optional[str] = "normal"
+    priority: Optional[str] = "wichtig"
     due_date: Optional[date] = None
     company_id: Optional[UUID] = None
     candidate_id: Optional[UUID] = None
     ats_job_id: Optional[UUID] = None
     call_note_id: Optional[UUID] = None
     pipeline_entry_id: Optional[UUID] = None
+    contact_id: Optional[UUID] = None
 
 
 class TodoUpdate(BaseModel):
@@ -61,6 +62,8 @@ def _serialize_todo(todo) -> dict:
         ),
         "ats_job_id": str(todo.ats_job_id) if todo.ats_job_id else None,
         "ats_job_title": todo.ats_job.title if hasattr(todo, "ats_job") and todo.ats_job else None,
+        "contact_id": str(todo.contact_id) if todo.contact_id else None,
+        "contact_name": todo.contact.full_name if hasattr(todo, "contact") and todo.contact else None,
         "created_at": todo.created_at.isoformat() if todo.created_at else None,
     }
 
@@ -70,7 +73,7 @@ def _serialize_todo(todo) -> dict:
 @router.post("")
 async def create_todo(data: TodoCreate, db: AsyncSession = Depends(get_db)):
     """Erstellt eine neue Aufgabe."""
-    valid_priorities = ["low", "normal", "high", "urgent"]
+    valid_priorities = ["unwichtig", "mittelmaessig", "wichtig", "dringend", "sehr_dringend"]
     if data.priority and data.priority not in valid_priorities:
         raise HTTPException(status_code=400, detail=f"Ungueltige Prioritaet: {data.priority}")
 
@@ -92,6 +95,7 @@ async def list_todos(
     company_id: Optional[UUID] = Query(None),
     candidate_id: Optional[UUID] = Query(None),
     ats_job_id: Optional[UUID] = Query(None),
+    contact_id: Optional[UUID] = Query(None),
     page: int = Query(1, ge=1),
     per_page: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
@@ -105,6 +109,7 @@ async def list_todos(
         company_id=company_id,
         candidate_id=candidate_id,
         ats_job_id=ats_job_id,
+        contact_id=contact_id,
         page=page,
         per_page=per_page,
     )

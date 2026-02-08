@@ -23,10 +23,11 @@ class TodoStatus(str, enum.Enum):
 class TodoPriority(str, enum.Enum):
     """Prioritaet einer Aufgabe."""
 
-    LOW = "low"
-    NORMAL = "normal"
-    HIGH = "high"
-    URGENT = "urgent"
+    UNWICHTIG = "unwichtig"
+    MITTELMAESSIG = "mittelmaessig"
+    WICHTIG = "wichtig"
+    DRINGEND = "dringend"
+    SEHR_DRINGEND = "sehr_dringend"
 
 
 # Deutsche Labels fuer UI
@@ -38,17 +39,19 @@ TODO_STATUS_LABELS = {
 }
 
 TODO_PRIORITY_LABELS = {
-    TodoPriority.LOW: "Niedrig",
-    TodoPriority.NORMAL: "Normal",
-    TodoPriority.HIGH: "Hoch",
-    TodoPriority.URGENT: "Dringend",
+    TodoPriority.UNWICHTIG: "Unwichtig",
+    TodoPriority.MITTELMAESSIG: "Mittelmaessig",
+    TodoPriority.WICHTIG: "Wichtig",
+    TodoPriority.DRINGEND: "Dringend",
+    TodoPriority.SEHR_DRINGEND: "Sehr dringend",
 }
 
 TODO_PRIORITY_COLORS = {
-    TodoPriority.LOW: "gray",
-    TodoPriority.NORMAL: "blue",
-    TodoPriority.HIGH: "amber",
-    TodoPriority.URGENT: "red",
+    TodoPriority.UNWICHTIG: "gray",
+    TodoPriority.MITTELMAESSIG: "blue",
+    TodoPriority.WICHTIG: "amber",
+    TodoPriority.DRINGEND: "orange",
+    TodoPriority.SEHR_DRINGEND: "red",
 }
 
 
@@ -75,7 +78,7 @@ class ATSTodo(Base):
     )
     priority: Mapped[TodoPriority] = mapped_column(
         Enum(TodoPriority, values_callable=lambda x: [e.value for e in x]),
-        default=TodoPriority.NORMAL,
+        default=TodoPriority.WICHTIG,
     )
 
     # Faelligkeit

@@ -231,7 +231,7 @@
                             <div class="pp-sec-b"><div id="company-ats-jobs" hx-get="/partials/company-ats-jobs/{{ company.id }}" hx-trigger="load" hx-swap="innerHTML"><p class="pp-load">Lade Stellen...</p></div></div>
                         </div>
                         <div class="pp-sec pp-anim" style="animation-delay:350ms;">
-                            <div class="pp-sec-h"><span class="pp-sec-t"><span style="font-size:18.5px;">&#x2705;</span> Aufgaben</span></div>
+                            <div class="pp-sec-h"><span class="pp-sec-t"><span style="font-size:18.5px;">&#x2705;</span> Aufgaben</span><button onclick="openQuickAdd('aufgabe', {company_id: '{{ company.id }}'})" style="padding:5px 10px;font-size:15.5px;font-weight:600;color:var(--pp-blue);background:none;border:none;cursor:pointer;font-family:var(--pp-ff);">+ Neu</button></div>
                             <div class="pp-sec-b"><div id="todos-container" hx-get="/partials/company/{{ company.id }}/todos" hx-trigger="load" hx-swap="innerHTML"><p class="pp-load">Lade Aufgaben...</p></div></div>
                         </div>
                     </div>

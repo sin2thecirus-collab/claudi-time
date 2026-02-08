@@ -298,7 +298,7 @@
             <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
                 <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
                     <h3 class="text-sm font-semibold text-gray-900">Aufgaben</h3>
-                    <button onclick="toggleTodoForm()"
+                    <button onclick="openQuickAdd('aufgabe', {contact_id: '{{ contact.id }}', company_id: '{{ company.id }}'})"
                             class="text-xs text-primary-600 hover:text-primary-500 font-medium">
                         + Neue Aufgabe
                     </button>
@@ -309,26 +309,6 @@
                          hx-trigger="load"
                          hx-swap="innerHTML">
                         <p class="text-sm text-gray-400 animate-skeleton">Lade Aufgaben...</p>
-                    </div>
-                    {# Inline Add-Form (versteckt) #}
-                    <div id="todo-form" style="display:none" class="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                        <div class="space-y-3">
-                            <input type="text" id="todo-title" placeholder="Titel *" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" required>
-                            <textarea id="todo-description" placeholder="Beschreibung" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"></textarea>
-                            <div class="grid grid-cols-2 gap-3">
-                                <select id="todo-priority" class="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
-                                    <option value="low">Niedrig</option>
-                                    <option value="normal" selected>Normal</option>
-                                    <option value="high">Hoch</option>
-                                    <option value="urgent">Dringend</option>
-                                </select>
-                                <input type="date" id="todo-due-date" class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                            </div>
-                        </div>
-                        <div class="flex gap-2 mt-3">
-                            <button onclick="saveTodo()" class="px-4 py-2 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700">Speichern</button>
-                            <button onclick="toggleTodoForm()" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Abbrechen</button>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -475,38 +455,6 @@ function deleteCorrespondence(corrId) {
 }
 
 // --- Todos ---
-function toggleTodoForm() {
-    const f = document.getElementById('todo-form');
-    f.style.display = f.style.display === 'none' ? 'block' : 'none';
-}
-
-function saveTodo() {
-    const title = document.getElementById('todo-title').value;
-    if (!title) { showToast('Titel erforderlich', 'error'); return; }
-    const data = {
-        contact_id: CONTACT_ID,
-        title: title,
-        description: document.getElementById('todo-description').value || null,
-        priority: document.getElementById('todo-priority').value,
-        due_date: document.getElementById('todo-due-date').value || null,
-    };
-    fetch('/api/ats/todos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-    }).then(r => {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.json();
-    }).then(() => {
-        showToast('Aufgabe erstellt', 'success');
-        toggleTodoForm();
-        document.getElementById('todo-title').value = '';
-        document.getElementById('todo-description').value = '';
-        document.getElementById('todo-due-date').value = '';
-        htmx.trigger('#todos-container', 'load');
-    }).catch(() => showToast('Fehler', 'error'));
-}
-
 function deleteTodo(todoId) {
     if (!confirm('Aufgabe loeschen?')) return;
     fetch(`/api/ats/todos/${todoId}`, { method: 'DELETE' })

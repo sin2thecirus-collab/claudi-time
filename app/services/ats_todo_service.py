@@ -26,13 +26,14 @@ class ATSTodoService:
         self,
         title: str,
         description: str | None = None,
-        priority: str = "normal",
+        priority: str = "wichtig",
         due_date: date | None = None,
         company_id: UUID | None = None,
         candidate_id: UUID | None = None,
         ats_job_id: UUID | None = None,
         call_note_id: UUID | None = None,
         pipeline_entry_id: UUID | None = None,
+        contact_id: UUID | None = None,
     ) -> ATSTodo:
         """Erstellt eine neue Aufgabe."""
         todo = ATSTodo(
@@ -45,6 +46,7 @@ class ATSTodoService:
             ats_job_id=ats_job_id,
             call_note_id=call_note_id,
             pipeline_entry_id=pipeline_entry_id,
+            contact_id=contact_id,
         )
         self.db.add(todo)
         await self.db.flush()
@@ -71,6 +73,7 @@ class ATSTodoService:
                 selectinload(ATSTodo.company),
                 selectinload(ATSTodo.candidate),
                 selectinload(ATSTodo.ats_job),
+                selectinload(ATSTodo.contact),
             )
             .where(ATSTodo.id == todo_id)
         )
@@ -139,6 +142,7 @@ class ATSTodoService:
         company_id: UUID | None = None,
         candidate_id: UUID | None = None,
         ats_job_id: UUID | None = None,
+        contact_id: UUID | None = None,
         page: int = 1,
         per_page: int = 50,
     ) -> dict:
@@ -147,6 +151,7 @@ class ATSTodoService:
             selectinload(ATSTodo.company),
             selectinload(ATSTodo.candidate),
             selectinload(ATSTodo.ats_job),
+            selectinload(ATSTodo.contact),
         )
         count_query = select(func.count(ATSTodo.id))
 
@@ -174,6 +179,10 @@ class ATSTodoService:
         if ats_job_id:
             query = query.where(ATSTodo.ats_job_id == ats_job_id)
             count_query = count_query.where(ATSTodo.ats_job_id == ats_job_id)
+
+        if contact_id:
+            query = query.where(ATSTodo.contact_id == contact_id)
+            count_query = count_query.where(ATSTodo.contact_id == contact_id)
 
         # Sortierung: offene zuerst, dann nach Prioritaet und Faelligkeit
         query = query.order_by(
@@ -213,6 +222,7 @@ class ATSTodoService:
                 selectinload(ATSTodo.company),
                 selectinload(ATSTodo.candidate),
                 selectinload(ATSTodo.ats_job),
+                selectinload(ATSTodo.contact),
             )
             .where(
                 ATSTodo.due_date == today,
@@ -231,6 +241,7 @@ class ATSTodoService:
                 selectinload(ATSTodo.company),
                 selectinload(ATSTodo.candidate),
                 selectinload(ATSTodo.ats_job),
+                selectinload(ATSTodo.contact),
             )
             .where(
                 ATSTodo.due_date < today,
