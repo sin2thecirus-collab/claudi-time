@@ -64,26 +64,26 @@
         </div>
 
         {# ── Aufklapp-Bereich (Edit) ── #}
-        <div x-show="open" x-transition style="border-top:1px solid #e5e7eb;padding:14px;background:#fff;">
+        <div x-show="open" x-transition style="border-top:1px solid #e5e7eb;padding:18px;background:#fff;">
             {# Titel bearbeiten #}
-            <div style="margin-bottom:10px;">
-                <label style="font-size:11px;font-weight:600;color:#6b7280;display:block;margin-bottom:4px;font-family:var(--pp-ff);">Titel</label>
-                <input type="text" x-model="editTitle" style="width:100%;padding:8px 12px;font-size:14px;border:1px solid #d1d5db;border-radius:8px;font-family:var(--pp-ff);">
+            <div style="margin-bottom:14px;">
+                <label style="font-size:14px;font-weight:600;color:#374151;display:block;margin-bottom:6px;font-family:var(--pp-ff);">Titel</label>
+                <input type="text" x-model="editTitle" style="width:100%;padding:12px 14px;font-size:15px;border:1px solid #d1d5db;border-radius:10px;font-family:var(--pp-ff);height:46px;">
             </div>
             {# Beschreibung #}
-            <div style="margin-bottom:10px;">
-                <label style="font-size:11px;font-weight:600;color:#6b7280;display:block;margin-bottom:4px;font-family:var(--pp-ff);">Notizen</label>
-                <textarea x-model="editDesc" rows="2" style="width:100%;padding:8px 12px;font-size:13px;border:1px solid #d1d5db;border-radius:8px;font-family:var(--pp-ff);resize:vertical;"></textarea>
+            <div style="margin-bottom:14px;">
+                <label style="font-size:14px;font-weight:600;color:#374151;display:block;margin-bottom:6px;font-family:var(--pp-ff);">Notizen</label>
+                <textarea x-model="editDesc" rows="3" style="width:100%;padding:12px 14px;font-size:15px;border:1px solid #d1d5db;border-radius:10px;font-family:var(--pp-ff);resize:vertical;"></textarea>
             </div>
             {# Datum + Priorität + Status in einer Zeile #}
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:18px;">
                 <div>
-                    <label style="font-size:11px;font-weight:600;color:#6b7280;display:block;margin-bottom:4px;font-family:var(--pp-ff);">Fällig am</label>
-                    <input type="date" x-model="editDueDate" style="width:100%;padding:8px 10px;font-size:13px;border:1px solid #d1d5db;border-radius:8px;font-family:var(--pp-ff);height:38px;">
+                    <label style="font-size:14px;font-weight:600;color:#374151;display:block;margin-bottom:6px;font-family:var(--pp-ff);">Fällig am</label>
+                    <input type="date" x-model="editDueDate" style="width:100%;padding:12px 14px;font-size:15px;border:1px solid #d1d5db;border-radius:10px;font-family:var(--pp-ff);height:46px;">
                 </div>
                 <div>
-                    <label style="font-size:11px;font-weight:600;color:#6b7280;display:block;margin-bottom:4px;font-family:var(--pp-ff);">Priorität</label>
-                    <select x-model="editPriority" style="width:100%;padding:8px 10px;font-size:13px;border:1px solid #d1d5db;border-radius:8px;font-family:var(--pp-ff);height:38px;">
+                    <label style="font-size:14px;font-weight:600;color:#374151;display:block;margin-bottom:6px;font-family:var(--pp-ff);">Priorität</label>
+                    <select x-model="editPriority" style="width:100%;padding:12px 14px;font-size:15px;border:1px solid #d1d5db;border-radius:10px;font-family:var(--pp-ff);height:46px;">
                         <option value="unwichtig">Unwichtig</option>
                         <option value="mittelmaessig">Mittelmäßig</option>
                         <option value="wichtig">Wichtig</option>
@@ -92,8 +92,8 @@
                     </select>
                 </div>
                 <div>
-                    <label style="font-size:11px;font-weight:600;color:#6b7280;display:block;margin-bottom:4px;font-family:var(--pp-ff);">Status</label>
-                    <select x-model="editStatus" style="width:100%;padding:8px 10px;font-size:13px;border:1px solid #d1d5db;border-radius:8px;font-family:var(--pp-ff);height:38px;">
+                    <label style="font-size:14px;font-weight:600;color:#374151;display:block;margin-bottom:6px;font-family:var(--pp-ff);">Status</label>
+                    <select x-model="editStatus" style="width:100%;padding:12px 14px;font-size:15px;border:1px solid #d1d5db;border-radius:10px;font-family:var(--pp-ff);height:46px;">
                         <option value="open">Offen</option>
                         <option value="in_progress">In Bearbeitung</option>
                         <option value="done">Erledigt</option>
@@ -102,7 +102,7 @@
                 </div>
             </div>
             {# Action-Buttons #}
-            <div style="display:flex;gap:8px;align-items:center;">
+            <div style="display:flex;gap:10px;align-items:center;">
                 <button @click="
                     saving = true;
                     var payload = {title: editTitle.trim(), description: editDesc.trim() || null, priority: editPriority, status: editStatus, due_date: editDueDate || null};
@@ -111,19 +111,19 @@
                     .then(function(){ showToast('Aufgabe gespeichert','success'); document.body.dispatchEvent(new CustomEvent('refreshTodos')); })
                     .catch(function(e){ showToast('Fehler: '+e.message,'error'); saving=false; });
                 " type="button" :disabled="saving"
-                   style="padding:8px 18px;font-size:13px;font-weight:600;border-radius:8px;border:none;cursor:pointer;background:var(--pp-blue);color:#fff;font-family:var(--pp-ff);display:flex;align-items:center;gap:5px;"
+                   style="padding:11px 22px;font-size:15px;font-weight:600;border-radius:10px;border:none;cursor:pointer;background:var(--pp-blue);color:#fff;font-family:var(--pp-ff);display:flex;align-items:center;gap:6px;"
                    :style="saving ? 'opacity:0.6;cursor:not-allowed;' : ''">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
                     Speichern
                 </button>
                 <button @click="open = false" type="button"
-                   style="padding:8px 18px;font-size:13px;font-weight:500;border-radius:8px;border:1px solid #d1d5db;cursor:pointer;background:#fff;color:#374151;font-family:var(--pp-ff);">
+                   style="padding:11px 22px;font-size:15px;font-weight:500;border-radius:10px;border:1px solid #d1d5db;cursor:pointer;background:#fff;color:#374151;font-family:var(--pp-ff);">
                     Abbrechen
                 </button>
                 <div style="flex:1;"></div>
                 <button @click="if(confirm('Aufgabe löschen?')){fetch('/api/ats/todos/{{ todo.id }}',{method:'DELETE'}).then(function(r){if(r.ok){showToast('Gelöscht','success');document.body.dispatchEvent(new CustomEvent('refreshTodos'));}});}" type="button"
-                   style="padding:8px 14px;font-size:12px;font-weight:500;border-radius:8px;border:1px solid #fecaca;cursor:pointer;background:#fff;color:#ef4444;font-family:var(--pp-ff);display:flex;align-items:center;gap:4px;">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg>
+                   style="padding:11px 18px;font-size:14px;font-weight:500;border-radius:10px;border:1px solid #fecaca;cursor:pointer;background:#fff;color:#ef4444;font-family:var(--pp-ff);display:flex;align-items:center;gap:5px;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg>
                     Löschen
                 </button>
             </div>
