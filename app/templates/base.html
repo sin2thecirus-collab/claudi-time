@@ -123,6 +123,243 @@
         .pp-nav-item:hover { color: var(--pp-text); background: var(--pp-surfaceHover); }
         .pp-nav-item.active { color: var(--pp-accent); background: var(--pp-accentSoft); }
 
+        /* ═══════════════════════════════════════════════════ */
+        /* ═══ GLOBAL DARK THEME — Tailwind Overrides ═══ */
+        /* ═══════════════════════════════════════════════════ */
+
+        /* Backgrounds */
+        .bg-white { background: var(--pp-surface) !important; }
+        .bg-gray-50 { background: var(--pp-bg) !important; }
+        .bg-gray-100 { background: var(--pp-surfaceHover) !important; }
+        .bg-gray-200 { background: var(--pp-surfaceHover) !important; }
+
+        /* Text Colors */
+        .text-gray-900 { color: var(--pp-text) !important; }
+        .text-gray-800 { color: var(--pp-text) !important; }
+        .text-gray-700 { color: var(--pp-text) !important; }
+        .text-gray-600 { color: var(--pp-textMuted) !important; }
+        .text-gray-500 { color: var(--pp-textMuted) !important; }
+        .text-gray-400 { color: var(--pp-textDim) !important; }
+        .text-gray-300 { color: var(--pp-textDim) !important; }
+
+        /* Borders */
+        .border-gray-200 { border-color: var(--pp-border) !important; }
+        .border-gray-300 { border-color: var(--pp-border) !important; }
+        .border-gray-100 { border-color: var(--pp-border) !important; }
+        .divide-gray-200 > :not([hidden]) ~ :not([hidden]) { border-color: var(--pp-border) !important; }
+        .divide-gray-100 > :not([hidden]) ~ :not([hidden]) { border-color: var(--pp-border) !important; }
+        .ring-gray-900\/5 { --tw-ring-color: var(--pp-border) !important; }
+
+        /* Hover states */
+        .hover\:bg-gray-50:hover { background: var(--pp-surfaceHover) !important; }
+        .hover\:bg-gray-100:hover { background: var(--pp-surfaceHover) !important; }
+        .hover\:bg-gray-200:hover { background: var(--pp-surfaceHover) !important; }
+        .hover\:text-gray-600:hover { color: var(--pp-text) !important; }
+        .hover\:text-gray-500:hover { color: var(--pp-text) !important; }
+        .hover\:text-gray-700:hover { color: var(--pp-text) !important; }
+        .hover\:text-gray-900:hover { color: var(--pp-text) !important; }
+
+        /* Form elements global dark */
+        input[type="text"], input[type="email"], input[type="number"],
+        input[type="tel"], input[type="date"], input[type="time"],
+        input[type="search"], input[type="url"], input[type="password"],
+        textarea, select {
+            background: var(--pp-bg) !important;
+            border-color: var(--pp-border) !important;
+            color: var(--pp-text) !important;
+        }
+        input::placeholder, textarea::placeholder {
+            color: var(--pp-textDim) !important;
+        }
+        input:focus, textarea:focus, select:focus {
+            border-color: var(--pp-accent) !important;
+            box-shadow: 0 0 0 3px rgba(79,140,255,0.15) !important;
+            --tw-ring-color: var(--pp-accent) !important;
+        }
+        input[type="date"]::-webkit-calendar-picker-indicator,
+        input[type="time"]::-webkit-calendar-picker-indicator {
+            filter: invert(0.7);
+        }
+        input[type="checkbox"] {
+            background: var(--pp-bg) !important;
+            border-color: var(--pp-borderLight) !important;
+        }
+
+        /* Shadows — darker for dark theme */
+        .shadow-sm { box-shadow: 0 1px 3px rgba(0,0,0,0.3) !important; }
+        .shadow { box-shadow: 0 2px 6px rgba(0,0,0,0.3) !important; }
+        .shadow-lg { box-shadow: 0 8px 30px rgba(0,0,0,0.35) !important; }
+        .shadow-xl { box-shadow: 0 12px 40px rgba(0,0,0,0.4) !important; }
+
+        /* Primary button overrides */
+        .bg-primary-600 { background: var(--pp-accent) !important; }
+        .bg-primary-600:hover, .hover\:bg-primary-500:hover, .hover\:bg-primary-700:hover {
+            background: #3B7AE8 !important;
+        }
+        .bg-primary-50 { background: var(--pp-accentSoft) !important; }
+        .bg-primary-100 { background: var(--pp-accentSoft) !important; }
+        .text-primary-600 { color: var(--pp-accent) !important; }
+        .text-primary-700 { color: var(--pp-accent) !important; }
+        .text-primary-500 { color: var(--pp-accent) !important; }
+        .focus\:ring-primary-500:focus { --tw-ring-color: var(--pp-accent) !important; }
+        .focus\:ring-primary-300:focus { --tw-ring-color: rgba(79,140,255,0.3) !important; }
+        .peer-checked\:bg-primary-600:is(.peer:checked ~ *) { background: var(--pp-accent) !important; }
+
+        /* Status colors */
+        .bg-green-50 { background: var(--pp-greenSoft) !important; }
+        .bg-green-100 { background: var(--pp-greenSoft) !important; }
+        .text-green-600 { color: var(--pp-green) !important; }
+        .text-green-700 { color: var(--pp-green) !important; }
+        .text-green-800 { color: var(--pp-green) !important; }
+        .border-green-200 { border-color: rgba(52,211,153,0.27) !important; }
+
+        .bg-red-50 { background: var(--pp-redSoft) !important; }
+        .bg-red-100 { background: var(--pp-redSoft) !important; }
+        .bg-sky-100 { background: var(--pp-accentSoft) !important; }
+        .text-sky-700 { color: var(--pp-accent) !important; }
+        .bg-emerald-100 { background: var(--pp-greenSoft) !important; }
+        .text-emerald-700 { color: var(--pp-green) !important; }
+        .text-red-500 { color: var(--pp-red) !important; }
+        .text-red-600 { color: var(--pp-red) !important; }
+        .text-red-700 { color: var(--pp-red) !important; }
+        .hover\:text-red-500:hover { color: var(--pp-red) !important; }
+        .hover\:bg-red-100:hover { background: var(--pp-redSoft) !important; }
+
+        .bg-amber-50, .bg-yellow-50 { background: var(--pp-orangeSoft) !important; }
+        .bg-amber-100, .bg-yellow-100 { background: var(--pp-orangeSoft) !important; }
+        .text-amber-600, .text-yellow-600 { color: var(--pp-orange) !important; }
+        .text-amber-700, .text-yellow-700 { color: var(--pp-orange) !important; }
+        .text-amber-800, .text-yellow-800 { color: var(--pp-orange) !important; }
+        .border-amber-200 { border-color: rgba(245,158,11,0.27) !important; }
+
+        .bg-blue-50 { background: var(--pp-accentSoft) !important; }
+        .bg-blue-100 { background: var(--pp-accentSoft) !important; }
+        .text-blue-500 { color: var(--pp-accent) !important; }
+        .text-blue-600 { color: var(--pp-accent) !important; }
+        .text-blue-700 { color: var(--pp-accent) !important; }
+        .text-blue-800 { color: var(--pp-accent) !important; }
+        .border-blue-100 { border-color: rgba(79,140,255,0.2) !important; }
+
+        .bg-purple-50, .bg-indigo-50 { background: var(--pp-purpleSoft) !important; }
+        .bg-purple-100, .bg-indigo-100 { background: var(--pp-purpleSoft) !important; }
+        .text-purple-600, .text-indigo-600 { color: var(--pp-purple) !important; }
+        .text-purple-700, .text-indigo-700 { color: var(--pp-purple) !important; }
+
+        /* Dashed borders (dropzones) */
+        .border-dashed { border-color: var(--pp-border) !important; }
+        .border-dashed:hover { border-color: var(--pp-accent) !important; }
+        .border-primary-500 { border-color: var(--pp-accent) !important; }
+        .border-primary-400 { border-color: var(--pp-accent) !important; }
+
+        /* Modals */
+        .bg-black\/50 { background: rgba(0,0,0,0.6) !important; }
+
+        /* Skeleton loading animation for dark theme */
+        .animate-skeleton { animation: skeletonPulse 1.5s ease-in-out infinite; }
+        @keyframes skeletonPulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 0.3; }
+        }
+
+        /* Tables in dark */
+        th { color: var(--pp-textDim) !important; border-color: var(--pp-border) !important; }
+        td { color: var(--pp-text) !important; border-color: var(--pp-border) !important; }
+        thead { background: var(--pp-bg) !important; }
+
+        /* Scrollbar dark */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: var(--pp-bg); }
+        ::-webkit-scrollbar-thumb { background: var(--pp-border); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--pp-borderLight); }
+
+        /* HR elements */
+        hr { border-color: var(--pp-border) !important; }
+        .border-t { border-color: var(--pp-border) !important; }
+        .border-b { border-color: var(--pp-border) !important; }
+
+        /* Cancel/secondary buttons */
+        button.border-gray-300,
+        .bg-white.border.border-gray-300 {
+            background: var(--pp-surface) !important;
+            border-color: var(--pp-border) !important;
+            color: var(--pp-textMuted) !important;
+        }
+        .hover\:bg-gray-50:hover {
+            background: var(--pp-surfaceHover) !important;
+        }
+
+        /* Ring overrides for badges */
+        .ring-gray-500\/20, .ring-gray-600\/20 { --tw-ring-color: var(--pp-border) !important; }
+        .ring-red-600\/20 { --tw-ring-color: rgba(239,68,68,0.25) !important; }
+        .ring-orange-600\/20 { --tw-ring-color: rgba(245,158,11,0.25) !important; }
+        .ring-amber-600\/20 { --tw-ring-color: rgba(245,158,11,0.25) !important; }
+        .ring-green-600\/20 { --tw-ring-color: rgba(52,211,153,0.25) !important; }
+        .ring-primary-600\/20 { --tw-ring-color: rgba(79,140,255,0.25) !important; }
+        .ring-primary-200 { --tw-ring-color: rgba(79,140,255,0.25) !important; }
+        .ring-purple-600\/20 { --tw-ring-color: rgba(167,139,250,0.25) !important; }
+        .border-purple-200 { border-color: rgba(167,139,250,0.25) !important; }
+        .border-red-200 { border-color: rgba(239,68,68,0.25) !important; }
+        .border-blue-200 { border-color: rgba(79,140,255,0.25) !important; }
+        .border-amber-200 { border-color: rgba(245,158,11,0.25) !important; }
+        .border-red-300 { border-color: rgba(239,68,68,0.35) !important; }
+        .text-amber-400 { color: var(--pp-orange) !important; }
+        .text-red-600 { color: var(--pp-red) !important; }
+        .text-green-500 { color: var(--pp-green) !important; }
+        .bg-red-600 { background: var(--pp-red) !important; }
+        .bg-gray-50\/50 { background: rgba(24,26,35,0.5) !important; }
+        .divide-gray-200 > :not([hidden]) ~ :not([hidden]) { border-color: var(--pp-border) !important; }
+        .divide-gray-100 > :not([hidden]) ~ :not([hidden]) { border-color: var(--pp-border) !important; }
+        .hover\:bg-gray-50:hover { background: var(--pp-surfaceHover) !important; }
+        .hover\:bg-white:hover { background: var(--pp-surfaceHover) !important; }
+        .hover\:text-gray-600:hover { color: var(--pp-text) !important; }
+        .hover\:bg-green-50:hover { background: var(--pp-greenSoft) !important; }
+        .hover\:bg-primary-50\/30:hover { background: rgba(79,140,255,0.08) !important; }
+        .hover\:bg-primary-100:hover { background: var(--pp-accentSoft) !important; }
+        .hover\:border-primary-300:hover { border-color: rgba(79,140,255,0.4) !important; }
+        .has-\[\:checked\]\:border-primary-500:has(:checked) { border-color: var(--pp-accent) !important; }
+        .has-\[\:checked\]\:bg-primary-50:has(:checked) { background: var(--pp-accentSoft) !important; }
+
+        /* Modal backdrop — darker for dark theme */
+        .bg-gray-500.bg-opacity-75 {
+            background: rgba(0,0,0,0.6) !important;
+            backdrop-filter: blur(4px) !important;
+        }
+
+        /* Indigo variants → accent */
+        .border-indigo-500 { border-color: var(--pp-accent) !important; }
+        .text-indigo-700 { color: var(--pp-accent) !important; }
+        .text-indigo-500 { color: var(--pp-accent) !important; }
+        .bg-indigo-50 { background: var(--pp-accentSoft) !important; }
+        .bg-indigo-500 { background: var(--pp-accent) !important; }
+
+        /* Orange text/bg */
+        .text-orange-700 { color: var(--pp-orange) !important; }
+        .bg-orange-50 { background: var(--pp-orangeSoft) !important; }
+
+        /* Red text/bg */
+        .text-red-800 { color: var(--pp-red) !important; }
+        .hover\:bg-red-50:hover { background: var(--pp-redSoft) !important; }
+        .hover\:text-red-600:hover { color: var(--pp-red) !important; }
+        .hover\:bg-red-50\/50:hover { background: var(--pp-redSoft) !important; }
+
+        /* Links in dark theme */
+        a.text-primary-600:hover, .hover\:text-primary-500:hover { color: #6CA8FF !important; }
+        .hover\:text-primary-800:hover { color: var(--pp-accent) !important; }
+
+        /* Emerald color */
+        .text-emerald-500 { color: var(--pp-green) !important; }
+        .text-emerald-600 { color: var(--pp-green) !important; }
+
+        /* Hover bg for action buttons */
+        .hover\:bg-gray-100:hover { background: var(--pp-surfaceHover) !important; }
+
+        /* Purple text */
+        .text-purple-700 { color: var(--pp-purple) !important; }
+        .text-purple-500 { color: var(--pp-purple) !important; }
+
+        /* Violet text */
+        .text-violet-500 { color: var(--pp-purple) !important; }
+
         /* ═══ GLOBAL QUICK-ADD DARK THEME ═══ */
         /* Applies to all content loaded inside #quickadd-content */
         #quickadd-content {

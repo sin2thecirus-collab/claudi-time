@@ -10,13 +10,13 @@
 {% if candidates | length == 0 %}
 {# ── Empty State ── #}
 <div style="padding: 60px 20px; text-align: center;">
-    <div style="width: 56px; height: 56px; border-radius: 16px; background: linear-gradient(135deg, #eef2ff, #e0e7ff); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
-        <svg style="width: 28px; height: 28px; color: #818cf8;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+    <div style="width: 56px; height: 56px; border-radius: 16px; background: var(--pp-accentSoft); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
+        <svg style="width: 28px; height: 28px; color: var(--pp-accent);" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
         </svg>
     </div>
-    <p style="font-size: 15px; font-weight: 700; color: #1e293b; margin-bottom: 4px;">Keine Kandidaten gefunden</p>
-    <p style="font-size: 13px; color: #94a3b8; max-width: 320px; margin: 0 auto;">
+    <p style="font-size: 15px; font-weight: 700; color: var(--pp-text); margin-bottom: 4px;">Keine Kandidaten gefunden</p>
+    <p style="font-size: 13px; color: var(--pp-textDim); max-width: 320px; margin: 0 auto;">
         {% if search %}
         Keine Kandidaten für "{{ search }}" gefunden. Versuche andere Suchbegriffe.
         {% else %}
@@ -124,11 +124,11 @@
                     </div>
                     <div style="min-width: 0; overflow: hidden;">
                         <div style="display: flex; align-items: center; gap: 6px;">
-                            <span class="kl-name-text" style="font-size: 13.5px; font-weight: 700; color: {% if has_valid_name %}#0f172a{% else %}#94a3b8{% endif %}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; {% if not has_valid_name %}font-style: italic;{% endif %}">
+                            <span class="kl-name-text" style="font-size: 13.5px; font-weight: 700; color: {% if has_valid_name %}var(--pp-text){% else %}var(--pp-textDim){% endif %}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; {% if not has_valid_name %}font-style: italic;{% endif %}">
                                 {{ display_name }}
                             </span>
                             {% if candidate.age %}
-                            <span style="font-size: 11px; color: #94a3b8; font-weight: 500;">({{ candidate.age }})</span>
+                            <span style="font-size: 11px; color: var(--pp-textDim); font-weight: 500;">({{ candidate.age }})</span>
                             {% endif %}
                         </div>
                         {# Skill Tags (max 3) #}
@@ -141,7 +141,7 @@
                             <span class="kl-skill-tag {% if is_tech %}kl-skill-tag-tech{% elif is_fach %}kl-skill-tag-fach{% endif %}">{{ skill }}</span>
                             {% endfor %}
                             {% if candidate.it_skills | length > 3 %}
-                            <span style="font-size: 11px; color: #94a3b8; font-weight: 500;">+{{ candidate.it_skills | length - 3 }}</span>
+                            <span style="font-size: 11px; color: var(--pp-textDim); font-weight: 500;">+{{ candidate.it_skills | length - 3 }}</span>
                             {% endif %}
                         </div>
                         {% endif %}
@@ -155,7 +155,7 @@
                     <span class="inline-edit-display kl-inline-display"
                           onclick="startInlineEdit(this)"
                           title="{{ raw_position if raw_position else 'Klicken zum Bearbeiten' }}"
-                          style="font-size: 13px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; {% if position_display %}color: #334155; font-weight: 600;{% else %}color: #cbd5e1; font-style: italic;{% endif %}">{{ position_display or '—' }}</span>
+                          style="font-size: 13px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; {% if position_display %}color: var(--pp-text); font-weight: 600;{% else %}color: var(--pp-textDim); font-style: italic;{% endif %}">{{ position_display or '—' }}</span>
                     <input type="text"
                            class="inline-edit-input kl-inline-input hidden"
                            value="{{ raw_position }}"
@@ -173,7 +173,7 @@
                     <span class="inline-edit-display kl-inline-display"
                           onclick="startInlineEdit(this)"
                           title="{{ raw_company if raw_company else 'Klicken zum Bearbeiten' }}"
-                          style="font-size: 13px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; {% if company_display %}color: #64748b;{% else %}color: #cbd5e1; font-style: italic;{% endif %}">{{ company_display or '—' }}</span>
+                          style="font-size: 13px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; {% if company_display %}color: var(--pp-textMuted);{% else %}color: var(--pp-textDim); font-style: italic;{% endif %}">{{ company_display or '—' }}</span>
                     <input type="text"
                            class="inline-edit-input kl-inline-input hidden"
                            value="{{ company_display }}"
@@ -189,14 +189,14 @@
             <td style="overflow: hidden;">
                 {% if city_display %}
                 <div style="display: flex; align-items: center; gap: 4px; overflow: hidden;">
-                    <svg style="width: 12px; height: 12px; color: #cbd5e1; flex-shrink: 0;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <svg style="width: 12px; height: 12px; color: var(--pp-textDim); flex-shrink: 0;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
                         <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
                     </svg>
-                    <span style="font-size: 13px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ city_display }}</span>
+                    <span style="font-size: 13px; color: var(--pp-textMuted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ city_display }}</span>
                 </div>
                 {% else %}
-                <span style="font-size: 13px; color: #cbd5e1;">—</span>
+                <span style="font-size: 13px; color: var(--pp-textDim);">—</span>
                 {% endif %}
             </td>
 
@@ -276,10 +276,10 @@
 
 {# ── Pagination ── #}
 {% if total_pages > 1 %}
-<div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 22px; border-top: 1px solid #f0f2f5;">
+<div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 22px; border-top: 1px solid var(--pp-border);">
     {# Info Text #}
-    <span style="font-size: 12.5px; color: #94a3b8; font-weight: 500;">
-        Zeige <span style="font-weight: 700; color: #64748b;">{{ ((page - 1) * per_page) + 1 }}</span>–<span style="font-weight: 700; color: #64748b;">{{ [page * per_page, total] | min }}</span> von <span style="font-weight: 700; color: #64748b;">{{ total }}</span>
+    <span style="font-size: 12.5px; color: var(--pp-textDim); font-weight: 500;">
+        Zeige <span style="font-weight: 700; color: var(--pp-textMuted);">{{ ((page - 1) * per_page) + 1 }}</span>–<span style="font-weight: 700; color: var(--pp-textMuted);">{{ [page * per_page, total] | min }}</span> von <span style="font-weight: 700; color: var(--pp-textMuted);">{{ total }}</span>
     </span>
 
     {# Page Buttons #}
@@ -312,7 +312,7 @@
                     hx-swap="innerHTML"
                     class="kl-page-btn">{{ p }}</button>
             {% elif p == 2 or p == total_pages - 1 %}
-            <span style="font-size: 13px; color: #cbd5e1; padding: 0 4px;">…</span>
+            <span style="font-size: 13px; color: var(--pp-textDim); padding: 0 4px;">…</span>
             {% endif %}
         {% endfor %}
 
@@ -451,11 +451,11 @@ async function batchParseSelected() {
         if (!row) continue;
 
         row.style.transition = 'background-color 0.3s';
-        row.style.backgroundColor = '#eef2ff';
+        row.style.backgroundColor = 'rgba(79,140,255,0.08)';
         var nameCell = row.querySelector('.kl-name-text');
         var origName = nameCell ? nameCell.textContent.trim() : '';
         if (nameCell) {
-            nameCell.innerHTML = '<span style="color: #6366f1;"><svg style="display: inline; width: 14px; height: 14px; margin-right: 4px; animation: spin 1s linear infinite;" fill="none" viewBox="0 0 24 24"><circle style="opacity: 0.25;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path style="opacity: 0.75;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>CV wird geparst... (' + (i+1) + '/' + ids.length + ')</span>';
+            nameCell.innerHTML = '<span style="color: var(--pp-accent);"><svg style="display: inline; width: 14px; height: 14px; margin-right: 4px; animation: spin 1s linear infinite;" fill="none" viewBox="0 0 24 24"><circle style="opacity: 0.25;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path style="opacity: 0.75;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>CV wird geparst... (' + (i+1) + '/' + ids.length + ')</span>';
         }
 
         row.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -471,10 +471,10 @@ async function batchParseSelected() {
                 parsed++;
                 if (data.name_changed) {
                     namesFixed++;
-                    row.style.backgroundColor = '#ecfdf5';
+                    row.style.backgroundColor = 'rgba(52,211,153,0.08)';
                     if (nameCell) {
-                        nameCell.innerHTML = '<span style="color: #059669; font-weight: 700;">' + data.new_name + '</span>' +
-                            ' <span style="font-size: 11px; color: #94a3b8; text-decoration: line-through; margin-left: 6px;">' + data.old_name + '</span>';
+                        nameCell.innerHTML = '<span style="color: var(--pp-green); font-weight: 700;">' + data.new_name + '</span>' +
+                            ' <span style="font-size: 11px; color: var(--pp-textDim); text-decoration: line-through; margin-left: 6px;">' + data.old_name + '</span>';
                     }
                     var avatar = row.querySelector('.kl-avatar');
                     if (avatar && data.new_name.length >= 2) {
@@ -482,29 +482,29 @@ async function batchParseSelected() {
                         avatar.textContent = (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
                     }
                 } else {
-                    row.style.backgroundColor = '#fefce8';
+                    row.style.backgroundColor = 'rgba(245,158,11,0.08)';
                     if (nameCell) {
-                        nameCell.innerHTML = '<span style="color: #334155;">' + data.new_name + '</span>' +
-                            ' <span style="font-size: 11px; color: #a16207; margin-left: 6px;">Name unverändert</span>';
+                        nameCell.innerHTML = '<span style="color: var(--pp-text);">' + data.new_name + '</span>' +
+                            ' <span style="font-size: 11px; color: var(--pp-orange); margin-left: 6px;">Name unverändert</span>';
                     }
                 }
             } else if (data.status === 'skipped') {
-                row.style.backgroundColor = '#fefce8';
+                row.style.backgroundColor = 'rgba(245,158,11,0.08)';
                 if (nameCell) {
-                    nameCell.innerHTML = origName + ' <span style="font-size: 11px; color: #a16207; margin-left: 6px;">Kein CV</span>';
+                    nameCell.innerHTML = origName + ' <span style="font-size: 11px; color: var(--pp-orange); margin-left: 6px;">Kein CV</span>';
                 }
             } else {
                 errors++;
-                row.style.backgroundColor = '#fef2f2';
+                row.style.backgroundColor = 'rgba(239,68,68,0.08)';
                 if (nameCell) {
-                    nameCell.innerHTML = origName + ' <span style="font-size: 11px; color: #dc2626; margin-left: 6px;">Fehler</span>';
+                    nameCell.innerHTML = origName + ' <span style="font-size: 11px; color: var(--pp-red); margin-left: 6px;">Fehler</span>';
                 }
             }
         } catch (e) {
             errors++;
-            row.style.backgroundColor = '#fef2f2';
+            row.style.backgroundColor = 'rgba(239,68,68,0.08)';
             if (nameCell) {
-                nameCell.innerHTML = origName + ' <span style="font-size: 11px; color: #dc2626; margin-left: 6px;">Netzwerk-Fehler</span>';
+                nameCell.innerHTML = origName + ' <span style="font-size: 11px; color: var(--pp-red); margin-left: 6px;">Netzwerk-Fehler</span>';
             }
         }
     }
@@ -725,11 +725,11 @@ function saveInlineEdit(input) {
         if (data.id) {
             display.textContent = newValue || '—';
             if (newValue) {
-                display.style.color = field === 'current_position' ? '#334155' : '#64748b';
+                display.style.color = field === 'current_position' ? 'var(--pp-text)' : 'var(--pp-textMuted)';
                 display.style.fontWeight = field === 'current_position' ? '600' : '';
                 display.style.fontStyle = 'normal';
             } else {
-                display.style.color = '#cbd5e1';
+                display.style.color = 'var(--pp-textDim)';
                 display.style.fontStyle = 'italic';
                 display.style.fontWeight = '';
             }

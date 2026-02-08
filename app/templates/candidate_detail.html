@@ -6,7 +6,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
     .kd-wrap, .kd-wrap * { font-family: 'Outfit', 'DM Sans', -apple-system, sans-serif; }
-    .kd-wrap { background: #f4f5f8; color: #1e293b; font-size: 15px; }
+    .kd-wrap { background: var(--pp-bg); color: var(--pp-text); font-size: 15px; }
 
     /* Globale Skalierung aller inline font-sizes innerhalb kd-wrap */
     .kd-wrap [style*="font-size: 9px"]   { font-size: 11px !important; }
@@ -24,7 +24,7 @@
     .kd-wrap [style*="font-size: 26px"]  { font-size: 30px !important; }
     .kd-wrap ::-webkit-scrollbar { width: 5px; }
     .kd-wrap ::-webkit-scrollbar-track { background: transparent; }
-    .kd-wrap ::-webkit-scrollbar-thumb { background: #d4d9e3; border-radius: 3px; }
+    .kd-wrap ::-webkit-scrollbar-thumb { background: var(--pp-border); border-radius: 3px; }
 
     @keyframes kdFadeUp {
         from { opacity: 0; transform: translateY(16px); }
@@ -38,46 +38,46 @@
     .kd-anim-side { opacity: 0; animation: kdSlideIn 0.5s cubic-bezier(0.4,0,0.2,1) forwards; }
 
     .kd-section {
-        background: #fff; border-radius: 16px; border: 1px solid #e6e9ef; overflow: hidden;
+        background: var(--pp-surface); border-radius: 16px; border: 1px solid var(--pp-border); overflow: hidden;
     }
     .kd-section-header {
         display: flex; align-items: center; justify-content: space-between;
-        padding: 18px 26px; border-bottom: 1px solid #f0f2f5;
-        background: linear-gradient(135deg, #fafbfd 0%, #f7f8fb 100%);
+        padding: 18px 26px; border-bottom: 1px solid var(--pp-surfaceHover);
+        background: var(--pp-surfaceHover);
     }
     .kd-section-title {
         display: flex; align-items: center; gap: 12px;
-        font-size: 17px; font-weight: 750; color: #0f172a; letter-spacing: -0.02em;
+        font-size: 17px; font-weight: 750; color: var(--pp-text); letter-spacing: -0.02em;
     }
     .kd-section-body { padding: 22px 26px; }
 
     .kd-sidebar-card {
-        background: #fff; border-radius: 14px; border: 1px solid #e6e9ef; overflow: hidden;
+        background: var(--pp-surface); border-radius: 14px; border: 1px solid var(--pp-border); overflow: hidden;
     }
     .kd-sidebar-header {
-        padding: 16px 22px; border-bottom: 1px solid #f0f2f5;
+        padding: 16px 22px; border-bottom: 1px solid var(--pp-surfaceHover);
         display: flex; align-items: center; justify-content: space-between;
-        background: linear-gradient(135deg, #fafbfd, #f7f8fb);
-        font-size: 15px; font-weight: 700; color: #334155;
+        background: var(--pp-surfaceHover);
+        font-size: 15px; font-weight: 700; color: var(--pp-text);
     }
     .kd-sidebar-body { padding: 18px 22px; }
 
     .kd-exp-dot-current {
         width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0;
-        background: linear-gradient(135deg, #6366f1, #818cf8);
-        border: 3px solid #e0e7ff;
+        background: var(--pp-accent);
+        border: 3px solid var(--pp-border);
     }
     .kd-exp-dot-past {
         width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0;
-        background: #d4d9e3; border: 3px solid #f0f2f5;
+        background: var(--pp-border); border: 3px solid var(--pp-surfaceHover);
     }
     .kd-exp-line {
         width: 2px; flex: 1; margin-top: 6px;
-        background: linear-gradient(to bottom, #e2e5ec, transparent);
+        background: linear-gradient(to bottom, var(--pp-border), transparent);
     }
 
     .kd-lang-bar {
-        height: 8px; border-radius: 4px; overflow: hidden; background: #f0f2f5;
+        height: 8px; border-radius: 4px; overflow: hidden; background: var(--pp-surfaceHover);
     }
     .kd-lang-fill {
         height: 100%; border-radius: 4px; transition: width 0.8s cubic-bezier(0.4,0,0.2,1);
@@ -87,33 +87,33 @@
         display: inline-flex; align-items: center; gap: 8px;
         padding: 11px 20px; border-radius: 10px;
         font-size: 14px; font-weight: 630; cursor: pointer;
-        font-family: inherit; transition: all 0.2s; border: 1.5px solid #e2e5ec;
-        background: #fff; color: #475569;
+        font-family: inherit; transition: all 0.2s; border: 1.5px solid var(--pp-border);
+        background: var(--pp-surface); color: var(--pp-text);
     }
-    .kd-quickbtn:hover { background: #f8fafc; }
+    .kd-quickbtn:hover { background: var(--pp-surfaceHover); }
     .kd-quickbtn-primary {
         background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; border: none;
         box-shadow: 0 2px 8px rgba(99,102,241,0.25);
     }
     .kd-quickbtn-primary:hover { background: linear-gradient(135deg, #4f46e5, #7c3aed); }
     .kd-quickbtn-accent {
-        background: #fff; color: #4f46e5; border: 1.5px solid #c7d2fe;
+        background: var(--pp-surface); color: var(--pp-accent); border: 1.5px solid var(--pp-border);
     }
-    .kd-quickbtn-accent:hover { background: #eef2ff; }
+    .kd-quickbtn-accent:hover { background: var(--pp-surfaceHover); }
     .kd-quickbtn-danger {
-        background: #fff; color: #dc2626; border: 1.5px solid #fecaca;
+        background: var(--pp-surface); color: #dc2626; border: 1.5px solid #fecaca;
     }
-    .kd-quickbtn-danger:hover { background: #fef2f2; }
+    .kd-quickbtn-danger:hover { background: var(--pp-surfaceHover); }
 
     /* Nav item */
     .kd-nav-btn {
         display: flex; align-items: center; gap: 10px;
         padding: 10px 16px; border-radius: 9px;
         background: transparent; border: none; cursor: pointer; width: 100%; text-align: left;
-        font-family: inherit; transition: all 0.15s; font-size: 14px; font-weight: 500; color: #64748b;
+        font-family: inherit; transition: all 0.15s; font-size: 14px; font-weight: 500; color: var(--pp-textMuted);
     }
-    .kd-nav-btn:hover { background: #f8fafc; }
-    .kd-nav-btn.active { background: #eef2ff; font-weight: 650; color: #4f46e5; }
+    .kd-nav-btn:hover { background: var(--pp-surfaceHover); }
+    .kd-nav-btn.active { background: var(--pp-surfaceHover); font-weight: 650; color: var(--pp-accent); }
 
     /* Inline edit overrides for new design */
     .kd-wrap .detail-edit-display {
@@ -128,17 +128,17 @@
     }
 
     /* Skill category colors */
-    .skill-fach { background: #eef2ff; color: #4f46e5; border: 1px solid #c7d2fe; }
-    .skill-tech { background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; }
-    .skill-soft { background: #fefce8; color: #a16207; border: 1px solid #fde68a; }
+    .skill-fach { background: var(--pp-surfaceHover); color: var(--pp-accent); border: 1px solid var(--pp-border); }
+    .skill-tech { background: var(--pp-surfaceHover); color: #34d399; border: 1px solid var(--pp-border); }
+    .skill-soft { background: var(--pp-surfaceHover); color: #fbbf24; border: 1px solid var(--pp-border); }
 
     /* Copy button */
     .kd-copy-btn {
-        background: #f4f6f8; border: none; border-radius: 7px; padding: 5px 10px;
-        font-size: 13px; cursor: pointer; color: #94a3b8; font-weight: 600;
+        background: var(--pp-surfaceHover); border: none; border-radius: 7px; padding: 5px 10px;
+        font-size: 13px; cursor: pointer; color: var(--pp-textDim); font-weight: 600;
         transition: all 0.2s; font-family: inherit;
     }
-    .kd-copy-btn:hover { background: #e8ecf1; color: #64748b; }
+    .kd-copy-btn:hover { background: var(--pp-border); color: var(--pp-textMuted); }
 </style>
 {% endblock %}
 
@@ -192,11 +192,11 @@
                 <div style="display: flex; align-items: center; gap: 6px;">
                     <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="first_name">
                         <span class="detail-edit-display" onclick="startDetailEdit(this)" title="Vorname bearbeiten" style="font-size: 26px; font-weight: 800; color: #fff; letter-spacing: -0.03em; cursor: pointer;">{{ first_display or 'Vorname' }}</span>
-                        <input type="text" class="detail-edit-input hidden" value="{{ first_display or '' }}" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)" style="font-size: 22px; font-weight: 800; color: #1e293b; padding: 2px 8px; border-radius: 8px; border: 2px solid #818cf8; width: 200px;">
+                        <input type="text" class="detail-edit-input hidden" value="{{ first_display or '' }}" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)" style="font-size: 22px; font-weight: 800; color: var(--pp-text); padding: 2px 8px; border-radius: 8px; border: 2px solid var(--pp-accent); width: 200px; background: var(--pp-surface);">
                     </div>
                     <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="last_name">
                         <span class="detail-edit-display" onclick="startDetailEdit(this)" title="Nachname bearbeiten" style="font-size: 26px; font-weight: 800; color: #fff; letter-spacing: -0.03em; cursor: pointer;">{{ last_display or 'Nachname' }}</span>
-                        <input type="text" class="detail-edit-input hidden" value="{{ last_display or '' }}" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)" style="font-size: 22px; font-weight: 800; color: #1e293b; padding: 2px 8px; border-radius: 8px; border: 2px solid #818cf8; width: 200px;">
+                        <input type="text" class="detail-edit-input hidden" value="{{ last_display or '' }}" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)" style="font-size: 22px; font-weight: 800; color: var(--pp-text); padding: 2px 8px; border-radius: 8px; border: 2px solid var(--pp-accent); width: 200px; background: var(--pp-surface);">
                     </div>
                 </div>
 
@@ -204,14 +204,14 @@
                 <div style="display: flex; align-items: center; gap: 6px; margin-top: 4px; flex-wrap: wrap;">
                     <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="current_position">
                         <span class="detail-edit-display" onclick="startDetailEdit(this)" title="Position bearbeiten" style="font-size: 14px; color: rgba(255,255,255,0.7); font-weight: 500; cursor: pointer;">{{ position_display or 'Keine Position angegeben' }}</span>
-                        <input type="text" class="detail-edit-input hidden" value="{{ position_display or '' }}" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)" style="font-size: 14px; color: #1e293b; padding: 2px 8px; border-radius: 8px; border: 2px solid #818cf8;">
+                        <input type="text" class="detail-edit-input hidden" value="{{ position_display or '' }}" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)" style="font-size: 14px; color: var(--pp-text); padding: 2px 8px; border-radius: 8px; border: 2px solid var(--pp-accent); background: var(--pp-surface);">
                     </div>
                     {% if company_display %}
                     <span style="color: rgba(255,255,255,0.4);">&middot;</span>
                     {% endif %}
                     <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="current_company">
                         <span class="detail-edit-display" onclick="startDetailEdit(this)" title="Unternehmen bearbeiten" style="font-size: 14px; color: rgba(255,255,255,0.5); font-weight: 500; cursor: pointer;">{{ company_display or 'Kein Unternehmen' }}</span>
-                        <input type="text" class="detail-edit-input hidden" value="{{ company_display or '' }}" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)" style="font-size: 14px; color: #1e293b; padding: 2px 8px; border-radius: 8px; border: 2px solid #818cf8;">
+                        <input type="text" class="detail-edit-input hidden" value="{{ company_display or '' }}" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)" style="font-size: 14px; color: var(--pp-text); padding: 2px 8px; border-radius: 8px; border: 2px solid var(--pp-accent); background: var(--pp-surface);">
                     </div>
                 </div>
 
@@ -374,26 +374,26 @@
             <div x-show="showPipelineModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
                 <div class="flex items-center justify-center min-h-screen p-4">
                     <div x-show="showPipelineModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm" @click="showPipelineModal = false"></div>
-                    <div x-show="showPipelineModal" x-transition class="relative bg-white rounded-2xl p-8 max-w-xl w-full shadow-2xl z-10" style="font-family: inherit;">
+                    <div x-show="showPipelineModal" x-transition class="relative rounded-2xl p-8 max-w-xl w-full shadow-2xl z-10" style="font-family: inherit; background: var(--pp-surface);">
                         <div class="text-center mb-6">
-                            <div class="mx-auto flex items-center justify-center h-14 w-14 rounded-2xl bg-indigo-100 mb-4">
+                            <div class="mx-auto flex items-center justify-center h-14 w-14 rounded-2xl mb-4" style="background: var(--pp-surfaceHover);"
                                 <svg class="h-7 w-7 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                             </div>
-                            <h3 class="text-xl font-bold text-gray-900">Zur Pipeline hinzuf&uuml;gen</h3>
-                            <p class="mt-1 text-sm text-gray-500">Stelle und Phase w&auml;hlen</p>
+                            <h3 class="text-xl font-bold" style="color: var(--pp-text);">Zur Pipeline hinzuf&uuml;gen</h3>
+                            <p class="mt-1 text-sm" style="color: var(--pp-textDim);">Stelle und Phase w&auml;hlen</p>
                         </div>
                         <div class="space-y-4">
                             <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-2">Stelle</label>
+                                <label class="block text-sm font-semibold mb-2" style="color: var(--pp-text);">Stelle</label>
                                 <div class="relative" @click.away="showJobDropdown = false">
-                                    <button type="button" @click="showJobDropdown = !showJobDropdown" class="relative w-full cursor-pointer rounded-xl bg-white py-3 pl-4 pr-10 text-left text-sm shadow-sm ring-1 ring-inset ring-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500" style="font-family: inherit;">
+                                    <button type="button" @click="showJobDropdown = !showJobDropdown" class="relative w-full cursor-pointer rounded-xl py-3 pl-4 pr-10 text-left text-sm shadow-sm focus:outline-none" style="font-family: inherit; background: var(--pp-surface); color: var(--pp-text); border: 1px solid var(--pp-border);">
                                         <span class="block truncate" x-text="selectedJobName || 'Stelle ausw\u00e4hlen...'"></span>
                                         <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3"><svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a.75.75 0 01.55.24l3.25 3.5a.75.75 0 11-1.1 1.02L10 4.852 7.3 7.76a.75.75 0 01-1.1-1.02l3.25-3.5A.75.75 0 0110 3zm-3.76 9.2a.75.75 0 011.06.04l2.7 2.908 2.7-2.908a.75.75 0 111.1 1.02l-3.25 3.5a.75.75 0 01-1.1 0l-3.25-3.5a.75.75 0 01.04-1.06z" clip-rule="evenodd" /></svg></span>
                                     </button>
-                                    <div x-show="showJobDropdown" x-cloak class="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-xl bg-white py-1 text-sm shadow-lg ring-1 ring-black/5">
-                                        <template x-if="jobs.length === 0"><div class="px-4 py-3 text-gray-500">Keine Stellen vorhanden</div></template>
+                                    <div x-show="showJobDropdown" x-cloak class="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-xl py-1 text-sm shadow-lg ring-1 ring-black/5" style="background: var(--pp-surface);">
+                                        <template x-if="jobs.length === 0"><div class="px-4 py-3" style="color: var(--pp-textDim);">Keine Stellen vorhanden</div></template>
                                         <template x-for="job in jobs" :key="job.id">
-                                            <button type="button" @click="selectJob(job)" class="relative w-full cursor-pointer select-none py-3 pl-4 pr-9 text-left hover:bg-indigo-50" :class="selectedJob === job.id ? 'bg-indigo-100 text-indigo-900' : 'text-gray-900'" style="font-family: inherit;">
+                                            <button type="button" @click="selectJob(job)" class="relative w-full cursor-pointer select-none py-3 pl-4 pr-9 text-left" :style="selectedJob === job.id ? 'background: var(--pp-surfaceHover); color: var(--pp-accent);' : 'color: var(--pp-text);'" style="font-family: inherit;">
                                                 <span class="block truncate" x-text="job.company_name ? job.company_name + ' - ' + job.title : job.title"></span>
                                             </button>
                                         </template>
@@ -405,33 +405,33 @@
                                         <span x-text="showNewJobForm ? 'Abbrechen' : 'Neue Stelle erstellen'"></span>
                                     </button>
                                 </div>
-                                <div x-show="showNewJobForm" x-cloak class="mt-3 p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-3">
+                                <div x-show="showNewJobForm" x-cloak class="mt-3 p-4 rounded-xl space-y-3" style="background: var(--pp-bg); border: 1px solid var(--pp-border);">
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700">Stellentitel *</label>
-                                        <input type="text" x-model="newJobTitle" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm py-2" placeholder="z.B. Senior Accountant" style="font-family: inherit;">
+                                        <label class="block text-sm font-medium" style="color: var(--pp-text);">Stellentitel *</label>
+                                        <input type="text" x-model="newJobTitle" class="mt-1 block w-full rounded-lg shadow-sm text-sm py-2" placeholder="z.B. Senior Accountant" style="font-family: inherit; background: var(--pp-surface); color: var(--pp-text); border: 1px solid var(--pp-border);">
                                     </div>
                                     <div class="relative" @click.away="filteredCompanies = []">
-                                        <label class="block text-sm font-medium text-gray-700">Unternehmen *</label>
-                                        <input type="text" x-model="newJobCompanyName" @input="filterCompanies()" @focus="filterCompanies()" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm py-2" placeholder="Unternehmen suchen..." style="font-family: inherit;">
-                                        <div x-show="filteredCompanies.length > 0" class="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                                        <label class="block text-sm font-medium" style="color: var(--pp-text);">Unternehmen *</label>
+                                        <input type="text" x-model="newJobCompanyName" @input="filterCompanies()" @focus="filterCompanies()" class="mt-1 block w-full rounded-lg shadow-sm text-sm py-2" placeholder="Unternehmen suchen..." style="font-family: inherit; background: var(--pp-surface); color: var(--pp-text); border: 1px solid var(--pp-border);">
+                                        <div x-show="filteredCompanies.length > 0" class="absolute z-10 mt-1 w-full rounded-lg shadow-lg max-h-48 overflow-y-auto" style="background: var(--pp-surface); border: 1px solid var(--pp-border);">
                                             <template x-for="company in filteredCompanies" :key="company.id">
-                                                <button type="button" @click="selectCompany(company)" class="w-full text-left px-4 py-2 text-sm hover:bg-gray-100" x-text="company.name" style="font-family: inherit;"></button>
+                                                <button type="button" @click="selectCompany(company)" class="w-full text-left px-4 py-2 text-sm" x-text="company.name" style="font-family: inherit; color: var(--pp-text);" onmouseenter="this.style.background='var(--pp-surfaceHover)'" onmouseleave="this.style.background='transparent'"></button>
                                             </template>
                                         </div>
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700">Ort (optional)</label>
-                                        <input type="text" x-model="newJobCity" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm py-2" placeholder="z.B. Berlin" style="font-family: inherit;">
+                                        <label class="block text-sm font-medium" style="color: var(--pp-text);">Ort (optional)</label>
+                                        <input type="text" x-model="newJobCity" class="mt-1 block w-full rounded-lg shadow-sm text-sm py-2" placeholder="z.B. Berlin" style="font-family: inherit; background: var(--pp-surface); color: var(--pp-text); border: 1px solid var(--pp-border);">
                                     </div>
                                     <div class="flex gap-2 pt-1">
                                         <button type="button" @click="createJob()" :disabled="!newJobTitle || !newJobCompanyId || creatingJob" class="inline-flex items-center px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg disabled:opacity-50" style="font-family: inherit;">Stelle erstellen</button>
-                                        <button type="button" @click="showNewJobForm = false" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50" style="font-family: inherit;">Abbrechen</button>
+                                        <button type="button" @click="showNewJobForm = false" class="px-4 py-2 text-sm font-medium rounded-lg" style="font-family: inherit; background: var(--pp-surface); color: var(--pp-text); border: 1px solid var(--pp-border);">Abbrechen</button>
                                     </div>
                                 </div>
                             </div>
                             <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-2">Phase</label>
-                                <select x-model="selectedStage" class="block w-full rounded-xl border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm py-3" style="font-family: inherit;">
+                                <label class="block text-sm font-semibold mb-2" style="color: var(--pp-text);">Phase</label>
+                                <select x-model="selectedStage" class="block w-full rounded-xl shadow-sm text-sm py-3" style="font-family: inherit; background: var(--pp-surface); color: var(--pp-text); border: 1px solid var(--pp-border);">
                                     <option value="sent">Vorgestellt</option>
                                     <option value="interview_1">Interview 1</option>
                                     <option value="interview_2">Interview 2</option>
@@ -441,7 +441,7 @@
                             </div>
                         </div>
                         <div class="mt-6 grid grid-cols-2 gap-3">
-                            <button type="button" @click="showPipelineModal = false" class="py-3 rounded-xl bg-gray-100 text-gray-700 text-sm font-semibold hover:bg-gray-200" style="font-family: inherit;">Abbrechen</button>
+                            <button type="button" @click="showPipelineModal = false" class="py-3 rounded-xl text-sm font-semibold" style="font-family: inherit; background: var(--pp-surfaceHover); color: var(--pp-text);">Abbrechen</button>
                             <button type="button" @click="addToPipeline()" :disabled="!selectedJob || loading" class="py-3 rounded-xl text-white text-sm font-semibold disabled:opacity-50" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); font-family: inherit;">
                                 <svg x-show="loading" class="animate-spin inline -ml-1 mr-1.5 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
                                 Hinzuf&uuml;gen
@@ -470,37 +470,37 @@
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                         {# Email #}
                         <div>
-                            <div style="font-size: 11px; color: #94a3b8; font-weight: 600; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.06em;">E-Mail</div>
+                            <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.06em;">E-Mail</div>
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 {% if candidate.email %}
-                                <span style="font-size: 13.5px; font-weight: 600; color: #4f46e5;">{{ candidate.email }}</span>
+                                <span style="font-size: 13.5px; font-weight: 600; color: var(--pp-accent);">{{ candidate.email }}</span>
                                 <button type="button" onclick="copyToClipboard('{{ candidate.email }}', 'E-Mail')" class="kd-copy-btn">&#x1F4CB;</button>
                                 {% else %}
-                                <span style="font-size: 13.5px; font-weight: 600; color: #c4c9d4; font-style: italic;">Nicht angegeben</span>
+                                <span style="font-size: 13.5px; font-weight: 600; color: var(--pp-textDim); font-style: italic;">Nicht angegeben</span>
                                 {% endif %}
                             </div>
                         </div>
                         {# Phone #}
                         <div>
-                            <div style="font-size: 11px; color: #94a3b8; font-weight: 600; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.06em;">Telefon</div>
+                            <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.06em;">Telefon</div>
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 {% if candidate.phone %}
-                                <span style="font-size: 13.5px; font-weight: 600; color: #4f46e5;">{{ candidate.phone }}</span>
+                                <span style="font-size: 13.5px; font-weight: 600; color: var(--pp-accent);">{{ candidate.phone }}</span>
                                 <button type="button" onclick="copyToClipboard('{{ candidate.phone }}', 'Telefonnummer')" class="kd-copy-btn">&#x1F4CB;</button>
                                 {% else %}
-                                <span style="font-size: 13.5px; font-weight: 600; color: #c4c9d4; font-style: italic;">Nicht angegeben</span>
+                                <span style="font-size: 13.5px; font-weight: 600; color: var(--pp-textDim); font-style: italic;">Nicht angegeben</span>
                                 {% endif %}
                             </div>
                         </div>
                         {# Address #}
                         <div style="grid-column: 1 / -1;">
-                            <div style="font-size: 11px; color: #94a3b8; font-weight: 600; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.06em;">Adresse</div>
+                            <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.06em;">Adresse</div>
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 {% if candidate.street_address or candidate.postal_code or city_display %}
-                                <span style="font-size: 13.5px; font-weight: 600; color: #1e293b;" id="address-text">{% if candidate.street_address %}{{ candidate.street_address }}{% endif %}{% if candidate.postal_code or city_display %}{% if candidate.street_address %}, {% endif %}{{ candidate.postal_code }} {{ city_display }}{% endif %}</span>
+                                <span style="font-size: 13.5px; font-weight: 600; color: var(--pp-text);" id="address-text">{% if candidate.street_address %}{{ candidate.street_address }}{% endif %}{% if candidate.postal_code or city_display %}{% if candidate.street_address %}, {% endif %}{{ candidate.postal_code }} {{ city_display }}{% endif %}</span>
                                 <button type="button" onclick="copyToClipboard(document.getElementById('address-text').textContent.trim(), 'Adresse')" class="kd-copy-btn">&#x1F4CB;</button>
                                 {% else %}
-                                <span style="font-size: 13.5px; font-weight: 600; color: #c4c9d4; font-style: italic;">Nicht angegeben</span>
+                                <span style="font-size: 13.5px; font-weight: 600; color: var(--pp-textDim); font-style: italic;">Nicht angegeben</span>
                                 {% endif %}
                             </div>
                         </div>
@@ -513,60 +513,60 @@
                  x-data="pipelineFields()">
                 <div class="kd-section-header">
                     <div class="kd-section-title"><span>&#x1F3AF;</span> Pipeline-Daten</div>
-                    <span style="font-size: 11.5px; font-weight: 650; padding: 5px 12px; border-radius: 8px; background: #eef2ff; color: #4f46e5; border: 1.5px solid #c7d2fe;">F&uuml;r Pipeline</span>
+                    <span style="font-size: 11.5px; font-weight: 650; padding: 5px 12px; border-radius: 8px; background: var(--pp-surfaceHover); color: var(--pp-accent); border: 1.5px solid var(--pp-border);">F&uuml;r Pipeline</span>
                 </div>
                 <div class="kd-section-body">
                     <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
                         {# Gehalt #}
                         <div>
-                            <div style="font-size: 11px; color: #94a3b8; font-weight: 600; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em;">Gehaltswunsch</div>
+                            <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em;">Gehaltswunsch</div>
                             <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="salary">
-                                <span class="detail-edit-display" onclick="startDetailEdit(this)" title="Gehalt bearbeiten" style="font-size: 13.5px; font-weight: 600; color: {% if candidate.salary %}#1e293b{% else %}#c4c9d4{% endif %}; {% if not candidate.salary %}font-style: italic;{% endif %} cursor: pointer;">{{ candidate.salary or 'Nicht angegeben' }}</span>
-                                <input type="text" class="detail-edit-input hidden" value="{{ candidate.salary or '' }}" placeholder="z.B. 55.000 &euro;" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)" style="font-size: 13px; padding: 4px 8px; border-radius: 8px; border: 1.5px solid #c7d2fe; width: 100%; font-family: inherit;">
+                                <span class="detail-edit-display" onclick="startDetailEdit(this)" title="Gehalt bearbeiten" style="font-size: 13.5px; font-weight: 600; color: {% if candidate.salary %}var(--pp-text){% else %}var(--pp-textDim){% endif %}; {% if not candidate.salary %}font-style: italic;{% endif %} cursor: pointer;">{{ candidate.salary or 'Nicht angegeben' }}</span>
+                                <input type="text" class="detail-edit-input hidden" value="{{ candidate.salary or '' }}" placeholder="z.B. 55.000 &euro;" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)" style="font-size: 13px; padding: 4px 8px; border-radius: 8px; border: 1.5px solid var(--pp-accent); width: 100%; font-family: inherit;">
                             </div>
                         </div>
                         {# Kuendigungsfrist #}
                         <div>
-                            <div style="font-size: 11px; color: #94a3b8; font-weight: 600; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em;">K&uuml;ndigungsfrist</div>
+                            <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em;">K&uuml;ndigungsfrist</div>
                             <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="notice_period">
-                                <span class="detail-edit-display" onclick="startDetailEdit(this)" title="K&uuml;ndigungsfrist bearbeiten" style="font-size: 13.5px; font-weight: 600; color: {% if candidate.notice_period %}#1e293b{% else %}#c4c9d4{% endif %}; {% if not candidate.notice_period %}font-style: italic;{% endif %} cursor: pointer;">{{ candidate.notice_period or 'Nicht angegeben' }}</span>
-                                <input type="text" class="detail-edit-input hidden" value="{{ candidate.notice_period or '' }}" placeholder="z.B. 3 Monate" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)" style="font-size: 13px; padding: 4px 8px; border-radius: 8px; border: 1.5px solid #c7d2fe; width: 100%; font-family: inherit;">
+                                <span class="detail-edit-display" onclick="startDetailEdit(this)" title="K&uuml;ndigungsfrist bearbeiten" style="font-size: 13.5px; font-weight: 600; color: {% if candidate.notice_period %}var(--pp-text){% else %}var(--pp-textDim){% endif %}; {% if not candidate.notice_period %}font-style: italic;{% endif %} cursor: pointer;">{{ candidate.notice_period or 'Nicht angegeben' }}</span>
+                                <input type="text" class="detail-edit-input hidden" value="{{ candidate.notice_period or '' }}" placeholder="z.B. 3 Monate" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)" style="font-size: 13px; padding: 4px 8px; border-radius: 8px; border: 1.5px solid var(--pp-accent); width: 100%; font-family: inherit;">
                             </div>
                         </div>
                         {# Rating #}
                         <div>
-                            <div style="font-size: 11px; color: #94a3b8; font-weight: 600; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em;">Bewertung</div>
+                            <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em;">Bewertung</div>
                             <div style="display: flex; align-items: center; gap: 6px;">
                                 <div style="display: flex; gap: 3px;">
                                     {% for i in range(1, 6) %}
                                     <button type="button" @click="setRating({{ i }})" style="background: none; border: none; cursor: pointer; padding: 0; font-size: 18px; transition: transform 0.15s;" onmouseenter="this.style.transform='scale(1.2)'" onmouseleave="this.style.transform='scale(1)'">
-                                        <span id="star-{{ i }}" style="color: {% if candidate.rating and i <= candidate.rating %}#f59e0b{% else %}#e2e5ec{% endif %};">&#9733;</span>
+                                        <span id="star-{{ i }}" style="color: {% if candidate.rating and i <= candidate.rating %}#f59e0b{% else %}var(--pp-border){% endif %};">&#9733;</span>
                                     </button>
                                     {% endfor %}
                                 </div>
-                                <span style="font-size: 11.5px; color: #64748b; font-weight: 500;" x-text="currentRating ? currentRating + '/5' : 'Nicht bewertet'"></span>
-                                <button type="button" x-show="currentRating > 0" @click="clearRating()" style="font-size: 11px; color: #94a3b8; background: none; border: none; cursor: pointer; font-family: inherit; padding: 2px 6px; border-radius: 4px;" onmouseenter="this.style.color='#ef4444'" onmouseleave="this.style.color='#94a3b8'">&#x2715;</button>
+                                <span style="font-size: 11.5px; color: var(--pp-textMuted); font-weight: 500;" x-text="currentRating ? currentRating + '/5' : 'Nicht bewertet'"></span>
+                                <button type="button" x-show="currentRating > 0" @click="clearRating()" style="font-size: 11px; color: var(--pp-textDim); background: none; border: none; cursor: pointer; font-family: inherit; padding: 2px 6px; border-radius: 4px;">&#x2715;</button>
                             </div>
                         </div>
                     </div>
                     {# ERP #}
-                    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #f0f2f5;">
-                        <div style="font-size: 11px; color: #94a3b8; font-weight: 600; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.06em;">ERP-Kenntnisse</div>
+                    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--pp-surfaceHover);">
+                        <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.06em;">ERP-Kenntnisse</div>
                         {% if candidate.erp and candidate.erp | length > 0 %}
                         <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;">
                             {% for erp_item in candidate.erp %}
-                            <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 8px; background: #eef2ff; color: #4f46e5; border: 1px solid #c7d2fe;">
+                            <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 8px; background: var(--pp-surfaceHover); color: var(--pp-accent); border: 1px solid var(--pp-border);">
                                 {{ erp_item }}
                                 <button type="button" onclick="removeErp('{{ erp_item }}')" style="background: none; border: none; cursor: pointer; color: #a5b4fc; font-size: 14px; padding: 0; margin-left: 2px; line-height: 1;" onmouseenter="this.style.color='#ef4444'" onmouseleave="this.style.color='#a5b4fc'">&times;</button>
                             </span>
                             {% endfor %}
                         </div>
                         {% else %}
-                        <div style="font-size: 12px; color: #c4c9d4; font-style: italic; margin-bottom: 10px;">Keine ERP-Kenntnisse angegeben</div>
+                        <div style="font-size: 12px; color: var(--pp-textDim); font-style: italic; margin-bottom: 10px;">Keine ERP-Kenntnisse angegeben</div>
                         {% endif %}
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <input type="text" x-model="newErp" @keydown.enter.prevent="addErp()" placeholder="z.B. SAP, DATEV..." style="padding: 8px 12px; border-radius: 8px; border: 1.5px solid #e2e5ec; font-size: 12.5px; font-weight: 500; color: #1e293b; outline: none; width: 180px; font-family: inherit;">
-                            <button type="button" @click="addErp()" style="padding: 8px 14px; border-radius: 8px; background: #eef2ff; border: 1.5px solid #c7d2fe; color: #4f46e5; font-size: 12px; font-weight: 650; cursor: pointer; font-family: inherit;">+ Hinzuf&uuml;gen</button>
+                            <input type="text" x-model="newErp" @keydown.enter.prevent="addErp()" placeholder="z.B. SAP, DATEV..." style="padding: 8px 12px; border-radius: 8px; border: 1.5px solid var(--pp-border); font-size: 12.5px; font-weight: 500; color: var(--pp-text); outline: none; width: 180px; font-family: inherit; background: var(--pp-surface);">
+                            <button type="button" @click="addErp()" style="padding: 8px 14px; border-radius: 8px; background: var(--pp-surfaceHover); border: 1.5px solid var(--pp-border); color: var(--pp-accent); font-size: 12px; font-weight: 650; cursor: pointer; font-family: inherit;">+ Hinzuf&uuml;gen</button>
                         </div>
                     </div>
                 </div>
@@ -576,7 +576,7 @@
             <div class="kd-section kd-anim" style="animation-delay: 300ms;" id="experience">
                 <div class="kd-section-header">
                     <div class="kd-section-title"><span>&#x1F4BC;</span> Berufserfahrung</div>
-                    <button type="button" onclick="copyWerdegang()" style="display: flex; align-items: center; gap: 6px; background: #f4f6f8; border: 1.5px solid #e2e5ec; border-radius: 8px; padding: 5px 12px; font-size: 11.5px; font-weight: 650; color: #475569; cursor: pointer; font-family: inherit;">&#x1F4CB; Profil kopieren</button>
+                    <button type="button" onclick="copyWerdegang()" style="display: flex; align-items: center; gap: 6px; background: var(--pp-surfaceHover); border: 1.5px solid var(--pp-border); border-radius: 8px; padding: 5px 12px; font-size: 11.5px; font-weight: 650; color: var(--pp-text); cursor: pointer; font-family: inherit;">&#x1F4CB; Profil kopieren</button>
                 </div>
                 <div class="kd-section-body">
                     {% if candidate.work_history and candidate.work_history is iterable and candidate.work_history is not string and candidate.work_history | length > 0 %}
@@ -620,7 +620,7 @@
                                 {% endif %}
                             {% endif %}
                         {% endif %}
-                        <div style="display: flex; gap: 16px; padding: 18px 0; {% if not is_last %}border-bottom: 1px solid #f0f2f5;{% endif %}">
+                        <div style="display: flex; gap: 16px; padding: 18px 0; {% if not is_last %}border-bottom: 1px solid var(--pp-surfaceHover);{% endif %}">
                             {# Timeline dot + line #}
                             <div style="display: flex; flex-direction: column; align-items: center; padding-top: 4px; flex-shrink: 0; width: 20px;">
                                 <div class="{% if is_first %}kd-exp-dot-current{% else %}kd-exp-dot-past{% endif %}"></div>
@@ -632,21 +632,21 @@
                             <div style="flex: 1; min-width: 0;">
                                 <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 6px; flex-wrap: wrap;">
                                     <div>
-                                        <div style="font-size: 14.5px; font-weight: 720; color: #0f172a; letter-spacing: -0.01em; line-height: 1.3;">
+                                        <div style="font-size: 14.5px; font-weight: 720; color: var(--pp-text); letter-spacing: -0.01em; line-height: 1.3;">
                                             {{ job.position | default(job.title | default('Unbekannte Position')) }}
                                         </div>
-                                        <div style="font-size: 13px; color: #64748b; margin-top: 3px; font-weight: 500;">
+                                        <div style="font-size: 13px; color: var(--pp-textMuted); margin-top: 3px; font-weight: 500;">
                                             {{ job.company | default('Unbekanntes Unternehmen') }}
                                         </div>
                                     </div>
                                     <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
                                         {% if job.start_date %}
-                                        <span style="font-size: 12px; color: #94a3b8; font-weight: 500; white-space: nowrap;">
+                                        <span style="font-size: 12px; color: var(--pp-textDim); font-weight: 500; white-space: nowrap;">
                                             {{ job.start_date }}{% if job.end_date and job.end_date != 'None' %} &ndash; {{ job.end_date }}{% else %} &ndash; heute{% endif %}
                                         </span>
                                         {% endif %}
                                         {% if dur_text %}
-                                        <span style="font-size: 11px; font-weight: 650; padding: 3px 10px; border-radius: 8px; background: {% if is_first %}#eef2ff{% else %}#f4f6f8{% endif %}; color: {% if is_first %}#4f46e5{% else %}#64748b{% endif %}; white-space: nowrap;">
+                                        <span style="font-size: 11px; font-weight: 650; padding: 3px 10px; border-radius: 8px; background: var(--pp-surfaceHover); color: {% if is_first %}var(--pp-accent){% else %}var(--pp-textMuted){% endif %}; white-space: nowrap;">
                                             {{ dur_text }}
                                         </span>
                                         {% endif %}
@@ -658,8 +658,8 @@
                                     {% for line in job.description.split('\n') %}
                                     {% set clean_line = line.strip().lstrip('•').lstrip('-').lstrip('–').strip() %}
                                     {% if clean_line and clean_line != 'None' and clean_line != 'null' %}
-                                    <div style="display: flex; gap: 8px; font-size: 13px; color: #475569; line-height: 1.55;">
-                                        <span style="color: #c7ccd6; margin-top: 2px; flex-shrink: 0; font-size: 6px; line-height: 22px;">&#x25CF;</span>
+                                    <div style="display: flex; gap: 8px; font-size: 13px; color: var(--pp-text); line-height: 1.55;">
+                                        <span style="color: var(--pp-border); margin-top: 2px; flex-shrink: 0; font-size: 6px; line-height: 22px;">&#x25CF;</span>
                                         <span>{{ clean_line }}</span>
                                     </div>
                                     {% endif %}
@@ -672,7 +672,7 @@
                     {% else %}
                     <div style="display: flex; flex-direction: column; align-items: center; padding: 20px 0;">
                         <div style="font-size: 24px; margin-bottom: 8px; opacity: 0.4;">&#x1F4BC;</div>
-                        <div style="font-size: 12px; font-weight: 600; color: #94a3b8;">Keine Berufserfahrung hinterlegt</div>
+                        <div style="font-size: 12px; font-weight: 600; color: var(--pp-textDim);">Keine Berufserfahrung hinterlegt</div>
                     </div>
                     {% endif %}
                 </div>
@@ -690,12 +690,12 @@
                         {% if skill and skill != 'None' and skill != 'null' %}
                         {% set sk_low = skill.lower() %}
                         {% set is_core = sk_low in ['sap', 'sap s/4hana', 'sap-sem-bcs', 'sap fi', 'sap co', 'sap mm', 'sap bcs', 'cch tagetik', 'datev', 'addison', 'oracle', 'navision', 'dynamics', 'lucanet', 'sigma', 'hyperion', 'cognos', 'jedox', 'board', 'anaplan'] or 'sap' in sk_low or 'erp' in sk_low or 'datev' in sk_low or 'tagetik' in sk_low or 'lucanet' in sk_low or 'konsolidierung' in sk_low or 'hyperion' in sk_low or 'cognos' in sk_low %}
-                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: 10px; background: {% if is_core %}#eef2ff{% else %}#f8fafc{% endif %}; border: 1px solid {% if is_core %}#ddd6fe{% else %}#eef0f4{% endif %};">
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: 10px; background: var(--pp-surfaceHover); border: 1px solid {% if is_core %}var(--pp-accent){% else %}var(--pp-border){% endif %};">
                             <div style="display: flex; align-items: center; gap: 10px;">
                                 {% if is_core %}
-                                <span style="font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 5px; background: #6366f1; color: #fff; text-transform: uppercase; letter-spacing: 0.05em;">CORE</span>
+                                <span style="font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 5px; background: var(--pp-accent); color: #fff; text-transform: uppercase; letter-spacing: 0.05em;">CORE</span>
                                 {% endif %}
-                                <span style="font-size: 13.5px; font-weight: 680; color: #1e293b;">{{ skill }}</span>
+                                <span style="font-size: 13.5px; font-weight: 680; color: var(--pp-text);">{{ skill }}</span>
                             </div>
                         </div>
                         {% endif %}
@@ -704,7 +704,7 @@
                     {% else %}
                     <div style="display: flex; flex-direction: column; align-items: center; padding: 20px 0;">
                         <div style="font-size: 24px; margin-bottom: 8px; opacity: 0.4;">&#x1F4BB;</div>
-                        <div style="font-size: 12px; font-weight: 600; color: #94a3b8;">Keine IT-Kenntnisse hinterlegt</div>
+                        <div style="font-size: 12px; font-weight: 600; color: var(--pp-textDim);">Keine IT-Kenntnisse hinterlegt</div>
                     </div>
                     {% endif %}
                 </div>
@@ -724,14 +724,14 @@
                         {% set is_native = 'mutter' in lang_level.lower() if lang_level else false %}
                         {% set pct = 100 if is_native else (95 if 'flie' in lang_level.lower() else (85 if 'verhandlung' in lang_level.lower() else (70 if 'gut' in lang_level.lower() else (50 if 'grund' in lang_level.lower() else 60)))) if lang_level else 50 %}
                         <div style="display: flex; align-items: center; gap: 14px; padding: 8px 0;">
-                            <div style="width: 80px; font-size: 13px; font-weight: 650; color: #1e293b;">{{ lang_name }}</div>
+                            <div style="width: 80px; font-size: 13px; font-weight: 650; color: var(--pp-text);">{{ lang_name }}</div>
                             <div style="flex: 1;">
                                 <div class="kd-lang-bar">
                                     <div class="kd-lang-fill" style="width: {{ pct }}%; background: linear-gradient(90deg, {% if is_native %}#10b981, #34d399{% else %}#6366f1, #a78bfa{% endif %});"></div>
                                 </div>
                             </div>
                             {% if lang_level and lang_level != 'None' and lang_level != 'null' %}
-                            <div style="font-size: 11.5px; color: #64748b; font-weight: 500; min-width: 180px; text-align: right;">{{ lang_level }}</div>
+                            <div style="font-size: 11.5px; color: var(--pp-textMuted); font-weight: 500; min-width: 180px; text-align: right;">{{ lang_level }}</div>
                             {% endif %}
                         </div>
                         {% endif %}{% endfor %}
@@ -739,7 +739,7 @@
                     {% else %}
                     <div style="display: flex; flex-direction: column; align-items: center; padding: 20px 0;">
                         <div style="font-size: 24px; margin-bottom: 8px; opacity: 0.4;">&#x1F310;</div>
-                        <div style="font-size: 12px; font-weight: 600; color: #94a3b8;">Keine Sprachen hinterlegt</div>
+                        <div style="font-size: 12px; font-weight: 600; color: var(--pp-textDim);">Keine Sprachen hinterlegt</div>
                     </div>
                     {% endif %}
                 </div>
@@ -754,13 +754,13 @@
                     {% if candidate.skills and candidate.skills | length > 0 %}
                     {# Legend #}
                     <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-                        <span style="display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: #94a3b8; font-weight: 500;">
+                        <span style="display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--pp-textDim); font-weight: 500;">
                             <span style="width: 8px; height: 8px; border-radius: 3px; background: #4f46e5;"></span> Fachlich
                         </span>
-                        <span style="display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: #94a3b8; font-weight: 500;">
+                        <span style="display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--pp-textDim); font-weight: 500;">
                             <span style="width: 8px; height: 8px; border-radius: 3px; background: #059669;"></span> Technisch
                         </span>
-                        <span style="display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: #94a3b8; font-weight: 500;">
+                        <span style="display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--pp-textDim); font-weight: 500;">
                             <span style="width: 8px; height: 8px; border-radius: 3px; background: #a16207;"></span> Sonstige
                         </span>
                     </div>
@@ -778,7 +778,7 @@
                     {% else %}
                     <div style="display: flex; flex-direction: column; align-items: center; padding: 20px 0;">
                         <div style="font-size: 24px; margin-bottom: 8px; opacity: 0.4;">&#x1F9E9;</div>
-                        <div style="font-size: 12px; font-weight: 600; color: #94a3b8;">Keine Skills hinterlegt</div>
+                        <div style="font-size: 12px; font-weight: 600; color: var(--pp-textDim);">Keine Skills hinterlegt</div>
                     </div>
                     {% endif %}
                 </div>
@@ -816,17 +816,17 @@
                         {# Generische Einträge ohne Details dezenter darstellen #}
                         {% set is_generic = wb_name.lower() in ['seminar', 'e-learning', 'kurs', 'workshop', 'webinar', 'schulung', 'weiterbildung', ''] and not wb_inst %}
                         {% if wb_name %}
-                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: 10px; background: {% if is_generic %}#fcfcfd{% else %}#f8fafc{% endif %}; border: 1px solid {% if is_generic %}#f0f2f5{% else %}#eef0f4{% endif %}; {% if is_generic %}opacity: 0.7;{% endif %}">
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: 10px; background: var(--pp-surfaceHover); border: 1px solid var(--pp-border); {% if is_generic %}opacity: 0.7;{% endif %}">
                             <div>
-                                <div style="font-size: 13.5px; font-weight: {% if is_generic %}550{% else %}650{% endif %}; color: {% if is_generic %}#64748b{% else %}#1e293b{% endif %};">
-                                    {{ wb_name }}{% if is_generic and not wb_inst %} <span style="font-size: 11px; color: #94a3b8; font-weight: 400; font-style: italic;">(ohne Details)</span>{% endif %}
+                                <div style="font-size: 13.5px; font-weight: {% if is_generic %}550{% else %}650{% endif %}; color: {% if is_generic %}var(--pp-textMuted){% else %}var(--pp-text){% endif %};">
+                                    {{ wb_name }}{% if is_generic and not wb_inst %} <span style="font-size: 11px; color: var(--pp-textDim); font-weight: 400; font-style: italic;">(ohne Details)</span>{% endif %}
                                 </div>
                                 {% if wb_inst %}
-                                <div style="font-size: 12px; color: #94a3b8; margin-top: 2px; font-weight: 500;">{{ wb_inst }}</div>
+                                <div style="font-size: 12px; color: var(--pp-textDim); margin-top: 2px; font-weight: 500;">{{ wb_inst }}</div>
                                 {% endif %}
                             </div>
                             {% if wb_timerange %}
-                            <span style="font-size: 12px; color: #64748b; font-weight: 600; background: #eef0f4; padding: 3px 10px; border-radius: 6px; white-space: nowrap;">{{ wb_timerange }}</span>
+                            <span style="font-size: 12px; color: var(--pp-textMuted); font-weight: 600; background: var(--pp-surfaceHover); padding: 3px 10px; border-radius: 6px; white-space: nowrap;">{{ wb_timerange }}</span>
                             {% endif %}
                         </div>
                         {% endif %}
@@ -835,7 +835,7 @@
                     {% else %}
                     <div style="display: flex; flex-direction: column; align-items: center; padding: 20px 0;">
                         <div style="font-size: 24px; margin-bottom: 8px; opacity: 0.4;">&#x1F393;</div>
-                        <div style="font-size: 12px; font-weight: 600; color: #94a3b8;">Keine Zertifikate hinterlegt</div>
+                        <div style="font-size: 12px; font-weight: 600; color: var(--pp-textDim);">Keine Zertifikate hinterlegt</div>
                     </div>
                     {% endif %}
                 </div>
@@ -868,22 +868,22 @@
                     {% else %}
                         {% set edu_timerange = '' %}
                     {% endif %}
-                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: 10px; background: #f8fafc; border: 1px solid #eef0f4;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: 10px; background: var(--pp-surfaceHover); border: 1px solid var(--pp-border);">
                         <div>
-                            <div style="font-size: 14px; font-weight: 680; color: #1e293b;">{{ edu_name }}</div>
+                            <div style="font-size: 14px; font-weight: 680; color: var(--pp-text);">{{ edu_name }}</div>
                             {% if edu_inst and edu_inst != 'None' and edu_inst != 'null' %}
-                            <div style="font-size: 12.5px; color: #64748b; margin-top: 2px; font-weight: 500;">{{ edu_inst }}</div>
+                            <div style="font-size: 12.5px; color: var(--pp-textMuted); margin-top: 2px; font-weight: 500;">{{ edu_inst }}</div>
                             {% endif %}
                         </div>
                         {% if edu_timerange %}
-                        <span style="font-size: 12px; color: #64748b; font-weight: 600; background: #eef0f4; padding: 3px 10px; border-radius: 6px; white-space: nowrap;">{{ edu_timerange }}</span>
+                        <span style="font-size: 12px; color: var(--pp-textMuted); font-weight: 600; background: var(--pp-surfaceHover); padding: 3px 10px; border-radius: 6px; white-space: nowrap;">{{ edu_timerange }}</span>
                         {% endif %}
                     </div>
                     {% endif %}{% endfor %}
                     {% else %}
                     <div style="display: flex; flex-direction: column; align-items: center; padding: 20px 0;">
                         <div style="font-size: 24px; margin-bottom: 8px; opacity: 0.4;">&#x1F4DA;</div>
-                        <div style="font-size: 12px; font-weight: 600; color: #94a3b8;">Keine Ausbildung hinterlegt</div>
+                        <div style="font-size: 12px; font-weight: 600; color: var(--pp-textDim);">Keine Ausbildung hinterlegt</div>
                     </div>
                     {% endif %}
                 </div>
@@ -921,12 +921,12 @@
             <div class="kd-sidebar-card kd-anim-side" style="animation-delay: 250ms;">
                 <div class="kd-sidebar-header">
                     Pipeline-Status
-                    <a href="/ats/pipeline" style="font-size: 11px; font-weight: 600; color: #4f46e5; text-decoration: none;">Pipeline &rarr;</a>
+                    <a href="/ats/pipeline" style="font-size: 11px; font-weight: 600; color: var(--pp-accent); text-decoration: none;">Pipeline &rarr;</a>
                 </div>
                 <div id="candidate-pipeline" hx-get="/partials/candidate-pipeline/{{ candidate.id }}" hx-trigger="load" hx-swap="innerHTML" class="kd-sidebar-body">
                     <div style="display: flex; flex-direction: column; align-items: center; padding: 12px 0;">
                         <div style="font-size: 28px; margin-bottom: 6px; opacity: 0.5;">&#x1F4CB;</div>
-                        <div style="font-size: 12px; font-weight: 600; color: #94a3b8; text-align: center;">L&auml;dt...</div>
+                        <div style="font-size: 12px; font-weight: 600; color: var(--pp-textDim); text-align: center;">L&auml;dt...</div>
                     </div>
                 </div>
             </div>
@@ -936,7 +936,7 @@
                 <div class="kd-sidebar-header">Passende Jobs</div>
                 <div id="matching-jobs" hx-get="/partials/candidate-jobs/{{ candidate.id }}" hx-trigger="load" hx-swap="innerHTML" class="kd-sidebar-body">
                     <div style="display: flex; flex-direction: column; align-items: center; padding: 8px 0;">
-                        <div style="font-size: 12px; color: #94a3b8; text-align: center; font-weight: 500;">L&auml;dt...</div>
+                        <div style="font-size: 12px; color: var(--pp-textDim); text-align: center; font-weight: 500;">L&auml;dt...</div>
                     </div>
                 </div>
             </div>
@@ -948,20 +948,20 @@
                 <div class="kd-sidebar-body">
                     <div style="display: flex; flex-direction: column; gap: 10px;">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span style="font-size: 12px; color: #94a3b8; font-weight: 500;">CV vorhanden</span>
-                            <span style="font-size: 12px; font-weight: 660; color: {% if candidate.cv_url or candidate.cv_stored_path %}#059669{% else %}#94a3b8{% endif %};">{% if candidate.cv_url or candidate.cv_stored_path %}Ja{% else %}Nein{% endif %}</span>
+                            <span style="font-size: 12px; color: var(--pp-textDim); font-weight: 500;">CV vorhanden</span>
+                            <span style="font-size: 12px; font-weight: 660; color: {% if candidate.cv_url or candidate.cv_stored_path %}#059669{% else %}var(--pp-textDim){% endif %};">{% if candidate.cv_url or candidate.cv_stored_path %}Ja{% else %}Nein{% endif %}</span>
                         </div>
                         {% if candidate.cv_parsed_at %}
                         <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span style="font-size: 12px; color: #94a3b8; font-weight: 500;">Zuletzt geparst</span>
-                            <span style="font-size: 12px; font-weight: 660; color: #1e293b;">{{ candidate.cv_parsed_at.strftime('%d.%m.%Y %H:%M') }}</span>
+                            <span style="font-size: 12px; color: var(--pp-textDim); font-weight: 500;">Zuletzt geparst</span>
+                            <span style="font-size: 12px; font-weight: 660; color: var(--pp-text);">{{ candidate.cv_parsed_at.strftime('%d.%m.%Y %H:%M') }}</span>
                         </div>
                         {% endif %}
                     </div>
 
                     {# Drag-Drop Upload Zone #}
                     <div style="margin-top: 12px; border: 2px dashed; border-radius: 10px; padding: 16px; text-align: center; transition: all 0.2s ease; cursor: pointer;"
-                         :style="cvUploading ? 'opacity: 0.5; pointer-events: none; border-color: #d1d5db;' : cvDragging ? 'border-color: #7c3aed; background: #f5f3ff;' : 'border-color: #e2e5ec; background: #fafbfc;'"
+                         :style="cvUploading ? 'opacity: 0.5; pointer-events: none; border-color: var(--pp-border);' : cvDragging ? 'border-color: var(--pp-accent); background: var(--pp-surfaceHover);' : 'border-color: var(--pp-border); background: var(--pp-bg);'"
                          @dragover.prevent="cvDragging = true"
                          @dragenter.prevent="cvDragging = true"
                          @dragleave.prevent="cvDragging = false"
@@ -970,14 +970,14 @@
                         <input type="file" accept=".pdf" class="hidden" x-ref="cvFileInput"
                                @change="if ($event.target.files.length) { let f = $event.target.files[0]; if (!f.name.toLowerCase().endsWith('.pdf')) { showToast('Nur PDF-Dateien erlaubt', 'warning'); return; } cvUploading = true; let fd = new FormData(); fd.append('file', f); fetch('/api/candidates/{{ candidate.id }}/upload-cv', { method: 'POST', body: fd }).then(r => r.json()).then(d => { cvUploading = false; if (d.success) { showToast('CV hochgeladen — wird verarbeitet...', 'success'); setTimeout(() => location.reload(), 3000); } else { showToast(d.message || 'Upload fehlgeschlagen', 'error'); } }).catch(() => { cvUploading = false; showToast('Upload fehlgeschlagen', 'error'); }); $event.target.value = ''; }">
                         <div style="font-size: 22px; margin-bottom: 4px; opacity: 0.5;">&#x1F4C4;</div>
-                        <p x-show="!cvUploading && !cvDragging" style="font-size: 11.5px; color: #64748b; font-weight: 600; margin: 0;">PDF hierher ziehen oder klicken</p>
+                        <p x-show="!cvUploading && !cvDragging" style="font-size: 11.5px; color: var(--pp-textMuted); font-weight: 600; margin: 0;">PDF hierher ziehen oder klicken</p>
                         <p x-show="cvDragging" x-cloak style="font-size: 11.5px; color: #7c3aed; font-weight: 600; margin: 0;">PDF hier ablegen</p>
                         <p x-show="cvUploading" x-cloak style="font-size: 11.5px; color: #7c3aed; font-weight: 600; margin: 0;">Wird hochgeladen...</p>
-                        <p x-show="!cvUploading" style="font-size: 10px; color: #94a3b8; margin: 4px 0 0 0;">Automatisch: Parsing + Geocoding + Kategorisierung</p>
+                        <p x-show="!cvUploading" style="font-size: 10px; color: var(--pp-textDim); margin: 4px 0 0 0;">Automatisch: Parsing + Geocoding + Kategorisierung</p>
                     </div>
 
                     {% if candidate.cv_url or candidate.cv_stored_path %}
-                    <button type="button" hx-post="/api/candidates/{{ candidate.id }}/reparse-cv" hx-swap="none" hx-on::after-request="showToast('CV wird neu geparst...', 'info'); setTimeout(() => location.reload(), 3000)" style="width: 100%; margin-top: 8px; padding: 9px 0; border-radius: 8px; background: #f4f6f8; border: 1.5px solid #e2e5ec; color: #475569; font-size: 12px; font-weight: 650; cursor: pointer; font-family: inherit;">CV neu parsen</button>
+                    <button type="button" hx-post="/api/candidates/{{ candidate.id }}/reparse-cv" hx-swap="none" hx-on::after-request="showToast('CV wird neu geparst...', 'info'); setTimeout(() => location.reload(), 3000)" style="width: 100%; margin-top: 8px; padding: 9px 0; border-radius: 8px; background: var(--pp-surfaceHover); border: 1.5px solid var(--pp-border); color: var(--pp-text); font-size: 12px; font-weight: 650; cursor: pointer; font-family: inherit;">CV neu parsen</button>
                     {% endif %}
                 </div>
             </div>
@@ -993,15 +993,15 @@
         <div class="absolute inset-0 overflow-hidden">
             <div class="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10">
                 <div id="cv-preview-panel" class="pointer-events-auto w-screen max-w-2xl transform transition-transform duration-300 ease-in-out translate-x-full">
-                    <div class="flex h-full flex-col bg-white shadow-xl" style="font-family: 'Outfit', sans-serif;">
-                        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200" style="background: linear-gradient(135deg, #fafbfd, #f7f8fb);">
+                    <div class="flex h-full flex-col shadow-xl" style="font-family: 'Outfit', sans-serif; background: var(--pp-surface);">
+                        <div class="flex items-center justify-between px-6 py-4" style="background: var(--pp-surfaceHover); border-bottom: 1px solid var(--pp-border);">
                             <div>
-                                <h2 class="text-lg font-bold text-gray-900">CV-Vorschau</h2>
-                                <p class="text-sm text-gray-500">{{ display_name }}</p>
+                                <h2 class="text-lg font-bold" style="color: var(--pp-text);">CV-Vorschau</h2>
+                                <p class="text-sm" style="color: var(--pp-textDim);">{{ display_name }}</p>
                             </div>
                             <div class="flex items-center gap-3">
                                 <a href="/api/candidates/{{ candidate.id }}/cv-preview" target="_blank" class="kd-quickbtn" style="font-size: 11.5px; padding: 7px 12px;">&#x2197; Neuer Tab</a>
-                                <button type="button" onclick="closeCvPreview()" style="background: #f1f5f9; border: none; border-radius: 8px; width: 32px; height: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #64748b; font-size: 16px;">&#x2715;</button>
+                                <button type="button" onclick="closeCvPreview()" style="background: var(--pp-surfaceHover); border: none; border-radius: 8px; width: 32px; height: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--pp-textMuted); font-size: 16px;">&#x2715;</button>
                             </div>
                         </div>
                         <div class="flex-1 overflow-hidden relative">
@@ -1068,7 +1068,7 @@ function pipelineFields() {
                     this.currentRating = value;
                     for (var i = 1; i <= 5; i++) {
                         var star = document.getElementById('star-' + i);
-                        if (star) { star.style.color = i <= value ? '#f59e0b' : '#e2e5ec'; }
+                        if (star) { star.style.color = i <= value ? '#f59e0b' : '#2A2D3A'; }
                     }
                     if (typeof showToast === 'function') showToast('Bewertung gespeichert', 'success');
                 }
@@ -1087,7 +1087,7 @@ function pipelineFields() {
                     this.currentRating = 0;
                     for (var i = 1; i <= 5; i++) {
                         var star = document.getElementById('star-' + i);
-                        if (star) { star.style.color = '#e2e5ec'; }
+                        if (star) { star.style.color = '#2A2D3A'; }
                     }
                     if (typeof showToast === 'function') showToast('Bewertung entfernt', 'success');
                 }

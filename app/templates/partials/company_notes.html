@@ -3,34 +3,34 @@
 {% if notes and notes | length > 0 %}
 <div style="display:flex;flex-direction:column;gap:2px;">
     {% for note in notes %}
-    <div style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border-bottom:1px solid #f1f5f9;transition:background 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+    <div style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border-bottom:1px solid var(--pp-border);transition:background 0.15s;" onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='transparent'">
         {# Icon #}
-        <div style="flex-shrink:0;width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;background:#fffbeb;">
+        <div style="flex-shrink:0;width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;background:var(--pp-orangeSoft);">
             &#x1F4DD;
         </div>
         <div style="flex:1;min-width:0;">
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                 {# Kontakt-Name (falls vorhanden) #}
                 {% if note.contact_name %}
-                <span style="font-size:13px;color:#0b69b6;font-weight:600;">{{ note.contact_name }}</span>
+                <span style="font-size:13px;color:var(--pp-accent);font-weight:600;">{{ note.contact_name }}</span>
                 {% endif %}
                 {% if note.title %}
-                <span style="font-size:13px;color:#1e293b;font-weight:600;">{{ note.title }}</span>
+                <span style="font-size:13px;color:var(--pp-text);font-weight:600;">{{ note.title }}</span>
                 {% endif %}
             </div>
 
             {# Inhalt #}
-            <p style="font-size:13px;color:#334155;margin:3px 0 0;line-height:1.5;white-space:pre-wrap;">{{ note.content }}</p>
+            <p style="font-size:13px;color:var(--pp-textMuted);margin:3px 0 0;line-height:1.5;white-space:pre-wrap;">{{ note.content }}</p>
         </div>
 
         {# Datum + Loeschen #}
         <div style="flex-shrink:0;text-align:right;min-width:80px;display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
-            <span style="font-size:11px;color:#94a3b8;font-weight:500;">{{ note.created_at | datetime }}</span>
-            <button onclick="deleteCompanyNote('{{ note.id }}')" style="background:none;border:none;cursor:pointer;color:#94a3b8;font-size:12px;padding:2px 4px;" onmouseover="this.style.color='#dc2626'" onmouseout="this.style.color='#94a3b8'" title="Löschen">&#x2715;</button>
+            <span style="font-size:11px;color:var(--pp-textDim);font-weight:500;">{{ note.created_at | datetime }}</span>
+            <button onclick="deleteCompanyNote('{{ note.id }}')" style="background:none;border:none;cursor:pointer;color:var(--pp-textDim);font-size:12px;padding:2px 4px;" onmouseover="this.style.color='var(--pp-red)'" onmouseout="this.style.color='var(--pp-textDim)'" title="Löschen">&#x2715;</button>
         </div>
     </div>
     {% endfor %}
 </div>
 {% else %}
-<p style="font-size:14px;color:#94a3b8;padding:16px 0;">Keine Notizen vorhanden</p>
+<p style="font-size:14px;color:var(--pp-textDim);padding:16px 0;">Keine Notizen vorhanden</p>
 {% endif %}
