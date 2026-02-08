@@ -746,5 +746,29 @@ async def init_db() -> None:
     except Exception as e:
         logger.warning(f"company_notes Tabelle uebersprungen: {e}")
 
+    # ── CallDirection Enum + direction Spalte fuer ats_call_notes ──
+    try:
+        async with engine.connect() as conn:
+            await conn.execution_options(isolation_level="AUTOCOMMIT")
+            await conn.execute(text(
+                "DO $$ BEGIN "
+                "CREATE TYPE calldirection AS ENUM ('outbound', 'inbound'); "
+                "EXCEPTION WHEN duplicate_object THEN NULL; END $$"
+            ))
+            logger.info("CallDirection Enum erstellt/geprueft.")
+    except Exception as e:
+        logger.warning(f"CallDirection Enum uebersprungen: {e}")
+
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("""
+                DO $$ BEGIN
+                    ALTER TABLE ats_call_notes ADD COLUMN direction VARCHAR;
+                EXCEPTION WHEN duplicate_column THEN NULL;
+                END $$
+            """))
+    except Exception as e:
+        logger.warning(f"direction Spalte uebersprungen: {e}")
+
     # ── Embedding-Indexes nicht noetig (JSONB, kein pgvector) ──
     # Similarity-Suche laeuft in Python, nicht in SQL.

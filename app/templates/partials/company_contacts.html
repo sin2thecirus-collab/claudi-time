@@ -1,116 +1,56 @@
-{# Partial: Kontakte eines Unternehmens — Visitenkarten-Carousel #}
+{# Partial: Kontakte eines Unternehmens — Dark Theme Grid-Karten #}
+
+{% set contact_colors = ['#4F8CFF', '#A78BFA', '#34D399', '#F59E0B', '#EF4444'] %}
 
 {% if contacts and contacts | length > 0 %}
-<div class="relative" x-data="{ scrollEl: null }" x-init="scrollEl = $refs.cardScroll">
-    {# Scroll-Container #}
-    <div x-ref="cardScroll"
-         class="flex gap-4 overflow-x-auto pb-3 scroll-smooth"
-         style="scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; -webkit-overflow-scrolling: touch;">
+<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(210px, 1fr)); gap:10px;">
+    {% for contact in contacts %}
+    {% set ccolor = contact_colors[loop.index0 % 5] %}
+    <div style="background:var(--pp-surface); border:1px solid var(--pp-border); border-radius:12px; padding:14px; transition:all 0.2s ease; cursor:pointer; min-width:0; position:relative;"
+         onmouseover="this.style.background='var(--pp-surfaceHover)'; this.style.borderColor='var(--pp-borderLight)';"
+         onmouseout="this.style.background='var(--pp-surface)'; this.style.borderColor='var(--pp-border)';">
 
-        {% for contact in contacts %}
-        {# === Visitenkarte === #}
-        <div class="flex-shrink-0 w-[280px] bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow relative group">
+        {# Delete Button #}
+        <button onclick="event.stopPropagation(); deleteContact('{{ contact.id }}')"
+                style="position:absolute; top:8px; right:8px; width:22px; height:22px; border-radius:6px; border:none; background:transparent; color:var(--pp-textDim); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:12px; opacity:0; transition:all 0.15s;"
+                onmouseover="this.style.opacity='1'; this.style.color='var(--pp-red)'; this.style.background='var(--pp-redSoft)';"
+                onmouseout="this.style.opacity='0'; this.style.color='var(--pp-textDim)'; this.style.background='transparent';"
+                title="Löschen">✕</button>
 
-            {# Delete-Button — Top-Right, erscheint on hover #}
-            <button onclick="deleteContact('{{ contact.id }}')"
-                    class="absolute top-2.5 right-2.5 w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-300 hover:text-red-500 hover:border-red-200 opacity-0 group-hover:opacity-100 transition-all"
-                    title="Loeschen">
-                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                </svg>
-            </button>
-
-            {# Header: Avatar + Name + Position #}
-            <div class="p-4 pb-3 border-b border-gray-100">
-                <div class="flex items-start gap-3">
-                    <div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-                         style="background: linear-gradient(135deg, #e0e7ff, #c7d2fe);">
-                        <span class="text-sm font-bold" style="color: #4338ca;">{{ (contact.first_name or '?')[0] }}{{ (contact.last_name or '?')[0] }}</span>
-                    </div>
-                    <div class="min-w-0 flex-1 pr-6">
-                        <a href="/kontakte/{{ contact.id }}" class="text-sm font-semibold text-gray-900 hover:text-primary-600 block truncate" title="{{ contact.full_name }}">
-                            {{ contact.full_name }}
-                        </a>
-                        {% if contact.position %}
-                        <p class="text-xs text-gray-500 truncate mt-0.5" title="{{ contact.position }}">{{ contact.position }}</p>
-                        {% endif %}
-                        {% if contact.city %}
-                        <p class="text-xs text-gray-400 mt-0.5">&#x1F4CD; {{ contact.city }}</p>
-                        {% endif %}
-                    </div>
-                </div>
+        {# Header: Avatar + Name #}
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+            <div style="width:34px; height:34px; border-radius:10px; flex-shrink:0;
+                        background:linear-gradient(135deg, {{ ccolor }}22, {{ ccolor }}44);
+                        border:1px solid {{ ccolor }}44;
+                        display:flex; align-items:center; justify-content:center;
+                        font-size:12px; font-weight:600; color:{{ ccolor }}; letter-spacing:0.02em;">
+                {{ (contact.first_name or '?')[0] }}{{ (contact.last_name or '?')[0] }}
             </div>
-
-            {# Kontaktdaten #}
-            <div class="p-4 pt-3 space-y-2.5">
-                {% if contact.phone %}
-                <div class="flex items-center gap-2">
-                    <div class="w-6 h-6 rounded-md bg-green-50 flex items-center justify-center flex-shrink-0">
-                        <svg class="w-3.5 h-3.5 text-green-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
-                        </svg>
-                    </div>
-                    <a href="tel:{{ contact.phone }}" class="text-xs text-gray-700 hover:text-primary-600 truncate flex-1" title="{{ contact.phone }}">{{ contact.phone }}</a>
-                    <button onclick="copyToClipboard('{{ contact.phone }}')" class="w-7 h-7 rounded-md bg-gray-100 hover:bg-primary-100 flex items-center justify-center flex-shrink-0 transition-colors" title="Kopieren">
-                        <svg class="w-4 h-4 text-gray-500 hover:text-primary-600" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-                        </svg>
-                    </button>
+            <div style="min-width:0;">
+                <a href="/kontakte/{{ contact.id }}" onclick="event.stopPropagation();"
+                   style="font-size:13px; font-weight:600; color:var(--pp-text); text-decoration:none; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                    {{ contact.full_name }}
+                </a>
+                <div style="font-size:11px; color:var(--pp-textMuted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                    {{ contact.position or '—' }}{% if contact.city %} · {{ contact.city }}{% endif %}
                 </div>
-                {% endif %}
-
-                {% if contact.mobile %}
-                <div class="flex items-center gap-2">
-                    <div class="w-6 h-6 rounded-md bg-blue-50 flex items-center justify-center flex-shrink-0">
-                        <svg class="w-3.5 h-3.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" />
-                        </svg>
-                    </div>
-                    <a href="tel:{{ contact.mobile }}" class="text-xs text-gray-700 hover:text-primary-600 truncate flex-1" title="{{ contact.mobile }}">{{ contact.mobile }}</a>
-                    <button onclick="copyToClipboard('{{ contact.mobile }}')" class="w-7 h-7 rounded-md bg-gray-100 hover:bg-primary-100 flex items-center justify-center flex-shrink-0 transition-colors" title="Kopieren">
-                        <svg class="w-4 h-4 text-gray-500 hover:text-primary-600" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-                        </svg>
-                    </button>
-                </div>
-                {% endif %}
-
-                {% if contact.email %}
-                <div class="flex items-center gap-2">
-                    <div class="w-6 h-6 rounded-md bg-amber-50 flex items-center justify-center flex-shrink-0">
-                        <svg class="w-3.5 h-3.5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
-                        </svg>
-                    </div>
-                    <a href="mailto:{{ contact.email }}" class="text-xs text-gray-700 hover:text-primary-600 truncate flex-1" title="{{ contact.email }}">{{ contact.email }}</a>
-                    <button onclick="copyToClipboard('{{ contact.email }}')" class="w-7 h-7 rounded-md bg-gray-100 hover:bg-primary-100 flex items-center justify-center flex-shrink-0 transition-colors" title="Kopieren">
-                        <svg class="w-4 h-4 text-gray-500 hover:text-primary-600" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-                        </svg>
-                    </button>
-                </div>
-                {% endif %}
             </div>
         </div>
-        {% endfor %}
-    </div>
 
-    {# Scroll-Pfeile (nur bei > 3 Kontakten) #}
-    {% if contacts | length > 3 %}
-    <button @click="scrollEl.scrollBy({left: -300, behavior: 'smooth'})"
-            class="absolute left-0 top-1/2 -translate-y-1/2 -ml-3 w-8 h-8 rounded-full bg-white border border-gray-200 shadow-md flex items-center justify-center text-gray-500 hover:text-primary-600 hover:border-primary-300 transition-all z-10">
-        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-        </svg>
-    </button>
-    <button @click="scrollEl.scrollBy({left: 300, behavior: 'smooth'})"
-            class="absolute right-0 top-1/2 -translate-y-1/2 -mr-3 w-8 h-8 rounded-full bg-white border border-gray-200 shadow-md flex items-center justify-center text-gray-500 hover:text-primary-600 hover:border-primary-300 transition-all z-10">
-        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-        </svg>
-    </button>
-    {% endif %}
+        {# Kontaktdaten #}
+        <div style="display:flex; flex-direction:column; gap:6px;">
+            <div style="display:flex; align-items:center; gap:7px; font-size:11.5px; color:{% if contact.phone %}var(--pp-textMuted){% else %}var(--pp-textDim){% endif %};">
+                <span style="font-size:12px; opacity:0.6;">📞</span>
+                <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{% if contact.phone %}<a href="tel:{{ contact.phone }}" onclick="event.stopPropagation();" style="color:inherit; text-decoration:none;">{{ contact.phone }}</a>{% else %}—{% endif %}</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:7px; font-size:11.5px; color:{% if contact.email %}var(--pp-textMuted){% else %}var(--pp-textDim){% endif %};">
+                <span style="font-size:12px; opacity:0.6;">✉️</span>
+                <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{% if contact.email %}<a href="mailto:{{ contact.email }}" onclick="event.stopPropagation();" style="color:inherit; text-decoration:none;">{{ contact.email }}</a>{% else %}—{% endif %}</span>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
 </div>
 {% else %}
-<p class="text-sm text-gray-400">Keine Ansprechpartner vorhanden</p>
+<p style="font-size:11px; color:var(--pp-textDim);">Keine Ansprechpartner vorhanden</p>
 {% endif %}

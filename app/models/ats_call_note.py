@@ -20,6 +20,13 @@ class CallType(str, enum.Enum):
     CANDIDATE_CALL = "candidate_call"
 
 
+class CallDirection(str, enum.Enum):
+    """Richtung des Anrufs."""
+
+    OUTBOUND = "outbound"
+    INBOUND = "inbound"
+
+
 # Deutsche Labels fuer UI
 CALL_TYPE_LABELS = {
     CallType.ACQUISITION: "Akquise",
@@ -72,6 +79,12 @@ class ATSCallNote(Base):
     raw_notes: Mapped[str | None] = mapped_column(Text)
     action_items: Mapped[dict | None] = mapped_column(JSONB)
     duration_minutes: Mapped[int | None] = mapped_column(Integer)
+
+    # Richtung (outbound/inbound)
+    direction: Mapped[CallDirection | None] = mapped_column(
+        Enum(CallDirection, values_callable=lambda x: [e.value for e in x]),
+        nullable=True,
+    )
 
     # Zeitpunkt des Anrufs
     called_at: Mapped[datetime] = mapped_column(

@@ -169,6 +169,39 @@ async def company_detail(
     )
     ats_job_count = ats_job_count_result.scalar() or 0
 
+    # Call Stats laden
+    from app.models.ats_call_note import ATSCallNote
+    call_count_result = await db.execute(
+        select(func.count(ATSCallNote.id)).where(
+            ATSCallNote.company_id == company_id,
+        )
+    )
+    call_count = call_count_result.scalar() or 0
+
+    call_duration_result = await db.execute(
+        select(func.coalesce(func.sum(ATSCallNote.duration_minutes), 0)).where(
+            ATSCallNote.company_id == company_id,
+        )
+    )
+    call_total_duration = call_duration_result.scalar() or 0
+
+    # Contact Count laden
+    contact_count_result = await db.execute(
+        select(func.count(CompanyContact.id)).where(
+            CompanyContact.company_id == company_id,
+        )
+    )
+    contact_count = contact_count_result.scalar() or 0
+
+    # Kontakte fuer Call-Modal laden
+    from sqlalchemy.orm import selectinload
+    contacts_result = await db.execute(
+        select(CompanyContact)
+        .where(CompanyContact.company_id == company_id)
+        .order_by(CompanyContact.last_name.asc())
+    )
+    contacts = contacts_result.scalars().all()
+
     return templates.TemplateResponse(
         "company_detail.html",
         {
@@ -176,6 +209,10 @@ async def company_detail(
             "company": company,
             "job_count": job_count,
             "ats_job_count": ats_job_count,
+            "call_count": call_count,
+            "call_total_duration": call_total_duration,
+            "contact_count": contact_count,
+            "contacts": contacts,
         }
     )
 
@@ -1451,6 +1488,31 @@ async def company_call_notes_partial(
     )
     call_notes = result.scalars().all()
     return templates.TemplateResponse("partials/company_call_notes.html", {
+        "request": request,
+        "call_notes": call_notes,
+        "company_id": str(company_id),
+    })
+
+
+@router.get("/partials/company/{company_id}/call-log", response_class=HTMLResponse)
+async def company_call_log_partial(
+    company_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Partial: Anruf-Protokoll (Call-Log) eines Unternehmens fuer Uebersicht."""
+    from app.models.ats_call_note import ATSCallNote
+    from sqlalchemy.orm import selectinload
+
+    result = await db.execute(
+        select(ATSCallNote)
+        .options(selectinload(ATSCallNote.contact))
+        .where(ATSCallNote.company_id == company_id)
+        .order_by(ATSCallNote.called_at.desc())
+        .limit(20)
+    )
+    call_notes = result.scalars().all()
+    return templates.TemplateResponse("partials/company_call_log.html", {
         "request": request,
         "call_notes": call_notes,
         "company_id": str(company_id),

@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.ats_activity import ATSActivity, ActivityType
-from app.models.ats_call_note import ATSCallNote, CallType
+from app.models.ats_call_note import ATSCallNote, CallType, CallDirection
 from app.models.ats_todo import ATSTodo, TodoPriority
 
 logger = logging.getLogger(__name__)
@@ -33,8 +33,28 @@ class ATSCallNoteService:
         raw_notes: str | None = None,
         action_items: list | None = None,
         duration_minutes: int | None = None,
+        direction: str | None = None,
+        called_at: str | None = None,
     ) -> ATSCallNote:
         """Erstellt eine neue Call-Note."""
+        from datetime import datetime as dt
+
+        # Direction parsen
+        parsed_direction = None
+        if direction:
+            try:
+                parsed_direction = CallDirection(direction)
+            except ValueError:
+                parsed_direction = None
+
+        # called_at parsen
+        parsed_called_at = None
+        if called_at:
+            try:
+                parsed_called_at = dt.fromisoformat(called_at)
+            except (ValueError, TypeError):
+                parsed_called_at = None
+
         note = ATSCallNote(
             call_type=CallType(call_type),
             summary=summary.strip(),
@@ -45,7 +65,10 @@ class ATSCallNoteService:
             raw_notes=raw_notes,
             action_items=action_items,
             duration_minutes=duration_minutes,
+            direction=parsed_direction,
         )
+        if parsed_called_at:
+            note.called_at = parsed_called_at
         self.db.add(note)
         await self.db.flush()
 
@@ -165,7 +188,7 @@ class ATSCallNoteService:
 
             todo = ATSTodo(
                 title=title.strip(),
-                priority=TodoPriority.NORMAL,
+                priority=TodoPriority.WICHTIG,
                 company_id=note.company_id,
                 candidate_id=note.candidate_id,
                 ats_job_id=note.ats_job_id,

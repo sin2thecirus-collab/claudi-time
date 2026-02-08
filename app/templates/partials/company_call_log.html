@@ -1,0 +1,63 @@
+{# Partial: Anruf-Protokoll eines Unternehmens — Dark Theme #}
+
+{% if call_notes and call_notes | length > 0 %}
+<div style="display:flex; flex-direction:column; gap:8px;">
+    {% for note in call_notes %}
+    <div x-data="{ open: false }"
+         style="padding:12px 14px; border-radius:10px; background:var(--pp-surface); border:1px solid var(--pp-border); transition:all 0.15s;">
+        <div style="display:flex; align-items:flex-start; gap:10px;">
+            {# Direction Icon #}
+            <div style="width:30px; height:30px; border-radius:8px; flex-shrink:0;
+                        background:{% if note.direction and note.direction.value == 'inbound' %}var(--pp-greenSoft){% else %}var(--pp-accentSoft){% endif %};
+                        display:flex; align-items:center; justify-content:center; font-size:14px;">
+                {% if note.direction and note.direction.value == 'inbound' %}📥{% else %}📤{% endif %}
+            </div>
+
+            {# Content #}
+            <div style="flex:1; min-width:0;">
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <span style="font-size:13px; font-weight:600; color:var(--pp-text);">
+                        {% if note.contact %}{{ note.contact.first_name }} {{ note.contact.last_name }}{% else %}Unbekannt{% endif %}
+                    </span>
+                    <span style="display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:600;
+                                 color:{% if note.direction and note.direction.value == 'inbound' %}var(--pp-green){% else %}var(--pp-accent){% endif %};
+                                 background:{% if note.direction and note.direction.value == 'inbound' %}var(--pp-greenSoft){% else %}var(--pp-accentSoft){% endif %};">
+                        {% if note.direction and note.direction.value == 'inbound' %}Eingehend{% else %}Ausgehend{% endif %}
+                    </span>
+                </div>
+                <div style="display:flex; gap:12px; margin-top:4px; font-size:11px; color:var(--pp-textDim);">
+                    {% if note.called_at %}
+                    <span>📅 {{ note.called_at.strftime('%d.%m.%Y') }}</span>
+                    <span>🕐 {{ note.called_at.strftime('%H:%M') }}</span>
+                    {% endif %}
+                    {% if note.duration_minutes %}
+                    <span>⏱ {{ note.duration_minutes }} Min</span>
+                    {% endif %}
+                </div>
+                {# Expanded notes #}
+                <template x-if="open">
+                    <div style="font-size:12px; color:var(--pp-textMuted); margin-top:8px; line-height:1.5; padding:8px 10px; background:var(--pp-bg); border-radius:8px;">
+                        {% if note.summary %}{{ note.summary }}{% elif note.raw_notes %}{{ note.raw_notes }}{% else %}Keine Notizen{% endif %}
+                        <div style="margin-top:8px; display:flex; gap:6px;">
+                            {% if note.call_type %}
+                            <span style="font-size:10px; color:var(--pp-textDim); background:var(--pp-surfaceHover); padding:1px 6px; border-radius:4px;">{{ note.call_type.value | replace('_', ' ') | title }}</span>
+                            {% endif %}
+                            <button onclick="deleteCompanyCallNote('{{ note.id }}')"
+                                    style="font-size:10px; color:var(--pp-red); background:var(--pp-redSoft); padding:1px 6px; border-radius:4px; border:none; cursor:pointer; font-family:var(--pp-ff);">
+                                🗑 Löschen
+                            </button>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            {# Expand Button #}
+            <button @click="open = !open" style="background:none; border:none; color:var(--pp-textDim); cursor:pointer; font-size:16px; padding:0 4px; transition:transform 0.2s;"
+                    :style="open ? 'transform:rotate(180deg)' : 'transform:rotate(0)'">⌄</button>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<p style="font-size:11px; color:var(--pp-textDim);">Keine Anrufe protokolliert</p>
+{% endif %}

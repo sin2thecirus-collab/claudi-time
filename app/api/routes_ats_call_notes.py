@@ -25,6 +25,8 @@ class CallNoteCreate(BaseModel):
     raw_notes: Optional[str] = None
     action_items: Optional[list] = None
     duration_minutes: Optional[int] = None
+    direction: Optional[str] = None
+    called_at: Optional[str] = None
 
 
 # ── Endpoints ────────────────────────────────────
