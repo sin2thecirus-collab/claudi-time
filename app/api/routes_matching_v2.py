@@ -1,7 +1,7 @@
 """Matching Engine v2 — API Routes.
 
-Profile-Erstellung, Backfill, Stats.
-Matching + Learning Routes kommen in Sprint 2-3.
+Sprint 1: Profile-Erstellung, Backfill, Stats.
+Sprint 2: Matching, Embedding-Generierung, Batch-Matching.
 """
 
 import logging
@@ -289,4 +289,409 @@ async def get_learned_rules(
             for r in rules
         ],
         "total": len(rules),
+    }
+
+
+# ══════════════════════════════════════════════════════════════════
+# Matching (Sprint 2)
+# ══════════════════════════════════════════════════════════════════
+
+@router.post("/match/job/{job_id}")
+async def match_single_job(
+    job_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Matcht einen einzelnen Job gegen alle passenden Kandidaten.
+
+    3-Schichten-Pipeline:
+    1. Hard Filters (SQL, <5ms)
+    2. Structured Scoring (7-Komponenten, <50ms)
+    3. Pattern Boost (gelernte Regeln)
+
+    Kosten: $0.00 (alles vorberechnet)
+    """
+    from app.services.matching_engine_v2 import MatchingEngineV2
+
+    engine = MatchingEngineV2(db)
+    try:
+        result = await engine.match_job(job_id, save_to_db=True)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return {
+        "status": "ok",
+        "job_id": str(job_id),
+        "matches_found": len(result.matches),
+        "candidates_checked": result.total_candidates_checked,
+        "candidates_after_filter": result.candidates_after_filter,
+        "duration_ms": result.duration_ms,
+        "top_matches": [
+            {
+                "candidate_id": str(m.candidate_id),
+                "score": m.total_score,
+                "rank": m.rank,
+                "breakdown": m.breakdown,
+            }
+            for m in result.matches[:10]  # Nur Top 10 in Response
+        ],
+    }
+
+
+# In-memory Tracking fuer Batch-Matching
+_batch_match_status: dict = {
+    "running": False,
+    "processed": 0,
+    "total": 0,
+    "matches_created": 0,
+    "result": None,
+}
+
+
+async def _run_batch_matching(max_jobs: int, unmatched_only: bool):
+    """Background-Task fuer Batch-Matching."""
+    from app.database import async_session_maker
+    from app.services.matching_engine_v2 import MatchingEngineV2
+
+    _batch_match_status["running"] = True
+    _batch_match_status["processed"] = 0
+    _batch_match_status["total"] = 0
+    _batch_match_status["matches_created"] = 0
+    _batch_match_status["result"] = None
+
+    try:
+        async with async_session_maker() as db:
+            engine = MatchingEngineV2(db)
+
+            def on_progress(processed, total):
+                _batch_match_status["processed"] = processed
+                _batch_match_status["total"] = total
+
+            result = await engine.match_batch(
+                max_jobs=max_jobs,
+                unmatched_only=unmatched_only,
+                progress_callback=on_progress,
+            )
+
+            _batch_match_status["result"] = {
+                "jobs_matched": result.jobs_matched,
+                "total_matches_created": result.total_matches_created,
+                "duration_ms": round(result.total_duration_ms, 1),
+                "errors": result.errors[:10],
+            }
+            _batch_match_status["matches_created"] = result.total_matches_created
+
+    except Exception as e:
+        logger.error(f"Batch-Matching Fehler: {e}", exc_info=True)
+        _batch_match_status["result"] = {"error": str(e)}
+    finally:
+        _batch_match_status["running"] = False
+
+
+@router.post("/match/batch")
+async def start_batch_matching(
+    background_tasks: BackgroundTasks,
+    max_jobs: int = 0,
+    unmatched_only: bool = True,
+):
+    """Startet Batch-Matching: Alle profilierten Jobs gegen alle Kandidaten.
+
+    Args:
+        max_jobs: Maximum Jobs (0 = alle)
+        unmatched_only: Nur Jobs ohne bestehende v2-Matches
+    """
+    if _batch_match_status["running"]:
+        return JSONResponse(
+            status_code=409,
+            content={
+                "status": "already_running",
+                "processed": _batch_match_status["processed"],
+                "total": _batch_match_status["total"],
+            },
+        )
+
+    background_tasks.add_task(_run_batch_matching, max_jobs, unmatched_only)
+
+    return {
+        "status": "started",
+        "max_jobs": max_jobs if max_jobs > 0 else "unbegrenzt",
+        "unmatched_only": unmatched_only,
+    }
+
+
+@router.get("/match/batch/status")
+async def get_batch_match_status():
+    """Gibt den aktuellen Batch-Matching-Fortschritt zurueck."""
+    return {
+        "running": _batch_match_status["running"],
+        "processed": _batch_match_status["processed"],
+        "total": _batch_match_status["total"],
+        "matches_created": _batch_match_status["matches_created"],
+        "result": _batch_match_status["result"],
+    }
+
+
+# ══════════════════════════════════════════════════════════════════
+# Embedding-Generierung (Sprint 2)
+# ══════════════════════════════════════════════════════════════════
+
+_embedding_status: dict = {
+    "running": False,
+    "type": None,
+    "processed": 0,
+    "total": 0,
+    "result": None,
+}
+
+
+async def _run_embedding_generation(entity_type: str, max_total: int):
+    """Background-Task fuer Embedding-Generierung."""
+    from app.database import async_session_maker
+    from app.services.matching_engine_v2 import EmbeddingGenerationService
+
+    _embedding_status["running"] = True
+    _embedding_status["type"] = entity_type
+    _embedding_status["processed"] = 0
+    _embedding_status["total"] = 0
+    _embedding_status["result"] = None
+
+    try:
+        async with async_session_maker() as db:
+            service = EmbeddingGenerationService(db)
+
+            def on_progress(processed, total):
+                _embedding_status["processed"] = processed
+                _embedding_status["total"] = total
+
+            try:
+                if entity_type == "candidates":
+                    result = await service.generate_candidate_embeddings(
+                        max_total=max_total,
+                        progress_callback=on_progress,
+                    )
+                elif entity_type == "jobs":
+                    result = await service.generate_job_embeddings(
+                        max_total=max_total,
+                        progress_callback=on_progress,
+                    )
+                elif entity_type == "all":
+                    result_c = await service.generate_candidate_embeddings(
+                        max_total=max_total,
+                        progress_callback=on_progress,
+                    )
+                    result_j = await service.generate_job_embeddings(
+                        max_total=max_total,
+                        progress_callback=on_progress,
+                    )
+                    result = {
+                        "candidates": result_c,
+                        "jobs": result_j,
+                    }
+                else:
+                    result = {"error": "Unbekannter entity_type"}
+
+                _embedding_status["result"] = result
+            finally:
+                await service.close()
+
+    except Exception as e:
+        logger.error(f"Embedding-Generierung Fehler: {e}", exc_info=True)
+        _embedding_status["result"] = {"error": str(e)}
+    finally:
+        _embedding_status["running"] = False
+
+
+@router.post("/embeddings/generate")
+async def start_embedding_generation(
+    background_tasks: BackgroundTasks,
+    entity_type: str = "all",
+    max_total: int = 0,
+):
+    """Generiert Embeddings fuer alle profilierten Kandidaten/Jobs ohne Embedding.
+
+    Voraussetzung: Profile muessen zuerst via Backfill erstellt werden.
+    Kosten: ~$0.05 fuer alle Dokumente (einmalig).
+
+    Args:
+        entity_type: "candidates", "jobs", oder "all"
+        max_total: Maximum (0 = alle)
+    """
+    if _embedding_status["running"]:
+        return JSONResponse(
+            status_code=409,
+            content={
+                "status": "already_running",
+                "type": _embedding_status["type"],
+                "processed": _embedding_status["processed"],
+                "total": _embedding_status["total"],
+            },
+        )
+
+    if entity_type not in ("candidates", "jobs", "all"):
+        raise HTTPException(status_code=400, detail="entity_type muss 'candidates', 'jobs' oder 'all' sein")
+
+    background_tasks.add_task(_run_embedding_generation, entity_type, max_total)
+
+    return {
+        "status": "started",
+        "entity_type": entity_type,
+        "max_total": max_total if max_total > 0 else "unbegrenzt",
+    }
+
+
+@router.get("/embeddings/status")
+async def get_embedding_status():
+    """Gibt den aktuellen Embedding-Generierungs-Fortschritt zurueck."""
+    return {
+        "running": _embedding_status["running"],
+        "type": _embedding_status["type"],
+        "processed": _embedding_status["processed"],
+        "total": _embedding_status["total"],
+        "result": _embedding_status["result"],
+    }
+
+
+# ══════════════════════════════════════════════════════════════════
+# Full Pipeline: Profile → Embedding → Match (Sprint 2)
+# ══════════════════════════════════════════════════════════════════
+
+_pipeline_status: dict = {
+    "running": False,
+    "phase": None,
+    "processed": 0,
+    "total": 0,
+    "result": None,
+}
+
+
+async def _run_full_pipeline(max_total: int):
+    """Background-Task fuer komplette Pipeline: Profile → Embeddings → Matching."""
+    from app.database import async_session_maker
+    from app.services.matching_engine_v2 import EmbeddingGenerationService, MatchingEngineV2
+
+    _pipeline_status["running"] = True
+    _pipeline_status["result"] = None
+    results = {}
+
+    try:
+        # Phase 1: Profile Backfill
+        _pipeline_status["phase"] = "profiles"
+        async with async_session_maker() as db:
+            service = ProfileEngineService(db)
+            try:
+                def on_profile_progress(p, t):
+                    _pipeline_status["processed"] = p
+                    _pipeline_status["total"] = t
+
+                # Kandidaten profilieren
+                result_c = await service.backfill_candidates(
+                    max_total=max_total,
+                    progress_callback=on_profile_progress,
+                )
+                # Jobs profilieren
+                result_j = await service.backfill_jobs(
+                    max_total=max_total,
+                    progress_callback=on_profile_progress,
+                )
+                results["profiles"] = {
+                    "candidates_profiled": result_c.profiled,
+                    "jobs_profiled": result_j.profiled,
+                    "cost_usd": round(result_c.total_cost_usd + result_j.total_cost_usd, 4),
+                }
+            finally:
+                await service.close()
+
+        # Phase 2: Embeddings
+        _pipeline_status["phase"] = "embeddings"
+        async with async_session_maker() as db:
+            emb_service = EmbeddingGenerationService(db)
+            try:
+                def on_emb_progress(p, t):
+                    _pipeline_status["processed"] = p
+                    _pipeline_status["total"] = t
+
+                result_ce = await emb_service.generate_candidate_embeddings(
+                    max_total=max_total,
+                    progress_callback=on_emb_progress,
+                )
+                result_je = await emb_service.generate_job_embeddings(
+                    max_total=max_total,
+                    progress_callback=on_emb_progress,
+                )
+                results["embeddings"] = {
+                    "candidates": result_ce.get("generated", 0),
+                    "jobs": result_je.get("generated", 0),
+                }
+            finally:
+                await emb_service.close()
+
+        # Phase 3: Matching
+        _pipeline_status["phase"] = "matching"
+        async with async_session_maker() as db:
+            engine = MatchingEngineV2(db)
+
+            def on_match_progress(p, t):
+                _pipeline_status["processed"] = p
+                _pipeline_status["total"] = t
+
+            match_result = await engine.match_batch(
+                max_jobs=max_total,
+                unmatched_only=True,
+                progress_callback=on_match_progress,
+            )
+            results["matching"] = {
+                "jobs_matched": match_result.jobs_matched,
+                "matches_created": match_result.total_matches_created,
+                "duration_ms": round(match_result.total_duration_ms, 1),
+            }
+
+        _pipeline_status["result"] = results
+
+    except Exception as e:
+        logger.error(f"Pipeline Fehler in Phase {_pipeline_status['phase']}: {e}", exc_info=True)
+        _pipeline_status["result"] = {"error": str(e), "phase": _pipeline_status["phase"], "partial_results": results}
+    finally:
+        _pipeline_status["running"] = False
+
+
+@router.post("/pipeline/run")
+async def start_full_pipeline(
+    background_tasks: BackgroundTasks,
+    max_total: int = 0,
+):
+    """Startet die komplette v2-Pipeline: Profile → Embeddings → Matching.
+
+    Ein Klick fuer alles. Laueft im Background.
+
+    Args:
+        max_total: Maximum pro Phase (0 = alle)
+    """
+    if _pipeline_status["running"]:
+        return JSONResponse(
+            status_code=409,
+            content={
+                "status": "already_running",
+                "phase": _pipeline_status["phase"],
+                "processed": _pipeline_status["processed"],
+                "total": _pipeline_status["total"],
+            },
+        )
+
+    background_tasks.add_task(_run_full_pipeline, max_total)
+
+    return {
+        "status": "started",
+        "phases": ["profiles", "embeddings", "matching"],
+        "max_total": max_total if max_total > 0 else "unbegrenzt",
+    }
+
+
+@router.get("/pipeline/status")
+async def get_pipeline_status():
+    """Gibt den aktuellen Pipeline-Fortschritt zurueck."""
+    return {
+        "running": _pipeline_status["running"],
+        "phase": _pipeline_status["phase"],
+        "processed": _pipeline_status["processed"],
+        "total": _pipeline_status["total"],
+        "result": _pipeline_status["result"],
     }

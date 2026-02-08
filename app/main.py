@@ -1,6 +1,6 @@
 """FastAPI Hauptanwendung für das Matching-Tool."""
 
-# Build: 2026-02-08-v1 - Matching Engine v2 Sprint 1 (Profile Engine + DB Migration)
+# Build: 2026-02-08-v2 - Matching Engine v2 Sprint 2 (Embeddings + 3-Schichten Matching)
 
 import logging
 import uuid
