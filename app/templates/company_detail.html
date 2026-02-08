@@ -113,12 +113,12 @@
 
     /* Main Grid */
     .cd-grid {
-        display: grid; grid-template-columns: 1fr 340px; gap: 0;
+        display: grid; grid-template-columns: 1fr 380px; gap: 0;
         min-height: calc(100vh - 200px);
     }
     .cd-main { padding: 24px 28px; border-right: 1px solid var(--pp-border); }
     .cd-sidebar {
-        padding: 24px 22px; background: rgba(24,26,35,0.4);
+        padding: 28px 24px; background: rgba(24,26,35,0.4);
         display: flex; flex-direction: column;
     }
 
@@ -149,37 +149,37 @@
     }
 
     /* Sidebar Sections */
-    .cd-side-sec { margin-bottom: 28px; }
+    .cd-side-sec { margin-bottom: 32px; }
     .cd-side-hdr {
         display: flex; align-items: center; justify-content: space-between;
-        margin-bottom: 14px;
+        margin-bottom: 16px;
     }
-    .cd-side-hdr-left { display: flex; align-items: center; gap: 8px; }
-    .cd-side-hdr-left .icon { font-size: 16px; }
-    .cd-side-hdr-left .title { font-size: 15px; font-weight: 650; color: var(--pp-text); }
+    .cd-side-hdr-left { display: flex; align-items: center; gap: 10px; }
+    .cd-side-hdr-left .icon { font-size: 18px; }
+    .cd-side-hdr-left .title { font-size: 16px; font-weight: 650; color: var(--pp-text); }
     .cd-side-hdr-left .cnt {
-        font-size: 12px; font-weight: 700; padding: 2px 7px; border-radius: 5px;
+        font-size: 13px; font-weight: 700; padding: 3px 8px; border-radius: 6px;
     }
-    .cd-side-link { font-size: 13px; color: var(--pp-accent); cursor: pointer; text-decoration: none; }
+    .cd-side-link { font-size: 14px; color: var(--pp-accent); cursor: pointer; text-decoration: none; }
     .cd-side-link:hover { text-decoration: underline; }
     .cd-side-empty {
-        padding: 24px; border-radius: 12px; border: 1px dashed var(--pp-border);
+        padding: 28px; border-radius: 12px; border: 1px dashed var(--pp-border);
         text-align: center;
     }
-    .cd-side-empty-text { font-size: 13px; color: var(--pp-textDim); margin-bottom: 10px; }
-    .cd-side-empty-link { font-size: 13px; color: var(--pp-accent); cursor: pointer; }
+    .cd-side-empty-text { font-size: 14px; color: var(--pp-textDim); margin-bottom: 10px; }
+    .cd-side-empty-link { font-size: 14px; color: var(--pp-accent); cursor: pointer; }
 
     /* Call Stats */
     .cd-stat-box {
-        padding: 14px; border-radius: 12px; background: var(--pp-surface);
+        padding: 20px; border-radius: 12px; background: var(--pp-surface);
         border: 1px solid var(--pp-border); text-align: center;
     }
-    .cd-stat-val { font-size: 28px; font-weight: 700; }
-    .cd-stat-label { font-size: 12px; color: var(--pp-textDim); margin-top: 3px; }
+    .cd-stat-val { font-size: 32px; font-weight: 700; }
+    .cd-stat-label { font-size: 13px; color: var(--pp-textDim); margin-top: 4px; }
 
     /* Date Footer */
     .cd-date-footer {
-        padding: 12px 0; border-top: 1px solid var(--pp-border);
+        padding: 14px 0; border-top: 1px solid var(--pp-border);
         display: flex; justify-content: space-between;
         font-size: 12px; color: var(--pp-textDim); letter-spacing: 0.02em;
     }
@@ -252,43 +252,54 @@
         display: flex; align-items: center; justify-content: center;
     }
     .cd-modal {
-        background: var(--pp-surface); border-radius: 18px; padding: 32px;
-        width: 520px; border: 1px solid var(--pp-border);
+        background: var(--pp-surface); border-radius: 20px; padding: 40px;
+        width: 620px; border: 1px solid var(--pp-border);
         box-shadow: 0 24px 80px rgba(0,0,0,0.5);
     }
     .cd-modal-hdr {
         display: flex; align-items: center; justify-content: space-between;
-        margin-bottom: 28px;
+        margin-bottom: 32px;
     }
     .cd-modal-icon {
-        width: 44px; height: 44px; border-radius: 12px;
+        width: 48px; height: 48px; border-radius: 12px;
         background: var(--pp-accentSoft); display: flex;
-        align-items: center; justify-content: center; font-size: 20px;
+        align-items: center; justify-content: center; font-size: 24px;
     }
-    .cd-modal-title { font-size: 19px; font-weight: 700; color: var(--pp-text); }
+    .cd-modal-title { font-size: 22px; font-weight: 700; color: var(--pp-text); }
     .cd-modal-close {
         background: none; border: none; color: var(--pp-textDim);
-        font-size: 22px; cursor: pointer;
+        font-size: 28px; cursor: pointer;
     }
     .cd-modal-close:hover { color: var(--pp-text); }
     .cd-modal-label {
-        font-size: 13px; font-weight: 600; color: var(--pp-textMuted);
-        margin-bottom: 6px; display: block; letter-spacing: 0.04em;
+        font-size: 14px; font-weight: 600; color: var(--pp-textMuted);
+        margin-bottom: 8px; display: block; letter-spacing: 0.05em;
         text-transform: uppercase;
     }
     .cd-modal-dir-btn {
-        flex: 1; padding: 10px 0; border-radius: 10px; font-size: 14px;
+        flex: 1; padding: 14px 0; border-radius: 10px; font-size: 15px;
         font-weight: 600; cursor: pointer; transition: all 0.15s;
         font-family: var(--pp-ff);
     }
     .cd-modal-submit {
-        width: 100%; padding: 13px 0; border-radius: 12px; border: none;
+        width: 100%; padding: 16px 0; border-radius: 14px; border: none;
         background: linear-gradient(135deg, var(--pp-accent), #6C63FF);
-        color: #fff; font-size: 15px; font-weight: 650; cursor: pointer;
+        color: #fff; font-size: 17px; font-weight: 700; cursor: pointer;
         box-shadow: 0 4px 16px rgba(79,140,255,0.25);
         transition: all 0.2s; font-family: var(--pp-ff);
+        margin-top: 8px;
     }
     .cd-modal-submit:hover { transform: translateY(-1px); }
+
+    /* Modal-specific input overrides for larger sizing */
+    .cd-modal .cd-inp,
+    .cd-modal .cd-sel {
+        padding: 14px 18px; font-size: 16px; border-radius: 12px;
+    }
+    .cd-modal .cd-ta {
+        padding: 14px 18px; font-size: 16px; border-radius: 12px;
+        min-height: 120px;
+    }
 
     /* Tab Content Sections */
     .cd-tab-sec {
@@ -621,15 +632,15 @@
             </div>
 
             {# Trennlinie #}
-            <div style="height:1px; background:var(--pp-border); margin:4px 0 24px;"></div>
+            <div style="height:1px; background:var(--pp-border); margin:8px 0 28px;"></div>
 
             {# Anruf-Statistik #}
             <div class="cd-side-sec cd-anim" style="animation-delay:250ms;">
-                <div style="display:flex; align-items:center; gap:8px; margin-bottom:16px;">
-                    <span style="font-size:16px;">📊</span>
-                    <span style="font-size:15px; font-weight:650; color:var(--pp-text);">Anruf-Statistik</span>
+                <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
+                    <span style="font-size:18px;">📊</span>
+                    <span style="font-size:16px; font-weight:650; color:var(--pp-text);">Anruf-Statistik</span>
                 </div>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
                     <div class="cd-stat-box">
                         <div class="cd-stat-val" style="color:var(--pp-accent);">{{ call_count if call_count is defined else '0' }}</div>
                         <div class="cd-stat-label">Gesamt</div>
@@ -665,7 +676,7 @@
                     <button class="cd-modal-close" @click="showCallModal = false">×</button>
                 </div>
 
-                <div style="display:flex; flex-direction:column; gap:18px;">
+                <div style="display:flex; flex-direction:column; gap:24px;">
                     {# Kontakt #}
                     <div>
                         <label class="cd-modal-label">Kontakt</label>
@@ -680,7 +691,7 @@
                     </div>
 
                     {# Richtung + Dauer #}
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
                         <div>
                             <label class="cd-modal-label">Richtung</label>
                             <div style="display:flex; gap:10px;">
@@ -699,7 +710,7 @@
                     </div>
 
                     {# Datum + Uhrzeit #}
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
                         <div>
                             <label class="cd-modal-label">Datum</label>
                             <input id="call-date" type="date" class="cd-inp">
