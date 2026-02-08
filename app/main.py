@@ -1,6 +1,6 @@
 """FastAPI Hauptanwendung für das Matching-Tool."""
 
-# Build: 2026-01-26-v3 - CRM-Sync Progress Tracking Fix
+# Build: 2026-02-08-v1 - Matching Engine v2 Sprint 1 (Profile Engine + DB Migration)
 
 import logging
 import uuid
@@ -126,6 +126,7 @@ from app.api.routes_match_center import router as match_center_router
 from app.api.routes_companies import router as companies_router
 from app.api.routes_smart_match import router as smart_match_router
 from app.api.routes_titel_zuweisung import router as titel_zuweisung_router
+from app.api.routes_matching_v2 import router as matching_v2_router
 
 # ATS Router
 from app.api.routes_ats_jobs import router as ats_jobs_router
@@ -163,3 +164,6 @@ app.include_router(ats_pipeline_router, prefix="/api")
 app.include_router(ats_call_notes_router, prefix="/api")
 app.include_router(ats_todos_router, prefix="/api")
 app.include_router(n8n_webhooks_router, prefix="/api")  # n8n Webhooks (/api/n8n/...)
+
+# Matching Engine v2 (/api/v2/profiles/..., /api/v2/weights, /api/v2/rules)
+app.include_router(matching_v2_router, prefix="/api/v2")

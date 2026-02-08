@@ -4,7 +4,7 @@ import uuid
 from datetime import date, datetime
 
 from geoalchemy2 import Geography
-from sqlalchemy import ARRAY, Boolean, Column, Date, DateTime, Index, Integer, String, Text, func
+from sqlalchemy import ARRAY, Boolean, Column, Date, DateTime, Float, Index, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -92,9 +92,19 @@ class Candidate(Base):
     # Finance-Klassifizierung (OpenAI-Trainingsdaten)
     classification_data: Mapped[dict | None] = mapped_column(JSONB)  # {"source", "roles", "reasoning", "classified_at"}
 
-    # Embedding (pgvector - text-embedding-3-small, 1536 Dimensionen)
     # Embedding (OpenAI text-embedding-3-small, 1536 Dimensionen, als JSONB-Array gespeichert)
     embedding = Column(JSONB)
+
+    # ── Matching Engine v2: Strukturiertes Profil ──
+    # Wird 1x von GPT-4o-mini extrahiert bei Ingestion. Danach $0 Matching.
+    v2_seniority_level: Mapped[int | None] = mapped_column(Integer)  # 1-6 (ISCO: Assistent→Leiter)
+    v2_career_trajectory: Mapped[str | None] = mapped_column(String(20))  # "aufsteigend"/"lateral"/"absteigend"
+    v2_years_experience: Mapped[int | None] = mapped_column(Integer)  # Gesamterfahrung in Jahren
+    v2_structured_skills: Mapped[dict | None] = mapped_column(JSONB)  # [{skill, proficiency, recency, last_used_year, category}]
+    v2_current_role_summary: Mapped[str | None] = mapped_column(Text)  # 1-2 Sätze: aktuelle Rolle + Kern-Tätigkeiten
+    v2_profile_created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # Wann Profil erstellt
+    v2_embedding_current: Mapped[dict | None] = mapped_column(JSONB)  # 384-dim, NUR aktuelle Rolle
+    v2_embedding_full: Mapped[dict | None] = mapped_column(JSONB)  # 384-dim, Gesamtprofil
 
     # Status
     hidden: Mapped[bool] = mapped_column(Boolean, default=False)

@@ -422,6 +422,89 @@ async def _ensure_ats_tables() -> None:
         logger.info("ATS-Tabellen erfolgreich erstellt.")
 
 
+async def _ensure_matching_v2_tables() -> None:
+    """Erstellt Matching Engine v2 Tabellen falls sie nicht existieren."""
+
+    async with engine.begin() as conn:
+        result = await conn.execute(
+            text(
+                "SELECT table_name FROM information_schema.tables "
+                "WHERE table_schema = 'public' AND table_name = 'match_v2_training_data'"
+            )
+        )
+        if result.fetchone() is not None:
+            logger.info("Matching v2 Tabellen existieren bereits.")
+            return
+
+    logger.info("Matching v2 Tabellen werden erstellt...")
+
+    async with engine.begin() as conn:
+        # match_v2_training_data — Feedback-Daten fuer ML-Training
+        await conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS match_v2_training_data (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                match_id UUID REFERENCES matches(id) ON DELETE SET NULL,
+                job_id UUID,
+                candidate_id UUID,
+                features JSONB,
+                outcome VARCHAR(20),
+                outcome_source VARCHAR(20),
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        """))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_v2_training_match_id ON match_v2_training_data (match_id)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_v2_training_outcome ON match_v2_training_data (outcome)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_v2_training_created_at ON match_v2_training_data (created_at)"))
+
+        # match_v2_learned_rules — Automatisch entdeckte Matching-Regeln
+        await conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS match_v2_learned_rules (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                rule_type VARCHAR(30) NOT NULL,
+                rule_json JSONB NOT NULL,
+                confidence FLOAT,
+                support_count INTEGER,
+                active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        """))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_v2_rules_type ON match_v2_learned_rules (rule_type)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_v2_rules_active ON match_v2_learned_rules (active)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_v2_rules_confidence ON match_v2_learned_rules (confidence)"))
+
+        # match_v2_scoring_weights — Lernbare Gewichte fuer Score-Komponenten
+        await conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS match_v2_scoring_weights (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                component VARCHAR(50) NOT NULL UNIQUE,
+                weight FLOAT NOT NULL,
+                default_weight FLOAT NOT NULL,
+                adjustment_count INTEGER DEFAULT 0,
+                last_adjusted_at TIMESTAMPTZ
+            )
+        """))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_v2_weights_component ON match_v2_scoring_weights (component)"))
+
+        # Default-Gewichte einfuegen (nur wenn Tabelle leer)
+        await conn.execute(text("""
+            INSERT INTO match_v2_scoring_weights (id, component, weight, default_weight, adjustment_count)
+            SELECT gen_random_uuid(), v.component, v.weight, v.weight, 0
+            FROM (VALUES
+                ('skill_overlap', 30.0),
+                ('seniority_fit', 20.0),
+                ('embedding_sim', 20.0),
+                ('distance', 10.0),
+                ('career_fit', 10.0),
+                ('software_match', 5.0),
+                ('city_metro', 5.0)
+            ) AS v(component, weight)
+            WHERE NOT EXISTS (SELECT 1 FROM match_v2_scoring_weights)
+        """))
+
+        logger.info("Matching v2 Tabellen erfolgreich erstellt.")
+
+
 async def init_db() -> None:
     """Initialisiert die Datenbankverbindung und führt Migrationen aus."""
     async with engine.begin() as conn:
@@ -431,6 +514,7 @@ async def init_db() -> None:
     # ── Tabellen-Erstellung (fuer neue Tabellen die nicht via Alembic laufen) ──
     await _ensure_company_tables()
     await _ensure_ats_tables()
+    await _ensure_matching_v2_tables()
 
     # ── pgvector Extension NICHT noetig — Embeddings werden als JSONB gespeichert ──
     # Railway Standard-PostgreSQL hat kein pgvector vorinstalliert.
@@ -494,6 +578,31 @@ async def init_db() -> None:
         ("company_contacts", "mobile", "VARCHAR(100)"),
         # Phase 5: Todo contact_id FK
         ("ats_todos", "contact_id", "UUID"),
+        # ── Matching Engine v2: Kandidaten-Profil ──
+        ("candidates", "v2_seniority_level", "INTEGER"),
+        ("candidates", "v2_career_trajectory", "VARCHAR(20)"),
+        ("candidates", "v2_years_experience", "INTEGER"),
+        ("candidates", "v2_structured_skills", "JSONB"),
+        ("candidates", "v2_current_role_summary", "TEXT"),
+        ("candidates", "v2_profile_created_at", "TIMESTAMPTZ"),
+        ("candidates", "v2_embedding_current", "JSONB"),
+        ("candidates", "v2_embedding_full", "JSONB"),
+        # ── Matching Engine v2: Job-Profil ──
+        ("jobs", "v2_seniority_level", "INTEGER"),
+        ("jobs", "v2_required_skills", "JSONB"),
+        ("jobs", "v2_role_summary", "TEXT"),
+        ("jobs", "v2_profile_created_at", "TIMESTAMPTZ"),
+        ("jobs", "v2_embedding", "JSONB"),
+        # ── Matching Engine v2: Match-Score ──
+        ("matches", "v2_score", "FLOAT"),
+        ("matches", "v2_score_breakdown", "JSONB"),
+        ("matches", "v2_matched_at", "TIMESTAMPTZ"),
+        # Kandidaten: Gehalt/Kuendigungsfrist/ERP
+        ("candidates", "salary", "VARCHAR(100)"),
+        ("candidates", "notice_period", "VARCHAR(100)"),
+        ("candidates", "erp", "VARCHAR[]"),
+        ("candidates", "rating", "INTEGER"),
+        ("candidates", "rating_set_at", "TIMESTAMPTZ"),
     ]
     for table_name, col_name, col_type in migrations:
         try:
@@ -769,6 +878,18 @@ async def init_db() -> None:
             """))
     except Exception as e:
         logger.warning(f"direction Spalte uebersprungen: {e}")
+
+    # ── Matching Engine v2: Indizes fuer Profil-Spalten ──
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_candidates_v2_seniority ON candidates (v2_seniority_level)"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_candidates_v2_profile ON candidates (v2_profile_created_at)"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_jobs_v2_seniority ON jobs (v2_seniority_level)"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_jobs_v2_profile ON jobs (v2_profile_created_at)"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_matches_v2_score ON matches (v2_score)"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_matches_v2_matched_at ON matches (v2_matched_at)"))
+    except Exception as e:
+        logger.warning(f"Matching v2 Indizes uebersprungen: {e}")
 
     # ── Embedding-Indexes nicht noetig (JSONB, kein pgvector) ──
     # Similarity-Suche laeuft in Python, nicht in SQL.

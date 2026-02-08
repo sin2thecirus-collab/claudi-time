@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 
 from geoalchemy2 import Geography
-from sqlalchemy import ARRAY, Boolean, Column, DateTime, Float, ForeignKey, Index, String, Text, func
+from sqlalchemy import ARRAY, Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB as JobJSONB
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -64,6 +64,13 @@ class Job(Base):
 
     # Embedding (OpenAI text-embedding-3-small, 1536 Dimensionen, als JSONB-Array gespeichert)
     embedding = Column(JobJSONB)
+
+    # ── Matching Engine v2: Strukturiertes Profil ──
+    v2_seniority_level: Mapped[int | None] = mapped_column(Integer)  # 1-6 (benötigtes Level)
+    v2_required_skills: Mapped[dict | None] = mapped_column(JobJSONB)  # [{skill, importance, category}]
+    v2_role_summary: Mapped[str | None] = mapped_column(Text)  # Kern-Tätigkeiten normalisiert
+    v2_profile_created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    v2_embedding: Mapped[dict | None] = mapped_column(JobJSONB)  # 384-dim Embedding
 
     # Duplikaterkennung
     content_hash: Mapped[str | None] = mapped_column(String(64), unique=True)

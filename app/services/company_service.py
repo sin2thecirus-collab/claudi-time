@@ -181,6 +181,17 @@ class CompanyService:
             # Blacklist check
             if company.status == CompanyStatus.BLACKLIST:
                 return None
+            # Fehlende Felder nachfuellen (nicht ueberschreiben!)
+            updated = False
+            for key, value in extra_fields.items():
+                if value and str(value).strip() and hasattr(company, key):
+                    current = getattr(company, key)
+                    if not current or not str(current).strip():
+                        setattr(company, key, value)
+                        updated = True
+            if updated:
+                await self.db.flush()
+                logger.debug(f"Company ergaenzt: {company.name}")
             return company
 
         # Neue Company erstellen — nur nicht-leere Felder uebernehmen

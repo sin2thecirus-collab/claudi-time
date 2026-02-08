@@ -17,6 +17,7 @@ from app.models.import_job import ImportJob
 from app.models.job import Job
 from app.models.job_run import JobRun
 from app.models.match import Match
+from app.models.match_v2_models import MatchV2LearnedRule, MatchV2ScoringWeight, MatchV2TrainingData
 from app.models.mt_match_memory import MTMatchMemory
 from app.models.mt_training import MTTrainingData
 from app.models.settings import FilterPreset, PriorityCity
@@ -55,4 +56,7 @@ __all__ = [
     "ATSActivity",
     "ActivityType",
     "ATSEmailTemplate",
+    "MatchV2TrainingData",
+    "MatchV2LearnedRule",
+    "MatchV2ScoringWeight",
 ]

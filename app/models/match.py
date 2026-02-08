@@ -17,7 +17,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -97,6 +97,11 @@ class Match(Base):
         Enum(MatchStatus, values_callable=lambda x: [e.value for e in x]),
         default=MatchStatus.NEW,
     )
+
+    # ── Matching Engine v2: Score ──
+    v2_score: Mapped[float | None] = mapped_column(Float)  # Neuer Matching-Score (0-100)
+    v2_score_breakdown: Mapped[dict | None] = mapped_column(JSONB)  # {skill_overlap, seniority_fit, embedding_sim, ...}
+    v2_matched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     # Stale-Tracking (Match ist veraltet weil sich Kandidaten-Daten geaendert haben)
     stale: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")

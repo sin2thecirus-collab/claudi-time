@@ -317,11 +317,18 @@ class CSVImportService:
                     # Company lookup/create (mit Cache)
                     cache_key = company_name.lower()
                     if cache_key not in company_cache:
+                        # Adresse zusammenbauen (Straße, PLZ Ort)
+                        _street = self._get_field(row, "Straße", "Straße und Hausnummer")
+                        _plz = self._get_field(row, "PLZ")
+                        _city = self._get_field(row, "Stadt", "Ort")
+                        _address_parts = [p for p in [_street, f"{_plz} {_city}" if _plz and _city else _city or _plz] if p]
+                        _address = ", ".join(_address_parts) if _address_parts else None
+
                         company = await company_service.get_or_create_by_name(
                             name=company_name,
-                            street=self._get_field(row, "Straße", "Straße und Hausnummer"),
-                            postal_code=self._get_field(row, "PLZ"),
-                            city=self._get_field(row, "Stadt", "Ort"),
+                            address=_address,
+                            city=_city,
+                            phone=self._get_field(row, "Telefon"),
                             domain=self._get_field(row, "Internet", "Domain", "Website"),
                             employee_count=self._get_field(
                                 row, "Unternehmensgröße", "Unternehmensgroesse",
