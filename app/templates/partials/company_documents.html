@@ -1,104 +1,62 @@
-{# Partial: Dokumente eines Unternehmens #}
+{# Partial: Dokumente eines Unternehmens – Dark Theme #}
 
-<div x-data="{ dragging: false }">
-    {# Upload Zone #}
-    <div id="doc-upload-form" style="display:none" class="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-        <div class="space-y-3">
-            {# Drag-Drop Zone #}
-            <div @dragover.prevent="dragging = true"
-                 @dragleave.prevent="dragging = false"
-                 @drop.prevent="dragging = false; handleFileDrop($event)"
-                 :class="dragging ? 'border-primary-400 bg-primary-50' : 'border-gray-300 bg-white'"
-                 class="border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer"
-                 onclick="document.getElementById('doc-file-input').click()">
-                <svg class="mx-auto w-8 h-8 text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
+{% if documents and documents | length > 0 %}
+<div style="display:flex; flex-direction:column; gap:10px;">
+    {% for doc in documents %}
+    <div style="display:flex; align-items:center; gap:14px; padding:14px 16px; background:var(--pp-surface); border:1px solid var(--pp-border); border-radius:12px; transition:all 0.15s;">
+        {# File Icon #}
+        {% if doc.mime_type and 'pdf' in doc.mime_type %}
+        <div style="width:38px; height:38px; border-radius:10px; background:var(--pp-redSoft); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:18px;">📄</div>
+        {% elif doc.mime_type and ('word' in doc.mime_type or 'document' in doc.mime_type) %}
+        <div style="width:38px; height:38px; border-radius:10px; background:var(--pp-accentSoft); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:18px;">📝</div>
+        {% elif doc.mime_type and ('excel' in doc.mime_type or 'spreadsheet' in doc.mime_type) %}
+        <div style="width:38px; height:38px; border-radius:10px; background:var(--pp-greenSoft); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:18px;">📊</div>
+        {% elif doc.mime_type and 'image' in doc.mime_type %}
+        <div style="width:38px; height:38px; border-radius:10px; background:var(--pp-purpleSoft); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:18px;">🖼️</div>
+        {% else %}
+        <div style="width:38px; height:38px; border-radius:10px; background:var(--pp-surfaceHover); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:18px;">📁</div>
+        {% endif %}
+
+        {# Info #}
+        <div style="flex:1; min-width:0;">
+            <div style="font-size:14px; font-weight:600; color:var(--pp-text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ doc.filename }}</div>
+            <div style="display:flex; align-items:center; gap:12px; margin-top:4px;">
+                {% if doc.file_size %}
+                <span style="font-size:12px; color:var(--pp-textDim);">{{ doc.file_size | filesizeformat }}</span>
+                {% endif %}
+                {% if doc.created_at %}
+                <span style="font-size:12px; color:var(--pp-textDim);">{{ doc.created_at | datetime }}</span>
+                {% endif %}
+            </div>
+            {% if doc.notes %}
+            <div style="font-size:12px; color:var(--pp-textMuted); margin-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ doc.notes }}</div>
+            {% endif %}
+        </div>
+
+        {# Actions #}
+        <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+            <a href="/api/companies/documents/{{ doc.id }}/download"
+               style="padding:8px; border-radius:8px; color:var(--pp-textMuted); transition:all 0.15s; display:flex;"
+               onmouseover="this.style.color='var(--pp-accent)';this.style.background='var(--pp-accentSoft)'"
+               onmouseout="this.style.color='var(--pp-textMuted)';this.style.background='transparent'"
+               title="Herunterladen">
+                <svg style="width:16px; height:16px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
                 </svg>
-                <p class="text-sm text-gray-600">Datei hierher ziehen oder <span class="text-primary-600 font-medium">klicken</span></p>
-                <p class="text-xs text-gray-400 mt-1">PDF, Word, Excel, Bilder etc.</p>
-                <input type="file" id="doc-file-input" class="hidden" onchange="handleFileSelect(this)">
-            </div>
-            <div id="doc-file-name" class="text-sm text-gray-700 hidden"></div>
-            <textarea id="doc-notes" placeholder="Notizen zum Dokument" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"></textarea>
-        </div>
-        <div class="flex gap-2 mt-3">
-            <button onclick="uploadDocument()" id="doc-upload-btn" class="px-4 py-2 bg-primary-600 text-white text-sm rounded-lg hover:bg-primary-700 disabled:opacity-50" disabled>Hochladen</button>
-            <button onclick="toggleDocForm()" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Abbrechen</button>
+            </a>
+            <button onclick="deleteDocument('{{ doc.id }}')"
+                    style="padding:8px; border-radius:8px; border:none; background:transparent; color:var(--pp-textMuted); cursor:pointer; transition:all 0.15s; display:flex;"
+                    onmouseover="this.style.color='var(--pp-red)';this.style.background='var(--pp-redSoft)'"
+                    onmouseout="this.style.color='var(--pp-textMuted)';this.style.background='transparent'"
+                    title="Löschen">
+                <svg style="width:14px; height:14px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
         </div>
     </div>
-
-    {# Document List #}
-    {% if documents and documents | length > 0 %}
-    <div class="space-y-3">
-        {% for doc in documents %}
-        <div class="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-            {# File Icon #}
-            <div class="flex-shrink-0 mt-0.5">
-                {% if doc.mime_type and 'pdf' in doc.mime_type %}
-                <div class="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center">
-                    <svg class="w-4 h-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                    </svg>
-                </div>
-                {% elif doc.mime_type and ('word' in doc.mime_type or 'document' in doc.mime_type) %}
-                <div class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
-                    <svg class="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                    </svg>
-                </div>
-                {% elif doc.mime_type and ('excel' in doc.mime_type or 'spreadsheet' in doc.mime_type) %}
-                <div class="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
-                    <svg class="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 01-1.125-1.125M3.375 19.5h7.5c.621 0 1.125-.504 1.125-1.125m-9.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-7.5A1.125 1.125 0 0112 18.375m9.75-12.75c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125m19.5 0v1.5c0 .621-.504 1.125-1.125 1.125M2.25 5.625v1.5c0 .621.504 1.125 1.125 1.125m0 0h17.25m-17.25 0h7.5c.621 0 1.125.504 1.125 1.125M3.375 8.25c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m17.25-3.75h-7.5c-.621 0-1.125.504-1.125 1.125m8.625-1.125c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125M12 10.875v-1.5m0 1.5c0 .621-.504 1.125-1.125 1.125M12 10.875c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125M11.25 12h.008v.008h-.008V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-                    </svg>
-                </div>
-                {% elif doc.mime_type and 'image' in doc.mime_type %}
-                <div class="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
-                    <svg class="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M2.25 15.75V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18v-2.25" />
-                    </svg>
-                </div>
-                {% else %}
-                <div class="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center">
-                    <svg class="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                    </svg>
-                </div>
-                {% endif %}
-            </div>
-            <div class="flex-1 min-w-0">
-                <p class="text-sm font-medium text-gray-900 truncate">{{ doc.filename }}</p>
-                <div class="flex items-center gap-3 mt-1">
-                    {% if doc.file_size %}
-                    <span class="text-xs text-gray-500">{{ doc.file_size | filesizeformat }}</span>
-                    {% endif %}
-                    {% if doc.created_at %}
-                    <span class="text-xs text-gray-400">{{ doc.created_at | datetime }}</span>
-                    {% endif %}
-                </div>
-                {% if doc.notes %}
-                <p class="text-xs text-gray-500 mt-1 line-clamp-1">{{ doc.notes }}</p>
-                {% endif %}
-            </div>
-            <div class="flex items-center gap-1 flex-shrink-0">
-                {# Download #}
-                <a href="/api/companies/documents/{{ doc.id }}/download"
-                   class="text-gray-400 hover:text-primary-600 p-1" title="Herunterladen">
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                    </svg>
-                </a>
-                {# Delete #}
-                <button onclick="deleteDocument('{{ doc.id }}')" class="text-gray-400 hover:text-red-500 p-1" title="Loeschen">
-                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-    {% else %}
-    <p class="text-sm text-gray-400">Keine Dokumente vorhanden</p>
-    {% endif %}
+    {% endfor %}
 </div>
+{% else %}
+<p style="font-size:14px; color:var(--pp-textDim); padding:8px 0;">Keine Dokumente vorhanden</p>
+{% endif %}

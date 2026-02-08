@@ -122,6 +122,250 @@
         .pp-nav-item { padding: 8px 12px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; color: var(--pp-textMuted); background: transparent; text-decoration: none; display: inline-flex; align-items: center; transition: all 0.15s; border: none; white-space: nowrap; font-family: var(--pp-ff); }
         .pp-nav-item:hover { color: var(--pp-text); background: var(--pp-surfaceHover); }
         .pp-nav-item.active { color: var(--pp-accent); background: var(--pp-accentSoft); }
+
+        /* ═══ GLOBAL QUICK-ADD DARK THEME ═══ */
+        /* Applies to all content loaded inside #quickadd-content */
+        #quickadd-content {
+            font-family: var(--pp-ff);
+        }
+
+        /* Labels */
+        #quickadd-content label,
+        #quickadd-content .block.text-xs {
+            color: var(--pp-green) !important;
+            font-size: 13px !important;
+            font-weight: 600 !important;
+        }
+
+        /* Fieldset legends */
+        #quickadd-content legend,
+        #quickadd-content .text-sm.font-bold {
+            color: var(--pp-text) !important;
+        }
+        #quickadd-content legend svg,
+        #quickadd-content .text-sm.font-bold svg {
+            color: var(--pp-textMuted) !important;
+        }
+
+        /* Inputs, textareas, selects */
+        #quickadd-content input[type="text"],
+        #quickadd-content input[type="email"],
+        #quickadd-content input[type="number"],
+        #quickadd-content input[type="tel"],
+        #quickadd-content input[type="date"],
+        #quickadd-content input[type="time"],
+        #quickadd-content textarea,
+        #quickadd-content select {
+            background: var(--pp-surface) !important;
+            border: 1px solid var(--pp-border) !important;
+            color: var(--pp-text) !important;
+            border-radius: 10px !important;
+            font-family: var(--pp-ff) !important;
+            font-size: 13px !important;
+            padding: 10px 12px !important;
+            box-shadow: none !important;
+        }
+        #quickadd-content input::placeholder,
+        #quickadd-content textarea::placeholder {
+            color: var(--pp-textDim) !important;
+        }
+        #quickadd-content input:focus,
+        #quickadd-content textarea:focus,
+        #quickadd-content select:focus {
+            border-color: var(--pp-accent) !important;
+            outline: none !important;
+            box-shadow: 0 0 0 2px var(--pp-accentSoft) !important;
+        }
+
+        /* Calendar & time picker icons */
+        #quickadd-content input[type="date"]::-webkit-calendar-picker-indicator,
+        #quickadd-content input[type="time"]::-webkit-calendar-picker-indicator {
+            filter: invert(1) brightness(2);
+            cursor: pointer;
+            opacity: 0.7;
+        }
+
+        /* Select options */
+        #quickadd-content select option {
+            background: var(--pp-surface);
+            color: var(--pp-text);
+        }
+
+        /* Dropdowns (search results etc.) */
+        #quickadd-content .bg-white {
+            background: var(--pp-surface) !important;
+        }
+        #quickadd-content .border-gray-200,
+        #quickadd-content .border-gray-300 {
+            border-color: var(--pp-border) !important;
+        }
+        #quickadd-content .shadow-lg {
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
+        }
+
+        /* Hover bg in dropdowns */
+        #quickadd-content .hover\:bg-gray-50:hover,
+        #quickadd-content .hover\:bg-gray-100:hover {
+            background: var(--pp-surfaceHover) !important;
+        }
+
+        /* Text colors */
+        #quickadd-content .text-gray-700 { color: var(--pp-text) !important; }
+        #quickadd-content .text-gray-800 { color: var(--pp-text) !important; }
+        #quickadd-content .text-gray-600 { color: var(--pp-textMuted) !important; }
+        #quickadd-content .text-gray-500 { color: var(--pp-textMuted) !important; }
+        #quickadd-content .text-gray-400 { color: var(--pp-textDim) !important; }
+        #quickadd-content .text-gray-300 { color: var(--pp-textDim) !important; }
+        #quickadd-content .text-gray-900 { color: var(--pp-text) !important; }
+
+        /* Background overrides */
+        #quickadd-content .bg-gray-50 { background: var(--pp-bg) !important; }
+        #quickadd-content .bg-gray-100 { background: var(--pp-surfaceHover) !important; }
+
+        /* Border overrides */
+        #quickadd-content .border-gray-100 { border-color: var(--pp-border) !important; }
+        #quickadd-content .border-t.border-gray-200 { border-color: var(--pp-border) !important; }
+
+        /* Divider lines (the "oder" divider) */
+        #quickadd-content .h-px.bg-gray-200 { background: var(--pp-border) !important; }
+
+        /* Primary/accent badges */
+        #quickadd-content .bg-primary-50 { background: var(--pp-accentSoft) !important; }
+        #quickadd-content .text-primary-700,
+        #quickadd-content .text-primary-600 { color: var(--pp-accent) !important; }
+        #quickadd-content .hover\:text-primary-700:hover { color: var(--pp-accent) !important; }
+
+        /* Success banner (CV parsed) */
+        #quickadd-content .bg-green-50 { background: var(--pp-greenSoft) !important; }
+        #quickadd-content .border-green-200 { border-color: rgba(52,211,153,0.27) !important; }
+        #quickadd-content .text-green-800 { color: var(--pp-green) !important; }
+        #quickadd-content .text-green-600 { color: var(--pp-green) !important; }
+        #quickadd-content .text-green-700 { color: var(--pp-green) !important; }
+        #quickadd-content .bg-green-100 { background: var(--pp-greenSoft) !important; }
+
+        /* Warning banner (Duplikat) */
+        #quickadd-content .bg-amber-50 { background: var(--pp-orangeSoft) !important; }
+        #quickadd-content .border-amber-200 { border-color: rgba(245,158,11,0.27) !important; }
+        #quickadd-content .text-amber-800 { color: var(--pp-orange) !important; }
+        #quickadd-content .text-amber-700 { color: var(--pp-orange) !important; }
+        #quickadd-content .text-amber-600 { color: var(--pp-orange) !important; }
+        #quickadd-content .text-amber-500 { color: rgba(245,158,11,0.7) !important; }
+        #quickadd-content .bg-amber-100 { background: var(--pp-orangeSoft) !important; }
+
+        /* Blue info cards (changes) */
+        #quickadd-content .bg-blue-50 { background: var(--pp-accentSoft) !important; }
+        #quickadd-content .border-blue-100 { border-color: rgba(79,140,255,0.2) !important; }
+        #quickadd-content .text-blue-800 { color: var(--pp-accent) !important; }
+        #quickadd-content .text-blue-700 { color: var(--pp-accent) !important; }
+        #quickadd-content .text-blue-500 { color: var(--pp-accent) !important; }
+
+        /* Red/green text in diffs */
+        #quickadd-content .text-red-500 { color: var(--pp-red) !important; }
+
+        /* Primary buttons */
+        #quickadd-content .bg-primary-600 {
+            background: linear-gradient(135deg, #4F8CFF, #6C63FF) !important;
+            border: none !important;
+        }
+        #quickadd-content .bg-primary-600:hover,
+        #quickadd-content .hover\:bg-primary-700:hover {
+            background: linear-gradient(135deg, #6C9FFF, #7D75FF) !important;
+        }
+
+        /* Blue buttons (merge) */
+        #quickadd-content .bg-blue-600 {
+            background: linear-gradient(135deg, #4F8CFF, #6C63FF) !important;
+            border: none !important;
+        }
+        #quickadd-content .bg-blue-600:hover,
+        #quickadd-content .hover\:bg-blue-700:hover {
+            background: linear-gradient(135deg, #6C9FFF, #7D75FF) !important;
+        }
+
+        /* Cancel/secondary buttons */
+        #quickadd-content button.border-gray-300,
+        #quickadd-content button.border.border-gray-300 {
+            background: transparent !important;
+            border: 1px solid var(--pp-border) !important;
+            color: var(--pp-textMuted) !important;
+        }
+        #quickadd-content button.border-gray-300:hover {
+            background: var(--pp-surfaceHover) !important;
+            color: var(--pp-text) !important;
+        }
+
+        /* Bottom sticky bars */
+        #quickadd-content .sticky.bottom-0.bg-white {
+            background: var(--pp-bg) !important;
+        }
+        #quickadd-content .sticky.bottom-0 {
+            background: var(--pp-bg) !important;
+        }
+
+        /* Border-top in button areas */
+        #quickadd-content .border-t {
+            border-color: var(--pp-border) !important;
+        }
+
+        /* Drag-Drop Zones (Kandidat CV Upload) */
+        #quickadd-content .border-dashed {
+            border-color: var(--pp-border) !important;
+            background: var(--pp-surface) !important;
+        }
+        #quickadd-content .border-dashed:hover {
+            border-color: var(--pp-borderLight) !important;
+            background: var(--pp-surfaceHover) !important;
+        }
+        /* Drag-over active state */
+        #quickadd-content .border-primary-400 {
+            border-color: var(--pp-accent) !important;
+        }
+        #quickadd-content .bg-primary-100 {
+            background: var(--pp-accentSoft) !important;
+        }
+
+        /* Icon box in dropzone */
+        #quickadd-content .border.border-gray-200 {
+            border-color: var(--pp-border) !important;
+            background: var(--pp-bg) !important;
+        }
+
+        /* Upload spinner */
+        #quickadd-content .border-b-2.border-primary-600 {
+            border-bottom-color: var(--pp-accent) !important;
+        }
+
+        /* NEU badge in changes */
+        #quickadd-content .bg-green-100.text-green-700 {
+            background: var(--pp-greenSoft) !important;
+            color: var(--pp-green) !important;
+        }
+
+        /* "Trotzdem neu anlegen" ghost link */
+        #quickadd-content .text-xs.text-gray-400.hover\:text-gray-600:hover {
+            color: var(--pp-textMuted) !important;
+        }
+
+        /* Bestehendes Profil section header */
+        #quickadd-content .text-xs.font-bold.text-gray-500.uppercase {
+            color: var(--pp-textDim) !important;
+        }
+
+        /* Language chips */
+        #quickadd-content .text-sm.text-gray-700.bg-gray-50 {
+            background: var(--pp-surface) !important;
+            border: 1px solid var(--pp-border) !important;
+            color: var(--pp-text) !important;
+        }
+
+        /* Work history, education, further education cards */
+        #quickadd-content .bg-gray-50.rounded-lg.border.border-gray-100 {
+            background: var(--pp-surface) !important;
+            border-color: var(--pp-border) !important;
+        }
+
+        /* Fieldset spacing inherits fine */
+        #quickadd-content fieldset { border: none; padding: 0; }
     </style>
 
     {% block head %}{% endblock %}
