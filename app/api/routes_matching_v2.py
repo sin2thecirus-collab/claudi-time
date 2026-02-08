@@ -695,3 +695,137 @@ async def get_pipeline_status():
         "total": _pipeline_status["total"],
         "result": _pipeline_status["result"],
     }
+
+
+# ══════════════════════════════════════════════════════════════════
+# Feedback & Learning (Sprint 3)
+# ══════════════════════════════════════════════════════════════════
+
+@router.post("/feedback/{match_id}")
+async def submit_feedback(
+    match_id: UUID,
+    outcome: str,  # "good" / "bad" / "neutral"
+    note: str = "",
+    db: AsyncSession = Depends(get_db),
+):
+    """Speichert Feedback fuer einen Match und passt Gewichte an.
+
+    3 Stufen des Lernens:
+    - 0-20 Feedbacks: Nur speichern (Cold Start)
+    - 20-80: Micro-Adjustment (Gewichte verschieben sich ±0.8%)
+    - 80+: Korrelations-basierte Optimierung
+
+    Args:
+        match_id: UUID des Matches
+        outcome: "good" (guter Match), "bad" (schlechter Match), "neutral"
+        note: Optionale Notiz
+    """
+    from app.services.matching_learning_service import MatchingLearningService
+
+    service = MatchingLearningService(db)
+    try:
+        result = await service.record_feedback(
+            match_id=match_id,
+            outcome=outcome,
+            note=note if note else None,
+        )
+        return {
+            "status": "ok",
+            "match_id": str(result.match_id),
+            "outcome": result.outcome,
+            "weights_adjusted": result.weights_adjusted,
+            "adjustments": result.adjustments,
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/feedback/{match_id}/placed")
+async def record_placement(
+    match_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Markiert einen Match als erfolgreich platziert (staerkstes positives Signal)."""
+    from app.services.matching_learning_service import MatchingLearningService
+
+    service = MatchingLearningService(db)
+    try:
+        result = await service.record_placement(match_id)
+        return {
+            "status": "ok",
+            "match_id": str(result.match_id),
+            "outcome": "good",
+            "source": "placed",
+            "weights_adjusted": result.weights_adjusted,
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/learn/stats")
+async def get_learning_stats(db: AsyncSession = Depends(get_db)):
+    """Gibt umfassende Lern-Statistiken zurueck.
+
+    Zeigt:
+    - Anzahl Feedbacks (good/bad/neutral)
+    - Aktuelle Lern-Stufe (cold_start → micro_adjustment → correlation → mature)
+    - Welche Scoring-Komponenten am besten gut/schlecht trennen
+    - Anzahl gelernter Regeln
+    """
+    from app.services.matching_learning_service import MatchingLearningService
+
+    service = MatchingLearningService(db)
+    stats = await service.get_learning_stats()
+
+    return {
+        "total_feedbacks": stats.total_feedbacks,
+        "good": stats.good_feedbacks,
+        "bad": stats.bad_feedbacks,
+        "neutral": stats.neutral_feedbacks,
+        "learning_stage": stats.learning_stage,
+        "total_rules": stats.total_rules,
+        "active_rules": stats.active_rules,
+        "total_weight_adjustments": stats.total_weight_adjustments,
+        "component_performance": stats.top_performing_components,
+    }
+
+
+@router.get("/learn/weights")
+async def get_current_weights_detailed(db: AsyncSession = Depends(get_db)):
+    """Gibt die aktuellen Gewichte mit Aenderungshistorie zurueck."""
+    from app.services.matching_learning_service import MatchingLearningService
+
+    service = MatchingLearningService(db)
+    return await service.get_current_weights()
+
+
+@router.post("/learn/reset-weights")
+async def reset_weights(db: AsyncSession = Depends(get_db)):
+    """Setzt alle Gewichte auf die Default-Werte zurueck.
+
+    ACHTUNG: Alle gelernten Gewichts-Anpassungen gehen verloren!
+    Training-Daten bleiben erhalten.
+    """
+    from app.services.matching_learning_service import MatchingLearningService
+
+    service = MatchingLearningService(db)
+    return await service.reset_weights()
+
+
+@router.get("/learn/history")
+async def get_feedback_history(
+    limit: int = 50,
+    outcome: str | None = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """Gibt die letzten Feedbacks zurueck.
+
+    Args:
+        limit: Max. Anzahl (default 50)
+        outcome: Optional filtern nach "good"/"bad"/"neutral"
+    """
+    from app.services.matching_learning_service import MatchingLearningService
+
+    service = MatchingLearningService(db)
+    history = await service.get_feedback_history(limit=limit, outcome_filter=outcome)
+    return {"feedbacks": history, "total": len(history)}
