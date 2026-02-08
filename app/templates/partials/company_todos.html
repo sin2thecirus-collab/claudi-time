@@ -1,20 +1,21 @@
 {# Partial: Aufgaben eines Unternehmens — Dark Theme, besseres Layout #}
 
 {% if todos and todos | length > 0 %}
-<div style="display:flex; flex-direction:column; gap:10px;">
+<div x-data="{ openId: null }" style="display:flex; flex-direction:column; gap:10px;">
     {% for todo in todos %}
     {% set prio_map = {'unwichtig': ('Unwichtig','var(--pp-textDim)','var(--pp-surfaceHover)'), 'mittelmaessig': ('Mittelmäßig','var(--pp-accent)','var(--pp-accentSoft)'), 'wichtig': ('Wichtig','var(--pp-orange)','var(--pp-orangeSoft)'), 'dringend': ('Dringend','var(--pp-red)','var(--pp-redSoft)'), 'sehr_dringend': ('Sehr dringend','var(--pp-red)','var(--pp-redSoft)')} %}
     {% set pl, pc, pbg = prio_map.get(todo.priority.value, ('','var(--pp-textDim)','var(--pp-surfaceHover)')) %}
     {% set status_map = {'open': ('Offen','var(--pp-accent)','var(--pp-accentSoft)'), 'in_progress': ('In Bearbeitung','var(--pp-orange)','var(--pp-orangeSoft)'), 'done': ('Erledigt','var(--pp-green)','var(--pp-greenSoft)'), 'cancelled': ('Abgebrochen','var(--pp-textDim)','var(--pp-surfaceHover)')} %}
     {% set sl, sc, sbg = status_map.get(todo.status.value, ('Offen','var(--pp-accent)','var(--pp-accentSoft)')) %}
 
-    <div x-data="{ open: false, saving: false, statusDrop: false,
+    <div x-data="{ saving: false, statusDrop: false,
                    editTitle: '{{ todo.title | replace("'", "\\'") }}',
                    editDesc: '{{ (todo.description or '') | replace("'", "\\'") | replace('\n', '\\n') }}',
                    editPriority: '{{ todo.priority.value }}',
                    editStatus: '{{ todo.status.value }}',
                    editDueDate: '{{ todo.due_date.isoformat() if todo.due_date else '' }}' }"
-         style="padding:14px 20px; border-radius:12px; background:var(--pp-surface); border:1px solid var(--pp-border); transition:all 0.15s;">
+         style="padding:14px 20px; border-radius:12px; background:var(--pp-surface); border:1px solid var(--pp-border); transition:all 0.2s;"
+         :style="openId === '{{ todo.id }}' ? 'border-left:3px solid var(--pp-accent); background:var(--pp-surfaceHover);' : ''">
 
         {# ── Main Row: 3-column layout ── #}
         <div style="display:grid; grid-template-columns:1fr auto auto; gap:16px; align-items:center;">
@@ -94,15 +95,15 @@
                     </div>
                 </div>
 
-                {# Expand Button #}
-                <button @click="open = !open" style="background:none; border:none; color:var(--pp-textDim); cursor:pointer; font-size:18px; padding:2px 6px; transition:transform 0.2s; line-height:1;"
-                        :style="open ? 'transform:rotate(180deg)' : 'transform:rotate(0)'"
+                {# Expand Button (Akkordeon: nur eine offen) #}
+                <button @click="openId = openId === '{{ todo.id }}' ? null : '{{ todo.id }}'" style="background:none; border:none; color:var(--pp-textDim); cursor:pointer; font-size:18px; padding:2px 6px; transition:transform 0.2s; line-height:1;"
+                        :style="openId === '{{ todo.id }}' ? 'transform:rotate(180deg)' : 'transform:rotate(0)'"
                         onmouseover="this.style.color='var(--pp-text)'" onmouseout="this.style.color='var(--pp-textDim)'">⌄</button>
             </div>
         </div>
 
-        {# ── Expanded Edit Area ── #}
-        <template x-if="open && !saving">
+        {# ── Expanded Edit Area (Akkordeon) ── #}
+        <template x-if="openId === '{{ todo.id }}' && !saving">
             <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--pp-border);">
                 {% if todo.description %}
                 <div style="font-size:14px; color:var(--pp-textMuted); line-height:1.5; margin-bottom:14px;">{{ todo.description }}</div>
@@ -158,7 +159,7 @@
                             :style="saving ? 'opacity:0.6;cursor:not-allowed;' : ''">
                             ✓ Speichern
                         </button>
-                        <button @click="open = false" type="button"
+                        <button @click="openId = null" type="button"
                             style="padding:9px 16px; font-size:14px; font-weight:500; border-radius:8px;
                                    border:1px solid var(--pp-border); cursor:pointer; background:var(--pp-surface);
                                    color:var(--pp-textMuted); font-family:var(--pp-ff);">
