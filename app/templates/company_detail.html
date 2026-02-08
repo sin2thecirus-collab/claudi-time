@@ -330,7 +330,7 @@
 {% block content %}
 {% set invalid_vals = ['not available', 'n/a', 'na', 'none', 'null', '-', '—', ''] %}
 
-<div class="cd-page" x-data="{ tab: 'overview', statusOpen: false, showCallModal: false, callDir: 'outbound' }">
+<div class="cd-page" id="cd-page" x-data="{ tab: 'overview', statusOpen: false, showCallModal: false, callDir: 'outbound' }" x-effect="if (showCallModal) { $nextTick(() => { const d = document.getElementById('call-date'); const t = document.getElementById('call-time'); if (d) d.value = new Date().toISOString().split('T')[0]; if (t) t.value = new Date().toTimeString().slice(0,5); }); }">
 
     {# ═══ COMPANY HEADER ═══ #}
     <div class="cd-header cd-anim">
@@ -842,9 +842,9 @@ function saveCall() {
     const time = document.getElementById('call-time').value;
     const notes = document.getElementById('call-notes').value;
 
-    // Alpine v3: use Alpine.$data() instead of __x.$data
-    const rootEl = document.querySelector('[x-data]');
-    const alpineData = Alpine.$data(rootEl);
+    // Alpine v3: use Alpine.$data() on the specific cd-page element
+    const pageEl = document.getElementById('cd-page');
+    const alpineData = Alpine.$data(pageEl);
     const dir = alpineData.callDir;
 
     let calledAt = null;
@@ -867,8 +867,8 @@ function saveCall() {
         .then(r => { if (!r.ok) throw new Error('Failed'); return r.json(); })
         .then(() => {
             showToast('Anruf gespeichert', 'success');
-            // Alpine v3: use Alpine.$data() to close modal
-            Alpine.$data(document.querySelector('[x-data]')).showCallModal = false;
+            // Alpine v3: close modal via specific cd-page element
+            Alpine.$data(document.getElementById('cd-page')).showCallModal = false;
             // Reset form
             document.getElementById('call-contact').value = '';
             document.getElementById('call-duration').value = '';
@@ -952,16 +952,6 @@ function deleteCompanyNote(noteId) {
         .catch(() => showToast('Fehler', 'error'));
 }
 
-// Set today's date as default for call modal
-document.addEventListener('alpine:init', () => {
-    const today = new Date().toISOString().split('T')[0];
-    const now = new Date().toTimeString().slice(0,5);
-    setTimeout(() => {
-        const d = document.getElementById('call-date');
-        const t = document.getElementById('call-time');
-        if (d && !d.value) d.value = today;
-        if (t && !t.value) t.value = now;
-    }, 100);
-});
+// Date/time auto-fill is handled by x-effect on #cd-page
 </script>
 {% endblock %}
