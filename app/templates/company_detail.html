@@ -568,8 +568,14 @@
                             <div style="display:flex; flex-direction:column; gap:12px;">
                                 <div style="display:flex; gap:12px;">
                                     <select id="corr-direction" class="cd-sel"><option value="outbound">Ausgehend</option><option value="inbound">Eingehend</option></select>
-                                    <input type="text" id="corr-subject" placeholder="Betreff" class="cd-inp" style="flex:1;">
+                                    <select id="corr-contact" class="cd-sel" style="flex:1;">
+                                        <option value="">— Kontakt zuordnen —</option>
+                                        {% for c in contacts %}
+                                        <option value="{{ c.id }}">{{ c.first_name }} {{ c.last_name }}{% if c.email %} ({{ c.email }}){% endif %}</option>
+                                        {% endfor %}
+                                    </select>
                                 </div>
+                                <input type="text" id="corr-subject" placeholder="Betreff" class="cd-inp">
                                 <textarea id="corr-body" placeholder="Inhalt / Notizen" rows="3" class="cd-ta"></textarea>
                             </div>
                             <div style="display:flex; gap:10px; margin-top:14px;">
@@ -827,8 +833,10 @@ function toggleCorrForm() {
 }
 
 function saveCorrespondence() {
+    const contactVal = document.getElementById('corr-contact').value;
     const data = {
         direction: document.getElementById('corr-direction').value,
+        contact_id: contactVal || null,
         subject: document.getElementById('corr-subject').value,
         body: document.getElementById('corr-body').value || null
     };
@@ -836,10 +844,11 @@ function saveCorrespondence() {
     fetch(`/api/companies/${COMPANY_ID}/correspondence`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
         .then(r => r.json())
         .then(() => {
-            showToast('Korrespondenz erstellt', 'success');
+            showToast('E-Mail protokolliert', 'success');
             toggleCorrForm();
             document.getElementById('corr-subject').value = '';
             document.getElementById('corr-body').value = '';
+            document.getElementById('corr-contact').value = '';
             htmx.trigger('#correspondence-container', 'load');
         })
         .catch(() => showToast('Fehler', 'error'));

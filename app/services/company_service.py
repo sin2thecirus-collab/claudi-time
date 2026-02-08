@@ -277,6 +277,7 @@ class CompanyService:
         """Listet Korrespondenz eines Unternehmens (neueste zuerst)."""
         result = await self.db.execute(
             select(CompanyCorrespondence)
+            .options(selectinload(CompanyCorrespondence.contact))
             .where(CompanyCorrespondence.company_id == company_id)
             .order_by(CompanyCorrespondence.sent_at.desc())
         )

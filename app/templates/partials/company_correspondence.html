@@ -1,42 +1,71 @@
-{# Partial: Korrespondenz eines Unternehmens #}
+{# Partial: Korrespondenz eines Unternehmens — Dark Theme #}
 
 {% if correspondence and correspondence | length > 0 %}
-<div class="space-y-3">
+<div style="display:flex; flex-direction:column; gap:10px;">
     {% for corr in correspondence %}
-    <div class="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+    <div style="display:flex; align-items:flex-start; gap:14px; padding:14px 18px; background:var(--pp-surface); border:1px solid var(--pp-border); border-radius:12px; transition:background 0.15s;"
+         onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='var(--pp-surface)'">
+
         {# Direction Icon #}
-        <div class="flex-shrink-0 mt-0.5">
-            {% if corr.direction.value == 'outbound' %}
-            <div class="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center" title="Ausgehend">
-                <svg class="w-3.5 h-3.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
-                </svg>
+        {% if corr.direction.value == 'outbound' %}
+        <div style="width:32px; height:32px; border-radius:10px; flex-shrink:0;
+                    background:var(--pp-accentSoft); display:flex; align-items:center; justify-content:center;"
+             title="Ausgehend">
+            <span style="font-size:14px;">📤</span>
+        </div>
+        {% else %}
+        <div style="width:32px; height:32px; border-radius:10px; flex-shrink:0;
+                    background:var(--pp-greenSoft); display:flex; align-items:center; justify-content:center;"
+             title="Eingehend">
+            <span style="font-size:14px;">📥</span>
+        </div>
+        {% endif %}
+
+        {# Content #}
+        <div style="flex:1; min-width:0;">
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                <span style="font-size:14px; font-weight:600; color:var(--pp-text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:400px;">{{ corr.subject }}</span>
+
+                {# Richtungs-Badge #}
+                {% if corr.direction.value == 'outbound' %}
+                <span style="font-size:11px; font-weight:600; color:var(--pp-accent); background:var(--pp-accentSoft); padding:2px 8px; border-radius:6px;">Ausgehend</span>
+                {% else %}
+                <span style="font-size:11px; font-weight:600; color:var(--pp-green); background:var(--pp-greenSoft); padding:2px 8px; border-radius:6px;">Eingehend</span>
+                {% endif %}
+            </div>
+
+            {# Kontakt-Zeile #}
+            {% if corr.contact %}
+            <div style="display:flex; align-items:center; gap:6px; margin-top:5px;">
+                <span style="font-size:12px; color:var(--pp-textDim);">👤</span>
+                <span style="font-size:12px; color:var(--pp-accent); font-weight:500;">{{ corr.contact.first_name }} {{ corr.contact.last_name }}</span>
+                {% if corr.contact.email %}
+                <span style="font-size:11px; color:var(--pp-textDim);">· {{ corr.contact.email }}</span>
+                {% endif %}
             </div>
             {% else %}
-            <div class="w-7 h-7 rounded-full bg-green-100 flex items-center justify-center" title="Eingehend">
-                <svg class="w-3.5 h-3.5 text-green-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 3.75H6.912a2.25 2.25 0 00-2.15 1.588L2.35 13.177a2.25 2.25 0 00-.1.661V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18v-4.162c0-.224-.034-.447-.1-.661L19.24 5.338a2.25 2.25 0 00-2.15-1.588H15M2.25 13.5h3.86a2.25 2.25 0 012.012 1.244l.256.512a2.25 2.25 0 002.013 1.244h3.218a2.25 2.25 0 002.013-1.244l.256-.512a2.25 2.25 0 012.013-1.244h3.859" />
-                </svg>
+            <div style="margin-top:5px;">
+                <span style="font-size:11px; color:var(--pp-textDim); font-style:italic;">Kein Kontakt zugeordnet</span>
             </div>
             {% endif %}
-        </div>
-        <div class="flex-1 min-w-0">
-            <div class="flex items-center justify-between">
-                <p class="text-sm font-medium text-gray-900 truncate">{{ corr.subject }}</p>
-                <span class="text-xs text-gray-400 flex-shrink-0 ml-2">{{ corr.sent_at | datetime }}</span>
-            </div>
+
+            {# Body Preview #}
             {% if corr.body %}
-            <p class="text-xs text-gray-500 mt-1 line-clamp-2">{{ corr.body }}</p>
+            <p style="font-size:13px; color:var(--pp-textMuted); margin-top:5px; line-height:1.4; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;">{{ corr.body }}</p>
             {% endif %}
         </div>
-        <button onclick="deleteCorrespondence('{{ corr.id }}')" class="text-gray-400 hover:text-red-500 p-1 flex-shrink-0" title="Loeschen">
-            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-        </button>
+
+        {# Right: Timestamp + Delete #}
+        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px; flex-shrink:0;">
+            <span style="font-size:12px; color:var(--pp-textDim); white-space:nowrap;">{{ corr.sent_at | datetime }}</span>
+            <button onclick="deleteCorrespondence('{{ corr.id }}')"
+                    style="background:none; border:none; cursor:pointer; color:var(--pp-textDim); font-size:14px; padding:2px; transition:color 0.15s; line-height:1;"
+                    onmouseover="this.style.color='var(--pp-red)'" onmouseout="this.style.color='var(--pp-textDim)'"
+                    title="Löschen">✕</button>
+        </div>
     </div>
     {% endfor %}
 </div>
 {% else %}
-<p class="text-sm text-gray-400">Keine Korrespondenz vorhanden</p>
+<p style="font-size:13px; color:var(--pp-textDim);">Keine E-Mails vorhanden</p>
 {% endif %}
