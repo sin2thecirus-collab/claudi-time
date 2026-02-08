@@ -648,6 +648,13 @@
                 })
                 .then(function(html) {
                     content.innerHTML = html;
+                    // Script-Tags manuell ausfuehren (innerHTML fuehrt Scripts nicht aus)
+                    var scripts = content.querySelectorAll('script');
+                    scripts.forEach(function(oldScript) {
+                        var newScript = document.createElement('script');
+                        newScript.textContent = oldScript.textContent;
+                        oldScript.parentNode.replaceChild(newScript, oldScript);
+                    });
                     // Alpine.js initialisieren fuer den neuen Content
                     if (window.Alpine) {
                         Alpine.initTree(content);
