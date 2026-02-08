@@ -42,13 +42,13 @@
                                  {% if todo.status.value == 'done' %}text-decoration:line-through;{% endif %}
                                  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:280px;">{{ todo.title }}</span>
                     {% if todo.contact %}
-                    <a href="/kontakte/{{ todo.contact_id }}" @click.stop style="font-size:12px; color:var(--pp-accent); background:var(--pp-accentSoft); padding:2px 8px; border-radius:6px; text-decoration:none; white-space:nowrap;">{{ todo.contact.full_name }}</a>
+                    <a href="/kontakte/{{ todo.contact_id }}" @click.stop style="font-size:12px; color:var(--pp-accent); background:var(--pp-accentSoft); padding:2px 8px; border-radius:6px; text-decoration:none; white-space:nowrap; display:inline-flex; align-items:center; gap:4px;"><span style="opacity:0.7;">👤</span> Kontakt: {{ todo.contact.full_name }}</a>
                     {% endif %}
                     {% if todo.candidate %}
-                    <a href="/kandidaten/{{ todo.candidate_id }}" @click.stop style="font-size:12px; color:var(--pp-purple); background:var(--pp-purpleSoft); padding:2px 8px; border-radius:6px; text-decoration:none; white-space:nowrap;">{{ todo.candidate.first_name }} {{ todo.candidate.last_name }}</a>
+                    <a href="/kandidaten/{{ todo.candidate_id }}" @click.stop style="font-size:12px; color:var(--pp-purple); background:var(--pp-purpleSoft); padding:2px 8px; border-radius:6px; text-decoration:none; white-space:nowrap; display:inline-flex; align-items:center; gap:4px;"><span style="opacity:0.7;">🧑‍💼</span> Kandidat: {{ todo.candidate.first_name }} {{ todo.candidate.last_name }}</a>
                     {% endif %}
                     {% if todo.ats_job %}
-                    <a href="/ats/jobs/{{ todo.ats_job_id }}" @click.stop style="font-size:12px; color:var(--pp-purple); background:var(--pp-purpleSoft); padding:2px 8px; border-radius:6px; text-decoration:none; white-space:nowrap;">{{ todo.ats_job.title }}</a>
+                    <a href="/ats/jobs/{{ todo.ats_job_id }}" @click.stop style="font-size:12px; color:var(--pp-orange); background:var(--pp-orangeSoft); padding:2px 8px; border-radius:6px; text-decoration:none; white-space:nowrap; display:inline-flex; align-items:center; gap:4px;"><span style="opacity:0.7;">💼</span> Stelle: {{ todo.ats_job.title }}</a>
                     {% endif %}
                 </div>
             </div>
