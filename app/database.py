@@ -580,18 +580,24 @@ async def init_db() -> None:
         logger.warning(f"Index ix_matches_matching_method uebersprungen: {e}")
 
     # ── Todo Priority Enum Migration (5 Stufen) ──
+    # ALTER TYPE ... ADD VALUE muss AUSSERHALB einer Transaktion laufen (Autocommit)
+    try:
+        async with engine.connect() as conn:
+            await conn.execution_options(isolation_level="AUTOCOMMIT")
+            for new_val in ["unwichtig", "mittelmaessig", "wichtig", "dringend", "sehr_dringend"]:
+                try:
+                    await conn.execute(text(
+                        f"ALTER TYPE todopriority ADD VALUE IF NOT EXISTS '{new_val}'"
+                    ))
+                except Exception:
+                    pass  # Wert existiert bereits
+            logger.info("Todo Priority Enum: 5 Stufen sichergestellt")
+    except Exception as e:
+        logger.warning(f"Todo Priority Enum Migration uebersprungen: {e}")
+
+    # Bestehende Todos auf neue Werte migrieren + Default setzen
     try:
         async with engine.begin() as conn:
-            # Neue Werte zum todopriority Enum hinzufuegen
-            for new_val in ["unwichtig", "mittelmaessig", "wichtig", "dringend", "sehr_dringend"]:
-                await conn.execute(text(f"""
-                    DO $$ BEGIN
-                        ALTER TYPE todopriority ADD VALUE IF NOT EXISTS '{new_val}';
-                    EXCEPTION WHEN OTHERS THEN NULL;
-                    END $$
-                """))
-
-            # Bestehende Todos auf neue Werte migrieren
             for old_val, new_val in [
                 ("low", "unwichtig"),
                 ("normal", "mittelmaessig"),
@@ -603,9 +609,8 @@ async def init_db() -> None:
                     WHERE priority = '{old_val}'
                 """))
                 if result.rowcount and result.rowcount > 0:
-                    logger.info(f"Todo Priority Migration: {result.rowcount}x {old_val} → {new_val}")
+                    logger.info(f"Todo Priority Migration: {result.rowcount}x {old_val} -> {new_val}")
 
-            # Default-Wert aktualisieren
             await conn.execute(text("""
                 DO $$ BEGIN
                     ALTER TABLE ats_todos ALTER COLUMN priority SET DEFAULT 'wichtig';
@@ -613,7 +618,7 @@ async def init_db() -> None:
                 END $$
             """))
     except Exception as e:
-        logger.warning(f"Todo Priority Migration uebersprungen: {e}")
+        logger.warning(f"Todo Priority Daten-Migration uebersprungen: {e}")
 
     # ── MT Lern-Tabellen erstellen ──
     try:
@@ -693,15 +698,22 @@ async def init_db() -> None:
     except Exception as e:
         logger.warning(f"company_documents Tabelle uebersprungen: {e}")
 
-    # ── Phase 5: ats_todos contact_id FK hinzufuegen ──
+    # ── Phase 5: ats_todos contact_id Spalte + FK hinzufuegen ──
     try:
         async with engine.begin() as conn:
+            # Spalte hinzufuegen falls nicht vorhanden
+            await conn.execute(text("""
+                DO $$ BEGIN
+                    ALTER TABLE ats_todos ADD COLUMN contact_id UUID;
+                EXCEPTION WHEN duplicate_column THEN NULL;
+                END $$
+            """))
+            # FK Constraint
             await conn.execute(text("""
                 DO $$ BEGIN
                     ALTER TABLE ats_todos ADD CONSTRAINT fk_ats_todos_contact_id
                         FOREIGN KEY (contact_id) REFERENCES company_contacts(id) ON DELETE SET NULL;
                 EXCEPTION WHEN duplicate_object THEN NULL;
-                         WHEN undefined_column THEN NULL;
                 END $$
             """))
             await conn.execute(text(
