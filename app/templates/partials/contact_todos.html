@@ -34,21 +34,24 @@
                     <span style="font-size:11px;font-weight:600;color:{{ pc }};background:{{ pbg }};padding:2px 8px;border-radius:99px;font-family:var(--pp-ff);">{{ pl }}</span>
                 </div>
                 {# Meta-Zeile: Datum + Links #}
-                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:4px;">
+                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:4px;">
                     {% if todo.due_date %}
-                    <span style="font-size:12px;color:{% if todo.is_overdue %}#ef4444;font-weight:600{% else %}#9ca3af{% endif %};display:flex;align-items:center;gap:3px;">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/></svg>
-                        {% if todo.is_overdue %}Überfällig: {% endif %}{{ todo.due_date.strftime('%d.%m.%Y') }}
+                    <span style="font-size:11px;white-space:nowrap;color:{% if todo.is_overdue %}#ef4444;font-weight:600{% else %}#9ca3af{% endif %};display:inline-flex;align-items:center;gap:3px;">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/></svg>
+                        {% if todo.is_overdue %}Überfällig{% endif %} {{ todo.due_date.strftime('%d.%m.%Y') }}
                     </span>
                     {% endif %}
                     {% if todo.company %}
-                    <a href="/unternehmen/{{ todo.company_id }}" @click.stop style="font-size:12px;color:#059669;text-decoration:none;font-weight:500;">{{ todo.company.name }}</a>
+                    <span style="color:#d1d5db;">·</span>
+                    <a href="/unternehmen/{{ todo.company_id }}" @click.stop style="font-size:11px;white-space:nowrap;color:#059669;text-decoration:none;font-weight:500;">{{ todo.company.name }}</a>
                     {% endif %}
                     {% if todo.candidate %}
-                    <a href="/kandidaten/{{ todo.candidate_id }}" @click.stop style="font-size:12px;color:#6366f1;text-decoration:none;font-weight:500;">{{ todo.candidate.first_name }} {{ todo.candidate.last_name }}</a>
+                    <span style="color:#d1d5db;">·</span>
+                    <a href="/kandidaten/{{ todo.candidate_id }}" @click.stop style="font-size:11px;white-space:nowrap;color:#6366f1;text-decoration:none;font-weight:500;">{{ todo.candidate.first_name }} {{ todo.candidate.last_name }}</a>
                     {% endif %}
                     {% if todo.ats_job %}
-                    <a href="/ats/jobs/{{ todo.ats_job_id }}" @click.stop style="font-size:12px;color:#7c3aed;text-decoration:none;font-weight:500;">{{ todo.ats_job.title }}</a>
+                    <span style="color:#d1d5db;">·</span>
+                    <a href="/ats/jobs/{{ todo.ats_job_id }}" @click.stop style="font-size:11px;white-space:nowrap;color:#7c3aed;text-decoration:none;font-weight:500;">{{ todo.ats_job.title }}</a>
                     {% endif %}
                 </div>
                 {% if todo.description %}
