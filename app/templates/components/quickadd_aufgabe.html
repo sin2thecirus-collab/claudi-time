@@ -334,11 +334,10 @@ window.aufgabeForm = function() {
                 }
                 if (window.showToast) showToast('Aufgabe erstellt', 'success');
                 closeQuickAdd();
-                // Todos-Container auf der aktuellen Seite neu laden
-                var todosEl = document.getElementById('todos-container');
-                if (todosEl && window.htmx) {
-                    htmx.trigger(todosEl, 'load');
-                }
+                // Todos-Liste sofort aktualisieren (custom Event auf body)
+                setTimeout(function() {
+                    document.body.dispatchEvent(new CustomEvent('refreshTodos'));
+                }, 100);
             } catch (err) {
                 if (window.showToast) showToast('Fehler: ' + err.message, 'error');
                 this.saving = false;

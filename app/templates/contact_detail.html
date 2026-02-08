@@ -306,7 +306,7 @@
                 <div class="p-5">
                     <div id="todos-container"
                          hx-get="/partials/contact/{{ contact.id }}/todos"
-                         hx-trigger="load"
+                         hx-trigger="load, refreshTodos from:body"
                          hx-swap="innerHTML">
                         <p class="text-sm text-gray-400 animate-skeleton">Lade Aufgaben...</p>
                     </div>
@@ -462,7 +462,7 @@ function deleteTodo(todoId) {
             if (!r.ok) throw new Error('HTTP ' + r.status);
             return r.json();
         })
-        .then(() => { showToast('Geloescht', 'success'); htmx.trigger('#todos-container', 'load'); })
+        .then(() => { showToast('Geloescht', 'success'); document.body.dispatchEvent(new CustomEvent('refreshTodos')); })
         .catch(() => showToast('Fehler', 'error'));
 }
 </script>

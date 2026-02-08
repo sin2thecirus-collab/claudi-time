@@ -232,7 +232,7 @@
                         </div>
                         <div class="pp-sec pp-anim" style="animation-delay:350ms;">
                             <div class="pp-sec-h"><span class="pp-sec-t"><span style="font-size:18.5px;">&#x2705;</span> Aufgaben</span><button onclick="openQuickAdd('aufgabe', {company_id: '{{ company.id }}'})" style="padding:5px 10px;font-size:15.5px;font-weight:600;color:var(--pp-blue);background:none;border:none;cursor:pointer;font-family:var(--pp-ff);">+ Neu</button></div>
-                            <div class="pp-sec-b"><div id="todos-container" hx-get="/partials/company/{{ company.id }}/todos" hx-trigger="load" hx-swap="innerHTML"><p class="pp-load">Lade Aufgaben...</p></div></div>
+                            <div class="pp-sec-b"><div id="todos-container" hx-get="/partials/company/{{ company.id }}/todos" hx-trigger="load, refreshTodos from:body" hx-swap="innerHTML"><p class="pp-load">Lade Aufgaben...</p></div></div>
                         </div>
                     </div>
 
@@ -392,7 +392,7 @@ function deleteCorrespondence(corrId) { if (!confirm('Korrespondenz loeschen?'))
 
 function deleteCompanyCallNote(noteId) { if (!confirm('Anrufprotokoll loeschen?')) return; fetch(`/api/ats/call-notes/${noteId}`, { method: 'DELETE' }).then(r => r.json()).then(() => { showToast('Geloescht', 'success'); htmx.trigger('#call-notes-container', 'load'); }).catch(() => showToast('Fehler', 'error')); }
 
-function deleteCompanyTodo(todoId) { if (!confirm('Aufgabe loeschen?')) return; fetch(`/api/ats/todos/${todoId}`, { method: 'DELETE' }).then(r => r.json()).then(() => { showToast('Geloescht', 'success'); htmx.trigger('#todos-container', 'load'); }).catch(() => showToast('Fehler', 'error')); }
+function deleteCompanyTodo(todoId) { if (!confirm('Aufgabe loeschen?')) return; fetch(`/api/ats/todos/${todoId}`, { method: 'DELETE' }).then(r => r.json()).then(() => { showToast('Geloescht', 'success'); document.body.dispatchEvent(new CustomEvent('refreshTodos')); }).catch(() => showToast('Fehler', 'error')); }
 
 var selectedDocFile = null;
 function toggleDocForm() { const f = document.getElementById('doc-upload-form'); if (f) f.style.display = f.style.display === 'none' ? 'block' : 'none'; }
