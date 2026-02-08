@@ -129,6 +129,7 @@ class MatchComparisonData:
     ai_weaknesses: list[str] | None
     distance_km: float | None
     status: str
+    user_feedback: str | None
 
     # Job
     job_id: UUID | None
@@ -607,6 +608,7 @@ class MatchCenterService:
                 Match.ai_weaknesses,
                 Match.distance_km,
                 Match.status,
+                Match.user_feedback,
                 # Job
                 Job.id.label("job_id"),
                 Job.position,
@@ -657,6 +659,7 @@ class MatchCenterService:
             ai_weaknesses=row.ai_weaknesses,
             distance_km=round(row.distance_km, 1) if row.distance_km else None,
             status=row.status.value if row.status else "new",
+            user_feedback=row.user_feedback,
             job_id=row.job_id,
             job_position=row.position or "Unbekannte Position",
             job_company_name=row.company_name or "",

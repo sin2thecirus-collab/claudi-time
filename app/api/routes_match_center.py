@@ -225,7 +225,7 @@ async def save_feedback(
     note: str = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
-    """Feedback fuer ein Match speichern (HTMX)."""
+    """Feedback fuer ein Match speichern (HTMX) + v2-Lernsystem fuettern."""
     service = MatchCenterService(db)
 
     match = await service.save_feedback(match_id, feedback, note)
@@ -233,17 +233,35 @@ async def save_feedback(
     if not match:
         return HTMLResponse("<span class='text-red-500 text-xs'>Nicht gefunden</span>", status_code=404)
 
-    feedback_icons = {
-        "good": "text-green-600",
-        "bad": "text-red-600",
-        "maybe": "text-yellow-600",
+    # ── v2 Learning Service: Feedback auch ins Lernsystem einspeisen ──
+    # Mapping: "good"→"good", "bad"→"bad", "maybe"→"neutral"
+    learning_msg = ""
+    try:
+        from app.services.matching_learning_service import MatchingLearningService
+        learning = MatchingLearningService(db)
+        outcome = "neutral" if feedback == "maybe" else feedback
+        lr = await learning.record_feedback(
+            match_id=match_id,
+            outcome=outcome,
+            note=note,
+            source="match_center_ui",
+        )
+        if lr.weights_adjusted:
+            learning_msg = " — Gewichte angepasst"
+    except Exception as e:
+        logger.debug(f"v2 Learning Feedback fehlgeschlagen (OK falls kein v2-Match): {e}")
+
+    feedback_config = {
+        "good": ("&#x1F44D; Guter Match", "text-green-600"),
+        "bad": ("&#x1F44E; Schlechter Match", "text-red-600"),
+        "maybe": ("&#x1F914; Vielleicht", "text-yellow-600"),
     }
-    icon_class = feedback_icons.get(feedback, "text-gray-400")
+    label, icon_class = feedback_config.get(feedback, ("Feedback gespeichert", "text-gray-400"))
 
     response = HTMLResponse(
-        f'<span class="text-sm {icon_class} font-medium">Feedback gespeichert</span>'
+        f'<span class="inline-flex items-center gap-1 text-xs font-medium {icon_class}">{label}</span>'
     )
-    response.headers["HX-Trigger"] = '{"showToast": {"message": "Feedback gespeichert", "type": "success"}}'
+    response.headers["HX-Trigger"] = '{{"showToast": {{"message": "Feedback gespeichert{learning_msg}", "type": "success"}}}}'.replace("{learning_msg}", learning_msg)
     return response
 
 
