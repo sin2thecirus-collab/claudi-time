@@ -102,76 +102,92 @@
             </div>
         </div>
 
-        {# ── Expanded Edit Area (Akkordeon) ── #}
+        {# ── Expanded Edit Area — Clean Card Design ── #}
         <template x-if="openId === '{{ todo.id }}' && !saving">
-            <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--pp-border);">
-                {% if todo.description %}
-                <div style="font-size:14px; color:var(--pp-textMuted); line-height:1.5; margin-bottom:14px;">{{ todo.description }}</div>
-                {% endif %}
-                <div style="background:var(--pp-bg); border-radius:10px; padding:14px; border:1px solid var(--pp-border);">
-                    <div style="margin-bottom:12px;">
-                        <label style="font-size:12px; font-weight:600; color:var(--pp-textDim); display:block; margin-bottom:5px; text-transform:uppercase; letter-spacing:0.04em;">Titel</label>
-                        <input type="text" x-model="editTitle" style="width:100%; padding:9px 12px; font-size:14px; border:1px solid var(--pp-border); border-radius:8px; background:var(--pp-surface); color:var(--pp-text); outline:none; font-family:var(--pp-ff);">
+            <div style="margin-top:16px; padding-top:16px; border-top:1px solid var(--pp-border);">
+
+                {# Row 1: Titel (full width) #}
+                <div style="margin-bottom:14px;">
+                    <label style="font-size:11px; font-weight:600; color:var(--pp-accent); display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.06em;">Titel</label>
+                    <input type="text" x-model="editTitle"
+                           style="width:100%; padding:10px 14px; font-size:14px; border:1px solid var(--pp-border); border-radius:10px; background:var(--pp-bg); color:var(--pp-text); outline:none; font-family:var(--pp-ff); transition:border-color 0.15s;"
+                           onfocus="this.style.borderColor='var(--pp-accent)'" onblur="this.style.borderColor='var(--pp-border)'">
+                </div>
+
+                {# Row 2: Notizen (full width) #}
+                <div style="margin-bottom:14px;">
+                    <label style="font-size:11px; font-weight:600; color:var(--pp-accent); display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.06em;">Notizen</label>
+                    <textarea x-model="editDesc" rows="2" placeholder="Notizen hinzufügen..."
+                              style="width:100%; padding:10px 14px; font-size:14px; border:1px solid var(--pp-border); border-radius:10px; background:var(--pp-bg); color:var(--pp-text); outline:none; resize:vertical; font-family:var(--pp-ff); line-height:1.5; transition:border-color 0.15s;"
+                              onfocus="this.style.borderColor='var(--pp-accent)'" onblur="this.style.borderColor='var(--pp-border)'"></textarea>
+                </div>
+
+                {# Row 3: Fällig / Priorität / Status — 3 equal columns #}
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:16px;">
+                    <div>
+                        <label style="font-size:11px; font-weight:600; color:var(--pp-accent); display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.06em;">Fällig am</label>
+                        <input type="date" x-model="editDueDate"
+                               style="width:100%; padding:10px 14px; font-size:14px; border:1px solid var(--pp-border); border-radius:10px; background:var(--pp-bg); color:var(--pp-text); outline:none; font-family:var(--pp-ff); transition:border-color 0.15s;"
+                               onfocus="this.style.borderColor='var(--pp-accent)'" onblur="this.style.borderColor='var(--pp-border)'">
                     </div>
-                    <div style="margin-bottom:12px;">
-                        <label style="font-size:12px; font-weight:600; color:var(--pp-textDim); display:block; margin-bottom:5px; text-transform:uppercase; letter-spacing:0.04em;">Notizen</label>
-                        <textarea x-model="editDesc" rows="3" style="width:100%; padding:9px 12px; font-size:14px; border:1px solid var(--pp-border); border-radius:8px; background:var(--pp-surface); color:var(--pp-text); outline:none; resize:vertical; font-family:var(--pp-ff);"></textarea>
+                    <div>
+                        <label style="font-size:11px; font-weight:600; color:var(--pp-accent); display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.06em;">Priorität</label>
+                        <select x-model="editPriority"
+                                style="width:100%; padding:10px 14px; font-size:14px; border:1px solid var(--pp-border); border-radius:10px; background:var(--pp-bg); color:var(--pp-text); outline:none; cursor:pointer; font-family:var(--pp-ff); transition:border-color 0.15s; -webkit-appearance:none; appearance:none; background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 24 24%22><path fill=%22%239CA3AF%22 d=%22M7 10l5 5 5-5z%22/></svg>'); background-repeat:no-repeat; background-position:right 12px center;"
+                                onfocus="this.style.borderColor='var(--pp-accent)'" onblur="this.style.borderColor='var(--pp-border)'">
+                            <option value="unwichtig">Unwichtig</option>
+                            <option value="mittelmaessig">Mittelmäßig</option>
+                            <option value="wichtig">Wichtig</option>
+                            <option value="dringend">Dringend</option>
+                            <option value="sehr_dringend">Sehr dringend</option>
+                        </select>
                     </div>
-                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:12px;">
-                        <div>
-                            <label style="font-size:12px; font-weight:600; color:var(--pp-textDim); display:block; margin-bottom:5px; text-transform:uppercase; letter-spacing:0.04em;">Fällig am</label>
-                            <input type="date" x-model="editDueDate" style="width:100%; padding:9px 12px; font-size:14px; border:1px solid var(--pp-border); border-radius:8px; background:var(--pp-surface); color:var(--pp-text); outline:none; font-family:var(--pp-ff);">
-                        </div>
-                        <div>
-                            <label style="font-size:12px; font-weight:600; color:var(--pp-textDim); display:block; margin-bottom:5px; text-transform:uppercase; letter-spacing:0.04em;">Priorität</label>
-                            <select x-model="editPriority" style="width:100%; padding:9px 12px; font-size:14px; border:1px solid var(--pp-border); border-radius:8px; background:var(--pp-surface); color:var(--pp-text); outline:none; cursor:pointer; font-family:var(--pp-ff);">
-                                <option value="unwichtig">Unwichtig</option>
-                                <option value="mittelmaessig">Mittelmäßig</option>
-                                <option value="wichtig">Wichtig</option>
-                                <option value="dringend">Dringend</option>
-                                <option value="sehr_dringend">Sehr dringend</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label style="font-size:12px; font-weight:600; color:var(--pp-textDim); display:block; margin-bottom:5px; text-transform:uppercase; letter-spacing:0.04em;">Status</label>
-                            <select x-model="editStatus" style="width:100%; padding:9px 12px; font-size:14px; border:1px solid var(--pp-border); border-radius:8px; background:var(--pp-surface); color:var(--pp-text); outline:none; cursor:pointer; font-family:var(--pp-ff);">
-                                <option value="open">Offen</option>
-                                <option value="in_progress">In Bearbeitung</option>
-                                <option value="done">Erledigt</option>
-                                <option value="cancelled">Abgebrochen</option>
-                            </select>
-                        </div>
+                    <div>
+                        <label style="font-size:11px; font-weight:600; color:var(--pp-accent); display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.06em;">Status</label>
+                        <select x-model="editStatus"
+                                style="width:100%; padding:10px 14px; font-size:14px; border:1px solid var(--pp-border); border-radius:10px; background:var(--pp-bg); color:var(--pp-text); outline:none; cursor:pointer; font-family:var(--pp-ff); transition:border-color 0.15s; -webkit-appearance:none; appearance:none; background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 24 24%22><path fill=%22%239CA3AF%22 d=%22M7 10l5 5 5-5z%22/></svg>'); background-repeat:no-repeat; background-position:right 12px center;"
+                                onfocus="this.style.borderColor='var(--pp-accent)'" onblur="this.style.borderColor='var(--pp-border)'">
+                            <option value="open">Offen</option>
+                            <option value="in_progress">In Bearbeitung</option>
+                            <option value="done">Erledigt</option>
+                            <option value="cancelled">Abgebrochen</option>
+                        </select>
                     </div>
-                    <div style="display:flex; gap:10px; align-items:center;">
-                        <button @click="
-                            saving = true;
-                            var payload = {title: editTitle.trim(), description: editDesc.trim() || null, priority: editPriority, status: editStatus, due_date: editDueDate || null};
-                            fetch('/api/ats/todos/{{ todo.id }}', {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)})
-                            .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
-                            .then(function(){ showToast('Gespeichert','success'); document.body.dispatchEvent(new CustomEvent('refreshTodos')); })
-                            .catch(function(e){ showToast('Fehler: '+e.message,'error'); saving=false; });"
-                            type="button" :disabled="saving"
-                            style="padding:9px 16px; font-size:14px; font-weight:600; border-radius:8px; border:none; cursor:pointer;
-                                   background:linear-gradient(135deg, var(--pp-accent), #6C63FF); color:#fff; font-family:var(--pp-ff);
-                                   display:flex; align-items:center; gap:6px;"
-                            :style="saving ? 'opacity:0.6;cursor:not-allowed;' : ''">
-                            ✓ Speichern
-                        </button>
-                        <button @click="openId = null" type="button"
-                            style="padding:9px 16px; font-size:14px; font-weight:500; border-radius:8px;
-                                   border:1px solid var(--pp-border); cursor:pointer; background:var(--pp-surface);
-                                   color:var(--pp-textMuted); font-family:var(--pp-ff);">
-                            Abbrechen
-                        </button>
-                        <div style="flex:1;"></div>
-                        <button @click="if(confirm('Aufgabe löschen?')){fetch('/api/ats/todos/{{ todo.id }}',{method:'DELETE'}).then(function(r){if(r.ok){showToast('Gelöscht','success');document.body.dispatchEvent(new CustomEvent('refreshTodos'));}});}"
-                            type="button"
-                            style="padding:9px 14px; font-size:13px; font-weight:500; border-radius:8px;
-                                   border:1px solid rgba(239,68,68,0.27); cursor:pointer; background:transparent;
-                                   color:var(--pp-red); font-family:var(--pp-ff);">
-                            🗑 Löschen
-                        </button>
-                    </div>
+                </div>
+
+                {# Row 4: Action Buttons #}
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <button @click="
+                        saving = true;
+                        var payload = {title: editTitle.trim(), description: editDesc.trim() || null, priority: editPriority, status: editStatus, due_date: editDueDate || null};
+                        fetch('/api/ats/todos/{{ todo.id }}', {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)})
+                        .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+                        .then(function(){ showToast('Gespeichert','success'); document.body.dispatchEvent(new CustomEvent('refreshTodos')); })
+                        .catch(function(e){ showToast('Fehler: '+e.message,'error'); saving=false; });"
+                        type="button" :disabled="saving"
+                        style="padding:9px 20px; font-size:13px; font-weight:600; border-radius:10px; border:none; cursor:pointer;
+                               background:linear-gradient(135deg, var(--pp-accent), #6C63FF); color:#fff; font-family:var(--pp-ff);
+                               display:inline-flex; align-items:center; gap:6px; transition:opacity 0.15s;"
+                        :style="saving ? 'opacity:0.5;cursor:not-allowed;' : ''"
+                        onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+                        <span style="font-size:15px;">✓</span> Speichern
+                    </button>
+                    <button @click="openId = null" type="button"
+                        style="padding:9px 20px; font-size:13px; font-weight:500; border-radius:10px;
+                               border:1px solid var(--pp-border); cursor:pointer; background:transparent;
+                               color:var(--pp-textMuted); font-family:var(--pp-ff); transition:all 0.15s;"
+                        onmouseover="this.style.borderColor='var(--pp-borderLight)';this.style.color='var(--pp-text)'" onmouseout="this.style.borderColor='var(--pp-border)';this.style.color='var(--pp-textMuted)'">
+                        Abbrechen
+                    </button>
+                    <div style="flex:1;"></div>
+                    <button @click="if(confirm('Aufgabe löschen?')){fetch('/api/ats/todos/{{ todo.id }}',{method:'DELETE'}).then(function(r){if(r.ok){showToast('Gelöscht','success');document.body.dispatchEvent(new CustomEvent('refreshTodos'));}});}"
+                        type="button"
+                        style="padding:8px 14px; font-size:12px; font-weight:500; border-radius:10px;
+                               border:1px solid rgba(239,68,68,0.2); cursor:pointer; background:transparent;
+                               color:var(--pp-red); font-family:var(--pp-ff); opacity:0.7; transition:all 0.15s;"
+                        onmouseover="this.style.opacity='1';this.style.background='var(--pp-redSoft)'" onmouseout="this.style.opacity='0.7';this.style.background='transparent'">
+                        🗑 Löschen
+                    </button>
                 </div>
             </div>
         </template>
