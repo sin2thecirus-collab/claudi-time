@@ -310,10 +310,6 @@ class JobRunnerService:
 
             return jobs_count + candidates_count
 
-        elif job_type == JobType.CRM_SYNC:
-            # Schwer zu bestimmen ohne CRM-API-Aufruf
-            return 0
-
         elif job_type == JobType.MATCHING:
             # Jobs mit Koordinaten (alle könnten gematcht werden)
             query = select(func.count()).where(

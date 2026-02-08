@@ -32,14 +32,6 @@
                     {% include 'components/loading_spinner.html' %}
                 </div>
 
-                {# CRM-Sync #}
-                <div id="admin-job-crm-sync"
-                     hx-get="/api/admin/crm-sync/status"
-                     hx-trigger="load"
-                     hx-swap="innerHTML">
-                    {% include 'components/loading_spinner.html' %}
-                </div>
-
                 {# Matching #}
                 <div id="admin-job-matching"
                      hx-get="/api/admin/matching/status"

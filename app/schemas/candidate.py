@@ -52,7 +52,7 @@ class CandidateBase(BaseModel):
 
 
 class CandidateCreate(CandidateBase):
-    """Schema für Kandidaten-Erstellung (CRM-Sync)."""
+    """Schema für Kandidaten-Erstellung."""
 
     crm_id: str | None = Field(default=None, max_length=100, description="CRM-Referenz")
     cv_url: str | None = Field(default=None, max_length=500, description="URL zum CV")

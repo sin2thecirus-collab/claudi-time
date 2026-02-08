@@ -17,90 +17,10 @@ from app.schemas.filters import CandidateFilterParams, SortOrder
 from app.schemas.pagination import PaginationParams
 from app.schemas.validators import BatchDeleteRequest, BatchHideRequest
 from app.services.candidate_service import CandidateService
-from app.services.crm_sync_service import CRMSyncService
-from app.services.job_runner_service import JobRunnerService
-from app.models.job_run import JobType, JobSource
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/candidates", tags=["Kandidaten"])
-
-
-# ==================== Sync ====================
-
-@router.post(
-    "/sync",
-    status_code=status.HTTP_202_ACCEPTED,
-    summary="CRM-Sync starten",
-    description="Startet die Synchronisation mit dem CRM-System",
-)
-@rate_limit(RateLimitTier.ADMIN)
-async def start_crm_sync(
-    background_tasks: BackgroundTasks,
-    full_sync: bool = Query(
-        default=False,
-        description="True = kompletter Sync, False = nur neue/geänderte",
-    ),
-    db: AsyncSession = Depends(get_db),
-):
-    """
-    Startet einen CRM-Sync.
-
-    - full_sync=False: Nur Kandidaten, die seit dem letzten Sync geändert wurden
-    - full_sync=True: Alle Kandidaten (kann lange dauern)
-    """
-    job_runner = JobRunnerService(db)
-
-    # Prüfe, ob bereits ein Sync läuft
-    if await job_runner.is_running(JobType.CRM_SYNC):
-        raise ConflictException(message="Ein CRM-Sync läuft bereits")
-
-    # Job starten
-    job_run = await job_runner.start_job(JobType.CRM_SYNC, JobSource.MANUAL)
-
-    # Sync im Hintergrund starten
-    background_tasks.add_task(
-        _run_crm_sync,
-        db,
-        job_run.id,
-        full_sync,
-    )
-
-    return {
-        "message": "CRM-Sync gestartet",
-        "job_run_id": str(job_run.id),
-        "full_sync": full_sync,
-    }
-
-
-async def _run_crm_sync(db: AsyncSession, job_run_id: UUID, full_sync: bool):
-    """Führt den CRM-Sync im Hintergrund aus."""
-    job_runner = JobRunnerService(db)
-    sync_service = CRMSyncService(db)
-
-    async def update_progress(processed: int, total: int):
-        """Callback für Fortschrittsupdates."""
-        await job_runner.update_progress(
-            job_run_id,
-            items_processed=processed,
-            items_total=total,
-        )
-
-    try:
-        if full_sync:
-            result = await sync_service.initial_sync(progress_callback=update_progress)
-        else:
-            result = await sync_service.sync_all(progress_callback=update_progress)
-
-        await job_runner.complete_job(
-            job_run_id,
-            items_total=result.total_processed,
-            items_successful=result.created + result.updated,
-            items_failed=result.failed,
-        )
-    except Exception as e:
-        logger.error(f"CRM-Sync fehlgeschlagen: {e}")
-        await job_runner.fail_job(job_run_id, str(e))
 
 
 # ==================== CRUD ====================
@@ -122,7 +42,7 @@ async def list_candidates(
     only_active: bool = Query(default=False, description="Nur aktive (≤30 Tage)"),
     include_hidden: bool = Query(default=False),
     # Sortierung (Standard: zuletzt gesynct zuerst)
-    sort_by: str = Query(default="crm_synced_at"),
+    sort_by: str = Query(default="created_at"),
     sort_order: SortOrder = Query(default=SortOrder.DESC),
     db: AsyncSession = Depends(get_db),
 ):

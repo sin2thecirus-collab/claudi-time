@@ -20,7 +20,7 @@
         {% if search %}
         Keine Kandidaten für "{{ search }}" gefunden. Versuche andere Suchbegriffe.
         {% else %}
-        Starten Sie einen CRM-Sync um Kandidaten zu importieren.
+        Keine Kandidaten vorhanden. Erstellen Sie einen neuen Kandidaten ueber Quick-Add.
         {% endif %}
     </p>
 </div>
@@ -257,7 +257,7 @@
                         </svg>
                     </a>
                     <button hx-delete="/api/candidates/{{ candidate.id }}"
-                            hx-confirm="Kandidat {{ candidate.first_name }} {{ candidate.last_name }} wirklich löschen? Der Kandidat wird beim nächsten CRM-Sync ignoriert."
+                            hx-confirm="Kandidat {{ candidate.first_name }} {{ candidate.last_name }} wirklich l&ouml;schen?"
                             hx-swap="none"
                             hx-on::after-request="if(event.detail.successful) htmx.ajax('GET', '/partials/candidates-list?page={{ page }}{% if search %}&search={{ search }}{% endif %}{% if position %}&position={{ position }}{% endif %}{% if skills %}&skills={{ skills }}{% endif %}{% if city %}&city={{ city }}{% endif %}{% if category %}&category={{ category }}{% endif %}&per_page={{ per_page }}', {target:'#candidates-list', swap:'innerHTML'})"
                             class="kl-action-btn kl-action-btn-danger"
@@ -521,7 +521,7 @@ function batchDeleteSelected() {
     if (checkboxes.length === 0) return;
 
     var count = checkboxes.length;
-    if (!confirm(count + ' Kandidat(en) wirklich löschen? Die Kandidaten werden beim nächsten CRM-Sync ignoriert.')) {
+    if (!confirm(count + ' Kandidat(en) wirklich l\u00f6schen?')) {
         return;
     }
 

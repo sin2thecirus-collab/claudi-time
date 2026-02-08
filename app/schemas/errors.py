@@ -47,12 +47,9 @@ class ErrorCode(str, Enum):
 
     # Service Unavailable (503)
     DATABASE_ERROR = "database_error"
-    CRM_SERVICE_ERROR = "crm_service_error"
-
     # Gateway Timeout (504)
     OPENAI_TIMEOUT = "openai_timeout"
     GEOCODING_TIMEOUT = "geocoding_timeout"
-    CRM_TIMEOUT = "crm_timeout"
 
 
 class ValidationErrorDetail(BaseModel):

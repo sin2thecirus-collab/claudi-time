@@ -37,8 +37,6 @@ class Limits:
     # Timeouts (in Sekunden)
     TIMEOUT_OPENAI: int = int(os.getenv("OPENAI_TIMEOUT", "90"))
     TIMEOUT_GEOCODING: int = 10
-    TIMEOUT_CRM: int = 15
-
     # Matching
     DEFAULT_RADIUS_KM: int = 25
     ACTIVE_CANDIDATE_DAYS: int = 30
@@ -51,6 +49,7 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
+        extra="ignore",
     )
 
     # Datenbank
@@ -63,16 +62,6 @@ class Settings(BaseSettings):
     openai_api_key: str = Field(
         default="",
         description="OpenAI API-Schlüssel",
-    )
-
-    # Recruit CRM
-    recruit_crm_api_key: str = Field(
-        default="",
-        description="Recruit CRM API-Schlüssel",
-    )
-    recruit_crm_base_url: str = Field(
-        default="https://api.recruitcrm.io/v1",
-        description="Recruit CRM API-Basis-URL",
     )
 
     # Sicherheit

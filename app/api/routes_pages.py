@@ -849,40 +849,6 @@ async def geocoding_status_partial(
     )
 
 
-@router.get("/api/admin/crm-sync/status", response_class=HTMLResponse)
-async def crm_sync_status_partial(
-    request: Request,
-    db: AsyncSession = Depends(get_db)
-):
-    """Partial: CRM-Sync-Status fuer Admin-Seite."""
-    from app.models.job_run import JobType
-    from app.services.job_runner_service import JobRunnerService
-
-    job_runner = JobRunnerService(db)
-    status_data = await job_runner.get_status(JobType.CRM_SYNC)
-
-    current_job = status_data.get("current_job")
-    last_job = status_data.get("last_job")
-
-    status = None
-    if current_job:
-        status = type("JobStatus", (), current_job)()
-    elif last_job:
-        status = type("JobStatus", (), last_job)()
-
-    return templates.TemplateResponse(
-        "components/admin_job_row.html",
-        {
-            "request": request,
-            "job_type": "crm-sync",
-            "label": "CRM-Sync",
-            "description": "Kandidaten aus Recruit CRM synchronisieren",
-            "status": status,
-            "trigger_url": "/api/admin/crm-sync/trigger",
-        }
-    )
-
-
 @router.get("/api/admin/matching/status", response_class=HTMLResponse)
 async def matching_status_partial(
     request: Request,
@@ -1048,12 +1014,12 @@ async def r2_migration_status_html(
                 </div>
                 <div>
                     <h4 class="text-sm font-semibold text-gray-900">R2 CV-Migration</h4>
-                    <p class="text-xs text-gray-500">CVs von CRM-URLs nach R2 Storage sichern</p>
+                    <p class="text-xs text-gray-500">CVs von externen URLs nach R2 Storage sichern</p>
                 </div>
             </div>
             <div class="mt-2 flex items-center gap-4 text-xs text-gray-600">
                 <span>&#x2705; In R2: <strong>{in_r2}</strong></span>
-                <span>&#x26A0;&#xFE0F; Nur CRM: <strong>{remaining}</strong></span>
+                <span>&#x26A0;&#xFE0F; Nur extern: <strong>{remaining}</strong></span>
                 <span>Gesamt: <strong>{total_with_cv}</strong></span>
                 <span>Fortschritt: <strong>{percent}%</strong></span>
             </div>
@@ -1155,28 +1121,6 @@ async def trigger_geocoding_html(
 
     # Gebe sofort den neuen Status zurueck
     return await geocoding_status_partial(request, db)
-
-
-@router.post("/api/admin/crm-sync/trigger", response_class=HTMLResponse)
-async def trigger_crm_sync_html(
-    request: Request,
-    background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_db)
-):
-    """Startet CRM-Sync und gibt HTML-Status zurueck."""
-    from app.api.routes_admin import _run_crm_sync
-
-    job_runner = JobRunnerService(db)
-
-    if await job_runner.is_running(JobType.CRM_SYNC):
-        return await crm_sync_status_partial(request, db)
-
-    job_run = await job_runner.start_job(JobType.CRM_SYNC, JobSource.MANUAL)
-    # full_sync=True um ALLE Kandidaten zu holen (nicht nur Änderungen)
-    # parse_cvs=False - CV-Parsing erstmal deaktiviert
-    background_tasks.add_task(_run_crm_sync, db, job_run.id, True, False)
-
-    return await crm_sync_status_partial(request, db)
 
 
 @router.post("/api/admin/matching/trigger", response_class=HTMLResponse)

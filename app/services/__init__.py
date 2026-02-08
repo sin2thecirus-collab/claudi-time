@@ -14,14 +14,6 @@ from app.services.geocoding_service import (
 )
 from app.services.job_service import JobService
 from app.services.candidate_service import CandidateService
-from app.services.crm_client import (
-    RecruitCRMClient,
-    CRMError,
-    CRMRateLimitError,
-    CRMAuthenticationError,
-    CRMNotFoundError,
-)
-from app.services.crm_sync_service import CRMSyncService, SyncResult
 from app.services.cv_parser_service import CVParserService, ParseResult
 from app.services.openai_service import OpenAIService, MatchEvaluation, OpenAIUsage
 from app.services.keyword_matcher import (
@@ -55,14 +47,6 @@ __all__ = [
     "JobService",
     # Candidate
     "CandidateService",
-    # CRM
-    "RecruitCRMClient",
-    "CRMError",
-    "CRMRateLimitError",
-    "CRMAuthenticationError",
-    "CRMNotFoundError",
-    "CRMSyncService",
-    "SyncResult",
     # CV-Parsing
     "CVParserService",
     "ParseResult",
