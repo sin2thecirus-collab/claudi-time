@@ -1,67 +1,133 @@
-{# Partial: Aufgaben eines Unternehmens #}
+{# Partial: Aufgaben eines Unternehmens — interaktiv #}
 
 {% if todos and todos | length > 0 %}
-<div class="space-y-3">
+<div style="display:flex;flex-direction:column;gap:10px;">
     {% for todo in todos %}
-    <div class="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-        <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2 flex-wrap">
-                <p class="text-sm font-medium text-gray-900">{{ todo.title }}</p>
-                {# Status Badge #}
-                {% if todo.status.value == 'open' %}
-                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-blue-600 bg-blue-50">Offen</span>
-                {% elif todo.status.value == 'in_progress' %}
-                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-amber-600 bg-amber-50">In Bearbeitung</span>
-                {% elif todo.status.value == 'done' %}
-                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-green-600 bg-green-50">Erledigt</span>
-                {% elif todo.status.value == 'cancelled' %}
-                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-gray-600 bg-gray-100">Abgebrochen</span>
+    <div x-data="{ open: false, editing: false, saving: false,
+                   editTitle: '{{ todo.title | replace("'", "\\'") }}',
+                   editDesc: '{{ (todo.description or '') | replace("'", "\\'") | replace('\n', '\\n') }}',
+                   editPriority: '{{ todo.priority.value }}',
+                   editStatus: '{{ todo.status.value }}',
+                   editDueDate: '{{ todo.due_date.isoformat() if todo.due_date else '' }}' }"
+         style="border-radius:10px;border:1px solid {% if todo.status.value == 'done' %}#d1fae5{% elif todo.is_overdue %}#fee2e2{% else %}#e5e7eb{% endif %};background:{% if todo.status.value == 'done' %}#f0fdf4{% elif todo.is_overdue %}#fef2f2{% else %}#f9fafb{% endif %};overflow:hidden;transition:all .2s;">
+
+        {# ── Aufgaben-Kopfzeile (immer sichtbar, klickbar) ── #}
+        <div @click="open = !open" style="padding:12px 14px;cursor:pointer;display:flex;align-items:flex-start;gap:10px;">
+            {# Checkbox/Status-Icon #}
+            <button @click.stop="
+                var newStatus = editStatus === 'done' ? 'open' : 'done';
+                fetch('/api/ats/todos/{{ todo.id }}', {method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:newStatus})})
+                .then(function(r){if(r.ok){showToast(newStatus==='done'?'Erledigt':'Wieder geöffnet','success');document.body.dispatchEvent(new CustomEvent('refreshTodos'));}});
+            " type="button" style="margin-top:2px;flex-shrink:0;width:22px;height:22px;border-radius:50%;border:2px solid {% if todo.status.value == 'done' %}#22c55e{% elif todo.is_overdue %}#ef4444{% else %}#9ca3af{% endif %};background:{% if todo.status.value == 'done' %}#22c55e{% else %}transparent{% endif %};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;" title="{% if todo.status.value == 'done' %}Wieder öffnen{% else %}Als erledigt markieren{% endif %}">
+                {% if todo.status.value == 'done' %}
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
                 {% endif %}
-                {# Priority Badge #}
-                {% if todo.priority.value == 'unwichtig' %}
-                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-gray-600 bg-gray-100">Unwichtig</span>
-                {% elif todo.priority.value == 'mittelmaessig' %}
-                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-blue-600 bg-blue-50">Mittelmaessig</span>
-                {% elif todo.priority.value == 'wichtig' %}
-                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-amber-600 bg-amber-50">Wichtig</span>
-                {% elif todo.priority.value == 'dringend' %}
-                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-orange-600 bg-orange-50">Dringend</span>
-                {% elif todo.priority.value == 'sehr_dringend' %}
-                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-red-600 bg-red-50">Sehr dringend</span>
+            </button>
+
+            {# Inhalt #}
+            <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                    <span style="font-size:14px;font-weight:600;color:{% if todo.status.value == 'done' %}#9ca3af{% else %}#111827{% endif %};{% if todo.status.value == 'done' %}text-decoration:line-through;{% endif %}font-family:var(--pp-ff);">{{ todo.title }}</span>
+                    {# Priority Badge #}
+                    {% set prio_map = {'unwichtig': ('Unwichtig','#6b7280','#f3f4f6'), 'mittelmaessig': ('Mittelmäßig','#3b82f6','#eff6ff'), 'wichtig': ('Wichtig','#f59e0b','#fffbeb'), 'dringend': ('Dringend','#f97316','#fff7ed'), 'sehr_dringend': ('Sehr dringend','#ef4444','#fef2f2')} %}
+                    {% set pl, pc, pbg = prio_map.get(todo.priority.value, ('','#6b7280','#f3f4f6')) %}
+                    <span style="font-size:11px;font-weight:600;color:{{ pc }};background:{{ pbg }};padding:2px 8px;border-radius:99px;font-family:var(--pp-ff);">{{ pl }}</span>
+                </div>
+                {# Meta-Zeile: Datum + Links #}
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:4px;">
+                    {% if todo.due_date %}
+                    <span style="font-size:12px;color:{% if todo.is_overdue %}#ef4444;font-weight:600{% else %}#9ca3af{% endif %};display:flex;align-items:center;gap:3px;">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/></svg>
+                        {% if todo.is_overdue %}Überfällig: {% endif %}{{ todo.due_date.strftime('%d.%m.%Y') }}
+                    </span>
+                    {% endif %}
+                    {% if todo.contact %}
+                    <a href="/kontakte/{{ todo.contact_id }}" @click.stop style="font-size:12px;color:var(--pp-blue);text-decoration:none;font-weight:500;">{{ todo.contact.full_name }}</a>
+                    {% endif %}
+                    {% if todo.candidate %}
+                    <a href="/kandidaten/{{ todo.candidate_id }}" @click.stop style="font-size:12px;color:#6366f1;text-decoration:none;font-weight:500;">{{ todo.candidate.first_name }} {{ todo.candidate.last_name }}</a>
+                    {% endif %}
+                    {% if todo.ats_job %}
+                    <a href="/ats/jobs/{{ todo.ats_job_id }}" @click.stop style="font-size:12px;color:#7c3aed;text-decoration:none;font-weight:500;">{{ todo.ats_job.title }}</a>
+                    {% endif %}
+                </div>
+                {% if todo.description %}
+                <p style="font-size:12px;color:#6b7280;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ todo.description }}</p>
                 {% endif %}
             </div>
-            {% if todo.description %}
-            <p class="text-xs text-gray-500 mt-1 line-clamp-2">{{ todo.description }}</p>
-            {% endif %}
-            {# Verknuepfte Datensaetze #}
-            <div class="flex items-center gap-2 flex-wrap mt-1">
-                {% if todo.contact %}
-                <a href="/kontakte/{{ todo.contact_id }}" class="text-xs text-primary-600 hover:text-primary-500">{{ todo.contact.full_name }}</a>
-                {% endif %}
-                {% if todo.candidate %}
-                <a href="/kandidaten/{{ todo.candidate_id }}" class="text-xs text-indigo-600 hover:text-indigo-500">{{ todo.candidate.first_name }} {{ todo.candidate.last_name }}</a>
-                {% endif %}
-                {% if todo.ats_job %}
-                <a href="/ats/jobs/{{ todo.ats_job_id }}" class="text-xs text-purple-600 hover:text-purple-500">{{ todo.ats_job.title }}</a>
-                {% endif %}
-            </div>
-            {% if todo.due_date %}
-            <div class="flex items-center gap-1 mt-1.5">
-                <svg class="w-3 h-3 {% if todo.is_overdue %}text-red-500{% else %}text-gray-400{% endif %}" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-                </svg>
-                <span class="text-xs {% if todo.is_overdue %}text-red-500 font-medium{% else %}text-gray-400{% endif %}">{{ todo.due_date | datetime }}</span>
-            </div>
-            {% endif %}
+
+            {# Aufklapp-Pfeil #}
+            <svg :style="open ? 'transform:rotate(180deg)' : ''" style="width:16px;height:16px;color:#9ca3af;flex-shrink:0;margin-top:4px;transition:transform .2s;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
         </div>
-        <button onclick="deleteCompanyTodo('{{ todo.id }}')" class="text-gray-400 hover:text-red-500 p-1 flex-shrink-0" title="Loeschen">
-            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-        </button>
+
+        {# ── Aufklapp-Bereich (Edit) ── #}
+        <div x-show="open" x-transition style="border-top:1px solid #e5e7eb;padding:14px;background:#fff;">
+            {# Titel bearbeiten #}
+            <div style="margin-bottom:10px;">
+                <label style="font-size:11px;font-weight:600;color:#6b7280;display:block;margin-bottom:4px;font-family:var(--pp-ff);">Titel</label>
+                <input type="text" x-model="editTitle" style="width:100%;padding:8px 12px;font-size:14px;border:1px solid #d1d5db;border-radius:8px;font-family:var(--pp-ff);">
+            </div>
+            {# Beschreibung #}
+            <div style="margin-bottom:10px;">
+                <label style="font-size:11px;font-weight:600;color:#6b7280;display:block;margin-bottom:4px;font-family:var(--pp-ff);">Notizen</label>
+                <textarea x-model="editDesc" rows="2" style="width:100%;padding:8px 12px;font-size:13px;border:1px solid #d1d5db;border-radius:8px;font-family:var(--pp-ff);resize:vertical;"></textarea>
+            </div>
+            {# Datum + Priorität + Status in einer Zeile #}
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px;">
+                <div>
+                    <label style="font-size:11px;font-weight:600;color:#6b7280;display:block;margin-bottom:4px;font-family:var(--pp-ff);">Fällig am</label>
+                    <input type="date" x-model="editDueDate" style="width:100%;padding:8px 10px;font-size:13px;border:1px solid #d1d5db;border-radius:8px;font-family:var(--pp-ff);height:38px;">
+                </div>
+                <div>
+                    <label style="font-size:11px;font-weight:600;color:#6b7280;display:block;margin-bottom:4px;font-family:var(--pp-ff);">Priorität</label>
+                    <select x-model="editPriority" style="width:100%;padding:8px 10px;font-size:13px;border:1px solid #d1d5db;border-radius:8px;font-family:var(--pp-ff);height:38px;">
+                        <option value="unwichtig">Unwichtig</option>
+                        <option value="mittelmaessig">Mittelmäßig</option>
+                        <option value="wichtig">Wichtig</option>
+                        <option value="dringend">Dringend</option>
+                        <option value="sehr_dringend">Sehr dringend</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:11px;font-weight:600;color:#6b7280;display:block;margin-bottom:4px;font-family:var(--pp-ff);">Status</label>
+                    <select x-model="editStatus" style="width:100%;padding:8px 10px;font-size:13px;border:1px solid #d1d5db;border-radius:8px;font-family:var(--pp-ff);height:38px;">
+                        <option value="open">Offen</option>
+                        <option value="in_progress">In Bearbeitung</option>
+                        <option value="done">Erledigt</option>
+                        <option value="cancelled">Abgebrochen</option>
+                    </select>
+                </div>
+            </div>
+            {# Action-Buttons #}
+            <div style="display:flex;gap:8px;align-items:center;">
+                <button @click="
+                    saving = true;
+                    var payload = {title: editTitle.trim(), description: editDesc.trim() || null, priority: editPriority, status: editStatus, due_date: editDueDate || null};
+                    fetch('/api/ats/todos/{{ todo.id }}', {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)})
+                    .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+                    .then(function(){ showToast('Aufgabe gespeichert','success'); document.body.dispatchEvent(new CustomEvent('refreshTodos')); })
+                    .catch(function(e){ showToast('Fehler: '+e.message,'error'); saving=false; });
+                " type="button" :disabled="saving"
+                   style="padding:8px 18px;font-size:13px;font-weight:600;border-radius:8px;border:none;cursor:pointer;background:var(--pp-blue);color:#fff;font-family:var(--pp-ff);display:flex;align-items:center;gap:5px;"
+                   :style="saving ? 'opacity:0.6;cursor:not-allowed;' : ''">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+                    Speichern
+                </button>
+                <button @click="open = false" type="button"
+                   style="padding:8px 18px;font-size:13px;font-weight:500;border-radius:8px;border:1px solid #d1d5db;cursor:pointer;background:#fff;color:#374151;font-family:var(--pp-ff);">
+                    Abbrechen
+                </button>
+                <div style="flex:1;"></div>
+                <button @click="if(confirm('Aufgabe löschen?')){fetch('/api/ats/todos/{{ todo.id }}',{method:'DELETE'}).then(function(r){if(r.ok){showToast('Gelöscht','success');document.body.dispatchEvent(new CustomEvent('refreshTodos'));}});}" type="button"
+                   style="padding:8px 14px;font-size:12px;font-weight:500;border-radius:8px;border:1px solid #fecaca;cursor:pointer;background:#fff;color:#ef4444;font-family:var(--pp-ff);display:flex;align-items:center;gap:4px;">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg>
+                    Löschen
+                </button>
+            </div>
+        </div>
     </div>
     {% endfor %}
 </div>
 {% else %}
-<p class="text-sm text-gray-400">Keine Aufgaben vorhanden</p>
+<p style="font-size:14px;color:#9ca3af;font-family:var(--pp-ff);">Keine Aufgaben vorhanden</p>
 {% endif %}
