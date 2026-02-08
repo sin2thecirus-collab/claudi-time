@@ -841,7 +841,11 @@ function saveCall() {
     const date = document.getElementById('call-date').value;
     const time = document.getElementById('call-time').value;
     const notes = document.getElementById('call-notes').value;
-    const dir = document.querySelector('[x-data]').__x.$data.callDir;
+
+    // Alpine v3: use Alpine.$data() instead of __x.$data
+    const rootEl = document.querySelector('[x-data]');
+    const alpineData = Alpine.$data(rootEl);
+    const dir = alpineData.callDir;
 
     let calledAt = null;
     if (date) {
@@ -863,7 +867,8 @@ function saveCall() {
         .then(r => { if (!r.ok) throw new Error('Failed'); return r.json(); })
         .then(() => {
             showToast('Anruf gespeichert', 'success');
-            document.querySelector('[x-data]').__x.$data.showCallModal = false;
+            // Alpine v3: use Alpine.$data() to close modal
+            Alpine.$data(document.querySelector('[x-data]')).showCallModal = false;
             // Reset form
             document.getElementById('call-contact').value = '';
             document.getElementById('call-duration').value = '';
