@@ -892,12 +892,13 @@ class MatchingEngineV2:
         if job_ids:
             ids = job_ids
         else:
-            # Jobs ohne v2-Matches laden
+            # FINANCE-Jobs ohne v2-Matches laden
             query = (
                 select(Job.id)
                 .where(
                     Job.v2_profile_created_at.isnot(None),
                     Job.deleted_at.is_(None),
+                    Job.hotlist_category == "FINANCE",
                 )
             )
 
@@ -975,14 +976,15 @@ class EmbeddingGenerationService:
         max_total: int = 0,
         progress_callback=None,
     ) -> dict:
-        """Generiert Embeddings fuer Kandidaten mit v2-Profil aber ohne Embedding."""
-        # Kandidaten ohne Embedding laden
+        """Generiert Embeddings fuer FINANCE-Kandidaten mit v2-Profil aber ohne Embedding."""
+        # FINANCE-Kandidaten ohne Embedding laden
         query = (
             select(Candidate.id, Candidate.v2_current_role_summary, Candidate.v2_structured_skills)
             .where(
                 Candidate.v2_profile_created_at.isnot(None),
                 Candidate.v2_embedding_current.is_(None),
                 Candidate.deleted_at.is_(None),
+                Candidate.hotlist_category == "FINANCE",
             )
             .order_by(Candidate.created_at.asc())
         )
@@ -1037,13 +1039,14 @@ class EmbeddingGenerationService:
         max_total: int = 0,
         progress_callback=None,
     ) -> dict:
-        """Generiert Embeddings fuer Jobs mit v2-Profil aber ohne Embedding."""
+        """Generiert Embeddings fuer FINANCE-Jobs mit v2-Profil aber ohne Embedding."""
         query = (
             select(Job.id, Job.v2_role_summary, Job.v2_required_skills, Job.position)
             .where(
                 Job.v2_profile_created_at.isnot(None),
                 Job.v2_embedding.is_(None),
                 Job.deleted_at.is_(None),
+                Job.hotlist_category == "FINANCE",
             )
             .order_by(Job.created_at.asc())
         )

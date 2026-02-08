@@ -583,30 +583,32 @@ class ProfileEngineService:
         """
         result = BackfillResult()
 
-        # Zaehle fehlende Profile
+        # Zaehle fehlende Profile — NUR FINANCE-Kandidaten
         count_result = await self.db.execute(
             select(func.count(Candidate.id)).where(
                 Candidate.v2_profile_created_at.is_(None),
                 Candidate.deleted_at.is_(None),
                 Candidate.hidden == False,
+                Candidate.hotlist_category == "FINANCE",
             )
         )
         total_missing = count_result.scalar() or 0
         result.total = min(total_missing, max_total) if max_total > 0 else total_missing
 
         if result.total == 0:
-            logger.info("Backfill Kandidaten: Alle Profile vorhanden.")
+            logger.info("Backfill Kandidaten: Alle FINANCE-Profile vorhanden.")
             return result
 
-        logger.info(f"Backfill Kandidaten: {result.total} Profile zu erstellen...")
+        logger.info(f"Backfill Kandidaten: {result.total} FINANCE-Profile zu erstellen...")
 
-        # Kandidaten laden (aelteste zuerst)
+        # FINANCE-Kandidaten laden (aelteste zuerst)
         query = (
             select(Candidate.id)
             .where(
                 Candidate.v2_profile_created_at.is_(None),
                 Candidate.deleted_at.is_(None),
                 Candidate.hidden == False,
+                Candidate.hotlist_category == "FINANCE",
             )
             .order_by(Candidate.created_at.asc())
         )
@@ -667,28 +669,30 @@ class ProfileEngineService:
         """
         result = BackfillResult()
 
-        # Zaehle fehlende Profile
+        # Zaehle fehlende Profile — NUR FINANCE-Jobs
         count_result = await self.db.execute(
             select(func.count(Job.id)).where(
                 Job.v2_profile_created_at.is_(None),
                 Job.deleted_at.is_(None),
+                Job.hotlist_category == "FINANCE",
             )
         )
         total_missing = count_result.scalar() or 0
         result.total = min(total_missing, max_total) if max_total > 0 else total_missing
 
         if result.total == 0:
-            logger.info("Backfill Jobs: Alle Profile vorhanden.")
+            logger.info("Backfill Jobs: Alle FINANCE-Profile vorhanden.")
             return result
 
-        logger.info(f"Backfill Jobs: {result.total} Profile zu erstellen...")
+        logger.info(f"Backfill Jobs: {result.total} FINANCE-Profile zu erstellen...")
 
-        # Jobs laden (aelteste zuerst)
+        # FINANCE-Jobs laden (aelteste zuerst)
         query = (
             select(Job.id)
             .where(
                 Job.v2_profile_created_at.is_(None),
                 Job.deleted_at.is_(None),
+                Job.hotlist_category == "FINANCE",
             )
             .order_by(Job.created_at.asc())
         )
