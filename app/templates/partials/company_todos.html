@@ -1,7 +1,7 @@
-{# Partial: Aufgaben eines Unternehmens — Dark Theme, besseres Layout #}
+{# Partial: Aufgaben — Dark Theme, Card Layout #}
 
 {% if todos and todos | length > 0 %}
-<div x-data="{ openId: null }" style="display:flex; flex-direction:column; gap:10px;">
+<div x-data="{ openId: null }" style="display:flex; flex-direction:column; gap:8px;">
     {% for todo in todos %}
     {% set prio_map = {'unwichtig': ('Unwichtig','var(--pp-textDim)','var(--pp-surfaceHover)'), 'mittelmaessig': ('Mittelmäßig','var(--pp-accent)','var(--pp-accentSoft)'), 'wichtig': ('Wichtig','var(--pp-orange)','var(--pp-orangeSoft)'), 'dringend': ('Dringend','var(--pp-red)','var(--pp-redSoft)'), 'sehr_dringend': ('Sehr dringend','var(--pp-red)','var(--pp-redSoft)')} %}
     {% set pl, pc, pbg = prio_map.get(todo.priority.value, ('','var(--pp-textDim)','var(--pp-surfaceHover)')) %}
@@ -14,126 +14,130 @@
                    editPriority: '{{ todo.priority.value }}',
                    editStatus: '{{ todo.status.value }}',
                    editDueDate: '{{ todo.due_date.isoformat() if todo.due_date else '' }}' }"
-         style="padding:14px 20px; border-radius:12px; background:var(--pp-surface); border:1px solid var(--pp-border); transition:all 0.2s;"
-         :style="openId === '{{ todo.id }}' ? 'border-left:3px solid var(--pp-accent); background:var(--pp-surfaceHover);' : ''">
+         style="border-radius:12px; background:var(--pp-surface); border:1px solid var(--pp-border); transition:all 0.2s; overflow:hidden;"
+         :style="openId === '{{ todo.id }}' ? 'border-color:var(--pp-accent);' : ''">
 
-        {# ── Main Row: 3-column layout ── #}
-        <div style="display:grid; grid-template-columns:1fr auto auto; gap:16px; align-items:center;">
+        {# ── Collapsed Card ── clickable header #}
+        <div @click="openId = openId === '{{ todo.id }}' ? null : '{{ todo.id }}'"
+             style="padding:12px 16px; cursor:pointer; transition:background 0.15s;"
+             onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='transparent'">
 
-            {# LEFT: Checkbox + Title + Person-Links #}
-            <div style="display:flex; align-items:center; gap:12px; min-width:0;">
+            {# Row 1: Checkbox + Title + Badges #}
+            <div style="display:flex; align-items:center; gap:10px;">
                 {# Checkbox #}
                 <div @click.stop="
                     var newStatus = editStatus === 'done' ? 'open' : 'done';
                     fetch('/api/ats/todos/{{ todo.id }}', {method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:newStatus})})
                     .then(function(r){if(r.ok){showToast(newStatus==='done'?'Erledigt':'Wieder geöffnet','success');document.body.dispatchEvent(new CustomEvent('refreshTodos'));}});"
-                     style="width:22px; height:22px; border-radius:6px; flex-shrink:0; cursor:pointer;
+                     style="width:20px; height:20px; border-radius:6px; flex-shrink:0; cursor:pointer;
                             border:{% if todo.status.value == 'done' %}none{% else %}1.5px solid var(--pp-borderLight){% endif %};
                             background:{% if todo.status.value == 'done' %}var(--pp-green){% else %}transparent{% endif %};
                             display:flex; align-items:center; justify-content:center; transition:all 0.15s;">
                     {% if todo.status.value == 'done' %}
-                    <span style="color:#fff; font-size:13px; font-weight:700;">✓</span>
+                    <span style="color:#fff; font-size:12px; font-weight:700;">✓</span>
                     {% endif %}
                 </div>
 
-                {# Title + Person-Chips inline #}
-                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; min-width:0;">
-                    <span style="font-size:15px; font-weight:600;
-                                 color:{% if todo.status.value == 'done' %}var(--pp-textDim){% else %}var(--pp-text){% endif %};
-                                 {% if todo.status.value == 'done' %}text-decoration:line-through;{% endif %}
-                                 white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:280px;">{{ todo.title }}</span>
-                    {% if todo.contact %}
-                    <a href="/kontakte/{{ todo.contact_id }}" @click.stop style="font-size:12px; color:var(--pp-accent); background:var(--pp-accentSoft); padding:2px 8px; border-radius:6px; text-decoration:none; white-space:nowrap; display:inline-flex; align-items:center; gap:4px;"><span style="opacity:0.7;">👤</span> Kontakt: {{ todo.contact.full_name }}</a>
-                    {% endif %}
-                    {% if todo.candidate %}
-                    <a href="/kandidaten/{{ todo.candidate_id }}" @click.stop style="font-size:12px; color:var(--pp-purple); background:var(--pp-purpleSoft); padding:2px 8px; border-radius:6px; text-decoration:none; white-space:nowrap; display:inline-flex; align-items:center; gap:4px;"><span style="opacity:0.7;">🧑‍💼</span> Kandidat: {{ todo.candidate.first_name }} {{ todo.candidate.last_name }}</a>
-                    {% endif %}
-                    {% if todo.ats_job %}
-                    <a href="/ats/jobs/{{ todo.ats_job_id }}" @click.stop style="font-size:12px; color:var(--pp-orange); background:var(--pp-orangeSoft); padding:2px 8px; border-radius:6px; text-decoration:none; white-space:nowrap; display:inline-flex; align-items:center; gap:4px;"><span style="opacity:0.7;">💼</span> Stelle: {{ todo.ats_job.title }}</a>
-                    {% endif %}
-                </div>
-            </div>
+                {# Title #}
+                <span style="font-size:14px; font-weight:600; flex:1; min-width:0;
+                             color:{% if todo.status.value == 'done' %}var(--pp-textDim){% else %}var(--pp-text){% endif %};
+                             {% if todo.status.value == 'done' %}text-decoration:line-through;{% endif %}
+                             overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ todo.title }}</span>
 
-            {# CENTER: Priority + Due Date #}
-            <div style="display:flex; align-items:center; gap:12px; flex-shrink:0;">
-                <span style="font-size:12px; font-weight:600; color:{{ pc }}; background:{{ pbg }}; padding:3px 10px; border-radius:7px; white-space:nowrap;">{{ pl }}</span>
+                {# Priority Badge #}
+                <span style="font-size:11px; font-weight:600; color:{{ pc }}; background:{{ pbg }}; padding:2px 8px; border-radius:6px; white-space:nowrap; flex-shrink:0;">{{ pl }}</span>
+
+                {# Due Date #}
                 {% if todo.due_date %}
-                <span style="font-size:13px; color:{% if todo.is_overdue %}var(--pp-red){% else %}var(--pp-textDim){% endif %}; white-space:nowrap;">📅 {% if todo.is_overdue %}Überfällig {% endif %}{{ todo.due_date.strftime('%d.%m.%Y') }}</span>
+                <span style="font-size:12px; color:{% if todo.is_overdue %}var(--pp-red){% else %}var(--pp-textDim){% endif %}; white-space:nowrap; flex-shrink:0;">
+                    📅 {{ todo.due_date.strftime('%d.%m.%Y') }}
+                </span>
                 {% endif %}
-            </div>
 
-            {# RIGHT: Status Dropdown + Expand #}
-            <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
                 {# Status Dropdown #}
-                <div style="position:relative;" @click.stop>
+                <div style="position:relative; flex-shrink:0;" @click.stop>
                     <button @click="statusDrop = !statusDrop"
-                            style="font-size:12px; font-weight:600; padding:5px 12px; border-radius:8px; cursor:pointer;
+                            style="font-size:11px; font-weight:600; padding:3px 10px; border-radius:7px; cursor:pointer;
                                    border:1px solid {{ sc }}33; background:{{ sbg }}; color:{{ sc }};
-                                   display:flex; align-items:center; gap:5px; font-family:var(--pp-ff); transition:all 0.15s; white-space:nowrap;"
-                            onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
-                        {{ sl }}
-                        <span style="font-size:10px; opacity:0.7;">▾</span>
+                                   display:flex; align-items:center; gap:4px; font-family:var(--pp-ff); white-space:nowrap;">
+                        {{ sl }} <span style="font-size:9px; opacity:0.6;">▾</span>
                     </button>
                     <div x-show="statusDrop" @click.away="statusDrop = false" x-transition
                          style="position:absolute; right:0; top:100%; margin-top:6px; z-index:50;
-                                width:180px; background:var(--pp-surface); border:1px solid var(--pp-border);
+                                width:170px; background:var(--pp-surface); border:1px solid var(--pp-border);
                                 border-radius:10px; box-shadow:0 8px 30px rgba(0,0,0,0.4); padding:4px; display:none;">
                         {% for sv, sdata in [('open', ('Offen','var(--pp-accent)','●')), ('in_progress', ('In Bearbeitung','var(--pp-orange)','●')), ('done', ('Erledigt','var(--pp-green)','●')), ('cancelled', ('Abgebrochen','var(--pp-textDim)','●'))] %}
                         <button @click="
                             statusDrop = false;
                             fetch('/api/ats/todos/{{ todo.id }}', {method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'{{ sv }}'})})
                             .then(function(r){if(r.ok){showToast('Status geändert','success');document.body.dispatchEvent(new CustomEvent('refreshTodos'));}});"
-                            style="width:100%; text-align:left; padding:8px 12px; border-radius:7px; border:none; cursor:pointer;
+                            style="width:100%; text-align:left; padding:7px 10px; border-radius:7px; border:none; cursor:pointer;
                                    background:{% if todo.status.value == sv %}var(--pp-surfaceHover){% else %}transparent{% endif %};
-                                   color:var(--pp-text); font-size:13px; font-family:var(--pp-ff); display:flex; align-items:center; gap:8px; transition:background 0.1s;"
+                                   color:var(--pp-text); font-size:12px; font-family:var(--pp-ff); display:flex; align-items:center; gap:7px;"
                             onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='{% if todo.status.value == sv %}var(--pp-surfaceHover){% else %}transparent{% endif %}'">
-                            <span style="color:{{ sdata[1] }}; font-size:9px;">{{ sdata[2] }}</span>
+                            <span style="color:{{ sdata[1] }}; font-size:8px;">{{ sdata[2] }}</span>
                             {{ sdata[0] }}
-                            {% if todo.status.value == sv %}<span style="margin-left:auto; font-size:12px; color:var(--pp-accent);">✓</span>{% endif %}
+                            {% if todo.status.value == sv %}<span style="margin-left:auto; font-size:11px; color:var(--pp-accent);">✓</span>{% endif %}
                         </button>
                         {% endfor %}
                     </div>
                 </div>
 
-                {# Expand Button (Akkordeon: nur eine offen) #}
-                <button @click="openId = openId === '{{ todo.id }}' ? null : '{{ todo.id }}'" style="background:none; border:none; color:var(--pp-textDim); cursor:pointer; font-size:18px; padding:2px 6px; transition:transform 0.2s; line-height:1;"
-                        :style="openId === '{{ todo.id }}' ? 'transform:rotate(180deg)' : 'transform:rotate(0)'"
-                        onmouseover="this.style.color='var(--pp-text)'" onmouseout="this.style.color='var(--pp-textDim)'">⌄</button>
+                {# Expand Arrow #}
+                <span style="font-size:16px; color:var(--pp-textDim); flex-shrink:0; transition:transform 0.2s; line-height:1;"
+                      :style="openId === '{{ todo.id }}' ? 'transform:rotate(180deg)' : ''">⌄</span>
             </div>
+
+            {# Row 2: Zuordnungen (Kontakt, Kandidat, Stelle) — nur wenn vorhanden #}
+            {% if todo.contact or todo.candidate or todo.ats_job %}
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:6px; padding-left:30px;">
+                {% if todo.contact %}
+                <a href="/kontakte/{{ todo.contact_id }}" @click.stop style="font-size:11px; color:var(--pp-accent); background:var(--pp-accentSoft); padding:2px 7px; border-radius:5px; text-decoration:none; display:inline-flex; align-items:center; gap:3px;">👤 {{ todo.contact.full_name }}</a>
+                {% endif %}
+                {% if todo.candidate %}
+                <a href="/kandidaten/{{ todo.candidate_id }}" @click.stop style="font-size:11px; color:var(--pp-purple); background:var(--pp-purpleSoft); padding:2px 7px; border-radius:5px; text-decoration:none; display:inline-flex; align-items:center; gap:3px;">🧑‍💼 {{ todo.candidate.first_name }} {{ todo.candidate.last_name }}</a>
+                {% endif %}
+                {% if todo.ats_job %}
+                <a href="/ats/jobs/{{ todo.ats_job_id }}" @click.stop style="font-size:11px; color:var(--pp-orange); background:var(--pp-orangeSoft); padding:2px 7px; border-radius:5px; text-decoration:none; display:inline-flex; align-items:center; gap:3px;">💼 {{ todo.ats_job.title }}</a>
+                {% endif %}
+                {% if todo.description %}
+                <span style="font-size:11px; color:var(--pp-textDim); margin-left:4px;">💬 Notiz</span>
+                {% endif %}
+            </div>
+            {% endif %}
         </div>
 
-        {# ── Expanded Edit Area — Clean Card Design ── #}
+        {# ── Expanded Edit Panel ── #}
         <template x-if="openId === '{{ todo.id }}' && !saving">
-            <div style="margin-top:16px; padding-top:16px; border-top:1px solid var(--pp-border);">
+            <div style="padding:0 16px 16px; border-top:1px solid var(--pp-border); background:var(--pp-bg);">
 
-                {# Row 1: Titel (full width) #}
-                <div style="margin-bottom:14px;">
-                    <label style="font-size:11px; font-weight:600; color:var(--pp-accent); display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.06em;">Titel</label>
-                    <input type="text" x-model="editTitle"
-                           style="width:100%; padding:10px 14px; font-size:14px; border:1px solid var(--pp-border); border-radius:10px; background:var(--pp-bg); color:var(--pp-text); outline:none; font-family:var(--pp-ff); transition:border-color 0.15s;"
-                           onfocus="this.style.borderColor='var(--pp-accent)'" onblur="this.style.borderColor='var(--pp-border)'">
+                {# Notizen Preview (read-only, wenn vorhanden) #}
+                {% if todo.description %}
+                <div style="padding:12px 0; border-bottom:1px solid var(--pp-border); margin-bottom:14px;">
+                    <p style="font-size:13px; color:var(--pp-textMuted); line-height:1.5; margin:0;">{{ todo.description }}</p>
                 </div>
+                {% else %}
+                <div style="height:14px;"></div>
+                {% endif %}
 
-                {# Row 2: Notizen (full width) #}
-                <div style="margin-bottom:14px;">
-                    <label style="font-size:11px; font-weight:600; color:var(--pp-accent); display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.06em;">Notizen</label>
-                    <textarea x-model="editDesc" rows="2" placeholder="Notizen hinzufügen..."
-                              style="width:100%; padding:10px 14px; font-size:14px; border:1px solid var(--pp-border); border-radius:10px; background:var(--pp-bg); color:var(--pp-text); outline:none; resize:vertical; font-family:var(--pp-ff); line-height:1.5; transition:border-color 0.15s;"
-                              onfocus="this.style.borderColor='var(--pp-accent)'" onblur="this.style.borderColor='var(--pp-border)'"></textarea>
-                </div>
-
-                {# Row 3: Fällig / Priorität / Status — 3 equal columns #}
-                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:16px;">
+                {# Edit Grid: 2 columns #}
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;">
                     <div>
-                        <label style="font-size:11px; font-weight:600; color:var(--pp-accent); display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.06em;">Fällig am</label>
-                        <input type="date" x-model="editDueDate"
-                               style="width:100%; padding:10px 14px; font-size:14px; border:1px solid var(--pp-border); border-radius:10px; background:var(--pp-bg); color:var(--pp-text); outline:none; font-family:var(--pp-ff); transition:border-color 0.15s;"
+                        <label style="font-size:10px; font-weight:600; color:var(--pp-textDim); display:block; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.05em;">Titel</label>
+                        <input type="text" x-model="editTitle"
+                               style="width:100%; padding:8px 12px; font-size:13px; border:1px solid var(--pp-border); border-radius:8px; background:var(--pp-surface); color:var(--pp-text); outline:none; font-family:var(--pp-ff);"
                                onfocus="this.style.borderColor='var(--pp-accent)'" onblur="this.style.borderColor='var(--pp-border)'">
                     </div>
                     <div>
-                        <label style="font-size:11px; font-weight:600; color:var(--pp-accent); display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.06em;">Priorität</label>
+                        <label style="font-size:10px; font-weight:600; color:var(--pp-textDim); display:block; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.05em;">Fällig am</label>
+                        <input type="date" x-model="editDueDate"
+                               style="width:100%; padding:8px 12px; font-size:13px; border:1px solid var(--pp-border); border-radius:8px; background:var(--pp-surface); color:var(--pp-text); outline:none; font-family:var(--pp-ff);"
+                               onfocus="this.style.borderColor='var(--pp-accent)'" onblur="this.style.borderColor='var(--pp-border)'">
+                    </div>
+                    <div>
+                        <label style="font-size:10px; font-weight:600; color:var(--pp-textDim); display:block; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.05em;">Priorität</label>
                         <select x-model="editPriority"
-                                style="width:100%; padding:10px 14px; font-size:14px; border:1px solid var(--pp-border); border-radius:10px; background:var(--pp-bg); color:var(--pp-text); outline:none; cursor:pointer; font-family:var(--pp-ff); transition:border-color 0.15s; -webkit-appearance:none; appearance:none; background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 24 24%22><path fill=%22%239CA3AF%22 d=%22M7 10l5 5 5-5z%22/></svg>'); background-repeat:no-repeat; background-position:right 12px center;"
+                                style="width:100%; padding:8px 12px; font-size:13px; border:1px solid var(--pp-border); border-radius:8px; background:var(--pp-surface); color:var(--pp-text); outline:none; cursor:pointer; font-family:var(--pp-ff);"
                                 onfocus="this.style.borderColor='var(--pp-accent)'" onblur="this.style.borderColor='var(--pp-border)'">
                             <option value="unwichtig">Unwichtig</option>
                             <option value="mittelmaessig">Mittelmäßig</option>
@@ -143,9 +147,9 @@
                         </select>
                     </div>
                     <div>
-                        <label style="font-size:11px; font-weight:600; color:var(--pp-accent); display:block; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.06em;">Status</label>
+                        <label style="font-size:10px; font-weight:600; color:var(--pp-textDim); display:block; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.05em;">Status</label>
                         <select x-model="editStatus"
-                                style="width:100%; padding:10px 14px; font-size:14px; border:1px solid var(--pp-border); border-radius:10px; background:var(--pp-bg); color:var(--pp-text); outline:none; cursor:pointer; font-family:var(--pp-ff); transition:border-color 0.15s; -webkit-appearance:none; appearance:none; background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 24 24%22><path fill=%22%239CA3AF%22 d=%22M7 10l5 5 5-5z%22/></svg>'); background-repeat:no-repeat; background-position:right 12px center;"
+                                style="width:100%; padding:8px 12px; font-size:13px; border:1px solid var(--pp-border); border-radius:8px; background:var(--pp-surface); color:var(--pp-text); outline:none; cursor:pointer; font-family:var(--pp-ff);"
                                 onfocus="this.style.borderColor='var(--pp-accent)'" onblur="this.style.borderColor='var(--pp-border)'">
                             <option value="open">Offen</option>
                             <option value="in_progress">In Bearbeitung</option>
@@ -155,8 +159,16 @@
                     </div>
                 </div>
 
-                {# Row 4: Action Buttons #}
-                <div style="display:flex; align-items:center; gap:10px;">
+                {# Notizen Textarea #}
+                <div style="margin-bottom:14px;">
+                    <label style="font-size:10px; font-weight:600; color:var(--pp-textDim); display:block; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.05em;">Notizen bearbeiten</label>
+                    <textarea x-model="editDesc" rows="2" placeholder="Notizen..."
+                              style="width:100%; padding:8px 12px; font-size:13px; border:1px solid var(--pp-border); border-radius:8px; background:var(--pp-surface); color:var(--pp-text); outline:none; resize:vertical; font-family:var(--pp-ff); line-height:1.5;"
+                              onfocus="this.style.borderColor='var(--pp-accent)'" onblur="this.style.borderColor='var(--pp-border)'"></textarea>
+                </div>
+
+                {# Action Bar #}
+                <div style="display:flex; align-items:center; gap:8px;">
                     <button @click="
                         saving = true;
                         var payload = {title: editTitle.trim(), description: editDesc.trim() || null, priority: editPriority, status: editStatus, due_date: editDueDate || null};
@@ -165,27 +177,25 @@
                         .then(function(){ showToast('Gespeichert','success'); document.body.dispatchEvent(new CustomEvent('refreshTodos')); })
                         .catch(function(e){ showToast('Fehler: '+e.message,'error'); saving=false; });"
                         type="button" :disabled="saving"
-                        style="padding:9px 20px; font-size:13px; font-weight:600; border-radius:10px; border:none; cursor:pointer;
-                               background:linear-gradient(135deg, var(--pp-accent), #6C63FF); color:#fff; font-family:var(--pp-ff);
-                               display:inline-flex; align-items:center; gap:6px; transition:opacity 0.15s;"
-                        :style="saving ? 'opacity:0.5;cursor:not-allowed;' : ''"
-                        onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
-                        <span style="font-size:15px;">✓</span> Speichern
+                        style="padding:7px 16px; font-size:12px; font-weight:600; border-radius:8px; border:none; cursor:pointer;
+                               background:var(--pp-accent); color:#fff; font-family:var(--pp-ff);
+                               display:inline-flex; align-items:center; gap:5px;"
+                        :style="saving ? 'opacity:0.5;cursor:not-allowed;' : ''">
+                        ✓ Speichern
                     </button>
                     <button @click="openId = null" type="button"
-                        style="padding:9px 20px; font-size:13px; font-weight:500; border-radius:10px;
+                        style="padding:7px 16px; font-size:12px; font-weight:500; border-radius:8px;
                                border:1px solid var(--pp-border); cursor:pointer; background:transparent;
-                               color:var(--pp-textMuted); font-family:var(--pp-ff); transition:all 0.15s;"
-                        onmouseover="this.style.borderColor='var(--pp-borderLight)';this.style.color='var(--pp-text)'" onmouseout="this.style.borderColor='var(--pp-border)';this.style.color='var(--pp-textMuted)'">
+                               color:var(--pp-textMuted); font-family:var(--pp-ff);">
                         Abbrechen
                     </button>
                     <div style="flex:1;"></div>
                     <button @click="if(confirm('Aufgabe löschen?')){fetch('/api/ats/todos/{{ todo.id }}',{method:'DELETE'}).then(function(r){if(r.ok){showToast('Gelöscht','success');document.body.dispatchEvent(new CustomEvent('refreshTodos'));}});}"
                         type="button"
-                        style="padding:8px 14px; font-size:12px; font-weight:500; border-radius:10px;
-                               border:1px solid rgba(239,68,68,0.2); cursor:pointer; background:transparent;
-                               color:var(--pp-red); font-family:var(--pp-ff); opacity:0.7; transition:all 0.15s;"
-                        onmouseover="this.style.opacity='1';this.style.background='var(--pp-redSoft)'" onmouseout="this.style.opacity='0.7';this.style.background='transparent'">
+                        style="padding:6px 12px; font-size:11px; font-weight:500; border-radius:8px;
+                               border:none; cursor:pointer; background:transparent;
+                               color:var(--pp-red); font-family:var(--pp-ff); opacity:0.6;"
+                        onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'">
                         🗑 Löschen
                     </button>
                 </div>
