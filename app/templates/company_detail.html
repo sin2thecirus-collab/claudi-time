@@ -202,7 +202,7 @@
                 </div>
 
                 {# ── Übersicht ── #}
-                <div x-show="tab==='overview'" style="display:flex;flex-direction:column;gap:14px;padding-top:14px;">
+                <div x-show="tab==='overview'" style="display:flex;flex-direction:column;gap:24px;padding-top:18px;">
                     {# Kontakte #}
                     <div class="pp-sec pp-anim" style="animation-delay:250ms;">
                         <div class="pp-sec-h"><span class="pp-sec-t"><span style="font-size:18.5px;">&#x1F464;</span> Kontakte</span><button onclick="toggleContactForm()" class="pp-btn pp-btn-a pp-btn-sm">&#xFF0B; Hinzufügen</button></div>
@@ -225,7 +225,7 @@
                     </div>
 
                     {# 2-Spalten Grid: Stellen | Aufgaben #}
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px;">
                         <div class="pp-sec pp-anim" style="animation-delay:300ms;">
                             <div class="pp-sec-h"><span class="pp-sec-t"><span style="font-size:18.5px;">&#x1F3AF;</span> Stellen</span></div>
                             <div class="pp-sec-b"><div id="company-ats-jobs" hx-get="/partials/company-ats-jobs/{{ company.id }}" hx-trigger="load" hx-swap="innerHTML"><p class="pp-load">Lade Stellen...</p></div></div>
