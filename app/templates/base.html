@@ -61,6 +61,10 @@
         * { box-sizing: border-box; }
         [x-cloak] { display: none !important; }
 
+        html {
+            overflow-x: hidden;
+        }
+
         body {
             background: var(--pp-bg);
             color: var(--pp-text);
@@ -69,6 +73,19 @@
             line-height: 1.5;
             margin: 0;
             padding: 0;
+            zoom: 1.15;
+            overflow-x: hidden;
+        }
+
+        /* Responsive Zoom: kleinere Screens bekommen weniger Zoom */
+        @media (max-width: 1440px) {
+            body { zoom: 1.1; }
+        }
+        @media (max-width: 1366px) {
+            body { zoom: 1.05; }
+        }
+        @media (max-width: 1024px) {
+            body { zoom: 1; }
         }
 
         /* Scrollbar */
