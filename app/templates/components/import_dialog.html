@@ -2,11 +2,13 @@
 {# Wird via openModal('/partials/import-dialog') geladen #}
 
 <form id="import-form"
+      x-data="{ uploading: false, fileName: '', dragging: false }"
       hx-post="/api/jobs/import"
       hx-encoding="multipart/form-data"
       hx-target="#import-status"
       hx-swap="innerHTML"
-      hx-indicator="#import-spinner">
+      @htmx:before-request.window="uploading = true"
+      @htmx:after-request.window="uploading = false">
 
     <div style="padding:24px;">
         <div style="display:flex;align-items:flex-start;gap:16px;">
@@ -25,7 +27,7 @@
         </div>
 
         {# File Input #}
-        <div x-data="{ fileName: '', dragging: false }" style="margin-top:20px;">
+        <div style="margin-top:20px;">
             <div @dragover.prevent="dragging = true"
                  @dragleave.prevent="dragging = false"
                  @drop.prevent="dragging = false; fileName = $event.dataTransfer.files[0]?.name || ''; $refs.fileInput.files = $event.dataTransfer.files"
@@ -58,9 +60,28 @@
             </div>
         </div>
 
-        {# Import Status #}
+        {# Import Status — wird durch HTMX-Response ersetzt #}
         <div id="import-status" style="margin-top:16px;">
-            {# Wird nach Upload durch HTMX ersetzt #}
+            {# Sofort-Feedback waehrend Upload #}
+            <div x-show="uploading" x-cloak
+                 style="border-radius:10px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);padding:16px;">
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <svg style="width:20px;height:20px;color:var(--pp-primary);animation:spin 1s linear infinite;flex-shrink:0;" viewBox="0 0 24 24">
+                        <circle style="opacity:0.25;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                        <path style="opacity:0.75;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <div>
+                        <p style="font-size:14px;font-weight:600;color:var(--pp-primary);margin:0;">Import wird verarbeitet...</p>
+                        <p style="font-size:12px;color:var(--pp-text-muted);margin:4px 0 0;">
+                            Datei wird hochgeladen und verarbeitet. Das kann bei grossen Dateien einige Sekunden dauern.
+                        </p>
+                    </div>
+                </div>
+                {# Animated progress bar #}
+                <div style="margin-top:12px;height:4px;border-radius:2px;background:rgba(99,102,241,0.15);overflow:hidden;">
+                    <div style="height:100%;width:30%;border-radius:2px;background:var(--pp-primary);animation:indeterminate 1.5s ease-in-out infinite;"></div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -68,16 +89,30 @@
     <div style="padding:16px 24px;border-top:1px solid var(--pp-border);display:flex;justify-content:flex-end;gap:10px;">
         <button type="button"
                 onclick="closeModal()"
+                :disabled="uploading"
+                :style="uploading ? 'opacity:0.5;cursor:not-allowed;' : ''"
                 style="padding:8px 16px;font-size:13px;font-weight:500;color:var(--pp-text-muted);background:var(--pp-surface-hover);border:1px solid var(--pp-border);border-radius:8px;cursor:pointer;">
             Abbrechen
         </button>
         <button type="submit"
+                :disabled="uploading"
+                :style="uploading ? 'opacity:0.6;cursor:not-allowed;' : ''"
                 style="padding:8px 20px;font-size:13px;font-weight:600;color:#fff;background:var(--pp-primary);border:none;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
-            <svg id="import-spinner" class="htmx-indicator" style="width:16px;height:16px;animation:spin 1s linear infinite;" viewBox="0 0 24 24">
-                <circle style="opacity:0.25;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
-                <path style="opacity:0.75;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            Importieren
+            <template x-if="uploading">
+                <svg style="width:16px;height:16px;animation:spin 1s linear infinite;" viewBox="0 0 24 24">
+                    <circle style="opacity:0.25;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                    <path style="opacity:0.75;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            </template>
+            <span x-text="uploading ? 'Importiere...' : 'Importieren'"></span>
         </button>
     </div>
 </form>
+
+<style>
+@keyframes indeterminate {
+    0% { transform: translateX(-100%); }
+    50% { transform: translateX(200%); }
+    100% { transform: translateX(-100%); }
+}
+</style>

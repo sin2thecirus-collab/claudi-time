@@ -1,5 +1,5 @@
-{# Import Progress - Wird waehrend des Imports angezeigt #}
-{# Verwendung: Wird von /api/jobs/import/{id}/status geliefert #}
+{# Import Progress - Wird waehrend/nach dem Import angezeigt #}
+{# Verwendung: Wird von /api/jobs/import und /api/jobs/import/{id}/status geliefert #}
 {# Parameter: import_job (ImportJob-Objekt) #}
 
 {% set progress = 0 %}
@@ -7,68 +7,101 @@
 {% set progress = (import_job.processed_rows / import_job.total_rows * 100) | int %}
 {% endif %}
 
+{# Duplikate/Fehler aufschluesseln #}
+{% set duplicates_updated = import_job.errors_detail.get('duplicates_updated', 0) if import_job.errors_detail else 0 %}
+{% set blacklisted = import_job.errors_detail.get('blacklisted_skipped', 0) if import_job.errors_detail else 0 %}
+{% set real_errors = import_job.failed_rows - duplicates_updated - blacklisted if import_job.failed_rows else 0 %}
+{% if real_errors < 0 %}{% set real_errors = 0 %}{% endif %}
+
 <div id="import-progress"
-     {% if import_job.status == 'processing' %}
+     {% if import_job.status.value == 'processing' %}
      hx-get="/api/jobs/import/{{ import_job.id }}/status"
      hx-trigger="every 2s"
      hx-swap="outerHTML"
      {% endif %}>
 
-    {% if import_job.status == 'processing' %}
-    {# Verarbeitung laeuft #}
-    <div class="rounded-md bg-blue-50 p-4">
-        <div class="flex">
-            <div class="flex-shrink-0">
-                <svg class="h-5 w-5 text-blue-400 animate-spin" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
+    {% if import_job.status.value == 'processing' %}
+    {# ═══ Verarbeitung laeuft ═══ #}
+    <div style="border-radius:10px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);padding:16px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+            <svg style="width:20px;height:20px;color:var(--pp-primary);animation:spin 1s linear infinite;flex-shrink:0;" viewBox="0 0 24 24">
+                <circle style="opacity:0.25;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                <path style="opacity:0.75;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <div style="flex:1;">
+                <p style="font-size:14px;font-weight:600;color:var(--pp-primary);margin:0;">Import laeuft...</p>
+                <p style="font-size:12px;color:var(--pp-text-muted);margin:4px 0 0;">
+                    {{ import_job.processed_rows }} von {{ import_job.total_rows }} Zeilen verarbeitet
+                </p>
             </div>
-            <div class="ml-3 flex-1">
-                <h3 class="text-sm font-medium text-blue-800">Import laeuft...</h3>
-                <div class="mt-2 text-sm text-blue-700">
-                    <p>{{ import_job.processed_rows }} von {{ import_job.total_rows }} Zeilen verarbeitet</p>
-                </div>
-                <div class="mt-2">
-                    <div class="w-full bg-blue-200 rounded-full h-2">
-                        <div class="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                             style="width: {{ progress }}%"></div>
-                    </div>
-                </div>
-                <div class="mt-2">
-                    <button type="button"
-                            hx-post="/api/jobs/import/{{ import_job.id }}/cancel"
-                            hx-swap="outerHTML"
-                            hx-target="#import-progress"
-                            class="text-sm font-medium text-blue-600 hover:text-blue-500">
-                        Abbrechen
-                    </button>
-                </div>
-            </div>
+        </div>
+        {# Progress bar #}
+        <div style="margin-top:12px;height:4px;border-radius:2px;background:rgba(99,102,241,0.15);overflow:hidden;">
+            <div style="height:100%;border-radius:2px;background:var(--pp-primary);transition:width 0.3s;width:{{ progress }}%;"></div>
+        </div>
+        <div style="margin-top:8px;">
+            <button type="button"
+                    hx-post="/api/jobs/import/{{ import_job.id }}/cancel"
+                    hx-swap="outerHTML"
+                    hx-target="#import-progress"
+                    style="font-size:12px;font-weight:500;color:var(--pp-text-muted);background:none;border:none;cursor:pointer;padding:0;">
+                Abbrechen
+            </button>
         </div>
     </div>
 
-    {% elif import_job.status == 'completed' %}
-    {# Erfolgreich abgeschlossen #}
-    <div class="rounded-md bg-green-50 p-4">
-        <div class="flex">
-            <div class="flex-shrink-0">
-                <svg class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
-                </svg>
-            </div>
-            <div class="ml-3">
-                <h3 class="text-sm font-medium text-green-800">Import abgeschlossen</h3>
-                <div class="mt-2 text-sm text-green-700">
-                    <p>{{ import_job.successful_rows }} Jobs erfolgreich importiert</p>
-                    {% if import_job.failed_rows > 0 %}
-                    <p class="text-yellow-700">{{ import_job.failed_rows }} Zeilen uebersprungen (Fehler oder Duplikate)</p>
+    {% elif import_job.status.value == 'completed' %}
+    {# ═══ Erfolgreich abgeschlossen ═══ #}
+    <div style="border-radius:10px;background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2);padding:16px;">
+        <div style="display:flex;align-items:flex-start;gap:12px;">
+            <svg style="width:20px;height:20px;color:var(--pp-green);flex-shrink:0;margin-top:1px;" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
+            </svg>
+            <div style="flex:1;">
+                <p style="font-size:14px;font-weight:600;color:var(--pp-green);margin:0;">Import abgeschlossen</p>
+
+                {# Detaillierte Aufschluesselung #}
+                <div style="margin-top:8px;font-size:13px;display:flex;flex-direction:column;gap:4px;">
+                    {% if import_job.successful_rows > 0 %}
+                    <div style="display:flex;align-items:center;gap:6px;color:var(--pp-green);">
+                        <span style="font-weight:600;">{{ import_job.successful_rows }}</span>
+                        <span>Jobs erfolgreich importiert</span>
+                    </div>
+                    {% endif %}
+
+                    {% if duplicates_updated > 0 %}
+                    <div style="display:flex;align-items:center;gap:6px;color:var(--pp-warning, #F59E0B);">
+                        <span style="font-weight:600;">{{ duplicates_updated }}</span>
+                        <span>Duplikate uebersprungen (bereits vorhanden)</span>
+                    </div>
+                    {% endif %}
+
+                    {% if blacklisted > 0 %}
+                    <div style="display:flex;align-items:center;gap:6px;color:var(--pp-text-muted);">
+                        <span style="font-weight:600;">{{ blacklisted }}</span>
+                        <span>Zeilen uebersprungen (Unternehmen auf Blacklist)</span>
+                    </div>
+                    {% endif %}
+
+                    {% if real_errors > 0 %}
+                    <div style="display:flex;align-items:center;gap:6px;color:#EF4444;">
+                        <span style="font-weight:600;">{{ real_errors }}</span>
+                        <span>Zeilen mit Fehlern</span>
+                    </div>
+                    {% endif %}
+
+                    {% if import_job.successful_rows == 0 and duplicates_updated > 0 %}
+                    <p style="font-size:12px;color:var(--pp-text-muted);margin:6px 0 0;">
+                        Alle {{ duplicates_updated }} Zeilen waren bereits im System vorhanden (gleicher Inhalt).
+                        Wenn Sie die Jobs neu importieren moechten, loeschen Sie zuerst die bestehenden Jobs.
+                    </p>
                     {% endif %}
                 </div>
-                <div class="mt-3">
+
+                <div style="margin-top:12px;">
                     <button type="button"
                             onclick="closeModal(); htmx.trigger(document.body, 'jobsUpdated')"
-                            class="text-sm font-medium text-green-600 hover:text-green-500">
+                            style="font-size:13px;font-weight:600;color:var(--pp-primary);background:none;border:none;cursor:pointer;padding:0;">
                         Schliessen
                     </button>
                 </div>
@@ -76,30 +109,29 @@
         </div>
     </div>
 
-    {% elif import_job.status == 'failed' %}
-    {# Fehlgeschlagen #}
-    <div class="rounded-md bg-red-50 p-4">
-        <div class="flex">
-            <div class="flex-shrink-0">
-                <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
-                </svg>
-            </div>
-            <div class="ml-3">
-                <h3 class="text-sm font-medium text-red-800">Import fehlgeschlagen</h3>
-                <div class="mt-2 text-sm text-red-700">
-                    <p>{{ import_job.error_message | default('Unbekannter Fehler') }}</p>
-                </div>
+    {% elif import_job.status.value == 'failed' %}
+    {# ═══ Fehlgeschlagen ═══ #}
+    <div style="border-radius:10px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);padding:16px;">
+        <div style="display:flex;align-items:flex-start;gap:12px;">
+            <svg style="width:20px;height:20px;color:#EF4444;flex-shrink:0;margin-top:1px;" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
+            </svg>
+            <div style="flex:1;">
+                <p style="font-size:14px;font-weight:600;color:#EF4444;margin:0;">Import fehlgeschlagen</p>
+                <p style="font-size:13px;color:var(--pp-text-muted);margin:6px 0 0;">
+                    {{ import_job.error_message | default('Unbekannter Fehler') }}
+                </p>
+
                 {% if import_job.errors_detail %}
                 {% set all_errors = import_job.errors_detail.get('validation_errors', []) + import_job.errors_detail.get('import_errors', []) %}
                 {% if all_errors | length > 0 %}
-                <details class="mt-2">
-                    <summary class="text-sm font-medium text-red-600 cursor-pointer hover:text-red-500">
+                <details style="margin-top:10px;">
+                    <summary style="font-size:12px;font-weight:600;color:#EF4444;cursor:pointer;">
                         Fehlerdetails anzeigen ({{ all_errors | length }})
                     </summary>
-                    <ul class="mt-2 list-disc list-inside text-sm text-red-600 max-h-40 overflow-y-auto">
+                    <ul style="margin-top:8px;padding-left:16px;font-size:12px;color:var(--pp-text-muted);max-height:160px;overflow-y:auto;list-style:disc;">
                         {% for error in all_errors[:20] %}
-                        <li>{% if error.row %}Zeile {{ error.row }}: {% endif %}{{ error.message }}</li>
+                        <li style="margin-bottom:2px;">{% if error.row %}Zeile {{ error.row }}: {% endif %}{{ error.message }}</li>
                         {% endfor %}
                         {% if all_errors | length > 20 %}
                         <li>... und {{ all_errors | length - 20 }} weitere Fehler</li>
@@ -108,10 +140,11 @@
                 </details>
                 {% endif %}
                 {% endif %}
-                <div class="mt-3">
+
+                <div style="margin-top:12px;">
                     <button type="button"
                             onclick="closeModal()"
-                            class="text-sm font-medium text-red-600 hover:text-red-500">
+                            style="font-size:13px;font-weight:600;color:#EF4444;background:none;border:none;cursor:pointer;padding:0;">
                         Schliessen
                     </button>
                 </div>
@@ -119,24 +152,22 @@
         </div>
     </div>
 
-    {% elif import_job.status == 'cancelled' %}
-    {# Abgebrochen #}
-    <div class="rounded-md bg-gray-50 p-4">
-        <div class="flex">
-            <div class="flex-shrink-0">
-                <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
-                </svg>
-            </div>
-            <div class="ml-3">
-                <h3 class="text-sm font-medium text-gray-800">Import abgebrochen</h3>
-                <div class="mt-2 text-sm text-gray-600">
-                    <p>{{ import_job.processed_rows }} von {{ import_job.total_rows }} Zeilen wurden vor dem Abbruch verarbeitet.</p>
-                </div>
-                <div class="mt-3">
+    {% elif import_job.status.value == 'cancelled' %}
+    {# ═══ Abgebrochen ═══ #}
+    <div style="border-radius:10px;background:rgba(156,163,175,0.08);border:1px solid rgba(156,163,175,0.2);padding:16px;">
+        <div style="display:flex;align-items:flex-start;gap:12px;">
+            <svg style="width:20px;height:20px;color:var(--pp-text-muted);flex-shrink:0;margin-top:1px;" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
+            </svg>
+            <div>
+                <p style="font-size:14px;font-weight:600;color:var(--pp-text-muted);margin:0;">Import abgebrochen</p>
+                <p style="font-size:13px;color:var(--pp-text-muted);margin:6px 0 0;">
+                    {{ import_job.processed_rows }} von {{ import_job.total_rows }} Zeilen wurden vor dem Abbruch verarbeitet.
+                </p>
+                <div style="margin-top:12px;">
                     <button type="button"
                             onclick="closeModal()"
-                            class="text-sm font-medium text-gray-600 hover:text-gray-500">
+                            style="font-size:13px;font-weight:600;color:var(--pp-text-muted);background:none;border:none;cursor:pointer;padding:0;">
                         Schliessen
                     </button>
                 </div>
