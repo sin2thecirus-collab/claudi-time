@@ -109,15 +109,13 @@
                 <div style="font-size:14px; color:var(--pp-textMuted); line-height:1.5; margin-bottom:14px;">{{ todo.description }}</div>
                 {% endif %}
                 <div style="background:var(--pp-bg); border-radius:10px; padding:14px; border:1px solid var(--pp-border);">
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
-                        <div>
-                            <label style="font-size:12px; font-weight:600; color:var(--pp-textDim); display:block; margin-bottom:5px; text-transform:uppercase; letter-spacing:0.04em;">Titel</label>
-                            <input type="text" x-model="editTitle" style="width:100%; padding:9px 12px; font-size:14px; border:1px solid var(--pp-border); border-radius:8px; background:var(--pp-surface); color:var(--pp-text); outline:none; font-family:var(--pp-ff);">
-                        </div>
-                        <div>
-                            <label style="font-size:12px; font-weight:600; color:var(--pp-textDim); display:block; margin-bottom:5px; text-transform:uppercase; letter-spacing:0.04em;">Notizen</label>
-                            <input type="text" x-model="editDesc" style="width:100%; padding:9px 12px; font-size:14px; border:1px solid var(--pp-border); border-radius:8px; background:var(--pp-surface); color:var(--pp-text); outline:none; font-family:var(--pp-ff);">
-                        </div>
+                    <div style="margin-bottom:12px;">
+                        <label style="font-size:12px; font-weight:600; color:var(--pp-textDim); display:block; margin-bottom:5px; text-transform:uppercase; letter-spacing:0.04em;">Titel</label>
+                        <input type="text" x-model="editTitle" style="width:100%; padding:9px 12px; font-size:14px; border:1px solid var(--pp-border); border-radius:8px; background:var(--pp-surface); color:var(--pp-text); outline:none; font-family:var(--pp-ff);">
+                    </div>
+                    <div style="margin-bottom:12px;">
+                        <label style="font-size:12px; font-weight:600; color:var(--pp-textDim); display:block; margin-bottom:5px; text-transform:uppercase; letter-spacing:0.04em;">Notizen</label>
+                        <textarea x-model="editDesc" rows="3" style="width:100%; padding:9px 12px; font-size:14px; border:1px solid var(--pp-border); border-radius:8px; background:var(--pp-surface); color:var(--pp-text); outline:none; resize:vertical; font-family:var(--pp-ff);"></textarea>
                     </div>
                     <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:12px;">
                         <div>
