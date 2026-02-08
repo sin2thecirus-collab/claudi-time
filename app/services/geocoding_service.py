@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Limits, settings
 from app.models import Candidate, Job
+from app.models.company import Company
 
 logger = logging.getLogger(__name__)
 
@@ -266,12 +267,28 @@ class GeocodingService:
         """
         Geokodiert einen Job.
 
+        Strategie (Geocode-Vererbung):
+        1. Wenn das Unternehmen schon Koordinaten hat → erbe sie (kein API-Aufruf)
+        2. Wenn nicht → geocode die Job-Adresse und speichere auch auf dem Unternehmen
+        3. So wird ein Unternehmen nur 1x geocoded — alle zukuenftigen Jobs erben
+
         Args:
             job: Job-Objekt
 
         Returns:
             True bei Erfolg
         """
+        # ── Strategie 1: Koordinaten vom Unternehmen erben ──
+        if job.company_id:
+            company = await self.db.get(Company, job.company_id)
+            if company and company.location_coords is not None:
+                job.location_coords = company.location_coords
+                logger.debug(
+                    f"Job {job.id}: Koordinaten von Unternehmen '{company.name}' geerbt"
+                )
+                return True
+
+        # ── Strategie 2: Selbst geocoden ──
         address = self._build_address(
             street=job.street_address,
             postal_code=job.postal_code,
@@ -286,10 +303,28 @@ class GeocodingService:
 
         if result:
             # PostGIS Point erstellen: ST_SetSRID(ST_MakePoint(lon, lat), 4326)
-            job.location_coords = func.ST_SetSRID(
+            point = func.ST_SetSRID(
                 func.ST_MakePoint(result.longitude, result.latitude),
                 4326,
             )
+            job.location_coords = point
+
+            # ── Koordinaten auch auf dem Unternehmen speichern (fuer zukuenftige Jobs) ──
+            if job.company_id:
+                company = await self.db.get(Company, job.company_id)
+                if company and company.location_coords is None:
+                    company.location_coords = func.ST_SetSRID(
+                        func.ST_MakePoint(result.longitude, result.latitude),
+                        4326,
+                    )
+                    # Auch Stadt speichern falls nicht vorhanden
+                    if not company.city and job.city:
+                        company.city = job.city
+                    logger.info(
+                        f"Unternehmen '{company.name}': Koordinaten gespeichert "
+                        f"({result.latitude}, {result.longitude}) — zukuenftige Jobs erben diese"
+                    )
+
             return True
 
         return False
@@ -325,14 +360,59 @@ class GeocodingService:
 
         return False
 
+    async def inherit_geocodes_from_companies(self) -> dict:
+        """
+        Phase 0: Erbt Koordinaten von Unternehmen auf Jobs (kein API-Aufruf).
+
+        Fuer alle Jobs ohne Koordinaten, deren Unternehmen bereits Koordinaten hat:
+        → Kopiere Koordinaten direkt (spart Nominatim API-Aufrufe).
+
+        Returns:
+            Dict mit inherited-Zaehler
+        """
+        # Jobs ohne Koordinaten die ein Unternehmen MIT Koordinaten haben
+        result = await self.db.execute(
+            select(Job)
+            .join(Company, Job.company_id == Company.id)
+            .where(
+                Job.location_coords.is_(None),
+                Job.deleted_at.is_(None),
+                Company.location_coords.isnot(None),
+            )
+        )
+        jobs = result.scalars().all()
+
+        inherited = 0
+        for job in jobs:
+            company = await self.db.get(Company, job.company_id)
+            if company and company.location_coords is not None:
+                job.location_coords = company.location_coords
+                inherited += 1
+
+        if inherited > 0:
+            await self.db.commit()
+            logger.info(
+                f"Geocode-Vererbung: {inherited} Jobs haben Koordinaten "
+                f"vom Unternehmen geerbt (0 API-Aufrufe)"
+            )
+
+        return {"inherited": inherited}
+
     async def process_pending_jobs(self) -> ProcessResult:
         """
         Geokodiert alle Jobs ohne Koordinaten.
 
+        Phase 0: Erst Vererbung von Unternehmen (kostenlos, kein API-Aufruf)
+        Phase 1: Dann restliche Jobs per Nominatim geocoden
+
         Returns:
             ProcessResult mit Statistiken
         """
-        # Jobs ohne Koordinaten laden
+        # Phase 0: Vererbung
+        inherit_result = await self.inherit_geocodes_from_companies()
+        inherited = inherit_result["inherited"]
+
+        # Phase 1: Restliche Jobs ohne Koordinaten laden
         result = await self.db.execute(
             select(Job).where(
                 Job.location_coords.is_(None),
@@ -341,13 +421,16 @@ class GeocodingService:
         )
         jobs = result.scalars().all()
 
-        total = len(jobs)
-        successful = 0
+        total = len(jobs) + inherited
+        successful = inherited
         failed = 0
         skipped = 0
         errors: list[dict] = []
 
-        logger.info(f"Starte Geokodierung für {total} Jobs")
+        logger.info(
+            f"Starte Geokodierung für {len(jobs)} Jobs "
+            f"({inherited} bereits von Unternehmen geerbt)"
+        )
 
         for job in jobs:
             try:
@@ -364,7 +447,8 @@ class GeocodingService:
 
         logger.info(
             f"Job-Geokodierung abgeschlossen: "
-            f"{successful} erfolgreich, {skipped} übersprungen, {failed} fehlgeschlagen"
+            f"{successful} erfolgreich ({inherited} geerbt), "
+            f"{skipped} übersprungen, {failed} fehlgeschlagen"
         )
 
         return ProcessResult(
@@ -372,7 +456,7 @@ class GeocodingService:
             successful=successful,
             failed=failed,
             skipped=skipped,
-            errors=errors[:50],  # Max 50 Fehler
+            errors=errors[:50],
         )
 
     async def process_pending_candidates(self) -> ProcessResult:

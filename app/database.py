@@ -486,20 +486,33 @@ async def _ensure_matching_v2_tables() -> None:
         """))
         await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_v2_weights_component ON match_v2_scoring_weights (component)"))
 
-        # Default-Gewichte einfuegen (nur wenn Tabelle leer)
+        # Default-Gewichte: Entfernung ist jetzt Hard Filter, nicht mehr Soft-Score
+        # Alte Weights (distance, city_metro) durch neue ersetzen
+        await conn.execute(text("""
+            DELETE FROM match_v2_scoring_weights
+            WHERE component IN ('distance', 'city_metro')
+        """))
+        # Aktualisiere bestehende Weights auf neue Werte
+        await conn.execute(text("""
+            UPDATE match_v2_scoring_weights SET weight = 35.0, default_weight = 35.0 WHERE component = 'skill_overlap'
+        """))
+        await conn.execute(text("""
+            UPDATE match_v2_scoring_weights SET weight = 10.0, default_weight = 10.0 WHERE component = 'software_match'
+        """))
         await conn.execute(text("""
             INSERT INTO match_v2_scoring_weights (id, component, weight, default_weight, adjustment_count)
             SELECT gen_random_uuid(), v.component, v.weight, v.weight, 0
             FROM (VALUES
-                ('skill_overlap', 30.0),
+                ('skill_overlap', 35.0),
                 ('seniority_fit', 20.0),
                 ('embedding_sim', 20.0),
-                ('distance', 10.0),
                 ('career_fit', 10.0),
-                ('software_match', 5.0),
-                ('city_metro', 5.0)
+                ('software_match', 10.0),
+                ('location_bonus', 5.0)
             ) AS v(component, weight)
-            WHERE NOT EXISTS (SELECT 1 FROM match_v2_scoring_weights)
+            WHERE NOT EXISTS (
+                SELECT 1 FROM match_v2_scoring_weights WHERE component = v.component
+            )
         """))
 
         logger.info("Matching v2 Tabellen erfolgreich erstellt.")

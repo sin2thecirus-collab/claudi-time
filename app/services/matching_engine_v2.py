@@ -47,6 +47,7 @@ class MatchCandidate:
     embedding_full: list[float] | None
     city: str | None
     hotlist_category: str | None
+    distance_km: float | None = None  # Entfernung zum Job in km (NULL = keine Geodaten)
 
 
 @dataclass
@@ -83,14 +84,17 @@ class BatchMatchResult:
 # ══════════════════════════════════════════════════════════════════
 
 DEFAULT_WEIGHTS = {
-    "skill_overlap": 30.0,
+    "skill_overlap": 35.0,
     "seniority_fit": 20.0,
     "embedding_sim": 20.0,
-    "distance": 10.0,
     "career_fit": 10.0,
-    "software_match": 5.0,
-    "city_metro": 5.0,
+    "software_match": 10.0,
+    "location_bonus": 5.0,  # Bonus fuer gleiche Stadt/Metro (kein Penalty — Entfernung ist Hard Filter)
 }
+
+# Entfernung ist jetzt ein HARD FILTER, kein Soft-Score!
+# Max. 60km Luftlinie (~1h Fahrweg) — alles darueber wird rausgeworfen.
+MAX_DISTANCE_KM = 60
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -167,6 +171,7 @@ class MatchingEngineV2:
         - Seniority-Level zu weit entfernt
         - Geloescht/Hidden
         - Falsche Hotlist-Kategorie (wenn vorhanden)
+        - ZU WEIT WEG: >60km Luftlinie (~1h Fahrweg) → HARD FILTER!
 
         Returns:
             Liste von MatchCandidate-Objekten (vorgeflitert)
@@ -174,6 +179,9 @@ class MatchingEngineV2:
         # Seniority-Range: Job Level ±2, aber max 1-6
         min_level = max(1, job_level - 2)
         max_level = min(6, job_level + 2)
+
+        # Prüfe ob Job Geodaten hat (fuer Distanz-Filter)
+        job_has_coords = job.location_coords is not None
 
         # Basis-Filter
         conditions = [
@@ -185,6 +193,23 @@ class MatchingEngineV2:
             Candidate.hidden == False,
         ]
 
+        # HARD FILTER: Entfernung max. 60km (wenn Job Koordinaten hat)
+        # Kandidaten OHNE Koordinaten werden trotzdem durchgelassen,
+        # aber mit distance_km=None markiert (koennen spaeter manuell geprueft werden)
+        if job_has_coords:
+            conditions.append(
+                or_(
+                    # Kandidat innerhalb MAX_DISTANCE_KM km
+                    func.ST_DWithin(
+                        Candidate.address_coords,
+                        job.location_coords,
+                        MAX_DISTANCE_KM * 1000,  # ST_DWithin nutzt Meter bei Geography
+                    ),
+                    # ODER Kandidat hat keine Koordinaten (nicht ausschliessen)
+                    Candidate.address_coords.is_(None),
+                )
+            )
+
         # Hotlist-Kategorie (wenn Job eine hat)
         if job.hotlist_category:
             conditions.append(
@@ -193,6 +218,15 @@ class MatchingEngineV2:
                     Candidate.hotlist_category.is_(None),
                 )
             )
+
+        # Distanz-Berechnung als Spalte (wenn Job Geodaten hat)
+        if job_has_coords:
+            distance_expr = func.ST_Distance(
+                Candidate.address_coords,
+                job.location_coords,
+            ).label("distance_m")  # Meter (Geography-Type)
+        else:
+            distance_expr = text("NULL::float").label("distance_m")
 
         query = (
             select(
@@ -206,6 +240,7 @@ class MatchingEngineV2:
                 Candidate.v2_embedding_full,
                 Candidate.city,
                 Candidate.hotlist_category,
+                distance_expr,
             )
             .where(and_(*conditions))
             .order_by(
@@ -221,6 +256,9 @@ class MatchingEngineV2:
 
         candidates = []
         for row in rows:
+            distance_m = row[10]  # Meter oder None
+            distance_km = round(distance_m / 1000, 1) if distance_m is not None else None
+
             candidates.append(MatchCandidate(
                 id=row[0],
                 seniority_level=row[1] or 2,
@@ -232,11 +270,13 @@ class MatchingEngineV2:
                 embedding_full=row[7],
                 city=row[8],
                 hotlist_category=row[9],
+                distance_km=distance_km,
             ))
 
         logger.info(
             f"Hard Filter: {len(candidates)} Kandidaten fuer Job Level {job_level} "
-            f"(Range {min_level}-{max_level}, Category: {job.hotlist_category})"
+            f"(Range {min_level}-{max_level}, Category: {job.hotlist_category}, "
+            f"Distance Hard Filter: {'<=' + str(MAX_DISTANCE_KM) + 'km' if job_has_coords else 'keine Geodaten'})"
         )
         return candidates
 
@@ -512,6 +552,36 @@ class MatchingEngineV2:
         normalized = max(0.0, min(1.0, (sim - 0.3) / 0.6))
         return normalized
 
+    def _score_location_bonus(
+        self,
+        candidate_city: str | None,
+        job_city: str | None,
+        distance_km: float | None,
+    ) -> float:
+        """Berechnet Location-Bonus (0.0 - 1.0).
+
+        Entfernung ist bereits ein HARD FILTER (>60km = raus).
+        Dieser Score gibt NUR einen Bonus fuer besonders nahe Kandidaten:
+
+        - Gleiche Stadt oder ≤15km = 1.0 (ideal)
+        - Gleiche Metro-Area oder ≤30km = 0.7 (gut)
+        - ≤60km = 0.4 (akzeptabel)
+        - Keine Geodaten = 0.3 (neutral, kein Penalty)
+        """
+        # Wenn echte Distanz bekannt → nutze sie
+        if distance_km is not None:
+            if distance_km <= 15:
+                return 1.0
+            elif distance_km <= 30:
+                return 0.7
+            elif distance_km <= 60:
+                return 0.4
+            else:
+                return 0.0  # Sollte eigentlich nicht vorkommen (Hard Filter)
+
+        # Fallback: Stadt-Vergleich (wenn keine Geodaten)
+        return self._score_city_metro(candidate_city, job_city)
+
     async def _score_candidates(
         self,
         job: Job,
@@ -519,6 +589,10 @@ class MatchingEngineV2:
         weights: dict[str, float],
     ) -> list[ScoredMatch]:
         """Schicht 2: Berechnet gewichteten Score fuer alle Kandidaten.
+
+        ENTFERNUNG IST KEIN SOFT-SCORE MEHR!
+        Entfernung >60km wird schon in Schicht 1 (Hard Filter) entfernt.
+        Hier gibt es nur noch einen Bonus fuer besonders nahe Kandidaten.
 
         Args:
             job: Der Job gegen den gematcht wird
@@ -556,30 +630,28 @@ class MatchingEngineV2:
             software_score = self._score_software_match(
                 cand.structured_skills, job_skills
             )
-            city_score = self._score_city_metro(cand.city, job_city)
-
-            # Distance Score: Placeholder (0.5 = neutral, wenn keine Geodaten)
-            distance_score = 0.5
+            location_score = self._score_location_bonus(
+                cand.city, job_city, cand.distance_km
+            )
 
             # Gewichtete Summe (0-100)
             total = (
-                skill_score * weights.get("skill_overlap", 30) +
+                skill_score * weights.get("skill_overlap", 35) +
                 seniority_score * weights.get("seniority_fit", 20) +
                 embedding_score * weights.get("embedding_sim", 20) +
-                distance_score * weights.get("distance", 10) +
                 career_score * weights.get("career_fit", 10) +
-                software_score * weights.get("software_match", 5) +
-                city_score * weights.get("city_metro", 5)
+                software_score * weights.get("software_match", 10) +
+                location_score * weights.get("location_bonus", 5)
             ) / total_weight * 100
 
             breakdown = {
                 "skill_overlap": round(skill_score, 3),
                 "seniority_fit": round(seniority_score, 3),
                 "embedding_sim": round(embedding_score, 3),
-                "distance": round(distance_score, 3),
                 "career_fit": round(career_score, 3),
                 "software_match": round(software_score, 3),
-                "city_metro": round(city_score, 3),
+                "location_bonus": round(location_score, 3),
+                "distance_km": cand.distance_km,
             }
 
             scored.append(ScoredMatch(
