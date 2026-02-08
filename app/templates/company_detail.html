@@ -14,78 +14,78 @@
 
     /* Company Header */
     .cd-header {
-        padding: 20px 28px 0;
+        padding: 24px 32px 0;
         border-bottom: 1px solid var(--pp-border);
         background: linear-gradient(180deg, rgba(24,26,35,0.53), transparent);
     }
     .cd-breadcrumb {
-        font-size: 11.5px; color: var(--pp-textDim); margin-bottom: 14px;
-        display: flex; align-items: center; gap: 6px;
+        font-size: 14px; color: var(--pp-textDim); margin-bottom: 16px;
+        display: flex; align-items: center; gap: 8px;
     }
     .cd-breadcrumb a { color: var(--pp-accent); text-decoration: none; cursor: pointer; }
     .cd-breadcrumb a:hover { text-decoration: underline; }
 
     .cd-info-row {
         display: flex; align-items: center; justify-content: space-between;
-        margin-bottom: 16px;
+        margin-bottom: 20px;
     }
-    .cd-info-left { display: flex; align-items: center; gap: 14px; min-width: 0; flex: 1; }
+    .cd-info-left { display: flex; align-items: center; gap: 16px; min-width: 0; flex: 1; }
 
     .cd-avatar {
-        width: 46px; height: 46px; border-radius: 12px; flex-shrink: 0;
+        width: 56px; height: 56px; border-radius: 14px; flex-shrink: 0;
         background: linear-gradient(135deg, #2563EB22, #2563EB44);
         border: 1px solid #2563EB44;
         display: flex; align-items: center; justify-content: center;
-        font-size: 17px; font-weight: 700; color: var(--pp-accent);
+        font-size: 20px; font-weight: 700; color: var(--pp-accent);
     }
     .cd-name {
-        font-size: 19px; font-weight: 700; margin: 0;
+        font-size: 24px; font-weight: 700; margin: 0;
         letter-spacing: -0.02em; color: var(--pp-text);
         overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     .cd-meta {
-        display: flex; align-items: center; gap: 16px; margin-top: 5px;
-        font-size: 12px; color: var(--pp-textMuted);
+        display: flex; align-items: center; gap: 18px; margin-top: 6px;
+        font-size: 14px; color: var(--pp-textMuted);
     }
     .cd-meta .sep { color: var(--pp-textDim); }
-    .cd-meta a { color: var(--pp-accent); text-decoration: none; display: flex; align-items: center; gap: 4px; }
+    .cd-meta a { color: var(--pp-accent); text-decoration: none; display: flex; align-items: center; gap: 5px; }
     .cd-meta a:hover { text-decoration: underline; }
 
     /* Status Badge */
     .cd-badge {
-        display: inline-flex; align-items: center; gap: 4px;
-        padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600;
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 3px 10px; border-radius: 7px; font-size: 13px; font-weight: 600;
         letter-spacing: 0.03em;
     }
 
     /* Action Buttons */
     .cd-btn-call {
-        display: flex; align-items: center; gap: 6px;
-        padding: 8px 14px; border-radius: 9px;
+        display: flex; align-items: center; gap: 8px;
+        padding: 10px 18px; border-radius: 10px;
         border: 1px solid rgba(52,211,153,0.27);
         background: var(--pp-greenSoft); color: var(--pp-green);
-        font-size: 12px; font-weight: 600; cursor: pointer;
+        font-size: 14px; font-weight: 600; cursor: pointer;
         transition: all 0.15s; font-family: var(--pp-ff);
     }
     .cd-btn-call:hover { background: rgba(52,211,153,0.14); }
     .cd-btn-gear {
-        padding: 8px 12px; border-radius: 9px;
+        padding: 10px 14px; border-radius: 10px;
         border: 1px solid var(--pp-border); background: transparent;
-        color: var(--pp-textMuted); font-size: 14px; cursor: pointer;
+        color: var(--pp-textMuted); font-size: 16px; cursor: pointer;
         transition: all 0.15s;
     }
     .cd-btn-gear:hover { border-color: var(--pp-borderLight); color: var(--pp-text); }
 
     /* Status Menu */
     .cd-status-menu {
-        position: absolute; right: 0; top: 100%; margin-top: 6px;
-        width: 220px; background: var(--pp-surface); border-radius: 12px;
+        position: absolute; right: 0; top: 100%; margin-top: 8px;
+        width: 240px; background: var(--pp-surface); border-radius: 14px;
         box-shadow: 0 8px 30px rgba(0,0,0,0.35); border: 1px solid var(--pp-border);
         padding: 6px; z-index: 50;
     }
     .cd-status-item {
-        width: 100%; text-align: left; padding: 10px 14px; border-radius: 8px;
-        font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 8px;
+        width: 100%; text-align: left; padding: 12px 16px; border-radius: 10px;
+        font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 10px;
         border: none; background: transparent; color: var(--pp-text);
         transition: background 0.15s; font-family: var(--pp-ff);
     }
@@ -96,9 +96,9 @@
     /* Tabs */
     .cd-tabs { display: flex; gap: 2px; }
     .cd-tab {
-        padding: 10px 16px; border-radius: 8px 8px 0 0; border: none;
-        cursor: pointer; font-size: 12.5px; font-weight: 600;
-        display: flex; align-items: center; gap: 6px;
+        padding: 12px 20px; border-radius: 10px 10px 0 0; border: none;
+        cursor: pointer; font-size: 15px; font-weight: 600;
+        display: flex; align-items: center; gap: 8px;
         color: var(--pp-textMuted); background: transparent;
         border-bottom: 2px solid transparent;
         transition: all 0.15s; font-family: var(--pp-ff);
@@ -109,35 +109,35 @@
         background: var(--pp-accentSoft);
         border-bottom-color: var(--pp-accent);
     }
-    .cd-tab .icon { font-size: 13px; }
+    .cd-tab .icon { font-size: 16px; }
 
     /* Main Grid */
     .cd-grid {
-        display: grid; grid-template-columns: 1fr 300px; gap: 0;
-        min-height: calc(100vh - 180px);
+        display: grid; grid-template-columns: 1fr 340px; gap: 0;
+        min-height: calc(100vh - 200px);
     }
-    .cd-main { padding: 20px 24px; border-right: 1px solid var(--pp-border); }
+    .cd-main { padding: 24px 28px; border-right: 1px solid var(--pp-border); }
     .cd-sidebar {
-        padding: 20px 18px; background: rgba(24,26,35,0.4);
+        padding: 24px 22px; background: rgba(24,26,35,0.4);
         display: flex; flex-direction: column;
     }
 
     /* Section Header */
     .cd-sec-hdr {
         display: flex; align-items: center; justify-content: space-between;
-        margin-bottom: 14px; padding: 0 2px;
+        margin-bottom: 16px; padding: 0 2px;
     }
-    .cd-sec-hdr-left { display: flex; align-items: center; gap: 8px; }
-    .cd-sec-hdr-left .icon { font-size: 15px; }
-    .cd-sec-hdr-left .title { font-size: 13px; font-weight: 650; color: var(--pp-text); letter-spacing: 0.01em; }
+    .cd-sec-hdr-left { display: flex; align-items: center; gap: 10px; }
+    .cd-sec-hdr-left .icon { font-size: 20px; }
+    .cd-sec-hdr-left .title { font-size: 16px; font-weight: 650; color: var(--pp-text); letter-spacing: 0.01em; }
     .cd-sec-hdr-left .count {
-        font-size: 11px; font-weight: 600; color: var(--pp-textDim);
-        background: var(--pp-surfaceHover); padding: 1px 7px; border-radius: 5px;
+        font-size: 13px; font-weight: 600; color: var(--pp-textDim);
+        background: var(--pp-surfaceHover); padding: 2px 8px; border-radius: 6px;
     }
     .cd-sec-action {
-        background: none; border: 1px solid var(--pp-border); border-radius: 7px;
-        color: var(--pp-textMuted); font-size: 11px; font-weight: 500;
-        padding: 4px 10px; cursor: pointer; transition: all 0.15s;
+        background: none; border: 1px solid var(--pp-border); border-radius: 8px;
+        color: var(--pp-textMuted); font-size: 13px; font-weight: 500;
+        padding: 6px 12px; cursor: pointer; transition: all 0.15s;
         font-family: var(--pp-ff);
     }
     .cd-sec-action:hover { border-color: var(--pp-accent); color: var(--pp-accent); }
@@ -145,84 +145,84 @@
     /* Card */
     .cd-card {
         background: var(--pp-surface); border: 1px solid var(--pp-border);
-        border-radius: 12px; padding: 16px; transition: all 0.2s ease;
+        border-radius: 14px; padding: 20px; transition: all 0.2s ease;
     }
 
     /* Sidebar Sections */
-    .cd-side-sec { margin-bottom: 24px; }
+    .cd-side-sec { margin-bottom: 28px; }
     .cd-side-hdr {
         display: flex; align-items: center; justify-content: space-between;
-        margin-bottom: 12px;
+        margin-bottom: 14px;
     }
-    .cd-side-hdr-left { display: flex; align-items: center; gap: 6px; }
-    .cd-side-hdr-left .icon { font-size: 13px; }
-    .cd-side-hdr-left .title { font-size: 12.5px; font-weight: 650; color: var(--pp-text); }
+    .cd-side-hdr-left { display: flex; align-items: center; gap: 8px; }
+    .cd-side-hdr-left .icon { font-size: 16px; }
+    .cd-side-hdr-left .title { font-size: 15px; font-weight: 650; color: var(--pp-text); }
     .cd-side-hdr-left .cnt {
-        font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px;
+        font-size: 12px; font-weight: 700; padding: 2px 7px; border-radius: 5px;
     }
-    .cd-side-link { font-size: 11px; color: var(--pp-accent); cursor: pointer; text-decoration: none; }
+    .cd-side-link { font-size: 13px; color: var(--pp-accent); cursor: pointer; text-decoration: none; }
     .cd-side-link:hover { text-decoration: underline; }
     .cd-side-empty {
-        padding: 20px; border-radius: 10px; border: 1px dashed var(--pp-border);
+        padding: 24px; border-radius: 12px; border: 1px dashed var(--pp-border);
         text-align: center;
     }
-    .cd-side-empty-text { font-size: 11px; color: var(--pp-textDim); margin-bottom: 8px; }
-    .cd-side-empty-link { font-size: 11px; color: var(--pp-accent); cursor: pointer; }
+    .cd-side-empty-text { font-size: 13px; color: var(--pp-textDim); margin-bottom: 10px; }
+    .cd-side-empty-link { font-size: 13px; color: var(--pp-accent); cursor: pointer; }
 
     /* Call Stats */
     .cd-stat-box {
-        padding: 12px; border-radius: 10px; background: var(--pp-surface);
+        padding: 14px; border-radius: 12px; background: var(--pp-surface);
         border: 1px solid var(--pp-border); text-align: center;
     }
-    .cd-stat-val { font-size: 22px; font-weight: 700; }
-    .cd-stat-label { font-size: 10px; color: var(--pp-textDim); margin-top: 2px; }
+    .cd-stat-val { font-size: 28px; font-weight: 700; }
+    .cd-stat-label { font-size: 12px; color: var(--pp-textDim); margin-top: 3px; }
 
     /* Date Footer */
     .cd-date-footer {
-        padding: 10px 0; border-top: 1px solid var(--pp-border);
+        padding: 12px 0; border-top: 1px solid var(--pp-border);
         display: flex; justify-content: space-between;
-        font-size: 10px; color: var(--pp-textDim); letter-spacing: 0.02em;
+        font-size: 12px; color: var(--pp-textDim); letter-spacing: 0.02em;
     }
 
     /* Loading */
-    .cd-load { font-size: 12px; color: var(--pp-textMuted); padding: 12px 0; }
+    .cd-load { font-size: 14px; color: var(--pp-textMuted); padding: 14px 0; }
     @keyframes cdPulse { 0%,100% { opacity:0.6; } 50% { opacity:1; } }
     .cd-load { animation: cdPulse 1.5s ease-in-out infinite; }
 
     /* Inputs Dark */
     .cd-inp {
-        width: 100%; padding: 9px 12px; border-radius: 8px;
+        width: 100%; padding: 11px 14px; border-radius: 10px;
         border: 1px solid var(--pp-border); background: var(--pp-bg);
-        color: var(--pp-text); font-size: 13px; outline: none;
+        color: var(--pp-text); font-size: 14px; outline: none;
         transition: border-color 0.15s; font-family: var(--pp-ff);
     }
     .cd-inp:focus { border-color: var(--pp-accent); box-shadow: 0 0 0 3px rgba(79,140,255,0.1); }
     .cd-inp::placeholder { color: var(--pp-textDim); }
     .cd-sel {
-        padding: 9px 12px; border-radius: 8px;
+        padding: 11px 14px; border-radius: 10px;
         border: 1px solid var(--pp-border); background: var(--pp-bg);
-        color: var(--pp-text); font-size: 13px; outline: none;
+        color: var(--pp-text); font-size: 14px; outline: none;
         cursor: pointer; font-family: var(--pp-ff);
     }
     .cd-sel:focus { border-color: var(--pp-accent); box-shadow: 0 0 0 3px rgba(79,140,255,0.1); }
     .cd-sel option { background: var(--pp-surface); color: var(--pp-text); }
     .cd-ta {
-        width: 100%; padding: 9px 12px; border-radius: 8px;
+        width: 100%; padding: 11px 14px; border-radius: 10px;
         border: 1px solid var(--pp-border); background: var(--pp-bg);
-        color: var(--pp-text); font-size: 13px; outline: none;
+        color: var(--pp-text); font-size: 14px; outline: none;
         resize: vertical; font-family: var(--pp-ff);
     }
     .cd-ta:focus { border-color: var(--pp-accent); box-shadow: 0 0 0 3px rgba(79,140,255,0.1); }
     .cd-ta::placeholder { color: var(--pp-textDim); }
     .cd-iform {
-        margin-top: 16px; padding: 18px; background: var(--pp-bg);
-        border-radius: 10px; border: 1px solid var(--pp-border);
+        margin-top: 18px; padding: 22px; background: var(--pp-bg);
+        border-radius: 12px; border: 1px solid var(--pp-border);
     }
 
     /* Buttons Dark */
     .cd-btn {
-        padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 600;
-        cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+        padding: 9px 16px; border-radius: 10px; font-size: 14px; font-weight: 600;
+        cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
         transition: all 0.15s; font-family: var(--pp-ff);
         border: 1px solid var(--pp-border); background: var(--pp-surface);
         color: var(--pp-textMuted);
@@ -239,8 +239,8 @@
 
     /* Dropzone Dark */
     .cd-dz {
-        border: 2px dashed var(--pp-border); border-radius: 10px;
-        padding: 24px; text-align: center; cursor: pointer;
+        border: 2px dashed var(--pp-border); border-radius: 12px;
+        padding: 28px; text-align: center; cursor: pointer;
         transition: all 0.2s; background: var(--pp-bg);
     }
     .cd-dz:hover, .cd-dz.dragover { border-color: var(--pp-accent); background: var(--pp-accentSoft); }
@@ -252,39 +252,39 @@
         display: flex; align-items: center; justify-content: center;
     }
     .cd-modal {
-        background: var(--pp-surface); border-radius: 16px; padding: 28px;
-        width: 440px; border: 1px solid var(--pp-border);
+        background: var(--pp-surface); border-radius: 18px; padding: 32px;
+        width: 520px; border: 1px solid var(--pp-border);
         box-shadow: 0 24px 80px rgba(0,0,0,0.5);
     }
     .cd-modal-hdr {
         display: flex; align-items: center; justify-content: space-between;
-        margin-bottom: 24px;
+        margin-bottom: 28px;
     }
     .cd-modal-icon {
-        width: 36px; height: 36px; border-radius: 10px;
+        width: 44px; height: 44px; border-radius: 12px;
         background: var(--pp-accentSoft); display: flex;
-        align-items: center; justify-content: center; font-size: 16px;
+        align-items: center; justify-content: center; font-size: 20px;
     }
-    .cd-modal-title { font-size: 16px; font-weight: 700; color: var(--pp-text); }
+    .cd-modal-title { font-size: 19px; font-weight: 700; color: var(--pp-text); }
     .cd-modal-close {
         background: none; border: none; color: var(--pp-textDim);
-        font-size: 20px; cursor: pointer;
+        font-size: 22px; cursor: pointer;
     }
     .cd-modal-close:hover { color: var(--pp-text); }
     .cd-modal-label {
-        font-size: 11px; font-weight: 600; color: var(--pp-textMuted);
-        margin-bottom: 5px; display: block; letter-spacing: 0.04em;
+        font-size: 13px; font-weight: 600; color: var(--pp-textMuted);
+        margin-bottom: 6px; display: block; letter-spacing: 0.04em;
         text-transform: uppercase;
     }
     .cd-modal-dir-btn {
-        flex: 1; padding: 8px 0; border-radius: 8px; font-size: 12px;
+        flex: 1; padding: 10px 0; border-radius: 10px; font-size: 14px;
         font-weight: 600; cursor: pointer; transition: all 0.15s;
         font-family: var(--pp-ff);
     }
     .cd-modal-submit {
-        width: 100%; padding: 11px 0; border-radius: 10px; border: none;
+        width: 100%; padding: 13px 0; border-radius: 12px; border: none;
         background: linear-gradient(135deg, var(--pp-accent), #6C63FF);
-        color: #fff; font-size: 13px; font-weight: 650; cursor: pointer;
+        color: #fff; font-size: 15px; font-weight: 650; cursor: pointer;
         box-shadow: 0 4px 16px rgba(79,140,255,0.25);
         transition: all 0.2s; font-family: var(--pp-ff);
     }
@@ -292,20 +292,20 @@
 
     /* Tab Content Sections */
     .cd-tab-sec {
-        background: var(--pp-surface); border-radius: 12px;
+        background: var(--pp-surface); border-radius: 14px;
         border: 1px solid var(--pp-border); overflow: hidden;
     }
     .cd-tab-sec-h {
         display: flex; align-items: center; justify-content: space-between;
-        padding: 14px 18px 10px;
+        padding: 16px 22px 12px;
     }
     .cd-tab-sec-t {
-        display: flex; align-items: center; gap: 8px;
-        font-size: 13px; font-weight: 650; color: var(--pp-text);
+        display: flex; align-items: center; gap: 10px;
+        font-size: 16px; font-weight: 650; color: var(--pp-text);
     }
-    .cd-tab-sec-t .icon { font-size: 15px; }
-    .cd-tab-sec-b { padding: 0 16px 16px; }
-    .cd-tab-sec-sub { font-size: 11px; color: var(--pp-textDim); font-weight: 500; }
+    .cd-tab-sec-t .icon { font-size: 18px; }
+    .cd-tab-sec-b { padding: 0 20px 20px; }
+    .cd-tab-sec-sub { font-size: 13px; color: var(--pp-textDim); font-weight: 500; }
 
     /* Responsive */
     @media (max-width: 900px) {
@@ -335,7 +335,7 @@
             <div class="cd-info-left">
                 <div class="cd-avatar">{% set np = company.name.split() %}{% if np|length >= 2 %}{{ np[0][0]|upper }}{{ np[1][0]|upper }}{% else %}{{ company.name[0:2]|upper }}{% endif %}</div>
                 <div style="min-width:0; flex:1;">
-                    <div style="display:flex; align-items:center; gap:10px;">
+                    <div style="display:flex; align-items:center; gap:12px;">
                         <h1 class="cd-name">{{ company.name }}</h1>
                         {% if company.status.value == 'active' %}
                         <span class="cd-badge" style="color:var(--pp-green); background:var(--pp-greenSoft);">● Aktiv</span>
@@ -347,11 +347,11 @@
                     </div>
                     <div class="cd-meta">
                         {% if company.city and company.city|string|lower|trim not in invalid_vals %}
-                        <span style="display:flex; align-items:center; gap:4px;">📍 {{ company.city }}</span>
+                        <span style="display:flex; align-items:center; gap:5px;">📍 {{ company.city }}</span>
                         {% endif %}
                         {% if company.address and company.address|string|lower|trim not in invalid_vals %}
                         {% if company.city and company.city|string|lower|trim not in invalid_vals %}<span class="sep">|</span>{% endif %}
-                        <span style="display:flex; align-items:center; gap:4px;">🏠 {{ company.address }}</span>
+                        <span style="display:flex; align-items:center; gap:5px;">🏠 {{ company.address }}</span>
                         {% endif %}
                         {% if company.domain and company.domain|string|lower|trim not in invalid_vals %}
                         <span class="sep">|</span>
@@ -364,14 +364,14 @@
                     </div>
                 </div>
             </div>
-            <div style="display:flex; gap:8px; flex-shrink:0;">
+            <div style="display:flex; gap:10px; flex-shrink:0;">
                 <button class="cd-btn-call" @click="showCallModal = true">📞 Anruf protokollieren</button>
                 <div style="position:relative;">
                     <button class="cd-btn-gear" @click="statusOpen = !statusOpen">⚙</button>
                     <div x-show="statusOpen" @click.away="statusOpen = false" x-transition class="cd-status-menu" style="display:none;">
-                        <button onclick="setStatus('active')" class="cd-status-item"><span style="width:7px;height:7px;border-radius:50%;background:var(--pp-green);flex-shrink:0;"></span> Aktiv</button>
-                        <button onclick="setStatus('laufende_prozesse')" class="cd-status-item"><span style="width:7px;height:7px;border-radius:50%;background:var(--pp-orange);flex-shrink:0;"></span> Laufende Prozesse</button>
-                        <button onclick="setStatus('blacklist')" class="cd-status-item danger"><span style="width:7px;height:7px;border-radius:50%;background:var(--pp-red);flex-shrink:0;"></span> Blacklist</button>
+                        <button onclick="setStatus('active')" class="cd-status-item"><span style="width:8px;height:8px;border-radius:50%;background:var(--pp-green);flex-shrink:0;"></span> Aktiv</button>
+                        <button onclick="setStatus('laufende_prozesse')" class="cd-status-item"><span style="width:8px;height:8px;border-radius:50%;background:var(--pp-orange);flex-shrink:0;"></span> Laufende Prozesse</button>
+                        <button onclick="setStatus('blacklist')" class="cd-status-item danger"><span style="width:8px;height:8px;border-radius:50%;background:var(--pp-red);flex-shrink:0;"></span> Blacklist</button>
                     </div>
                 </div>
             </div>
@@ -411,19 +411,19 @@
                         <p class="cd-load">Lade Kontakte...</p>
                     </div>
                     <div id="contact-form" style="display:none" class="cd-iform">
-                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
                             <input type="text" id="cf-first-name" placeholder="Vorname" class="cd-inp">
                             <input type="text" id="cf-last-name" placeholder="Nachname" class="cd-inp">
                             <input type="text" id="cf-position" placeholder="Position" class="cd-inp">
                             <input type="text" id="cf-phone" placeholder="Telefon" class="cd-inp">
                             <input type="email" id="cf-email" placeholder="E-Mail" class="cd-inp" style="grid-column:span 2;">
                         </div>
-                        <div style="display:flex; gap:8px; margin-top:12px;">
+                        <div style="display:flex; gap:10px; margin-top:14px;">
                             <button onclick="saveContact()" class="cd-btn cd-btn-primary">Speichern</button>
                             <button onclick="toggleContactForm()" class="cd-btn">Abbrechen</button>
                         </div>
                     </div>
-                    <div style="margin-bottom:28px;"></div>
+                    <div style="margin-bottom:32px;"></div>
                 </div>
 
                 {# Aufgaben — full width #}
@@ -438,7 +438,7 @@
                     <div id="todos-container" hx-get="/partials/company/{{ company.id }}/todos" hx-trigger="load, refreshTodos from:body" hx-swap="innerHTML">
                         <p class="cd-load">Lade Aufgaben...</p>
                     </div>
-                    <div style="margin-bottom:28px;"></div>
+                    <div style="margin-bottom:32px;"></div>
                 </div>
 
                 {# Anruf-Protokoll #}
@@ -454,7 +454,7 @@
                     <div id="call-log-container" hx-get="/partials/company/{{ company.id }}/call-log" hx-trigger="load, refreshCallLog from:body" hx-swap="innerHTML">
                         <p class="cd-load">Lade Anrufe...</p>
                     </div>
-                    <div style="margin-bottom:28px;"></div>
+                    <div style="margin-bottom:32px;"></div>
                 </div>
 
                 {# Letzte Aktivitäten #}
@@ -475,7 +475,7 @@
             </div>
 
             {# ── Tab: Kontakte ── #}
-            <div x-show="tab==='contacts'" x-cloak style="padding-top:14px;">
+            <div x-show="tab==='contacts'" x-cloak style="padding-top:16px;">
                 <div class="cd-tab-sec">
                     <div class="cd-tab-sec-h">
                         <span class="cd-tab-sec-t"><span class="icon">👤</span> Alle Kontakte</span>
@@ -490,7 +490,7 @@
             </div>
 
             {# ── Tab: Aktivitäten ── #}
-            <div x-show="tab==='activities'" x-cloak style="padding-top:14px;">
+            <div x-show="tab==='activities'" x-cloak style="padding-top:16px;">
                 <div class="cd-tab-sec">
                     <div class="cd-tab-sec-h">
                         <span class="cd-tab-sec-t"><span class="icon">📊</span> Alle Aktivitäten</span>
@@ -505,7 +505,7 @@
             </div>
 
             {# ── Tab: E-Mails ── #}
-            <div x-show="tab==='emails'" x-cloak style="padding-top:14px;">
+            <div x-show="tab==='emails'" x-cloak style="padding-top:16px;">
                 <div class="cd-tab-sec">
                     <div class="cd-tab-sec-h">
                         <span class="cd-tab-sec-t"><span class="icon">✉️</span> Alle E-Mails</span>
@@ -516,14 +516,14 @@
                             <p class="cd-load">Lade E-Mails...</p>
                         </div>
                         <div id="corr-form" style="display:none" class="cd-iform">
-                            <div style="display:flex; flex-direction:column; gap:10px;">
-                                <div style="display:flex; gap:10px;">
+                            <div style="display:flex; flex-direction:column; gap:12px;">
+                                <div style="display:flex; gap:12px;">
                                     <select id="corr-direction" class="cd-sel"><option value="outbound">Ausgehend</option><option value="inbound">Eingehend</option></select>
                                     <input type="text" id="corr-subject" placeholder="Betreff" class="cd-inp" style="flex:1;">
                                 </div>
                                 <textarea id="corr-body" placeholder="Inhalt / Notizen" rows="3" class="cd-ta"></textarea>
                             </div>
-                            <div style="display:flex; gap:8px; margin-top:12px;">
+                            <div style="display:flex; gap:10px; margin-top:14px;">
                                 <button onclick="saveCorrespondence()" class="cd-btn cd-btn-primary">Speichern</button>
                                 <button onclick="toggleCorrForm()" class="cd-btn">Abbrechen</button>
                             </div>
@@ -533,7 +533,7 @@
             </div>
 
             {# ── Tab: Notizen ── #}
-            <div x-show="tab==='notes'" x-cloak style="padding-top:14px;">
+            <div x-show="tab==='notes'" x-cloak style="padding-top:16px;">
                 <div class="cd-tab-sec">
                     <div class="cd-tab-sec-h">
                         <span class="cd-tab-sec-t"><span class="icon">📝</span> Alle Notizen</span>
@@ -544,11 +544,11 @@
                             <p class="cd-load">Lade Notizen...</p>
                         </div>
                         <div id="note-form" style="display:none" class="cd-iform">
-                            <div style="display:flex; flex-direction:column; gap:10px;">
+                            <div style="display:flex; flex-direction:column; gap:12px;">
                                 <input type="text" id="note-title" placeholder="Titel (optional)" class="cd-inp">
                                 <textarea id="note-content" placeholder="Notiz schreiben..." rows="4" class="cd-ta"></textarea>
                             </div>
-                            <div style="display:flex; gap:8px; margin-top:12px;">
+                            <div style="display:flex; gap:10px; margin-top:14px;">
                                 <button onclick="saveCompanyNote()" class="cd-btn cd-btn-primary">Speichern</button>
                                 <button onclick="toggleNoteForm()" class="cd-btn">Abbrechen</button>
                             </div>
@@ -558,7 +558,7 @@
             </div>
 
             {# ── Tab: Dokumente ── #}
-            <div x-show="tab==='documents'" x-cloak style="padding-top:14px;">
+            <div x-show="tab==='documents'" x-cloak style="padding-top:16px;">
                 <div class="cd-tab-sec">
                     <div class="cd-tab-sec-h">
                         <span class="cd-tab-sec-t"><span class="icon">📁</span> Alle Dokumente</span>
@@ -570,14 +570,14 @@
                         </div>
                         <div id="doc-upload-form" style="display:none" class="cd-iform">
                             <div class="cd-dz" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="event.preventDefault();this.classList.remove('dragover');handleFileDrop(event)" onclick="document.getElementById('doc-file-input').click()">
-                                <div style="font-size:28px; margin-bottom:6px;">📄</div>
-                                <div style="font-size:12px; font-weight:600; color:var(--pp-textMuted);">Datei hierher ziehen oder klicken</div>
-                                <div style="font-size:11px; color:var(--pp-textDim); margin-top:4px;">PDF, Word, Bilder, etc.</div>
+                                <div style="font-size:32px; margin-bottom:8px;">📄</div>
+                                <div style="font-size:14px; font-weight:600; color:var(--pp-textMuted);">Datei hierher ziehen oder klicken</div>
+                                <div style="font-size:13px; color:var(--pp-textDim); margin-top:5px;">PDF, Word, Bilder, etc.</div>
                             </div>
                             <input type="file" id="doc-file-input" onchange="handleFileSelect(this)" style="display:none;">
-                            <div id="doc-file-name" class="hidden" style="margin-top:10px; font-size:12px; font-weight:600; color:var(--pp-accent); padding:8px 12px; background:var(--pp-accentSoft); border-radius:8px;"></div>
-                            <input type="text" id="doc-notes" placeholder="Notizen zum Dokument (optional)" class="cd-inp" style="margin-top:10px;">
-                            <div style="display:flex; gap:8px; margin-top:12px;">
+                            <div id="doc-file-name" class="hidden" style="margin-top:12px; font-size:14px; font-weight:600; color:var(--pp-accent); padding:10px 14px; background:var(--pp-accentSoft); border-radius:10px;"></div>
+                            <input type="text" id="doc-notes" placeholder="Notizen zum Dokument (optional)" class="cd-inp" style="margin-top:12px;">
+                            <div style="display:flex; gap:10px; margin-top:14px;">
                                 <button id="doc-upload-btn" onclick="uploadDocument()" disabled class="cd-btn cd-btn-primary" style="opacity:0.5;">Hochladen</button>
                                 <button onclick="toggleDocForm()" class="cd-btn">Abbrechen</button>
                             </div>
@@ -621,15 +621,15 @@
             </div>
 
             {# Trennlinie #}
-            <div style="height:1px; background:var(--pp-border); margin:4px 0 20px;"></div>
+            <div style="height:1px; background:var(--pp-border); margin:4px 0 24px;"></div>
 
             {# Anruf-Statistik #}
             <div class="cd-side-sec cd-anim" style="animation-delay:250ms;">
-                <div style="display:flex; align-items:center; gap:6px; margin-bottom:14px;">
-                    <span style="font-size:13px;">📊</span>
-                    <span style="font-size:12.5px; font-weight:650; color:var(--pp-text);">Anruf-Statistik</span>
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:16px;">
+                    <span style="font-size:16px;">📊</span>
+                    <span style="font-size:15px; font-weight:650; color:var(--pp-text);">Anruf-Statistik</span>
                 </div>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
                     <div class="cd-stat-box">
                         <div class="cd-stat-val" style="color:var(--pp-accent);">{{ call_count if call_count is defined else '0' }}</div>
                         <div class="cd-stat-label">Gesamt</div>
@@ -658,14 +658,14 @@
         <div class="cd-modal-overlay" @click.self="showCallModal = false">
             <div class="cd-modal" @click.stop>
                 <div class="cd-modal-hdr">
-                    <div style="display:flex; align-items:center; gap:10px;">
+                    <div style="display:flex; align-items:center; gap:12px;">
                         <div class="cd-modal-icon">📞</div>
                         <span class="cd-modal-title">Anruf protokollieren</span>
                     </div>
                     <button class="cd-modal-close" @click="showCallModal = false">×</button>
                 </div>
 
-                <div style="display:flex; flex-direction:column; gap:16px;">
+                <div style="display:flex; flex-direction:column; gap:18px;">
                     {# Kontakt #}
                     <div>
                         <label class="cd-modal-label">Kontakt</label>
@@ -680,10 +680,10 @@
                     </div>
 
                     {# Richtung + Dauer #}
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
                         <div>
                             <label class="cd-modal-label">Richtung</label>
-                            <div style="display:flex; gap:8px;">
+                            <div style="display:flex; gap:10px;">
                                 <button class="cd-modal-dir-btn"
                                     :style="callDir === 'outbound' ? 'background:var(--pp-accentSoft); color:var(--pp-accent); border:1px solid rgba(79,140,255,0.27);' : 'background:transparent; color:var(--pp-textMuted); border:1px solid var(--pp-border);'"
                                     @click="callDir = 'outbound'">📤 Ausgehend</button>
@@ -699,7 +699,7 @@
                     </div>
 
                     {# Datum + Uhrzeit #}
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
                         <div>
                             <label class="cd-modal-label">Datum</label>
                             <input id="call-date" type="date" class="cd-inp">

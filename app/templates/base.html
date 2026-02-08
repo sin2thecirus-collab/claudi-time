@@ -65,7 +65,7 @@
             background: var(--pp-bg);
             color: var(--pp-text);
             font-family: var(--pp-ff);
-            font-size: 13px;
+            font-size: 14px;
             line-height: 1.5;
             margin: 0;
             padding: 0;
@@ -102,7 +102,7 @@
         select option { background: var(--pp-surface); color: var(--pp-text); }
 
         /* Nav link active */
-        .pp-nav-item { padding: 6px 10px; border-radius: 7px; font-size: 12px; font-weight: 500; cursor: pointer; color: var(--pp-textMuted); background: transparent; text-decoration: none; display: inline-flex; align-items: center; transition: all 0.15s; border: none; white-space: nowrap; font-family: var(--pp-ff); }
+        .pp-nav-item { padding: 8px 12px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; color: var(--pp-textMuted); background: transparent; text-decoration: none; display: inline-flex; align-items: center; transition: all 0.15s; border: none; white-space: nowrap; font-family: var(--pp-ff); }
         .pp-nav-item:hover { color: var(--pp-text); background: var(--pp-surfaceHover); }
         .pp-nav-item.active { color: var(--pp-accent); background: var(--pp-accentSoft); }
     </style>
@@ -111,13 +111,13 @@
 </head>
 <body x-data="{ sidebarOpen: false }">
     <!-- ═══ TOP NAVIGATION BAR ═══ -->
-    <nav style="display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:52px;border-bottom:1px solid var(--pp-border);background:rgba(24,26,35,0.8);backdrop-filter:blur(12px);position:sticky;top:0;z-index:100;">
+    <nav style="display:flex;align-items:center;justify-content:space-between;padding:0 28px;height:60px;border-bottom:1px solid var(--pp-border);background:rgba(24,26,35,0.8);backdrop-filter:blur(12px);position:sticky;top:0;z-index:100;">
         <!-- Left: Logo + Nav Items -->
-        <div style="display:flex;align-items:center;gap:24px;">
+        <div style="display:flex;align-items:center;gap:28px;">
             <!-- Logo -->
-            <a href="/" style="display:flex;align-items:center;gap:8px;text-decoration:none;">
-                <div style="width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,#4F8CFF,#6C63FF);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;">P</div>
-                <span style="font-size:15px;font-weight:700;color:var(--pp-text);letter-spacing:-0.02em;">Pulspoint</span>
+            <a href="/" style="display:flex;align-items:center;gap:10px;text-decoration:none;">
+                <div style="width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,#4F8CFF,#6C63FF);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#fff;">P</div>
+                <span style="font-size:18px;font-weight:700;color:var(--pp-text);letter-spacing:-0.02em;">Pulspoint</span>
             </a>
             <!-- Desktop Nav Items -->
             <div class="hidden sm:flex" style="gap:4px;">
@@ -128,10 +128,10 @@
                 <div class="relative" x-data="{ atsOpen: false }">
                     <button @click="atsOpen = !atsOpen" class="pp-nav-item {% if request.url.path.startswith('/ats') %}active{% endif %}" style="gap:4px;">
                         ATS
-                        <svg style="width:10px;height:10px;transition:transform .15s;" :style="atsOpen ? 'transform:rotate(180deg)' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+                        <svg style="width:12px;height:12px;transition:transform .15s;" :style="atsOpen ? 'transform:rotate(180deg)' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
                     </button>
-                    <div x-show="atsOpen" @click.away="atsOpen = false" x-transition style="display:none;position:absolute;left:0;top:100%;margin-top:4px;width:180px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:10px;padding:4px;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,0.4);">
-                        <a href="/ats" style="display:block;padding:8px 12px;border-radius:7px;color:var(--pp-text);text-decoration:none;font-size:12px;font-weight:500;transition:background .15s;" onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='transparent'">Pipeline</a>
+                    <div x-show="atsOpen" @click.away="atsOpen = false" x-transition style="display:none;position:absolute;left:0;top:100%;margin-top:6px;width:200px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:12px;padding:5px;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,0.4);">
+                        <a href="/ats" style="display:block;padding:10px 14px;border-radius:8px;color:var(--pp-text);text-decoration:none;font-size:14px;font-weight:500;transition:background .15s;" onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='transparent'">Pipeline</a>
                     </div>
                 </div>
                 <a href="/hotlisten" class="pp-nav-item {% if request.url.path.startswith('/hotlisten') or request.url.path.startswith('/match-bereiche') or request.url.path.startswith('/deepmatch') %}active{% endif %}">Hotlisten</a>
@@ -142,29 +142,29 @@
         </div>
 
         <!-- Right: Quick-Add + System Status -->
-        <div class="hidden sm:flex" style="align-items:center;gap:12px;">
+        <div class="hidden sm:flex" style="align-items:center;gap:14px;">
             <!-- Quick-Add Button -->
             <div class="relative" x-data="{ quickAdd: false }">
-                <button @click="quickAdd = !quickAdd" style="width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,#4F8CFF,#6C63FF);border:none;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;transition:all .15s;" title="Neu erstellen">
-                    <svg style="width:14px;height:14px;transition:transform .2s;" :style="quickAdd ? 'transform:rotate(45deg)' : ''" fill="currentColor" viewBox="0 0 20 20"><path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z"/></svg>
+                <button @click="quickAdd = !quickAdd" style="width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#4F8CFF,#6C63FF);border:none;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;transition:all .15s;" title="Neu erstellen">
+                    <svg style="width:17px;height:17px;transition:transform .2s;" :style="quickAdd ? 'transform:rotate(45deg)' : ''" fill="currentColor" viewBox="0 0 20 20"><path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z"/></svg>
                 </button>
-                <div x-show="quickAdd" @click.away="quickAdd = false" x-transition style="display:none;position:absolute;right:0;top:100%;margin-top:6px;width:220px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:12px;padding:6px;z-index:50;box-shadow:0 12px 40px rgba(0,0,0,0.5);">
-                    <div style="padding:6px 10px;font-size:10px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.05em;">Neu erstellen</div>
-                    <button @click="quickAdd=false;openQuickAdd('kandidat')" style="width:100%;display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border:none;background:transparent;color:var(--pp-text);font-size:12px;font-weight:500;cursor:pointer;font-family:var(--pp-ff);transition:background .15s;text-align:left;" onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='transparent'">
-                        <span style="width:26px;height:26px;border-radius:7px;background:var(--pp-accentSoft);display:flex;align-items:center;justify-content:center;font-size:12px;">👤</span>
+                <div x-show="quickAdd" @click.away="quickAdd = false" x-transition style="display:none;position:absolute;right:0;top:100%;margin-top:8px;width:240px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:14px;padding:6px;z-index:50;box-shadow:0 12px 40px rgba(0,0,0,0.5);">
+                    <div style="padding:8px 12px;font-size:11px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.05em;">Neu erstellen</div>
+                    <button @click="quickAdd=false;openQuickAdd('kandidat')" style="width:100%;display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;border:none;background:transparent;color:var(--pp-text);font-size:14px;font-weight:500;cursor:pointer;font-family:var(--pp-ff);transition:background .15s;text-align:left;" onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='transparent'">
+                        <span style="width:32px;height:32px;border-radius:9px;background:var(--pp-accentSoft);display:flex;align-items:center;justify-content:center;font-size:14px;">👤</span>
                         Kandidat
                     </button>
-                    <button @click="quickAdd=false;openQuickAdd('unternehmen')" style="width:100%;display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border:none;background:transparent;color:var(--pp-text);font-size:12px;font-weight:500;cursor:pointer;font-family:var(--pp-ff);transition:background .15s;text-align:left;" onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='transparent'">
-                        <span style="width:26px;height:26px;border-radius:7px;background:var(--pp-greenSoft);display:flex;align-items:center;justify-content:center;font-size:12px;">🏢</span>
+                    <button @click="quickAdd=false;openQuickAdd('unternehmen')" style="width:100%;display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;border:none;background:transparent;color:var(--pp-text);font-size:14px;font-weight:500;cursor:pointer;font-family:var(--pp-ff);transition:background .15s;text-align:left;" onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='transparent'">
+                        <span style="width:32px;height:32px;border-radius:9px;background:var(--pp-greenSoft);display:flex;align-items:center;justify-content:center;font-size:14px;">🏢</span>
                         Unternehmen
                     </button>
                     <div style="height:1px;background:var(--pp-border);margin:4px 6px;"></div>
-                    <button @click="quickAdd=false;openQuickAdd('job')" style="width:100%;display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border:none;background:transparent;color:var(--pp-text);font-size:12px;font-weight:500;cursor:pointer;font-family:var(--pp-ff);transition:background .15s;text-align:left;" onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='transparent'">
-                        <span style="width:26px;height:26px;border-radius:7px;background:var(--pp-purpleSoft);display:flex;align-items:center;justify-content:center;font-size:12px;">💼</span>
+                    <button @click="quickAdd=false;openQuickAdd('job')" style="width:100%;display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;border:none;background:transparent;color:var(--pp-text);font-size:14px;font-weight:500;cursor:pointer;font-family:var(--pp-ff);transition:background .15s;text-align:left;" onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='transparent'">
+                        <span style="width:32px;height:32px;border-radius:9px;background:var(--pp-purpleSoft);display:flex;align-items:center;justify-content:center;font-size:14px;">💼</span>
                         Job
                     </button>
-                    <button @click="quickAdd=false;openQuickAdd('stelle')" style="width:100%;display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border:none;background:transparent;color:var(--pp-text);font-size:12px;font-weight:500;cursor:pointer;font-family:var(--pp-ff);transition:background .15s;text-align:left;" onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='transparent'">
-                        <span style="width:26px;height:26px;border-radius:7px;background:var(--pp-redSoft);display:flex;align-items:center;justify-content:center;font-size:12px;">🎯</span>
+                    <button @click="quickAdd=false;openQuickAdd('stelle')" style="width:100%;display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;border:none;background:transparent;color:var(--pp-text);font-size:14px;font-weight:500;cursor:pointer;font-family:var(--pp-ff);transition:background .15s;text-align:left;" onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='transparent'">
+                        <span style="width:32px;height:32px;border-radius:9px;background:var(--pp-redSoft);display:flex;align-items:center;justify-content:center;font-size:14px;">🎯</span>
                         Stelle
                     </button>
                 </div>
@@ -175,37 +175,37 @@
                  hx-get="/api/health"
                  hx-trigger="load, every 30s"
                  hx-swap="innerHTML"
-                 style="display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;background:var(--pp-greenSoft);font-size:11px;font-weight:600;color:var(--pp-green);">
-                <div style="width:6px;height:6px;border-radius:50%;background:var(--pp-green);"></div>
+                 style="display:flex;align-items:center;gap:7px;padding:6px 12px;border-radius:22px;background:var(--pp-greenSoft);font-size:13px;font-weight:600;color:var(--pp-green);">
+                <div style="width:8px;height:8px;border-radius:50%;background:var(--pp-green);"></div>
                 <span>Laden...</span>
             </div>
         </div>
 
         <!-- Mobile Menu Button -->
         <div class="flex items-center sm:hidden">
-            <button @click="sidebarOpen = !sidebarOpen" type="button" style="padding:8px;border-radius:8px;border:1px solid var(--pp-border);background:transparent;color:var(--pp-textMuted);cursor:pointer;">
-                <svg x-show="!sidebarOpen" style="width:20px;height:20px;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/></svg>
-                <svg x-show="sidebarOpen" style="width:20px;height:20px;display:none;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            <button @click="sidebarOpen = !sidebarOpen" type="button" style="padding:10px;border-radius:10px;border:1px solid var(--pp-border);background:transparent;color:var(--pp-textMuted);cursor:pointer;">
+                <svg x-show="!sidebarOpen" style="width:22px;height:22px;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/></svg>
+                <svg x-show="sidebarOpen" style="width:22px;height:22px;display:none;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
         </div>
     </nav>
 
     <!-- Mobile Navigation -->
     <div x-show="sidebarOpen" x-transition class="sm:hidden" style="display:none;background:var(--pp-surface);border-bottom:1px solid var(--pp-border);padding:8px;">
-        <a href="/" style="display:block;padding:10px 14px;border-radius:8px;color:var(--pp-text);text-decoration:none;font-size:13px;font-weight:500;">Dashboard</a>
-        <a href="/jobs" style="display:block;padding:10px 14px;border-radius:8px;color:var(--pp-text);text-decoration:none;font-size:13px;font-weight:500;">Jobs</a>
-        <a href="/kandidaten" style="display:block;padding:10px 14px;border-radius:8px;color:var(--pp-text);text-decoration:none;font-size:13px;font-weight:500;">Kandidaten</a>
-        <a href="/unternehmen" style="display:block;padding:10px 14px;border-radius:8px;color:var(--pp-text);text-decoration:none;font-size:13px;font-weight:500;">Unternehmen</a>
-        <a href="/ats" style="display:block;padding:10px 14px;border-radius:8px;color:var(--pp-text);text-decoration:none;font-size:13px;font-weight:500;">ATS</a>
-        <a href="/hotlisten" style="display:block;padding:10px 14px;border-radius:8px;color:var(--pp-text);text-decoration:none;font-size:13px;font-weight:500;">Hotlisten</a>
-        <a href="/match-center" style="display:block;padding:10px 14px;border-radius:8px;color:var(--pp-text);text-decoration:none;font-size:13px;font-weight:500;">Match Center</a>
-        <a href="/titel-zuweisung" style="display:block;padding:10px 14px;border-radius:8px;color:var(--pp-text);text-decoration:none;font-size:13px;font-weight:500;">Titel</a>
-        <a href="/statistiken" style="display:block;padding:10px 14px;border-radius:8px;color:var(--pp-text);text-decoration:none;font-size:13px;font-weight:500;">Statistiken</a>
-        <a href="/einstellungen" style="display:block;padding:10px 14px;border-radius:8px;color:var(--pp-text);text-decoration:none;font-size:13px;font-weight:500;">Einstellungen</a>
+        <a href="/" style="display:block;padding:12px 16px;border-radius:10px;color:var(--pp-text);text-decoration:none;font-size:15px;font-weight:500;">Dashboard</a>
+        <a href="/jobs" style="display:block;padding:12px 16px;border-radius:10px;color:var(--pp-text);text-decoration:none;font-size:15px;font-weight:500;">Jobs</a>
+        <a href="/kandidaten" style="display:block;padding:12px 16px;border-radius:10px;color:var(--pp-text);text-decoration:none;font-size:15px;font-weight:500;">Kandidaten</a>
+        <a href="/unternehmen" style="display:block;padding:12px 16px;border-radius:10px;color:var(--pp-text);text-decoration:none;font-size:15px;font-weight:500;">Unternehmen</a>
+        <a href="/ats" style="display:block;padding:12px 16px;border-radius:10px;color:var(--pp-text);text-decoration:none;font-size:15px;font-weight:500;">ATS</a>
+        <a href="/hotlisten" style="display:block;padding:12px 16px;border-radius:10px;color:var(--pp-text);text-decoration:none;font-size:15px;font-weight:500;">Hotlisten</a>
+        <a href="/match-center" style="display:block;padding:12px 16px;border-radius:10px;color:var(--pp-text);text-decoration:none;font-size:15px;font-weight:500;">Match Center</a>
+        <a href="/titel-zuweisung" style="display:block;padding:12px 16px;border-radius:10px;color:var(--pp-text);text-decoration:none;font-size:15px;font-weight:500;">Titel</a>
+        <a href="/statistiken" style="display:block;padding:12px 16px;border-radius:10px;color:var(--pp-text);text-decoration:none;font-size:15px;font-weight:500;">Statistiken</a>
+        <a href="/einstellungen" style="display:block;padding:12px 16px;border-radius:10px;color:var(--pp-text);text-decoration:none;font-size:15px;font-weight:500;">Einstellungen</a>
     </div>
 
     <!-- Toast Container -->
-    <div id="toast-container" style="position:fixed;top:60px;right:16px;z-index:200;display:flex;flex-direction:column;gap:8px;pointer-events:none;"></div>
+    <div id="toast-container" style="position:fixed;top:68px;right:18px;z-index:200;display:flex;flex-direction:column;gap:10px;pointer-events:none;"></div>
 
     <!-- Alert Banner Container -->
     <div id="alert-banner-container" hx-get="/api/alerts/active" hx-trigger="load, alertsChanged from:body" hx-swap="innerHTML"></div>
@@ -225,8 +225,8 @@
          style="position:relative;z-index:150;">
         <div style="position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);"></div>
         <div style="position:fixed;inset:0;z-index:10;overflow-y:auto;" @click.self="open = false">
-            <div style="display:flex;min-height:100%;align-items:center;justify-content:center;padding:16px;" @click.self="open = false">
-                <div id="modal-content" @click.stop style="position:relative;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:16px;box-shadow:0 24px 80px rgba(0,0,0,0.5);width:100%;max-width:480px;overflow:hidden;">
+            <div style="display:flex;min-height:100%;align-items:center;justify-content:center;padding:20px;" @click.self="open = false">
+                <div id="modal-content" @click.stop style="position:relative;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,0.5);width:100%;max-width:540px;overflow:hidden;">
                 </div>
             </div>
         </div>
@@ -235,14 +235,14 @@
     <!-- Quick-Add Slide-Over -->
     <div id="quickadd-overlay" style="position:fixed;inset:0;z-index:150;display:none;">
         <div id="quickadd-backdrop" style="position:absolute;inset:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);transition:opacity .3s;opacity:0;" onclick="closeQuickAdd()"></div>
-        <div id="quickadd-panel" style="position:absolute;inset-block:0;right:0;width:100%;max-width:520px;background:var(--pp-surface);box-shadow:0 0 60px rgba(0,0,0,0.5);display:flex;flex-direction:column;overflow:hidden;" class="quickadd-panel-enter">
-            <div id="quickadd-header" style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--pp-border);flex-shrink:0;">
-                <h2 id="quickadd-title" style="font-size:15px;font-weight:700;color:var(--pp-text);margin:0;"></h2>
-                <button onclick="closeQuickAdd()" style="padding:6px;border-radius:7px;border:none;background:transparent;color:var(--pp-textDim);cursor:pointer;font-size:18px;transition:all .15s;" onmouseover="this.style.background='var(--pp-surfaceHover)';this.style.color='var(--pp-text)'" onmouseout="this.style.background='transparent';this.style.color='var(--pp-textDim)'">&times;</button>
+        <div id="quickadd-panel" style="position:absolute;inset-block:0;right:0;width:100%;max-width:580px;background:var(--pp-surface);box-shadow:0 0 60px rgba(0,0,0,0.5);display:flex;flex-direction:column;overflow:hidden;" class="quickadd-panel-enter">
+            <div id="quickadd-header" style="display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid var(--pp-border);flex-shrink:0;">
+                <h2 id="quickadd-title" style="font-size:18px;font-weight:700;color:var(--pp-text);margin:0;"></h2>
+                <button onclick="closeQuickAdd()" style="padding:8px;border-radius:8px;border:none;background:transparent;color:var(--pp-textDim);cursor:pointer;font-size:20px;transition:all .15s;" onmouseover="this.style.background='var(--pp-surfaceHover)';this.style.color='var(--pp-text)'" onmouseout="this.style.background='transparent';this.style.color='var(--pp-textDim)'">&times;</button>
             </div>
             <div id="quickadd-content" style="flex:1;overflow-y:auto;background:var(--pp-bg);">
                 <div style="display:flex;align-items:center;justify-content:center;height:200px;">
-                    <div style="width:24px;height:24px;border:2px solid var(--pp-accent);border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite;"></div>
+                    <div style="width:28px;height:28px;border:2px solid var(--pp-accent);border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite;"></div>
                 </div>
             </div>
         </div>
@@ -283,8 +283,8 @@
             var c = colors[type] || colors.info;
 
             toast.className = 'toast-enter';
-            toast.style.cssText = 'pointer-events:auto;display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;border:1px solid ' + c.border + ';background:' + c.bg + ';color:' + c.text + ';font-size:12px;font-weight:500;font-family:var(--pp-ff);box-shadow:0 4px 16px rgba(0,0,0,0.3);backdrop-filter:blur(8px);';
-            toast.innerHTML = '<span style="font-size:14px;flex-shrink:0;">' + c.icon + '</span><span style="flex:1;">' + message + '</span><button onclick="this.parentElement.remove()" style="background:none;border:none;color:' + c.text + ';cursor:pointer;font-size:14px;opacity:0.6;padding:0 2px;">&times;</button>';
+            toast.style.cssText = 'pointer-events:auto;display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:12px;border:1px solid ' + c.border + ';background:' + c.bg + ';color:' + c.text + ';font-size:14px;font-weight:500;font-family:var(--pp-ff);box-shadow:0 4px 16px rgba(0,0,0,0.3);backdrop-filter:blur(8px);';
+            toast.innerHTML = '<span style="font-size:16px;flex-shrink:0;">' + c.icon + '</span><span style="flex:1;">' + message + '</span><button onclick="this.parentElement.remove()" style="background:none;border:none;color:' + c.text + ';cursor:pointer;font-size:16px;opacity:0.6;padding:0 2px;">&times;</button>';
 
             container.appendChild(toast);
             setTimeout(function() {
@@ -329,7 +329,7 @@
             var content = document.getElementById('quickadd-content');
 
             title.textContent = _quickAddTitles[type] || 'Neu erstellen';
-            content.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:200px;"><div style="width:24px;height:24px;border:2px solid var(--pp-accent);border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite;"></div></div>';
+            content.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:200px;"><div style="width:28px;height:28px;border:2px solid var(--pp-accent);border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite;"></div></div>';
 
             overlay.style.display = '';
             requestAnimationFrame(function() { backdrop.style.opacity = '1'; });
@@ -355,7 +355,7 @@
                     if (window.Alpine) Alpine.initTree(content);
                 })
                 .catch(function(err) {
-                    content.innerHTML = '<div style="padding:40px;text-align:center;color:var(--pp-red);"><p style="font-weight:600;">Fehler beim Laden</p><p style="font-size:11px;margin-top:4px;color:var(--pp-textDim);">' + err.message + '</p></div>';
+                    content.innerHTML = '<div style="padding:40px;text-align:center;color:var(--pp-red);"><p style="font-weight:600;">Fehler beim Laden</p><p style="font-size:13px;margin-top:4px;color:var(--pp-textDim);">' + err.message + '</p></div>';
                 });
 
             document.addEventListener('keydown', _quickAddEscHandler);

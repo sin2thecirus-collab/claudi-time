@@ -1,18 +1,18 @@
 {# Partial: ATS-Stellen eines Unternehmens — Dark Theme #}
 
 {% if ats_jobs and ats_jobs | length > 0 %}
-<div style="display:flex; flex-direction:column; gap:6px;">
+<div style="display:flex; flex-direction:column; gap:8px;">
     {% for job in ats_jobs %}
-    <a href="/ats/stellen/{{ job.id }}" style="display:block; padding:10px 12px; background:var(--pp-surface); border:1px solid var(--pp-border); border-radius:8px; text-decoration:none; transition:all 0.15s;"
+    <a href="/ats/stellen/{{ job.id }}" style="display:block; padding:12px 14px; background:var(--pp-surface); border:1px solid var(--pp-border); border-radius:10px; text-decoration:none; transition:all 0.15s;"
        onmouseover="this.style.background='var(--pp-surfaceHover)'; this.style.borderColor='var(--pp-borderLight)';"
        onmouseout="this.style.background='var(--pp-surface)'; this.style.borderColor='var(--pp-border)';">
         <div style="display:flex; align-items:center; justify-content:space-between;">
-            <span style="font-size:12px; font-weight:600; color:var(--pp-text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ job.title }}</span>
+            <span style="font-size:14px; font-weight:600; color:var(--pp-text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ job.title }}</span>
             {% if job.in_pipeline %}
-            <span style="font-size:10px; font-weight:600; color:var(--pp-accent); background:var(--pp-accentSoft); padding:1px 6px; border-radius:4px;">Pipeline</span>
+            <span style="font-size:12px; font-weight:600; color:var(--pp-accent); background:var(--pp-accentSoft); padding:2px 8px; border-radius:5px;">Pipeline</span>
             {% endif %}
         </div>
-        <div style="display:flex; align-items:center; gap:6px; margin-top:3px; font-size:11px; color:var(--pp-textMuted);">
+        <div style="display:flex; align-items:center; gap:8px; margin-top:4px; font-size:13px; color:var(--pp-textMuted);">
             {% if job.location_city %}<span>{{ job.location_city }}</span>{% endif %}
             {% if job.employment_type %}<span style="color:var(--pp-textDim);">· {{ job.employment_type }}</span>{% endif %}
             <span style="color:var(--pp-textDim);">·</span>
@@ -34,7 +34,7 @@
     </a>
     {% endfor %}
     {% if ats_jobs | length >= 50 %}
-    <p style="font-size:10px; color:var(--pp-textDim); text-align:center; padding-top:6px;">Zeigt max. 50 ATS-Stellen</p>
+    <p style="font-size:12px; color:var(--pp-textDim); text-align:center; padding-top:8px;">Zeigt max. 50 ATS-Stellen</p>
     {% endif %}
 </div>
 {% else %}
