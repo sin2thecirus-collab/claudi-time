@@ -12,11 +12,11 @@ Kosten-Schaetzung:
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from uuid import UUID
 
 import httpx
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import limits, settings
@@ -63,6 +63,14 @@ WICHTIGE UNTERSCHEIDUNG:
 - "Mitwirkung bei der Erstellung" enthaelt das Wort "Erstellung", ist aber NUR Level 3!
 - IHK Bilanzbuchhalter-Zertifikat = Mindestens Level 4
 - Lohnbuchhaltung = komplett anderes Fachgebiet, NICHT Finanzbuchhaltung
+
+STEUERFACHANGESTELLTE (WICHTIG — NICHT UNTERSCHAETZEN!):
+- Steuerfachangestellte die als Finanzbuchhalter/in arbeiten = MINDESTENS Level 3
+- StFA-Ausbildung umfasst: Kreditoren, Debitoren, Umsatzsteuer, Anlagenbuchhaltung,
+  JA-Vorbereitung — das ist eine vollwertige Finanzbuchhaltungs-Qualifikation!
+- NICHT als Level 2 einstufen, nur weil der Ausbildungsberuf "Steuerfachangestellte" heisst
+- Entscheidend sind die TAETIGKEITEN, nicht der Titel der Ausbildung
+- StFA mit mehrjaehriger FiBu-Erfahrung und breitem Aufgabenspektrum = Level 3
 
 ═══════════════════════════════════════════════════════════════
 SOFTWARE-OEKOSYSTEME (gegenseitiger Ausschluss)
@@ -670,11 +678,18 @@ class ProfileEngineService:
         """
         result = BackfillResult()
 
-        # Zaehle fehlende Profile — NUR FINANCE-Kandidaten
+        # Zaehle fehlende Profile — NUR FINANCE-Kandidaten, max 58 Jahre
+        max_age = 58
+        cutoff_date = date(date.today().year - max_age, date.today().month, date.today().day)
         conditions = [
             Candidate.deleted_at.is_(None),
             Candidate.hidden == False,
             Candidate.hotlist_category == "FINANCE",
+            # Kandidaten aelter als 58 ausschliessen (nicht vermittelbar)
+            or_(
+                Candidate.birth_date.is_(None),  # Kein Geburtsdatum → trotzdem profilen
+                Candidate.birth_date >= cutoff_date,  # Geboren nach Cutoff = juenger als 58
+            ),
         ]
         if not force_reprofile:
             conditions.append(Candidate.v2_profile_created_at.is_(None))
