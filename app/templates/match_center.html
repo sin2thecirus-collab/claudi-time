@@ -182,10 +182,10 @@
                                         <div class="flex items-center gap-2">
                                             <div class="w-20 bg-gray-200 rounded-full h-1.5">
                                                 <div class="h-1.5 rounded-full"
-                                                     :style="'width: ' + Math.min(tc.avg_score, 100) + '%; background-color: ' + (tc.avg_score >= 80 ? '#22c55e' : tc.avg_score >= 70 ? '#4ade80' : tc.avg_score >= 60 ? '#eab308' : '#f97316')"></div>
+                                                     :style="'width: ' + Math.min(tc.avg_score, 100) + '%; background-color: ' + (tc.avg_score >= 85 ? '#22c55e' : tc.avg_score >= 75 ? '#4ade80' : tc.avg_score >= 65 ? '#eab308' : tc.avg_score >= 55 ? '#f97316' : '#ef4444')"></div>
                                             </div>
                                             <span class="text-xs font-bold"
-                                                  :style="'color: ' + (tc.avg_score >= 80 ? '#22c55e' : tc.avg_score >= 70 ? '#4ade80' : tc.avg_score >= 60 ? '#eab308' : '#f97316')"
+                                                  :style="'color: ' + (tc.avg_score >= 85 ? '#22c55e' : tc.avg_score >= 75 ? '#4ade80' : tc.avg_score >= 65 ? '#eab308' : tc.avg_score >= 55 ? '#f97316' : '#ef4444')"
                                                   x-text="tc.avg_score"></span>
                                         </div>
                                     </td>
