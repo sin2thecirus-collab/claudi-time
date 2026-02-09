@@ -299,33 +299,21 @@
         </span>
         {% else %}
         <span class="text-xs text-gray-400 mr-1">Bewertung:</span>
-        <button hx-post="/api/match-center/feedback/{{ data.match_id }}?feedback=good"
-                hx-target="#feedback-area-{{ data.match_id }}"
-                hx-swap="innerHTML"
-                hx-on::after-request="feedbackDoneClose('{{ data.match_id }}', 'good')"
+        <button onclick="sendFeedback('{{ data.match_id }}', 'good')"
                 class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium
-                       bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 transition-colors"
-                title="Guter Match — Kandidat passt zur Stelle">
+                       bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 transition-colors cursor-pointer">
             <span class="text-base">&#x1F44D;</span>
             Gut
         </button>
-        <button hx-post="/api/match-center/feedback/{{ data.match_id }}?feedback=maybe"
-                hx-target="#feedback-area-{{ data.match_id }}"
-                hx-swap="innerHTML"
-                hx-on::after-request="feedbackDoneClose('{{ data.match_id }}', 'maybe')"
+        <button onclick="sendFeedback('{{ data.match_id }}', 'maybe')"
                 class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium
-                       bg-yellow-50 text-yellow-700 hover:bg-yellow-100 border border-yellow-200 transition-colors"
-                title="Vielleicht — nicht sicher">
+                       bg-yellow-50 text-yellow-700 hover:bg-yellow-100 border border-yellow-200 transition-colors cursor-pointer">
             <span class="text-base">&#x1F914;</span>
             Vielleicht
         </button>
-        <button hx-post="/api/match-center/feedback/{{ data.match_id }}?feedback=bad"
-                hx-target="#feedback-area-{{ data.match_id }}"
-                hx-swap="innerHTML"
-                hx-on::after-request="feedbackDoneClose('{{ data.match_id }}', 'bad')"
+        <button onclick="sendFeedback('{{ data.match_id }}', 'bad')"
                 class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium
-                       bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 transition-colors"
-                title="Schlechter Match — Kandidat passt nicht">
+                       bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 transition-colors cursor-pointer">
             <span class="text-base">&#x1F44E;</span>
             Schlecht
         </button>

@@ -289,19 +289,44 @@
         window.dispatchEvent(new CustomEvent('close-compare-modal'));
     }
 
-    function feedbackDoneClose(matchId, feedback) {
-        // Feedback-Emoji in der Gruppen-Liste aktualisieren
-        var grpFb = document.getElementById('grp-fb-' + matchId);
-        if (grpFb) {
+    function sendFeedback(matchId, feedback) {
+        fetch('/api/match-center/feedback/' + matchId + '?feedback=' + feedback, {
+            method: 'POST',
+        })
+        .then(function(resp) {
+            if (!resp.ok) throw new Error('Status ' + resp.status);
+            return resp.text();
+        })
+        .then(function() {
+            // Emoji in der Gruppen-Liste updaten
             var emoji = feedback === 'good' ? '\u{1F44D}' : feedback === 'bad' ? '\u{1F44E}' : '\u{1F914}';
             var colorClass = feedback === 'good' ? 'bg-green-100 text-green-600' : feedback === 'bad' ? 'bg-red-100 text-red-600' : 'bg-yellow-100 text-yellow-600';
-            grpFb.innerHTML = '<span class="w-6 h-6 rounded-full flex items-center justify-center text-xs ' + colorClass + '">' + emoji + '</span>';
-        }
 
-        // Vergleichsfenster nach kurzer Pause schliessen
-        setTimeout(function() {
-            closeCompareModal();
-        }, 400);
+            var grpFb = document.getElementById('grp-fb-' + matchId);
+            if (grpFb) {
+                grpFb.innerHTML = '<span class="w-6 h-6 rounded-full flex items-center justify-center text-xs ' + colorClass + '">' + emoji + '</span>';
+            }
+
+            // Feedback-Area im Vergleichsfenster updaten
+            var fbArea = document.getElementById('feedback-area-' + matchId);
+            if (fbArea) {
+                fbArea.innerHTML = '<span class="inline-flex items-center gap-1 text-sm font-medium ' +
+                    (feedback === 'good' ? 'text-green-600' : feedback === 'bad' ? 'text-red-600' : 'text-yellow-600') +
+                    '">' + emoji + ' ' +
+                    (feedback === 'good' ? 'Guter Match' : feedback === 'bad' ? 'Schlechter Match' : 'Vielleicht') +
+                    '</span>';
+            }
+
+            if (typeof showToast === 'function') showToast('Feedback gespeichert', 'success');
+
+            // Vergleichsfenster nach kurzer Pause schliessen
+            setTimeout(function() {
+                closeCompareModal();
+            }, 500);
+        })
+        .catch(function(err) {
+            if (typeof showToast === 'function') showToast('Fehler: ' + err.message, 'error');
+        });
     }
 
     function copyToClipboard(text, label) {

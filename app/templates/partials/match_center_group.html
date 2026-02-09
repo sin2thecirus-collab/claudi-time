@@ -134,15 +134,11 @@
                             {% if m.user_feedback == 'good' %}&#x1F44D;{% elif m.user_feedback == 'bad' %}&#x1F44E;{% else %}&#x1F914;{% endif %}
                         </span>
                         {% else %}
-                        <button hx-post="/api/match-center/feedback/{{ m.match_id }}?feedback=good"
-                                hx-target="#grp-fb-{{ m.match_id }}"
-                                hx-swap="innerHTML"
-                                class="w-6 h-6 rounded-full flex items-center justify-center text-xs bg-gray-50 hover:bg-green-100 text-gray-400 hover:text-green-600 border border-gray-200 hover:border-green-300 transition-colors"
+                        <button onclick="sendFeedback('{{ m.match_id }}', 'good')"
+                                class="w-6 h-6 rounded-full flex items-center justify-center text-xs bg-gray-50 hover:bg-green-100 text-gray-400 hover:text-green-600 border border-gray-200 hover:border-green-300 transition-colors cursor-pointer"
                                 title="Guter Match">&#x1F44D;</button>
-                        <button hx-post="/api/match-center/feedback/{{ m.match_id }}?feedback=bad"
-                                hx-target="#grp-fb-{{ m.match_id }}"
-                                hx-swap="innerHTML"
-                                class="w-6 h-6 rounded-full flex items-center justify-center text-xs bg-gray-50 hover:bg-red-100 text-gray-400 hover:text-red-600 border border-gray-200 hover:border-red-300 transition-colors"
+                        <button onclick="sendFeedback('{{ m.match_id }}', 'bad')"
+                                class="w-6 h-6 rounded-full flex items-center justify-center text-xs bg-gray-50 hover:bg-red-100 text-gray-400 hover:text-red-600 border border-gray-200 hover:border-red-300 transition-colors cursor-pointer"
                                 title="Schlechter Match">&#x1F44E;</button>
                         {% endif %}
                     </div>
