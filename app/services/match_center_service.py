@@ -861,7 +861,7 @@ class MatchCenterService:
         return match
 
     async def save_feedback(self, match_id: UUID, feedback: str, note: str | None = None) -> Match | None:
-        """Speichert Recruiter-Feedback fuer ein Match + Memory-Eintrag."""
+        """Speichert Recruiter-Feedback fuer ein Match."""
         from datetime import datetime, timezone
 
         result = await self.db.execute(select(Match).where(Match.id == match_id))
@@ -874,38 +874,7 @@ class MatchCenterService:
         match.feedback_note = note
         match.feedback_at = datetime.now(timezone.utc)
 
-        # Memory-Eintrag erstellen (fuer Lern-System)
-        try:
-            from app.models.mt_match_memory import MTMatchMemory
-            from app.models.job import Job
-
-            # Company-ID ermitteln (falls Job eine company_id hat)
-            company_id = None
-            if match.job_id:
-                job_result = await self.db.execute(
-                    select(Job.company_id).where(Job.id == match.job_id)
-                )
-                company_id = job_result.scalar_one_or_none()
-
-            action_map = {
-                "good": "matched",
-                "bad": "rejected",
-                "maybe": "maybe",
-            }
-
-            memory_entry = MTMatchMemory(
-                candidate_id=match.candidate_id,
-                job_id=match.job_id,
-                company_id=company_id,
-                action=action_map.get(feedback, feedback),
-                rejection_reason=note if feedback == "bad" else None,
-                never_again_company=False,  # Wird separat gesetzt
-            )
-            self.db.add(memory_entry)
-        except Exception as e:
-            logger.warning(f"Memory-Eintrag fuer Match {match_id} fehlgeschlagen: {e}")
-
-        await self.db.flush()
+        await self.db.commit()
         return match
 
     async def get_memory_warnings(self, candidate_id: UUID) -> list[dict]:
