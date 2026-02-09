@@ -50,7 +50,7 @@
     {# ═══════ SIDEBAR + MAIN CONTENT ═══════ #}
     <div class="flex gap-5" style="min-height: calc(100vh - 260px);">
 
-        {# ── SIDEBAR ── #}
+        {# ── SIDEBAR (Fix 3: Jobtitel oben, Standorte unten) ── #}
         <div :class="sidebarCollapsed ? 'w-[52px]' : 'w-[260px]'"
              class="flex-shrink-0 transition-all duration-300 bg-white rounded-xl border border-gray-200 overflow-hidden flex flex-col">
 
@@ -70,49 +70,55 @@
                 <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
             </div>
 
-            {# Jobtitel-Liste #}
-            <div x-show="!sidebarCollapsed && !sidebarLoading" class="flex-1 overflow-y-auto">
-                <template x-for="(item, idx) in sidebarData" :key="idx">
-                    <div>
-                        {# Jobtitel-Button #}
+            {# ── EXPANDED SIDEBAR ── #}
+            <div x-show="!sidebarCollapsed && !sidebarLoading" class="flex-1 overflow-y-auto flex flex-col">
+
+                {# SEKTION 1: Jobtitel-Liste (kompakt, immer sichtbar) #}
+                <div class="py-1">
+                    <template x-for="(item, idx) in sidebarData" :key="idx">
                         <button @click="selectTitle(item)"
                                 :class="selectedTitle === item.title ? 'bg-primary-50 text-primary-700 border-l-2 border-primary-500' : 'text-gray-700 hover:bg-gray-50 border-l-2 border-transparent'"
-                                class="w-full text-left px-3 py-2.5 text-sm font-medium transition-colors flex items-center justify-between">
+                                class="w-full text-left px-3 py-2 text-sm font-medium transition-colors flex items-center justify-between">
                             <span class="truncate" x-text="item.title"></span>
                             <span class="flex-shrink-0 text-xs text-gray-400 ml-1" x-text="item.total_matches"></span>
                         </button>
+                    </template>
+                </div>
 
-                        {# Stadt-Liste (wenn dieser Titel selektiert) #}
-                        <div x-show="selectedTitle === item.title" x-transition class="bg-gray-50 border-y border-gray-100">
-                            {# Stadt-Suche #}
-                            <div class="px-3 py-2">
-                                <input x-model="citySearch" type="text" placeholder="Stadt suchen..."
-                                       class="w-full text-xs border border-gray-200 rounded-md px-2.5 py-1.5 focus:ring-1 focus:ring-primary-400 focus:border-primary-400 bg-white">
-                            </div>
-                            {# Stadt-Eintraege #}
-                            <div class="max-h-60 overflow-y-auto">
-                                <template x-for="(city, cidx) in filteredCities(item.cities)" :key="cidx">
-                                    <button @click="selectCity(item.title, city)"
-                                            :class="selectedCity === city.city && selectedTitle === item.title ? 'bg-primary-100 text-primary-800' : 'text-gray-600 hover:bg-gray-100'"
-                                            class="w-full text-left px-3 py-2 text-xs transition-colors flex items-center gap-2">
-                                        {# Score-Indikator #}
-                                        <span :class="{
-                                            'bg-green-400': city.avg_score >= 80,
-                                            'bg-emerald-400': city.avg_score >= 70 && city.avg_score < 80,
-                                            'bg-yellow-400': city.avg_score >= 60 && city.avg_score < 70,
-                                            'bg-orange-400': city.avg_score < 60
-                                        }" class="w-2 h-2 rounded-full flex-shrink-0"></span>
-                                        <span class="truncate flex-1" x-text="city.city"></span>
-                                        <template x-if="city.new_count > 0">
-                                            <span class="text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full font-medium" x-text="'+' + city.new_count + ' neu'"></span>
-                                        </template>
-                                        <span class="text-gray-400 text-[10px]" x-text="city.match_count"></span>
-                                    </button>
-                                </template>
-                            </div>
-                        </div>
+                {# TRENNLINIE #}
+                <div x-show="selectedTitle" class="border-t border-gray-200 mx-3"></div>
+
+                {# SEKTION 2: Standorte (nur wenn Jobtitel ausgewaehlt) #}
+                <div x-show="selectedTitle" class="flex-1 flex flex-col py-1">
+                    {# Standorte-Header #}
+                    <div class="px-3 py-2">
+                        <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Standorte</span>
                     </div>
-                </template>
+
+                    {# Stadt-Suche #}
+                    <div class="px-3 pb-2">
+                        <input x-model="citySearch" type="text" placeholder="Stadt suchen..."
+                               class="w-full text-xs border border-gray-200 rounded-md px-2.5 py-1.5 focus:ring-1 focus:ring-primary-400 focus:border-primary-400 bg-white">
+                    </div>
+
+                    {# Stadt-Eintraege (Fix 2: Quadratische Farbpunkte nach Score) #}
+                    <div class="flex-1 overflow-y-auto">
+                        <template x-for="(city, cidx) in selectedTitleCities" :key="cidx">
+                            <button @click="selectCity(selectedTitle, city)"
+                                    :class="selectedCity === city.city ? 'bg-primary-100 text-primary-800' : 'text-gray-600 hover:bg-gray-100'"
+                                    class="w-full text-left px-3 py-2 text-xs transition-colors flex items-center gap-2">
+                                {# Score-Indikator: Quadrat 8x8 mit exakten Hex-Farben #}
+                                <span class="w-2 h-2 rounded-sm flex-shrink-0"
+                                      :style="'background-color: ' + (city.avg_score >= 80 ? '#22c55e' : city.avg_score >= 70 ? '#4ade80' : city.avg_score >= 60 ? '#eab308' : '#f97316')"></span>
+                                <span class="truncate flex-1" x-text="city.city"></span>
+                                <template x-if="city.new_count > 0">
+                                    <span class="text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full font-medium" x-text="'+' + city.new_count + ' neu'"></span>
+                                </template>
+                                <span class="text-gray-400 text-[10px]" x-text="city.match_count"></span>
+                            </button>
+                        </template>
+                    </div>
+                </div>
 
                 {# Keine Daten #}
                 <div x-show="sidebarData.length === 0 && !sidebarLoading" class="px-4 py-8 text-center text-xs text-gray-400">
@@ -136,31 +142,68 @@
         {# ── MAIN CONTENT ── #}
         <div class="flex-1 min-w-0">
 
-            {# Willkommen-Screen (wenn keine Stadt ausgewaehlt) #}
-            <div x-show="!selectedCity" class="bg-white rounded-xl border border-gray-200 p-8">
-                <div class="text-center max-w-lg mx-auto">
-                    <svg class="mx-auto h-16 w-16 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                    </svg>
-                    <h2 class="text-lg font-semibold text-gray-900 mb-2">Jobtitel & Stadt waehlen</h2>
-                    <p class="text-sm text-gray-500 mb-6">Waehle links einen Jobtitel und dann eine Stadt, um die passenden Kandidaten zu sehen.</p>
+            {# Willkommen-Screen: TABELLE statt Karten (Fix 4) #}
+            <div x-show="!selectedCity" class="bg-white rounded-xl border border-gray-200 p-6">
+                <div class="flex items-center justify-between mb-5">
+                    <div>
+                        <h2 class="text-lg font-semibold text-gray-900">Standort-Uebersicht</h2>
+                        <p class="text-xs text-gray-500 mt-0.5" x-show="selectedTitle" x-text="selectedTitle + ' — Top Standorte nach Score'"></p>
+                        <p class="text-xs text-gray-500 mt-0.5" x-show="!selectedTitle">Waehle links einen Jobtitel, um die besten Standorte zu sehen.</p>
+                    </div>
+                    <span class="text-xs text-gray-400">Top 8 nach Score</span>
                 </div>
 
-                {# Top 8 Staedte Quick-Access #}
-                <div x-show="topCities.length > 0" class="mt-6">
-                    <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 text-center">Top Staedte</h3>
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-2xl mx-auto">
-                        <template x-for="(tc, tcidx) in topCities" :key="tcidx">
-                            <button @click="quickSelectCity(tc)"
-                                    class="bg-gray-50 hover:bg-primary-50 border border-gray-200 hover:border-primary-300 rounded-lg p-3 transition-all text-center">
-                                <div class="text-sm font-medium text-gray-900" x-text="tc.city"></div>
-                                <div class="text-xs text-gray-500 mt-0.5" x-text="tc.match_count + ' Matches'"></div>
-                                <div class="text-xs font-medium mt-1"
-                                     :class="tc.avg_score >= 75 ? 'text-green-600' : tc.avg_score >= 60 ? 'text-yellow-600' : 'text-gray-500'"
-                                     x-text="'Ø ' + tc.avg_score + '%'"></div>
-                            </button>
-                        </template>
-                    </div>
+                {# Top-Staedte Tabelle #}
+                <div x-show="topCities.length > 0">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="border-b border-gray-100">
+                                <th class="text-left text-xs font-medium text-gray-500 uppercase pb-2 w-8">#</th>
+                                <th class="text-left text-xs font-medium text-gray-500 uppercase pb-2">Stadt</th>
+                                <th class="text-right text-xs font-medium text-gray-500 uppercase pb-2 w-20">Matches</th>
+                                <th class="text-right text-xs font-medium text-gray-500 uppercase pb-2 w-16">Neu</th>
+                                <th class="text-left text-xs font-medium text-gray-500 uppercase pb-2 pl-4 w-40">Ø Score</th>
+                                <th class="text-right text-xs font-medium text-gray-500 uppercase pb-2 w-24"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="(tc, tcidx) in topCities" :key="tcidx">
+                                <tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer"
+                                    @click="quickSelectCity(tc)">
+                                    <td class="py-2.5 text-xs text-gray-400 font-medium" x-text="tcidx + 1"></td>
+                                    <td class="py-2.5 text-sm font-medium text-gray-900" x-text="tc.city"></td>
+                                    <td class="py-2.5 text-xs text-gray-600 text-right" x-text="tc.match_count"></td>
+                                    <td class="py-2.5 text-right">
+                                        <template x-if="tc.new_count > 0">
+                                            <span class="text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full font-medium" x-text="'+' + tc.new_count"></span>
+                                        </template>
+                                    </td>
+                                    <td class="py-2.5 pl-4">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-20 bg-gray-200 rounded-full h-1.5">
+                                                <div class="h-1.5 rounded-full"
+                                                     :style="'width: ' + Math.min(tc.avg_score, 100) + '%; background-color: ' + (tc.avg_score >= 80 ? '#22c55e' : tc.avg_score >= 70 ? '#4ade80' : tc.avg_score >= 60 ? '#eab308' : '#f97316')"></div>
+                                            </div>
+                                            <span class="text-xs font-bold"
+                                                  :style="'color: ' + (tc.avg_score >= 80 ? '#22c55e' : tc.avg_score >= 70 ? '#4ade80' : tc.avg_score >= 60 ? '#eab308' : '#f97316')"
+                                                  x-text="tc.avg_score"></span>
+                                        </div>
+                                    </td>
+                                    <td class="py-2.5 text-right">
+                                        <span class="text-xs text-primary-600 hover:text-primary-800 font-medium">Oeffnen →</span>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+
+                {# Keine Daten — kein Jobtitel gewaehlt #}
+                <div x-show="topCities.length === 0 && !selectedTitle" class="text-center py-8">
+                    <svg class="mx-auto h-12 w-12 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                    </svg>
+                    <p class="text-sm text-gray-500">Waehle links einen Jobtitel, um die besten Standorte zu sehen.</p>
                 </div>
             </div>
 
@@ -175,7 +218,7 @@
                             <span x-text="selectedCity"></span>
                         </h2>
                     </div>
-                    <button @click="selectedCity = null; selectedTitle = null"
+                    <button @click="selectedCity = null"
                             class="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                         Zurueck
@@ -248,15 +291,30 @@ function matchCenterApp() {
         matchesLoading: false,
         currentStage: '{{ current_stage }}',
 
-        // Computed: Top 8 Staedte (ueber alle Jobtitel)
+        // Computed: Staedte des aktuell ausgewaehlten Jobtitels (gefiltert)
+        get selectedTitleCities() {
+            if (!this.selectedTitle) return [];
+            const item = this.sidebarData.find(i => i.title === this.selectedTitle);
+            if (!item) return [];
+            if (!this.citySearch) return item.cities;
+            const s = this.citySearch.toLowerCase();
+            return item.cities.filter(c => c.city.toLowerCase().includes(s));
+        },
+
+        // Computed: Top 8 Staedte (ueber alle Jobtitel oder nur ausgewaehlten)
         get topCities() {
+            const source = this.selectedTitle
+                ? this.sidebarData.filter(i => i.title === this.selectedTitle)
+                : this.sidebarData;
+
             const cityMap = {};
-            for (const item of this.sidebarData) {
+            for (const item of source) {
                 for (const c of item.cities) {
                     if (!cityMap[c.city]) {
-                        cityMap[c.city] = { city: c.city, match_count: 0, avg_score: 0, _scores: [], _title: item.title };
+                        cityMap[c.city] = { city: c.city, match_count: 0, avg_score: 0, new_count: 0, _scores: [], _title: item.title };
                     }
                     cityMap[c.city].match_count += c.match_count;
+                    cityMap[c.city].new_count += (c.new_count || 0);
                     cityMap[c.city]._scores.push(c.avg_score);
                 }
             }
@@ -264,7 +322,7 @@ function matchCenterApp() {
                 c.avg_score = Math.round(c._scores.reduce((a, b) => a + b, 0) / c._scores.length * 10) / 10;
                 return c;
             });
-            cities.sort((a, b) => b.match_count - a.match_count);
+            cities.sort((a, b) => b.avg_score - a.avg_score);
             return cities.slice(0, 8);
         },
 
@@ -307,7 +365,11 @@ function matchCenterApp() {
 
         quickSelectCity(tc) {
             // Finde den Jobtitel der diese Stadt hat
-            for (const item of this.sidebarData) {
+            const source = this.selectedTitle
+                ? this.sidebarData.filter(i => i.title === this.selectedTitle)
+                : this.sidebarData;
+
+            for (const item of source) {
                 for (const c of item.cities) {
                     if (c.city === tc.city) {
                         this.selectedTitle = item.title;
@@ -320,12 +382,6 @@ function matchCenterApp() {
                     }
                 }
             }
-        },
-
-        filteredCities(cities) {
-            if (!this.citySearch) return cities;
-            const s = this.citySearch.toLowerCase();
-            return cities.filter(c => c.city.toLowerCase().includes(s));
         },
 
         loadMatches() {
@@ -426,9 +482,7 @@ function matchCenterApp() {
 
         bulkEmail() {
             if (this.selectedMatchIds.length === 0) return;
-            // Interim: Toast-Hinweis (kein E-Mail-Service)
             showToast('E-Mail-Funktion wird vorbereitet...', 'info');
-            // Wir koennten hier mailto: Links generieren wenn wir die E-Mails haetten
         },
 
         bulkSendProfiles() {
@@ -482,7 +536,6 @@ function rejectMatch(matchId) {
     .then(function(resp) {
         if (!resp.ok) throw new Error('Status ' + resp.status);
         showToast('Match abgelehnt', 'success');
-        // Tabelle neu laden via Alpine v3
         var appEl = document.querySelector('[x-data*="matchCenterApp"]');
         if (appEl) {
             var data = Alpine.$data(appEl);
