@@ -222,25 +222,20 @@ async def save_feedback(
     match_id: UUID,
     feedback: str = Query(..., regex="^(good|bad|maybe)$"),
     note: str = Query(None),
-    db: AsyncSession = Depends(get_db),
 ):
-    """Feedback fuer ein Match speichern — direktes SQL UPDATE, kein ORM."""
-    from sqlalchemy import update, text
-    from datetime import datetime, timezone
-    from app.models.match import Match
+    """Feedback fuer ein Match speichern — eigene DB-Connection, kein get_db()."""
+    from sqlalchemy import text
+    from app.database import engine
 
     try:
-        stmt = (
-            update(Match)
-            .where(Match.id == match_id)
-            .values(
-                user_feedback=feedback,
-                feedback_note=note,
-                feedback_at=datetime.now(timezone.utc),
+        async with engine.begin() as conn:
+            result = await conn.execute(
+                text(
+                    "UPDATE matches SET user_feedback = :fb, feedback_note = :note, "
+                    "feedback_at = NOW() WHERE id = :mid"
+                ),
+                {"fb": feedback, "note": note, "mid": str(match_id)},
             )
-        )
-        result = await db.execute(stmt)
-        await db.commit()
 
         if result.rowcount == 0:
             return JSONResponse({"status": "not_found"}, status_code=404)
@@ -249,8 +244,13 @@ async def save_feedback(
 
     except Exception as e:
         logger.error(f"Feedback Fehler: {e}", exc_info=True)
-        await db.rollback()
         return JSONResponse({"status": "error", "detail": str(e)}, status_code=500)
+
+
+@router.get("/api/match-center/feedback-test")
+async def feedback_test():
+    """Test: Ist der Feedback-Endpoint erreichbar?"""
+    return JSONResponse({"status": "reachable", "method": "engine.begin()"})
 
 
 # ═══════════════════════════════════════════════════════════════
