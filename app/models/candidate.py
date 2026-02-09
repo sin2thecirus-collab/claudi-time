@@ -105,6 +105,8 @@ class Candidate(Base):
     v2_profile_created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # Wann Profil erstellt
     v2_embedding_current: Mapped[dict | None] = mapped_column(JSONB)  # 384-dim, NUR aktuelle Rolle
     v2_embedding_full: Mapped[dict | None] = mapped_column(JSONB)  # 384-dim, Gesamtprofil
+    v2_certifications: Mapped[dict | None] = mapped_column(JSONB)  # z.B. ["Bilanzbuchhalter"]
+    v2_industries: Mapped[dict | None] = mapped_column(JSONB)  # z.B. ["Maschinenbau", "Pharma"]
 
     # Status
     hidden: Mapped[bool] = mapped_column(Boolean, default=False)

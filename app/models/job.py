@@ -50,6 +50,7 @@ class Job(Base):
     employment_type: Mapped[str | None] = mapped_column(String(100))
     industry: Mapped[str | None] = mapped_column(String(100))
     company_size: Mapped[str | None] = mapped_column(String(50))
+    work_arrangement: Mapped[str | None] = mapped_column(String(20))  # "vor_ort" / "hybrid" / "remote"
 
     # Hotlist-Kategorisierung
     hotlist_category: Mapped[str | None] = mapped_column(String(50))

@@ -292,7 +292,7 @@ class CSVImportService:
 
             # Company Service + Cache fuer Performance
             company_service = CompanyService(self.db)
-            company_cache: dict[str, object] = {}  # name -> Company | None
+            company_cache: dict[str, object] = {}  # "name_city" -> Company | None
 
             # Bestehende content_hashes laden (für Duplikaterkennung)
             logger.info("Lade bestehende Content-Hashes...")
@@ -315,12 +315,13 @@ class CSVImportService:
                         continue
 
                     # Company lookup/create (mit Cache)
-                    cache_key = company_name.lower()
+                    # Stadt ZUERST lesen fuer Multi-Standort Cache-Key
+                    _city = self._get_field(row, "Stadt", "Ort")
+                    cache_key = f"{company_name.lower()}_{(_city or '').lower()}"
                     if cache_key not in company_cache:
                         # Adresse zusammenbauen (Straße, PLZ Ort)
                         _street = self._get_field(row, "Straße", "Straße und Hausnummer")
                         _plz = self._get_field(row, "PLZ")
-                        _city = self._get_field(row, "Stadt", "Ort")
                         _address_parts = [p for p in [_street, f"{_plz} {_city}" if _plz and _city else _city or _plz] if p]
                         _address = ", ".join(_address_parts) if _address_parts else None
 

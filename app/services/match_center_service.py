@@ -140,6 +140,9 @@ class MatchComparisonData:
     job_street_address: str
     job_text: str
 
+    # Score Breakdown (v2.5)
+    v2_score_breakdown: dict | None
+
     # Kandidat
     candidate_id: UUID | None
     candidate_name: str
@@ -538,6 +541,7 @@ class MatchCenterService:
                     Match.status,
                     Match.matching_method,
                     Match.user_feedback,
+                    Match.v2_score_breakdown,
                     Candidate.first_name,
                     Candidate.last_name,
                     Candidate.hotlist_job_title.label("cand_title"),
@@ -565,6 +569,7 @@ class MatchCenterService:
                 if m.last_name:
                     name_parts.append(m.last_name)
 
+                breakdown = m.v2_score_breakdown or {}
                 matches.append({
                     "match_id": m.id,
                     "candidate_id": m.candidate_id,
@@ -576,6 +581,8 @@ class MatchCenterService:
                     "distance_km": round(m.distance_km, 1) if m.distance_km else None,
                     "status": m.status.value if m.status else "new",
                     "user_feedback": m.user_feedback,
+                    "qualification_tag": breakdown.get("qualification_tag"),
+                    "bibu_multiplier": breakdown.get("bibu_multiplier"),
                 })
 
             jobs_with_matches.append({
@@ -611,6 +618,7 @@ class MatchCenterService:
                 Match.distance_km,
                 Match.status,
                 Match.user_feedback,
+                Match.v2_score_breakdown,
                 # Job
                 Job.id.label("job_id"),
                 Job.position,
@@ -662,6 +670,7 @@ class MatchCenterService:
             distance_km=round(row.distance_km, 1) if row.distance_km else None,
             status=row.status.value if row.status else "new",
             user_feedback=row.user_feedback,
+            v2_score_breakdown=row.v2_score_breakdown,
             job_id=row.job_id,
             job_position=row.position or "Unbekannte Position",
             job_company_name=row.company_name or "",

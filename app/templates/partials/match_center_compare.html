@@ -10,6 +10,15 @@
         </p>
     </div>
     <div class="flex items-center gap-3">
+        {% if data.v2_score_breakdown and data.v2_score_breakdown.qualification_tag %}
+        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold
+                     {% if data.v2_score_breakdown.qualification_tag == 'passt' %}bg-green-100 text-green-700
+                     {% elif 'leicht' in data.v2_score_breakdown.qualification_tag %}bg-yellow-100 text-yellow-700
+                     {% elif 'unter' in data.v2_score_breakdown.qualification_tag %}bg-orange-100 text-orange-700
+                     {% else %}bg-red-100 text-red-700{% endif %}">
+            {{ data.v2_score_breakdown.qualification_tag | capitalize }}
+        </span>
+        {% endif %}
         {% if data.ai_score is not none %}
         <div class="flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold
                     {% if data.ai_score >= 70 %}bg-green-100 text-green-700
@@ -238,6 +247,77 @@
             </div>
         </div>
     </div>
+
+    {# ── Score-Breakdown v2.5 ── #}
+    {% if data.v2_score_breakdown %}
+    {% set bd = data.v2_score_breakdown %}
+    <div class="mt-6 bg-white border border-gray-200 rounded-lg p-4">
+        <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wider">Score-Breakdown</h3>
+            <div class="flex items-center gap-2">
+                {% if bd.qualification_tag %}
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold
+                             {% if bd.qualification_tag == 'passt' %}bg-green-100 text-green-700
+                             {% elif 'leicht' in bd.qualification_tag %}bg-yellow-100 text-yellow-700
+                             {% elif 'unter' in bd.qualification_tag %}bg-orange-100 text-orange-700
+                             {% else %}bg-red-100 text-red-700{% endif %}">
+                    {{ bd.qualification_tag | capitalize }}
+                </span>
+                {% endif %}
+                {% if bd.bibu_multiplier %}
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold
+                             {% if bd.bibu_multiplier > 1 %}bg-purple-100 text-purple-700{% else %}bg-gray-100 text-gray-500{% endif %}">
+                    BiBu &times;{{ bd.bibu_multiplier }}
+                </span>
+                {% endif %}
+            </div>
+        </div>
+
+        {# Seniority Level Vergleich #}
+        {% if bd.candidate_level and bd.job_level %}
+        <div class="flex items-center gap-2 mb-3 text-xs text-gray-500">
+            <span>Kandidat Level {{ bd.candidate_level }}</span>
+            <span>&rarr;</span>
+            <span>Job Level {{ bd.job_level }}</span>
+            <span class="text-gray-300">|</span>
+            <span>Diff: {{ bd.candidate_level - bd.job_level }}</span>
+        </div>
+        {% endif %}
+
+        {# 7 Dimensionen als Balken #}
+        {% set dims = [
+            ("Skill-Overlap", "skill_overlap", 27),
+            ("Seniority-Fit", "seniority_fit", 20),
+            ("Jobtitel-Fit", "job_title_fit", 18),
+            ("Embedding-Sim", "embedding_sim", 15),
+            ("Branchen-Fit", "industry_fit", 8),
+            ("Karriere-Fit", "career_fit", 7),
+            ("Software-Match", "software_match", 5),
+        ] %}
+        <div class="space-y-2">
+            {% for label, key, weight in dims %}
+            {% set val = bd[key] if key in bd and bd[key] is not none else 0 %}
+            {% set pct = (val * 100)|round|int %}
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-gray-500 w-28 flex-shrink-0 text-right">{{ label }}</span>
+                <div class="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
+                    <div class="h-full rounded-full transition-all
+                                {% if pct >= 70 %}bg-green-500
+                                {% elif pct >= 40 %}bg-yellow-500
+                                {% else %}bg-gray-400{% endif %}"
+                         style="width: {{ pct }}%"></div>
+                </div>
+                <span class="text-xs font-medium text-gray-700 w-10 flex-shrink-0">{{ pct }}%</span>
+                <span class="text-[10px] text-gray-400 w-6 flex-shrink-0">({{ weight }})</span>
+            </div>
+            {% endfor %}
+        </div>
+
+        {% if bd.career_note %}
+        <p class="mt-3 text-xs text-gray-500 italic">{{ bd.career_note }}</p>
+        {% endif %}
+    </div>
+    {% endif %}
 
     <!-- KI-Bewertung -->
     {% if data.ai_explanation %}

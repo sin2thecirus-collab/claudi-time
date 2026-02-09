@@ -639,6 +639,12 @@ async def init_db() -> None:
         ("candidates", "erp", "VARCHAR[]"),
         ("candidates", "rating", "INTEGER"),
         ("candidates", "rating_set_at", "TIMESTAMPTZ"),
+        # ── Matching Engine v2.5: Phase 0e + Phase 1 ──
+        ("jobs", "work_arrangement", "VARCHAR(20)"),  # "vor_ort" / "hybrid" / "remote"
+        ("candidates", "v2_certifications", "JSONB"),  # z.B. ["Bilanzbuchhalter"]
+        ("candidates", "v2_industries", "JSONB"),  # z.B. ["Maschinenbau", "Pharma"]
+        ("companies", "industry", "VARCHAR(100)"),
+        ("companies", "erp_systems", "VARCHAR[]"),
     ]
     for table_name, col_name, col_type in migrations:
         try:
@@ -926,6 +932,52 @@ async def init_db() -> None:
             await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_matches_v2_matched_at ON matches (v2_matched_at)"))
     except Exception as e:
         logger.warning(f"Matching v2 Indizes uebersprungen: {e}")
+
+    # ── Matching v2.5: Company Unique Constraint (name → name+city) ──
+    # Multi-Standort-Firmen: "Allianz München" und "Allianz Hamburg" = 2 separate Companies
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("SET lock_timeout = '5s'"))
+            await conn.execute(text("""
+                DO $$ BEGIN
+                    -- Alten name-only Constraint entfernen
+                    ALTER TABLE companies DROP CONSTRAINT IF EXISTS companies_name_key;
+                    -- Neuen Compound-Constraint erstellen (idempotent via IF NOT EXISTS)
+                    IF NOT EXISTS (
+                        SELECT 1 FROM pg_constraint WHERE conname = 'uq_companies_name_city'
+                    ) THEN
+                        ALTER TABLE companies ADD CONSTRAINT uq_companies_name_city UNIQUE (name, city);
+                    END IF;
+                EXCEPTION WHEN OTHERS THEN
+                    RAISE NOTICE 'Company Constraint Migration uebersprungen: %', SQLERRM;
+                END $$
+            """))
+            logger.info("Migration: companies UNIQUE (name, city) Constraint gesetzt.")
+    except Exception as e:
+        logger.warning(f"Company Constraint Migration uebersprungen: {e}")
+
+    # ── Matching v2.5: Scoring-Gewichte aktualisieren ──
+    try:
+        async with engine.begin() as conn:
+            # Pruefen ob die neuen Dimensionen schon existieren
+            result = await conn.execute(text(
+                "SELECT component FROM match_v2_scoring_weights WHERE component = 'job_title_fit'"
+            ))
+            if not result.fetchone():
+                # Bestehende Gewichte anpassen
+                await conn.execute(text("UPDATE match_v2_scoring_weights SET weight = 27.0, default_weight = 27.0 WHERE component = 'skill_overlap'"))
+                await conn.execute(text("UPDATE match_v2_scoring_weights SET weight = 20.0, default_weight = 20.0 WHERE component = 'seniority_fit'"))
+                await conn.execute(text("UPDATE match_v2_scoring_weights SET weight = 15.0, default_weight = 15.0 WHERE component = 'embedding_sim'"))
+                await conn.execute(text("UPDATE match_v2_scoring_weights SET weight = 7.0, default_weight = 7.0 WHERE component = 'career_fit'"))
+                await conn.execute(text("UPDATE match_v2_scoring_weights SET weight = 5.0, default_weight = 5.0 WHERE component = 'software_match'"))
+                # Location entfernen (ist jetzt Hard Filter)
+                await conn.execute(text("DELETE FROM match_v2_scoring_weights WHERE component = 'location_bonus'"))
+                # Neue Dimensionen
+                await conn.execute(text("INSERT INTO match_v2_scoring_weights (component, weight, default_weight) VALUES ('job_title_fit', 18.0, 18.0)"))
+                await conn.execute(text("INSERT INTO match_v2_scoring_weights (component, weight, default_weight) VALUES ('industry_fit', 8.0, 8.0)"))
+                logger.info("Migration: Scoring-Gewichte auf v2.5 aktualisiert (7 Dimensionen, Summe=100)")
+    except Exception as e:
+        logger.warning(f"Scoring-Gewichte v2.5 Migration uebersprungen: {e}")
 
     # ── Embedding-Indexes nicht noetig (JSONB, kein pgvector) ──
     # Similarity-Suche laeuft in Python, nicht in SQL.

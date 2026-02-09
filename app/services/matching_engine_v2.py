@@ -48,6 +48,11 @@ class MatchCandidate:
     city: str | None
     hotlist_category: str | None
     distance_km: float | None = None  # Entfernung zum Job in km (NULL = keine Geodaten)
+    # v2.5 Felder
+    certifications: list[str] = field(default_factory=list)  # z.B. ["Bilanzbuchhalter"]
+    industries: list[str] = field(default_factory=list)  # z.B. ["Maschinenbau"]
+    erp: list[str] = field(default_factory=list)  # z.B. ["SAP", "DATEV"]
+    job_titles: list[str] = field(default_factory=list)  # hotlist_job_titles + manual_job_titles
 
 
 @dataclass
@@ -84,17 +89,21 @@ class BatchMatchResult:
 # ══════════════════════════════════════════════════════════════════
 
 DEFAULT_WEIGHTS = {
-    "skill_overlap": 35.0,
+    "skill_overlap": 27.0,
     "seniority_fit": 20.0,
-    "embedding_sim": 20.0,
-    "career_fit": 10.0,
-    "software_match": 10.0,
-    "location_bonus": 5.0,  # Bonus fuer gleiche Stadt/Metro (kein Penalty — Entfernung ist Hard Filter)
+    "job_title_fit": 18.0,  # NEU: Titel-Match (v2.5)
+    "embedding_sim": 15.0,
+    "industry_fit": 8.0,  # NEU: Branchenerfahrung (v2.5)
+    "career_fit": 7.0,
+    "software_match": 5.0,
+    # Summe: 27 + 20 + 18 + 15 + 8 + 7 + 5 = 100
+    # Location ist KEIN Score mehr — nur Hard Filter (30km)
 }
 
-# Entfernung ist jetzt ein HARD FILTER, kein Soft-Score!
-# Max. 60km Luftlinie (~1h Fahrweg) — alles darueber wird rausgeworfen.
-MAX_DISTANCE_KM = 60
+# Entfernung ist ein HARD FILTER, kein Soft-Score!
+# Max. 30km Luftlinie — realistisches Pendel-Maximum.
+# Remote-Jobs ueberspringen diesen Filter (siehe _hard_filter_candidates).
+MAX_DISTANCE_KM = 30
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -171,7 +180,8 @@ class MatchingEngineV2:
         - Seniority-Level zu weit entfernt
         - Geloescht/Hidden
         - Falsche Hotlist-Kategorie (wenn vorhanden)
-        - ZU WEIT WEG: >60km Luftlinie (~1h Fahrweg) → HARD FILTER!
+        - ZU WEIT WEG: >60km Luftlinie → HARD FILTER!
+          (Remote-Jobs ueberspringen den Entfernungs-Filter)
 
         Returns:
             Liste von MatchCandidate-Objekten (vorgeflitert)
@@ -194,9 +204,12 @@ class MatchingEngineV2:
         ]
 
         # HARD FILTER: Entfernung max. 60km (wenn Job Koordinaten hat)
+        # Remote-Jobs ueberspringen den Entfernungs-Filter komplett!
         # Kandidaten OHNE Koordinaten werden trotzdem durchgelassen,
         # aber mit distance_km=None markiert (koennen spaeter manuell geprueft werden)
-        if job_has_coords:
+        job_is_remote = getattr(job, "work_arrangement", None) == "remote"
+
+        if job_has_coords and not job_is_remote:
             conditions.append(
                 or_(
                     # Kandidat innerhalb MAX_DISTANCE_KM km
@@ -230,17 +243,23 @@ class MatchingEngineV2:
 
         query = (
             select(
-                Candidate.id,
-                Candidate.v2_seniority_level,
-                Candidate.v2_career_trajectory,
-                Candidate.v2_years_experience,
-                Candidate.v2_structured_skills,
-                Candidate.v2_current_role_summary,
-                Candidate.v2_embedding_current,
-                Candidate.v2_embedding_full,
-                Candidate.city,
-                Candidate.hotlist_category,
-                distance_expr,
+                Candidate.id,                    # 0
+                Candidate.v2_seniority_level,     # 1
+                Candidate.v2_career_trajectory,   # 2
+                Candidate.v2_years_experience,    # 3
+                Candidate.v2_structured_skills,   # 4
+                Candidate.v2_current_role_summary, # 5
+                Candidate.v2_embedding_current,   # 6
+                Candidate.v2_embedding_full,      # 7
+                Candidate.city,                   # 8
+                Candidate.hotlist_category,        # 9
+                distance_expr,                    # 10
+                # v2.5 Felder
+                Candidate.v2_certifications,      # 11
+                Candidate.v2_industries,          # 12
+                Candidate.erp,                    # 13
+                Candidate.hotlist_job_titles,      # 14
+                Candidate.manual_job_titles,       # 15
             )
             .where(and_(*conditions))
             .order_by(
@@ -259,6 +278,9 @@ class MatchingEngineV2:
             distance_m = row[10]  # Meter oder None
             distance_km = round(distance_m / 1000, 1) if distance_m is not None else None
 
+            # Job-Titel zusammenmergen (hotlist + manual)
+            all_titles = list(row[14] or []) + list(row[15] or [])
+
             candidates.append(MatchCandidate(
                 id=row[0],
                 seniority_level=row[1] or 2,
@@ -271,16 +293,88 @@ class MatchingEngineV2:
                 city=row[8],
                 hotlist_category=row[9],
                 distance_km=distance_km,
+                certifications=row[11] or [],
+                industries=row[12] or [],
+                erp=row[13] or [],
+                job_titles=all_titles,
             ))
 
         logger.info(
             f"Hard Filter: {len(candidates)} Kandidaten fuer Job Level {job_level} "
             f"(Range {min_level}-{max_level}, Category: {job.hotlist_category}, "
-            f"Distance Hard Filter: {'<=' + str(MAX_DISTANCE_KM) + 'km' if job_has_coords else 'keine Geodaten'})"
+            f"Distance Hard Filter: {'REMOTE — kein Limit' if job_is_remote else '<=' + str(MAX_DISTANCE_KM) + 'km' if job_has_coords else 'keine Geodaten'})"
         )
         return candidates
 
     # ── Schicht 2: Structured Scoring ───────────────────────
+
+    # Synonym-Tabelle: Varianten desselben Skills → gleicher normalisierter Name
+    # Nur ECHTE Synonyme, keine "aehnlichen" Skills!
+    SKILL_SYNONYMS: dict[str, str] = {
+        # Finanzbuchhaltung-Varianten
+        "finanzbuchhaltung": "finanzbuchhaltung",
+        "fibu": "finanzbuchhaltung",
+        "finanz- und rechnungswesen": "finanzbuchhaltung",
+        # Kreditorenbuchhaltung-Varianten
+        "kreditorenbuchhaltung": "kreditorenbuchhaltung",
+        "kreditoren": "kreditorenbuchhaltung",
+        "accounts payable": "kreditorenbuchhaltung",
+        "ap": "kreditorenbuchhaltung",
+        # Debitorenbuchhaltung-Varianten
+        "debitorenbuchhaltung": "debitorenbuchhaltung",
+        "debitoren": "debitorenbuchhaltung",
+        "accounts receivable": "debitorenbuchhaltung",
+        "ar": "debitorenbuchhaltung",
+        # Anlagenbuchhaltung
+        "anlagenbuchhaltung": "anlagenbuchhaltung",
+        "anlagevermögen": "anlagenbuchhaltung",
+        "anlagevermoegen": "anlagenbuchhaltung",
+        # Abschluesse
+        "jahresabschluss": "jahresabschluss",
+        "jahresabschlüsse": "jahresabschluss",
+        "abschlusserstellung": "jahresabschluss",
+        "monatsabschluss": "monatsabschluss",
+        "monatsabschlüsse": "monatsabschluss",
+        "quartalsabschluss": "monatsabschluss",
+        # Umsatzsteuer
+        "umsatzsteuer": "umsatzsteuer",
+        "ust": "umsatzsteuer",
+        "umsatzsteuervoranmeldung": "umsatzsteuer",
+        "ust-voranmeldung": "umsatzsteuer",
+        # Lohn
+        "lohnbuchhaltung": "lohnbuchhaltung",
+        "lohn- und gehaltsbuchhaltung": "lohnbuchhaltung",
+        "lohn": "lohnbuchhaltung",
+        "entgeltabrechnung": "lohnbuchhaltung",
+        "gehaltsabrechnung": "lohnbuchhaltung",
+        "payroll": "lohnbuchhaltung",
+        # Konsolidierung
+        "konsolidierung": "konsolidierung",
+        "konzernkonsolidierung": "konsolidierung",
+        # HGB / IFRS
+        "hgb": "hgb",
+        "handelsgesetzbuch": "hgb",
+        "ifrs": "ifrs",
+        "international financial reporting standards": "ifrs",
+        # Intercompany
+        "intercompany": "intercompany",
+        "ic-abstimmung": "intercompany",
+        "konzernverrechnungen": "intercompany",
+        # Controlling
+        "controlling": "controlling",
+        "kostenrechnung": "controlling",
+        # Steuern
+        "steuererklärungen": "steuererklaerungen",
+        "steuererklaerungen": "steuererklaerungen",
+        "steuererklärung": "steuererklaerungen",
+        "steuererklaerung": "steuererklaerungen",
+    }
+
+    @classmethod
+    def _normalize_skill(cls, name: str) -> str:
+        """Normalisiert einen Skill-Namen ueber die Synonym-Tabelle."""
+        cleaned = name.lower().strip()
+        return cls.SKILL_SYNONYMS.get(cleaned, cleaned)
 
     def _score_skill_overlap(
         self,
@@ -291,16 +385,23 @@ class MatchingEngineV2:
 
         Essential Skills wiegen mehr als Preferred.
         Aktuelle Skills wiegen mehr als veraltete.
+
+        Matching: Exakt + Synonym-Tabelle. KEIN Substring-Matching!
+        "Buchhaltung" matched NICHT auf "Kreditorenbuchhaltung".
         """
         if not job_skills or not candidate_skills:
             return 0.0
 
-        # Normalisierte Skill-Namen
+        # Normalisierte Skill-Namen (ueber Synonym-Tabelle)
         cand_skill_map: dict[str, dict] = {}
         for s in candidate_skills:
             name = s.get("skill", "").lower().strip()
             if name:
-                cand_skill_map[name] = s
+                normalized = self._normalize_skill(name)
+                cand_skill_map[normalized] = s
+                # Auch den Original-Namen speichern fuer exakten Lookup
+                if name != normalized:
+                    cand_skill_map[name] = s
 
         essential_total = 0
         essential_matched = 0.0
@@ -316,17 +417,16 @@ class MatchingEngineV2:
             else:
                 preferred_total += 1
 
-            # Suche nach Match (exakt oder Teilstring)
+            # 1. Exakter Match (Name-zu-Name)
             match_score = 0.0
             matched_skill = cand_skill_map.get(skill_name)
 
+            # 2. Synonym-Match (normalisierter Name)
             if not matched_skill:
-                # Fuzzy: Pruefe ob ein Kandidaten-Skill den Job-Skill enthaelt oder umgekehrt
-                for cname, cskill in cand_skill_map.items():
-                    if skill_name in cname or cname in skill_name:
-                        matched_skill = cskill
-                        match_score = 0.8  # Partial match penalty
-                        break
+                normalized_job = self._normalize_skill(skill_name)
+                matched_skill = cand_skill_map.get(normalized_job)
+                if matched_skill:
+                    match_score = 0.9  # Synonym-Match leichter Abschlag
 
             if matched_skill:
                 if match_score == 0.0:
@@ -357,89 +457,96 @@ class MatchingEngineV2:
 
         return essential_score * 0.7 + preferred_score * 0.3
 
-    def _score_seniority_fit(self, candidate_level: int, job_level: int) -> float:
-        """Berechnet Seniority-Fit Score (0.0 - 1.0).
+    def _score_seniority_fit(self, candidate_level: int, job_level: int) -> tuple[float, str]:
+        """Berechnet Seniority-Fit Score (0.0 - 1.0) + Qualification-Tag.
 
-        Perfekter Match = 1.0
-        ±1 Level = 0.7 (leichte Unter-/Ueberqualifikation)
-        ±2 Level = 0.3 (groessere Abweichung)
-        >2 Level = 0.0 (wird von Hard Filter schon gefiltert)
+        Returns:
+            (score, tag) — Tag wird im v2_score_breakdown gespeichert.
         """
-        gap = abs(candidate_level - job_level)
+        gap = candidate_level - job_level  # Positiv = Kandidat hoeher
+
         if gap == 0:
-            return 1.0
+            return 1.0, "passt"
         elif gap == 1:
-            # Leicht ueberqualifiziert ist besser als unterqualifiziert
-            if candidate_level > job_level:
-                return 0.65  # Ueberqualifiziert
-            else:
-                return 0.75  # Leicht unterqualifiziert (kann reinwachsen)
+            return 0.7, "leicht_ueberqualifiziert"
+        elif gap == -1:
+            return 0.75, "leicht_unterqualifiziert"
         elif gap == 2:
-            return 0.3
-        else:
-            return 0.0
+            return 0.3, "ueberqualifiziert"
+        elif gap == -2:
+            return 0.3, "unterqualifiziert"
+        elif gap >= 3:
+            return 0.0, "stark_ueberqualifiziert"
+        else:  # gap <= -3
+            return 0.0, "stark_unterqualifiziert"
 
     def _score_career_fit(
         self,
         candidate_trajectory: str,
         candidate_level: int,
         job_level: int,
-    ) -> float:
-        """Berechnet Karriere-Fit Score (0.0 - 1.0).
+    ) -> tuple[float, str | None]:
+        """Berechnet Karriere-Fit Score (0.0 - 1.0) + Career-Note.
 
-        Aufsteigender Kandidat + passender naechster Schritt = ideal.
-        Lateraler Kandidat = solide.
-        Absteigender + Level-Gap = problematisch.
+        Returns:
+            (score, career_note) — Note wird im v2_score_breakdown gespeichert.
         """
         gap = job_level - candidate_level  # Positiv = Job ist hoeher
 
         if candidate_trajectory == "aufsteigend":
             if gap == 1:
-                return 1.0  # Perfekter naechster Karriereschritt
+                return 1.0, "perfekter_naechster_schritt"
             elif gap == 0:
-                return 0.8  # Lateraler Wechsel fuer aufsteigenden Kandidaten
+                return 0.8, None
             elif gap == -1:
-                return 0.4  # Rueckschritt fuer aufsteigenden Kandidaten
+                return 0.3, "rueckschritt_fuer_aufsteigenden"
             elif gap >= 2:
-                return 0.3  # Zu grosser Sprung
+                return 0.3, None
             else:
-                return 0.2  # Deutlicher Rueckschritt
+                return 0.1, "starker_rueckschritt"
         elif candidate_trajectory == "lateral":
             if gap == 0:
-                return 0.9  # Perfekt fuer laterale Karriere
+                return 1.0, None
             elif abs(gap) == 1:
-                return 0.6
+                return 0.6, None
             else:
-                return 0.3
+                return 0.2, None
         elif candidate_trajectory == "absteigend":
-            if gap <= 0:
-                return 0.5  # Passt zum Trend
+            if gap == -1:
+                return 0.7, "bewusster_downshift"
+            elif gap <= -2:
+                return 0.5, "starker_downshift"
+            elif gap == 0:
+                return 0.4, "widerspruch_will_runter_aber_gleiches_level"
             else:
-                return 0.2  # Aufstieg bei absteigender Karriere = unwahrscheinlich
+                return 0.4, "widerspruch_will_runter_aber_hoeher"
         elif candidate_trajectory == "einstieg":
             if job_level <= 2:
-                return 0.8  # Einstieg in Junior/Sachbearbeiter-Rolle
+                return 0.8, "einstieg_passend"
             else:
-                return 0.2  # Einsteiger fuer Senior-Rolle = unrealistisch
+                return 0.2, "einsteiger_zu_hohe_stelle"
 
-        return 0.5  # Default
+        return 0.5, None
 
     def _score_software_match(
         self,
         candidate_skills: list[dict],
         job_skills: list[dict],
+        candidate_erp: list[str] | None = None,
     ) -> float:
         """Berechnet Software-Match Score (0.0 - 1.0).
 
         DATEV + DATEV = 1.0
         SAP + SAP = 1.0
-        DATEV + SAP = 0.3 (6-12 Monate Umstieg)
+        DATEV + SAP = 0.2 (6-12 Monate Umstieg)
         Keine Software-Anforderung = 0.5 (neutral)
+
+        Nutzt BEIDE Quellen: v2_structured_skills UND candidates.erp
         """
         datev_keywords = {"datev", "datev unternehmen online", "datev kanzlei"}
         sap_keywords = {"sap", "sap fi", "sap co", "sap s/4hana", "sap s4hana"}
 
-        def detect_ecosystem(skills: list[dict]) -> set[str]:
+        def detect_ecosystem(skills: list[dict], erp_list: list[str] | None = None) -> set[str]:
             ecosystems = set()
             for s in skills:
                 name = s.get("skill", "").lower()
@@ -447,10 +554,18 @@ class MatchingEngineV2:
                     ecosystems.add("datev")
                 if any(kw in name for kw in sap_keywords):
                     ecosystems.add("sap")
+            # Zusaetzlich: ERP-Array pruefen
+            if erp_list:
+                for erp in erp_list:
+                    erp_lower = erp.lower()
+                    if any(kw in erp_lower for kw in datev_keywords):
+                        ecosystems.add("datev")
+                    if any(kw in erp_lower for kw in sap_keywords):
+                        ecosystems.add("sap")
             return ecosystems
 
         job_eco = detect_ecosystem(job_skills)
-        cand_eco = detect_ecosystem(candidate_skills)
+        cand_eco = detect_ecosystem(candidate_skills, candidate_erp)
 
         if not job_eco:
             return 0.5  # Job hat keine Software-Anforderung
@@ -465,7 +580,7 @@ class MatchingEngineV2:
 
         # Cross-Ecosystem (z.B. DATEV-Kandidat fuer SAP-Job)
         if job_eco and cand_eco and not overlap:
-            return 0.3  # 6-12 Monate Umstieg
+            return 0.2  # 6-12 Monate Umstieg
 
         return 0.5
 
@@ -552,35 +667,161 @@ class MatchingEngineV2:
         normalized = max(0.0, min(1.0, (sim - 0.3) / 0.6))
         return normalized
 
-    def _score_location_bonus(
+    # ── v2.5 Neue Dimensionen ──────────────────────────────
+
+    # Job-Titel Verwandtschaftsgruppen (Finance/Buchhaltung)
+    JOB_TITLE_GROUPS: dict[str, set[str]] = {
+        "finanzbuchhaltung": {
+            "finanzbuchhalter", "finanzbuchhalterin", "hauptbuchhalter", "hauptbuchhalterin",
+            "bilanzbuchhalter", "bilanzbuchhalterin", "accountant", "buchhalter", "buchhalterin",
+            "finanzbuchhalter/in", "bilanzbuchhalter/in", "buchhalter/in",
+        },
+        "kreditorenbuchhaltung": {
+            "kreditorenbuchhalter", "kreditorenbuchhalterin", "sachbearbeiter kreditoren",
+            "sachbearbeiterin kreditoren", "ap accountant", "kreditorenbuchhalter/in",
+        },
+        "debitorenbuchhaltung": {
+            "debitorenbuchhalter", "debitorenbuchhalterin", "sachbearbeiter debitoren",
+            "sachbearbeiterin debitoren", "ar accountant", "debitorenbuchhalter/in",
+        },
+        "lohnbuchhaltung": {
+            "lohnbuchhalter", "lohnbuchhalterin", "payroll", "entgeltabrechnung",
+            "gehaltsabrechnung", "lohnbuchhalter/in", "payroll specialist",
+        },
+        "controlling": {
+            "controller", "controllerin", "financial controller", "kostenrechner",
+            "controller/in",
+        },
+        "steuern": {
+            "steuerfachangestellter", "steuerfachangestellte", "tax specialist",
+            "steuerberater", "steuerberaterin", "steuerfachangestellte/r",
+        },
+        "leitung": {
+            "leiter rechnungswesen", "leiterin rechnungswesen", "head of accounting",
+            "kaufmännischer leiter", "kaufmaennischer leiter", "cfo",
+            "leiter buchhaltung", "leiterin buchhaltung",
+        },
+    }
+
+    def _score_job_title_fit(
         self,
-        candidate_city: str | None,
-        job_city: str | None,
-        distance_km: float | None,
+        candidate_titles: list[str],
+        job_title: str | None,
+        job_manual_title: str | None,
+        job_hotlist_title: str | None,
     ) -> float:
-        """Berechnet Location-Bonus (0.0 - 1.0).
+        """Berechnet Job-Titel-Fit Score (0.0 - 1.0).
 
-        Entfernung ist bereits ein HARD FILTER (>60km = raus).
-        Dieser Score gibt NUR einen Bonus fuer besonders nahe Kandidaten:
-
-        - Gleiche Stadt oder ≤15km = 1.0 (ideal)
-        - Gleiche Metro-Area oder ≤30km = 0.7 (gut)
-        - ≤60km = 0.4 (akzeptabel)
-        - Keine Geodaten = 0.3 (neutral, kein Penalty)
+        Exakter Match = 1.0
+        Verwandte Gruppe = 0.7
+        Cross-Gruppe = 0.2
+        Kein Match = 0.3
         """
-        # Wenn echte Distanz bekannt → nutze sie
-        if distance_km is not None:
-            if distance_km <= 15:
-                return 1.0
-            elif distance_km <= 30:
-                return 0.7
-            elif distance_km <= 60:
-                return 0.4
-            else:
-                return 0.0  # Sollte eigentlich nicht vorkommen (Hard Filter)
+        if not candidate_titles:
+            return 0.3  # Keine Titel-Info → neutral
 
-        # Fallback: Stadt-Vergleich (wenn keine Geodaten)
-        return self._score_city_metro(candidate_city, job_city)
+        # Job-Titel sammeln (manual_title hat Prioritaet)
+        job_titles = []
+        if job_manual_title:
+            job_titles.append(job_manual_title.lower().strip())
+        if job_hotlist_title:
+            job_titles.append(job_hotlist_title.lower().strip())
+        if job_title:
+            job_titles.append(job_title.lower().strip())
+
+        if not job_titles:
+            return 0.3
+
+        cand_titles_lower = [t.lower().strip() for t in candidate_titles if t]
+
+        # 1. Exakter Match pruefen
+        for jt in job_titles:
+            for ct in cand_titles_lower:
+                if ct == jt or ct in jt or jt in ct:
+                    return 1.0
+
+        # 2. Gruppen-Match pruefen
+        def find_group(title: str) -> str | None:
+            title_lower = title.lower().strip()
+            for group_name, members in self.JOB_TITLE_GROUPS.items():
+                if title_lower in members:
+                    return group_name
+                # Teilstring-Check fuer zusammengesetzte Titel
+                for member in members:
+                    if member in title_lower or title_lower in member:
+                        return group_name
+            return None
+
+        job_groups = set()
+        for jt in job_titles:
+            g = find_group(jt)
+            if g:
+                job_groups.add(g)
+
+        cand_groups = set()
+        for ct in cand_titles_lower:
+            g = find_group(ct)
+            if g:
+                cand_groups.add(g)
+
+        if job_groups and cand_groups:
+            if job_groups & cand_groups:
+                return 0.7  # Gleiche Titel-Gruppe
+
+            # Cross-Gruppe Penalty
+            # Lohnbuchhaltung ↔ Finanzbuchhaltung = 0.2 (komplett anderes Fachgebiet)
+            cross_penalty_groups = {"lohnbuchhaltung", "controlling", "steuern"}
+            if (job_groups & cross_penalty_groups) or (cand_groups & cross_penalty_groups):
+                return 0.2
+            return 0.4  # Andere Gruppen-Kombination
+
+        return 0.3  # Keine Gruppe erkannt
+
+    def _score_industry_fit(
+        self,
+        candidate_industries: list[str],
+        job_industry: str | None,
+    ) -> float:
+        """Berechnet Branchenerfahrung Score (0.0 - 1.0).
+
+        Gleiche Branche = 1.0
+        Verwandte Branche = 0.6
+        Keine Erfahrung = 0.3
+        """
+        if not job_industry or not candidate_industries:
+            return 0.3  # Keine Daten → neutral
+
+        job_ind = job_industry.lower().strip()
+        cand_inds = [i.lower().strip() for i in candidate_industries if i]
+
+        # Exakter Match
+        for ci in cand_inds:
+            if ci == job_ind or ci in job_ind or job_ind in ci:
+                return 1.0
+
+        # Verwandte Branchen
+        related_groups = {
+            "automotive": {"maschinenbau", "automotive", "automobilindustrie", "fahrzeugbau"},
+            "pharma": {"pharma", "pharmazeutisch", "chemie", "medizintechnik", "gesundheit"},
+            "finance": {"bank", "finanzdienstleistung", "versicherung", "finanz"},
+            "tech": {"it", "software", "technologie", "digital", "telekommunikation"},
+            "industrie": {"maschinenbau", "produktion", "fertigung", "industrie"},
+            "beratung": {"beratung", "consulting", "wirtschaftspruefung", "steuerberatung", "kanzlei"},
+        }
+
+        job_related = set()
+        cand_related = set()
+        for group_name, members in related_groups.items():
+            if any(m in job_ind for m in members):
+                job_related.add(group_name)
+            for ci in cand_inds:
+                if any(m in ci for m in members):
+                    cand_related.add(group_name)
+
+        if job_related & cand_related:
+            return 0.6
+
+        return 0.3  # Keine Branchenerfahrung
 
     async def _score_candidates(
         self,
@@ -590,9 +831,8 @@ class MatchingEngineV2:
     ) -> list[ScoredMatch]:
         """Schicht 2: Berechnet gewichteten Score fuer alle Kandidaten.
 
-        ENTFERNUNG IST KEIN SOFT-SCORE MEHR!
-        Entfernung >60km wird schon in Schicht 1 (Hard Filter) entfernt.
-        Hier gibt es nur noch einen Bonus fuer besonders nahe Kandidaten.
+        v2.5: 7 Dimensionen + BiBu-Multiplikator + Qualification-Tag + Career-Note.
+        Location ist NUR Hard Filter (30km) — kein Soft-Score mehr.
 
         Args:
             job: Der Job gegen den gematcht wird
@@ -605,7 +845,18 @@ class MatchingEngineV2:
         job_level = job.v2_seniority_level or 2
         job_skills = job.v2_required_skills or []
         job_embedding = job.v2_embedding
-        job_city = job.work_location_city or job.city
+        job_industry = job.industry
+
+        # BiBu-Check: Braucht der Job einen Bilanzbuchhalter?
+        job_requires_bibu = False
+        if job_skills:
+            for skill in job_skills:
+                name = skill.get("skill", "").lower()
+                imp = skill.get("importance", "")
+                cat = skill.get("category", "")
+                if "bilanzbuchhalter" in name and (imp == "essential" or cat == "zertifizierung"):
+                    job_requires_bibu = True
+                    break
 
         # Gewichte normalisieren (Summe = 100)
         total_weight = sum(weights.values())
@@ -614,45 +865,76 @@ class MatchingEngineV2:
 
         scored = []
         for cand in candidates:
-            # Einzelne Scores berechnen (alle 0.0 - 1.0)
+            # ── 7 Score-Dimensionen (alle 0.0 - 1.0) ──
+
             skill_score = self._score_skill_overlap(
                 cand.structured_skills, job_skills
             )
-            seniority_score = self._score_seniority_fit(
+            seniority_score, qualification_tag = self._score_seniority_fit(
                 cand.seniority_level, job_level
+            )
+            job_title_score = self._score_job_title_fit(
+                cand.job_titles,
+                job.position,
+                getattr(job, "manual_job_title", None),
+                job.hotlist_job_title,
             )
             embedding_score = self._score_embedding_similarity(
                 cand.embedding_current, job_embedding
             )
-            career_score = self._score_career_fit(
+            industry_score = self._score_industry_fit(
+                cand.industries, job_industry
+            )
+            career_score, career_note = self._score_career_fit(
                 cand.career_trajectory, cand.seniority_level, job_level
             )
             software_score = self._score_software_match(
-                cand.structured_skills, job_skills
-            )
-            location_score = self._score_location_bonus(
-                cand.city, job_city, cand.distance_km
+                cand.structured_skills, job_skills, cand.erp
             )
 
-            # Gewichtete Summe (0-100)
+            # ── Gewichtete Summe (0-100) ──
             total = (
-                skill_score * weights.get("skill_overlap", 35) +
+                skill_score * weights.get("skill_overlap", 27) +
                 seniority_score * weights.get("seniority_fit", 20) +
-                embedding_score * weights.get("embedding_sim", 20) +
-                career_score * weights.get("career_fit", 10) +
-                software_score * weights.get("software_match", 10) +
-                location_score * weights.get("location_bonus", 5)
+                job_title_score * weights.get("job_title_fit", 18) +
+                embedding_score * weights.get("embedding_sim", 15) +
+                industry_score * weights.get("industry_fit", 8) +
+                career_score * weights.get("career_fit", 7) +
+                software_score * weights.get("software_match", 5)
             ) / total_weight * 100
+
+            # ── BiBu-Multiplikator (NACH Gewichtung, VOR Speichern) ──
+            bibu_multiplier = 1.0
+            if job_requires_bibu:
+                candidate_has_bibu = any(
+                    "bilanzbuchhalter" in c.lower()
+                    for c in cand.certifications
+                ) if cand.certifications else False
+                if candidate_has_bibu:
+                    bibu_multiplier = 1.3
+                else:
+                    bibu_multiplier = 0.5
+                total *= bibu_multiplier
+
+            total = min(100, max(0, total))  # Cap 0-100
 
             breakdown = {
                 "skill_overlap": round(skill_score, 3),
                 "seniority_fit": round(seniority_score, 3),
+                "job_title_fit": round(job_title_score, 3),
                 "embedding_sim": round(embedding_score, 3),
+                "industry_fit": round(industry_score, 3),
                 "career_fit": round(career_score, 3),
                 "software_match": round(software_score, 3),
-                "location_bonus": round(location_score, 3),
                 "distance_km": cand.distance_km,
+                # v2.5 Tags
+                "qualification_tag": qualification_tag,
+                "candidate_level": cand.seniority_level,
+                "job_level": job_level,
+                "bibu_multiplier": bibu_multiplier if bibu_multiplier != 1.0 else None,
             }
+            if career_note:
+                breakdown["career_note"] = career_note
 
             scored.append(ScoredMatch(
                 candidate_id=cand.id,

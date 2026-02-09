@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime
 
 from geoalchemy2 import Geography
-from sqlalchemy import DateTime, Enum, Index, String, Text, func
+from sqlalchemy import ARRAY, DateTime, Enum, Index, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -33,7 +33,7 @@ class Company(Base):
     )
 
     # Basis-Informationen
-    name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
     domain: Mapped[str | None] = mapped_column(String(255))
 
     # Adresse (ein Feld fuer einfaches Kopieren)
@@ -50,6 +50,10 @@ class Company(Base):
 
     # Unternehmensgroesse
     employee_count: Mapped[str | None] = mapped_column(String(50))
+
+    # Branche + ERP-Systeme (fuer Matching v2.5)
+    industry: Mapped[str | None] = mapped_column(String(100))
+    erp_systems: Mapped[list[str] | None] = mapped_column(ARRAY(String))
 
     # Status
     status: Mapped[CompanyStatus] = mapped_column(
@@ -88,8 +92,10 @@ class Company(Base):
         "ATSJob", back_populates="company",
     )
 
-    # Indizes
+    # Indizes + Constraints
     __table_args__ = (
+        # Multi-Standort: Gleicher Name + andere Stadt = separate Company
+        UniqueConstraint("name", "city", name="uq_companies_name_city"),
         Index("ix_companies_name", "name"),
         Index("ix_companies_city", "city"),
         Index("ix_companies_status", "status"),

@@ -88,12 +88,12 @@ _backfill_status: dict = {
 }
 
 
-async def _run_backfill(entity_type: str, max_total: int, batch_size: int):
+async def _run_backfill(entity_type: str, max_total: int, batch_size: int, force_reprofile: bool = False):
     """Background-Task fuer Backfill."""
     from app.database import async_session_maker
 
     _backfill_status["running"] = True
-    _backfill_status["type"] = entity_type
+    _backfill_status["type"] = f"reprofile_{entity_type}" if force_reprofile else entity_type
     _backfill_status["processed"] = 0
     _backfill_status["total"] = 0
     _backfill_status["cost_usd"] = 0.0
@@ -112,12 +112,14 @@ async def _run_backfill(entity_type: str, max_total: int, batch_size: int):
                         batch_size=batch_size,
                         max_total=max_total,
                         progress_callback=on_progress,
+                        force_reprofile=force_reprofile,
                     )
                 elif entity_type == "jobs":
                     result = await service.backfill_jobs(
                         batch_size=batch_size,
                         max_total=max_total,
                         progress_callback=on_progress,
+                        force_reprofile=force_reprofile,
                     )
                 elif entity_type == "all":
                     # Erst Kandidaten, dann Jobs
@@ -125,11 +127,13 @@ async def _run_backfill(entity_type: str, max_total: int, batch_size: int):
                         batch_size=batch_size,
                         max_total=max_total,
                         progress_callback=on_progress,
+                        force_reprofile=force_reprofile,
                     )
                     result_j = await service.backfill_jobs(
                         batch_size=batch_size,
                         max_total=max_total,
                         progress_callback=on_progress,
+                        force_reprofile=force_reprofile,
                     )
                     result = {
                         "candidates": {
@@ -173,6 +177,7 @@ async def start_backfill(
     entity_type: str = "all",  # "candidates", "jobs", "all"
     max_total: int = 0,  # 0 = alle
     batch_size: int = 50,
+    force_reprofile: bool = False,  # True = alle Profile neu erstellen (v2.5 Upgrade)
 ):
     """Startet Backfill im Background: Alle Kandidaten/Jobs ohne v2-Profil werden profiliert.
 
@@ -180,6 +185,7 @@ async def start_backfill(
         entity_type: "candidates", "jobs", oder "all"
         max_total: Maximum (0 = alle)
         batch_size: Batch-Groesse fuer Commits
+        force_reprofile: True = ALLE Profile neu erstellen (fuer v2.5 Upgrade, ~$1)
     """
     if _backfill_status["running"]:
         return JSONResponse(
@@ -195,7 +201,7 @@ async def start_backfill(
     if entity_type not in ("candidates", "jobs", "all"):
         raise HTTPException(status_code=400, detail="entity_type muss 'candidates', 'jobs' oder 'all' sein")
 
-    background_tasks.add_task(_run_backfill, entity_type, max_total, batch_size)
+    background_tasks.add_task(_run_backfill, entity_type, max_total, batch_size, force_reprofile)
 
     return {
         "status": "started",

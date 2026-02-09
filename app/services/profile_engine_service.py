@@ -34,21 +34,28 @@ CANDIDATE_PROFILE_PROMPT = """Du bist ein erfahrener Personalberater mit tiefem 
 Deine Aufgabe: Analysiere den Werdegang eines Kandidaten und erstelle ein strukturiertes Profil.
 
 ═══════════════════════════════════════════════════════════════
-SENIORITY-LEVELS (ISCO-basiert, 6 Stufen)
+SENIORITY-LEVELS (Finance/Buchhaltung-spezifisch, Skala 2-6)
 ═══════════════════════════════════════════════════════════════
 
-1 = Buchhaltungsassistent / Junior / Werkstudent / Praktikant
-    → Einfache Zuarbeit, keine eigenstaendige Verantwortung
 2 = Sachbearbeiter / Buchhalter / Kreditorenbuchhalter / Debitorenbuchhalter
-    → Operative Taetigkeiten, eigenstaendig in Teilbereichen
+    → Macht EINE Sache: Kreditoren ODER Debitoren, operative Taetigkeiten
 3 = Finanzbuchhalter / Hauptbuchhalter
-    → Eigenstaendig, MITWIRKUNG bei Abschluessen, aber NICHT eigenstaendige Erstellung
-4 = Bilanzbuchhalter / Senior Finanzbuchhalter
-    → Eigenstaendige ERSTELLUNG von Monats-/Quartals-/Jahresabschluessen (HGB, ggf. IFRS)
-5 = Teamleiter / Senior Bilanzbuchhalter / Group Accountant
-    → Fuehrung eines Teams + eigenstaendige Abschlusserstellung + Konsolidierung
-6 = Leiter Rechnungswesen / Head of Accounting / CFO
-    → Gesamtverantwortung Rechnungswesen, strategisch, Reporting an Geschaeftsfuehrung
+    → Kreditoren + Debitoren gleichzeitig + Untertaetigkeiten
+    → "Senior Finanzbuchhalter" = erfahrener Level 3, der ALLES macht
+      (Kredi, Debi, Anlagen, USt, Intercompany, JA-Vorbereitung)
+    → ACHTUNG: "Senior" heisst NICHT Teamleiter!
+4 = Bilanzbuchhalter
+    → Weiterbildung/Pruefung zum Bilanzbuchhalter + EIGENSTAENDIGE Erstellung
+      von Bilanzen/Jahresabschluessen (HGB, ggf. IFRS)
+5 = Teamleiter Buchhaltung / Teamleiter Finanzbuchhaltung
+    → Leitet ein Team, Personalverantwortung
+6 = Leiter Rechnungswesen / Leiter Buchhaltung / Head of Accounting
+    → Gesamtverantwortung Rechnungswesen, strategisch, Reporting an GF
+
+NICHT in der Skala:
+- Level 1 (Junior/Praktikant) → nicht unser Fokus, wenn vorkommend als Level 2 einordnen
+- CFO → komplett andere Rolle, gehoert nicht hierher
+- "Senior" = erfahren (Level 3+), NICHT = Teamleiter (Level 5)
 
 WICHTIGE UNTERSCHEIDUNG:
 - "Eigenstaendige Erstellung" von Abschluessen → Level 4+
@@ -64,7 +71,7 @@ SOFTWARE-OEKOSYSTEME (gegenseitiger Ausschluss)
 - DATEV-Welt: DATEV, DATEV Unternehmen online, DATEV Kanzlei-Rechnungswesen → Kanzlei/KMU
 - SAP-Welt: SAP FI, SAP CO, SAP S/4HANA → Konzern/Grossunternehmen
 - Umstieg DATEV↔SAP = 6-12 Monate Einarbeitung (wichtig fuer Matching!)
-- Andere: Lexware, Addison, Sage, Microsoft Dynamics, Oracle, Navision
+- Andere: Lexware, Addison, Sage, Microsoft Dynamics, Oracle, Navision, BMD, Diamant, Lucanet
 
 ═══════════════════════════════════════════════════════════════
 KARRIERE-TRAJEKTORIE
@@ -74,6 +81,26 @@ KARRIERE-TRAJEKTORIE
 - "lateral": Gleichbleibendes Niveau, Wechsel zwischen aehnlichen Positionen
 - "absteigend": Rueckgang der Verantwortung/Position (selten, aber kommt vor)
 - "einstieg": Berufseinsteiger oder erste 1-2 Jahre
+
+═══════════════════════════════════════════════════════════════
+ZERTIFIKATE-ERKENNUNG
+═══════════════════════════════════════════════════════════════
+
+Erkenne alle Varianten und normalisiere:
+- "Bilanzbuchhalter IHK" / "Geprüfter Bilanzbuchhalter" / "IHK Bilanzbuchhalter"
+  / "Bilanzbuchhalter (IHK)" → "Bilanzbuchhalter"
+- Egal ob bei Ausbildung, Weiterbildung, oder Zertifikate geschrieben
+- Wenn die Person als Bilanzbuchhalter arbeitet OHNE explizites Zertifikat:
+  Nur aufnehmen wenn klar ersichtlich (Abschlusserstellung = starkes Signal)
+
+═══════════════════════════════════════════════════════════════
+BRANCHEN-ERKENNUNG
+═══════════════════════════════════════════════════════════════
+
+Erkenne aus dem Werdegang (Firmennamen + Taetigkeiten) die Branchen:
+z.B. "Maschinenbau", "Automotive", "Pharma", "IT", "Handel", "Logistik",
+"Immobilien", "Versicherung", "Bank/Finanzdienstleistung", "Kanzlei",
+"Steuerberatung", "Gesundheit", "Energieversorgung" etc.
 
 ═══════════════════════════════════════════════════════════════
 AUSGABE (JSON)
@@ -91,11 +118,14 @@ Antworte NUR mit validem JSON:
     {"skill": "Kreditorenbuchhaltung", "proficiency": "experte", "recency": "aktuell", "category": "taetigkeitsfeld"},
     {"skill": "SAP FI", "proficiency": "grundlagen", "recency": "veraltet", "category": "software"},
     {"skill": "Umsatzsteuer", "proficiency": "fortgeschritten", "recency": "aktuell", "category": "fachlich"}
-  ]
+  ],
+  "certifications": ["Bilanzbuchhalter"],
+  "industries": ["Maschinenbau", "Automotive"]
 }
 
 REGELN:
 - seniority_level: Basierend auf AKTUELLER Rolle, NICHT auf der hoechsten jemals erreichten Position!
+  Skala 2-6. Wenn Berufseinsteiger/Junior → Level 2 vergeben.
 - career_trajectory: Basierend auf dem Gesamtverlauf der Karriere
 - years_experience: Gesamte einschlaegige Berufserfahrung in Jahren
 - current_role_summary: 1-2 Saetze ueber die AKTUELLE Taetigkeiten (nicht Historie!)
@@ -103,7 +133,9 @@ REGELN:
   - proficiency: "grundlagen" / "fortgeschritten" / "experte"
   - recency: "aktuell" (letzte 2 Jahre) / "kuerzlich" (2-5 Jahre) / "veraltet" (5+ Jahre)
   - category: "fachlich" / "software" / "taetigkeitsfeld" / "zertifizierung" / "branche"
-- Maximal 15 Skills, nur die relevantesten"""
+- Maximal 15 Skills, nur die relevantesten
+- certifications: Normalisierte Zertifikate (z.B. ["Bilanzbuchhalter"]). Leeres Array wenn keine.
+- industries: In welchen Branchen hat die Person gearbeitet? Aus work_history ableiten. Leeres Array wenn unklar."""
 
 
 JOB_PROFILE_PROMPT = """Du bist ein erfahrener Personalberater mit tiefem Fachwissen im Bereich Finance & Accounting in Deutschland.
@@ -111,21 +143,31 @@ JOB_PROFILE_PROMPT = """Du bist ein erfahrener Personalberater mit tiefem Fachwi
 Deine Aufgabe: Analysiere eine Stellenanzeige und erstelle ein strukturiertes Profil.
 
 ═══════════════════════════════════════════════════════════════
-SENIORITY-LEVELS (ISCO-basiert, 6 Stufen)
+SENIORITY-LEVELS (Finance/Buchhaltung-spezifisch, Skala 2-6)
 ═══════════════════════════════════════════════════════════════
 
-1 = Buchhaltungsassistent / Junior / Werkstudent
-2 = Sachbearbeiter / Buchhalter (operativ)
+2 = Sachbearbeiter / Buchhalter (operative Taetigkeiten, Teilbereiche)
 3 = Finanzbuchhalter (eigenstaendig, Mitwirkung bei Abschluessen)
+    → "Senior Finanzbuchhalter" = erfahrener Level 3, NICHT Teamleiter!
 4 = Bilanzbuchhalter (eigenstaendige Erstellung von Abschluessen)
-5 = Teamleiter / Senior Bilanzbuchhalter / Group Accountant
-6 = Leiter Rechnungswesen / Head of Accounting / CFO
+5 = Teamleiter Buchhaltung (Fuehrungsverantwortung)
+6 = Leiter Rechnungswesen / Head of Accounting
 
 WICHTIG BEI DER EINSTUFUNG DER STELLE:
 - Eine Stelle ist NUR Level 4+, wenn die AUFGABEN klar eigenstaendige Abschlusserstellung fordern
 - "Bilanzbuchhalter wuenschenswert" in Anforderungen macht die Stelle NICHT zu Level 4
 - Entscheidend sind die AUFGABEN, nicht der Jobtitel oder gewuenschte Qualifikationen
 - "Mitwirkung bei Abschluessen" = Level 3, NICHT Level 4
+- Junior/Praktikant → Level 2 vergeben. CFO → gehoert nicht hierher.
+
+═══════════════════════════════════════════════════════════════
+WORK ARRANGEMENT (Arbeitsmodell)
+═══════════════════════════════════════════════════════════════
+
+Erkenne aus dem Stellentext:
+- "100% Remote" / "komplett remote" / "Homeoffice" → "remote"
+- "Hybrid" / "2-3 Tage Buero" / "flexible Arbeitszeiten" → "hybrid"
+- Kein Hinweis oder "Praesenz" / "vor Ort" → "vor_ort"
 
 ═══════════════════════════════════════════════════════════════
 AUSGABE (JSON)
@@ -139,19 +181,26 @@ Antworte NUR mit validem JSON:
     {"skill": "HGB-Abschlusserstellung", "importance": "essential", "category": "fachlich"},
     {"skill": "DATEV", "importance": "essential", "category": "software"},
     {"skill": "SAP FI", "importance": "preferred", "category": "software"},
-    {"skill": "Bilanzbuchhalter IHK", "importance": "preferred", "category": "zertifizierung"},
     {"skill": "Umsatzsteuer", "importance": "essential", "category": "fachlich"}
-  ]
+  ],
+  "required_certifications": [{"name": "Bilanzbuchhalter", "importance": "essential"}],
+  "detected_erp": ["DATEV"],
+  "work_arrangement": "vor_ort"
 }
 
 REGELN:
-- seniority_level: Basierend auf den AUFGABEN der Stelle, NICHT auf dem Titel
+- seniority_level: Basierend auf den AUFGABEN der Stelle, NICHT auf dem Titel. Skala 2-6.
 - role_summary: 1-2 Saetze ueber die Kern-Taetigkeiten der Stelle
 - required_skills: Jeder geforderte Skill mit Wichtigkeit
   - importance: "essential" (Muss-Kriterium) / "preferred" (Wunsch-Kriterium)
   - category: "fachlich" / "software" / "taetigkeitsfeld" / "zertifizierung" / "branche"
 - Maximal 12 Skills, nur die relevantesten
-- Trenne klar zwischen echten Anforderungen und "nice-to-have" """
+- Trenne klar zwischen echten Anforderungen und "nice-to-have"
+- required_certifications: Wenn Zertifikate gefordert (z.B. "Bilanzbuchhalter IHK"). Leeres Array wenn keine.
+  - name: Normalisierter Name (z.B. "Bilanzbuchhalter")
+  - importance: "essential" oder "preferred"
+- detected_erp: Im Stellentext erwaehnte ERP/Software-Systeme (DATEV, SAP FI, SAP CO, Addison, Lexware, Sage, etc.). Leeres Array wenn keine.
+- work_arrangement: "remote" / "hybrid" / "vor_ort" — aus Stellentext ableiten."""
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -162,11 +211,13 @@ REGELN:
 class CandidateProfile:
     """Ergebnis der Kandidaten-Profil-Extraktion."""
     candidate_id: UUID
-    seniority_level: int  # 1-6
+    seniority_level: int  # 2-6
     career_trajectory: str  # aufsteigend/lateral/absteigend/einstieg
     years_experience: int
     current_role_summary: str
     structured_skills: list[dict]  # [{skill, proficiency, recency, category}]
+    certifications: list[str] = field(default_factory=list)  # z.B. ["Bilanzbuchhalter"]
+    industries: list[str] = field(default_factory=list)  # z.B. ["Maschinenbau", "Pharma"]
     success: bool = True
     error: str | None = None
     input_tokens: int = 0
@@ -188,6 +239,9 @@ class JobProfile:
     seniority_level: int
     role_summary: str
     required_skills: list[dict]  # [{skill, importance, category}]
+    required_certifications: list[dict] = field(default_factory=list)  # [{name, importance}]
+    detected_erp: list[str] = field(default_factory=list)  # z.B. ["DATEV", "SAP FI"]
+    work_arrangement: str = "vor_ort"  # "remote" / "hybrid" / "vor_ort"
     success: bool = True
     error: str | None = None
     input_tokens: int = 0
@@ -363,6 +417,8 @@ class ProfileEngineService:
             parts.append(f"\nSkills: {', '.join(c.skills[:20])}")
         if c.it_skills:
             parts.append(f"IT-Skills: {', '.join(c.it_skills[:15])}")
+        if c.erp:
+            parts.append(f"ERP-Systeme: {', '.join(c.erp[:10])}")
 
         # Sprachen
         if c.languages:
@@ -424,7 +480,7 @@ class ProfileEngineService:
 
         # Validierung
         seniority = data.get("seniority_level", 0)
-        if not isinstance(seniority, int) or seniority < 1 or seniority > 6:
+        if not isinstance(seniority, int) or seniority < 2 or seniority > 6:
             seniority = 2  # Default: Sachbearbeiter
 
         trajectory = data.get("career_trajectory", "lateral")
@@ -435,6 +491,14 @@ class ProfileEngineService:
         if not isinstance(years, int) or years < 0:
             years = 0
 
+        # Zertifikate + Branchen aus neuen GPT-Feldern
+        certifications = data.get("certifications", [])
+        if not isinstance(certifications, list):
+            certifications = []
+        industries = data.get("industries", [])
+        if not isinstance(industries, list):
+            industries = []
+
         profile = CandidateProfile(
             candidate_id=candidate_id,
             seniority_level=seniority,
@@ -442,6 +506,8 @@ class ProfileEngineService:
             years_experience=years,
             current_role_summary=data.get("current_role_summary", "")[:500],
             structured_skills=data.get("structured_skills", [])[:15],
+            certifications=certifications[:10],
+            industries=industries[:10],
             input_tokens=result["input_tokens"],
             output_tokens=result["output_tokens"],
         )
@@ -453,6 +519,8 @@ class ProfileEngineService:
         candidate.v2_years_experience = profile.years_experience
         candidate.v2_current_role_summary = profile.current_role_summary
         candidate.v2_structured_skills = profile.structured_skills
+        candidate.v2_certifications = profile.certifications
+        candidate.v2_industries = profile.industries
         candidate.v2_profile_created_at = now
         await self.db.flush()
 
@@ -536,14 +604,28 @@ class ProfileEngineService:
 
         # Validierung
         seniority = data.get("seniority_level", 0)
-        if not isinstance(seniority, int) or seniority < 1 or seniority > 6:
+        if not isinstance(seniority, int) or seniority < 2 or seniority > 6:
             seniority = 2
+
+        # Neue Felder aus GPT-Antwort
+        required_certs = data.get("required_certifications", [])
+        if not isinstance(required_certs, list):
+            required_certs = []
+        detected_erp = data.get("detected_erp", [])
+        if not isinstance(detected_erp, list):
+            detected_erp = []
+        work_arr = data.get("work_arrangement", "vor_ort")
+        if work_arr not in ("remote", "hybrid", "vor_ort"):
+            work_arr = "vor_ort"
 
         profile = JobProfile(
             job_id=job_id,
             seniority_level=seniority,
             role_summary=data.get("role_summary", "")[:500],
             required_skills=data.get("required_skills", [])[:12],
+            required_certifications=required_certs[:5],
+            detected_erp=detected_erp[:10],
+            work_arrangement=work_arr,
             input_tokens=result["input_tokens"],
             output_tokens=result["output_tokens"],
         )
@@ -554,6 +636,9 @@ class ProfileEngineService:
         job.v2_required_skills = profile.required_skills
         job.v2_role_summary = profile.role_summary
         job.v2_profile_created_at = now
+        # Neue Felder: work_arrangement wird direkt auf dem Job gesetzt
+        if not job.work_arrangement:
+            job.work_arrangement = profile.work_arrangement
         await self.db.flush()
 
         logger.info(
@@ -570,6 +655,7 @@ class ProfileEngineService:
         batch_size: int = 50,
         max_total: int = 0,
         progress_callback=None,
+        force_reprofile: bool = False,
     ) -> BackfillResult:
         """Backfill: Erstellt Profile fuer alle Kandidaten OHNE v2-Profil.
 
@@ -577,6 +663,7 @@ class ProfileEngineService:
             batch_size: Wie viele pro Commit-Batch
             max_total: Maximum (0 = alle)
             progress_callback: Optional callback(processed, total)
+            force_reprofile: Wenn True, werden ALLE Profile neu erstellt (fuer v2.5 Upgrade)
 
         Returns:
             BackfillResult mit Statistiken
@@ -584,13 +671,16 @@ class ProfileEngineService:
         result = BackfillResult()
 
         # Zaehle fehlende Profile — NUR FINANCE-Kandidaten
+        conditions = [
+            Candidate.deleted_at.is_(None),
+            Candidate.hidden == False,
+            Candidate.hotlist_category == "FINANCE",
+        ]
+        if not force_reprofile:
+            conditions.append(Candidate.v2_profile_created_at.is_(None))
+
         count_result = await self.db.execute(
-            select(func.count(Candidate.id)).where(
-                Candidate.v2_profile_created_at.is_(None),
-                Candidate.deleted_at.is_(None),
-                Candidate.hidden == False,
-                Candidate.hotlist_category == "FINANCE",
-            )
+            select(func.count(Candidate.id)).where(*conditions)
         )
         total_missing = count_result.scalar() or 0
         result.total = min(total_missing, max_total) if max_total > 0 else total_missing
@@ -599,15 +689,13 @@ class ProfileEngineService:
             logger.info("Backfill Kandidaten: Alle FINANCE-Profile vorhanden.")
             return result
 
-        logger.info(f"Backfill Kandidaten: {result.total} FINANCE-Profile zu erstellen...")
+        mode = "Re-Profiling (v2.5)" if force_reprofile else "Backfill"
+        logger.info(f"{mode} Kandidaten: {result.total} FINANCE-Profile zu erstellen...")
 
         # FINANCE-Kandidaten laden (aelteste zuerst)
         query = (
             select(Candidate.id)
-            .where(
-                Candidate.v2_profile_created_at.is_(None),
-                Candidate.deleted_at.is_(None),
-                Candidate.hidden == False,
+            .where(*conditions)
                 Candidate.hotlist_category == "FINANCE",
             )
             .order_by(Candidate.created_at.asc())
@@ -656,6 +744,7 @@ class ProfileEngineService:
         batch_size: int = 50,
         max_total: int = 0,
         progress_callback=None,
+        force_reprofile: bool = False,
     ) -> BackfillResult:
         """Backfill: Erstellt Profile fuer alle Jobs OHNE v2-Profil.
 
@@ -663,6 +752,7 @@ class ProfileEngineService:
             batch_size: Wie viele pro Commit-Batch
             max_total: Maximum (0 = alle)
             progress_callback: Optional callback(processed, total)
+            force_reprofile: Wenn True, werden ALLE Profile neu erstellt (fuer v2.5 Upgrade)
 
         Returns:
             BackfillResult mit Statistiken
@@ -670,12 +760,15 @@ class ProfileEngineService:
         result = BackfillResult()
 
         # Zaehle fehlende Profile — NUR FINANCE-Jobs
+        conditions = [
+            Job.deleted_at.is_(None),
+            Job.hotlist_category == "FINANCE",
+        ]
+        if not force_reprofile:
+            conditions.append(Job.v2_profile_created_at.is_(None))
+
         count_result = await self.db.execute(
-            select(func.count(Job.id)).where(
-                Job.v2_profile_created_at.is_(None),
-                Job.deleted_at.is_(None),
-                Job.hotlist_category == "FINANCE",
-            )
+            select(func.count(Job.id)).where(*conditions)
         )
         total_missing = count_result.scalar() or 0
         result.total = min(total_missing, max_total) if max_total > 0 else total_missing
@@ -684,16 +777,13 @@ class ProfileEngineService:
             logger.info("Backfill Jobs: Alle FINANCE-Profile vorhanden.")
             return result
 
-        logger.info(f"Backfill Jobs: {result.total} FINANCE-Profile zu erstellen...")
+        mode = "Re-Profiling (v2.5)" if force_reprofile else "Backfill"
+        logger.info(f"{mode} Jobs: {result.total} FINANCE-Profile zu erstellen...")
 
         # FINANCE-Jobs laden (aelteste zuerst)
         query = (
             select(Job.id)
-            .where(
-                Job.v2_profile_created_at.is_(None),
-                Job.deleted_at.is_(None),
-                Job.hotlist_category == "FINANCE",
-            )
+            .where(*conditions)
             .order_by(Job.created_at.asc())
         )
         if max_total > 0:

@@ -3,7 +3,7 @@
 import logging
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -164,18 +164,44 @@ class CompanyService:
 
     async def get_or_create_by_name(self, name: str, **extra_fields) -> Company | None:
         """
-        Sucht ein Unternehmen nach Name oder erstellt es.
+        Sucht ein Unternehmen nach (Name + Stadt) oder erstellt es.
+        Multi-Standort: "Allianz München" und "Allianz Hamburg" = 2 separate Companies.
         Gibt None zurueck wenn das Unternehmen auf der Blacklist steht.
         """
         normalized = name.strip()
         if not normalized:
             return None
 
-        # Case-insensitive Suche
+        # Stadt aus extra_fields fuer Compound-Lookup
+        city = extra_fields.get("city")
+        city_normalized = city.strip().lower() if city and str(city).strip() else None
+
+        # Case-insensitive Suche nach (name, city) — Multi-Standort-Support
+        conditions = [func.lower(Company.name) == normalized.lower()]
+        if city_normalized:
+            conditions.append(func.lower(Company.city) == city_normalized)
+        else:
+            conditions.append(Company.city.is_(None))
+
         result = await self.db.execute(
-            select(Company).where(func.lower(Company.name) == normalized.lower())
+            select(Company).where(and_(*conditions))
         )
         company = result.scalar_one_or_none()
+
+        # Fallback: Wenn kein Match mit Stadt, suche ohne Stadt
+        # (fuer bestehende Daten ohne Stadt-Info)
+        if not company and city_normalized:
+            result = await self.db.execute(
+                select(Company).where(
+                    func.lower(Company.name) == normalized.lower(),
+                    Company.city.is_(None),
+                )
+            )
+            company = result.scalar_one_or_none()
+            # Wenn gefunden und keine Stadt hatte → Stadt nachfuellen
+            if company and city_normalized:
+                company.city = city.strip()
+                await self.db.flush()
 
         if company:
             # Blacklist check
