@@ -537,6 +537,7 @@ class MatchCenterService:
                     Match.distance_km,
                     Match.status,
                     Match.matching_method,
+                    Match.user_feedback,
                     Candidate.first_name,
                     Candidate.last_name,
                     Candidate.hotlist_job_title.label("cand_title"),
@@ -574,6 +575,7 @@ class MatchCenterService:
                     "ai_explanation": m.ai_explanation,
                     "distance_km": round(m.distance_km, 1) if m.distance_km else None,
                     "status": m.status.value if m.status else "new",
+                    "user_feedback": m.user_feedback,
                 })
 
             jobs_with_matches.append({

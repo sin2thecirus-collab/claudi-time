@@ -121,8 +121,32 @@
                     </div>
                 </div>
 
-                <!-- Rechts: Aktionen -->
+                <!-- Rechts: Feedback + Aktionen -->
                 <div class="flex items-center gap-1.5 flex-shrink-0 ml-3">
+                    {# ── Feedback-Buttons ── #}
+                    <div id="grp-fb-{{ m.match_id }}" class="flex items-center gap-0.5 mr-1">
+                        {% if m.user_feedback %}
+                        <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs
+                                     {% if m.user_feedback == 'good' %}bg-green-100 text-green-600
+                                     {% elif m.user_feedback == 'bad' %}bg-red-100 text-red-600
+                                     {% else %}bg-yellow-100 text-yellow-600{% endif %}"
+                              title="Feedback: {{ m.user_feedback }}">
+                            {% if m.user_feedback == 'good' %}&#x1F44D;{% elif m.user_feedback == 'bad' %}&#x1F44E;{% else %}&#x1F914;{% endif %}
+                        </span>
+                        {% else %}
+                        <button hx-post="/api/match-center/feedback/{{ m.match_id }}?feedback=good"
+                                hx-target="#grp-fb-{{ m.match_id }}"
+                                hx-swap="innerHTML"
+                                class="w-6 h-6 rounded-full flex items-center justify-center text-xs bg-gray-50 hover:bg-green-100 text-gray-400 hover:text-green-600 border border-gray-200 hover:border-green-300 transition-colors"
+                                title="Guter Match">&#x1F44D;</button>
+                        <button hx-post="/api/match-center/feedback/{{ m.match_id }}?feedback=bad"
+                                hx-target="#grp-fb-{{ m.match_id }}"
+                                hx-swap="innerHTML"
+                                class="w-6 h-6 rounded-full flex items-center justify-center text-xs bg-gray-50 hover:bg-red-100 text-gray-400 hover:text-red-600 border border-gray-200 hover:border-red-300 transition-colors"
+                                title="Schlechter Match">&#x1F44E;</button>
+                        {% endif %}
+                    </div>
+
                     <button onclick="openCompareModal('{{ m.match_id }}')"
                             class="text-xs px-2 py-1 rounded-lg bg-primary-50 text-primary-700 hover:bg-primary-100 border border-primary-200 transition-colors font-medium">
                         Vergleich
