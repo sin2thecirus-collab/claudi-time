@@ -704,6 +704,29 @@ async def get_pipeline_status():
     }
 
 
+@router.get("/pipeline/debug-match/{job_id}")
+async def debug_match_job(job_id: UUID, db: AsyncSession = Depends(get_db)):
+    """Debug: Matcht einen Job und gibt detaillierte Fehler zurueck."""
+    import traceback
+    try:
+        from app.services.matching_engine_v2 import MatchingEngineV2
+        engine = MatchingEngineV2(db)
+        result = await engine.match_job(job_id, save_to_db=False)
+        return {
+            "status": "ok",
+            "matches_found": len(result.matches),
+            "candidates_after_filter": result.candidates_after_filter,
+            "duration_ms": result.duration_ms,
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "type": type(e).__name__,
+            "traceback": traceback.format_exc()[-2000:],
+        }
+
+
 @router.get("/pipeline/debug")
 async def debug_pipeline(db: AsyncSession = Depends(get_db)):
     """Debug-Endpoint: Zeigt warum Matching 0 Matches erzeugt."""
