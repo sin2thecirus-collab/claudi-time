@@ -302,34 +302,31 @@
         <button hx-post="/api/match-center/feedback/{{ data.match_id }}?feedback=good"
                 hx-target="#feedback-area-{{ data.match_id }}"
                 hx-swap="innerHTML"
-                class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium
+                hx-on::after-request="feedbackDoneClose('{{ data.match_id }}', 'good')"
+                class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium
                        bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 transition-colors"
                 title="Guter Match — Kandidat passt zur Stelle">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"/>
-            </svg>
+            <span class="text-base">&#x1F44D;</span>
             Gut
         </button>
         <button hx-post="/api/match-center/feedback/{{ data.match_id }}?feedback=maybe"
                 hx-target="#feedback-area-{{ data.match_id }}"
                 hx-swap="innerHTML"
-                class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium
+                hx-on::after-request="feedbackDoneClose('{{ data.match_id }}', 'maybe')"
+                class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium
                        bg-yellow-50 text-yellow-700 hover:bg-yellow-100 border border-yellow-200 transition-colors"
                 title="Vielleicht — nicht sicher">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-            </svg>
+            <span class="text-base">&#x1F914;</span>
             Vielleicht
         </button>
         <button hx-post="/api/match-center/feedback/{{ data.match_id }}?feedback=bad"
                 hx-target="#feedback-area-{{ data.match_id }}"
                 hx-swap="innerHTML"
-                class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium
+                hx-on::after-request="feedbackDoneClose('{{ data.match_id }}', 'bad')"
+                class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium
                        bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 transition-colors"
                 title="Schlechter Match — Kandidat passt nicht">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018c.163 0 .326.02.485.06L17 4m-7 10v2a2 2 0 002 2h.095c.5 0 .905-.405.905-.905 0-.714.211-1.412.608-2.006L17 13V4m-7 10h2m5-6h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5"/>
-            </svg>
+            <span class="text-base">&#x1F44E;</span>
             Schlecht
         </button>
         {% endif %}

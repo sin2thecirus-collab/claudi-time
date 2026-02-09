@@ -288,5 +288,26 @@
     function closeCompareModal() {
         window.dispatchEvent(new CustomEvent('close-compare-modal'));
     }
+
+    function feedbackDoneClose(matchId, feedback) {
+        // Feedback-Emoji in der Gruppen-Liste aktualisieren
+        var grpFb = document.getElementById('grp-fb-' + matchId);
+        if (grpFb) {
+            var emoji = feedback === 'good' ? '\u{1F44D}' : feedback === 'bad' ? '\u{1F44E}' : '\u{1F914}';
+            var colorClass = feedback === 'good' ? 'bg-green-100 text-green-600' : feedback === 'bad' ? 'bg-red-100 text-red-600' : 'bg-yellow-100 text-yellow-600';
+            grpFb.innerHTML = '<span class="w-6 h-6 rounded-full flex items-center justify-center text-xs ' + colorClass + '">' + emoji + '</span>';
+        }
+
+        // Vergleichsfenster nach kurzer Pause schliessen
+        setTimeout(function() {
+            closeCompareModal();
+        }, 400);
+    }
+
+    function copyToClipboard(text, label) {
+        navigator.clipboard.writeText(text).then(function() {
+            if (typeof showToast === 'function') showToast(label + ' kopiert', 'success');
+        });
+    }
 </script>
 {% endblock %}

@@ -228,28 +228,38 @@ async def save_feedback(
     """Feedback fuer ein Match speichern (HTMX) + v2-Lernsystem fuettern."""
     service = MatchCenterService(db)
 
-    match = await service.save_feedback(match_id, feedback, note)
+    try:
+        match = await service.save_feedback(match_id, feedback, note)
+    except Exception as e:
+        logger.error(f"Feedback speichern fehlgeschlagen fuer {match_id}: {e}", exc_info=True)
+        await db.rollback()
+        return HTMLResponse(
+            f"<span class='text-red-500 text-xs'>Serverfehler: {type(e).__name__}</span>",
+            status_code=500,
+        )
 
     if not match:
         return HTMLResponse("<span class='text-red-500 text-xs'>Nicht gefunden</span>", status_code=404)
 
-    # ── v2 Learning Service: Feedback auch ins Lernsystem einspeisen ──
-    # Mapping: "good"→"good", "bad"→"bad", "maybe"→"neutral"
+    # ── v2 Learning Service: Feedback ins Lernsystem einspeisen ──
+    # Eigene Session um Haupt-Transaction nicht zu gefährden
     learning_msg = ""
     try:
+        from app.database import async_session_maker
         from app.services.matching_learning_service import MatchingLearningService
-        learning = MatchingLearningService(db)
-        outcome = "neutral" if feedback == "maybe" else feedback
-        lr = await learning.record_feedback(
-            match_id=match_id,
-            outcome=outcome,
-            note=note,
-            source="match_center_ui",
-        )
-        if lr.weights_adjusted:
-            learning_msg = " — Gewichte angepasst"
+        async with async_session_maker() as learn_db:
+            learning = MatchingLearningService(learn_db)
+            outcome = "neutral" if feedback == "maybe" else feedback
+            lr = await learning.record_feedback(
+                match_id=match_id,
+                outcome=outcome,
+                note=note,
+                source="match_center_ui",
+            )
+            if lr.weights_adjusted:
+                learning_msg = " — Gewichte angepasst"
     except Exception as e:
-        logger.debug(f"v2 Learning Feedback fehlgeschlagen (OK falls kein v2-Match): {e}")
+        logger.debug(f"v2 Learning Feedback fehlgeschlagen (OK): {e}")
 
     feedback_config = {
         "good": ("&#x1F44D; Guter Match", "text-green-600"),
