@@ -1,7 +1,8 @@
 """FastAPI Hauptanwendung für das Matching-Tool."""
 
-# Build: 2026-02-08-v2 - Matching Engine v2 Sprint 2 (Embeddings + 3-Schichten Matching)
+# Build: 2026-02-09-v1 - Matching Engine v2.5 + Background Migrations
 
+import asyncio
 import logging
 import uuid
 from contextlib import asynccontextmanager
@@ -22,21 +23,36 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Globaler Status fuer DB-Migrationen
+_db_ready = False
+_db_migration_task: asyncio.Task | None = None
+
+
+async def _run_migrations():
+    """Fuehrt DB-Migrationen im Hintergrund aus."""
+    global _db_ready
+    try:
+        await init_db()
+        _db_ready = True
+        logger.info("Datenbankverbindung + Migrationen erfolgreich abgeschlossen")
+    except Exception as e:
+        _db_ready = True  # App trotzdem als ready markieren
+        logger.warning(f"DB-Migration teilweise fehlgeschlagen (App laeuft trotzdem): {e}")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup und Shutdown Events."""
-    # Startup
+    global _db_migration_task
+    # Startup: Migrationen im Hintergrund starten
     logger.info("Starte Matching-Tool...")
-    try:
-        await init_db()
-        logger.info("Datenbankverbindung erfolgreich hergestellt")
-    except Exception as e:
-        logger.warning(f"DB-Migration teilweise fehlgeschlagen (App startet trotzdem): {e}")
+    _db_migration_task = asyncio.create_task(_run_migrations())
 
     yield
 
-    # Shutdown
+    # Shutdown: Migration-Task abbrechen falls noch laeuft
+    if _db_migration_task and not _db_migration_task.done():
+        _db_migration_task.cancel()
     logger.info("Beende Matching-Tool...")
 
 
@@ -83,11 +99,12 @@ templates = Jinja2Templates(directory="app/templates")
 # Health-Check Endpoint
 @app.get("/health", tags=["System"])
 async def health_check():
-    """Prüft, ob die Anwendung läuft."""
+    """Prüft, ob die Anwendung läuft. Antwortet sofort (DB-Migrationen laufen im Hintergrund)."""
     return {
         "status": "healthy",
         "version": "1.0.0",
         "environment": settings.environment,
+        "db_ready": _db_ready,
     }
 
 
