@@ -317,6 +317,12 @@ async def match_single_job(
         result = await engine.match_job(job_id, save_to_db=True)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Match Fehler fuer Job {job_id}: {e}", exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e), "type": type(e).__name__},
+        )
 
     return {
         "status": "ok",
@@ -642,6 +648,7 @@ async def _run_full_pipeline(max_total: int):
                 "jobs_matched": match_result.jobs_matched,
                 "matches_created": match_result.total_matches_created,
                 "duration_ms": round(match_result.total_duration_ms, 1),
+                "errors": match_result.errors[:10] if match_result.errors else [],
             }
 
         _pipeline_status["result"] = results
