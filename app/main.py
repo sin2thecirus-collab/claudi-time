@@ -174,6 +174,7 @@ from app.api.routes_companies import router as companies_router
 from app.api.routes_smart_match import router as smart_match_router
 from app.api.routes_titel_zuweisung import router as titel_zuweisung_router
 from app.api.routes_matching_v2 import router as matching_v2_router
+from app.api.routes_status import router as status_router
 
 # ATS Router
 from app.api.routes_ats_jobs import router as ats_jobs_router
@@ -214,3 +215,6 @@ app.include_router(n8n_webhooks_router, prefix="/api")  # n8n Webhooks (/api/n8n
 
 # Matching Engine v2 (/api/v2/profiles/..., /api/v2/weights, /api/v2/rules)
 app.include_router(matching_v2_router, prefix="/api/v2")
+
+# Status & Query API (/api/status/overview, /api/status/geodaten, /api/status/profiling, ...)
+app.include_router(status_router, prefix="/api")
