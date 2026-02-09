@@ -78,20 +78,20 @@
     {% if matches %}
     <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
+            <table class="w-full divide-y divide-gray-200 table-fixed">
                 <thead class="bg-gray-50">
                     <tr>
                         {# Checkbox #}
-                        <th class="w-10 px-3 py-3">
+                        <th class="w-[40px] px-3 py-3">
                             <input type="checkbox"
                                    @change="toggleAllMatches({{ all_match_ids|tojson }})"
                                    :checked="selectedMatchIds.length === {{ matches|length }}"
                                    class="rounded border-gray-300 text-primary-600 focus:ring-primary-500">
                         </th>
                         {# Rang #}
-                        <th class="w-12 px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">#</th>
+                        <th class="w-[36px] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase">#</th>
                         {# Score — sortierbar #}
-                        <th class="w-24 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer select-none hover:text-gray-700"
+                        <th class="w-[90px] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer select-none hover:text-gray-700"
                             @click="toggleSort('score')">
                             <span class="flex items-center gap-1">
                                 Score
@@ -100,7 +100,7 @@
                                 </template>
                             </span>
                         </th>
-                        {# Kandidat — sortierbar #}
+                        {# Kandidat — sortierbar, nimmt verfuegbaren Platz #}
                         <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer select-none hover:text-gray-700"
                             @click="toggleSort('name')">
                             <span class="flex items-center gap-1">
@@ -111,9 +111,9 @@
                             </span>
                         </th>
                         {# Status #}
-                        <th class="w-28 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                        <th class="w-[90px] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                         {# Entfernung — sortierbar #}
-                        <th class="w-24 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer select-none hover:text-gray-700"
+                        <th class="w-[70px] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer select-none hover:text-gray-700"
                             @click="toggleSort('distance')">
                             <span class="flex items-center gap-1">
                                 km
@@ -123,7 +123,7 @@
                             </span>
                         </th>
                         {# Aktivitaet — sortierbar #}
-                        <th class="w-24 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer select-none hover:text-gray-700"
+                        <th class="w-[70px] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer select-none hover:text-gray-700"
                             @click="toggleSort('activity')">
                             <span class="flex items-center gap-1">
                                 Aktiv
@@ -133,9 +133,9 @@
                             </span>
                         </th>
                         {# Gehalt #}
-                        <th class="w-28 px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Gehalt</th>
+                        <th class="w-[80px] px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Gehalt</th>
                         {# Aktionen #}
-                        <th class="w-36 px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase">Aktionen</th>
+                        <th class="w-[130px] px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase">Aktionen</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
@@ -179,12 +179,12 @@
                         </td>
 
                         {# Kandidat (Name + Position) #}
-                        <td class="px-3 py-3">
-                            <div class="flex items-center gap-2.5">
+                        <td class="px-3 py-3 overflow-hidden">
+                            <div class="flex items-center gap-2.5 min-w-0">
                                 <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600 flex-shrink-0">
                                     {{ m.name[0] if m.name else '?' }}
                                 </div>
-                                <div class="min-w-0">
+                                <div class="min-w-0 flex-1">
                                     <p class="text-sm font-medium text-gray-900 truncate">{{ m.name }}</p>
                                     <p class="text-xs text-gray-500 truncate">{{ m.current_position or '' }}{% if m.current_company %} bei {{ m.current_company }}{% endif %}</p>
                                 </div>
