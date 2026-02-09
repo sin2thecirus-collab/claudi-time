@@ -24,7 +24,7 @@ import logging
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -217,46 +217,40 @@ async def update_match_status(
     return response
 
 
-@router.post("/api/match-center/feedback/{match_id}", response_class=HTMLResponse)
+@router.post("/api/match-center/feedback/{match_id}")
 async def save_feedback(
-    request: Request,
     match_id: UUID,
     feedback: str = Query(..., regex="^(good|bad|maybe)$"),
     note: str = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
-    """Feedback fuer ein Match speichern (HTMX) + v2-Lernsystem fuettern."""
-    service = MatchCenterService(db)
+    """Feedback fuer ein Match speichern — direktes SQL UPDATE, kein ORM."""
+    from sqlalchemy import update, text
+    from datetime import datetime, timezone
+    from app.models.match import Match
 
     try:
-        match = await service.save_feedback(match_id, feedback, note)
-    except Exception as e:
-        logger.error(f"Feedback speichern fehlgeschlagen fuer {match_id}: {e}", exc_info=True)
-        await db.rollback()
-        return HTMLResponse(
-            f"<span class='text-red-500 text-xs'>Serverfehler: {type(e).__name__}</span>",
-            status_code=500,
+        stmt = (
+            update(Match)
+            .where(Match.id == match_id)
+            .values(
+                user_feedback=feedback,
+                feedback_note=note,
+                feedback_at=datetime.now(timezone.utc),
+            )
         )
+        result = await db.execute(stmt)
+        await db.commit()
 
-    if not match:
-        return HTMLResponse("<span class='text-red-500 text-xs'>Nicht gefunden</span>", status_code=404)
+        if result.rowcount == 0:
+            return JSONResponse({"status": "not_found"}, status_code=404)
 
-    # v2 Learning Service: vorerst deaktiviert (Tabelle noch nicht migriert)
-    # TODO: Aktivieren sobald match_v2_training_data Tabelle existiert
-    learning_msg = ""
+        return JSONResponse({"status": "ok", "feedback": feedback})
 
-    feedback_config = {
-        "good": ("&#x1F44D; Guter Match", "text-green-600"),
-        "bad": ("&#x1F44E; Schlechter Match", "text-red-600"),
-        "maybe": ("&#x1F914; Vielleicht", "text-yellow-600"),
-    }
-    label, icon_class = feedback_config.get(feedback, ("Feedback gespeichert", "text-gray-400"))
-
-    response = HTMLResponse(
-        f'<span class="inline-flex items-center gap-1 text-xs font-medium {icon_class}">{label}</span>'
-    )
-    response.headers["HX-Trigger"] = '{{"showToast": {{"message": "Feedback gespeichert{learning_msg}", "type": "success"}}}}'.replace("{learning_msg}", learning_msg)
-    return response
+    except Exception as e:
+        logger.error(f"Feedback Fehler: {e}", exc_info=True)
+        await db.rollback()
+        return JSONResponse({"status": "error", "detail": str(e)}, status_code=500)
 
 
 # ═══════════════════════════════════════════════════════════════
