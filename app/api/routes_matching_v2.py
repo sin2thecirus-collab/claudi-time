@@ -697,6 +697,111 @@ async def get_pipeline_status():
     }
 
 
+@router.get("/pipeline/debug")
+async def debug_pipeline(db: AsyncSession = Depends(get_db)):
+    """Debug-Endpoint: Zeigt warum Matching 0 Matches erzeugt."""
+    from sqlalchemy import select, func, text
+    from app.models.candidate import Candidate
+    from app.models.job import Job
+    from app.models.match import Match
+
+    # FINANCE-Jobs mit v2-Profil
+    r1 = await db.execute(
+        select(func.count(Job.id)).where(
+            Job.v2_profile_created_at.isnot(None),
+            Job.deleted_at.is_(None),
+            Job.hotlist_category == "FINANCE",
+        )
+    )
+    finance_jobs_profiled = r1.scalar() or 0
+
+    # FINANCE-Kandidaten mit v2-Profil
+    r2 = await db.execute(
+        select(func.count(Candidate.id)).where(
+            Candidate.v2_profile_created_at.isnot(None),
+            Candidate.deleted_at.is_(None),
+            Candidate.hotlist_category == "FINANCE",
+        )
+    )
+    finance_cands_profiled = r2.scalar() or 0
+
+    # Kandidaten mit Seniority-Level
+    r3 = await db.execute(
+        select(func.count(Candidate.id)).where(
+            Candidate.v2_profile_created_at.isnot(None),
+            Candidate.v2_seniority_level.isnot(None),
+            Candidate.hotlist_category == "FINANCE",
+        )
+    )
+    cands_with_seniority = r3.scalar() or 0
+
+    # Kandidaten mit Embeddings
+    r4 = await db.execute(
+        select(func.count(Candidate.id)).where(
+            Candidate.v2_profile_created_at.isnot(None),
+            Candidate.v2_embedding_current.isnot(None),
+            Candidate.hotlist_category == "FINANCE",
+        )
+    )
+    cands_with_embedding = r4.scalar() or 0
+
+    # Jobs mit Geo-Koordinaten
+    r5 = await db.execute(
+        select(func.count(Job.id)).where(
+            Job.v2_profile_created_at.isnot(None),
+            Job.hotlist_category == "FINANCE",
+            Job.location_coords.isnot(None),
+        )
+    )
+    jobs_with_coords = r5.scalar() or 0
+
+    # Jobs mit Seniority-Level
+    r6 = await db.execute(
+        select(func.count(Job.id)).where(
+            Job.v2_profile_created_at.isnot(None),
+            Job.hotlist_category == "FINANCE",
+            Job.v2_seniority_level.isnot(None),
+        )
+    )
+    jobs_with_seniority = r6.scalar() or 0
+
+    # Stichprobe: Erster FINANCE-Job
+    r7 = await db.execute(
+        select(Job.id, Job.position, Job.company_name, Job.v2_seniority_level, Job.hotlist_category)
+        .where(
+            Job.v2_profile_created_at.isnot(None),
+            Job.hotlist_category == "FINANCE",
+        )
+        .limit(3)
+    )
+    sample_jobs = [
+        {"id": str(r.id), "position": r.position, "company": r.company_name,
+         "seniority": r.v2_seniority_level, "category": r.hotlist_category}
+        for r in r7.all()
+    ]
+
+    # Existierende Matches
+    r8 = await db.execute(select(func.count(Match.id)))
+    total_matches = r8.scalar() or 0
+
+    r9 = await db.execute(
+        select(func.count(Match.id)).where(Match.v2_matched_at.isnot(None))
+    )
+    v2_matches = r9.scalar() or 0
+
+    return {
+        "finance_jobs_profiled": finance_jobs_profiled,
+        "finance_cands_profiled": finance_cands_profiled,
+        "cands_with_seniority": cands_with_seniority,
+        "cands_with_embedding": cands_with_embedding,
+        "jobs_with_coords": jobs_with_coords,
+        "jobs_with_seniority": jobs_with_seniority,
+        "sample_jobs": sample_jobs,
+        "total_matches_in_db": total_matches,
+        "v2_matches_in_db": v2_matches,
+    }
+
+
 # ══════════════════════════════════════════════════════════════════
 # Feedback & Learning (Sprint 3)
 # ══════════════════════════════════════════════════════════════════
