@@ -635,7 +635,7 @@ async def _run_full_pipeline(max_total: int):
 
             match_result = await engine.match_batch(
                 max_jobs=max_total,
-                unmatched_only=True,
+                unmatched_only=False,
                 progress_callback=on_match_progress,
             )
             results["matching"] = {
