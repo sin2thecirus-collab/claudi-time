@@ -106,7 +106,11 @@ def _normalize_city(city: str) -> str:
 
     city = city.strip()
 
-    # 0) Sofort skippen bei Mehrstaedte-Strings (Komma mit mehreren Staedten)
+    # 0) Zuerst: ", Deutschland" / ", DE" / ", Germany" am Ende entfernen (immer)
+    for pattern in _SUFFIX_PATTERNS:
+        city = pattern.sub('', city).strip()
+
+    # 0b) Mehrstaedte-Strings (Komma mit mehreren Staedten) skippen
     # z.B. "Ansbach, Berlin, Fürth" oder "Bremen, Blankenfelde, Neumünster"
     # ABER: "Berlin, Deutschland" oder "München, Bayern" sind einzelne Staedte
     comma_parts = [p.strip() for p in city.split(',')]
