@@ -5,6 +5,7 @@ Ersetzt das alte Karten-Grid mit einer effizienten Vertriebsansicht.
 """
 
 import logging
+import re
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -16,6 +17,83 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.match import Match, MatchStatus
 
 logger = logging.getLogger(__name__)
+
+
+# ═══════════════════════════════════════════════════════════════
+# STADT-NORMALISIERUNG — Duplikat-Konsolidierung (Fix 11)
+# ═══════════════════════════════════════════════════════════════
+
+# Bekannte Stadtteil-Suffixe die entfernt werden sollen
+_STADTTEILE_PATTERN = re.compile(
+    r'^(.+?)[\s]*[-–]\s*('
+    r'Wilmersdorf|Charlottenburg|Mitte|Kreuzberg|Neuk[oö]lln|'
+    r'Schöneberg|Tempelhof|Steglitz|Zehlendorf|Spandau|Reinickendorf|'
+    r'Lichtenberg|Pankow|Treptow|Köpenick|Marzahn|Hellersdorf|'
+    r'Friedrichshain|Prenzlauer Berg|Wedding|Moabit|Tiergarten|'
+    r'Altona|Eimsbüttel|Wandsbek|Harburg|Bergedorf|'
+    r'Sendling|Schwabing|Bogenhausen|Haidhausen|Laim|Pasing|'
+    r'Ehrenfeld|Nippes|Lindenthal|Porz|Kalk|Chorweiler|'
+    r'Sachsenhausen|Bornheim|Bockenheim|Nordend|Westend|Gallus|'
+    r'Innenstadt|Zentrum|Nord|Süd|Ost|West'
+    r')\s*$',
+    re.IGNORECASE
+)
+
+# PLZ-Prefix: "10117 Berlin" → "Berlin"
+_PLZ_PREFIX_PATTERN = re.compile(r'^\d{4,5}\s+(.+)$')
+
+# "Frankfurt am Main" → "Frankfurt" etc.
+_CITY_ALIASES = {
+    "Frankfurt am Main": "Frankfurt",
+    "Frankfurt a.M.": "Frankfurt",
+    "Frankfurt a. M.": "Frankfurt",
+    "Muenchen": "München",
+    "Koeln": "Köln",
+    "Duesseldorf": "Düsseldorf",
+    "Nuernberg": "Nürnberg",
+    "Wuerzburg": "Würzburg",
+    "Goettingen": "Göttingen",
+    "Luebeck": "Lübeck",
+    "Lueneburg": "Lüneburg",
+    "Saarbruecken": "Saarbrücken",
+    "Offenbach am Main": "Offenbach",
+    "Offenbach a.M.": "Offenbach",
+}
+
+
+def _normalize_city(city: str) -> str:
+    """Normalisiert einen Stadtnamen fuer die Konsolidierung.
+
+    Beispiele:
+        "Berlin-Wilmersdorf" → "Berlin"
+        "10117 Berlin"       → "Berlin"
+        "Frankfurt am Main"  → "Frankfurt"
+        "Muenchen"           → "München"
+    """
+    if not city or city == "Unbekannt":
+        return city or "Unbekannt"
+
+    city = city.strip()
+
+    # 1) PLZ-Prefix entfernen
+    plz_match = _PLZ_PREFIX_PATTERN.match(city)
+    if plz_match:
+        city = plz_match.group(1).strip()
+
+    # 2) Bekannte Aliases
+    if city in _CITY_ALIASES:
+        return _CITY_ALIASES[city]
+
+    # 3) Stadtteil-Suffix entfernen ("Berlin-Wilmersdorf" → "Berlin")
+    stadtteil_match = _STADTTEILE_PATTERN.match(city)
+    if stadtteil_match:
+        city = stadtteil_match.group(1).strip()
+
+    # 4) Nochmal Aliases prüfen (falls nach Stadtteil-Entfernung ein Alias matcht)
+    if city in _CITY_ALIASES:
+        return _CITY_ALIASES[city]
+
+    return city
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -1047,27 +1125,67 @@ class MatchCenterService:
         result = await self.db.execute(query)
         rows = result.all()
 
-        # In Python gruppieren: title → cities
+        # In Python gruppieren: title → cities (mit Stadt-Normalisierung)
         title_map: dict[str, dict] = {}
         for row in rows:
             title = row.job_title or "Sonstige"
-            city = row.display_city or "Unbekannt"
+            raw_city = row.display_city or "Unbekannt"
+            city = _normalize_city(raw_city)
 
             if title not in title_map:
-                title_map[title] = {"title": title, "total_matches": 0, "cities": []}
+                title_map[title] = {"title": title, "total_matches": 0, "cities_map": {}}
 
-            city_data = {
-                "city": city,
-                "match_count": int(row.match_count or 0),
-                "avg_score": round(float(row.avg_score), 1) if row.avg_score else 0,
-                "top_score": round(float(row.top_score), 1) if row.top_score else 0,
-                "new_count": int(row.new_count or 0),
-            }
-            title_map[title]["total_matches"] += city_data["match_count"]
-            title_map[title]["cities"].append(city_data)
+            cities_map = title_map[title]["cities_map"]
+            if city not in cities_map:
+                cities_map[city] = {
+                    "city": city,
+                    "match_count": 0,
+                    "sum_score": 0.0,
+                    "score_count": 0,
+                    "top_score": 0.0,
+                    "new_count": 0,
+                    "raw_cities": [],  # Alle Original-Stadtnamen fuer den Filter
+                }
+
+            c = cities_map[city]
+            mc = int(row.match_count or 0)
+            c["match_count"] += mc
+            c["new_count"] += int(row.new_count or 0)
+            title_map[title]["total_matches"] += mc
+
+            if raw_city not in c["raw_cities"]:
+                c["raw_cities"].append(raw_city)
+
+            if row.top_score:
+                ts = round(float(row.top_score), 1)
+                if ts > c["top_score"]:
+                    c["top_score"] = ts
+
+            if row.avg_score:
+                c["sum_score"] += float(row.avg_score) * mc
+                c["score_count"] += mc
+
+        # Zu finaler Struktur konvertieren
+        result_list = []
+        for title_data in title_map.values():
+            cities = []
+            for c in title_data["cities_map"].values():
+                avg = round(c["sum_score"] / c["score_count"], 1) if c["score_count"] > 0 else 0
+                cities.append({
+                    "city": c["city"],
+                    "match_count": c["match_count"],
+                    "avg_score": avg,
+                    "top_score": c["top_score"],
+                    "new_count": c["new_count"],
+                    "raw_cities": c["raw_cities"],
+                })
+            result_list.append({
+                "title": title_data["title"],
+                "total_matches": title_data["total_matches"],
+                "cities": cities,
+            })
 
         # Sortieren: TITLE_ORDER + Staedte nach avg_score DESC
-        result_list = list(title_map.values())
         result_list.sort(key=lambda t: _title_sort_key(t["title"]))
 
         for title_data in result_list:
@@ -1078,6 +1196,67 @@ class MatchCenterService:
     # ───────────────────────────────────────────────────────────
     # PAGINIERTE MATCHES (Tabelle)
     # ───────────────────────────────────────────────────────────
+
+    async def _get_raw_cities_for_normalized(
+        self,
+        title: str,
+        normalized_city: str,
+        stage: str = "new",
+        category: str = "FINANCE",
+    ) -> list[str]:
+        """Findet alle Original-Stadtnamen die zum normalisierten Namen gehoeren.
+
+        Beispiel: normalized_city="Berlin" → ["Berlin", "Berlin-Wilmersdorf", "10117 Berlin Berlin"]
+        """
+        from app.models.job import Job
+
+        display_city = func.coalesce(Job.work_location_city, Job.city)
+
+        # Subquery: Match-Aggregate pro Job (fuer Stage-Filter)
+        match_agg = (
+            select(
+                Match.job_id,
+                func.count(Match.id).label("match_count"),
+                func.sum(case((Match.status == MatchStatus.PRESENTED, 1), else_=0)).label("presented_count"),
+                func.sum(case((Match.status == MatchStatus.REJECTED, 1), else_=0)).label("rejected_count"),
+                func.sum(case((Match.status == MatchStatus.PLACED, 1), else_=0)).label("placed_count"),
+            )
+            .where(and_(Match.job_id.isnot(None), Match.candidate_id.isnot(None)))
+            .group_by(Match.job_id)
+            .subquery()
+        )
+
+        query = (
+            select(func.distinct(func.coalesce(display_city, text("'Unbekannt'"))).label("raw_city"))
+            .select_from(Match)
+            .join(Job, Match.job_id == Job.id)
+            .join(match_agg, Job.id == match_agg.c.job_id)
+            .where(
+                and_(
+                    Job.deleted_at.is_(None),
+                    Match.candidate_id.isnot(None),
+                    or_(Job.hotlist_category == category, Job.hotlist_category.is_(None)),
+                    func.coalesce(Job.hotlist_job_title, text("'Sonstige'")) == title,
+                )
+            )
+        )
+
+        # Stage-Filter
+        if stage == "new":
+            query = query.where(and_(match_agg.c.presented_count == 0, match_agg.c.placed_count == 0))
+        elif stage == "in_progress":
+            query = query.where(match_agg.c.presented_count > 0)
+        elif stage == "archive":
+            query = query.where(and_(
+                (match_agg.c.rejected_count + match_agg.c.placed_count) == match_agg.c.match_count,
+                match_agg.c.match_count > 0,
+            ))
+
+        result = await self.db.execute(query)
+        all_raw = [row.raw_city for row in result.all()]
+
+        # Nur die zurueckgeben, deren Normalisierung == normalized_city
+        return [rc for rc in all_raw if _normalize_city(rc) == normalized_city]
 
     async def get_paginated_matches(
         self,
@@ -1106,6 +1285,12 @@ class MatchCenterService:
         display_city = func.coalesce(Job.work_location_city, Job.city)
         now = func.now()
 
+        # Fix 11: Alle Original-Stadtnamen fuer den normalisierten Namen finden
+        raw_cities = await self._get_raw_cities_for_normalized(title, city, stage, category)
+        if not raw_cities:
+            # Fallback: Exakter Match (falls keine raw cities gefunden)
+            raw_cities = [city]
+
         # Subquery: Match-Aggregate pro Job (fuer Stage-Filter)
         match_agg = (
             select(
@@ -1120,13 +1305,13 @@ class MatchCenterService:
             .subquery()
         )
 
-        # Base Query: Alle Matches fuer diesen Jobtitel + Stadt
+        # Base Query: Alle Matches fuer diesen Jobtitel + Stadt (IN statt ==)
         base_where = and_(
             Job.deleted_at.is_(None),
             Match.candidate_id.isnot(None),
             or_(Job.hotlist_category == category, Job.hotlist_category.is_(None)),
             func.coalesce(Job.hotlist_job_title, text("'Sonstige'")) == title,
-            func.coalesce(display_city, text("'Unbekannt'")) == city,
+            func.coalesce(display_city, text("'Unbekannt'")).in_(raw_cities),
         )
 
         # Stage-Filter
