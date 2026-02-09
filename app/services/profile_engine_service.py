@@ -812,15 +812,19 @@ class ProfileEngineService:
                 if len(result.errors) < 20:
                     result.errors.append(f"Kandidat {cid}: {str(e)[:100]}")
 
+            # Fortschrittszaehler: Jedes Profil loggen
+            pct = round((i + 1) / result.total * 100, 1) if result.total > 0 else 0
+            logger.info(
+                f"[{i + 1}/{result.total}] ({pct}%) Kandidat profiliert — "
+                f"OK: {result.profiled}, Skip: {result.skipped}, Fail: {result.failed}, "
+                f"${result.total_cost_usd:.4f}"
+            )
+
             # Commit alle batch_size Eintraege
             if (i + 1) % batch_size == 0:
                 await self.db.commit()
                 if progress_callback:
                     progress_callback(i + 1, result.total)
-                logger.info(
-                    f"Backfill Kandidaten: {i + 1}/{result.total} "
-                    f"(${result.total_cost_usd:.4f})"
-                )
 
         # Final commit
         await self.db.commit()
@@ -898,15 +902,19 @@ class ProfileEngineService:
                 if len(result.errors) < 20:
                     result.errors.append(f"Job {jid}: {str(e)[:100]}")
 
+            # Fortschrittszaehler: Jedes Profil loggen
+            pct = round((i + 1) / result.total * 100, 1) if result.total > 0 else 0
+            logger.info(
+                f"[{i + 1}/{result.total}] ({pct}%) Job profiliert — "
+                f"OK: {result.profiled}, Skip: {result.skipped}, Fail: {result.failed}, "
+                f"${result.total_cost_usd:.4f}"
+            )
+
             # Commit alle batch_size Eintraege
             if (i + 1) % batch_size == 0:
                 await self.db.commit()
                 if progress_callback:
                     progress_callback(i + 1, result.total)
-                logger.info(
-                    f"Backfill Jobs: {i + 1}/{result.total} "
-                    f"(${result.total_cost_usd:.4f})"
-                )
 
         # Final commit
         await self.db.commit()

@@ -5,6 +5,7 @@ from datetime import date, datetime, timedelta, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import HTMLResponse
 from sqlalchemy import case, cast, func, select, Float
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -757,3 +758,174 @@ async def get_overview(db: AsyncSession = Depends(get_db)):
             "last_7_days": calls_7d,
         },
     }
+
+
+# ══════════════════════════════════════════════════════════════════
+# 7. HTML PARTIAL FUER EINSTELLUNGEN
+# ══════════════════════════════════════════════════════════════════
+
+def _progress_bar(label: str, current: int, total: int, color: str = "primary") -> str:
+    """Erzeugt eine Fortschrittsbalken-Zeile als HTML."""
+    pct = round(current / total * 100, 1) if total > 0 else 0
+    return f"""
+    <div class="flex items-center justify-between text-sm mb-1">
+        <span class="text-gray-600">{label}</span>
+        <span class="font-medium text-gray-900">{current:,} / {total:,} ({pct}%)</span>
+    </div>
+    <div class="w-full bg-gray-200 rounded-full h-2.5 mb-3">
+        <div class="bg-{color}-600 h-2.5 rounded-full transition-all" style="width: {min(pct, 100)}%"></div>
+    </div>
+    """
+
+
+def _stat_card(label: str, value: str, sub: str = "") -> str:
+    """Erzeugt eine kleine Stat-Karte."""
+    sub_html = f'<span class="text-xs text-gray-400 mt-0.5">{sub}</span>' if sub else ""
+    return f"""
+    <div class="bg-gray-50 rounded-lg p-3 text-center">
+        <div class="text-lg font-bold text-gray-900">{value}</div>
+        <div class="text-xs text-gray-500">{label}</div>
+        {sub_html}
+    </div>
+    """
+
+
+@router.get("/system-html", response_class=HTMLResponse)
+async def get_system_status_html(db: AsyncSession = Depends(get_db)):
+    """HTML-Partial fuer die Einstellungsseite — System-Status auf einen Blick."""
+    # --- Daten sammeln (kompakt, wie overview) ---
+    cand_total = (await db.execute(select(func.count(Candidate.id)).where(Candidate.deleted_at.is_(None)))).scalar() or 0
+    cand_with_coords = (await db.execute(
+        select(func.count(Candidate.id)).where(Candidate.deleted_at.is_(None), Candidate.address_coords.isnot(None))
+    )).scalar() or 0
+    cand_profiled = (await db.execute(
+        select(func.count(Candidate.id)).where(Candidate.deleted_at.is_(None), Candidate.v2_profile_created_at.isnot(None))
+    )).scalar() or 0
+
+    job_total = (await db.execute(select(func.count(Job.id)).where(Job.deleted_at.is_(None)))).scalar() or 0
+    job_with_coords = (await db.execute(
+        select(func.count(Job.id)).where(Job.deleted_at.is_(None), Job.location_coords.isnot(None))
+    )).scalar() or 0
+    job_profiled = (await db.execute(
+        select(func.count(Job.id)).where(Job.deleted_at.is_(None), Job.v2_profile_created_at.isnot(None))
+    )).scalar() or 0
+
+    match_total = (await db.execute(select(func.count(Match.id)))).scalar() or 0
+    avg_score = (await db.execute(
+        select(func.avg(Match.v2_score)).where(Match.v2_score.isnot(None))
+    )).scalar()
+
+    today = date.today()
+    todo_open = (await db.execute(
+        select(func.count(ATSTodo.id)).where(ATSTodo.status.in_([TodoStatus.OPEN, TodoStatus.IN_PROGRESS]))
+    )).scalar() or 0
+    todo_overdue = (await db.execute(
+        select(func.count(ATSTodo.id)).where(
+            ATSTodo.due_date < today,
+            ATSTodo.status.in_([TodoStatus.OPEN, TodoStatus.IN_PROGRESS]),
+        )
+    )).scalar() or 0
+
+    now = datetime.now(timezone.utc)
+    call_total = (await db.execute(select(func.count(ATSCallNote.id)))).scalar() or 0
+    calls_7d = (await db.execute(
+        select(func.count(ATSCallNote.id)).where(ATSCallNote.called_at >= now - timedelta(days=7))
+    )).scalar() or 0
+
+    # Backfill-Status
+    try:
+        from app.api.routes_matching_v2 import _backfill_status
+        bf = dict(_backfill_status)
+    except ImportError:
+        bf = {"running": False}
+
+    # Level-Distribution
+    cand_level_rows = (await db.execute(
+        select(Candidate.v2_seniority_level, func.count(Candidate.id))
+        .where(Candidate.deleted_at.is_(None), Candidate.v2_seniority_level.isnot(None))
+        .group_by(Candidate.v2_seniority_level)
+        .order_by(Candidate.v2_seniority_level)
+    )).all()
+
+    # --- HTML bauen ---
+    avg_str = f"{round(float(avg_score), 1)}" if avg_score else "—"
+
+    # Backfill-Anzeige
+    backfill_html = ""
+    if bf.get("running"):
+        bf_pct = round(bf["processed"] / bf["total"] * 100, 1) if bf.get("total", 0) > 0 else 0
+        backfill_html = f"""
+        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+            <div class="flex items-center gap-2 mb-2">
+                <div class="animate-spin h-4 w-4 border-2 border-yellow-600 border-t-transparent rounded-full"></div>
+                <span class="font-medium text-yellow-800">Profiling laeuft: {bf.get('type', 'unbekannt')}</span>
+            </div>
+            <div class="flex items-center justify-between text-sm mb-1">
+                <span class="text-yellow-700">{bf['processed']} / {bf['total']}</span>
+                <span class="font-medium text-yellow-800">{bf_pct}%</span>
+            </div>
+            <div class="w-full bg-yellow-200 rounded-full h-2">
+                <div class="bg-yellow-600 h-2 rounded-full transition-all" style="width: {min(bf_pct, 100)}%"></div>
+            </div>
+            <div class="text-xs text-yellow-600 mt-1">Kosten bisher: ${bf.get('cost_usd', 0):.4f}</div>
+        </div>
+        """
+
+    # Level-Badges
+    level_labels = {1: "Einsteiger", 2: "Junior", 3: "Fachkraft", 4: "Senior", 5: "Experte", 6: "Leiter"}
+    level_colors = {1: "gray", 2: "blue", 3: "green", 4: "amber", 5: "orange", 6: "red"}
+    level_badges_html = ""
+    for level, count in cand_level_rows:
+        lbl = level_labels.get(level, f"Level {level}")
+        level_badges_html += f"""
+        <div class="flex items-center justify-between py-1 text-sm">
+            <span class="inline-flex items-center gap-1.5">
+                <span class="w-5 h-5 rounded-full bg-{level_colors.get(level, 'gray')}-100 text-{level_colors.get(level, 'gray')}-700 text-xs font-bold flex items-center justify-center">{level}</span>
+                <span class="text-gray-600">{lbl}</span>
+            </span>
+            <span class="font-medium text-gray-900">{count:,}</span>
+        </div>
+        """
+
+    html = f"""
+    <div class="space-y-5">
+        {backfill_html}
+
+        <!-- Uebersicht-Karten -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {_stat_card("Kandidaten", f"{cand_total:,}")}
+            {_stat_card("Jobs", f"{job_total:,}")}
+            {_stat_card("Matches", f"{match_total:,}", f"&Oslash; {avg_str}%")}
+            {_stat_card("Offene Aufgaben", str(todo_open), f"{todo_overdue} ueberfaellig" if todo_overdue > 0 else "")}
+        </div>
+
+        <!-- Geodaten Coverage -->
+        <div>
+            <h3 class="text-sm font-semibold text-gray-700 mb-2">Geodaten-Coverage</h3>
+            {_progress_bar("Kandidaten", cand_with_coords, cand_total, "blue")}
+            {_progress_bar("Jobs", job_with_coords, job_total, "green")}
+        </div>
+
+        <!-- Profiling Coverage -->
+        <div>
+            <h3 class="text-sm font-semibold text-gray-700 mb-2">Profiling-Coverage</h3>
+            {_progress_bar("Kandidaten", cand_profiled, cand_total, "indigo")}
+            {_progress_bar("Jobs", job_profiled, job_total, "emerald")}
+        </div>
+
+        <!-- Level-Distribution -->
+        <div>
+            <h3 class="text-sm font-semibold text-gray-700 mb-2">Level-Verteilung (Kandidaten)</h3>
+            <div class="bg-gray-50 rounded-lg p-3">
+                {level_badges_html if level_badges_html else '<span class="text-sm text-gray-400">Noch keine Level-Daten</span>'}
+            </div>
+        </div>
+
+        <!-- Anrufe -->
+        <div class="flex items-center justify-between text-sm text-gray-500 pt-2 border-t border-gray-100">
+            <span>Anrufe gesamt: <strong class="text-gray-900">{call_total}</strong></span>
+            <span>Letzte 7 Tage: <strong class="text-gray-900">{calls_7d}</strong></span>
+        </div>
+    </div>
+    """
+    return HTMLResponse(content=html)
