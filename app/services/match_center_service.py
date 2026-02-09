@@ -42,12 +42,28 @@ _STADTTEILE_PATTERN = re.compile(
 # PLZ-Prefix: "10117 Berlin" → "Berlin"
 _PLZ_PREFIX_PATTERN = re.compile(r'^\d{4,5}\s+(.+)$')
 
+# Bundesland-Suffixe
+_BUNDESLAENDER = {
+    "Baden-Württemberg", "Bayern", "Berlin", "Brandenburg", "Bremen",
+    "Hamburg", "Hessen", "Mecklenburg-Vorpommern", "Niedersachsen",
+    "Nordrhein-Westfalen", "Rheinland-Pfalz", "Saarland", "Sachsen",
+    "Sachsen-Anhalt", "Schleswig-Holstein", "Thüringen",
+}
+
+# Pattern fuer Bundesland-Suffix am Ende: "Chemnitz Sachsen" → "Chemnitz"
+_BUNDESLAND_SUFFIX_PATTERN = re.compile(
+    r'^(.+?)\s+(' + '|'.join(re.escape(bl) for bl in _BUNDESLAENDER) + r')\s*$',
+    re.IGNORECASE
+)
+
 # "Frankfurt am Main" → "Frankfurt" etc.
 _CITY_ALIASES = {
     "Frankfurt am Main": "Frankfurt",
     "Frankfurt a.M.": "Frankfurt",
     "Frankfurt a. M.": "Frankfurt",
+    "Frankfurt am Main Hessen": "Frankfurt",
     "Muenchen": "München",
+    "Munich": "München",
     "Koeln": "Köln",
     "Duesseldorf": "Düsseldorf",
     "Nuernberg": "Nürnberg",
@@ -58,38 +74,81 @@ _CITY_ALIASES = {
     "Saarbruecken": "Saarbrücken",
     "Offenbach am Main": "Offenbach",
     "Offenbach a.M.": "Offenbach",
+    "Fürth Bayern": "Fürth",
+    "Alzenau Bayern": "Alzenau",
+    "Eisenach Thüringen": "Eisenach",
 }
+
+# Suffixe die am Ende entfernt werden
+_SUFFIX_PATTERNS = [
+    re.compile(r',?\s*Deutschland$', re.IGNORECASE),
+    re.compile(r',?\s*DE$'),
+    re.compile(r',?\s*Germany$', re.IGNORECASE),
+]
 
 
 def _normalize_city(city: str) -> str:
     """Normalisiert einen Stadtnamen fuer die Konsolidierung.
 
     Beispiele:
-        "Berlin-Wilmersdorf" → "Berlin"
-        "10117 Berlin"       → "Berlin"
-        "Frankfurt am Main"  → "Frankfurt"
-        "Muenchen"           → "München"
+        "Berlin-Wilmersdorf"         → "Berlin"
+        "10117 Berlin Berlin"        → "Berlin"
+        "Frankfurt am Main"          → "Frankfurt"
+        "Muenchen"                   → "München"
+        "Munich"                     → "München"
+        "09125 Chemnitz Sachsen"     → "Chemnitz"
+        "Berlin, Deutschland"        → "Berlin"
+        "Berlin, DE"                 → "Berlin"
+        "Augsburg-Innenstadt"        → "Augsburg"
     """
     if not city or city == "Unbekannt":
         return city or "Unbekannt"
 
     city = city.strip()
 
+    # 0) Sofort skippen bei Mehrstaedte-Strings (Komma mit mehreren Staedten)
+    # z.B. "Ansbach, Berlin, Fürth" oder "Bremen, Blankenfelde, Neumünster"
+    # ABER: "Berlin, Deutschland" oder "München, Bayern" sind einzelne Staedte
+    comma_parts = [p.strip() for p in city.split(',')]
+    if len(comma_parts) > 2:
+        return city  # Nicht normalisieren bei 3+ Teilen
+    if len(comma_parts) == 2:
+        second = comma_parts[1].strip()
+        # Nur normalisieren wenn zweiter Teil ein Land/Bundesland ist
+        if second.lower() in ('deutschland', 'de', 'germany') or second in _BUNDESLAENDER:
+            city = comma_parts[0].strip()
+        else:
+            return city  # "Düsseldorf, Neuss" → nicht normalisieren
+
     # 1) PLZ-Prefix entfernen
     plz_match = _PLZ_PREFIX_PATTERN.match(city)
     if plz_match:
         city = plz_match.group(1).strip()
 
-    # 2) Bekannte Aliases
+    # 2) Suffixe entfernen (, Deutschland / , DE / , Germany)
+    for pattern in _SUFFIX_PATTERNS:
+        city = pattern.sub('', city).strip()
+
+    # 3) Bundesland-Suffix entfernen ("Chemnitz Sachsen" → "Chemnitz")
+    bl_match = _BUNDESLAND_SUFFIX_PATTERN.match(city)
+    if bl_match:
+        city = bl_match.group(1).strip()
+
+    # 4) Doppelten Stadtnamen entfernen ("Berlin Berlin" → "Berlin")
+    words = city.split()
+    if len(words) == 2 and words[0] == words[1]:
+        city = words[0]
+
+    # 5) Bekannte Aliases
     if city in _CITY_ALIASES:
         return _CITY_ALIASES[city]
 
-    # 3) Stadtteil-Suffix entfernen ("Berlin-Wilmersdorf" → "Berlin")
+    # 6) Stadtteil-Suffix entfernen ("Berlin-Wilmersdorf" → "Berlin")
     stadtteil_match = _STADTTEILE_PATTERN.match(city)
     if stadtteil_match:
         city = stadtteil_match.group(1).strip()
 
-    # 4) Nochmal Aliases prüfen (falls nach Stadtteil-Entfernung ein Alias matcht)
+    # 7) Nochmal Aliases prüfen (falls nach Stadtteil-Entfernung ein Alias matcht)
     if city in _CITY_ALIASES:
         return _CITY_ALIASES[city]
 
