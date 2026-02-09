@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from typing import Sequence
 from uuid import UUID
 
-from sqlalchemy import select, func, and_, or_, text
+from sqlalchemy import select, func, and_, or_, text, literal_column
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.candidate import Candidate
@@ -226,7 +226,7 @@ class MatchingEngineV2:
                 job.location_coords,
             ).label("distance_m")  # Meter (Geography-Type)
         else:
-            distance_expr = text("NULL::float").label("distance_m")
+            distance_expr = literal_column("NULL::float").label("distance_m")
 
         query = (
             select(
