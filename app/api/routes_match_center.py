@@ -1,30 +1,26 @@
-"""Match Center Routes - Einheitliche job-zentrische Match-Verwaltung.
-
-Grid-Layout: Jobtitel-Reihen mit Stadt-Kaestchen.
-Vergleichs-Modal: Stellenbeschreibung + Lebenslauf nebeneinander.
+"""Match Center Routes - Sidebar + Tabellen-Layout.
 
 Seiten:
-- GET /match-center              -> Grid-Uebersicht (Jobtitel x Stadt)
-- GET /match-center/job/<job_id> -> Einzelner Job mit allen Kandidaten-Matches
+- GET /match-center              -> Hauptseite (Sidebar + Tabelle)
 
-API (HTMX):
-- GET  /api/match-center/group                 -> Jobs+Matches fuer Jobtitel+Stadt (HTMX partial)
-- GET  /api/match-center/job/<job_id>/matches  -> Kandidaten fuer einen Job (HTMX partial)
-- GET  /api/match-center/compare/<match_id>    -> Vergleichs-Modal (HTMX partial)
-- POST /api/match-center/status/<match_id>     -> Match-Status aendern
-- POST /api/match-center/feedback/<match_id>   -> Feedback speichern
-
-Legacy-Redirects:
-- GET /pre-match       -> 301 /match-center
-- GET /pre-match/*     -> 301 /match-center
-- GET /deep-match      -> 301 /match-center
+API (HTMX + JSON):
+- GET  /api/match-center/sidebar             -> Sidebar-Daten (JSON)
+- GET  /api/match-center/matches             -> Kandidaten-Tabelle (HTMX partial)
+- POST /api/match-center/bulk-status         -> Bulk Status-Aenderung (JSON)
+- GET  /api/match-center/export              -> CSV-Download
+- GET  /api/match-center/group               -> Legacy Grid-Detail (HTMX)
+- GET  /api/match-center/compare/<match_id>  -> Vergleichs-Modal (HTMX)
+- POST /api/match-center/status/<match_id>   -> Status aendern (HTMX)
+- POST /api/match-center/feedback/<match_id> -> Feedback speichern (JSON)
 """
 
+import csv
+import io
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi import APIRouter, Body, Depends, Query, Request
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -46,19 +42,13 @@ router = APIRouter(tags=["Match-Center"])
 async def match_center_page(
     request: Request,
     stage: str = Query("new", regex="^(new|in_progress|archive)$"),
-    search: str = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
-    """Match Center Hauptseite - Grid-Uebersicht (Jobtitel x Stadt)."""
+    """Match Center Hauptseite — Sidebar + Tabellen-Layout."""
     service = MatchCenterService(db)
 
-    # Statistiken, Stage-Counts und Grid parallel
     stats = await service.get_stats()
     stage_counts = await service.get_stage_counts()
-    groups = await service.get_grid_overview(
-        stage=stage,
-        search=search,
-    )
 
     return templates.TemplateResponse(
         "match_center.html",
@@ -66,9 +56,7 @@ async def match_center_page(
             "request": request,
             "stats": stats,
             "stage_counts": stage_counts,
-            "groups": groups,
             "current_stage": stage,
-            "current_search": search or "",
         },
     )
 
@@ -106,6 +94,150 @@ async def match_center_job_detail(
 
 # ═══════════════════════════════════════════════════════════════
 # API - HTMX PARTIALS
+# ═══════════════════════════════════════════════════════════════
+
+
+# ═══════════════════════════════════════════════════════════════
+# NEUE API-ENDPUNKTE (Sidebar + Tabelle + Bulk + Export)
+# ═══════════════════════════════════════════════════════════════
+
+
+@router.get("/api/match-center/sidebar")
+async def get_sidebar_data(
+    stage: str = Query("new", regex="^(new|in_progress|archive)$"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Sidebar-Daten: Jobtitel mit verschachtelten Stadt-Listen."""
+    service = MatchCenterService(db)
+    data = await service.get_sidebar_data(stage=stage)
+    return JSONResponse(data)
+
+
+@router.get("/api/match-center/matches", response_class=HTMLResponse)
+async def get_matches_table(
+    request: Request,
+    title: str = Query(...),
+    city: str = Query(...),
+    stage: str = Query("new", regex="^(new|in_progress|archive)$"),
+    status_filter: str = Query(None),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(15, ge=1, le=100),
+    sort_by: str = Query("score"),
+    sort_dir: str = Query("desc", regex="^(asc|desc)$"),
+    db: AsyncSession = Depends(get_db),
+):
+    """HTMX Partial: Paginierte Kandidaten-Tabelle fuer Jobtitel + Stadt."""
+    service = MatchCenterService(db)
+
+    result = await service.get_paginated_matches(
+        title=title,
+        city=city,
+        stage=stage,
+        status_filter=status_filter,
+        page=page,
+        per_page=per_page,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
+    )
+
+    return templates.TemplateResponse(
+        "partials/match_center_table.html",
+        {
+            "request": request,
+            "matches": result["matches"],
+            "total": result["total"],
+            "page": result["page"],
+            "per_page": result["per_page"],
+            "pages": result["pages"],
+            "status_counts": result["status_counts"],
+            "current_title": title,
+            "current_city": city,
+            "current_stage": stage,
+            "current_status_filter": status_filter,
+            "current_sort_by": sort_by,
+            "current_sort_dir": sort_dir,
+        },
+    )
+
+
+@router.post("/api/match-center/bulk-status")
+async def bulk_update_status(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Bulk Status-Aenderung fuer mehrere Matches."""
+    try:
+        body = await request.json()
+        match_ids = body.get("match_ids", [])
+        new_status = body.get("status", "")
+
+        if not match_ids or not new_status:
+            return JSONResponse({"error": "match_ids und status erforderlich"}, status_code=400)
+
+        # String UUIDs konvertieren
+        uuids = [UUID(mid) for mid in match_ids]
+
+        service = MatchCenterService(db)
+        count = await service.bulk_update_status(uuids, new_status)
+
+        status_labels = {
+            "new": "Neu",
+            "presented": "Vorgestellt",
+            "rejected": "Abgelehnt",
+            "placed": "Vermittelt",
+        }
+        label = status_labels.get(new_status, new_status)
+
+        return JSONResponse({
+            "status": "ok",
+            "updated": count,
+            "message": f"{count} Matches als '{label}' markiert",
+        })
+    except Exception as e:
+        logger.error(f"Bulk Status Fehler: {e}", exc_info=True)
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@router.get("/api/match-center/export")
+async def export_matches(
+    match_ids: str = Query(..., description="Komma-separierte Match-IDs"),
+    db: AsyncSession = Depends(get_db),
+):
+    """CSV-Export fuer ausgewaehlte Matches."""
+    try:
+        uuids = [UUID(mid.strip()) for mid in match_ids.split(",") if mid.strip()]
+    except ValueError:
+        return JSONResponse({"error": "Ungueltige Match-IDs"}, status_code=400)
+
+    if not uuids:
+        return JSONResponse({"error": "Keine Match-IDs angegeben"}, status_code=400)
+
+    service = MatchCenterService(db)
+    data = await service.get_export_data(uuids)
+
+    if not data:
+        return JSONResponse({"error": "Keine Daten gefunden"}, status_code=404)
+
+    # CSV generieren
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=data[0].keys(), delimiter=";")
+    writer.writeheader()
+    writer.writerows(data)
+
+    content = output.getvalue().encode("utf-8-sig")  # BOM fuer Excel
+
+    return StreamingResponse(
+        io.BytesIO(content),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="matches_export.csv"',
+            "Content-Length": str(len(content)),
+        },
+    )
+
+
+# ═══════════════════════════════════════════════════════════════
+# LEGACY API-ENDPUNKTE (Grid-Detail, Compare, Status, Feedback)
 # ═══════════════════════════════════════════════════════════════
 
 

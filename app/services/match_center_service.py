@@ -1,23 +1,30 @@
 """Match Center Service - Job-zentrische Match-Verwaltung.
 
-Ersetzt das alte Pre-Match-System mit einer uebersichtlichen,
-job-zentrierten Ansicht aller Smart-Match-Ergebnisse.
-
-Grid-Layout: Gruppierung nach Jobtitel → Stadt → Jobs → Matches.
+Sidebar + Tabellen-Layout mit Pagination, Bulk-Aktionen, sortierbaren Spalten.
+Ersetzt das alte Karten-Grid mit einer effizienten Vertriebsansicht.
 """
 
 import logging
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import and_, case, desc, func, or_, select, text
+from sqlalchemy import and_, case, desc, func, or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.match import Match, MatchStatus
 
 logger = logging.getLogger(__name__)
+
+
+# ═══════════════════════════════════════════════════════════════
+# EFFECTIVE SCORE HELPER — v2_score (0-100) mit Fallback auf ai_score * 100
+# ═══════════════════════════════════════════════════════════════
+
+def _effective_score():
+    """SQL-Expression: COALESCE(v2_score, ai_score * 100) für einheitliche 0-100 Skala."""
+    return func.coalesce(Match.v2_score, Match.ai_score * 100)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -178,11 +185,13 @@ class MatchCenterService:
         """Holt Uebersichts-Statistiken fuer das Match Center."""
         from app.models.job import Job
 
+        eff = _effective_score()
+
         base = (
             select(
                 func.count(func.distinct(Match.job_id)).label("total_jobs"),
                 func.count(Match.id).label("total_matches"),
-                func.avg(Match.ai_score).label("avg_score"),
+                func.avg(eff).label("avg_score"),
                 func.sum(case((Match.status == MatchStatus.PLACED, 1), else_=0)).label("placed"),
                 func.sum(case((Match.status == MatchStatus.NEW, 1), else_=0)).label("new"),
                 func.sum(case((Match.status == MatchStatus.AI_CHECKED, 1), else_=0)).label("ai_checked"),
@@ -206,7 +215,7 @@ class MatchCenterService:
         result = await self.db.execute(base)
         row = result.one()
 
-        avg = round(float(row.avg_score) * 100, 1) if row.avg_score else 0
+        avg = round(float(row.avg_score), 1) if row.avg_score else 0
 
         return {
             "total_jobs": int(row.total_jobs or 0),
@@ -951,3 +960,455 @@ class MatchCenterService:
             "hotlist_category": getattr(job, "hotlist_category", ""),
             "hotlist_job_title": getattr(job, "hotlist_job_title", ""),
         }
+
+    # ───────────────────────────────────────────────────────────
+    # SIDEBAR-DATEN (Jobtitel → Staedte)
+    # ───────────────────────────────────────────────────────────
+
+    async def get_sidebar_data(
+        self,
+        category: str = "FINANCE",
+        stage: str = "new",
+    ) -> list[dict]:
+        """Liefert Jobtitel-Liste mit verschachtelten Stadt-Listen fuer die Sidebar.
+
+        Returns:
+            [{
+                "title": "Bilanzbuchhalter/in",
+                "total_matches": 47,
+                "cities": [
+                    {"city": "München", "match_count": 15, "avg_score": 78.3,
+                     "new_count": 5, "top_score": 92.1}
+                ]
+            }, ...]
+        """
+        from app.models.job import Job
+
+        eff = _effective_score()
+        display_city = func.coalesce(Job.work_location_city, Job.city)
+
+        # Subquery: Match-Aggregate pro Job (fuer Stage-Filter)
+        match_agg = (
+            select(
+                Match.job_id,
+                func.count(Match.id).label("match_count"),
+                func.sum(case((Match.status == MatchStatus.PRESENTED, 1), else_=0)).label("presented_count"),
+                func.sum(case((Match.status == MatchStatus.REJECTED, 1), else_=0)).label("rejected_count"),
+                func.sum(case((Match.status == MatchStatus.PLACED, 1), else_=0)).label("placed_count"),
+            )
+            .where(and_(Match.job_id.isnot(None), Match.candidate_id.isnot(None)))
+            .group_by(Match.job_id)
+            .subquery()
+        )
+
+        # Haupt-Query: Matches gruppiert nach Jobtitel + Stadt
+        query = (
+            select(
+                func.coalesce(Job.hotlist_job_title, text("'Sonstige'")).label("job_title"),
+                func.coalesce(display_city, text("'Unbekannt'")).label("display_city"),
+                func.count(Match.id).label("match_count"),
+                func.avg(eff).label("avg_score"),
+                func.max(eff).label("top_score"),
+                func.sum(case(
+                    (Match.status.in_([MatchStatus.NEW, MatchStatus.AI_CHECKED]), 1),
+                    else_=0
+                )).label("new_count"),
+            )
+            .select_from(Match)
+            .join(Job, Match.job_id == Job.id)
+            .join(match_agg, Job.id == match_agg.c.job_id)
+            .where(
+                and_(
+                    Job.deleted_at.is_(None),
+                    Match.candidate_id.isnot(None),
+                    or_(Job.hotlist_category == category, Job.hotlist_category.is_(None)),
+                )
+            )
+        )
+
+        # Stage-Filter (selbe Logik wie get_grid_overview)
+        if stage == "new":
+            query = query.where(and_(match_agg.c.presented_count == 0, match_agg.c.placed_count == 0))
+        elif stage == "in_progress":
+            query = query.where(match_agg.c.presented_count > 0)
+        elif stage == "archive":
+            query = query.where(
+                and_(
+                    (match_agg.c.rejected_count + match_agg.c.placed_count) == match_agg.c.match_count,
+                    match_agg.c.match_count > 0,
+                )
+            )
+
+        query = query.group_by(
+            func.coalesce(Job.hotlist_job_title, text("'Sonstige'")),
+            func.coalesce(display_city, text("'Unbekannt'")),
+        )
+
+        result = await self.db.execute(query)
+        rows = result.all()
+
+        # In Python gruppieren: title → cities
+        title_map: dict[str, dict] = {}
+        for row in rows:
+            title = row.job_title or "Sonstige"
+            city = row.display_city or "Unbekannt"
+
+            if title not in title_map:
+                title_map[title] = {"title": title, "total_matches": 0, "cities": []}
+
+            city_data = {
+                "city": city,
+                "match_count": int(row.match_count or 0),
+                "avg_score": round(float(row.avg_score), 1) if row.avg_score else 0,
+                "top_score": round(float(row.top_score), 1) if row.top_score else 0,
+                "new_count": int(row.new_count or 0),
+            }
+            title_map[title]["total_matches"] += city_data["match_count"]
+            title_map[title]["cities"].append(city_data)
+
+        # Sortieren: TITLE_ORDER + Staedte nach avg_score DESC
+        result_list = list(title_map.values())
+        result_list.sort(key=lambda t: _title_sort_key(t["title"]))
+
+        for title_data in result_list:
+            title_data["cities"].sort(key=lambda c: (-c["avg_score"], _city_sort_key(c["city"])))
+
+        return result_list
+
+    # ───────────────────────────────────────────────────────────
+    # PAGINIERTE MATCHES (Tabelle)
+    # ───────────────────────────────────────────────────────────
+
+    async def get_paginated_matches(
+        self,
+        title: str,
+        city: str,
+        stage: str = "new",
+        status_filter: str | None = None,
+        page: int = 1,
+        per_page: int = 15,
+        sort_by: str = "score",
+        sort_dir: str = "desc",
+        category: str = "FINANCE",
+    ) -> dict:
+        """Paginierte Matches fuer Jobtitel + Stadt.
+
+        Returns:
+            {
+                "matches": [...], "total": int, "page": int, "per_page": int,
+                "pages": int, "status_counts": {"all": N, "new": N, "presented": N, "rejected": N}
+            }
+        """
+        from app.models.candidate import Candidate
+        from app.models.job import Job
+
+        eff = _effective_score()
+        display_city = func.coalesce(Job.work_location_city, Job.city)
+        now = func.now()
+
+        # Subquery: Match-Aggregate pro Job (fuer Stage-Filter)
+        match_agg = (
+            select(
+                Match.job_id,
+                func.count(Match.id).label("match_count"),
+                func.sum(case((Match.status == MatchStatus.PRESENTED, 1), else_=0)).label("presented_count"),
+                func.sum(case((Match.status == MatchStatus.REJECTED, 1), else_=0)).label("rejected_count"),
+                func.sum(case((Match.status == MatchStatus.PLACED, 1), else_=0)).label("placed_count"),
+            )
+            .where(and_(Match.job_id.isnot(None), Match.candidate_id.isnot(None)))
+            .group_by(Match.job_id)
+            .subquery()
+        )
+
+        # Base Query: Alle Matches fuer diesen Jobtitel + Stadt
+        base_where = and_(
+            Job.deleted_at.is_(None),
+            Match.candidate_id.isnot(None),
+            or_(Job.hotlist_category == category, Job.hotlist_category.is_(None)),
+            func.coalesce(Job.hotlist_job_title, text("'Sonstige'")) == title,
+            func.coalesce(display_city, text("'Unbekannt'")) == city,
+        )
+
+        # Stage-Filter
+        stage_where = []
+        if stage == "new":
+            stage_where.append(and_(match_agg.c.presented_count == 0, match_agg.c.placed_count == 0))
+        elif stage == "in_progress":
+            stage_where.append(match_agg.c.presented_count > 0)
+        elif stage == "archive":
+            stage_where.append(and_(
+                (match_agg.c.rejected_count + match_agg.c.placed_count) == match_agg.c.match_count,
+                match_agg.c.match_count > 0,
+            ))
+
+        # 1) Status-Counts berechnen (ohne Status-Filter)
+        count_query = (
+            select(
+                func.count(Match.id).label("total"),
+                func.sum(case(
+                    (Match.status.in_([MatchStatus.NEW, MatchStatus.AI_CHECKED]), 1),
+                    else_=0
+                )).label("new_count"),
+                func.sum(case((Match.status == MatchStatus.PRESENTED, 1), else_=0)).label("presented_count"),
+                func.sum(case((Match.status == MatchStatus.REJECTED, 1), else_=0)).label("rejected_count"),
+            )
+            .select_from(Match)
+            .join(Job, Match.job_id == Job.id)
+            .join(match_agg, Job.id == match_agg.c.job_id)
+            .where(base_where)
+        )
+        if stage_where:
+            count_query = count_query.where(*stage_where)
+
+        count_result = await self.db.execute(count_query)
+        cr = count_result.one()
+        status_counts = {
+            "all": int(cr.total or 0),
+            "new": int(cr.new_count or 0),
+            "presented": int(cr.presented_count or 0),
+            "rejected": int(cr.rejected_count or 0),
+        }
+
+        # 2) Haupt-Query mit Status-Filter
+        query = (
+            select(
+                Match.id.label("match_id"),
+                Match.candidate_id,
+                Match.job_id,
+                Match.status,
+                Match.distance_km,
+                Match.user_feedback,
+                Match.v2_score_breakdown,
+                Match.created_at.label("match_created_at"),
+                eff.label("score"),
+                Candidate.first_name,
+                Candidate.last_name,
+                Candidate.current_position,
+                Candidate.current_company,
+                Candidate.city.label("cand_city"),
+                Candidate.salary,
+                Candidate.email,
+                Candidate.updated_at.label("cand_updated_at"),
+                Candidate.v2_seniority_level,
+                Job.position.label("job_position"),
+                Job.company_name.label("job_company"),
+            )
+            .select_from(Match)
+            .join(Job, Match.job_id == Job.id)
+            .join(Candidate, Match.candidate_id == Candidate.id)
+            .join(match_agg, Job.id == match_agg.c.job_id)
+            .where(base_where)
+        )
+        if stage_where:
+            query = query.where(*stage_where)
+
+        # Status-Filter
+        if status_filter == "new":
+            query = query.where(Match.status.in_([MatchStatus.NEW, MatchStatus.AI_CHECKED]))
+        elif status_filter == "presented":
+            query = query.where(Match.status == MatchStatus.PRESENTED)
+        elif status_filter == "rejected":
+            query = query.where(Match.status == MatchStatus.REJECTED)
+
+        # Total fuer Pagination (mit Status-Filter)
+        total_query = select(func.count()).select_from(query.subquery())
+        total = (await self.db.execute(total_query)).scalar() or 0
+
+        # Sortierung
+        if sort_by == "name":
+            order_col = Candidate.last_name
+        elif sort_by == "distance":
+            order_col = Match.distance_km
+        elif sort_by == "activity":
+            order_col = Candidate.updated_at
+        else:  # score (default)
+            order_col = eff
+
+        if sort_dir == "asc":
+            query = query.order_by(order_col.asc().nullslast())
+        else:
+            query = query.order_by(order_col.desc().nullsfirst())
+
+        # Pagination
+        offset = (page - 1) * per_page
+        query = query.offset(offset).limit(per_page)
+
+        result = await self.db.execute(query)
+        rows = result.all()
+
+        # Zu dicts konvertieren
+        matches = []
+        for i, row in enumerate(rows):
+            name_parts = []
+            if row.first_name:
+                name_parts.append(row.first_name)
+            if row.last_name:
+                name_parts.append(row.last_name)
+
+            # Aktivitaet berechnen (Tage seit letztem Update)
+            activity_days = None
+            if row.cand_updated_at:
+                try:
+                    now_dt = datetime.now(timezone.utc)
+                    updated = row.cand_updated_at
+                    if updated.tzinfo is None:
+                        from datetime import timezone as tz
+                        updated = updated.replace(tzinfo=tz.utc)
+                    activity_days = (now_dt - updated).days
+                except Exception:
+                    activity_days = None
+
+            # Status-Label und Farbe
+            status_val = row.status.value if row.status else "new"
+
+            matches.append({
+                "rank": offset + i + 1,
+                "match_id": str(row.match_id),
+                "candidate_id": str(row.candidate_id) if row.candidate_id else None,
+                "name": " ".join(name_parts) if name_parts else "Unbekannt",
+                "current_position": row.current_position or "",
+                "current_company": row.current_company or "",
+                "score": round(float(row.score), 1) if row.score else 0,
+                "status": status_val,
+                "distance_km": round(float(row.distance_km), 1) if row.distance_km else None,
+                "activity_days": activity_days,
+                "salary": row.salary or "",
+                "email": row.email or "",
+                "seniority_level": row.v2_seniority_level,
+                "user_feedback": row.user_feedback,
+                "job_position": row.job_position or "",
+                "job_company": row.job_company or "",
+            })
+
+        pages = (total + per_page - 1) // per_page if per_page > 0 else 0
+
+        return {
+            "matches": matches,
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+            "pages": pages,
+            "status_counts": status_counts,
+        }
+
+    # ───────────────────────────────────────────────────────────
+    # BULK STATUS UPDATE
+    # ───────────────────────────────────────────────────────────
+
+    async def bulk_update_status(
+        self,
+        match_ids: list[UUID],
+        new_status: str,
+    ) -> int:
+        """Aktualisiert den Status mehrerer Matches in einer Query.
+
+        Returns:
+            Anzahl aktualisierter Matches.
+        """
+        status_map = {
+            "new": MatchStatus.NEW,
+            "ai_checked": MatchStatus.AI_CHECKED,
+            "presented": MatchStatus.PRESENTED,
+            "rejected": MatchStatus.REJECTED,
+            "placed": MatchStatus.PLACED,
+        }
+
+        if new_status not in status_map:
+            return 0
+
+        if not match_ids:
+            return 0
+
+        stmt = (
+            update(Match)
+            .where(Match.id.in_(match_ids))
+            .values(status=status_map[new_status])
+        )
+
+        result = await self.db.execute(stmt)
+        await self.db.flush()
+
+        count = result.rowcount or 0
+        logger.info(f"Bulk Status Update: {count} Matches → {new_status}")
+        return count
+
+    # ───────────────────────────────────────────────────────────
+    # CSV-EXPORT
+    # ───────────────────────────────────────────────────────────
+
+    async def get_export_data(self, match_ids: list[UUID]) -> list[dict]:
+        """Holt Match + Candidate + Job Daten fuer CSV-Export.
+
+        Returns:
+            Liste von dicts mit allen exportierbaren Feldern.
+        """
+        from app.models.candidate import Candidate
+        from app.models.job import Job
+
+        if not match_ids:
+            return []
+
+        eff = _effective_score()
+
+        query = (
+            select(
+                Match.id.label("match_id"),
+                eff.label("score"),
+                Match.distance_km,
+                Match.status,
+                Candidate.first_name,
+                Candidate.last_name,
+                Candidate.email,
+                Candidate.phone,
+                Candidate.current_position,
+                Candidate.current_company,
+                Candidate.city.label("cand_city"),
+                Candidate.salary,
+                Job.position.label("job_position"),
+                Job.company_name.label("job_company"),
+                func.coalesce(Job.work_location_city, Job.city).label("job_city"),
+            )
+            .select_from(Match)
+            .join(Candidate, Match.candidate_id == Candidate.id, isouter=True)
+            .join(Job, Match.job_id == Job.id, isouter=True)
+            .where(Match.id.in_(match_ids))
+            .order_by(eff.desc().nullsfirst())
+        )
+
+        result = await self.db.execute(query)
+        rows = result.all()
+
+        export = []
+        for row in rows:
+            name_parts = []
+            if row.first_name:
+                name_parts.append(row.first_name)
+            if row.last_name:
+                name_parts.append(row.last_name)
+
+            status_labels = {
+                "new": "Neu",
+                "ai_checked": "Bewertet",
+                "presented": "Vorgestellt",
+                "rejected": "Abgelehnt",
+                "placed": "Vermittelt",
+            }
+            status_val = row.status.value if row.status else "new"
+
+            export.append({
+                "Name": " ".join(name_parts) if name_parts else "Unbekannt",
+                "E-Mail": row.email or "",
+                "Telefon": row.phone or "",
+                "Position": row.current_position or "",
+                "Unternehmen": row.current_company or "",
+                "Stadt": row.cand_city or "",
+                "Gehalt": row.salary or "",
+                "Score": round(float(row.score), 1) if row.score else 0,
+                "Entfernung (km)": round(float(row.distance_km), 1) if row.distance_km else "",
+                "Status": status_labels.get(status_val, status_val),
+                "Stelle": row.job_position or "",
+                "Firma": row.job_company or "",
+                "Standort": row.job_city or "",
+            })
+
+        return export

@@ -2,232 +2,200 @@
 {% block title %}Match Center — Pulspoint{% endblock %}
 
 {% block content %}
-<div>
+<div x-data="matchCenterApp()" x-init="init()" class="h-full">
 
-    <!-- Header -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+    {# ═══════ TOP BAR ═══════ #}
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5">
         <div>
             <h1 class="text-2xl font-bold text-gray-900">Match Center</h1>
-            <p class="text-sm text-gray-500 mt-1">Jobtitel-Uebersicht nach Staedte sortiert</p>
+            <p class="text-sm text-gray-500 mt-0.5">Sidebar + Tabellen-Ansicht</p>
         </div>
-        <div class="flex items-center gap-3">
-            <button onclick="document.getElementById('search-bar').classList.toggle('hidden')"
-                    class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                </svg>
-                Suchen
-            </button>
-        </div>
-    </div>
-
-    <!-- Suchleiste -->
-    <div id="search-bar" class="mb-4 {% if not current_search %}hidden{% endif %}">
-        <form action="/match-center" method="get" class="flex gap-2">
-            <input type="hidden" name="stage" value="{{ current_stage }}">
-            <input type="text" name="search" value="{{ current_search }}"
-                   placeholder="Position, Firma, Stadt oder Jobtitel suchen..."
-                   class="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
-            <button type="submit"
-                    class="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors">
-                Suchen
-            </button>
-            {% if current_search %}
-            <a href="/match-center?stage={{ current_stage }}"
-               class="px-4 py-2 text-sm text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors inline-flex items-center">
-                Zuruecksetzen
-            </a>
-            {% endif %}
-        </form>
-    </div>
-
-    <!-- Statistik-Karten -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div class="bg-white rounded-xl border border-gray-200 p-4">
-            <p class="text-sm text-gray-500">Jobs mit Matches</p>
-            <p class="text-2xl font-bold text-gray-900 mt-1">{{ stats.total_jobs }}</p>
-        </div>
-        <div class="bg-white rounded-xl border border-gray-200 p-4">
-            <p class="text-sm text-gray-500">Gesamt-Matches</p>
-            <p class="text-2xl font-bold text-gray-900 mt-1">{{ stats.total_matches }}</p>
-        </div>
-        <div class="bg-white rounded-xl border border-gray-200 p-4">
-            <p class="text-sm text-gray-500">Ø AI-Score</p>
-            <p class="text-2xl font-bold text-primary-600 mt-1">{{ stats.avg_score }}%</p>
-        </div>
-        <div class="bg-white rounded-xl border border-gray-200 p-4">
-            <p class="text-sm text-gray-500">Vermittelt</p>
-            <p class="text-2xl font-bold text-green-600 mt-1">{{ stats.placed_count }}</p>
+        <div class="flex items-center gap-2 flex-wrap">
+            {# KPI-Pillen #}
+            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full text-xs font-medium text-gray-700">
+                <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                {{ stats.total_jobs }} Jobs
+            </span>
+            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full text-xs font-medium text-gray-700">
+                <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                {{ stats.total_matches }} Matches
+            </span>
+            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full text-xs font-medium text-primary-600">
+                Ø {{ stats.avg_score }}%
+            </span>
+            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-full text-xs font-medium text-blue-700">
+                {{ stats.new_count }} Neu
+            </span>
         </div>
     </div>
 
-    <!-- Tab Navigation -->
-    <div class="border-b border-gray-200 mb-6">
+    {# ═══════ STAGE TABS ═══════ #}
+    <div class="border-b border-gray-200 mb-5">
         <nav class="flex space-x-8">
-            <a href="/match-center?stage=new{% if current_search %}&search={{ current_search }}{% endif %}"
+            <a href="/match-center?stage=new"
                class="{% if current_stage == 'new' %}border-primary-500 text-primary-600{% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %} whitespace-nowrap border-b-2 pb-3 px-1 text-sm font-medium transition-colors">
-                Neu
-                <span class="{% if current_stage == 'new' %}bg-primary-100 text-primary-700{% else %}bg-gray-100 text-gray-600{% endif %} rounded-full px-2 py-0.5 text-xs ml-1.5">
-                    {{ stage_counts.new }}
-                </span>
+                Neu <span class="{% if current_stage == 'new' %}bg-primary-100 text-primary-700{% else %}bg-gray-100 text-gray-600{% endif %} rounded-full px-2 py-0.5 text-xs ml-1.5">{{ stage_counts.new }}</span>
             </a>
-            <a href="/match-center?stage=in_progress{% if current_search %}&search={{ current_search }}{% endif %}"
+            <a href="/match-center?stage=in_progress"
                class="{% if current_stage == 'in_progress' %}border-primary-500 text-primary-600{% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %} whitespace-nowrap border-b-2 pb-3 px-1 text-sm font-medium transition-colors">
-                In Bearbeitung
-                <span class="{% if current_stage == 'in_progress' %}bg-primary-100 text-primary-700{% else %}bg-gray-100 text-gray-600{% endif %} rounded-full px-2 py-0.5 text-xs ml-1.5">
-                    {{ stage_counts.in_progress }}
-                </span>
+                In Bearbeitung <span class="{% if current_stage == 'in_progress' %}bg-primary-100 text-primary-700{% else %}bg-gray-100 text-gray-600{% endif %} rounded-full px-2 py-0.5 text-xs ml-1.5">{{ stage_counts.in_progress }}</span>
             </a>
-            <a href="/match-center?stage=archive{% if current_search %}&search={{ current_search }}{% endif %}"
+            <a href="/match-center?stage=archive"
                class="{% if current_stage == 'archive' %}border-primary-500 text-primary-600{% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %} whitespace-nowrap border-b-2 pb-3 px-1 text-sm font-medium transition-colors">
-                Archiv
-                <span class="{% if current_stage == 'archive' %}bg-primary-100 text-primary-700{% else %}bg-gray-100 text-gray-600{% endif %} rounded-full px-2 py-0.5 text-xs ml-1.5">
-                    {{ stage_counts.archive }}
-                </span>
+                Archiv <span class="{% if current_stage == 'archive' %}bg-primary-100 text-primary-700{% else %}bg-gray-100 text-gray-600{% endif %} rounded-full px-2 py-0.5 text-xs ml-1.5">{{ stage_counts.archive }}</span>
             </a>
         </nav>
     </div>
 
-    <!-- Suchergebnis-Info -->
-    {% if current_search %}
-    <div class="mb-4 text-sm text-gray-500">
-        Ergebnisse fuer "<strong>{{ current_search }}</strong>"
-    </div>
-    {% endif %}
+    {# ═══════ SIDEBAR + MAIN CONTENT ═══════ #}
+    <div class="flex gap-5" style="min-height: calc(100vh - 260px);">
 
-    <!-- ═══════ GRID: Jobtitel-Reihen × Stadt-Kaestchen ═══════ -->
+        {# ── SIDEBAR ── #}
+        <div :class="sidebarCollapsed ? 'w-[52px]' : 'w-[260px]'"
+             class="flex-shrink-0 transition-all duration-300 bg-white rounded-xl border border-gray-200 overflow-hidden flex flex-col">
 
-    {% if groups %}
-        {% for title, cards in groups.items() %}
-        <div class="mb-8">
-            <!-- Jobtitel-Header -->
-            <div class="flex items-center gap-3 mb-4">
-                <div class="flex items-center gap-2">
-                    <svg class="w-5 h-5 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+            {# Sidebar Header + Toggle #}
+            <div class="flex items-center justify-between px-3 py-3 border-b border-gray-100">
+                <span x-show="!sidebarCollapsed" class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Jobtitel</span>
+                <button @click="sidebarCollapsed = !sidebarCollapsed"
+                        class="p-1 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-50 transition-colors">
+                    <svg :class="sidebarCollapsed ? 'rotate-180' : ''" class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/>
                     </svg>
-                    <h2 class="text-lg font-bold text-gray-900">{{ title }}</h2>
-                </div>
-                <span class="text-xs font-medium text-gray-500 bg-gray-100 px-2.5 py-0.5 rounded-full">
-                    {{ cards|sum(attribute='total_match_count') }} Matches
-                </span>
-                <div class="flex-1 border-t border-gray-200"></div>
+                </button>
             </div>
 
-            <!-- Stadt-Cards Grid -->
-            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                {% for card in cards %}
-                <div class="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md hover:border-primary-300 transition-all cursor-pointer group relative"
-                     onclick="openGroupDetail('{{ card.hotlist_job_title }}', '{{ card.city }}', '{{ current_stage }}')">
-
-                    <!-- Score Badge -->
-                    <div class="w-11 h-11 rounded-full flex items-center justify-center text-xs font-bold mb-2 mx-auto
-                                {% if card.top_ai_score and card.top_ai_score >= 70 %}bg-green-100 text-green-700
-                                {% elif card.top_ai_score and card.top_ai_score >= 40 %}bg-yellow-100 text-yellow-700
-                                {% else %}bg-gray-100 text-gray-500{% endif %}">
-                        {% if card.top_ai_score %}{{ card.top_ai_score|int }}{% else %}&mdash;{% endif %}
-                    </div>
-
-                    <!-- Stadt -->
-                    <p class="text-sm font-semibold text-gray-900 text-center truncate">{{ card.city }}</p>
-
-                    <!-- Match Count -->
-                    <p class="text-xs text-gray-500 text-center mt-1">
-                        {{ card.total_match_count }} Match{{ 'es' if card.total_match_count != 1 else '' }}
-                    </p>
-
-                    <!-- Job Count -->
-                    {% if card.job_count > 1 %}
-                    <p class="text-xs text-gray-400 text-center">
-                        {{ card.job_count }} Jobs
-                    </p>
-                    {% endif %}
-
-                    <!-- Status Badges -->
-                    <div class="flex justify-center gap-1 mt-2 flex-wrap">
-                        {% if card.new_count > 0 %}
-                        <span class="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">{{ card.new_count }} neu</span>
-                        {% endif %}
-                        {% if card.presented_count > 0 %}
-                        <span class="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">{{ card.presented_count }} vorg.</span>
-                        {% endif %}
-                    </div>
-                </div>
-                {% endfor %}
+            {# Sidebar Loading #}
+            <div x-show="sidebarLoading && !sidebarCollapsed" class="flex items-center justify-center py-8 text-gray-400">
+                <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
             </div>
-        </div>
-        {% endfor %}
-    {% else %}
-        <div class="bg-white rounded-xl border border-gray-200 p-8 text-center">
-            <svg class="mx-auto h-12 w-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
-            </svg>
-            <p class="mt-3 text-sm text-gray-500">
-                {% if current_stage == 'new' %}
-                    Keine neuen Jobs mit Matches vorhanden.
-                {% elif current_stage == 'in_progress' %}
-                    Keine Jobs in Bearbeitung.
-                {% elif current_stage == 'archive' %}
-                    Noch keine archivierten Jobs.
-                {% endif %}
-            </p>
-        </div>
-    {% endif %}
 
-</div>
-
-<!-- ═══════ GRUPPEN-DETAIL MODAL ═══════ -->
-<div id="group-modal-container"
-     x-data="{ open: false }"
-     @open-group-detail.window="open = true"
-     @close-group-detail.window="open = false"
-     @keydown.escape.window="if(open && !document.getElementById('compare-modal-container').__x.$data.open) open = false"
-     x-show="open"
-     x-cloak
-     class="relative z-40">
-
-    <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
-         x-show="open"
-         x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
-         x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
-
-    <div class="fixed inset-0 z-10 overflow-y-auto" @click.self="open = false">
-        <div class="flex min-h-full items-center justify-center p-4" @click.self="open = false">
-            <div @click.stop
-                 class="relative transform overflow-hidden rounded-xl bg-white text-left shadow-xl w-full max-w-4xl max-h-[85vh] flex flex-col"
-                 x-show="open"
-                 x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
-                 x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95">
-
-                <!-- Header -->
-                <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50 flex-shrink-0">
+            {# Jobtitel-Liste #}
+            <div x-show="!sidebarCollapsed && !sidebarLoading" class="flex-1 overflow-y-auto">
+                <template x-for="(item, idx) in sidebarData" :key="idx">
                     <div>
-                        <h2 id="group-modal-title" class="text-lg font-bold text-gray-900">Jobs & Matches</h2>
+                        {# Jobtitel-Button #}
+                        <button @click="selectTitle(item)"
+                                :class="selectedTitle === item.title ? 'bg-primary-50 text-primary-700 border-l-2 border-primary-500' : 'text-gray-700 hover:bg-gray-50 border-l-2 border-transparent'"
+                                class="w-full text-left px-3 py-2.5 text-sm font-medium transition-colors flex items-center justify-between">
+                            <span class="truncate" x-text="item.title"></span>
+                            <span class="flex-shrink-0 text-xs text-gray-400 ml-1" x-text="item.total_matches"></span>
+                        </button>
+
+                        {# Stadt-Liste (wenn dieser Titel selektiert) #}
+                        <div x-show="selectedTitle === item.title" x-transition class="bg-gray-50 border-y border-gray-100">
+                            {# Stadt-Suche #}
+                            <div class="px-3 py-2">
+                                <input x-model="citySearch" type="text" placeholder="Stadt suchen..."
+                                       class="w-full text-xs border border-gray-200 rounded-md px-2.5 py-1.5 focus:ring-1 focus:ring-primary-400 focus:border-primary-400 bg-white">
+                            </div>
+                            {# Stadt-Eintraege #}
+                            <div class="max-h-60 overflow-y-auto">
+                                <template x-for="(city, cidx) in filteredCities(item.cities)" :key="cidx">
+                                    <button @click="selectCity(item.title, city)"
+                                            :class="selectedCity === city.city && selectedTitle === item.title ? 'bg-primary-100 text-primary-800' : 'text-gray-600 hover:bg-gray-100'"
+                                            class="w-full text-left px-3 py-2 text-xs transition-colors flex items-center gap-2">
+                                        {# Score-Indikator #}
+                                        <span :class="{
+                                            'bg-green-400': city.avg_score >= 80,
+                                            'bg-emerald-400': city.avg_score >= 70 && city.avg_score < 80,
+                                            'bg-yellow-400': city.avg_score >= 60 && city.avg_score < 70,
+                                            'bg-orange-400': city.avg_score < 60
+                                        }" class="w-2 h-2 rounded-full flex-shrink-0"></span>
+                                        <span class="truncate flex-1" x-text="city.city"></span>
+                                        <template x-if="city.new_count > 0">
+                                            <span class="text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full font-medium" x-text="'+' + city.new_count + ' neu'"></span>
+                                        </template>
+                                        <span class="text-gray-400 text-[10px]" x-text="city.match_count"></span>
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
                     </div>
-                    <button @click="open = false"
-                            class="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                        </svg>
+                </template>
+
+                {# Keine Daten #}
+                <div x-show="sidebarData.length === 0 && !sidebarLoading" class="px-4 py-8 text-center text-xs text-gray-400">
+                    Keine Jobtitel gefunden
+                </div>
+            </div>
+
+            {# Collapsed: Icons #}
+            <div x-show="sidebarCollapsed" class="flex-1 flex flex-col items-center py-3 gap-2 overflow-y-auto">
+                <template x-for="(item, idx) in sidebarData" :key="idx">
+                    <button @click="sidebarCollapsed = false; $nextTick(() => selectTitle(item))"
+                            :class="selectedTitle === item.title ? 'bg-primary-100 text-primary-600' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'"
+                            class="w-9 h-9 rounded-lg flex items-center justify-center text-[10px] font-bold transition-colors"
+                            :title="item.title"
+                            x-text="item.title.charAt(0)">
+                    </button>
+                </template>
+            </div>
+        </div>
+
+        {# ── MAIN CONTENT ── #}
+        <div class="flex-1 min-w-0">
+
+            {# Willkommen-Screen (wenn keine Stadt ausgewaehlt) #}
+            <div x-show="!selectedCity" class="bg-white rounded-xl border border-gray-200 p-8">
+                <div class="text-center max-w-lg mx-auto">
+                    <svg class="mx-auto h-16 w-16 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                    </svg>
+                    <h2 class="text-lg font-semibold text-gray-900 mb-2">Jobtitel & Stadt waehlen</h2>
+                    <p class="text-sm text-gray-500 mb-6">Waehle links einen Jobtitel und dann eine Stadt, um die passenden Kandidaten zu sehen.</p>
+                </div>
+
+                {# Top 8 Staedte Quick-Access #}
+                <div x-show="topCities.length > 0" class="mt-6">
+                    <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 text-center">Top Staedte</h3>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-2xl mx-auto">
+                        <template x-for="(tc, tcidx) in topCities" :key="tcidx">
+                            <button @click="quickSelectCity(tc)"
+                                    class="bg-gray-50 hover:bg-primary-50 border border-gray-200 hover:border-primary-300 rounded-lg p-3 transition-all text-center">
+                                <div class="text-sm font-medium text-gray-900" x-text="tc.city"></div>
+                                <div class="text-xs text-gray-500 mt-0.5" x-text="tc.match_count + ' Matches'"></div>
+                                <div class="text-xs font-medium mt-1"
+                                     :class="tc.avg_score >= 75 ? 'text-green-600' : tc.avg_score >= 60 ? 'text-yellow-600' : 'text-gray-500'"
+                                     x-text="'Ø ' + tc.avg_score + '%'"></div>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            {# Kandidaten-Tabelle (via HTMX geladen) #}
+            <div x-show="selectedCity" id="matches-table-container">
+                {# Header mit Jobtitel + Stadt #}
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-gray-900">
+                            <span x-text="selectedTitle"></span>
+                            <span class="text-gray-400 font-normal mx-1">—</span>
+                            <span x-text="selectedCity"></span>
+                        </h2>
+                    </div>
+                    <button @click="selectedCity = null; selectedTitle = null"
+                            class="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        Zurueck
                     </button>
                 </div>
 
-                <!-- Content (HTMX laedt hier rein) -->
-                <div id="group-detail-content" class="overflow-y-auto flex-1 p-4">
-                    <div class="flex items-center justify-center py-8 text-sm text-gray-400">
-                        <svg class="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                        </svg>
-                        Lade...
+                {# Tabellen-Content (HTMX-Target) #}
+                <div id="matches-table-content">
+                    <div class="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-400">
+                        <svg class="animate-spin h-6 w-6 mx-auto mb-2" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                        Lade Kandidaten...
                     </div>
                 </div>
             </div>
         </div>
     </div>
+
 </div>
 
-<!-- ═══════ VERGLEICHS-MODAL ═══════ -->
+{# ═══════ VERGLEICHS-MODAL (unveraendert aus altem Template) ═══════ #}
 <div id="compare-modal-container"
      x-data="{ open: false }"
      @open-compare-modal.window="open = true"
@@ -251,10 +219,7 @@
                  x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95">
                 <div id="compare-modal-content">
                     <div class="p-8 text-center text-gray-400">
-                        <svg class="animate-spin h-6 w-6 mx-auto" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                        </svg>
+                        <svg class="animate-spin h-6 w-6 mx-auto" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
                     </div>
                 </div>
             </div>
@@ -266,73 +231,274 @@
 
 {% block scripts %}
 <script>
-    function openGroupDetail(title, city, stage) {
-        document.getElementById('group-modal-title').textContent = title + ' — ' + city;
-        htmx.ajax('GET', '/api/match-center/group?title=' + encodeURIComponent(title) + '&city=' + encodeURIComponent(city) + '&stage=' + encodeURIComponent(stage), {
-            target: '#group-detail-content',
-            swap: 'innerHTML'
-        }).then(function() {
-            window.dispatchEvent(new CustomEvent('open-group-detail'));
-        });
-    }
+function matchCenterApp() {
+    return {
+        // State
+        sidebarCollapsed: false,
+        sidebarLoading: true,
+        sidebarData: [],
+        selectedTitle: null,
+        selectedCity: null,
+        citySearch: '',
+        currentPage: 1,
+        sortBy: 'score',
+        sortDir: 'desc',
+        statusFilter: null,
+        selectedMatchIds: [],
+        matchesLoading: false,
+        currentStage: '{{ current_stage }}',
 
-    function openCompareModal(matchId) {
-        htmx.ajax('GET', '/api/match-center/compare/' + matchId, {
-            target: '#compare-modal-content',
-            swap: 'innerHTML'
-        }).then(function() {
-            window.dispatchEvent(new CustomEvent('open-compare-modal'));
-        });
-    }
-
-    function closeCompareModal() {
-        window.dispatchEvent(new CustomEvent('close-compare-modal'));
-    }
-
-    function sendFeedback(matchId, feedback) {
-        fetch('/api/match-center/feedback/' + matchId + '?feedback=' + feedback, {
-            method: 'POST',
-        })
-        .then(function(resp) {
-            if (!resp.ok) throw new Error('Status ' + resp.status);
-            return resp.text();
-        })
-        .then(function() {
-            // Emoji in der Gruppen-Liste updaten
-            var emoji = feedback === 'good' ? '\u{1F44D}' : feedback === 'bad' ? '\u{1F44E}' : '\u{1F914}';
-            var colorClass = feedback === 'good' ? 'bg-green-100 text-green-600' : feedback === 'bad' ? 'bg-red-100 text-red-600' : 'bg-yellow-100 text-yellow-600';
-
-            var grpFb = document.getElementById('grp-fb-' + matchId);
-            if (grpFb) {
-                grpFb.innerHTML = '<span class="w-6 h-6 rounded-full flex items-center justify-center text-xs ' + colorClass + '">' + emoji + '</span>';
+        // Computed: Top 8 Staedte (ueber alle Jobtitel)
+        get topCities() {
+            const cityMap = {};
+            for (const item of this.sidebarData) {
+                for (const c of item.cities) {
+                    if (!cityMap[c.city]) {
+                        cityMap[c.city] = { city: c.city, match_count: 0, avg_score: 0, _scores: [], _title: item.title };
+                    }
+                    cityMap[c.city].match_count += c.match_count;
+                    cityMap[c.city]._scores.push(c.avg_score);
+                }
             }
+            const cities = Object.values(cityMap).map(c => {
+                c.avg_score = Math.round(c._scores.reduce((a, b) => a + b, 0) / c._scores.length * 10) / 10;
+                return c;
+            });
+            cities.sort((a, b) => b.match_count - a.match_count);
+            return cities.slice(0, 8);
+        },
 
-            // Feedback-Area im Vergleichsfenster updaten
-            var fbArea = document.getElementById('feedback-area-' + matchId);
-            if (fbArea) {
-                fbArea.innerHTML = '<span class="inline-flex items-center gap-1 text-sm font-medium ' +
-                    (feedback === 'good' ? 'text-green-600' : feedback === 'bad' ? 'text-red-600' : 'text-yellow-600') +
-                    '">' + emoji + ' ' +
-                    (feedback === 'good' ? 'Guter Match' : feedback === 'bad' ? 'Schlechter Match' : 'Vielleicht') +
-                    '</span>';
+        // Methods
+        async init() {
+            await this.loadSidebar();
+        },
+
+        async loadSidebar() {
+            this.sidebarLoading = true;
+            try {
+                const resp = await fetch('/api/match-center/sidebar?stage=' + encodeURIComponent(this.currentStage));
+                this.sidebarData = await resp.json();
+            } catch (e) {
+                console.error('Sidebar laden fehlgeschlagen:', e);
+                this.sidebarData = [];
             }
+            this.sidebarLoading = false;
+        },
 
-            if (typeof showToast === 'function') showToast('Feedback gespeichert', 'success');
+        selectTitle(item) {
+            if (this.selectedTitle === item.title) {
+                this.selectedTitle = null;
+                this.selectedCity = null;
+            } else {
+                this.selectedTitle = item.title;
+                this.selectedCity = null;
+                this.citySearch = '';
+            }
+        },
 
-            // Vergleichsfenster nach kurzer Pause schliessen
-            setTimeout(function() {
-                closeCompareModal();
-            }, 500);
-        })
-        .catch(function(err) {
-            if (typeof showToast === 'function') showToast('Fehler: ' + err.message, 'error');
-        });
-    }
+        selectCity(title, city) {
+            this.selectedTitle = title;
+            this.selectedCity = city.city;
+            this.currentPage = 1;
+            this.statusFilter = null;
+            this.selectedMatchIds = [];
+            this.loadMatches();
+        },
 
-    function copyToClipboard(text, label) {
-        navigator.clipboard.writeText(text).then(function() {
-            if (typeof showToast === 'function') showToast(label + ' kopiert', 'success');
-        });
-    }
+        quickSelectCity(tc) {
+            // Finde den Jobtitel der diese Stadt hat
+            for (const item of this.sidebarData) {
+                for (const c of item.cities) {
+                    if (c.city === tc.city) {
+                        this.selectedTitle = item.title;
+                        this.selectedCity = c.city;
+                        this.currentPage = 1;
+                        this.statusFilter = null;
+                        this.selectedMatchIds = [];
+                        this.loadMatches();
+                        return;
+                    }
+                }
+            }
+        },
+
+        filteredCities(cities) {
+            if (!this.citySearch) return cities;
+            const s = this.citySearch.toLowerCase();
+            return cities.filter(c => c.city.toLowerCase().includes(s));
+        },
+
+        loadMatches() {
+            if (!this.selectedTitle || !this.selectedCity) return;
+
+            const params = new URLSearchParams({
+                title: this.selectedTitle,
+                city: this.selectedCity,
+                stage: this.currentStage,
+                page: this.currentPage,
+                per_page: 15,
+                sort_by: this.sortBy,
+                sort_dir: this.sortDir,
+            });
+            if (this.statusFilter) params.set('status_filter', this.statusFilter);
+
+            this.selectedMatchIds = [];
+
+            htmx.ajax('GET', '/api/match-center/matches?' + params.toString(), {
+                target: '#matches-table-content',
+                swap: 'innerHTML'
+            }).then(() => {
+                htmx.process(document.getElementById('matches-table-content'));
+            });
+        },
+
+        setStatusFilter(filter) {
+            this.statusFilter = filter;
+            this.currentPage = 1;
+            this.loadMatches();
+        },
+
+        setPage(page) {
+            this.currentPage = page;
+            this.loadMatches();
+        },
+
+        toggleSort(col) {
+            if (this.sortBy === col) {
+                this.sortDir = this.sortDir === 'desc' ? 'asc' : 'desc';
+            } else {
+                this.sortBy = col;
+                this.sortDir = 'desc';
+            }
+            this.currentPage = 1;
+            this.loadMatches();
+        },
+
+        toggleMatch(matchId) {
+            const idx = this.selectedMatchIds.indexOf(matchId);
+            if (idx === -1) {
+                this.selectedMatchIds.push(matchId);
+            } else {
+                this.selectedMatchIds.splice(idx, 1);
+            }
+        },
+
+        toggleAllMatches(matchIds) {
+            if (this.selectedMatchIds.length === matchIds.length) {
+                this.selectedMatchIds = [];
+            } else {
+                this.selectedMatchIds = [...matchIds];
+            }
+        },
+
+        async bulkStatus(newStatus) {
+            if (this.selectedMatchIds.length === 0) return;
+
+            try {
+                const resp = await fetch('/api/match-center/bulk-status', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        match_ids: this.selectedMatchIds,
+                        status: newStatus,
+                    }),
+                });
+                const data = await resp.json();
+                if (data.status === 'ok') {
+                    showToast(data.message, 'success');
+                    this.selectedMatchIds = [];
+                    this.loadMatches();
+                    this.loadSidebar();
+                } else {
+                    showToast('Fehler: ' + (data.error || 'Unbekannt'), 'error');
+                }
+            } catch (e) {
+                showToast('Fehler: ' + e.message, 'error');
+            }
+        },
+
+        bulkExport() {
+            if (this.selectedMatchIds.length === 0) return;
+            const ids = this.selectedMatchIds.join(',');
+            window.open('/api/match-center/export?match_ids=' + encodeURIComponent(ids), '_blank');
+            showToast(this.selectedMatchIds.length + ' Matches exportiert', 'success');
+        },
+
+        bulkEmail() {
+            if (this.selectedMatchIds.length === 0) return;
+            // Interim: Toast-Hinweis (kein E-Mail-Service)
+            showToast('E-Mail-Funktion wird vorbereitet...', 'info');
+            // Wir koennten hier mailto: Links generieren wenn wir die E-Mails haetten
+        },
+
+        bulkSendProfiles() {
+            if (this.selectedMatchIds.length === 0) return;
+            showToast('Profile-Versand wird vorbereitet...', 'info');
+        },
+    };
+}
+
+// Globale Funktionen (fuer HTMX-Partials und Compare-Modal)
+function openCompareModal(matchId) {
+    htmx.ajax('GET', '/api/match-center/compare/' + matchId, {
+        target: '#compare-modal-content',
+        swap: 'innerHTML'
+    }).then(function() {
+        window.dispatchEvent(new CustomEvent('open-compare-modal'));
+    });
+}
+
+function closeCompareModal() {
+    window.dispatchEvent(new CustomEvent('close-compare-modal'));
+}
+
+function sendFeedback(matchId, feedback) {
+    fetch('/api/match-center/feedback/' + matchId + '?feedback=' + feedback, { method: 'POST' })
+    .then(function(resp) {
+        if (!resp.ok) throw new Error('Status ' + resp.status);
+        return resp.text();
+    })
+    .then(function() {
+        var emoji = feedback === 'good' ? '\u{1F44D}' : feedback === 'bad' ? '\u{1F44E}' : '\u{1F914}';
+        var fbArea = document.getElementById('feedback-area-' + matchId);
+        if (fbArea) {
+            fbArea.innerHTML = '<span class="inline-flex items-center gap-1 text-sm font-medium ' +
+                (feedback === 'good' ? 'text-green-600' : feedback === 'bad' ? 'text-red-600' : 'text-yellow-600') +
+                '">' + emoji + ' ' +
+                (feedback === 'good' ? 'Guter Match' : feedback === 'bad' ? 'Schlechter Match' : 'Vielleicht') +
+                '</span>';
+        }
+        if (typeof showToast === 'function') showToast('Feedback gespeichert', 'success');
+        setTimeout(function() { closeCompareModal(); }, 500);
+    })
+    .catch(function(err) {
+        if (typeof showToast === 'function') showToast('Fehler: ' + err.message, 'error');
+    });
+}
+
+function rejectMatch(matchId) {
+    if (!confirm('Match wirklich ablehnen?')) return;
+    fetch('/api/match-center/status/' + matchId + '?status=rejected', { method: 'POST' })
+    .then(function(resp) {
+        if (!resp.ok) throw new Error('Status ' + resp.status);
+        showToast('Match abgelehnt', 'success');
+        // Tabelle neu laden via Alpine v3
+        var appEl = document.querySelector('[x-data*="matchCenterApp"]');
+        if (appEl) {
+            var data = Alpine.$data(appEl);
+            data.loadMatches();
+            data.loadSidebar();
+        }
+    })
+    .catch(function(err) {
+        showToast('Fehler: ' + err.message, 'error');
+    });
+}
+
+function copyToClipboard(text, label) {
+    navigator.clipboard.writeText(text).then(function() {
+        if (typeof showToast === 'function') showToast(label + ' kopiert', 'success');
+    });
+}
 </script>
 {% endblock %}
