@@ -241,25 +241,9 @@ async def save_feedback(
     if not match:
         return HTMLResponse("<span class='text-red-500 text-xs'>Nicht gefunden</span>", status_code=404)
 
-    # ── v2 Learning Service: Feedback ins Lernsystem einspeisen ──
-    # Eigene Session um Haupt-Transaction nicht zu gefährden
+    # v2 Learning Service: vorerst deaktiviert (Tabelle noch nicht migriert)
+    # TODO: Aktivieren sobald match_v2_training_data Tabelle existiert
     learning_msg = ""
-    try:
-        from app.database import async_session_maker
-        from app.services.matching_learning_service import MatchingLearningService
-        async with async_session_maker() as learn_db:
-            learning = MatchingLearningService(learn_db)
-            outcome = "neutral" if feedback == "maybe" else feedback
-            lr = await learning.record_feedback(
-                match_id=match_id,
-                outcome=outcome,
-                note=note,
-                source="match_center_ui",
-            )
-            if lr.weights_adjusted:
-                learning_msg = " — Gewichte angepasst"
-    except Exception as e:
-        logger.debug(f"v2 Learning Feedback fehlgeschlagen (OK): {e}")
 
     feedback_config = {
         "good": ("&#x1F44D; Guter Match", "text-green-600"),
