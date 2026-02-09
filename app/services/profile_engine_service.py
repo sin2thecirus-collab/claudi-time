@@ -65,11 +65,14 @@ WICHTIGE UNTERSCHEIDUNG:
 - Lohnbuchhaltung = komplett anderes Fachgebiet, NICHT Finanzbuchhaltung
 
 STEUERFACHANGESTELLTE (WICHTIG — NICHT UNTERSCHAETZEN!):
+- Abgeschlossene StFA-Ausbildung (3 Jahre) = AUTOMATISCH MINDESTENS Level 3!
+  Auch wenn KEINE konkreten Taetigkeiten im CV stehen!
+  Die Ausbildung allein deckt ab: Kreditoren, Debitoren, Umsatzsteuer,
+  Anlagenbuchhaltung, JA-Vorbereitung — vollwertige FiBu-Qualifikation.
 - Steuerfachangestellte die als Finanzbuchhalter/in arbeiten = MINDESTENS Level 3
-- StFA-Ausbildung umfasst: Kreditoren, Debitoren, Umsatzsteuer, Anlagenbuchhaltung,
-  JA-Vorbereitung — das ist eine vollwertige Finanzbuchhaltungs-Qualifikation!
 - NICHT als Level 2 einstufen, nur weil der Ausbildungsberuf "Steuerfachangestellte" heisst
-- Entscheidend sind die TAETIGKEITEN, nicht der Titel der Ausbildung
+- Erkenne die Ausbildung in: Ausbildung, Weiterbildung, Berufserfahrung bei Kanzleien
+  (z.B. "Ausbildung zur Steuerfachangestellten", "StFA", "gelernte Steuerfachangestellte")
 - StFA mit mehrjaehriger FiBu-Erfahrung und breitem Aufgabenspektrum = Level 3
 
 ═══════════════════════════════════════════════════════════════
