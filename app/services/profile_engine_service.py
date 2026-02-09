@@ -696,8 +696,6 @@ class ProfileEngineService:
         query = (
             select(Candidate.id)
             .where(*conditions)
-                Candidate.hotlist_category == "FINANCE",
-            )
             .order_by(Candidate.created_at.asc())
         )
         if max_total > 0:
