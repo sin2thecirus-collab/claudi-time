@@ -91,6 +91,36 @@ async def health_check():
     }
 
 
+@app.post("/admin/reset-pool", tags=["System"])
+async def reset_db_pool():
+    """Setzt den DB-Connection-Pool zurueck und killt haengende Verbindungen."""
+    from app.database import engine
+    from sqlalchemy import text
+
+    try:
+        # 1. Pool komplett zuruecksetzen (alle idle Connections schliessen)
+        await engine.dispose()
+
+        # 2. Haengende Connections auf DB-Ebene killen
+        async with engine.begin() as conn:
+            result = await conn.execute(text("""
+                SELECT pg_terminate_backend(pid)
+                FROM pg_stat_activity
+                WHERE state = 'idle in transaction'
+                  AND pid != pg_backend_pid()
+                  AND query_start < NOW() - INTERVAL '30 seconds'
+            """))
+            killed = result.fetchall()
+
+        return {
+            "status": "ok",
+            "pool_disposed": True,
+            "idle_transactions_killed": len(killed),
+        }
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
+
+
 # Root wird jetzt vom Pages Router gehandhabt (Dashboard)
 
 
