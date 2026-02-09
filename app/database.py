@@ -25,8 +25,15 @@ engine = create_async_engine(
     pool_pre_ping=True,
     pool_size=5,
     max_overflow=10,
-    pool_recycle=300,   # Connections nach 5 Min recyceln
-    pool_timeout=10,    # Max 10s auf freie Connection warten
+    pool_recycle=300,       # Connections nach 5 Min recyceln
+    pool_timeout=30,        # Max 30s auf freie Connection warten
+    connect_args={
+        "server_settings": {
+            "statement_timeout": "15000",     # 15s max pro Statement
+            "lock_timeout": "5000",           # 5s max auf Lock warten
+            "idle_in_transaction_session_timeout": "30000",  # 30s max idle in TX
+        }
+    },
 )
 
 # Session Factory
@@ -522,6 +529,20 @@ async def _ensure_matching_v2_tables() -> None:
 
 async def init_db() -> None:
     """Initialisiert die Datenbankverbindung und führt Migrationen aus."""
+    # Schritt 0: Alle haengenden Transaktionen killen (von vorherigen Deployments)
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("""
+                SELECT pg_terminate_backend(pid)
+                FROM pg_stat_activity
+                WHERE state = 'idle in transaction'
+                  AND pid != pg_backend_pid()
+                  AND query_start < NOW() - INTERVAL '30 seconds'
+            """))
+            logger.info("init_db: Haengende idle-in-transaction Connections gekillt.")
+    except Exception as e:
+        logger.warning(f"init_db: Konnte idle Transactions nicht killen: {e}")
+
     async with engine.begin() as conn:
         # Verbindung testen
         await conn.run_sync(lambda _: None)
