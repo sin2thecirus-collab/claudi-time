@@ -1352,6 +1352,74 @@ async def geocode_sync(
         await geo.close()
 
 
+@router.post("/admin/geocode-debug/{candidate_id}")
+async def geocode_debug_candidate(
+    candidate_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """DEBUG: Zeigt exakt welche Geocoding-Varianten fuer einen Kandidaten versucht werden."""
+    import re
+    from app.services.geocoding_service import GeocodingService
+
+    result = await db.execute(
+        select(Candidate).where(Candidate.id == candidate_id)
+    )
+    cand = result.scalar_one_or_none()
+    if not cand:
+        return {"error": "Kandidat nicht gefunden"}
+
+    geo = GeocodingService(db)
+    try:
+        # Alle Varianten aufbauen (gleiche Logik wie geocode_candidate)
+        address_variants = []
+        full_addr = geo._build_address(street=cand.street_address, postal_code=cand.postal_code, city=cand.city)
+        if full_addr:
+            address_variants.append(full_addr)
+        if cand.street_address:
+            fallback = geo._build_address(street=None, postal_code=cand.postal_code, city=cand.city)
+            if fallback and fallback != full_addr:
+                address_variants.append(fallback)
+        if cand.city:
+            clean_city = re.sub(r'\s*(?:OT|bei|Ortsteil)\s+\S+.*', '', cand.city).strip()
+            if clean_city != cand.city:
+                clean_fb = geo._build_address(street=None, postal_code=cand.postal_code, city=clean_city)
+                if clean_fb and clean_fb not in address_variants:
+                    address_variants.append(clean_fb)
+        if cand.postal_code:
+            plz_only = f"{cand.postal_code}, Deutschland"
+            if plz_only not in address_variants:
+                address_variants.append(plz_only)
+        if cand.city:
+            city_only = geo._build_address(street=None, postal_code=None, city=cand.city)
+            if city_only and city_only not in address_variants:
+                address_variants.append(city_only)
+
+        # Jede Variante testen
+        results = []
+        for addr in address_variants:
+            geo_result = await geo.geocode(addr)
+            results.append({
+                "address": addr,
+                "found": geo_result is not None,
+                "lat": geo_result.latitude if geo_result else None,
+                "lon": geo_result.longitude if geo_result else None,
+                "display": geo_result.display_name if geo_result else None,
+            })
+
+        return {
+            "candidate_id": str(cand.id),
+            "name": f"{cand.first_name} {cand.last_name}",
+            "street": cand.street_address,
+            "postal_code": cand.postal_code,
+            "city": cand.city,
+            "has_coordinates": cand.address_coords is not None,
+            "variants_tried": len(address_variants),
+            "results": results,
+        }
+    finally:
+        await geo.close()
+
+
 # ══════════════════════════════════════════════════════════════════
 # Profiling Status & Sync
 # ══════════════════════════════════════════════════════════════════
