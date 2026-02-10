@@ -1032,6 +1032,118 @@ async def reset_all_matches(
     }
 
 
+@router.get("/admin/geocoding-status")
+async def geocoding_status(
+    db: AsyncSession = Depends(get_db),
+):
+    """Status-Endpoint: Zeigt Geocoding-Abdeckung und listet Jobs/Kandidaten ohne Koordinaten.
+
+    Nuetzlich um zu sehen welche Eintraege keine geocodierbare Adresse hatten
+    und welche den Unternehmens-Standort als Fallback nutzen.
+    """
+    from app.models.job import Job
+    from app.models import Candidate
+    from app.models.company import Company
+    from sqlalchemy import select, func, and_, or_
+
+    # --- Jobs ---
+    jobs_total = (await db.execute(
+        select(func.count()).select_from(Job).where(Job.deleted_at.is_(None))
+    )).scalar() or 0
+
+    jobs_with_coords = (await db.execute(
+        select(func.count()).select_from(Job).where(
+            Job.location_coords.isnot(None), Job.deleted_at.is_(None)
+        )
+    )).scalar() or 0
+
+    # Jobs OHNE Koordinaten aber MIT Company die Koordinaten hat (Fallback moeglich)
+    jobs_company_fallback = (await db.execute(
+        select(func.count()).select_from(Job)
+        .join(Company, Job.company_id == Company.id)
+        .where(
+            Job.location_coords.is_(None),
+            Job.deleted_at.is_(None),
+            Company.location_coords.isnot(None),
+        )
+    )).scalar() or 0
+
+    # Jobs komplett OHNE Koordinaten und OHNE Company-Fallback
+    jobs_no_coords_q = await db.execute(
+        select(
+            Job.id,
+            Job.position,
+            Job.company_name,
+            Job.city,
+            Job.work_location_city,
+            Job.street_address,
+            Job.postal_code,
+        )
+        .outerjoin(Company, Job.company_id == Company.id)
+        .where(
+            Job.location_coords.is_(None),
+            Job.deleted_at.is_(None),
+            or_(
+                Job.company_id.is_(None),
+                Company.location_coords.is_(None),
+            ),
+        )
+        .limit(50)
+    )
+    jobs_without = [
+        {
+            "id": str(r[0]),
+            "position": r[1],
+            "company": r[2],
+            "city": r[3],
+            "work_location_city": r[4],
+            "street": r[5],
+            "plz": r[6],
+        }
+        for r in jobs_no_coords_q.all()
+    ]
+
+    # --- Kandidaten ---
+    cands_total = (await db.execute(
+        select(func.count()).select_from(Candidate).where(Candidate.hidden == False)
+    )).scalar() or 0
+
+    cands_with_coords = (await db.execute(
+        select(func.count()).select_from(Candidate).where(
+            Candidate.address_coords.isnot(None), Candidate.hidden == False
+        )
+    )).scalar() or 0
+
+    cands_no_city = (await db.execute(
+        select(func.count()).select_from(Candidate).where(
+            Candidate.address_coords.is_(None),
+            Candidate.hidden == False,
+            or_(Candidate.city.is_(None), Candidate.city == ""),
+        )
+    )).scalar() or 0
+
+    return {
+        "jobs": {
+            "total": jobs_total,
+            "with_coords": jobs_with_coords,
+            "company_fallback_available": jobs_company_fallback,
+            "without_coords_or_fallback": len(jobs_without),
+            "coverage_percent": round(jobs_with_coords / jobs_total * 100, 1) if jobs_total else 0,
+            "effective_coverage_percent": round(
+                (jobs_with_coords + jobs_company_fallback) / jobs_total * 100, 1
+            ) if jobs_total else 0,
+        },
+        "candidates": {
+            "total": cands_total,
+            "with_coords": cands_with_coords,
+            "without_coords": cands_total - cands_with_coords,
+            "no_city_at_all": cands_no_city,
+            "coverage_percent": round(cands_with_coords / cands_total * 100, 1) if cands_total else 0,
+        },
+        "jobs_without_coords_or_fallback": jobs_without,
+    }
+
+
 @router.get("/admin/debug-match/{match_id}")
 async def debug_match(
     match_id: UUID,

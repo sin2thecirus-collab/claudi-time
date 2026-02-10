@@ -1081,13 +1081,24 @@ class MatchingEngineV2:
         import time
         start = time.perf_counter()
 
-        # Job laden
-        job = await self.db.get(Job, job_id)
+        # Job laden (mit Company fuer Standort-Fallback)
+        from sqlalchemy.orm import selectinload
+        result = await self.db.execute(
+            select(Job).options(selectinload(Job.company)).where(Job.id == job_id)
+        )
+        job = result.scalar_one_or_none()
         if not job:
             raise ValueError(f"Job {job_id} nicht gefunden")
 
         if not job.v2_profile_created_at:
             raise ValueError(f"Job {job_id} hat kein v2-Profil. Zuerst profilieren!")
+
+        # Fallback: Wenn Job keine Koordinaten hat → nutze Unternehmens-Standort
+        if job.location_coords is None and job.company and job.company.location_coords is not None:
+            job.location_coords = job.company.location_coords
+            logger.info(
+                f"Job {job_id}: Nutze Unternehmens-Standort '{job.company.name}' als Distanz-Fallback"
+            )
 
         job_level = job.v2_seniority_level or 2
         job_category = job.hotlist_job_title or job.position
