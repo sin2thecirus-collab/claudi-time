@@ -1359,6 +1359,7 @@ async def geocode_debug_candidate(
 ):
     """DEBUG: Zeigt exakt welche Geocoding-Varianten fuer einen Kandidaten versucht werden."""
     import re
+    from sqlalchemy import select
     from app.models import Candidate
     from app.services.geocoding_service import GeocodingService
 
