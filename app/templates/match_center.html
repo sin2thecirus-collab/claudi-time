@@ -143,44 +143,47 @@
         <div class="flex-1 min-w-0">
 
             {# Willkommen-Screen: TABELLE statt Karten (Fix 4) #}
-            <div x-show="!selectedCity" class="bg-white rounded-xl border border-gray-200 p-6">
+            <div x-show="!selectedCity" class="rounded-xl border p-6" style="background: var(--pp-surface, #181A23); border-color: var(--pp-border, #2A2D3A);">
                 <div class="flex items-center justify-between mb-5">
                     <div>
-                        <h2 class="text-lg font-semibold text-gray-900">Standort-Uebersicht</h2>
-                        <p class="text-xs text-gray-500 mt-0.5" x-show="selectedTitle" x-text="selectedTitle + ' — Top Standorte nach Score'"></p>
-                        <p class="text-xs text-gray-500 mt-0.5" x-show="!selectedTitle">Waehle links einen Jobtitel, um die besten Standorte zu sehen.</p>
+                        <h2 class="text-lg font-semibold" style="color: var(--pp-text, #E8E9ED);">Standort-Uebersicht</h2>
+                        <p class="text-xs mt-0.5" style="color: var(--pp-muted, #6B7280);" x-show="selectedTitle" x-text="selectedTitle + ' — Top Standorte nach Score'"></p>
+                        <p class="text-xs mt-0.5" style="color: var(--pp-muted, #6B7280);" x-show="!selectedTitle">Waehle links einen Jobtitel, um die besten Standorte zu sehen.</p>
                     </div>
-                    <span class="text-xs text-gray-400">Top 8 nach Score</span>
+                    <span class="text-xs" style="color: var(--pp-muted, #6B7280);">Top 8 nach Score</span>
                 </div>
 
                 {# Top-Staedte Tabelle #}
                 <div x-show="topCities.length > 0">
                     <table class="w-full">
                         <thead>
-                            <tr class="border-b border-gray-100">
-                                <th class="text-left text-xs font-medium text-gray-500 uppercase pb-2 w-8">#</th>
-                                <th class="text-left text-xs font-medium text-gray-500 uppercase pb-2">Stadt</th>
-                                <th class="text-right text-xs font-medium text-gray-500 uppercase pb-2 w-20">Matches</th>
-                                <th class="text-right text-xs font-medium text-gray-500 uppercase pb-2 w-16">Neu</th>
-                                <th class="text-left text-xs font-medium text-gray-500 uppercase pb-2 pl-4 w-40">Ø Score</th>
-                                <th class="text-right text-xs font-medium text-gray-500 uppercase pb-2 w-24"></th>
+                            <tr style="border-bottom: 1px solid var(--pp-border, #2A2D3A);">
+                                <th class="text-left text-xs font-medium uppercase pb-3 w-8" style="color: var(--pp-muted, #6B7280);">#</th>
+                                <th class="text-left text-xs font-medium uppercase pb-3" style="color: var(--pp-muted, #6B7280);">Stadt</th>
+                                <th class="text-right text-xs font-medium uppercase pb-3 w-20" style="color: var(--pp-muted, #6B7280);">Matches</th>
+                                <th class="text-right text-xs font-medium uppercase pb-3 w-16" style="color: var(--pp-muted, #6B7280);">Neu</th>
+                                <th class="text-left text-xs font-medium uppercase pb-3 pl-4 w-40" style="color: var(--pp-muted, #6B7280);">Ø Score</th>
+                                <th class="text-right text-xs font-medium uppercase pb-3 w-24"></th>
                             </tr>
                         </thead>
                         <tbody>
                             <template x-for="(tc, tcidx) in topCities" :key="tcidx">
-                                <tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer"
+                                <tr class="transition-colors cursor-pointer"
+                                    style="border-bottom: 1px solid rgba(255,255,255,0.05);"
+                                    onmouseenter="this.style.background='rgba(255,255,255,0.03)'"
+                                    onmouseleave="this.style.background='transparent'"
                                     @click="quickSelectCity(tc)">
-                                    <td class="py-2.5 text-xs text-gray-400 font-medium" x-text="tcidx + 1"></td>
-                                    <td class="py-2.5 text-sm font-medium text-gray-900" x-text="tc.city"></td>
-                                    <td class="py-2.5 text-xs text-gray-600 text-right" x-text="tc.match_count"></td>
-                                    <td class="py-2.5 text-right">
+                                    <td class="py-3 text-xs font-medium" style="color: var(--pp-muted, #6B7280);" x-text="tcidx + 1"></td>
+                                    <td class="py-3 text-sm font-semibold" style="color: var(--pp-text, #E8E9ED);" x-text="tc.city"></td>
+                                    <td class="py-3 text-xs text-right" style="color: var(--pp-text-secondary, #A0A3B1);" x-text="tc.match_count"></td>
+                                    <td class="py-3 text-right">
                                         <template x-if="tc.new_count > 0">
-                                            <span class="text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full font-medium" x-text="'+' + tc.new_count"></span>
+                                            <span class="text-[10px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded-full font-medium" x-text="'+' + tc.new_count"></span>
                                         </template>
                                     </td>
-                                    <td class="py-2.5 pl-4">
+                                    <td class="py-3 pl-4">
                                         <div class="flex items-center gap-2">
-                                            <div class="w-20 bg-gray-200 rounded-full h-1.5">
+                                            <div class="w-20 rounded-full h-1.5" style="background: rgba(255,255,255,0.1);">
                                                 <div class="h-1.5 rounded-full"
                                                      :style="'width: ' + Math.min(tc.avg_score, 100) + '%; background-color: ' + (tc.avg_score >= 85 ? '#22c55e' : tc.avg_score >= 75 ? '#4ade80' : tc.avg_score >= 65 ? '#eab308' : tc.avg_score >= 55 ? '#f97316' : '#ef4444')"></div>
                                             </div>
@@ -189,8 +192,8 @@
                                                   x-text="tc.avg_score"></span>
                                         </div>
                                     </td>
-                                    <td class="py-2.5 text-right">
-                                        <span class="text-xs text-primary-600 hover:text-primary-800 font-medium">Oeffnen →</span>
+                                    <td class="py-3 text-right">
+                                        <span class="text-xs font-medium" style="color: var(--pp-green, #34D399);">Oeffnen →</span>
                                     </td>
                                 </tr>
                             </template>
@@ -200,10 +203,10 @@
 
                 {# Keine Daten — kein Jobtitel gewaehlt #}
                 <div x-show="topCities.length === 0 && !selectedTitle" class="text-center py-8">
-                    <svg class="mx-auto h-12 w-12 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="mx-auto h-12 w-12 mb-3" style="color: var(--pp-muted, #6B7280);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                     </svg>
-                    <p class="text-sm text-gray-500">Waehle links einen Jobtitel, um die besten Standorte zu sehen.</p>
+                    <p class="text-sm" style="color: var(--pp-muted, #6B7280);">Waehle links einen Jobtitel, um die besten Standorte zu sehen.</p>
                 </div>
             </div>
 
