@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import delete as sa_delete, func as sa_func, or_, select
@@ -300,7 +300,11 @@ class CompanyFullCreate(BaseModel):
 
 
 @router.post("/create-full")
-async def create_company_full(data: CompanyFullCreate, db: AsyncSession = Depends(get_db)):
+async def create_company_full(
+    data: CompanyFullCreate,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+):
     """Erstellt Unternehmen + Kontakt + optionalen ATS-Job in einem Request."""
     service = CompanyService(db)
 
@@ -380,6 +384,11 @@ async def create_company_full(data: CompanyFullCreate, db: AsyncSession = Depend
                 job_error = str(e)
 
     await db.commit()
+
+    # Auto-Geocoding im Hintergrund (Job-Adresse → Koordinaten, propagiert auch zur Company)
+    if regular_job:
+        from app.services.geocoding_service import process_job_after_create
+        background_tasks.add_task(process_job_after_create, regular_job.id)
 
     message = "Unternehmen erfolgreich erstellt"
     if ats_job and regular_job:

@@ -454,6 +454,18 @@ class CSVImportService:
                 except Exception as cat_err:
                     logger.warning(f"Auto-Kategorisierung fehlgeschlagen: {cat_err}")
 
+                # Auto-Geocoding: importierte Jobs geocodieren (Batch-Commits alle 25 Items)
+                try:
+                    from app.services.geocoding_service import GeocodingService
+                    geo_service = GeocodingService(self.db)
+                    geo_result = await geo_service.process_pending_jobs()
+                    logger.info(
+                        f"Auto-Geocoding: {geo_result.successful} Jobs geocodiert, "
+                        f"{geo_result.skipped} uebersprungen, {geo_result.failed} fehlgeschlagen"
+                    )
+                except Exception as geo_err:
+                    logger.warning(f"Auto-Geocoding fehlgeschlagen: {geo_err}")
+
         except Exception as e:
             logger.error(f"Import fehlgeschlagen: {e}", exc_info=True)
             import_job.status = ImportStatus.FAILED

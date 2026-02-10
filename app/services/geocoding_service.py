@@ -652,3 +652,47 @@ class GeocodingService:
                 "skipped": candidates_result.skipped,
             },
         }
+
+
+# ==================== Background-Task Helpers ====================
+
+
+async def process_job_after_create(job_id: UUID):
+    """Background-Task: Geocoding fuer einen neuen Job.
+
+    Erstellt eigene DB-Session (nicht die Request-Session wiederverwenden!).
+    Fehler blockieren NICHT die Job-Erstellung — nur Warning-Log.
+    Pattern von _process_candidate_after_create uebernommen.
+    """
+    from app.database import async_session_maker
+
+    async with async_session_maker() as db:
+        try:
+            result = await db.execute(
+                select(Job).where(Job.id == job_id)
+            )
+            job = result.scalar_one_or_none()
+            if not job:
+                logger.error(f"Post-Create Geocoding: Job {job_id} nicht gefunden")
+                return
+
+            logger.info(f"Post-Create Geocoding: Starte fuer Job {job_id} ({job.position})")
+
+            try:
+                geo_service = GeocodingService(db)
+                success = await geo_service.geocode_job(job)
+                if success:
+                    logger.info(f"Post-Create Geocoding: Job {job_id} erfolgreich geocodiert")
+                else:
+                    logger.warning(f"Post-Create Geocoding: Job {job_id} konnte nicht geocodiert werden (keine passende Adresse)")
+            except Exception as e:
+                logger.warning(f"Post-Create Geocoding fehlgeschlagen fuer Job {job_id}: {e}")
+
+            await db.commit()
+
+        except Exception as e:
+            logger.error(f"Post-Create Geocoding komplett fehlgeschlagen fuer Job {job_id}: {e}")
+            try:
+                await db.rollback()
+            except Exception:
+                pass

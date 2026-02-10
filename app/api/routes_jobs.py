@@ -4,7 +4,7 @@ import logging
 from datetime import datetime, timezone
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request, UploadFile, File, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request, UploadFile, File, status
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
@@ -187,6 +187,7 @@ async def cancel_import(
 @rate_limit(RateLimitTier.WRITE)
 async def create_job(
     request: Request,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -204,6 +205,10 @@ async def create_job(
     job_service = JobService(db)
     job = await job_service.create_job(data)
     await db.commit()
+
+    # Auto-Geocoding im Hintergrund (Adresse → Koordinaten)
+    from app.services.geocoding_service import process_job_after_create
+    background_tasks.add_task(process_job_after_create, job.id)
 
     return {
         "id": str(job.id),
