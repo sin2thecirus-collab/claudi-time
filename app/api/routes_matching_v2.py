@@ -1075,7 +1075,7 @@ async def geocode_test_job(
     job_id: UUID,
     db: AsyncSession = Depends(get_db),
 ):
-    """ADMIN DEBUG: Testet Geocoding fuer einen einzelnen Job mit detailliertem Logging."""
+    """ADMIN DEBUG: Testet Geocoding-Fallback fuer einen einzelnen Job."""
     from app.models.job import Job
     from app.models.company import Company
     from app.services.geocoding_service import GeocodingService
@@ -1088,49 +1088,48 @@ async def geocode_test_job(
     log = []
 
     try:
-        # Check Company
-        company = None
+        # 1) Company Check
         if job.company_id:
             company = await db.get(Company, job.company_id)
-            log.append(f"Company: {company.name if company else 'NOT FOUND'}")
-            log.append(f"Company coords: {company.location_coords is not None if company else 'N/A'}")
-            if company and company.location_coords is not None:
-                log.append("→ Wuerde Koordinaten vom Unternehmen erben")
+            log.append(f"Company: {company.name if company else 'NOT FOUND'}, coords: {company.location_coords is not None if company else False}")
         else:
-            log.append("Company: Keine company_id")
+            log.append("Company: keine company_id")
 
-        # Build Address
-        address = geo._build_address(
-            street=job.street_address,
-            postal_code=job.postal_code,
-            city=job.city,
-        )
-        log.append(f"Address built: '{address}' from street={job.street_address}, plz={job.postal_code}, city={job.city}")
+        # 2) Build address variants (same logic as geocode_job)
+        full_addr = geo._build_address(street=job.street_address, postal_code=job.postal_code, city=job.city)
+        log.append(f"Full: '{full_addr}'")
 
-        # Try Nominatim
-        if address:
-            result = await geo.geocode(address)
-            log.append(f"Nominatim result: {result}")
-        else:
-            log.append("Nominatim: Skipped (no address)")
+        fallback_addr = geo._build_address(street=None, postal_code=job.postal_code, city=job.city)
+        log.append(f"Fallback (PLZ+Stadt): '{fallback_addr}'")
 
-        # Try actual geocode_job
-        ok = await geo.geocode_job(job)
-        log.append(f"geocode_job() result: {ok}")
-        log.append(f"Job location_coords after: {job.location_coords is not None}")
+        # 3) Test each variant with Nominatim
+        for label, addr in [("Full", full_addr), ("Fallback", fallback_addr)]:
+            if addr:
+                result = await geo.geocode(addr)
+                log.append(f"Nominatim({label}): {'OK' if result else 'None'} → {addr}")
+            else:
+                log.append(f"Nominatim({label}): skipped (no address)")
 
-        if ok:
-            await db.commit()
-            log.append("COMMITTED to DB")
+        # 4) Actually run geocode_job() with a FRESH GeocodingService (no cache)
+        geo2 = GeocodingService(db)
+        try:
+            ok = await geo2.geocode_job(job)
+            log.append(f"geocode_job(): {ok}")
+            if ok:
+                await db.commit()
+                log.append("COMMITTED")
+        finally:
+            await geo2.close()
 
         return {
             "job_id": str(job.id),
-            "city": job.city,
-            "work_location_city": job.work_location_city,
-            "street_address": job.street_address,
-            "postal_code": job.postal_code,
-            "location_coords_before": False,  # we know it was null
-            "geocode_result": ok,
+            "fields": {
+                "city": job.city,
+                "work_location_city": job.work_location_city,
+                "street_address": job.street_address,
+                "postal_code": job.postal_code,
+            },
+            "location_coords_now": job.location_coords is not None,
             "log": log,
         }
     finally:
