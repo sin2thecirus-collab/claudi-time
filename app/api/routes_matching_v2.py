@@ -1427,15 +1427,19 @@ async def admin_profiling_status(
         for r in missing_jobs_q.all()
     ]
 
-    # --- Kandidaten ---
+    # --- Kandidaten (gleiche Filter wie backfill_candidates: hidden=False + deleted_at=NULL) ---
     cands_total = (await db.execute(
-        select(func.count()).select_from(Candidate).where(Candidate.hidden == False)
+        select(func.count()).select_from(Candidate).where(
+            Candidate.hidden == False,
+            Candidate.deleted_at.is_(None),
+        )
     )).scalar() or 0
 
     cands_with_profile = (await db.execute(
         select(func.count()).select_from(Candidate).where(
             Candidate.v2_profile_created_at.isnot(None),
             Candidate.hidden == False,
+            Candidate.deleted_at.is_(None),
         )
     )).scalar() or 0
 
@@ -1443,6 +1447,7 @@ async def admin_profiling_status(
         select(func.count()).select_from(Candidate).where(
             Candidate.hotlist_category == "FINANCE",
             Candidate.hidden == False,
+            Candidate.deleted_at.is_(None),
         )
     )).scalar() or 0
 
@@ -1451,6 +1456,7 @@ async def admin_profiling_status(
             Candidate.hotlist_category == "FINANCE",
             Candidate.v2_profile_created_at.isnot(None),
             Candidate.hidden == False,
+            Candidate.deleted_at.is_(None),
         )
     )).scalar() or 0
 
