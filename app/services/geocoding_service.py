@@ -310,16 +310,33 @@ class GeocodingService:
             if fallback and fallback != full_addr:
                 address_variants.append(fallback)
 
-        # Fallback nur Stadt
-        if job.city and not job.postal_code:
+        # Fallback: PLZ + Stadt bereinigt (ohne "OT ...", "bei ...", etc.)
+        if job.city:
+            clean_city = re.sub(r'\s*(?:OT|bei|Ortsteil)\s+\S+.*', '', job.city).strip()
+            if clean_city != job.city:
+                clean_fallback = self._build_address(
+                    street=None, postal_code=job.postal_code, city=clean_city,
+                )
+                if clean_fallback and clean_fallback not in address_variants:
+                    address_variants.append(clean_fallback)
+
+        # Fallback nur Stadt (auch wenn PLZ vorhanden)
+        if job.city:
             city_only = self._build_address(street=None, postal_code=None, city=job.city)
             if city_only and city_only not in address_variants:
                 address_variants.append(city_only)
 
-        # Fallback: work_location_city (z.B. "82041 Oberhaching")
-        if job.work_location_city and not address_variants:
+        # Fallback: Nur PLZ
+        if job.postal_code:
+            plz_only = f"{job.postal_code}, Deutschland"
+            if plz_only not in address_variants:
+                address_variants.append(plz_only)
+
+        # Fallback: work_location_city (immer als letzter Versuch)
+        if job.work_location_city:
             wlc = f"{job.work_location_city}, Deutschland"
-            address_variants.append(wlc)
+            if wlc not in address_variants:
+                address_variants.append(wlc)
 
         if not address_variants:
             logger.debug(f"Job {job.id}: Keine Adresse vorhanden")
@@ -390,6 +407,28 @@ class GeocodingService:
             )
             if fallback and fallback != full_addr:
                 address_variants.append(fallback)
+
+        # Fallback: Stadt bereinigt (ohne "OT ...", "bei ...", etc.)
+        if candidate.city:
+            clean_city = re.sub(r'\s*(?:OT|bei|Ortsteil)\s+\S+.*', '', candidate.city).strip()
+            if clean_city != candidate.city:
+                clean_fallback = self._build_address(
+                    street=None, postal_code=candidate.postal_code, city=clean_city,
+                )
+                if clean_fallback and clean_fallback not in address_variants:
+                    address_variants.append(clean_fallback)
+
+        # Fallback nur Stadt (auch wenn PLZ vorhanden)
+        if candidate.city:
+            city_only = self._build_address(street=None, postal_code=None, city=candidate.city)
+            if city_only and city_only not in address_variants:
+                address_variants.append(city_only)
+
+        # Fallback: Nur PLZ
+        if candidate.postal_code:
+            plz_only = f"{candidate.postal_code}, Deutschland"
+            if plz_only not in address_variants:
+                address_variants.append(plz_only)
 
         if not address_variants:
             logger.debug(f"Kandidat {candidate.id}: Keine Adresse vorhanden")
