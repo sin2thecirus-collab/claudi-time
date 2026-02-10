@@ -1033,7 +1033,7 @@ async def reset_all_matches(
 
 
 @router.get("/admin/geocoding-status")
-async def geocoding_status(
+async def admin_geocoding_coverage(
     db: AsyncSession = Depends(get_db),
 ):
     """Status-Endpoint: Zeigt Geocoding-Abdeckung und listet Jobs/Kandidaten ohne Koordinaten.
