@@ -288,18 +288,50 @@ class GeocodingService:
                 )
                 return True
 
-        # ── Strategie 2: Selbst geocoden ──
-        address = self._build_address(
+        # ── Strategie 2: Selbst geocoden (mit Fallback) ──
+        # Versuche: 1) Volle Adresse, 2) PLZ + Stadt, 3) Nur Stadt
+        # Falls Nominatim die Strasse nicht kennt (Tippfehler etc.)
+        address_variants = []
+        full_addr = self._build_address(
             street=job.street_address,
             postal_code=job.postal_code,
             city=job.city,
         )
+        if full_addr:
+            address_variants.append(full_addr)
 
-        if not address:
+        # Fallback ohne Strasse (PLZ + Stadt)
+        if job.street_address:  # Nur Fallback wenn es eine Strasse GAB
+            fallback = self._build_address(
+                street=None,
+                postal_code=job.postal_code,
+                city=job.city,
+            )
+            if fallback and fallback != full_addr:
+                address_variants.append(fallback)
+
+        # Fallback nur Stadt
+        if job.city and not job.postal_code:
+            city_only = self._build_address(street=None, postal_code=None, city=job.city)
+            if city_only and city_only not in address_variants:
+                address_variants.append(city_only)
+
+        # Fallback: work_location_city (z.B. "82041 Oberhaching")
+        if job.work_location_city and not address_variants:
+            wlc = f"{job.work_location_city}, Deutschland"
+            address_variants.append(wlc)
+
+        if not address_variants:
             logger.debug(f"Job {job.id}: Keine Adresse vorhanden")
             return False
 
-        result = await self.geocode(address)
+        result = None
+        for addr in address_variants:
+            result = await self.geocode(addr)
+            if result:
+                if addr != address_variants[0]:
+                    logger.info(f"Job {job.id}: Fallback-Geocoding mit '{addr[:50]}' erfolgreich")
+                break
 
         if result:
             # PostGIS Point erstellen: ST_SetSRID(ST_MakePoint(lon, lat), 4326)
@@ -331,7 +363,7 @@ class GeocodingService:
 
     async def geocode_candidate(self, candidate: Candidate) -> bool:
         """
-        Geokodiert einen Kandidaten.
+        Geokodiert einen Kandidaten (mit Fallback bei fehlerhafter Strasse).
 
         Args:
             candidate: Candidate-Objekt
@@ -339,17 +371,37 @@ class GeocodingService:
         Returns:
             True bei Erfolg
         """
-        address = self._build_address(
+        # Versuche: 1) Volle Adresse, 2) PLZ + Stadt, 3) Nur Stadt
+        address_variants = []
+        full_addr = self._build_address(
             street=candidate.street_address,
             postal_code=candidate.postal_code,
             city=candidate.city,
         )
+        if full_addr:
+            address_variants.append(full_addr)
 
-        if not address:
+        # Fallback ohne Strasse
+        if candidate.street_address:
+            fallback = self._build_address(
+                street=None,
+                postal_code=candidate.postal_code,
+                city=candidate.city,
+            )
+            if fallback and fallback != full_addr:
+                address_variants.append(fallback)
+
+        if not address_variants:
             logger.debug(f"Kandidat {candidate.id}: Keine Adresse vorhanden")
             return False
 
-        result = await self.geocode(address)
+        result = None
+        for addr in address_variants:
+            result = await self.geocode(addr)
+            if result:
+                if addr != address_variants[0]:
+                    logger.info(f"Kandidat {candidate.id}: Fallback-Geocoding mit '{addr[:50]}' erfolgreich")
+                break
 
         if result:
             candidate.address_coords = func.ST_SetSRID(
