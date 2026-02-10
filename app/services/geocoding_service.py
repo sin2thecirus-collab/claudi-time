@@ -405,18 +405,24 @@ class GeocodingService:
         Phase 0: Erst Vererbung von Unternehmen (kostenlos, kein API-Aufruf)
         Phase 1: Dann restliche Jobs per Nominatim geocoden
 
+        Batch-Commits alle 25 Eintraege damit Fortschritt sofort in DB sichtbar.
+
         Returns:
             ProcessResult mit Statistiken
         """
+        BATCH = 25
+
         # Phase 0: Vererbung
         inherit_result = await self.inherit_geocodes_from_companies()
         inherited = inherit_result["inherited"]
 
-        # Phase 1: Restliche Jobs ohne Koordinaten laden
+        # Phase 1: Restliche Jobs ohne Koordinaten laden (nur mit Stadt!)
         result = await self.db.execute(
             select(Job).where(
                 Job.location_coords.is_(None),
                 Job.deleted_at.is_(None),
+                Job.city.isnot(None),
+                Job.city != "",
             )
         )
         jobs = result.scalars().all()
@@ -432,7 +438,7 @@ class GeocodingService:
             f"({inherited} bereits von Unternehmen geerbt)"
         )
 
-        for job in jobs:
+        for i, job in enumerate(jobs):
             try:
                 if await self.geocode_job(job):
                     successful += 1
@@ -442,6 +448,14 @@ class GeocodingService:
                 failed += 1
                 errors.append({"job_id": str(job.id), "error": str(e)})
                 logger.error(f"Fehler bei Job {job.id}: {e}")
+
+            # Batch-Commit alle 25 Items
+            if (i + 1) % BATCH == 0:
+                await self.db.commit()
+                logger.info(
+                    f"Geocoding Jobs: {i+1}/{len(jobs)} "
+                    f"({successful} OK, {skipped} skip, {failed} fail)"
+                )
 
         await self.db.commit()
 
@@ -463,14 +477,20 @@ class GeocodingService:
         """
         Geokodiert alle Kandidaten ohne Koordinaten.
 
+        Batch-Commits alle 25 Eintraege damit Fortschritt sofort in DB sichtbar.
+
         Returns:
             ProcessResult mit Statistiken
         """
-        # Kandidaten ohne Koordinaten laden
+        BATCH = 25
+
+        # Kandidaten ohne Koordinaten laden (nur mit Stadt!)
         result = await self.db.execute(
             select(Candidate).where(
                 Candidate.address_coords.is_(None),
                 Candidate.hidden.is_(False),
+                Candidate.city.isnot(None),
+                Candidate.city != "",
             )
         )
         candidates = result.scalars().all()
@@ -483,7 +503,7 @@ class GeocodingService:
 
         logger.info(f"Starte Geokodierung für {total} Kandidaten")
 
-        for candidate in candidates:
+        for i, candidate in enumerate(candidates):
             try:
                 if await self.geocode_candidate(candidate):
                     successful += 1
@@ -493,6 +513,14 @@ class GeocodingService:
                 failed += 1
                 errors.append({"candidate_id": str(candidate.id), "error": str(e)})
                 logger.error(f"Fehler bei Kandidat {candidate.id}: {e}")
+
+            # Batch-Commit alle 25 Items
+            if (i + 1) % BATCH == 0:
+                await self.db.commit()
+                logger.info(
+                    f"Geocoding Kandidaten: {i+1}/{len(candidates)} "
+                    f"({successful} OK, {skipped} skip, {failed} fail)"
+                )
 
         await self.db.commit()
 
