@@ -658,13 +658,20 @@ class GeocodingService:
 
 
 async def process_job_after_create(job_id: UUID):
-    """Background-Task: Geocoding fuer einen neuen Job.
+    """Background-Task: Geocoding + Kategorisierung + Profiling fuer einen neuen Job.
+
+    Reihenfolge:
+      1. Geocoding        (Adresse → Koordinaten)
+      2. Kategorisierung  (Job → FINANCE/ENGINEERING/...)
+      3. Profiling        (nur wenn FINANCE → GPT-4o-mini Profil)
 
     Erstellt eigene DB-Session (nicht die Request-Session wiederverwenden!).
     Fehler blockieren NICHT die Job-Erstellung — nur Warning-Log.
     Pattern von _process_candidate_after_create uebernommen.
     """
     from app.database import async_session_maker
+    from app.services.categorization_service import CategorizationService
+    from app.services.profile_engine_service import ProfileEngineService
 
     async with async_session_maker() as db:
         try:
@@ -673,11 +680,11 @@ async def process_job_after_create(job_id: UUID):
             )
             job = result.scalar_one_or_none()
             if not job:
-                logger.error(f"Post-Create Geocoding: Job {job_id} nicht gefunden")
+                logger.error(f"Post-Create Processing: Job {job_id} nicht gefunden")
                 return
 
-            logger.info(f"Post-Create Geocoding: Starte fuer Job {job_id} ({job.position})")
-
+            # Schritt 1: Geocoding
+            logger.info(f"Post-Create Schritt 1/3: Geocoding fuer Job {job_id} ({job.position})")
             try:
                 geo_service = GeocodingService(db)
                 success = await geo_service.geocode_job(job)
@@ -688,10 +695,42 @@ async def process_job_after_create(job_id: UUID):
             except Exception as e:
                 logger.warning(f"Post-Create Geocoding fehlgeschlagen fuer Job {job_id}: {e}")
 
+            # Schritt 2: Kategorisierung (FINANCE / ENGINEERING / ...)
+            logger.info(f"Post-Create Schritt 2/3: Kategorisierung fuer Job {job_id}")
+            try:
+                cat_service = CategorizationService(db)
+                cat_result = cat_service.categorize_job(job)
+                cat_service.apply_to_job(job, cat_result)
+                logger.info(f"Post-Create Kategorisierung: Job {job_id} → {cat_result.category}")
+            except Exception as e:
+                logger.warning(f"Post-Create Kategorisierung fehlgeschlagen fuer Job {job_id}: {e}")
+
+            # Schritt 3: Profiling (nur fuer FINANCE-Jobs)
+            if job.hotlist_category == "FINANCE":
+                logger.info(f"Post-Create Schritt 3/3: Profiling fuer Job {job_id}")
+                try:
+                    profile_service = ProfileEngineService(db)
+                    profile = await profile_service.create_job_profile(job_id)
+                    if profile.success:
+                        logger.info(
+                            f"Post-Create Profiling: Job {job_id} erfolgreich profiliert "
+                            f"(Level {profile.seniority_level}, {len(profile.required_skills)} Skills)"
+                        )
+                    else:
+                        logger.warning(f"Post-Create Profiling: Job {job_id} uebersprungen — {profile.error}")
+                except Exception as e:
+                    logger.warning(f"Post-Create Profiling fehlgeschlagen fuer Job {job_id}: {e}")
+            else:
+                logger.info(
+                    f"Post-Create Schritt 3/3: Profiling uebersprungen "
+                    f"(Kategorie: {job.hotlist_category or 'NULL'}, nur FINANCE wird profiliert)"
+                )
+
             await db.commit()
+            logger.info(f"Post-Create Processing komplett fuer Job {job_id}")
 
         except Exception as e:
-            logger.error(f"Post-Create Geocoding komplett fehlgeschlagen fuer Job {job_id}: {e}")
+            logger.error(f"Post-Create Processing komplett fehlgeschlagen fuer Job {job_id}: {e}")
             try:
                 await db.rollback()
             except Exception:

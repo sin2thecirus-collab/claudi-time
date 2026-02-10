@@ -1350,3 +1350,189 @@ async def geocode_sync(
         }
     finally:
         await geo.close()
+
+
+# ══════════════════════════════════════════════════════════════════
+# Profiling Status & Sync
+# ══════════════════════════════════════════════════════════════════
+
+
+@router.get("/admin/profiling-status")
+async def admin_profiling_status(
+    db: AsyncSession = Depends(get_db),
+):
+    """Status-Endpoint: Zeigt Profiling-Abdeckung fuer Jobs und Kandidaten."""
+    from app.models.job import Job
+    from app.models import Candidate
+    from sqlalchemy import select, func
+
+    # --- Jobs ---
+    jobs_total = (await db.execute(
+        select(func.count()).select_from(Job).where(Job.deleted_at.is_(None))
+    )).scalar() or 0
+
+    jobs_with_profile = (await db.execute(
+        select(func.count()).select_from(Job).where(
+            Job.v2_profile_created_at.isnot(None),
+            Job.deleted_at.is_(None),
+        )
+    )).scalar() or 0
+
+    jobs_finance_total = (await db.execute(
+        select(func.count()).select_from(Job).where(
+            Job.hotlist_category == "FINANCE",
+            Job.deleted_at.is_(None),
+        )
+    )).scalar() or 0
+
+    jobs_finance_with_profile = (await db.execute(
+        select(func.count()).select_from(Job).where(
+            Job.hotlist_category == "FINANCE",
+            Job.v2_profile_created_at.isnot(None),
+            Job.deleted_at.is_(None),
+        )
+    )).scalar() or 0
+
+    jobs_finance_missing = (await db.execute(
+        select(func.count()).select_from(Job).where(
+            Job.hotlist_category == "FINANCE",
+            Job.v2_profile_created_at.is_(None),
+            Job.deleted_at.is_(None),
+        )
+    )).scalar() or 0
+
+    # Top 50 FINANCE-Jobs ohne Profil (fuer Debugging)
+    missing_jobs_q = await db.execute(
+        select(
+            Job.id, Job.position, Job.company_name, Job.city,
+            Job.hotlist_category, Job.created_at,
+        )
+        .where(
+            Job.hotlist_category == "FINANCE",
+            Job.v2_profile_created_at.is_(None),
+            Job.deleted_at.is_(None),
+        )
+        .order_by(Job.created_at.desc())
+        .limit(50)
+    )
+    missing_jobs = [
+        {
+            "id": str(r[0]),
+            "position": r[1],
+            "company": r[2],
+            "city": r[3],
+            "category": r[4],
+            "created_at": r[5].isoformat() if r[5] else None,
+        }
+        for r in missing_jobs_q.all()
+    ]
+
+    # --- Kandidaten ---
+    cands_total = (await db.execute(
+        select(func.count()).select_from(Candidate).where(Candidate.hidden == False)
+    )).scalar() or 0
+
+    cands_with_profile = (await db.execute(
+        select(func.count()).select_from(Candidate).where(
+            Candidate.v2_profile_created_at.isnot(None),
+            Candidate.hidden == False,
+        )
+    )).scalar() or 0
+
+    cands_finance_total = (await db.execute(
+        select(func.count()).select_from(Candidate).where(
+            Candidate.hotlist_category == "FINANCE",
+            Candidate.hidden == False,
+        )
+    )).scalar() or 0
+
+    cands_finance_with_profile = (await db.execute(
+        select(func.count()).select_from(Candidate).where(
+            Candidate.hotlist_category == "FINANCE",
+            Candidate.v2_profile_created_at.isnot(None),
+            Candidate.hidden == False,
+        )
+    )).scalar() or 0
+
+    return {
+        "jobs": {
+            "total": jobs_total,
+            "with_profile": jobs_with_profile,
+            "coverage_percent": round(jobs_with_profile / jobs_total * 100, 1) if jobs_total else 0,
+            "finance": {
+                "total": jobs_finance_total,
+                "with_profile": jobs_finance_with_profile,
+                "missing_profile": jobs_finance_missing,
+                "coverage_percent": round(
+                    jobs_finance_with_profile / jobs_finance_total * 100, 1
+                ) if jobs_finance_total else 0,
+            },
+        },
+        "candidates": {
+            "total": cands_total,
+            "with_profile": cands_with_profile,
+            "coverage_percent": round(cands_with_profile / cands_total * 100, 1) if cands_total else 0,
+            "finance": {
+                "total": cands_finance_total,
+                "with_profile": cands_finance_with_profile,
+                "missing_profile": cands_finance_total - cands_finance_with_profile,
+                "coverage_percent": round(
+                    cands_finance_with_profile / cands_finance_total * 100, 1
+                ) if cands_finance_total else 0,
+            },
+        },
+        "finance_jobs_missing_profile": missing_jobs,
+    }
+
+
+@router.post("/admin/profile-sync")
+async def admin_profile_sync(
+    limit: int = Query(10, ge=1, le=100),
+    entity_type: str = Query("jobs"),
+    db: AsyncSession = Depends(get_db),
+):
+    """ADMIN: Synchrones Profiling — profilt FINANCE-Jobs/-Kandidaten ohne Profil.
+
+    Aehnlich wie geocode-sync: wartet auf Ergebnis statt Background-Task.
+    entity_type: 'jobs', 'candidates' oder 'all'
+    """
+    service = ProfileEngineService(db)
+
+    jobs_result_data = {"profiled": 0, "skipped": 0, "failed": 0, "cost_usd": 0.0}
+    cands_result_data = {"profiled": 0, "skipped": 0, "failed": 0, "cost_usd": 0.0}
+
+    # --- Jobs profilen ---
+    if entity_type in ("jobs", "all"):
+        job_result = await service.backfill_jobs(
+            batch_size=limit,
+            max_total=limit,
+        )
+        jobs_result_data = {
+            "profiled": job_result.profiled,
+            "skipped": job_result.skipped,
+            "failed": job_result.failed,
+            "cost_usd": round(job_result.total_cost_usd, 6),
+        }
+
+    # --- Kandidaten profilen ---
+    remaining = limit - jobs_result_data["profiled"] if entity_type == "all" else limit
+    if entity_type in ("candidates", "all") and remaining > 0:
+        cand_result = await service.backfill_candidates(
+            batch_size=remaining,
+            max_total=remaining,
+        )
+        cands_result_data = {
+            "profiled": cand_result.profiled,
+            "skipped": cand_result.skipped,
+            "failed": cand_result.failed,
+            "cost_usd": round(cand_result.total_cost_usd, 6),
+        }
+
+    return {
+        "status": "ok",
+        "jobs": jobs_result_data,
+        "candidates": cands_result_data,
+        "total_cost_usd": round(
+            jobs_result_data["cost_usd"] + cands_result_data["cost_usd"], 6
+        ),
+    }

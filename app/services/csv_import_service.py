@@ -466,6 +466,19 @@ class CSVImportService:
                 except Exception as geo_err:
                     logger.warning(f"Auto-Geocoding fehlgeschlagen: {geo_err}")
 
+                # Auto-Profiling: FINANCE-Jobs profilieren (GPT-4o-mini, Batch-Commits alle 50 Items)
+                try:
+                    from app.services.profile_engine_service import ProfileEngineService
+                    profile_service = ProfileEngineService(self.db)
+                    profile_result = await profile_service.backfill_jobs(batch_size=50)
+                    logger.info(
+                        f"Auto-Profiling: {profile_result.profiled} Jobs profiliert, "
+                        f"{profile_result.skipped} uebersprungen, {profile_result.failed} fehlgeschlagen, "
+                        f"Kosten: ${profile_result.total_cost_usd:.4f}"
+                    )
+                except Exception as profile_err:
+                    logger.warning(f"Auto-Profiling fehlgeschlagen: {profile_err}")
+
         except Exception as e:
             logger.error(f"Import fehlgeschlagen: {e}", exc_info=True)
             import_job.status = ImportStatus.FAILED
