@@ -320,17 +320,17 @@ class GeocodingService:
                 if clean_fallback and clean_fallback not in address_variants:
                     address_variants.append(clean_fallback)
 
-        # Fallback nur Stadt (auch wenn PLZ vorhanden)
-        if job.city:
-            city_only = self._build_address(street=None, postal_code=None, city=job.city)
-            if city_only and city_only not in address_variants:
-                address_variants.append(city_only)
-
-        # Fallback: Nur PLZ
+        # Fallback: Nur PLZ (praeziser als Stadt — PLZ vor Stadt!)
         if job.postal_code:
             plz_only = f"{job.postal_code}, Deutschland"
             if plz_only not in address_variants:
                 address_variants.append(plz_only)
+
+        # Fallback: Nur Stadt (ungenauer, aber besser als nichts)
+        if job.city:
+            city_only = self._build_address(street=None, postal_code=None, city=job.city)
+            if city_only and city_only not in address_variants:
+                address_variants.append(city_only)
 
         # Fallback: work_location_city (immer als letzter Versuch)
         if job.work_location_city:
@@ -418,29 +418,31 @@ class GeocodingService:
                 if clean_fallback and clean_fallback not in address_variants:
                     address_variants.append(clean_fallback)
 
-        # Fallback nur Stadt (auch wenn PLZ vorhanden)
-        if candidate.city:
-            city_only = self._build_address(street=None, postal_code=None, city=candidate.city)
-            if city_only and city_only not in address_variants:
-                address_variants.append(city_only)
-
-        # Fallback: Nur PLZ
+        # Fallback: Nur PLZ (praeziser als Stadt — PLZ vor Stadt!)
         if candidate.postal_code:
             plz_only = f"{candidate.postal_code}, Deutschland"
             if plz_only not in address_variants:
                 address_variants.append(plz_only)
+
+        # Fallback: Nur Stadt (ungenauer, aber besser als nichts)
+        if candidate.city:
+            city_only = self._build_address(street=None, postal_code=None, city=candidate.city)
+            if city_only and city_only not in address_variants:
+                address_variants.append(city_only)
 
         if not address_variants:
             logger.debug(f"Kandidat {candidate.id}: Keine Adresse vorhanden")
             return False
 
         result = None
-        for addr in address_variants:
+        for i, addr in enumerate(address_variants):
             result = await self.geocode(addr)
             if result:
-                if addr != address_variants[0]:
-                    logger.info(f"Kandidat {candidate.id}: Fallback-Geocoding mit '{addr[:50]}' erfolgreich")
+                if i > 0:
+                    logger.info(f"Kandidat {candidate.id}: Fallback-Geocoding [{i+1}/{len(address_variants)}] mit '{addr[:60]}' erfolgreich")
                 break
+            else:
+                logger.debug(f"Kandidat {candidate.id}: Variante [{i+1}/{len(address_variants)}] '{addr[:60]}' — kein Ergebnis")
 
         if result:
             candidate.address_coords = func.ST_SetSRID(
@@ -449,6 +451,10 @@ class GeocodingService:
             )
             return True
 
+        logger.warning(
+            f"Kandidat {candidate.id}: Geocoding komplett fehlgeschlagen nach {len(address_variants)} Varianten. "
+            f"Stadt={candidate.city}, PLZ={candidate.postal_code}, Strasse={candidate.street_address}"
+        )
         return False
 
     async def inherit_geocodes_from_companies(self) -> dict:
