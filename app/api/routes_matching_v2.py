@@ -1398,6 +1398,7 @@ async def geocode_debug_candidate(
 
         # Jede Variante testen
         results = []
+        first_success = None
         for addr in address_variants:
             geo_result = await geo.geocode(addr)
             results.append({
@@ -1407,6 +1408,28 @@ async def geocode_debug_candidate(
                 "lon": geo_result.longitude if geo_result else None,
                 "display": geo_result.display_name if geo_result else None,
             })
+            if geo_result and not first_success:
+                first_success = geo_result
+
+        # Auch direkt geocode_candidate() aufrufen und Ergebnis speichern
+        applied = False
+        if first_success and cand.address_coords is None:
+            from sqlalchemy import func as sa_func
+            cand.address_coords = sa_func.ST_SetSRID(
+                sa_func.ST_MakePoint(first_success.longitude, first_success.latitude),
+                4326,
+            )
+            await db.commit()
+            applied = True
+
+        # Auch geocode_candidate testen (um zu sehen ob es bei der regulaeren Funktion klappt)
+        geo2 = GeocodingService(db)
+        try:
+            gc_result = await geo2.geocode_candidate(cand)
+        except Exception as e:
+            gc_result = f"ERROR: {e}"
+        finally:
+            await geo2.close()
 
         return {
             "candidate_id": str(cand.id),
@@ -1414,7 +1437,9 @@ async def geocode_debug_candidate(
             "street": cand.street_address,
             "postal_code": cand.postal_code,
             "city": cand.city,
-            "has_coordinates": cand.address_coords is not None,
+            "had_coordinates": cand.address_coords is not None,
+            "coords_applied": applied,
+            "geocode_candidate_result": gc_result,
             "variants_tried": len(address_variants),
             "results": results,
         }
