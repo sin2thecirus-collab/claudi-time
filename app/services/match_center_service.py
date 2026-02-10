@@ -1463,11 +1463,11 @@ class MatchCenterService:
             # Standard: REJECTED Matches ausblenden (nur ueber expliziten Filter sichtbar)
             query = query.where(Match.status != MatchStatus.REJECTED)
 
-        # Score-Range-Filter (0-100 Skala)
+        # Score-Range-Filter (0-100 Skala, auf Integer gerundet damit 79.5 → 79 korrekt in 65-79 fällt)
         if score_min is not None:
-            query = query.where(eff >= score_min)
+            query = query.where(func.floor(eff) >= score_min)
         if score_max is not None:
-            query = query.where(eff <= score_max)
+            query = query.where(func.floor(eff) <= score_max)
 
         # Total fuer Pagination (mit Status-Filter)
         total_query = select(func.count()).select_from(query.subquery())
