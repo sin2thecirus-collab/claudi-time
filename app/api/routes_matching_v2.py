@@ -1030,3 +1030,107 @@ async def reset_all_matches(
         "deleted_training_data": td_count,
         "message": f"{m_count} Matches und {td_count} Training-Daten geloescht. Jetzt neu matchen mit POST /api/v2/match/batch",
     }
+
+
+@router.post("/admin/geocode-sync")
+async def geocode_sync(
+    limit: int = Query(50, ge=1, le=500),
+    db: AsyncSession = Depends(get_db),
+):
+    """ADMIN: Synchrones Geocoding — wartet auf Ergebnis statt Background-Task.
+
+    Geocodiert bis zu `limit` Eintraege (Jobs + Kandidaten) und gibt das
+    Ergebnis direkt zurueck. Ideal zum Debuggen und fuer schrittweises Geocoding.
+    """
+    from app.services.geocoding_service import GeocodingService
+
+    geo = GeocodingService(db)
+    try:
+        # --- Jobs ohne Koordinaten (mit Stadt) ---
+        from app.models.job import Job
+        from app.models import Candidate
+        from sqlalchemy import select, and_, func
+
+        jobs_q = await db.execute(
+            select(Job).where(
+                Job.location_coords.is_(None),
+                Job.deleted_at.is_(None),
+                Job.city.isnot(None),
+                Job.city != "",
+            ).limit(limit)
+        )
+        jobs = jobs_q.scalars().all()
+
+        jobs_ok = 0
+        jobs_skip = 0
+        jobs_fail = 0
+        for job in jobs:
+            try:
+                if await geo.geocode_job(job):
+                    jobs_ok += 1
+                else:
+                    jobs_skip += 1
+            except Exception as e:
+                jobs_fail += 1
+                logger.error(f"Geocode Job {job.id}: {e}")
+
+        if jobs:
+            await db.commit()
+
+        # --- Kandidaten ohne Koordinaten (mit Stadt) ---
+        remaining = limit - len(jobs)
+        cands_ok = 0
+        cands_skip = 0
+        cands_fail = 0
+
+        if remaining > 0:
+            cands_q = await db.execute(
+                select(Candidate).where(
+                    Candidate.address_coords.is_(None),
+                    Candidate.hidden == False,
+                    Candidate.city.isnot(None),
+                    Candidate.city != "",
+                ).limit(remaining)
+            )
+            candidates = cands_q.scalars().all()
+
+            for cand in candidates:
+                try:
+                    if await geo.geocode_candidate(cand):
+                        cands_ok += 1
+                    else:
+                        cands_skip += 1
+                except Exception as e:
+                    cands_fail += 1
+                    logger.error(f"Geocode Kandidat {cand.id}: {e}")
+
+            if candidates:
+                await db.commit()
+
+        # --- Zaehle aktuelle Totals ---
+        jobs_total = (await db.execute(
+            select(func.count()).select_from(Job).where(Job.deleted_at.is_(None), Job.city.isnot(None))
+        )).scalar() or 0
+        jobs_with_coords = (await db.execute(
+            select(func.count()).select_from(Job).where(Job.location_coords.isnot(None), Job.deleted_at.is_(None))
+        )).scalar() or 0
+        cands_total = (await db.execute(
+            select(func.count()).select_from(Candidate).where(Candidate.hidden == False, Candidate.city.isnot(None))
+        )).scalar() or 0
+        cands_with_coords = (await db.execute(
+            select(func.count()).select_from(Candidate).where(Candidate.address_coords.isnot(None), Candidate.hidden == False)
+        )).scalar() or 0
+
+        return {
+            "status": "ok",
+            "this_run": {
+                "jobs": {"ok": jobs_ok, "skip": jobs_skip, "fail": jobs_fail},
+                "candidates": {"ok": cands_ok, "skip": cands_skip, "fail": cands_fail},
+            },
+            "totals": {
+                "jobs": f"{jobs_with_coords}/{jobs_total} geocodiert",
+                "candidates": f"{cands_with_coords}/{cands_total} geocodiert",
+            },
+        }
+    finally:
+        await geo.close()
