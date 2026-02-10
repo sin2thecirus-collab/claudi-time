@@ -1032,12 +1032,6 @@ async def reset_all_matches(
     }
 
 
-@router.get("/admin/ping-test")
-async def admin_ping_test():
-    """Test-Endpoint um zu pruefen ob Routen ab hier geladen werden."""
-    return {"pong": True}
-
-
 @router.get("/admin/geocoding-status")
 async def admin_geocoding_coverage(
     db: AsyncSession = Depends(get_db),
