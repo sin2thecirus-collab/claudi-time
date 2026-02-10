@@ -252,13 +252,20 @@ class JobRunnerService:
         # Anzahl ausstehender Items
         pending_count = await self._count_pending_items(job_type)
 
-        return {
+        result = {
             "job_type": job_type.value,
             "is_running": running_job is not None,
             "current_job": self._job_to_dict(running_job) if running_job else None,
             "last_job": self._job_to_dict(last_job) if last_job else None,
             "pending_items": pending_count,
         }
+
+        # Für Geocoding: Zeige wie viele bereits Geodaten haben (Live-Fortschritt)
+        if job_type == JobType.GEOCODING:
+            geocoded = await self._count_geocoded_items()
+            result["geocoded_items"] = geocoded
+
+        return result
 
     async def get_job_history(
         self,
@@ -346,6 +353,59 @@ class JobRunnerService:
             return result.scalar() or 0
 
         return 0
+
+    async def _count_geocoded_items(self) -> dict:
+        """Zählt bereits geocodierte Items (Live-Fortschritt)."""
+        # Jobs MIT Koordinaten
+        jobs_with = await self.db.execute(
+            select(func.count()).where(
+                and_(
+                    Job.location_coords.is_not(None),
+                    Job.deleted_at.is_(None),
+                )
+            )
+        )
+        jobs_geocoded = jobs_with.scalar() or 0
+
+        # Jobs GESAMT (mit Stadt, also geocodierbar)
+        jobs_total = await self.db.execute(
+            select(func.count()).where(
+                and_(
+                    Job.deleted_at.is_(None),
+                    Job.city.is_not(None),
+                    Job.city != "",
+                )
+            )
+        )
+        jobs_total_count = jobs_total.scalar() or 0
+
+        # Kandidaten MIT Koordinaten
+        cands_with = await self.db.execute(
+            select(func.count()).where(
+                and_(
+                    Candidate.address_coords.is_not(None),
+                    Candidate.hidden == False,  # noqa: E712
+                )
+            )
+        )
+        cands_geocoded = cands_with.scalar() or 0
+
+        # Kandidaten GESAMT (mit Stadt, also geocodierbar)
+        cands_total = await self.db.execute(
+            select(func.count()).where(
+                and_(
+                    Candidate.hidden == False,  # noqa: E712
+                    Candidate.city.is_not(None),
+                    Candidate.city != "",
+                )
+            )
+        )
+        cands_total_count = cands_total.scalar() or 0
+
+        return {
+            "jobs": {"geocoded": jobs_geocoded, "total": jobs_total_count},
+            "candidates": {"geocoded": cands_geocoded, "total": cands_total_count},
+        }
 
     def _job_to_dict(self, job_run: JobRun | None) -> dict | None:
         """Konvertiert einen JobRun zu einem Dict."""
