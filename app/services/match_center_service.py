@@ -1327,6 +1327,8 @@ class MatchCenterService:
         city: str,
         stage: str = "new",
         status_filter: str | None = None,
+        score_min: int | None = None,
+        score_max: int | None = None,
         page: int = 1,
         per_page: int = 15,
         sort_by: str = "score",
@@ -1457,6 +1459,15 @@ class MatchCenterService:
             query = query.where(Match.status == MatchStatus.PRESENTED)
         elif status_filter == "rejected":
             query = query.where(Match.status == MatchStatus.REJECTED)
+        else:
+            # Standard: REJECTED Matches ausblenden (nur ueber expliziten Filter sichtbar)
+            query = query.where(Match.status != MatchStatus.REJECTED)
+
+        # Score-Range-Filter (0-100 Skala)
+        if score_min is not None:
+            query = query.where(eff >= score_min)
+        if score_max is not None:
+            query = query.where(eff <= score_max)
 
         # Total fuer Pagination (mit Status-Filter)
         total_query = select(func.count()).select_from(query.subquery())

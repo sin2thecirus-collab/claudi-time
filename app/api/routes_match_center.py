@@ -120,6 +120,8 @@ async def get_matches_table(
     city: str = Query(...),
     stage: str = Query("new", regex="^(new|in_progress|archive)$"),
     status_filter: str = Query(None),
+    score_min: int = Query(None, ge=0, le=100),
+    score_max: int = Query(None, ge=0, le=100),
     page: int = Query(1, ge=1),
     per_page: int = Query(15, ge=1, le=100),
     sort_by: str = Query("score"),
@@ -134,6 +136,8 @@ async def get_matches_table(
         city=city,
         stage=stage,
         status_filter=status_filter,
+        score_min=score_min,
+        score_max=score_max,
         page=page,
         per_page=per_page,
         sort_by=sort_by,
@@ -154,6 +158,8 @@ async def get_matches_table(
             "current_city": city,
             "current_stage": stage,
             "current_status_filter": status_filter,
+            "current_score_min": score_min,
+            "current_score_max": score_max,
             "current_sort_by": sort_by,
             "current_sort_dir": sort_dir,
         },
@@ -352,27 +358,83 @@ async def update_match_status(
 @router.post("/api/match-center/feedback/{match_id}")
 async def save_feedback(
     match_id: UUID,
-    feedback: str = Query(..., regex="^(good|bad|maybe)$"),
+    feedback: str = Query(..., regex="^(good|bad_distance|bad_skills|bad_seniority|maybe)$"),
     note: str = Query(None),
+    db: AsyncSession = Depends(get_db),
 ):
-    """Feedback fuer ein Match speichern — eigene DB-Connection, kein get_db()."""
-    from sqlalchemy import text
-    from app.database import engine
+    """Feedback fuer ein Match speichern + Learning Service + Status-Aenderung.
+
+    Feedback-Werte:
+    - good: Guter Match
+    - bad_distance: Distanz passt nicht
+    - bad_skills: Taetigkeiten passen nicht
+    - bad_seniority: Seniority passt nicht
+    - maybe: Vielleicht / neutral
+    """
+    from app.models.match import Match, MatchStatus
+    from app.services.matching_learning_service import MatchingLearningService
 
     try:
-        async with engine.begin() as conn:
-            result = await conn.execute(
-                text(
-                    "UPDATE matches SET user_feedback = :fb, feedback_note = :note, "
-                    "feedback_at = NOW() WHERE id = :mid"
-                ),
-                {"fb": feedback, "note": note, "mid": str(match_id)},
-            )
-
-        if result.rowcount == 0:
+        # Match laden
+        match = await db.get(Match, match_id)
+        if not match:
             return JSONResponse({"status": "not_found"}, status_code=404)
 
-        return JSONResponse({"status": "ok", "feedback": feedback})
+        # Outcome bestimmen: good / bad / neutral
+        is_bad = feedback.startswith("bad_")
+        outcome = "bad" if is_bad else ("good" if feedback == "good" else "neutral")
+        rejection_reason = feedback if is_bad else None
+
+        # 1. Feedback in Match speichern
+        match.user_feedback = feedback
+        match.feedback_note = note
+        match.feedback_at = __import__("datetime").datetime.now(__import__("datetime").timezone.utc)
+        match.rejection_reason = rejection_reason
+
+        # 2. Bei negativem Feedback: Status auf REJECTED setzen
+        if is_bad:
+            match.status = MatchStatus.REJECTED
+
+        await db.commit()
+
+        # 3. Job-Kategorie ermitteln (fuer pro-Kategorie-Lernen)
+        job_category = None
+        if match.job_id:
+            from app.models.job import Job
+            job = await db.get(Job, match.job_id)
+            if job:
+                job_category = job.hotlist_job_title or job.position
+
+        # 4. Learning Service aufrufen (Fehler blockiert Feedback nicht)
+        learning_info = {}
+        try:
+            learning = MatchingLearningService(db)
+            lr = await learning.record_feedback(
+                match_id=match_id,
+                outcome=outcome,
+                note=note,
+                source="user_feedback",
+                rejection_reason=rejection_reason,
+                job_category=job_category,
+            )
+            learning_info = {
+                "weights_adjusted": lr.weights_adjusted,
+                "learning_stage": lr.learning_stage if hasattr(lr, "learning_stage") else None,
+            }
+            logger.info(
+                f"Learning Feedback: match={match_id}, outcome={outcome}, "
+                f"reason={rejection_reason}, category={job_category}"
+            )
+        except Exception as le:
+            logger.warning(f"Learning Service Fehler (Feedback trotzdem gespeichert): {le}")
+
+        return JSONResponse({
+            "status": "ok",
+            "feedback": feedback,
+            "outcome": outcome,
+            "rejected": is_bad,
+            **learning_info,
+        })
 
     except Exception as e:
         logger.error(f"Feedback Fehler: {e}", exc_info=True)

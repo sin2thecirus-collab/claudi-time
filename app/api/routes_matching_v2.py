@@ -7,7 +7,7 @@ Sprint 2: Matching, Embedding-Generierung, Batch-Matching.
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException
+from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException, Query
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -931,6 +931,23 @@ async def get_learning_stats(db: AsyncSession = Depends(get_db)):
     }
 
 
+@router.get("/learn/stats/extended")
+async def get_extended_learning_stats(db: AsyncSession = Depends(get_db)):
+    """Erweiterte Lern-Statistiken mit Details.
+
+    Zeigt:
+    - Ablehnungsgruende-Verteilung (bad_distance, bad_skills, bad_seniority)
+    - Aufschluesselung pro Job-Kategorie (gut/schlecht/neutral)
+    - Gewichts-Veraenderungen pro Kategorie und Komponente
+    - Komponenten-Trennkraft (welche Scores trennen gut/schlecht)
+    - Letzte 20 Feedbacks mit Details
+    """
+    from app.services.matching_learning_service import MatchingLearningService
+
+    service = MatchingLearningService(db)
+    return await service.get_extended_stats()
+
+
 @router.get("/learn/weights")
 async def get_current_weights_detailed(db: AsyncSession = Depends(get_db)):
     """Gibt die aktuellen Gewichte mit Aenderungshistorie zurueck."""
@@ -970,3 +987,46 @@ async def get_feedback_history(
     service = MatchingLearningService(db)
     history = await service.get_feedback_history(limit=limit, outcome_filter=outcome)
     return {"feedbacks": history, "total": len(history)}
+
+
+# ═══════════════════════════════════════════════════════
+# ADMIN — Reset & Re-Match
+# ═══════════════════════════════════════════════════════
+
+
+@router.post("/admin/reset-matches")
+async def reset_all_matches(
+    confirm: str = Query(..., pattern="^YES_DELETE_ALL$"),
+    db: AsyncSession = Depends(get_db),
+):
+    """ADMIN: Loescht ALLE v2-Matches und Training-Daten fuer einen sauberen Neustart.
+
+    ACHTUNG: Unwiderruflich! Alle Matches, Feedbacks und Training-Daten werden geloescht.
+    Gewichte bleiben erhalten (koennen separat zurueckgesetzt werden).
+
+    Erfordert ?confirm=YES_DELETE_ALL als Sicherheitsabfrage.
+    """
+    from app.models.match import Match
+    from app.models.match_v2_models import MatchV2TrainingData
+    from sqlalchemy import delete
+
+    # 1. Training-Daten loeschen
+    td_result = await db.execute(delete(MatchV2TrainingData))
+    td_count = td_result.rowcount
+
+    # 2. Alle v2-Matches loeschen (nur die mit v2_matched_at)
+    m_result = await db.execute(
+        delete(Match).where(Match.v2_matched_at.isnot(None))
+    )
+    m_count = m_result.rowcount
+
+    await db.commit()
+
+    logger.info(f"ADMIN RESET: {m_count} Matches + {td_count} Training-Daten geloescht")
+
+    return {
+        "status": "ok",
+        "deleted_matches": m_count,
+        "deleted_training_data": td_count,
+        "message": f"{m_count} Matches und {td_count} Training-Daten geloescht. Jetzt neu matchen mit POST /api/v2/match/batch",
+    }

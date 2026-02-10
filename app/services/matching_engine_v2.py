@@ -128,22 +128,45 @@ class MatchingEngineV2:
         self._rules: list[dict] | None = None
         self._embedding_service = EmbeddingService()
 
-    async def _load_weights(self) -> dict[str, float]:
-        """Laedt aktuelle Scoring-Gewichte aus der DB."""
-        if self._weights is not None:
+    async def _load_weights(self, job_category: str | None = None) -> dict[str, float]:
+        """Laedt aktuelle Scoring-Gewichte aus der DB.
+
+        Pro-Kategorie-Lernen: Wenn eine job_category angegeben wird,
+        werden zuerst kategorie-spezifische Gewichte gesucht.
+        Falls keine vorhanden → globale Gewichte (job_category IS NULL).
+        Falls auch keine → DEFAULT_WEIGHTS.
+        """
+        # Cache nur fuer globale Gewichte (pro-Job Gewichte werden frisch geladen)
+        if job_category is None and self._weights is not None:
             return self._weights
 
+        if job_category:
+            # Versuche kategorie-spezifische Gewichte
+            result = await self.db.execute(
+                select(MatchV2ScoringWeight.component, MatchV2ScoringWeight.weight)
+                .where(MatchV2ScoringWeight.job_category == job_category)
+            )
+            rows = result.all()
+            if rows:
+                return {r[0]: r[1] for r in rows}
+
+        # Globale Gewichte (job_category IS NULL)
         result = await self.db.execute(
             select(MatchV2ScoringWeight.component, MatchV2ScoringWeight.weight)
+            .where(MatchV2ScoringWeight.job_category.is_(None))
         )
         rows = result.all()
 
         if rows:
-            self._weights = {r[0]: r[1] for r in rows}
+            weights = {r[0]: r[1] for r in rows}
         else:
-            self._weights = DEFAULT_WEIGHTS.copy()
+            weights = DEFAULT_WEIGHTS.copy()
 
-        return self._weights
+        # Nur globale Gewichte cachen
+        if job_category is None:
+            self._weights = weights
+
+        return weights
 
     async def _load_rules(self) -> list[dict]:
         """Laedt aktive gelernte Regeln aus der DB."""
@@ -1067,7 +1090,8 @@ class MatchingEngineV2:
             raise ValueError(f"Job {job_id} hat kein v2-Profil. Zuerst profilieren!")
 
         job_level = job.v2_seniority_level or 2
-        weights = await self._load_weights()
+        job_category = job.hotlist_job_title or job.position
+        weights = await self._load_weights(job_category=job_category)
 
         # ── Schicht 1: Hard Filters ──
         candidates = await self._hard_filter_candidates(job, job_level)
@@ -1127,6 +1151,9 @@ class MatchingEngineV2:
             )
             match_row = existing.scalar_one_or_none()
 
+            # Distanz aus Breakdown extrahieren
+            dist = sm.breakdown.get("distance_km") if sm.breakdown else None
+
             if match_row:
                 # Update bestehendes Match
                 await self.db.execute(
@@ -1137,6 +1164,11 @@ class MatchingEngineV2:
                     match_obj.v2_score = sm.total_score
                     match_obj.v2_score_breakdown = sm.breakdown
                     match_obj.v2_matched_at = now
+                    match_obj.distance_km = dist
+                    # Re-Import Schutz: REJECTED/PLACED Status NICHT zuruecksetzen
+                    # Nur NEW/AI_CHECKED duerfen aktualisiert werden
+                    if match_obj.status not in (MatchStatus.REJECTED, MatchStatus.PLACED, MatchStatus.PRESENTED):
+                        match_obj.status = MatchStatus.NEW
             else:
                 # Neues Match erstellen
                 match = Match(
@@ -1146,6 +1178,7 @@ class MatchingEngineV2:
                     v2_score_breakdown=sm.breakdown,
                     v2_matched_at=now,
                     status=MatchStatus.NEW,
+                    distance_km=dist,
                 )
                 self.db.add(match)
 
@@ -1185,10 +1218,14 @@ class MatchingEngineV2:
             )
 
             if unmatched_only:
-                # Jobs die noch kein v2-Match haben
+                # Jobs die kein aktives (nicht-rejected) v2-Match haben
+                # -> Jobs mit NUR rejected Matches werden erneut gematcht
                 subq = (
                     select(Match.job_id)
-                    .where(Match.v2_matched_at.isnot(None))
+                    .where(
+                        Match.v2_matched_at.isnot(None),
+                        Match.status != MatchStatus.REJECTED,
+                    )
                     .distinct()
                 )
                 query = query.where(Job.id.notin_(subq))

@@ -39,6 +39,8 @@ class MatchV2TrainingData(Base):
     # Ergebnis
     outcome: Mapped[str | None] = mapped_column(String(20))  # "good" / "bad" / "neutral"
     outcome_source: Mapped[str | None] = mapped_column(String(20))  # "user_feedback" / "placed" / "rejected"
+    rejection_reason: Mapped[str | None] = mapped_column(String(50))  # bad_distance, bad_skills, bad_seniority
+    job_category: Mapped[str | None] = mapped_column(String(100))  # z.B. "Bilanzbuchhalter", "Controller"
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
@@ -91,7 +93,11 @@ class MatchV2LearnedRule(Base):
 
 
 class MatchV2ScoringWeight(Base):
-    """Lernbare Gewichte für die Score-Komponenten der Matching Engine v2."""
+    """Lernbare Gewichte für die Score-Komponenten der Matching Engine v2.
+
+    job_category = NULL → globale Default-Gewichte
+    job_category = "Bilanzbuchhalter" → kategorie-spezifische Gewichte
+    """
 
     __tablename__ = "match_v2_scoring_weights"
 
@@ -100,7 +106,10 @@ class MatchV2ScoringWeight(Base):
     )
 
     # Welche Komponente: "skill_overlap", "seniority_fit", "embedding_sim", etc.
-    component: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    component: Mapped[str] = mapped_column(String(50), nullable=False)
+
+    # Job-Kategorie (NULL = globale Defaults, sonst z.B. "Bilanzbuchhalter", "Controller")
+    job_category: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     # Gewichte
     weight: Mapped[float] = mapped_column(Float, nullable=False)  # Aktuelles Gewicht
@@ -112,4 +121,5 @@ class MatchV2ScoringWeight(Base):
 
     __table_args__ = (
         Index("ix_v2_weights_component", "component"),
+        Index("ix_v2_weights_job_category", "job_category"),
     )

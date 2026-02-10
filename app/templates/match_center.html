@@ -290,6 +290,8 @@ function matchCenterApp() {
         sortBy: 'score',
         sortDir: 'desc',
         statusFilter: null,
+        scoreMin: null,
+        scoreMax: null,
         selectedMatchIds: [],
         matchesLoading: false,
         currentStage: '{{ current_stage }}',
@@ -400,6 +402,8 @@ function matchCenterApp() {
                 sort_dir: this.sortDir,
             });
             if (this.statusFilter) params.set('status_filter', this.statusFilter);
+            if (this.scoreMin !== null) params.set('score_min', this.scoreMin);
+            if (this.scoreMax !== null) params.set('score_max', this.scoreMax);
 
             this.selectedMatchIds = [];
 
@@ -413,6 +417,13 @@ function matchCenterApp() {
 
         setStatusFilter(filter) {
             this.statusFilter = filter;
+            this.currentPage = 1;
+            this.loadMatches();
+        },
+
+        setScoreFilter(min, max) {
+            this.scoreMin = min;
+            this.scoreMax = max;
             this.currentPage = 1;
             this.loadMatches();
         },
@@ -513,20 +524,42 @@ function sendFeedback(matchId, feedback) {
     fetch('/api/match-center/feedback/' + matchId + '?feedback=' + feedback, { method: 'POST' })
     .then(function(resp) {
         if (!resp.ok) throw new Error('Status ' + resp.status);
-        return resp.text();
+        return resp.json();
     })
-    .then(function() {
-        var emoji = feedback === 'good' ? '\u{1F44D}' : feedback === 'bad' ? '\u{1F44E}' : '\u{1F914}';
+    .then(function(data) {
+        var isBad = feedback.startsWith('bad_');
+        var feedbackLabels = {
+            'good': '\u{1F44D} Guter Match',
+            'bad_distance': '\u{1F4CD} Distanz passt nicht',
+            'bad_skills': '\u{1F6AB} T\u00e4tigkeiten passen nicht',
+            'bad_seniority': '\u{1F4CA} Seniority passt nicht',
+            'maybe': '\u{1F914} Vielleicht'
+        };
+        var colorClass = feedback === 'good' ? 'text-green-600' : isBad ? 'text-red-600' : 'text-yellow-600';
+        var label = feedbackLabels[feedback] || feedback;
+
         var fbArea = document.getElementById('feedback-area-' + matchId);
         if (fbArea) {
             fbArea.innerHTML = '<span class="inline-flex items-center gap-1 text-sm font-medium ' +
-                (feedback === 'good' ? 'text-green-600' : feedback === 'bad' ? 'text-red-600' : 'text-yellow-600') +
-                '">' + emoji + ' ' +
-                (feedback === 'good' ? 'Guter Match' : feedback === 'bad' ? 'Schlechter Match' : 'Vielleicht') +
-                '</span>';
+                colorClass + '">' + label + '</span>';
         }
-        if (typeof showToast === 'function') showToast('Feedback gespeichert', 'success');
-        setTimeout(function() { closeCompareModal(); }, 500);
+
+        var toastMsg = isBad ? 'Match abgelehnt & ausgeblendet' : 'Feedback gespeichert';
+        if (typeof showToast === 'function') showToast(toastMsg, 'success');
+
+        setTimeout(function() {
+            closeCompareModal();
+            // Bei Ablehnung: Tabelle neu laden damit Match verschwindet
+            if (isBad) {
+                var appEl = document.querySelector('[x-data*="matchCenterApp"]');
+                if (appEl && typeof Alpine !== 'undefined') {
+                    var appData = Alpine.$data(appEl);
+                    if (appData && typeof appData.loadMatches === 'function') {
+                        appData.loadMatches();
+                    }
+                }
+            }
+        }, 500);
     })
     .catch(function(err) {
         if (typeof showToast === 'function') showToast('Fehler: ' + err.message, 'error');

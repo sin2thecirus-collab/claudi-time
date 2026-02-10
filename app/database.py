@@ -645,6 +645,11 @@ async def init_db() -> None:
         ("candidates", "v2_industries", "JSONB"),  # z.B. ["Maschinenbau", "Pharma"]
         ("companies", "industry", "VARCHAR(100)"),
         ("companies", "erp_systems", "VARCHAR[]"),
+        # ── Matching Learning System Upgrade ──
+        ("matches", "rejection_reason", "VARCHAR(50)"),  # bad_distance, bad_skills, bad_seniority
+        ("match_v2_training_data", "rejection_reason", "VARCHAR(50)"),
+        ("match_v2_training_data", "job_category", "VARCHAR(100)"),
+        ("match_v2_scoring_weights", "job_category", "VARCHAR(100)"),
     ]
     for table_name, col_name, col_type in migrations:
         try:
@@ -666,6 +671,30 @@ async def init_db() -> None:
                     logger.info(f"Migration: '{table_name}.{col_name}' Spalte hinzugefügt.")
         except Exception as e:
             logger.warning(f"Migration für '{table_name}.{col_name}' übersprungen: {e}")
+
+    # ── Learning System: UNIQUE Constraint auf scoring_weights anpassen ──
+    # Alt: component UNIQUE | Neu: (component, job_category) Paar
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("SET lock_timeout = '5s'"))
+            # Alten UNIQUE Constraint entfernen (falls vorhanden)
+            await conn.execute(text("""
+                DO $$ BEGIN
+                    ALTER TABLE match_v2_scoring_weights DROP CONSTRAINT IF EXISTS match_v2_scoring_weights_component_key;
+                EXCEPTION WHEN OTHERS THEN NULL;
+                END $$
+            """))
+            # Neuen UNIQUE Constraint erstellen: (component, job_category) — NULLS NOT DISTINCT
+            await conn.execute(text("""
+                DO $$ BEGIN
+                    CREATE UNIQUE INDEX IF NOT EXISTS uq_v2_weights_component_category
+                    ON match_v2_scoring_weights (component, COALESCE(job_category, '__global__'));
+                EXCEPTION WHEN OTHERS THEN NULL;
+                END $$
+            """))
+            logger.info("Migration: scoring_weights UNIQUE Constraint auf (component, job_category) aktualisiert.")
+    except Exception as e:
+        logger.warning(f"scoring_weights UNIQUE Migration uebersprungen: {e}")
 
     # Backfill: imported_at = created_at fuer bestehende Jobs ohne imported_at
     try:

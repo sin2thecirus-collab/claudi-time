@@ -86,6 +86,7 @@ class Match(Base):
     user_feedback: Mapped[str | None] = mapped_column(String(50))
     feedback_note: Mapped[str | None] = mapped_column(Text)
     feedback_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    rejection_reason: Mapped[str | None] = mapped_column(String(50))  # bad_distance, bad_skills, bad_seniority
 
     # Quick-AI Score (Phase C — guenstige KI-Schnellbewertung)
     quick_score: Mapped[int | None] = mapped_column(Float)  # 0-100

@@ -43,6 +43,7 @@ class FeedbackResult:
     weights_adjusted: bool
     adjustments: dict  # {component: delta, ...}
     training_data_id: UUID | None = None
+    learning_stage: str = "cold_start"  # cold_start / micro_adjustment / correlation / mature
 
 
 @dataclass
@@ -107,6 +108,8 @@ class MatchingLearningService:
         outcome: str,
         note: str | None = None,
         source: str = "user_feedback",
+        rejection_reason: str | None = None,
+        job_category: str | None = None,
     ) -> FeedbackResult:
         """Nimmt Feedback fuer einen Match auf und passt Gewichte an.
 
@@ -115,6 +118,8 @@ class MatchingLearningService:
             outcome: "good" / "bad" / "neutral"
             note: Optionale Notiz vom Recruiter
             source: "user_feedback" / "placed" / "rejected"
+            rejection_reason: "bad_distance" / "bad_skills" / "bad_seniority" (optional)
+            job_category: Job-Kategorie fuer pro-Kategorie-Lernen (z.B. "Bilanzbuchhalter")
 
         Returns:
             FeedbackResult mit Details zur Anpassung
@@ -130,12 +135,18 @@ class MatchingLearningService:
         # Feature-Snapshot erstellen
         features = self._extract_features(match)
 
-        # Feedback auf dem Match speichern
-        match.user_feedback = outcome
-        match.feedback_note = note
-        match.feedback_at = datetime.now(timezone.utc)
+        # Rejection-Reason in Features aufnehmen (fuer spaeteres Pattern Mining)
+        if rejection_reason:
+            features["rejection_reason"] = rejection_reason
 
-        # Training-Daten speichern
+        # Feedback auf dem Match speichern (wird auch vom Endpoint gesetzt,
+        # aber hier nochmal fuer den Fall dass record_feedback() direkt aufgerufen wird)
+        if not match.user_feedback:
+            match.user_feedback = outcome
+            match.feedback_note = note
+            match.feedback_at = datetime.now(timezone.utc)
+
+        # Training-Daten speichern (mit Grund und Job-Kategorie)
         training_data = MatchV2TrainingData(
             match_id=match_id,
             job_id=match.job_id,
@@ -143,6 +154,8 @@ class MatchingLearningService:
             features=features,
             outcome=outcome,
             outcome_source=source,
+            rejection_reason=rejection_reason,
+            job_category=job_category,
         )
         self.db.add(training_data)
         await self.db.flush()
@@ -155,19 +168,30 @@ class MatchingLearningService:
 
         if total_feedbacks >= self.MIN_FEEDBACKS_FOR_ADJUSTMENT and outcome != "neutral":
             if total_feedbacks >= self.MIN_FEEDBACKS_FOR_CORRELATION:
-                # Ab 80 Feedbacks: Korrelations-basierte Anpassung
-                adjustments = await self._correlation_based_adjustment()
+                # Ab 80 Feedbacks: Korrelations-basierte Anpassung (pro Kategorie)
+                adjustments = await self._correlation_based_adjustment(job_category=job_category)
                 weights_adjusted = bool(adjustments)
             else:
-                # 20-80 Feedbacks: Micro-Adjustment
-                adjustments = await self._micro_adjust_weights(features, outcome)
+                # 20-80 Feedbacks: Micro-Adjustment (pro Kategorie)
+                adjustments = await self._micro_adjust_weights(features, outcome, job_category=job_category)
                 weights_adjusted = bool(adjustments)
 
         await self.db.commit()
 
+        # Lern-Stufe bestimmen
+        if total_feedbacks < 20:
+            stage = "cold_start"
+        elif total_feedbacks < 80:
+            stage = "micro_adjustment"
+        elif total_feedbacks < 200:
+            stage = "correlation"
+        else:
+            stage = "mature"
+
         logger.info(
             f"Feedback '{outcome}' fuer Match {match_id} gespeichert "
-            f"(Total: {total_feedbacks}, Weights adjusted: {weights_adjusted})"
+            f"(reason={rejection_reason}, category={job_category}, "
+            f"Total: {total_feedbacks}, Stage: {stage}, Weights adjusted: {weights_adjusted})"
         )
 
         return FeedbackResult(
@@ -176,6 +200,7 @@ class MatchingLearningService:
             weights_adjusted=weights_adjusted,
             adjustments=adjustments,
             training_data_id=training_data.id,
+            learning_stage=stage,
         )
 
     async def record_placement(self, match_id: UUID) -> FeedbackResult:
@@ -223,10 +248,17 @@ class MatchingLearningService:
 
     # ── Micro-Adjustment ─────────────────────────────────
 
+    # Die 7 echten Scoring-Komponenten (muessen mit DEFAULT_WEIGHTS in matching_engine_v2 uebereinstimmen)
+    SCORE_COMPONENTS = [
+        "skill_overlap", "seniority_fit", "job_title_fit",
+        "embedding_sim", "industry_fit", "career_fit", "software_match",
+    ]
+
     async def _micro_adjust_weights(
         self,
         features: dict,
         outcome: str,
+        job_category: str | None = None,
     ) -> dict[str, float]:
         """Passt Gewichte minimal an basierend auf einem einzelnen Feedback.
 
@@ -236,16 +268,17 @@ class MatchingLearningService:
         - "bad" Match: Umgekehrt — reduziere hoch-bewertete Komponenten,
           erhoehe niedrig-bewertete
 
+        Pro-Kategorie: Wenn job_category angegeben, werden kategorie-spezifische
+        Gewichte angepasst (oder aus globalen Defaults kopiert).
+
+        Distanz: distance_km wird als Lern-Signal genutzt — bei bad_distance Feedback
+        wird der Distanz-Impact indirekt ueber die anderen Komponenten sichtbar.
+
         Staerke: ±0.8% pro Feedback (selbst-limitierend, konvergiert)
         """
         # Score-Komponenten aus dem Breakdown
         score_components = {
-            "skill_overlap": features.get("skill_overlap"),
-            "seniority_fit": features.get("seniority_fit"),
-            "embedding_sim": features.get("embedding_sim"),
-            "career_fit": features.get("career_fit"),
-            "software_match": features.get("software_match"),
-            "location_bonus": features.get("location_bonus"),
+            comp: features.get(comp) for comp in self.SCORE_COMPONENTS
         }
 
         # Nur Komponenten mit Werten
@@ -256,9 +289,8 @@ class MatchingLearningService:
         # Durchschnitt aller Scores
         avg = sum(valid.values()) / len(valid)
 
-        # Gewichte laden
-        result = await self.db.execute(select(MatchV2ScoringWeight))
-        weights = {w.component: w for w in result.scalars().all()}
+        # Gewichte laden (pro Kategorie oder global)
+        weights = await self._load_weights_for_category(job_category)
 
         adjustments = {}
         now = datetime.now(timezone.utc)
@@ -286,15 +318,69 @@ class MatchingLearningService:
                 w.last_adjusted_at = now
                 adjustments[component] = round(delta, 4)
 
-        # Gewichte re-normalisieren (Summe = 100)
+        # Gewichte re-normalisieren (Summe = 100, pro Kategorie)
         if adjustments:
-            await self._normalize_weights()
+            await self._normalize_weights(job_category)
 
         return adjustments
 
+    async def _load_weights_for_category(
+        self, job_category: str | None = None,
+    ) -> dict[str, "MatchV2ScoringWeight"]:
+        """Laedt Gewichte fuer eine Kategorie. Erstellt kategorie-spezifische Kopie
+        aus globalen Defaults falls noch nicht vorhanden.
+
+        Args:
+            job_category: z.B. "Bilanzbuchhalter" oder None fuer global.
+
+        Returns:
+            Dict {component_name: MatchV2ScoringWeight ORM-Objekt}
+        """
+        if job_category:
+            # Versuche kategorie-spezifische Gewichte zu laden
+            result = await self.db.execute(
+                select(MatchV2ScoringWeight)
+                .where(MatchV2ScoringWeight.job_category == job_category)
+            )
+            cat_weights = {w.component: w for w in result.scalars().all()}
+
+            if cat_weights:
+                return cat_weights
+
+            # Keine kategorie-spezifischen Gewichte → aus globalen kopieren
+            global_weights = await self._load_global_weights()
+            now = datetime.now(timezone.utc)
+            cat_weights = {}
+            for comp, gw in global_weights.items():
+                new_w = MatchV2ScoringWeight(
+                    component=comp,
+                    weight=gw.weight,
+                    default_weight=gw.default_weight,
+                    job_category=job_category,
+                    adjustment_count=0,
+                    last_adjusted_at=now,
+                )
+                self.db.add(new_w)
+                cat_weights[comp] = new_w
+            await self.db.flush()
+            return cat_weights
+
+        # Kein job_category → globale Gewichte
+        return await self._load_global_weights()
+
+    async def _load_global_weights(self) -> dict[str, "MatchV2ScoringWeight"]:
+        """Laedt globale Gewichte (job_category IS NULL)."""
+        result = await self.db.execute(
+            select(MatchV2ScoringWeight)
+            .where(MatchV2ScoringWeight.job_category.is_(None))
+        )
+        return {w.component: w for w in result.scalars().all()}
+
     # ── Korrelations-basierte Optimierung ─────────────────
 
-    async def _correlation_based_adjustment(self) -> dict[str, float]:
+    async def _correlation_based_adjustment(
+        self, job_category: str | None = None,
+    ) -> dict[str, float]:
         """Analysiert Korrelation zwischen Score-Komponenten und Outcome.
 
         Fuer jede Komponente berechnen:
@@ -303,43 +389,50 @@ class MatchingLearningService:
         - Unterschied = "Trennkraft" der Komponente
 
         Komponenten mit hoher Trennkraft bekommen mehr Gewicht.
+
+        Pro-Kategorie: Wenn job_category angegeben, werden nur Feedbacks dieser
+        Kategorie analysiert. Gewichte werden kategorie-spezifisch angepasst.
+
+        Distanz-Lernen: distance_km wird als Analyse-Dimension aufgenommen.
+        Bei hoher Trennkraft (bad_distance haeuft sich) wird das geloggt.
         """
-        # Alle Feedbacks mit Features laden
-        result = await self.db.execute(
+        # Feedbacks laden (pro Kategorie oder alle)
+        query = (
             select(
                 MatchV2TrainingData.features,
                 MatchV2TrainingData.outcome,
             )
             .where(MatchV2TrainingData.outcome.in_(["good", "bad"]))
             .order_by(MatchV2TrainingData.created_at.desc())
-            .limit(500)  # Letzte 500 Feedbacks
+            .limit(500)
         )
+        if job_category:
+            query = query.where(MatchV2TrainingData.job_category == job_category)
+
+        result = await self.db.execute(query)
         rows = result.all()
 
         if len(rows) < self.MIN_FEEDBACKS_FOR_CORRELATION:
             return {}
 
-        # Sammle Scores pro Komponente und Outcome
-        components = [
-            "skill_overlap", "seniority_fit", "embedding_sim",
-            "career_fit", "software_match", "location_bonus",
-        ]
+        # Sammle Scores pro Komponente und Outcome (inkl. distance_km als Analyse)
+        analysis_components = self.SCORE_COMPONENTS + ["distance_km"]
 
         stats: dict[str, dict] = {}
-        for comp in components:
+        for comp in analysis_components:
             stats[comp] = {"good_scores": [], "bad_scores": []}
 
         for features, outcome in rows:
             if not features:
                 continue
-            for comp in components:
+            for comp in analysis_components:
                 val = features.get(comp)
                 if val is not None:
                     stats[comp][f"{outcome}_scores"].append(val)
 
         # Trennkraft berechnen (Differenz zwischen Durchschnitt good vs. bad)
         separation_power = {}
-        for comp in components:
+        for comp in analysis_components:
             good = stats[comp]["good_scores"]
             bad = stats[comp]["bad_scores"]
 
@@ -349,6 +442,15 @@ class MatchingLearningService:
                 separation_power[comp] = avg_good - avg_bad
             else:
                 separation_power[comp] = 0.0
+
+        # Distanz-Trennkraft loggen (distance_km ist kein Gewicht, aber liefert Info)
+        dist_sep = separation_power.pop("distance_km", 0.0)
+        if abs(dist_sep) > 0.5:
+            logger.info(
+                f"Distanz-Trennkraft: {dist_sep:.3f} "
+                f"(category={job_category or 'global'}) — "
+                f"Distanz ist ein starkes Unterscheidungsmerkmal"
+            )
 
         if not separation_power or max(abs(v) for v in separation_power.values()) < 0.01:
             return {}
@@ -365,8 +467,7 @@ class MatchingLearningService:
         # Sanfte Anpassung: Bewege aktuelle Gewichte 20% Richtung Ziel
         blend_rate = 0.2
 
-        result_w = await self.db.execute(select(MatchV2ScoringWeight))
-        weights = {w.component: w for w in result_w.scalars().all()}
+        weights = await self._load_weights_for_category(job_category)
 
         adjustments = {}
         now = datetime.now(timezone.utc)
@@ -388,9 +489,10 @@ class MatchingLearningService:
                 adjustments[comp] = round(delta, 4)
 
         if adjustments:
-            await self._normalize_weights()
+            await self._normalize_weights(job_category)
             logger.info(
-                f"Korrelations-Optimierung: {len(adjustments)} Gewichte angepasst "
+                f"Korrelations-Optimierung ({job_category or 'global'}): "
+                f"{len(adjustments)} Gewichte angepasst "
                 f"(Trennkraft: {separation_power})"
             )
 
@@ -405,9 +507,22 @@ class MatchingLearningService:
         )
         return result.scalar() or 0
 
-    async def _normalize_weights(self):
-        """Normalisiert alle Gewichte so dass die Summe = 100."""
-        result = await self.db.execute(select(MatchV2ScoringWeight))
+    async def _normalize_weights(self, job_category: str | None = None):
+        """Normalisiert Gewichte so dass die Summe = 100.
+
+        Wenn job_category angegeben, werden nur die Gewichte dieser Kategorie normalisiert.
+        Sonst nur die globalen (job_category IS NULL).
+        """
+        if job_category:
+            query = select(MatchV2ScoringWeight).where(
+                MatchV2ScoringWeight.job_category == job_category
+            )
+        else:
+            query = select(MatchV2ScoringWeight).where(
+                MatchV2ScoringWeight.job_category.is_(None)
+            )
+
+        result = await self.db.execute(query)
         weights = result.scalars().all()
 
         total = sum(w.weight for w in weights)
@@ -492,25 +607,23 @@ class MatchingLearningService:
         )
         rows = result.all()
 
-        components = [
-            "skill_overlap", "seniority_fit", "embedding_sim",
-            "career_fit", "software_match", "location_bonus",
-        ]
+        # Alle 7 Score-Komponenten + distance_km als Analyse-Dimension
+        analysis_components = self.SCORE_COMPONENTS + ["distance_km"]
 
         stats = {}
-        for comp in components:
+        for comp in analysis_components:
             stats[comp] = {"good": [], "bad": []}
 
         for features, outcome in rows:
             if not features:
                 continue
-            for comp in components:
+            for comp in analysis_components:
                 val = features.get(comp)
                 if val is not None:
                     stats[comp][outcome].append(val)
 
         performance = []
-        for comp in components:
+        for comp in analysis_components:
             good = stats[comp]["good"]
             bad = stats[comp]["bad"]
 
@@ -601,8 +714,108 @@ class MatchingLearningService:
                 "candidate_id": str(r.candidate_id) if r.candidate_id else None,
                 "outcome": r.outcome,
                 "outcome_source": r.outcome_source,
+                "rejection_reason": r.rejection_reason,
+                "job_category": r.job_category,
                 "features": r.features,
                 "created_at": r.created_at.isoformat(),
             }
             for r in rows
         ]
+
+    # ── Erweiterte Analyse-Statistiken ──────────────────
+
+    async def get_extended_stats(self) -> dict:
+        """Erweiterte Lern-Statistiken mit Ablehnungsgruenden, Job-Kategorien und Gewichts-Verlauf.
+
+        Returns:
+            {
+                "overview": {...},
+                "rejection_reasons": {...},
+                "by_job_category": [...],
+                "weight_changes": [...],
+                "recent_feedbacks": [...],
+            }
+        """
+        # 1. Basis-Stats (wiederverwenden)
+        basic_stats = await self.get_learning_stats()
+
+        # 2. Ablehnungsgruende-Verteilung
+        reason_result = await self.db.execute(
+            select(
+                MatchV2TrainingData.rejection_reason,
+                func.count(MatchV2TrainingData.id),
+            )
+            .where(MatchV2TrainingData.rejection_reason.isnot(None))
+            .group_by(MatchV2TrainingData.rejection_reason)
+        )
+        reason_labels = {
+            "bad_distance": "Distanz passt nicht",
+            "bad_skills": "Taetigkeiten passen nicht",
+            "bad_seniority": "Seniority passt nicht",
+        }
+        rejection_reasons = {
+            row[0]: {"count": row[1], "label": reason_labels.get(row[0], row[0])}
+            for row in reason_result.all()
+        }
+
+        # 3. Aufschluesselung pro Job-Kategorie
+        cat_result = await self.db.execute(
+            select(
+                MatchV2TrainingData.job_category,
+                MatchV2TrainingData.outcome,
+                func.count(MatchV2TrainingData.id),
+            )
+            .where(MatchV2TrainingData.job_category.isnot(None))
+            .group_by(MatchV2TrainingData.job_category, MatchV2TrainingData.outcome)
+        )
+        cat_data: dict[str, dict] = {}
+        for category, outcome, count in cat_result.all():
+            if category not in cat_data:
+                cat_data[category] = {"category": category, "good": 0, "bad": 0, "neutral": 0, "total": 0}
+            cat_data[category][outcome] = count
+            cat_data[category]["total"] += count
+
+        by_job_category = sorted(cat_data.values(), key=lambda x: x["total"], reverse=True)
+
+        # 4. Gewichts-Veraenderungen pro Kategorie
+        weights_result = await self.db.execute(
+            select(MatchV2ScoringWeight)
+            .order_by(
+                MatchV2ScoringWeight.job_category.asc().nullsfirst(),
+                MatchV2ScoringWeight.weight.desc(),
+            )
+        )
+        weight_rows = weights_result.scalars().all()
+
+        weight_changes = []
+        for w in weight_rows:
+            weight_changes.append({
+                "component": w.component,
+                "job_category": w.job_category or "__global__",
+                "weight": w.weight,
+                "default_weight": w.default_weight,
+                "change": round(w.weight - w.default_weight, 3),
+                "adjustment_count": w.adjustment_count,
+                "last_adjusted": w.last_adjusted_at.isoformat() if w.last_adjusted_at else None,
+            })
+
+        # 5. Letzte 20 Feedbacks
+        recent = await self.get_feedback_history(limit=20)
+
+        return {
+            "overview": {
+                "total_feedbacks": basic_stats.total_feedbacks,
+                "good": basic_stats.good_feedbacks,
+                "bad": basic_stats.bad_feedbacks,
+                "neutral": basic_stats.neutral_feedbacks,
+                "learning_stage": basic_stats.learning_stage,
+                "total_rules": basic_stats.total_rules,
+                "active_rules": basic_stats.active_rules,
+                "total_weight_adjustments": basic_stats.total_weight_adjustments,
+            },
+            "rejection_reasons": rejection_reasons,
+            "by_job_category": by_job_category,
+            "weight_changes": weight_changes,
+            "component_performance": basic_stats.top_performing_components,
+            "recent_feedbacks": recent,
+        }

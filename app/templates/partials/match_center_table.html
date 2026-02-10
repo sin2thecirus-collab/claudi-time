@@ -69,6 +69,29 @@
             Abgelehnt <span class="text-gray-400 ml-0.5">{{ status_counts.rejected }}</span>
         </button>
 
+        {# ── Score-Filter (Trennlinie) ── #}
+        <span class="text-gray-300 mx-1">|</span>
+        <button @click="setScoreFilter(null, null)"
+                :class="!scoreMin && !scoreMax ? 'bg-gray-100 text-gray-700 border-gray-300' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'"
+                class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium border rounded-full transition-colors">
+            Score: Alle
+        </button>
+        <button @click="setScoreFilter(80, 100)"
+                :class="scoreMin == 80 ? 'bg-emerald-100 text-emerald-700 border-emerald-300' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'"
+                class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium border rounded-full transition-colors">
+            80-100%
+        </button>
+        <button @click="setScoreFilter(65, 79)"
+                :class="scoreMin == 65 ? 'bg-yellow-100 text-yellow-700 border-yellow-300' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'"
+                class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium border rounded-full transition-colors">
+            65-79%
+        </button>
+        <button @click="setScoreFilter(0, 64)"
+                :class="scoreMax == 64 ? 'bg-red-100 text-red-700 border-red-300' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'"
+                class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium border rounded-full transition-colors">
+            &lt;65%
+        </button>
+
         {# Ergebnis-Info rechts #}
         <div class="ml-auto text-xs text-gray-500">
             {% if total > 0 %}
