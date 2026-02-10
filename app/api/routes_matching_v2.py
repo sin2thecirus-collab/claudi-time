@@ -1070,6 +1070,73 @@ async def debug_match(
     }
 
 
+@router.post("/admin/geocode-test/{job_id}")
+async def geocode_test_job(
+    job_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """ADMIN DEBUG: Testet Geocoding fuer einen einzelnen Job mit detailliertem Logging."""
+    from app.models.job import Job
+    from app.models.company import Company
+    from app.services.geocoding_service import GeocodingService
+
+    job = await db.get(Job, job_id)
+    if not job:
+        raise HTTPException(404, "Job not found")
+
+    geo = GeocodingService(db)
+    log = []
+
+    try:
+        # Check Company
+        company = None
+        if job.company_id:
+            company = await db.get(Company, job.company_id)
+            log.append(f"Company: {company.name if company else 'NOT FOUND'}")
+            log.append(f"Company coords: {company.location_coords is not None if company else 'N/A'}")
+            if company and company.location_coords is not None:
+                log.append("→ Wuerde Koordinaten vom Unternehmen erben")
+        else:
+            log.append("Company: Keine company_id")
+
+        # Build Address
+        address = geo._build_address(
+            street=job.street_address,
+            postal_code=job.postal_code,
+            city=job.city,
+        )
+        log.append(f"Address built: '{address}' from street={job.street_address}, plz={job.postal_code}, city={job.city}")
+
+        # Try Nominatim
+        if address:
+            result = await geo.geocode(address)
+            log.append(f"Nominatim result: {result}")
+        else:
+            log.append("Nominatim: Skipped (no address)")
+
+        # Try actual geocode_job
+        ok = await geo.geocode_job(job)
+        log.append(f"geocode_job() result: {ok}")
+        log.append(f"Job location_coords after: {job.location_coords is not None}")
+
+        if ok:
+            await db.commit()
+            log.append("COMMITTED to DB")
+
+        return {
+            "job_id": str(job.id),
+            "city": job.city,
+            "work_location_city": job.work_location_city,
+            "street_address": job.street_address,
+            "postal_code": job.postal_code,
+            "location_coords_before": False,  # we know it was null
+            "geocode_result": ok,
+            "log": log,
+        }
+    finally:
+        await geo.close()
+
+
 @router.post("/admin/geocode-sync")
 async def geocode_sync(
     limit: int = Query(50, ge=1, le=500),
