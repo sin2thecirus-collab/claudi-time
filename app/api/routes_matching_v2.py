@@ -1373,13 +1373,18 @@ async def geocode_debug_candidate(
     geo = GeocodingService(db)
     try:
         # Alle Varianten aufbauen (gleiche Logik wie geocode_candidate)
+        # Reihenfolge: 1) Voll, 2) Nur PLZ, 3) PLZ+Stadt, 4) Stadt bereinigt, 5) Nur Stadt
         address_variants = []
         full_addr = geo._build_address(street=cand.street_address, postal_code=cand.postal_code, city=cand.city)
         if full_addr:
             address_variants.append(full_addr)
+        if cand.postal_code:
+            plz_only = f"{cand.postal_code}, Deutschland"
+            if plz_only not in address_variants:
+                address_variants.append(plz_only)
         if cand.street_address:
             fallback = geo._build_address(street=None, postal_code=cand.postal_code, city=cand.city)
-            if fallback and fallback != full_addr:
+            if fallback and fallback not in address_variants:
                 address_variants.append(fallback)
         if cand.city:
             clean_city = re.sub(r'\s*(?:OT|bei|Ortsteil)\s+\S+.*', '', cand.city).strip()
@@ -1387,10 +1392,6 @@ async def geocode_debug_candidate(
                 clean_fb = geo._build_address(street=None, postal_code=cand.postal_code, city=clean_city)
                 if clean_fb and clean_fb not in address_variants:
                     address_variants.append(clean_fb)
-        if cand.postal_code:
-            plz_only = f"{cand.postal_code}, Deutschland"
-            if plz_only not in address_variants:
-                address_variants.append(plz_only)
         if cand.city:
             city_only = geo._build_address(street=None, postal_code=None, city=cand.city)
             if city_only and city_only not in address_variants:

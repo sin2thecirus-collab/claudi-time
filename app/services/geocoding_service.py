@@ -289,9 +289,11 @@ class GeocodingService:
                 return True
 
         # ── Strategie 2: Selbst geocoden (mit Fallback) ──
-        # Versuche: 1) Volle Adresse, 2) PLZ + Stadt, 3) Nur Stadt
-        # Falls Nominatim die Strasse nicht kennt (Tippfehler etc.)
+        # Reihenfolge: 1) Volle Adresse, 2) Nur PLZ (am praezisesten!),
+        # 3) PLZ+Stadt, 4) Stadt bereinigt, 5) Nur Stadt
         address_variants = []
+
+        # 1) Volle Adresse (Strasse + PLZ + Stadt)
         full_addr = self._build_address(
             street=job.street_address,
             postal_code=job.postal_code,
@@ -300,17 +302,23 @@ class GeocodingService:
         if full_addr:
             address_variants.append(full_addr)
 
-        # Fallback ohne Strasse (PLZ + Stadt)
-        if job.street_address:  # Nur Fallback wenn es eine Strasse GAB
+        # 2) Nur PLZ — praeziser als Stadt!
+        if job.postal_code:
+            plz_only = f"{job.postal_code}, Deutschland"
+            if plz_only not in address_variants:
+                address_variants.append(plz_only)
+
+        # 3) PLZ + Stadt (ohne Strasse) — falls PLZ allein nichts findet
+        if job.street_address:
             fallback = self._build_address(
                 street=None,
                 postal_code=job.postal_code,
                 city=job.city,
             )
-            if fallback and fallback != full_addr:
+            if fallback and fallback not in address_variants:
                 address_variants.append(fallback)
 
-        # Fallback: PLZ + Stadt bereinigt (ohne "OT ...", "bei ...", etc.)
+        # 4) Stadt bereinigt (ohne "OT ...", "bei ...", etc.)
         if job.city:
             clean_city = re.sub(r'\s*(?:OT|bei|Ortsteil)\s+\S+.*', '', job.city).strip()
             if clean_city != job.city:
@@ -320,13 +328,7 @@ class GeocodingService:
                 if clean_fallback and clean_fallback not in address_variants:
                     address_variants.append(clean_fallback)
 
-        # Fallback: Nur PLZ (praeziser als Stadt — PLZ vor Stadt!)
-        if job.postal_code:
-            plz_only = f"{job.postal_code}, Deutschland"
-            if plz_only not in address_variants:
-                address_variants.append(plz_only)
-
-        # Fallback: Nur Stadt (ungenauer, aber besser als nichts)
+        # 5) Nur Stadt (letzter Fallback, ungenau)
         if job.city:
             city_only = self._build_address(street=None, postal_code=None, city=job.city)
             if city_only and city_only not in address_variants:
@@ -388,8 +390,11 @@ class GeocodingService:
         Returns:
             True bei Erfolg
         """
-        # Versuche: 1) Volle Adresse, 2) PLZ + Stadt, 3) Nur Stadt
+        # Reihenfolge: 1) Volle Adresse, 2) Nur PLZ (am praezisesten!),
+        # 3) PLZ+Stadt, 4) Stadt bereinigt, 5) Nur Stadt
         address_variants = []
+
+        # 1) Volle Adresse (Strasse + PLZ + Stadt)
         full_addr = self._build_address(
             street=candidate.street_address,
             postal_code=candidate.postal_code,
@@ -398,17 +403,23 @@ class GeocodingService:
         if full_addr:
             address_variants.append(full_addr)
 
-        # Fallback ohne Strasse
+        # 2) Nur PLZ — praeziser als Stadt! PLZ 21641 = Apensen, nicht "Hamburg"
+        if candidate.postal_code:
+            plz_only = f"{candidate.postal_code}, Deutschland"
+            if plz_only not in address_variants:
+                address_variants.append(plz_only)
+
+        # 3) PLZ + Stadt (ohne Strasse) — falls PLZ allein nichts findet
         if candidate.street_address:
             fallback = self._build_address(
                 street=None,
                 postal_code=candidate.postal_code,
                 city=candidate.city,
             )
-            if fallback and fallback != full_addr:
+            if fallback and fallback not in address_variants:
                 address_variants.append(fallback)
 
-        # Fallback: Stadt bereinigt (ohne "OT ...", "bei ...", etc.)
+        # 4) Stadt bereinigt (ohne "OT ...", "bei ...", etc.)
         if candidate.city:
             clean_city = re.sub(r'\s*(?:OT|bei|Ortsteil)\s+\S+.*', '', candidate.city).strip()
             if clean_city != candidate.city:
@@ -418,13 +429,7 @@ class GeocodingService:
                 if clean_fallback and clean_fallback not in address_variants:
                     address_variants.append(clean_fallback)
 
-        # Fallback: Nur PLZ (praeziser als Stadt — PLZ vor Stadt!)
-        if candidate.postal_code:
-            plz_only = f"{candidate.postal_code}, Deutschland"
-            if plz_only not in address_variants:
-                address_variants.append(plz_only)
-
-        # Fallback: Nur Stadt (ungenauer, aber besser als nichts)
+        # 5) Nur Stadt (letzter Fallback, ungenau)
         if candidate.city:
             city_only = self._build_address(street=None, postal_code=None, city=candidate.city)
             if city_only and city_only not in address_variants:
