@@ -1032,6 +1032,44 @@ async def reset_all_matches(
     }
 
 
+@router.get("/admin/debug-match/{match_id}")
+async def debug_match(
+    match_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """ADMIN DEBUG: Zeigt Match-Details inkl. distance_km und Breakdown."""
+    from app.models.match import Match
+    from app.models.job import Job
+    from app.models import Candidate
+    from sqlalchemy import select
+
+    match = await db.get(Match, match_id)
+    if not match:
+        raise HTTPException(404, "Match not found")
+
+    job = await db.get(Job, match.job_id) if match.job_id else None
+    cand = await db.get(Candidate, match.candidate_id) if match.candidate_id else None
+
+    return {
+        "match_id": str(match.id),
+        "distance_km": match.distance_km,
+        "v2_score": match.v2_score,
+        "status": match.status.value if match.status else None,
+        "v2_score_breakdown": match.v2_score_breakdown,
+        "job": {
+            "id": str(job.id) if job else None,
+            "location_coords_present": job.location_coords is not None if job else None,
+            "city": job.city if job else None,
+            "work_location_city": job.work_location_city if job else None,
+        } if job else None,
+        "candidate": {
+            "id": str(cand.id) if cand else None,
+            "address_coords_present": cand.address_coords is not None if cand else None,
+            "city": cand.city if cand else None,
+        } if cand else None,
+    }
+
+
 @router.post("/admin/geocode-sync")
 async def geocode_sync(
     limit: int = Query(50, ge=1, le=500),
