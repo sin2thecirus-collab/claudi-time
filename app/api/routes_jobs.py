@@ -349,6 +349,23 @@ async def import_jobs(
 
     # Pipeline im Hintergrund starten (eigene DB-Session, unabhaengig vom Request)
     if import_job.successful_rows and import_job.successful_rows > 0:
+        # Pipeline-Status SOFORT setzen, BEVOR die Response rausgeht,
+        # damit das Frontend den "Pipeline laeuft" Zustand sieht
+        step_names = ["categorization", "geocoding", "profiling", "embedding", "matching"]
+        pipeline_init = {name: {"status": "pending"} for name in step_names}
+        async with async_session_maker() as init_db:
+            from app.models.import_job import ImportJob as IJ
+            result = await init_db.execute(select(IJ).where(IJ.id == import_job.id))
+            ij = result.scalar_one_or_none()
+            if ij:
+                ed = dict(ij.errors_detail) if ij.errors_detail else {}
+                ed["pipeline"] = pipeline_init
+                ed["pipeline_status"] = "running"
+                ij.errors_detail = ed
+                await init_db.commit()
+                # Auch das lokale Objekt updaten fuer die HTMX-Response
+                import_job.errors_detail = ed
+
         asyncio.create_task(_run_pipeline_background(import_job.id))
         logger.info(f"Pipeline-Background-Task gestartet fuer Import {import_job.id}")
 
