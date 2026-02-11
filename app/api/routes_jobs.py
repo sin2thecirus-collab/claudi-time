@@ -516,9 +516,14 @@ async def get_import_status(
 ):
     """Gibt den aktuellen Status eines Imports zurueck (mit frischen Daten)."""
     from app.models.import_job import ImportJob
-    # Direkt laden mit expire, damit Pipeline-Updates aus Background-Task sichtbar sind
-    await db.expire_all()
-    import_job = await db.get(ImportJob, import_id)
+    from sqlalchemy import select as sel
+    # Frische Daten: expire + neu laden, damit Pipeline-Updates sichtbar sind
+    try:
+        db.expire_all()
+    except Exception:
+        pass
+    result = await db.execute(sel(ImportJob).where(ImportJob.id == import_id))
+    import_job = result.scalar_one_or_none()
 
     if not import_job:
         raise NotFoundException(message="Import-Job nicht gefunden")
