@@ -587,13 +587,16 @@ async def get_import_status(
             ed["pipeline_status"] = mem_progress.get("pipeline_status", "")
             import_job.errors_detail = ed
 
-        # HTMX-Request: HTML zurueckgeben
+        # HTMX-Request: HTML zurueckgeben (KEIN Cache — Polling muss frische Daten liefern)
         is_htmx = request.headers.get("HX-Request") == "true"
         if is_htmx:
-            return templates.TemplateResponse(
+            response = templates.TemplateResponse(
                 "components/import_progress.html",
                 {"request": request, "import_job": import_job},
             )
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            response.headers["Pragma"] = "no-cache"
+            return response
 
         return ImportJobResponse.model_validate(import_job)
 
