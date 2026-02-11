@@ -5,7 +5,6 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request, UploadFile, File, status
-from fastapi.responses import HTMLResponse
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 import math
@@ -34,117 +33,108 @@ templates = Jinja2Templates(directory="app/templates")
 
 # ==================== Import ====================
 
-async def _execute_pipeline_steps(db) -> dict:
+async def _execute_pipeline_steps() -> dict:
     """
-    Fuehrt alle 5 Pipeline-Schritte aus. Jeder Schritt bekommt eine
-    eigene Fehlerbehandlung mit rollback(), damit ein fehlgeschlagener
-    Schritt nicht die gesamte Session vergiftet.
+    Fuehrt alle 5 Pipeline-Schritte aus.
+
+    WICHTIG: Jeder Schritt bekommt seine EIGENE DB-Session!
+    Problem war: Geocoding vergiftet die shared Session (PostGIS ST_GeogFromText),
+    und Profiling schlaegt dann fehl mit "Session's transaction has been rolled back".
+    Loesung: Jeder Schritt oeffnet+schliesst seine eigene Session.
     """
+    from app.database import async_session_maker
+
     pipeline = {}
 
-    # 1. Auto-Kategorisierung
+    # --- Schritt 1: Kategorisierung ---
     try:
-        from app.services.categorization_service import CategorizationService
-        cat_service = CategorizationService(db)
-        cat_result = await cat_service.categorize_all_jobs()
-        pipeline["categorization"] = {
-            "status": "ok",
-            "categorized": cat_result.categorized,
-            "finance": cat_result.finance,
-            "engineering": cat_result.engineering,
-        }
-        logger.info(f"Pipeline: Kategorisierung OK ({cat_result.categorized} Jobs)")
+        async with async_session_maker() as step_db:
+            from app.services.categorization_service import CategorizationService
+            cat_service = CategorizationService(step_db)
+            cat_result = await cat_service.categorize_all_jobs()
+            await step_db.commit()
+            pipeline["categorization"] = {
+                "status": "ok",
+                "categorized": getattr(cat_result, "categorized", 0),
+                "finance": getattr(cat_result, "finance", 0),
+                "engineering": getattr(cat_result, "engineering", 0),
+            }
+            logger.info(f"Pipeline: categorization → ok")
     except Exception as e:
         pipeline["categorization"] = {"status": "failed", "error": str(e)[:200]}
-        logger.warning(f"Pipeline: Kategorisierung fehlgeschlagen: {e}")
-        try:
-            await db.rollback()
-        except Exception:
-            pass
+        logger.warning(f"Pipeline: categorization fehlgeschlagen: {e}", exc_info=True)
 
-    # 2. Auto-Geocoding
+    # --- Schritt 2: Geocoding ---
     try:
-        from app.services.geocoding_service import GeocodingService
-        geo_service = GeocodingService(db)
-        geo_result = await geo_service.process_pending_jobs()
-        pipeline["geocoding"] = {
-            "status": "ok",
-            "successful": geo_result.successful,
-            "skipped": geo_result.skipped,
-            "failed": geo_result.failed,
-        }
-        logger.info(f"Pipeline: Geocoding OK ({geo_result.successful} Jobs)")
+        async with async_session_maker() as step_db:
+            from app.services.geocoding_service import GeocodingService
+            geo_service = GeocodingService(step_db)
+            geo_result = await geo_service.process_pending_jobs()
+            await step_db.commit()
+            pipeline["geocoding"] = {
+                "status": "ok",
+                "successful": getattr(geo_result, "successful", 0),
+                "skipped": getattr(geo_result, "skipped", 0),
+                "failed": getattr(geo_result, "failed", 0),
+            }
+            logger.info(f"Pipeline: geocoding → ok")
     except Exception as e:
         pipeline["geocoding"] = {"status": "failed", "error": str(e)[:200]}
-        logger.warning(f"Pipeline: Geocoding fehlgeschlagen: {e}")
-        try:
-            await db.rollback()
-        except Exception:
-            pass
+        logger.warning(f"Pipeline: geocoding fehlgeschlagen: {e}", exc_info=True)
 
-    # 3. Auto-Profiling (FINANCE-Jobs, GPT-4o-mini)
+    # --- Schritt 3: Profiling (GPT-4o-mini) ---
     try:
-        from app.services.profile_engine_service import ProfileEngineService
-        profile_service = ProfileEngineService(db)
-        profile_result = await profile_service.backfill_jobs(batch_size=50)
-        pipeline["profiling"] = {
-            "status": "ok",
-            "profiled": profile_result.profiled,
-            "skipped": profile_result.skipped,
-            "failed": profile_result.failed,
-            "cost_usd": round(profile_result.total_cost_usd, 4),
-        }
-        logger.info(f"Pipeline: Profiling OK ({profile_result.profiled} Jobs)")
+        async with async_session_maker() as step_db:
+            from app.services.profile_engine_service import ProfileEngineService
+            profile_service = ProfileEngineService(step_db)
+            profile_result = await profile_service.backfill_jobs()
+            await step_db.commit()
+            pipeline["profiling"] = {
+                "status": "ok",
+                "profiled": getattr(profile_result, "profiled", 0),
+                "skipped": getattr(profile_result, "skipped", 0),
+                "failed": getattr(profile_result, "failed", 0),
+                "cost_usd": round(getattr(profile_result, "total_cost_usd", 0), 4),
+            }
+            logger.info(f"Pipeline: profiling → ok")
     except Exception as e:
         pipeline["profiling"] = {"status": "failed", "error": str(e)[:200]}
-        logger.warning(f"Pipeline: Profiling fehlgeschlagen: {e}")
-        try:
-            await db.rollback()
-        except Exception:
-            pass
+        logger.warning(f"Pipeline: profiling fehlgeschlagen: {e}", exc_info=True)
 
-    # 4. Auto-Embedding (OpenAI)
+    # --- Schritt 4: Embedding (OpenAI) ---
     try:
-        from app.services.matching_engine_v2 import EmbeddingGenerationService
-        emb_service = EmbeddingGenerationService(db)
-        emb_result = await emb_service.generate_job_embeddings(batch_size=50)
-        pipeline["embedding"] = {
-            "status": "ok",
-            "generated": emb_result.get("generated", 0),
-            "failed": emb_result.get("failed", 0),
-        }
-        logger.info(f"Pipeline: Embedding OK ({emb_result.get('generated', 0)} Jobs)")
-        await emb_service.close()
+        async with async_session_maker() as step_db:
+            from app.services.embedding_service import EmbeddingService
+            emb_service = EmbeddingService(step_db)
+            emb_result = await emb_service.embed_all_finance_jobs()
+            # embed_all_finance_jobs() committed intern schon periodisch
+            pipeline["embedding"] = {
+                "status": "ok",
+                "generated": emb_result.get("embedded", 0),
+                "failed": emb_result.get("errors", 0),
+            }
+            logger.info(f"Pipeline: embedding → ok")
     except Exception as e:
         pipeline["embedding"] = {"status": "failed", "error": str(e)[:200]}
-        logger.warning(f"Pipeline: Embedding fehlgeschlagen: {e}")
-        try:
-            await db.rollback()
-        except Exception:
-            pass
+        logger.warning(f"Pipeline: embedding fehlgeschlagen: {e}", exc_info=True)
 
-    # 5. Auto-Matching
+    # --- Schritt 5: Matching ---
     try:
-        from app.services.matching_engine_v2 import MatchingEngineV2
-        match_engine = MatchingEngineV2(db)
-        match_result = await match_engine.match_batch(
-            unmatched_only=True,
-            max_jobs=0,
-        )
-        pipeline["matching"] = {
-            "status": "ok",
-            "jobs_matched": match_result.jobs_matched,
-            "matches_created": match_result.total_matches_created,
-            "duration_ms": round(match_result.total_duration_ms),
-        }
-        logger.info(f"Pipeline: Matching OK ({match_result.total_matches_created} Matches)")
+        async with async_session_maker() as step_db:
+            from app.services.matching_engine_v2 import MatchingEngineV2
+            matcher = MatchingEngineV2(step_db)
+            match_result = await matcher.match_batch(unmatched_only=True, max_jobs=0)
+            await step_db.commit()
+            pipeline["matching"] = {
+                "status": "ok",
+                "jobs_matched": getattr(match_result, "jobs_matched", 0),
+                "matches_created": getattr(match_result, "total_matches_created", 0),
+                "duration_ms": round(getattr(match_result, "total_duration_ms", 0)),
+            }
+            logger.info(f"Pipeline: matching → ok")
     except Exception as e:
         pipeline["matching"] = {"status": "failed", "error": str(e)[:200]}
-        logger.warning(f"Pipeline: Matching fehlgeschlagen: {e}")
-        try:
-            await db.rollback()
-        except Exception:
-            pass
+        logger.warning(f"Pipeline: matching fehlgeschlagen: {e}", exc_info=True)
 
     return pipeline
 
@@ -171,7 +161,7 @@ async def _run_pipeline_background(import_job_id):
                 logger.error(f"Pipeline: Import-Job {import_job_id} nicht gefunden")
                 return
 
-            pipeline = await _execute_pipeline_steps(db)
+            pipeline = await _execute_pipeline_steps()
 
             # Pipeline-Ergebnisse in Import-Job speichern
             if not import_job.errors_detail:
@@ -1230,11 +1220,9 @@ async def run_pipeline_backfill(
     Pipeline: Kategorisierung → Geocoding → Profiling → Embedding → Matching
     """
     import time
-    from app.database import async_session_maker
 
     start = time.time()
-    async with async_session_maker() as db:
-        pipeline = await _execute_pipeline_steps(db)
+    pipeline = await _execute_pipeline_steps()
     duration_s = round(time.time() - start, 1)
 
     return {
