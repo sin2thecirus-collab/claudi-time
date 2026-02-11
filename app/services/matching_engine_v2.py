@@ -307,24 +307,20 @@ class MatchingEngineV2:
             Candidate.hidden == False,
         ]
 
-        # HARD FILTER: Entfernung max. 60km (wenn Job Koordinaten hat)
+        # HARD FILTER: Entfernung max. 30km (wenn Job Koordinaten hat)
         # Remote-Jobs ueberspringen den Entfernungs-Filter komplett!
-        # Kandidaten OHNE Koordinaten werden trotzdem durchgelassen,
-        # aber mit distance_km=None markiert (koennen spaeter manuell geprueft werden)
+        # Kandidaten OHNE Koordinaten werden AUSGESCHLOSSEN (nicht mehr durchgelassen).
+        # Grund: Sonst werden z.B. Kandidaten aus Bayern mit Jobs in Hamburg gematcht.
         job_is_remote = getattr(job, "work_arrangement", None) == "remote"
 
         if job_has_coords and not job_is_remote:
             conditions.append(
-                or_(
-                    # Kandidat innerhalb MAX_DISTANCE_KM km
-                    func.ST_DWithin(
-                        Candidate.address_coords,
-                        job.location_coords,
-                        MAX_DISTANCE_KM * 1000,  # ST_DWithin nutzt Meter bei Geography
-                    ),
-                    # ODER Kandidat hat keine Koordinaten (nicht ausschliessen)
-                    Candidate.address_coords.is_(None),
-                )
+                # Kandidat MUSS Koordinaten haben UND innerhalb MAX_DISTANCE_KM sein
+                func.ST_DWithin(
+                    Candidate.address_coords,
+                    job.location_coords,
+                    MAX_DISTANCE_KM * 1000,  # ST_DWithin nutzt Meter bei Geography
+                ),
             )
 
         # Hotlist-Kategorie (wenn Job eine hat)
