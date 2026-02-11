@@ -34,6 +34,125 @@ templates = Jinja2Templates(directory="app/templates")
 
 # ==================== Import ====================
 
+async def _run_pipeline_background(import_job_id):
+    """
+    Fuehrt die Post-Import-Pipeline im Hintergrund aus.
+    Eigene DB-Session, unabhaengig vom Request-Lifecycle.
+    """
+    import asyncio
+    from app.database import async_session_maker
+
+    # Kurz warten damit der Import-Commit sicher durch ist
+    await asyncio.sleep(1)
+
+    async with async_session_maker() as db:
+        try:
+            from app.models.import_job import ImportJob
+            result = await db.execute(
+                select(ImportJob).where(ImportJob.id == import_job_id)
+            )
+            import_job = result.scalar_one_or_none()
+            if not import_job:
+                logger.error(f"Pipeline: Import-Job {import_job_id} nicht gefunden")
+                return
+
+            pipeline = {}
+
+            # 1. Auto-Kategorisierung
+            try:
+                from app.services.categorization_service import CategorizationService
+                cat_service = CategorizationService(db)
+                cat_result = await cat_service.categorize_all_jobs()
+                pipeline["categorization"] = {
+                    "status": "ok",
+                    "categorized": cat_result.categorized,
+                    "finance": cat_result.finance,
+                    "engineering": cat_result.engineering,
+                }
+                logger.info(f"Pipeline: Kategorisierung OK ({cat_result.categorized} Jobs)")
+            except Exception as e:
+                pipeline["categorization"] = {"status": "failed", "error": str(e)[:200]}
+                logger.warning(f"Pipeline: Kategorisierung fehlgeschlagen: {e}")
+
+            # 2. Auto-Geocoding
+            try:
+                from app.services.geocoding_service import GeocodingService
+                geo_service = GeocodingService(db)
+                geo_result = await geo_service.process_pending_jobs()
+                pipeline["geocoding"] = {
+                    "status": "ok",
+                    "successful": geo_result.successful,
+                    "skipped": geo_result.skipped,
+                    "failed": geo_result.failed,
+                }
+                logger.info(f"Pipeline: Geocoding OK ({geo_result.successful} Jobs)")
+            except Exception as e:
+                pipeline["geocoding"] = {"status": "failed", "error": str(e)[:200]}
+                logger.warning(f"Pipeline: Geocoding fehlgeschlagen: {e}")
+
+            # 3. Auto-Profiling (FINANCE-Jobs, GPT-4o-mini)
+            try:
+                from app.services.profile_engine_service import ProfileEngineService
+                profile_service = ProfileEngineService(db)
+                profile_result = await profile_service.backfill_jobs(batch_size=50)
+                pipeline["profiling"] = {
+                    "status": "ok",
+                    "profiled": profile_result.profiled,
+                    "skipped": profile_result.skipped,
+                    "failed": profile_result.failed,
+                    "cost_usd": round(profile_result.total_cost_usd, 4),
+                }
+                logger.info(f"Pipeline: Profiling OK ({profile_result.profiled} Jobs)")
+            except Exception as e:
+                pipeline["profiling"] = {"status": "failed", "error": str(e)[:200]}
+                logger.warning(f"Pipeline: Profiling fehlgeschlagen: {e}")
+
+            # 4. Auto-Embedding (OpenAI)
+            try:
+                from app.services.matching_engine_v2 import EmbeddingGenerationService
+                emb_service = EmbeddingGenerationService(db)
+                emb_result = await emb_service.generate_job_embeddings(batch_size=50)
+                pipeline["embedding"] = {
+                    "status": "ok",
+                    "generated": emb_result.get("generated", 0),
+                    "failed": emb_result.get("failed", 0),
+                }
+                logger.info(f"Pipeline: Embedding OK ({emb_result.get('generated', 0)} Jobs)")
+                await emb_service.close()
+            except Exception as e:
+                pipeline["embedding"] = {"status": "failed", "error": str(e)[:200]}
+                logger.warning(f"Pipeline: Embedding fehlgeschlagen: {e}")
+
+            # 5. Auto-Matching
+            try:
+                from app.services.matching_engine_v2 import MatchingEngineV2
+                match_engine = MatchingEngineV2(db)
+                match_result = await match_engine.match_batch(
+                    unmatched_only=True,
+                    max_jobs=0,
+                )
+                pipeline["matching"] = {
+                    "status": "ok",
+                    "jobs_matched": match_result.jobs_matched,
+                    "matches_created": match_result.total_matches_created,
+                    "duration_ms": round(match_result.total_duration_ms),
+                }
+                logger.info(f"Pipeline: Matching OK ({match_result.total_matches_created} Matches)")
+            except Exception as e:
+                pipeline["matching"] = {"status": "failed", "error": str(e)[:200]}
+                logger.warning(f"Pipeline: Matching fehlgeschlagen: {e}")
+
+            # Pipeline-Ergebnisse in Import-Job speichern
+            if not import_job.errors_detail:
+                import_job.errors_detail = {}
+            import_job.errors_detail = {**import_job.errors_detail, "pipeline": pipeline}
+            await db.commit()
+            logger.info(f"Pipeline fuer Import {import_job_id} abgeschlossen: {pipeline}")
+
+        except Exception as e:
+            logger.error(f"Pipeline Background-Task fehlgeschlagen: {e}", exc_info=True)
+
+
 @router.post(
     "/import",
     status_code=status.HTTP_202_ACCEPTED,
@@ -50,7 +169,11 @@ async def import_jobs(
 
     Die Datei muss Tab-getrennt sein und die Pflicht-Spalte 'Unternehmen' haben.
     Bei HTMX-Requests wird HTML (import_progress.html) zurueckgegeben.
+
+    Die Post-Import Pipeline (Kategorisierung, Geocoding, Profiling, Embedding,
+    Matching) laeuft automatisch im Hintergrund NACH der Response.
     """
+    import asyncio
     from app.database import async_session_maker
 
     # Pruefe Dateigroesse
@@ -75,7 +198,7 @@ async def import_jobs(
                 content=content,
             )
 
-            # Import direkt ausfuehren
+            # Import direkt ausfuehren (nur CSV-Verarbeitung, OHNE Pipeline)
             if import_job.status.value == "pending":
                 import_job = await import_service.process_import(import_job.id, content)
 
@@ -85,7 +208,6 @@ async def import_jobs(
                 await db.rollback()
             except Exception:
                 pass
-            # Versuche Import-Job als FAILED zu markieren
             try:
                 if 'import_job' in locals() and import_job:
                     import_job.status = ImportStatus.FAILED
@@ -105,6 +227,11 @@ async def import_jobs(
         f"Status: {import_job.status}, "
         f"Erfolgreich: {import_job.successful_rows}/{import_job.total_rows}"
     )
+
+    # Pipeline im Hintergrund starten (eigene DB-Session, unabhaengig vom Request)
+    if import_job.successful_rows and import_job.successful_rows > 0:
+        asyncio.create_task(_run_pipeline_background(import_job.id))
+        logger.info(f"Pipeline-Background-Task gestartet fuer Import {import_job.id}")
 
     # HTMX-Request: HTML zurueckgeben
     is_htmx = request.headers.get("HX-Request") == "true"
