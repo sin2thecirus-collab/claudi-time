@@ -910,11 +910,13 @@ class ProfileEngineService:
                 f"${result.total_cost_usd:.4f}"
             )
 
+            # Progress-Callback nach JEDEM Job (fuer Live-%-Anzeige im Import-Dialog)
+            if progress_callback:
+                progress_callback(i + 1, result.total)
+
             # Commit alle batch_size Eintraege
             if (i + 1) % batch_size == 0:
                 await self.db.commit()
-                if progress_callback:
-                    progress_callback(i + 1, result.total)
 
         # Final commit
         await self.db.commit()

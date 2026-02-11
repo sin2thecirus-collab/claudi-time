@@ -88,14 +88,25 @@ async def _run_pipeline_background(import_job_id):
     set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
     logger.info(f"Pipeline: geocoding -> {pipeline['geocoding']['status']}")
 
-    # --- Schritt 3: Profiling (GPT-4o-mini) ---
-    pipeline["profiling"]["status"] = "running"
+    # --- Schritt 3: Profiling (GPT-4o-mini) — mit Live-%-Anzeige ---
+    pipeline["profiling"] = {"status": "running", "progress": 0}
     set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
+
+    def profiling_progress(processed, total):
+        """Callback: wird nach JEDEM profilierten Job aufgerufen."""
+        pct = round(processed / total * 100) if total > 0 else 0
+        pipeline["profiling"]["progress"] = pct
+        pipeline["profiling"]["processed"] = processed
+        pipeline["profiling"]["total"] = total
+        set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
+
     try:
         async with async_session_maker() as step_db:
             from app.services.profile_engine_service import ProfileEngineService
             profile_service = ProfileEngineService(step_db)
-            profile_result = await profile_service.backfill_jobs()
+            profile_result = await profile_service.backfill_jobs(
+                progress_callback=profiling_progress
+            )
             await step_db.commit()
             pipeline["profiling"] = {
                 "status": "ok",
