@@ -137,22 +137,28 @@
 
     // HTMX: Spinner anzeigen wenn Form abgeschickt wird
     form.addEventListener('htmx:beforeRequest', function(e) {
-        if (e.detail.elt === form) {
-            spinner.style.display = '';
-            submitBtn.disabled = true;
-            submitBtn.style.opacity = '0.6';
-            submitBtn.style.cursor = 'not-allowed';
-            cancelBtn.disabled = true;
-            cancelBtn.style.opacity = '0.5';
-            cancelBtn.style.cursor = 'not-allowed';
-        }
+        // beforeRequest bubbelt zum form hoch — elt ist das form selbst
+        spinner.style.display = '';
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.6';
+        submitBtn.style.cursor = 'not-allowed';
+        cancelBtn.disabled = true;
+        cancelBtn.style.opacity = '0.5';
+        cancelBtn.style.cursor = 'not-allowed';
     });
 
     // HTMX: Nach Response — Spinner weg + HTMX auf neuem Content initialisieren
-    form.addEventListener('htmx:afterSettle', function(e) {
-        if (e.detail.elt === form) {
+    // WICHTIG: afterSettle bubbelt, aber e.detail.elt ist das TARGET (#import-status),
+    // nicht das form. Deshalb pruefen wir auf das target-Element.
+    document.body.addEventListener('htmx:afterSettle', function(e) {
+        var target = e.detail.target || e.detail.elt;
+        var statusEl = document.getElementById('import-status');
+        if (!statusEl) return;
+
+        // Nur reagieren wenn das import-status div befuellt wurde
+        if (target === statusEl || (statusEl && statusEl.contains(target))) {
             // Spinner verstecken
-            spinner.style.display = 'none';
+            if (spinner) spinner.style.display = 'none';
             submitBtn.disabled = false;
             submitBtn.style.opacity = '';
             submitBtn.style.cursor = '';
@@ -161,10 +167,8 @@
             cancelBtn.style.cursor = '';
 
             // KRITISCH: HTMX muss die neuen hx-* Attribute im eingefuegten HTML entdecken
-            var statusEl = document.getElementById('import-status');
-            if (statusEl) {
-                htmx.process(statusEl);
-            }
+            htmx.process(statusEl);
+            console.log('[Import] htmx.process() aufgerufen auf #import-status');
         }
     });
 })();
