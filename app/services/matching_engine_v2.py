@@ -10,6 +10,7 @@ Kosten pro Match: $0.00 (alles lokal/vorberechnet)
 import json
 import logging
 import math
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -514,6 +515,9 @@ class MatchingEngineV2:
         "ms excel": "excel",
         "microsoft excel": "excel",
         "excel": "excel",
+        "ms office (excel)": "excel",
+        "ms office excel": "excel",
+        "ms-office excel": "excel",
         "addison": "addison",
         "addison oneclick": "addison",
         "oracle": "oracle",
@@ -526,13 +530,85 @@ class MatchingEngineV2:
         cleaned = name.lower().strip()
         return cls.SKILL_SYNONYMS.get(cleaned, cleaned)
 
+    # Kategorien die im Skill-Overlap IGNORIERT werden (druecken Score kuenstlich runter)
+    _SKIP_CATEGORIES: set[str] = {"sprachlich", "sprache", "soft_skill", "softskill"}
+
+    # Sprach-Patterns: "Deutsch (sehr gut)" → "deutsch", "Englisch (gut)" → "englisch"
+    _LANG_BRACKET_RE = re.compile(r"^(.+?)\s*\(.*\)$")
+
+    @classmethod
+    def _extract_core_skill(cls, skill_name: str) -> str:
+        """Extrahiert den Kern-Skill-Namen.
+
+        'Englisch (gut)' → 'englisch'
+        'MS Office (Excel)' → 'ms office (excel)'  (kein Sprach-Pattern)
+        'HGB-Abschlusserstellung' → versucht auch 'hgb'
+        """
+        name = skill_name.lower().strip()
+        # Sprach-Pattern: "Englisch (gut)" → "englisch"
+        m = cls._LANG_BRACKET_RE.match(name)
+        if m:
+            core = m.group(1).strip()
+            # Nur fuer bekannte Sprachen strippen, nicht fuer "MS Office (Excel)"
+            known_langs = {"deutsch", "englisch", "französisch", "franzoesisch",
+                           "spanisch", "italienisch", "russisch", "türkisch",
+                           "tuerkisch", "polnisch", "tschechisch", "portugiesisch",
+                           "niederländisch", "niederlaendisch", "chinesisch",
+                           "japanisch", "arabisch", "korean"}
+            if core in known_langs:
+                return core
+        return name
+
+    def _is_irrelevant_skill(self, skill_name: str, category: str | None) -> bool:
+        """Prueft ob ein Skill fuer den fachlichen Overlap irrelevant ist.
+
+        Ignoriert: Sprachen, Soft Skills (Teamarbeit, Analytisches Denken etc.)
+        """
+        if category and category.lower() in self._SKIP_CATEGORIES:
+            return True
+
+        name = skill_name.lower().strip()
+
+        # Sprachen erkennen (auch ohne category-Tag)
+        known_langs = {"deutsch", "englisch", "französisch", "franzoesisch",
+                       "spanisch", "italienisch", "russisch", "türkisch",
+                       "tuerkisch", "polnisch", "tschechisch", "portugiesisch",
+                       "niederländisch", "niederlaendisch"}
+        core = self._extract_core_skill(name)
+        if core in known_langs:
+            return True
+        # Pattern: "Deutsch (sehr gut)", "Englisch (C1)" etc.
+        if self._LANG_BRACKET_RE.match(name) and core in known_langs:
+            return True
+
+        # Soft Skills erkennen
+        soft_skills = {"teamarbeit", "analytisches denken", "kommunikation",
+                       "eigeninitiative", "selbstständigkeit", "selbststaendigkeit",
+                       "zuverlässigkeit", "zuverlaessigkeit", "flexibilität",
+                       "flexibilitaet", "belastbarkeit", "organisationsfähigkeit",
+                       "organisationsfaehigkeit", "problemlösung", "problemloesung",
+                       "zeitmanagement", "motivation", "eigenmotivation",
+                       "kundenorientierung", "serviceorientierung", "sorgfalt",
+                       "genauigkeit", "teamfähigkeit", "teamfaehigkeit"}
+        if name in soft_skills:
+            return True
+
+        return False
+
     def _score_skill_overlap(
         self,
         candidate_skills: list[dict],
         job_skills: list[dict],
         job_role: str | None = None,
+        candidate_certifications: list[str] | None = None,
     ) -> float:
         """Berechnet Skill-Overlap Score (0.0 - 1.0).
+
+        v2.6 Verbesserungen:
+          1. Sprachen & Soft Skills werden aus Job-Skills gefiltert (irrelevant)
+          2. Zertifizierungen (v2_certifications) werden als Bonus-Skills einbezogen
+          3. Fuzzy-Matching: "HGB-Abschlusserstellung" matched "HGB" ueber contains-Check
+          4. Sprach-Normalisierung: "Englisch (gut)" matched "Englisch"
 
         Wenn job_role bekannt (z.B. "bilanzbuchhalter"):
           → Kategorie-gewichtetes Scoring aus skill_weights.json
@@ -540,13 +616,11 @@ class MatchingEngineV2:
 
         Fallback (unbekannte Rolle):
           → Essential 70% / Preferred 30% (altes System)
-
-        Matching: Exakt + Synonym-Tabelle. KEIN Substring-Matching!
         """
         if not job_skills or not candidate_skills:
             return 0.0
 
-        # Normalisierte Skill-Namen (ueber Synonym-Tabelle)
+        # ── Kandidaten-Skills aufbauen (normalisiert) ──
         cand_skill_map: dict[str, dict] = {}
         for s in candidate_skills:
             name = s.get("skill", "").lower().strip()
@@ -555,8 +629,98 @@ class MatchingEngineV2:
                 cand_skill_map[normalized] = s
                 if name != normalized:
                     cand_skill_map[name] = s
+                # Auch Kern-Name registrieren (z.B. "englisch" aus "englisch (gut)")
+                core = self._extract_core_skill(name)
+                if core != name and core != normalized:
+                    cand_skill_map[core] = s
 
-        # Prüfe ob gewichtetes Scoring moeglich ist
+        # ── Zertifizierungen als Bonus-Skills hinzufuegen (weight=qualifikationen) ──
+        if candidate_certifications:
+            for cert in candidate_certifications:
+                cert_lower = cert.lower().strip()
+                if cert_lower and cert_lower not in cand_skill_map:
+                    normalized_cert = self._normalize_skill(cert_lower)
+                    cert_entry = {
+                        "skill": cert,
+                        "proficiency": "experte",
+                        "recency": "aktuell",
+                        "category": "zertifizierung",
+                    }
+                    cand_skill_map[cert_lower] = cert_entry
+                    cand_skill_map[normalized_cert] = cert_entry
+
+        # ── Job-Skills filtern: Sprachen & Soft Skills raus ──
+        filtered_job_skills = []
+        for js in job_skills:
+            skill_name = js.get("skill", "")
+            category = js.get("category", "")
+            if not self._is_irrelevant_skill(skill_name, category):
+                filtered_job_skills.append(js)
+
+        if not filtered_job_skills:
+            return 0.0
+
+        # ── Matching-Funktion (shared fuer beide Systeme) ──
+        def _match_skill(skill_name: str) -> tuple[dict | None, float]:
+            """Findet den besten Match fuer einen Job-Skill.
+            Returns: (matched_skill_dict, base_score)
+            """
+            name = skill_name.lower().strip()
+
+            # 1. Exakter Match
+            matched = cand_skill_map.get(name)
+            if matched:
+                return matched, 1.0
+
+            # 2. Synonym-Match
+            normalized_job = self._normalize_skill(name)
+            matched = cand_skill_map.get(normalized_job)
+            if matched:
+                return matched, 0.9
+
+            # 3. Kern-Skill Match (Sprach-Normalisierung)
+            core = self._extract_core_skill(name)
+            if core != name and core != normalized_job:
+                matched = cand_skill_map.get(core)
+                if matched:
+                    return matched, 0.85
+
+            # 4. Contains-Match: "HGB-Abschlusserstellung" → suche "hgb" im Kandidaten
+            #    Nur fuer bekannte Fachbegriffe, nicht fuer alles!
+            #    Splitting: "HGB-Abschlusserstellung" → ["hgb", "abschlusserstellung"]
+            parts = re.split(r"[-/\s]+", name)
+            if len(parts) >= 2:
+                for part in parts:
+                    if len(part) >= 3:  # Mindestens 3 Zeichen
+                        part_norm = self._normalize_skill(part)
+                        matched = cand_skill_map.get(part_norm)
+                        if matched:
+                            return matched, 0.7
+                        matched = cand_skill_map.get(part)
+                        if matched:
+                            return matched, 0.7
+
+            return None, 0.0
+
+        def _apply_modifiers(matched_skill: dict, base_score: float) -> float:
+            """Wendet Recency- und Proficiency-Modifier an."""
+            score = base_score
+
+            # Recency-Abschlag
+            recency = matched_skill.get("recency", "aktuell")
+            if recency == "kuerzlich":
+                score *= 0.7
+            elif recency == "veraltet":
+                score *= 0.3
+
+            # Proficiency-Bonus
+            prof = matched_skill.get("proficiency", "grundlagen")
+            if prof == "experte":
+                score = min(1.0, score * 1.1)
+
+            return score
+
+        # ── Scoring-System waehlen ──
         use_weighted = (
             job_role is not None
             and self._skill_weights is not None
@@ -564,48 +728,39 @@ class MatchingEngineV2:
         )
 
         if use_weighted:
-            # ── NEUES SYSTEM: Kategorie-gewichtetes Scoring ──
+            # ── GEWICHTETES SYSTEM: Kategorie-Weights aus skill_weights.json ──
             weighted_score_sum = 0.0
             weighted_max_sum = 0.0
 
-            for js in job_skills:
+            for js in filtered_job_skills:
                 skill_name = js.get("skill", "").lower().strip()
                 if not skill_name:
                     continue
 
-                # Bestimme Gewicht fuer diesen Skill
-                skill_weight = self._get_skill_weight(job_role, skill_name) or 5  # Default 5
+                # Bestimme Gewicht fuer diesen Skill (auch ueber Synonym/Contains)
+                skill_weight = self._get_skill_weight(job_role, skill_name)
+                if skill_weight is None:
+                    # Versuche auch Synonym-normalisierten Namen
+                    norm_name = self._normalize_skill(skill_name)
+                    skill_weight = self._get_skill_weight(job_role, norm_name)
+                if skill_weight is None:
+                    # Versuche Teile: "HGB-Abschlusserstellung" → "HGB"
+                    parts = re.split(r"[-/\s]+", skill_name)
+                    for part in parts:
+                        if len(part) >= 3:
+                            w = self._get_skill_weight(job_role, part)
+                            if w is not None:
+                                skill_weight = w
+                                break
+                if skill_weight is None:
+                    skill_weight = 5  # Fallback
 
                 weighted_max_sum += skill_weight
 
-                # 1. Exakter Match
-                match_score = 0.0
-                matched_skill = cand_skill_map.get(skill_name)
-
-                # 2. Synonym-Match
-                if not matched_skill:
-                    normalized_job = self._normalize_skill(skill_name)
-                    matched_skill = cand_skill_map.get(normalized_job)
-                    if matched_skill:
-                        match_score = 0.9
-
-                if matched_skill:
-                    if match_score == 0.0:
-                        match_score = 1.0
-
-                    # Recency-Abschlag
-                    recency = matched_skill.get("recency", "aktuell")
-                    if recency == "kuerzlich":
-                        match_score *= 0.7
-                    elif recency == "veraltet":
-                        match_score *= 0.3
-
-                    # Proficiency-Bonus
-                    prof = matched_skill.get("proficiency", "grundlagen")
-                    if prof == "experte":
-                        match_score = min(1.0, match_score * 1.1)
-
-                    weighted_score_sum += match_score * skill_weight
+                matched_skill, base_score = _match_skill(skill_name)
+                if matched_skill and base_score > 0:
+                    final_score = _apply_modifiers(matched_skill, base_score)
+                    weighted_score_sum += final_score * skill_weight
 
             if weighted_max_sum == 0:
                 return 0.0
@@ -618,7 +773,7 @@ class MatchingEngineV2:
             preferred_total = 0
             preferred_matched = 0.0
 
-            for js in job_skills:
+            for js in filtered_job_skills:
                 skill_name = js.get("skill", "").lower().strip()
                 importance = js.get("importance", "preferred")
 
@@ -627,33 +782,13 @@ class MatchingEngineV2:
                 else:
                     preferred_total += 1
 
-                match_score = 0.0
-                matched_skill = cand_skill_map.get(skill_name)
-
-                if not matched_skill:
-                    normalized_job = self._normalize_skill(skill_name)
-                    matched_skill = cand_skill_map.get(normalized_job)
-                    if matched_skill:
-                        match_score = 0.9
-
-                if matched_skill:
-                    if match_score == 0.0:
-                        match_score = 1.0
-
-                    recency = matched_skill.get("recency", "aktuell")
-                    if recency == "kuerzlich":
-                        match_score *= 0.7
-                    elif recency == "veraltet":
-                        match_score *= 0.3
-
-                    prof = matched_skill.get("proficiency", "grundlagen")
-                    if prof == "experte":
-                        match_score = min(1.0, match_score * 1.1)
-
+                matched_skill, base_score = _match_skill(skill_name)
+                if matched_skill and base_score > 0:
+                    final_score = _apply_modifiers(matched_skill, base_score)
                     if importance == "essential":
-                        essential_matched += match_score
+                        essential_matched += final_score
                     else:
-                        preferred_matched += match_score
+                        preferred_matched += final_score
 
             essential_score = (essential_matched / essential_total) if essential_total > 0 else 0.5
             preferred_score = (preferred_matched / preferred_total) if preferred_total > 0 else 0.5
@@ -1085,7 +1220,8 @@ class MatchingEngineV2:
             # ── 7 Score-Dimensionen (alle 0.0 - 1.0) ──
 
             skill_score = self._score_skill_overlap(
-                cand.structured_skills, job_skills, job_role=job_role
+                cand.structured_skills, job_skills, job_role=job_role,
+                candidate_certifications=cand.certifications,
             )
             seniority_score, qualification_tag = self._score_seniority_fit(
                 cand.seniority_level, job_level
