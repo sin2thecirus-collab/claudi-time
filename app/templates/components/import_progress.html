@@ -1,6 +1,6 @@
 {# Import Progress - Wird waehrend/nach dem Import angezeigt #}
 {# Verwendung: Wird von /api/jobs/import und /api/jobs/import/{id}/status geliefert #}
-{# Parameter: import_job (ImportJob-Objekt) #}
+{# Parameter: import_job (ImportJob-Objekt), is_polling (bool, True bei Status-Polling) #}
 
 {% set progress = 0 %}
 {% if import_job.total_rows > 0 %}
@@ -23,13 +23,20 @@
 {% set needs_polling = import_job.status.value == 'processing' or pipeline_status == 'running' %}
 {% set pipeline_cancelled = pipeline_status == 'cancelled' %}
 
-<div id="import-progress"
+{# ═══ WRAPPER: Nur beim INITIALEN Render (Form-POST) ═══ #}
+{# Beim Polling (is_polling=True) wird NUR der innere Content geliefert, #}
+{# weil der Wrapper #import-progress-poller schon im DOM existiert #}
+{# und per innerHTML-Swap den Content austauscht — KEIN outerHTML, #}
+{# kein Element-Replacement, kein htmx.process() noetig! #}
+{% if not is_polling %}
+<div id="import-progress-poller"
      {% if needs_polling %}
      hx-get="/api/jobs/import/{{ import_job.id }}/status"
      hx-trigger="every 2s"
-     hx-swap="outerHTML"
+     hx-swap="innerHTML"
      hx-on::response-error="event.preventDefault()"
      {% endif %}>
+{% endif %}
 
     {% if import_job.status.value == 'processing' %}
     {# ═══ CSV-Verarbeitung laeuft ═══ #}
@@ -52,8 +59,8 @@
         <div style="margin-top:8px;">
             <button type="button"
                     hx-post="/api/jobs/import/{{ import_job.id }}/cancel"
-                    hx-swap="outerHTML"
-                    hx-target="#import-progress"
+                    hx-swap="innerHTML"
+                    hx-target="#import-progress-poller"
                     style="font-size:12px;font-weight:500;color:var(--pp-text-muted);background:none;border:none;cursor:pointer;padding:0;">
                 Abbrechen
             </button>
@@ -338,20 +345,14 @@
     </div>
     {% endif %}
 
+{# ═══ WRAPPER SCHLIESSEN (nur beim initialen Render) ═══ #}
+{% if not is_polling %}
+
     <script>
-    // Self-initializing: HTMX fuehrt inline Scripts nach Swap aus.
-    // WICHTIG: Script MUSS innerhalb von #import-progress sein,
-    // damit outerHTML-Swap ein einziges Root-Element bekommt!
+    // Einmalig beim initialen Render: Spinner verstecken, Buttons aktivieren
     (function() {
-        var el = document.getElementById('import-progress');
-        if (el && el.hasAttribute('hx-get')) {
-            htmx.process(el);
-            console.log('[ImportProgress] htmx.process() auf #import-progress — Polling aktiv');
-        }
-        // Spinner im Import-Dialog verstecken
         var spinner = document.getElementById('import-upload-spinner');
         if (spinner) spinner.style.display = 'none';
-        // Buttons wieder aktivieren
         var submitBtn = document.getElementById('import-submit-btn');
         var cancelBtn = document.getElementById('import-cancel-btn');
         if (submitBtn) { submitBtn.disabled = false; submitBtn.style.opacity = ''; submitBtn.style.cursor = ''; }
@@ -366,3 +367,4 @@
     }
     </style>
 </div>
+{% endif %}
