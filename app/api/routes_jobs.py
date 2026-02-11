@@ -33,135 +33,175 @@ templates = Jinja2Templates(directory="app/templates")
 
 # ==================== Import ====================
 
+class PipelineCancelled(Exception):
+    """Wird geworfen wenn die Pipeline abgebrochen wird."""
+    pass
+
+
 async def _run_pipeline_background(import_job_id):
     """
     Fuehrt die Post-Import-Pipeline im Hintergrund aus.
     Fortschritt wird in Memory geschrieben (app.state), NICHT in die DB.
     Nur am Ende wird einmal in die DB geschrieben (fuer Import-History).
+    Prueft vor jedem Step ob ein Cancel angefordert wurde.
     """
     from app.database import async_session_maker
-    from app.state import set_progress, cleanup_progress
+    from app.state import set_progress, cleanup_progress, is_cancelled
 
     job_id_str = str(import_job_id)
     step_names = ["categorization", "geocoding", "profiling", "embedding", "matching"]
     pipeline = {name: {"status": "pending"} for name in step_names}
+    cancelled = False
+
+    def check_cancel():
+        """Prueft ob Cancel angefordert wurde, wirft Exception."""
+        if is_cancelled(job_id_str):
+            raise PipelineCancelled("Pipeline abgebrochen")
 
     # --- Schritt 1: Kategorisierung ---
-    pipeline["categorization"]["status"] = "running"
-    set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
     try:
-        async with async_session_maker() as step_db:
-            from app.services.categorization_service import CategorizationService
-            cat_service = CategorizationService(step_db)
-            cat_result = await cat_service.categorize_all_jobs()
-            await step_db.commit()
-            pipeline["categorization"] = {
-                "status": "ok",
-                "categorized": getattr(cat_result, "categorized", 0),
-                "finance": getattr(cat_result, "finance", 0),
-                "engineering": getattr(cat_result, "engineering", 0),
-            }
-    except Exception as e:
-        pipeline["categorization"] = {"status": "failed", "error": str(e)[:200]}
-        logger.warning(f"Pipeline: categorization fehlgeschlagen: {e}", exc_info=True)
-    set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
-    logger.info(f"Pipeline: categorization -> {pipeline['categorization']['status']}")
+        check_cancel()
+        pipeline["categorization"]["status"] = "running"
+        set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
+        try:
+            async with async_session_maker() as step_db:
+                from app.services.categorization_service import CategorizationService
+                cat_service = CategorizationService(step_db)
+                cat_result = await cat_service.categorize_all_jobs()
+                await step_db.commit()
+                pipeline["categorization"] = {
+                    "status": "ok",
+                    "categorized": getattr(cat_result, "categorized", 0),
+                    "finance": getattr(cat_result, "finance", 0),
+                    "engineering": getattr(cat_result, "engineering", 0),
+                }
+        except PipelineCancelled:
+            raise
+        except Exception as e:
+            pipeline["categorization"] = {"status": "failed", "error": str(e)[:200]}
+            logger.warning(f"Pipeline: categorization fehlgeschlagen: {e}", exc_info=True)
+        set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
+        logger.info(f"Pipeline: categorization -> {pipeline['categorization']['status']}")
 
-    # --- Schritt 2: Geocoding ---
-    pipeline["geocoding"]["status"] = "running"
-    set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
-    try:
-        async with async_session_maker() as step_db:
-            from app.services.geocoding_service import GeocodingService
-            geo_service = GeocodingService(step_db)
-            geo_result = await geo_service.process_pending_jobs()
-            await step_db.commit()
-            pipeline["geocoding"] = {
-                "status": "ok",
-                "successful": getattr(geo_result, "successful", 0),
-                "skipped": getattr(geo_result, "skipped", 0),
-                "failed": getattr(geo_result, "failed", 0),
-            }
-    except Exception as e:
-        pipeline["geocoding"] = {"status": "failed", "error": str(e)[:200]}
-        logger.warning(f"Pipeline: geocoding fehlgeschlagen: {e}", exc_info=True)
-    set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
-    logger.info(f"Pipeline: geocoding -> {pipeline['geocoding']['status']}")
+        # --- Schritt 2: Geocoding ---
+        check_cancel()
+        pipeline["geocoding"]["status"] = "running"
+        set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
+        try:
+            async with async_session_maker() as step_db:
+                from app.services.geocoding_service import GeocodingService
+                geo_service = GeocodingService(step_db)
+                geo_result = await geo_service.process_pending_jobs()
+                await step_db.commit()
+                pipeline["geocoding"] = {
+                    "status": "ok",
+                    "successful": getattr(geo_result, "successful", 0),
+                    "skipped": getattr(geo_result, "skipped", 0),
+                    "failed": getattr(geo_result, "failed", 0),
+                }
+        except PipelineCancelled:
+            raise
+        except Exception as e:
+            pipeline["geocoding"] = {"status": "failed", "error": str(e)[:200]}
+            logger.warning(f"Pipeline: geocoding fehlgeschlagen: {e}", exc_info=True)
+        set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
+        logger.info(f"Pipeline: geocoding -> {pipeline['geocoding']['status']}")
 
-    # --- Schritt 3: Profiling (GPT-4o-mini) — mit Live-%-Anzeige ---
-    pipeline["profiling"] = {"status": "running", "progress": 0}
-    set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
-
-    def profiling_progress(processed, total):
-        """Callback: wird nach JEDEM profilierten Job aufgerufen."""
-        pct = round(processed / total * 100) if total > 0 else 0
-        pipeline["profiling"]["progress"] = pct
-        pipeline["profiling"]["processed"] = processed
-        pipeline["profiling"]["total"] = total
+        # --- Schritt 3: Profiling (GPT-4o-mini) — mit Live-%-Anzeige ---
+        check_cancel()
+        pipeline["profiling"] = {"status": "running", "progress": 0}
         set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
 
-    try:
-        async with async_session_maker() as step_db:
-            from app.services.profile_engine_service import ProfileEngineService
-            profile_service = ProfileEngineService(step_db)
-            profile_result = await profile_service.backfill_jobs(
-                progress_callback=profiling_progress
-            )
-            await step_db.commit()
-            pipeline["profiling"] = {
-                "status": "ok",
-                "profiled": getattr(profile_result, "profiled", 0),
-                "skipped": getattr(profile_result, "skipped", 0),
-                "failed": getattr(profile_result, "failed", 0),
-                "cost_usd": round(getattr(profile_result, "total_cost_usd", 0), 4),
-            }
-    except Exception as e:
-        pipeline["profiling"] = {"status": "failed", "error": str(e)[:200]}
-        logger.warning(f"Pipeline: profiling fehlgeschlagen: {e}", exc_info=True)
-    set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
-    logger.info(f"Pipeline: profiling -> {pipeline['profiling']['status']}")
+        def profiling_progress(processed, total):
+            """Callback: wird nach JEDEM profilierten Job aufgerufen."""
+            # Cancel-Check innerhalb des Profilings (bricht mitten im Step ab)
+            if is_cancelled(job_id_str):
+                raise PipelineCancelled("Pipeline abgebrochen")
+            pct = round(processed / total * 100) if total > 0 else 0
+            pipeline["profiling"]["progress"] = pct
+            pipeline["profiling"]["processed"] = processed
+            pipeline["profiling"]["total"] = total
+            set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
 
-    # --- Schritt 4: Embedding (OpenAI) ---
-    pipeline["embedding"]["status"] = "running"
-    set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
-    try:
-        async with async_session_maker() as step_db:
-            from app.services.embedding_service import EmbeddingService
-            emb_service = EmbeddingService(step_db)
-            emb_result = await emb_service.embed_all_finance_jobs()
-            pipeline["embedding"] = {
-                "status": "ok",
-                "generated": emb_result.get("embedded", 0),
-                "failed": emb_result.get("errors", 0),
-            }
-    except Exception as e:
-        pipeline["embedding"] = {"status": "failed", "error": str(e)[:200]}
-        logger.warning(f"Pipeline: embedding fehlgeschlagen: {e}", exc_info=True)
-    set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
-    logger.info(f"Pipeline: embedding -> {pipeline['embedding']['status']}")
+        try:
+            async with async_session_maker() as step_db:
+                from app.services.profile_engine_service import ProfileEngineService
+                profile_service = ProfileEngineService(step_db)
+                profile_result = await profile_service.backfill_jobs(
+                    progress_callback=profiling_progress
+                )
+                await step_db.commit()
+                pipeline["profiling"] = {
+                    "status": "ok",
+                    "profiled": getattr(profile_result, "profiled", 0),
+                    "skipped": getattr(profile_result, "skipped", 0),
+                    "failed": getattr(profile_result, "failed", 0),
+                    "cost_usd": round(getattr(profile_result, "total_cost_usd", 0), 4),
+                }
+        except PipelineCancelled:
+            raise
+        except Exception as e:
+            pipeline["profiling"] = {"status": "failed", "error": str(e)[:200]}
+            logger.warning(f"Pipeline: profiling fehlgeschlagen: {e}", exc_info=True)
+        set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
+        logger.info(f"Pipeline: profiling -> {pipeline['profiling']['status']}")
 
-    # --- Schritt 5: Matching ---
-    pipeline["matching"]["status"] = "running"
-    set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
-    try:
-        async with async_session_maker() as step_db:
-            from app.services.matching_engine_v2 import MatchingEngineV2
-            matcher = MatchingEngineV2(step_db)
-            match_result = await matcher.match_batch(unmatched_only=True, max_jobs=0)
-            await step_db.commit()
-            pipeline["matching"] = {
-                "status": "ok",
-                "jobs_matched": getattr(match_result, "jobs_matched", 0),
-                "matches_created": getattr(match_result, "total_matches_created", 0),
-                "duration_ms": round(getattr(match_result, "total_duration_ms", 0)),
-            }
-    except Exception as e:
-        pipeline["matching"] = {"status": "failed", "error": str(e)[:200]}
-        logger.warning(f"Pipeline: matching fehlgeschlagen: {e}", exc_info=True)
+        # --- Schritt 4: Embedding (OpenAI) ---
+        check_cancel()
+        pipeline["embedding"]["status"] = "running"
+        set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
+        try:
+            async with async_session_maker() as step_db:
+                from app.services.embedding_service import EmbeddingService
+                emb_service = EmbeddingService(step_db)
+                emb_result = await emb_service.embed_all_finance_jobs()
+                pipeline["embedding"] = {
+                    "status": "ok",
+                    "generated": emb_result.get("embedded", 0),
+                    "failed": emb_result.get("errors", 0),
+                }
+        except PipelineCancelled:
+            raise
+        except Exception as e:
+            pipeline["embedding"] = {"status": "failed", "error": str(e)[:200]}
+            logger.warning(f"Pipeline: embedding fehlgeschlagen: {e}", exc_info=True)
+        set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
+        logger.info(f"Pipeline: embedding -> {pipeline['embedding']['status']}")
 
-    # Memory auf "done" setzen (Frontend sieht gruenen Haken)
-    set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "done"})
-    logger.info(f"Pipeline fuer Import {import_job_id} abgeschlossen: {pipeline}")
+        # --- Schritt 5: Matching ---
+        check_cancel()
+        pipeline["matching"]["status"] = "running"
+        set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
+        try:
+            async with async_session_maker() as step_db:
+                from app.services.matching_engine_v2 import MatchingEngineV2
+                matcher = MatchingEngineV2(step_db)
+                match_result = await matcher.match_batch(unmatched_only=True, max_jobs=0)
+                await step_db.commit()
+                pipeline["matching"] = {
+                    "status": "ok",
+                    "jobs_matched": getattr(match_result, "jobs_matched", 0),
+                    "matches_created": getattr(match_result, "total_matches_created", 0),
+                    "duration_ms": round(getattr(match_result, "total_duration_ms", 0)),
+                }
+        except PipelineCancelled:
+            raise
+        except Exception as e:
+            pipeline["matching"] = {"status": "failed", "error": str(e)[:200]}
+            logger.warning(f"Pipeline: matching fehlgeschlagen: {e}", exc_info=True)
+
+    except PipelineCancelled:
+        cancelled = True
+        # Alle noch laufenden/pending Steps als "cancelled" markieren
+        for step_name in step_names:
+            if pipeline[step_name].get("status") in ("running", "pending"):
+                pipeline[step_name]["status"] = "cancelled"
+        logger.info(f"Pipeline fuer Import {import_job_id} ABGEBROCHEN")
+
+    # Memory auf "done" oder "cancelled" setzen
+    final_status = "cancelled" if cancelled else "done"
+    set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": final_status})
+    logger.info(f"Pipeline fuer Import {import_job_id}: {final_status}")
 
     # Einmal am Ende in DB schreiben (fuer Import-History)
     try:
@@ -174,17 +214,15 @@ async def _run_pipeline_background(import_job_id):
             if ij:
                 ed = dict(ij.errors_detail) if ij.errors_detail else {}
                 ed["pipeline"] = pipeline
-                ed["pipeline_status"] = "done"
+                ed["pipeline_status"] = final_status
                 ij.errors_detail = ed
                 await final_db.commit()
-                logger.info(f"Pipeline-Ergebnis fuer Import {import_job_id} in DB gespeichert")
     except Exception as e:
         logger.warning(f"Pipeline-Ergebnis in DB speichern fehlgeschlagen: {e}")
 
     # Memory-Eintrag nach kurzer Verzoegerung entfernen
-    # (damit das letzte Polling den "done"-Status noch sieht)
     import asyncio
-    await asyncio.sleep(30)
+    await asyncio.sleep(10)
     cleanup_progress(job_id_str)
 
 
@@ -600,6 +638,27 @@ async def cancel_import(
         )
 
     return ImportJobResponse.model_validate(import_job)
+
+
+@router.post(
+    "/import/{import_id}/cancel-pipeline",
+    summary="Laufende Pipeline abbrechen",
+)
+async def cancel_pipeline(
+    import_id: UUID,
+):
+    """Bricht eine laufende Post-Import-Pipeline sofort ab."""
+    from app.state import request_cancel, get_progress
+
+    progress = get_progress(str(import_id))
+    if not progress:
+        return JSONResponse(
+            status_code=404,
+            content={"message": "Keine laufende Pipeline fuer diesen Import"},
+        )
+
+    request_cancel(str(import_id))
+    return {"message": "Pipeline-Abbruch angefordert", "import_id": str(import_id)}
 
 
 # ==================== CRUD ====================

@@ -19,6 +19,7 @@
 
 {# Polling: Wenn import laeuft ODER pipeline laeuft #}
 {% set needs_polling = import_job.status.value == 'processing' or pipeline_status == 'running' %}
+{% set pipeline_cancelled = pipeline_status == 'cancelled' %}
 
 <div id="import-progress"
      {% if needs_polling %}
@@ -95,7 +96,7 @@
                     <circle style="opacity:0.25;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
                     <path style="opacity:0.75;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <span style="font-weight:600;color:var(--pp-primary);">{{ label }}...{% if step.get('progress', 0) > 0 %} {{ step.get('progress') }}%{% endif %}</span>
+                <span style="font-weight:600;color:var(--pp-primary);">{{ label }}...{% if 'progress' in step %} {{ step.progress }}%{% endif %}</span>
                 {% elif s == 'ok' %}
                 {# Haken #}
                 <svg style="width:16px;height:16px;color:var(--pp-green);flex-shrink:0;" viewBox="0 0 20 20" fill="currentColor">
@@ -108,6 +109,12 @@
                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
                 </svg>
                 <span style="color:#EF4444;">{{ label }}</span>
+                {% elif s == 'cancelled' %}
+                {# Abgebrochen #}
+                <svg style="width:16px;height:16px;color:var(--pp-text-muted);flex-shrink:0;" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
+                </svg>
+                <span style="color:var(--pp-text-muted);">{{ label }} — abgebrochen</span>
                 {% else %}
                 {# Pending (Kreis) #}
                 <div style="width:16px;height:16px;border-radius:50%;border:2px solid var(--pp-border);flex-shrink:0;"></div>
@@ -184,6 +191,25 @@
         <p style="font-size:11px;color:var(--pp-text-muted);margin:10px 0 0;text-align:center;">
             Schliesst automatisch...
         </p>
+    </div>
+
+    {% elif import_job.status.value == 'completed' and pipeline_cancelled %}
+    {# ═══ Pipeline abgebrochen ═══ #}
+    <div style="border-radius:10px;background:rgba(156,163,175,0.08);border:1px solid rgba(156,163,175,0.2);padding:16px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+            <svg style="width:16px;height:16px;color:var(--pp-text-muted);flex-shrink:0;" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
+            </svg>
+            <span style="font-size:14px;font-weight:600;color:var(--pp-text-muted);">Pipeline abgebrochen</span>
+        </div>
+        <p style="font-size:13px;color:var(--pp-text-muted);margin:0 0 12px;">
+            {{ import_job.successful_rows }} Jobs wurden importiert. Die Verarbeitungs-Pipeline wurde abgebrochen.
+        </p>
+        <button type="button"
+                onclick="closeModal(); htmx.trigger(document.body, 'jobsUpdated')"
+                style="font-size:13px;font-weight:600;color:var(--pp-text-muted);background:none;border:none;cursor:pointer;padding:0;">
+            Schliessen
+        </button>
     </div>
 
     {% elif import_job.status.value == 'completed' %}
