@@ -33,20 +33,50 @@ templates = Jinja2Templates(directory="app/templates")
 
 # ==================== Import ====================
 
-async def _execute_pipeline_steps() -> dict:
-    """
-    Fuehrt alle 5 Pipeline-Schritte aus.
+async def _save_pipeline_progress(import_job_id, pipeline: dict, pipeline_status: str):
+    """Speichert den aktuellen Pipeline-Fortschritt in der DB."""
+    from app.database import async_session_maker
+    from app.models.import_job import ImportJob
 
-    WICHTIG: Jeder Schritt bekommt seine EIGENE DB-Session!
-    Problem war: Geocoding vergiftet die shared Session (PostGIS ST_GeogFromText),
-    und Profiling schlaegt dann fehl mit "Session's transaction has been rolled back".
-    Loesung: Jeder Schritt oeffnet+schliesst seine eigene Session.
+    try:
+        async with async_session_maker() as db:
+            result = await db.execute(
+                select(ImportJob).where(ImportJob.id == import_job_id)
+            )
+            ij = result.scalar_one_or_none()
+            if ij:
+                ed = dict(ij.errors_detail) if ij.errors_detail else {}
+                ed["pipeline"] = pipeline
+                ed["pipeline_status"] = pipeline_status
+                ij.errors_detail = ed
+                await db.commit()
+    except Exception as e:
+        logger.warning(f"Pipeline-Progress speichern fehlgeschlagen: {e}")
+
+
+async def _run_pipeline_background(import_job_id):
     """
+    Fuehrt die Post-Import-Pipeline im Hintergrund aus.
+    Nach JEDEM Schritt wird der Fortschritt in der DB gespeichert,
+    damit das Frontend live mitlesen kann (HTMX-Polling).
+    """
+    import asyncio
     from app.database import async_session_maker
 
+    # Kurz warten damit der Import-Commit sicher durch ist
+    await asyncio.sleep(1)
+
     pipeline = {}
+    step_names = ["categorization", "geocoding", "profiling", "embedding", "matching"]
+
+    # Pipeline als "running" markieren, alle Steps als "pending"
+    for name in step_names:
+        pipeline[name] = {"status": "pending"}
+    await _save_pipeline_progress(import_job_id, pipeline, "running")
 
     # --- Schritt 1: Kategorisierung ---
+    pipeline["categorization"] = {"status": "running"}
+    await _save_pipeline_progress(import_job_id, pipeline, "running")
     try:
         async with async_session_maker() as step_db:
             from app.services.categorization_service import CategorizationService
@@ -59,12 +89,15 @@ async def _execute_pipeline_steps() -> dict:
                 "finance": getattr(cat_result, "finance", 0),
                 "engineering": getattr(cat_result, "engineering", 0),
             }
-            logger.info(f"Pipeline: categorization → ok")
     except Exception as e:
         pipeline["categorization"] = {"status": "failed", "error": str(e)[:200]}
         logger.warning(f"Pipeline: categorization fehlgeschlagen: {e}", exc_info=True)
+    await _save_pipeline_progress(import_job_id, pipeline, "running")
+    logger.info(f"Pipeline: categorization → {pipeline['categorization']['status']}")
 
     # --- Schritt 2: Geocoding ---
+    pipeline["geocoding"] = {"status": "running"}
+    await _save_pipeline_progress(import_job_id, pipeline, "running")
     try:
         async with async_session_maker() as step_db:
             from app.services.geocoding_service import GeocodingService
@@ -77,12 +110,15 @@ async def _execute_pipeline_steps() -> dict:
                 "skipped": getattr(geo_result, "skipped", 0),
                 "failed": getattr(geo_result, "failed", 0),
             }
-            logger.info(f"Pipeline: geocoding → ok")
     except Exception as e:
         pipeline["geocoding"] = {"status": "failed", "error": str(e)[:200]}
         logger.warning(f"Pipeline: geocoding fehlgeschlagen: {e}", exc_info=True)
+    await _save_pipeline_progress(import_job_id, pipeline, "running")
+    logger.info(f"Pipeline: geocoding → {pipeline['geocoding']['status']}")
 
     # --- Schritt 3: Profiling (GPT-4o-mini) ---
+    pipeline["profiling"] = {"status": "running"}
+    await _save_pipeline_progress(import_job_id, pipeline, "running")
     try:
         async with async_session_maker() as step_db:
             from app.services.profile_engine_service import ProfileEngineService
@@ -96,29 +132,34 @@ async def _execute_pipeline_steps() -> dict:
                 "failed": getattr(profile_result, "failed", 0),
                 "cost_usd": round(getattr(profile_result, "total_cost_usd", 0), 4),
             }
-            logger.info(f"Pipeline: profiling → ok")
     except Exception as e:
         pipeline["profiling"] = {"status": "failed", "error": str(e)[:200]}
         logger.warning(f"Pipeline: profiling fehlgeschlagen: {e}", exc_info=True)
+    await _save_pipeline_progress(import_job_id, pipeline, "running")
+    logger.info(f"Pipeline: profiling → {pipeline['profiling']['status']}")
 
     # --- Schritt 4: Embedding (OpenAI) ---
+    pipeline["embedding"] = {"status": "running"}
+    await _save_pipeline_progress(import_job_id, pipeline, "running")
     try:
         async with async_session_maker() as step_db:
             from app.services.embedding_service import EmbeddingService
             emb_service = EmbeddingService(step_db)
             emb_result = await emb_service.embed_all_finance_jobs()
-            # embed_all_finance_jobs() committed intern schon periodisch
             pipeline["embedding"] = {
                 "status": "ok",
                 "generated": emb_result.get("embedded", 0),
                 "failed": emb_result.get("errors", 0),
             }
-            logger.info(f"Pipeline: embedding → ok")
     except Exception as e:
         pipeline["embedding"] = {"status": "failed", "error": str(e)[:200]}
         logger.warning(f"Pipeline: embedding fehlgeschlagen: {e}", exc_info=True)
+    await _save_pipeline_progress(import_job_id, pipeline, "running")
+    logger.info(f"Pipeline: embedding → {pipeline['embedding']['status']}")
 
     # --- Schritt 5: Matching ---
+    pipeline["matching"] = {"status": "running"}
+    await _save_pipeline_progress(import_job_id, pipeline, "running")
     try:
         async with async_session_maker() as step_db:
             from app.services.matching_engine_v2 import MatchingEngineV2
@@ -131,47 +172,104 @@ async def _execute_pipeline_steps() -> dict:
                 "matches_created": getattr(match_result, "total_matches_created", 0),
                 "duration_ms": round(getattr(match_result, "total_duration_ms", 0)),
             }
-            logger.info(f"Pipeline: matching → ok")
     except Exception as e:
         pipeline["matching"] = {"status": "failed", "error": str(e)[:200]}
         logger.warning(f"Pipeline: matching fehlgeschlagen: {e}", exc_info=True)
 
-    return pipeline
+    # Pipeline als "done" markieren
+    await _save_pipeline_progress(import_job_id, pipeline, "done")
+    logger.info(f"Pipeline fuer Import {import_job_id} abgeschlossen: {pipeline}")
 
 
-async def _run_pipeline_background(import_job_id):
+async def _execute_pipeline_steps() -> dict:
     """
-    Fuehrt die Post-Import-Pipeline im Hintergrund aus.
-    Eigene DB-Session, unabhaengig vom Request-Lifecycle.
+    Fuehrt alle 5 Pipeline-Schritte aus (ohne Live-Tracking).
+    Wird vom Maintenance-Endpoint verwendet.
     """
-    import asyncio
     from app.database import async_session_maker
 
-    # Kurz warten damit der Import-Commit sicher durch ist
-    await asyncio.sleep(1)
+    pipeline = {}
 
-    async with async_session_maker() as db:
-        try:
-            from app.models.import_job import ImportJob
-            result = await db.execute(
-                select(ImportJob).where(ImportJob.id == import_job_id)
-            )
-            import_job = result.scalar_one_or_none()
-            if not import_job:
-                logger.error(f"Pipeline: Import-Job {import_job_id} nicht gefunden")
-                return
+    # --- Kategorisierung ---
+    try:
+        async with async_session_maker() as step_db:
+            from app.services.categorization_service import CategorizationService
+            cat_service = CategorizationService(step_db)
+            cat_result = await cat_service.categorize_all_jobs()
+            await step_db.commit()
+            pipeline["categorization"] = {
+                "status": "ok",
+                "categorized": getattr(cat_result, "categorized", 0),
+                "finance": getattr(cat_result, "finance", 0),
+                "engineering": getattr(cat_result, "engineering", 0),
+            }
+    except Exception as e:
+        pipeline["categorization"] = {"status": "failed", "error": str(e)[:200]}
 
-            pipeline = await _execute_pipeline_steps()
+    # --- Geocoding ---
+    try:
+        async with async_session_maker() as step_db:
+            from app.services.geocoding_service import GeocodingService
+            geo_service = GeocodingService(step_db)
+            geo_result = await geo_service.process_pending_jobs()
+            await step_db.commit()
+            pipeline["geocoding"] = {
+                "status": "ok",
+                "successful": getattr(geo_result, "successful", 0),
+                "skipped": getattr(geo_result, "skipped", 0),
+                "failed": getattr(geo_result, "failed", 0),
+            }
+    except Exception as e:
+        pipeline["geocoding"] = {"status": "failed", "error": str(e)[:200]}
 
-            # Pipeline-Ergebnisse in Import-Job speichern
-            if not import_job.errors_detail:
-                import_job.errors_detail = {}
-            import_job.errors_detail = {**import_job.errors_detail, "pipeline": pipeline}
-            await db.commit()
-            logger.info(f"Pipeline fuer Import {import_job_id} abgeschlossen: {pipeline}")
+    # --- Profiling ---
+    try:
+        async with async_session_maker() as step_db:
+            from app.services.profile_engine_service import ProfileEngineService
+            profile_service = ProfileEngineService(step_db)
+            profile_result = await profile_service.backfill_jobs()
+            await step_db.commit()
+            pipeline["profiling"] = {
+                "status": "ok",
+                "profiled": getattr(profile_result, "profiled", 0),
+                "skipped": getattr(profile_result, "skipped", 0),
+                "failed": getattr(profile_result, "failed", 0),
+                "cost_usd": round(getattr(profile_result, "total_cost_usd", 0), 4),
+            }
+    except Exception as e:
+        pipeline["profiling"] = {"status": "failed", "error": str(e)[:200]}
 
-        except Exception as e:
-            logger.error(f"Pipeline Background-Task fehlgeschlagen: {e}", exc_info=True)
+    # --- Embedding ---
+    try:
+        async with async_session_maker() as step_db:
+            from app.services.embedding_service import EmbeddingService
+            emb_service = EmbeddingService(step_db)
+            emb_result = await emb_service.embed_all_finance_jobs()
+            pipeline["embedding"] = {
+                "status": "ok",
+                "generated": emb_result.get("embedded", 0),
+                "failed": emb_result.get("errors", 0),
+            }
+    except Exception as e:
+        pipeline["embedding"] = {"status": "failed", "error": str(e)[:200]}
+
+    # --- Matching ---
+    try:
+        async with async_session_maker() as step_db:
+            from app.services.matching_engine_v2 import MatchingEngineV2
+            matcher = MatchingEngineV2(step_db)
+            match_result = await matcher.match_batch(unmatched_only=True, max_jobs=0)
+            await step_db.commit()
+            pipeline["matching"] = {
+                "status": "ok",
+                "jobs_matched": getattr(match_result, "jobs_matched", 0),
+                "matches_created": getattr(match_result, "total_matches_created", 0),
+                "duration_ms": round(getattr(match_result, "total_duration_ms", 0)),
+            }
+    except Exception as e:
+        pipeline["matching"] = {"status": "failed", "error": str(e)[:200]}
+
+    return pipeline
 
 
 @router.post(
@@ -399,9 +497,11 @@ async def get_import_status(
     import_id: UUID,
     db: AsyncSession = Depends(get_db),
 ):
-    """Gibt den aktuellen Status eines Imports zurueck."""
-    import_service = CSVImportService(db)
-    import_job = await import_service.get_import_job(import_id)
+    """Gibt den aktuellen Status eines Imports zurueck (mit frischen Daten)."""
+    from app.models.import_job import ImportJob
+    # Direkt laden mit expire, damit Pipeline-Updates aus Background-Task sichtbar sind
+    await db.expire_all()
+    import_job = await db.get(ImportJob, import_id)
 
     if not import_job:
         raise NotFoundException(message="Import-Job nicht gefunden")

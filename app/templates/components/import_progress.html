@@ -13,15 +13,22 @@
 {% set real_errors = import_job.failed_rows - duplicates_updated - blacklisted if import_job.failed_rows else 0 %}
 {% if real_errors < 0 %}{% set real_errors = 0 %}{% endif %}
 
+{# Pipeline-Status auslesen #}
+{% set pipeline = import_job.errors_detail.get('pipeline', {}) if import_job.errors_detail else {} %}
+{% set pipeline_status = import_job.errors_detail.get('pipeline_status', '') if import_job.errors_detail else '' %}
+
+{# Polling: Wenn import laeuft ODER pipeline laeuft #}
+{% set needs_polling = import_job.status.value == 'processing' or pipeline_status == 'running' %}
+
 <div id="import-progress"
-     {% if import_job.status.value == 'processing' %}
+     {% if needs_polling %}
      hx-get="/api/jobs/import/{{ import_job.id }}/status"
-     hx-trigger="every 2s"
+     hx-trigger="every 1s"
      hx-swap="outerHTML"
      {% endif %}>
 
     {% if import_job.status.value == 'processing' %}
-    {# ═══ Verarbeitung laeuft ═══ #}
+    {# ═══ CSV-Verarbeitung laeuft ═══ #}
     <div style="border-radius:10px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);padding:16px;">
         <div style="display:flex;align-items:center;gap:12px;">
             <svg style="width:20px;height:20px;color:var(--pp-primary);animation:spin 1s linear infinite;flex-shrink:0;" viewBox="0 0 24 24">
@@ -35,7 +42,6 @@
                 </p>
             </div>
         </div>
-        {# Progress bar #}
         <div style="margin-top:12px;height:4px;border-radius:2px;background:rgba(99,102,241,0.15);overflow:hidden;">
             <div style="height:100%;border-radius:2px;background:var(--pp-primary);transition:width 0.3s;width:{{ progress }}%;"></div>
         </div>
@@ -50,8 +56,137 @@
         </div>
     </div>
 
+    {% elif import_job.status.value == 'completed' and pipeline_status == 'running' %}
+    {# ═══ CSV fertig, Pipeline laeuft live ═══ #}
+    <div style="border-radius:10px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);padding:16px;">
+        {# Import-Zusammenfassung oben #}
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+            <svg style="width:16px;height:16px;color:var(--pp-green);flex-shrink:0;" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
+            </svg>
+            <span style="font-size:13px;font-weight:600;color:var(--pp-green);">
+                {{ import_job.successful_rows }} Jobs importiert
+            </span>
+            {% if duplicates_updated > 0 %}
+            <span style="font-size:12px;color:var(--pp-text-muted);">
+                ({{ duplicates_updated }} Duplikate)
+            </span>
+            {% endif %}
+        </div>
+
+        {# Pipeline-Steps live #}
+        <div style="font-size:13px;display:flex;flex-direction:column;gap:8px;">
+            {% set steps = [
+                ('categorization', 'Kategorisierung'),
+                ('geocoding', 'Geocoding'),
+                ('profiling', 'Profiling'),
+                ('embedding', 'Embedding'),
+                ('matching', 'Matching')
+            ] %}
+
+            {% for key, label in steps %}
+            {% set step = pipeline.get(key, {}) %}
+            {% set s = step.get('status', 'pending') %}
+            <div style="display:flex;align-items:center;gap:10px;{% if s == 'pending' %}opacity:0.4;{% endif %}">
+                {% if s == 'running' %}
+                {# Spinner #}
+                <svg style="width:16px;height:16px;color:var(--pp-primary);animation:spin 1s linear infinite;flex-shrink:0;" viewBox="0 0 24 24">
+                    <circle style="opacity:0.25;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                    <path style="opacity:0.75;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span style="font-weight:600;color:var(--pp-primary);">{{ label }}...</span>
+                {% elif s == 'ok' %}
+                {# Haken #}
+                <svg style="width:16px;height:16px;color:var(--pp-green);flex-shrink:0;" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
+                </svg>
+                <span style="color:var(--pp-green);">{{ label }}</span>
+                {% elif s == 'failed' %}
+                {# Fehler #}
+                <svg style="width:16px;height:16px;color:#EF4444;flex-shrink:0;" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
+                </svg>
+                <span style="color:#EF4444;">{{ label }}</span>
+                {% else %}
+                {# Pending (Kreis) #}
+                <div style="width:16px;height:16px;border-radius:50%;border:2px solid var(--pp-border);flex-shrink:0;"></div>
+                <span style="color:var(--pp-text-muted);">{{ label }}</span>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    {% elif import_job.status.value == 'completed' and pipeline_status == 'done' %}
+    {# ═══ Alles fertig — Gruen mit Auto-Close ═══ #}
+    <div style="border-radius:10px;background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2);padding:16px;"
+         x-data="{ show: true }"
+         x-init="setTimeout(() => { closeModal(); htmx.trigger(document.body, 'jobsUpdated'); }, 3000)">
+
+        {# Grosser Haken #}
+        <div style="text-align:center;padding:8px 0;">
+            <div style="display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:50%;background:rgba(52,211,153,0.15);animation:scaleIn 0.3s ease-out;">
+                <svg style="width:28px;height:28px;color:var(--pp-green);" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
+                </svg>
+            </div>
+            <p style="font-size:15px;font-weight:600;color:var(--pp-green);margin:10px 0 0;">
+                Import abgeschlossen
+            </p>
+        </div>
+
+        {# Zusammenfassung #}
+        <div style="margin-top:12px;font-size:13px;display:flex;flex-direction:column;gap:4px;">
+            {% if import_job.successful_rows > 0 %}
+            <div style="display:flex;align-items:center;gap:6px;color:var(--pp-green);">
+                <span style="font-weight:600;">{{ import_job.successful_rows }}</span>
+                <span>Jobs importiert</span>
+            </div>
+            {% endif %}
+
+            {% if duplicates_updated > 0 %}
+            <div style="display:flex;align-items:center;gap:6px;color:var(--pp-warning, #F59E0B);">
+                <span style="font-weight:600;">{{ duplicates_updated }}</span>
+                <span>Duplikate uebersprungen</span>
+            </div>
+            {% endif %}
+
+            {% if blacklisted > 0 %}
+            <div style="display:flex;align-items:center;gap:6px;color:var(--pp-text-muted);">
+                <span style="font-weight:600;">{{ blacklisted }}</span>
+                <span>Blacklist uebersprungen</span>
+            </div>
+            {% endif %}
+        </div>
+
+        {# Pipeline-Ergebnisse kompakt #}
+        <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;">
+            {% set steps = [
+                ('categorization', 'Kat.'),
+                ('geocoding', 'Geo'),
+                ('profiling', 'Profil'),
+                ('embedding', 'Embed'),
+                ('matching', 'Match')
+            ] %}
+            {% for key, label in steps %}
+            {% set step = pipeline.get(key, {}) %}
+            {% set s = step.get('status', 'pending') %}
+            <span style="font-size:11px;padding:2px 8px;border-radius:6px;font-weight:500;
+                {% if s == 'ok' %}background:rgba(52,211,153,0.15);color:var(--pp-green);
+                {% elif s == 'failed' %}background:rgba(239,68,68,0.15);color:#EF4444;
+                {% else %}background:rgba(156,163,175,0.15);color:var(--pp-text-muted);{% endif %}">
+                {% if s == 'ok' %}&#10003;{% elif s == 'failed' %}&#10007;{% else %}—{% endif %} {{ label }}
+            </span>
+            {% endfor %}
+        </div>
+
+        <p style="font-size:11px;color:var(--pp-text-muted);margin:10px 0 0;text-align:center;">
+            Schliesst automatisch...
+        </p>
+    </div>
+
     {% elif import_job.status.value == 'completed' %}
-    {# ═══ Erfolgreich abgeschlossen ═══ #}
+    {# ═══ Completed OHNE Pipeline-Info (alter Import oder keine neuen Jobs) ═══ #}
     <div style="border-radius:10px;background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2);padding:16px;">
         <div style="display:flex;align-items:flex-start;gap:12px;">
             <svg style="width:20px;height:20px;color:var(--pp-green);flex-shrink:0;margin-top:1px;" viewBox="0 0 20 20" fill="currentColor">
@@ -60,7 +195,6 @@
             <div style="flex:1;">
                 <p style="font-size:14px;font-weight:600;color:var(--pp-green);margin:0;">Import abgeschlossen</p>
 
-                {# Detaillierte Aufschluesselung #}
                 <div style="margin-top:8px;font-size:13px;display:flex;flex-direction:column;gap:4px;">
                     {% if import_job.successful_rows > 0 %}
                     <div style="display:flex;align-items:center;gap:6px;color:var(--pp-green);">
@@ -93,7 +227,6 @@
                     {% if import_job.successful_rows == 0 and duplicates_updated > 0 %}
                     <p style="font-size:12px;color:var(--pp-text-muted);margin:6px 0 0;">
                         Alle {{ duplicates_updated }} Zeilen waren bereits im System vorhanden (gleicher Inhalt).
-                        Wenn Sie die Jobs neu importieren moechten, loeschen Sie zuerst die bestehenden Jobs.
                     </p>
                     {% endif %}
                 </div>
@@ -176,3 +309,10 @@
     </div>
     {% endif %}
 </div>
+
+<style>
+@keyframes scaleIn {
+    0% { transform: scale(0); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+</style>
