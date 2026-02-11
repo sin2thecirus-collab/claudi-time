@@ -600,14 +600,9 @@ async def get_import_status(
             pipeline_status_data = ed.get("pipeline_status", "")
 
         # HTMX-Request: HTML zurueckgeben (KEIN Cache — Polling muss frische Daten liefern)
+        # Polling laeuft via JavaScript (fetch + setInterval), nicht via HTMX.
         is_htmx = request.headers.get("HX-Request") == "true"
         if is_htmx:
-            # Pruefen ob noch gepollt werden muss
-            still_polling = (
-                import_job.status.value == "processing"
-                or pipeline_status_data == "running"
-            )
-
             response = templates.TemplateResponse(
                 "components/import_progress.html",
                 {
@@ -615,19 +610,10 @@ async def get_import_status(
                     "import_job": import_job,
                     "pipeline_override": pipeline_data,
                     "pipeline_status_override": pipeline_status_data,
-                    "is_polling": still_polling,
                 },
             )
             response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
             response.headers["Pragma"] = "no-cache"
-
-            if not still_polling:
-                # Pipeline fertig: Wrapper komplett ersetzen (mit outerHTML)
-                # damit die hx-get/hx-trigger Attribute verschwinden und Polling stoppt.
-                # is_polling=False liefert den Wrapper MIT Content.
-                response.headers["HX-Reswap"] = "outerHTML"
-                response.headers["HX-Retarget"] = "#import-progress-poller"
-
             return response
 
         return ImportJobResponse.model_validate(import_job)
@@ -678,7 +664,6 @@ async def cancel_import(
                 "import_job": import_job,
                 "pipeline_override": ed.get("pipeline", {}),
                 "pipeline_status_override": ed.get("pipeline_status", ""),
-                "is_polling": True,
             },
         )
 

@@ -1,6 +1,6 @@
 {# Import Progress - Wird waehrend/nach dem Import angezeigt #}
-{# Verwendung: Wird von /api/jobs/import und /api/jobs/import/{id}/status geliefert #}
-{# Parameter: import_job (ImportJob-Objekt), is_polling (bool, True bei Status-Polling) #}
+{# Verwendung: Wird von /api/jobs/import (initial) und JS-Polling (Updates) geliefert #}
+{# Parameter: import_job (ImportJob-Objekt) #}
 
 {% set progress = 0 %}
 {% if import_job.total_rows > 0 %}
@@ -13,30 +13,13 @@
 {% set real_errors = import_job.failed_rows - duplicates_updated - blacklisted if import_job.failed_rows else 0 %}
 {% if real_errors < 0 %}{% set real_errors = 0 %}{% endif %}
 
-{# Pipeline-Status auslesen — Nutzt pipeline_override wenn vorhanden (direkt aus Memory),
-   ansonsten Fallback auf import_job.errors_detail (DB).
-   GRUND: Detached SQLAlchemy MutableDict gibt Jinja2 alte Werte! #}
 {% set pipeline = pipeline_override if pipeline_override is defined and pipeline_override else (import_job.errors_detail.get('pipeline', {}) if import_job.errors_detail else {}) %}
 {% set pipeline_status = pipeline_status_override if pipeline_status_override is defined and pipeline_status_override else (import_job.errors_detail.get('pipeline_status', '') if import_job.errors_detail else '') %}
 
-{# Polling: Wenn import laeuft ODER pipeline laeuft #}
 {% set needs_polling = import_job.status.value == 'processing' or pipeline_status == 'running' %}
 {% set pipeline_cancelled = pipeline_status == 'cancelled' %}
 
-{# ═══ WRAPPER: Nur beim INITIALEN Render (Form-POST) ═══ #}
-{# Beim Polling (is_polling=True) wird NUR der innere Content geliefert, #}
-{# weil der Wrapper #import-progress-poller schon im DOM existiert #}
-{# und per innerHTML-Swap den Content austauscht — KEIN outerHTML, #}
-{# kein Element-Replacement, kein htmx.process() noetig! #}
-{% if not is_polling %}
-<div id="import-progress-poller"
-     {% if needs_polling %}
-     hx-get="/api/jobs/import/{{ import_job.id }}/status"
-     hx-trigger="every 2s"
-     hx-swap="innerHTML"
-     hx-on::response-error="event.preventDefault()"
-     {% endif %}>
-{% endif %}
+<div id="import-progress">
 
     {% if import_job.status.value == 'processing' %}
     {# ═══ CSV-Verarbeitung laeuft ═══ #}
@@ -56,21 +39,11 @@
         <div style="margin-top:12px;height:4px;border-radius:2px;background:rgba(99,102,241,0.15);overflow:hidden;">
             <div style="height:100%;border-radius:2px;background:var(--pp-primary);transition:width 0.3s;width:{{ progress }}%;"></div>
         </div>
-        <div style="margin-top:8px;">
-            <button type="button"
-                    hx-post="/api/jobs/import/{{ import_job.id }}/cancel"
-                    hx-swap="innerHTML"
-                    hx-target="#import-progress-poller"
-                    style="font-size:12px;font-weight:500;color:var(--pp-text-muted);background:none;border:none;cursor:pointer;padding:0;">
-                Abbrechen
-            </button>
-        </div>
     </div>
 
     {% elif import_job.status.value == 'completed' and pipeline_status == 'running' %}
     {# ═══ CSV fertig, Pipeline laeuft live ═══ #}
     <div style="border-radius:10px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);padding:16px;">
-        {# Import-Zusammenfassung oben #}
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
             <svg style="width:16px;height:16px;color:var(--pp-green);flex-shrink:0;" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
@@ -85,7 +58,6 @@
             {% endif %}
         </div>
 
-        {# Pipeline-Steps live #}
         <div style="font-size:13px;display:flex;flex-direction:column;gap:8px;">
             {% set steps = [
                 ('categorization', 'Kategorisierung'),
@@ -100,32 +72,27 @@
             {% set s = step.get('status', 'pending') %}
             <div style="display:flex;align-items:center;gap:10px;{% if s == 'pending' %}opacity:0.4;{% endif %}">
                 {% if s == 'running' %}
-                {# Spinner #}
                 <svg style="width:16px;height:16px;color:var(--pp-primary);animation:spin 1s linear infinite;flex-shrink:0;" viewBox="0 0 24 24">
                     <circle style="opacity:0.25;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
                     <path style="opacity:0.75;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
                 <span style="font-weight:600;color:var(--pp-primary);">{{ label }}...{% if step.get('progress') is not none %} {{ step.get('progress') }}%{% endif %}</span>
                 {% elif s == 'ok' %}
-                {# Haken #}
                 <svg style="width:16px;height:16px;color:var(--pp-green);flex-shrink:0;" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
                 </svg>
                 <span style="color:var(--pp-green);">{{ label }}</span>
                 {% elif s == 'failed' %}
-                {# Fehler #}
                 <svg style="width:16px;height:16px;color:#EF4444;flex-shrink:0;" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
                 </svg>
                 <span style="color:#EF4444;">{{ label }}</span>
                 {% elif s == 'cancelled' %}
-                {# Abgebrochen #}
                 <svg style="width:16px;height:16px;color:var(--pp-text-muted);flex-shrink:0;" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
                 </svg>
                 <span style="color:var(--pp-text-muted);">{{ label }} — abgebrochen</span>
                 {% else %}
-                {# Pending (Kreis) #}
                 <div style="width:16px;height:16px;border-radius:50%;border:2px solid var(--pp-border);flex-shrink:0;"></div>
                 <span style="color:var(--pp-text-muted);">{{ label }}</span>
                 {% endif %}
@@ -137,69 +104,43 @@
     {% elif import_job.status.value == 'completed' and pipeline_status == 'done' %}
     {# ═══ Alles fertig — Gruen mit Auto-Close ═══ #}
     <div style="border-radius:10px;background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2);padding:16px;"
-         x-data="{ show: true }"
-         x-init="setTimeout(() => { closeModal(); htmx.trigger(document.body, 'jobsUpdated'); }, 3000)">
-
-        {# Grosser Haken #}
+         x-data x-init="setTimeout(() => { closeModal(); htmx.trigger(document.body, 'jobsUpdated'); }, 3000)">
         <div style="text-align:center;padding:8px 0;">
             <div style="display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:50%;background:rgba(52,211,153,0.15);animation:scaleIn 0.3s ease-out;">
                 <svg style="width:28px;height:28px;color:var(--pp-green);" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
                 </svg>
             </div>
-            <p style="font-size:15px;font-weight:600;color:var(--pp-green);margin:10px 0 0;">
-                Import abgeschlossen
-            </p>
+            <p style="font-size:15px;font-weight:600;color:var(--pp-green);margin:10px 0 0;">Import abgeschlossen</p>
         </div>
-
-        {# Zusammenfassung #}
         <div style="margin-top:12px;font-size:13px;display:flex;flex-direction:column;gap:4px;">
             {% if import_job.successful_rows > 0 %}
             <div style="display:flex;align-items:center;gap:6px;color:var(--pp-green);">
-                <span style="font-weight:600;">{{ import_job.successful_rows }}</span>
-                <span>Jobs importiert</span>
+                <span style="font-weight:600;">{{ import_job.successful_rows }}</span> <span>Jobs importiert</span>
             </div>
             {% endif %}
-
             {% if duplicates_updated > 0 %}
             <div style="display:flex;align-items:center;gap:6px;color:var(--pp-warning, #F59E0B);">
-                <span style="font-weight:600;">{{ duplicates_updated }}</span>
-                <span>Duplikate uebersprungen</span>
+                <span style="font-weight:600;">{{ duplicates_updated }}</span> <span>Duplikate uebersprungen</span>
             </div>
             {% endif %}
-
             {% if blacklisted > 0 %}
             <div style="display:flex;align-items:center;gap:6px;color:var(--pp-text-muted);">
-                <span style="font-weight:600;">{{ blacklisted }}</span>
-                <span>Blacklist uebersprungen</span>
+                <span style="font-weight:600;">{{ blacklisted }}</span> <span>Blacklist uebersprungen</span>
             </div>
             {% endif %}
         </div>
-
-        {# Pipeline-Ergebnisse kompakt #}
         <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;">
-            {% set steps = [
-                ('categorization', 'Kat.'),
-                ('geocoding', 'Geo'),
-                ('profiling', 'Profil'),
-                ('embedding', 'Embed'),
-                ('matching', 'Match')
-            ] %}
+            {% set steps = [('categorization', 'Kat.'), ('geocoding', 'Geo'), ('profiling', 'Profil'), ('embedding', 'Embed'), ('matching', 'Match')] %}
             {% for key, label in steps %}
             {% set step = pipeline.get(key, {}) %}
             {% set s = step.get('status', 'pending') %}
-            <span style="font-size:11px;padding:2px 8px;border-radius:6px;font-weight:500;
-                {% if s == 'ok' %}background:rgba(52,211,153,0.15);color:var(--pp-green);
-                {% elif s == 'failed' %}background:rgba(239,68,68,0.15);color:#EF4444;
-                {% else %}background:rgba(156,163,175,0.15);color:var(--pp-text-muted);{% endif %}">
+            <span style="font-size:11px;padding:2px 8px;border-radius:6px;font-weight:500;{% if s == 'ok' %}background:rgba(52,211,153,0.15);color:var(--pp-green);{% elif s == 'failed' %}background:rgba(239,68,68,0.15);color:#EF4444;{% else %}background:rgba(156,163,175,0.15);color:var(--pp-text-muted);{% endif %}">
                 {% if s == 'ok' %}&#10003;{% elif s == 'failed' %}&#10007;{% else %}—{% endif %} {{ label }}
             </span>
             {% endfor %}
         </div>
-
-        <p style="font-size:11px;color:var(--pp-text-muted);margin:10px 0 0;text-align:center;">
-            Schliesst automatisch...
-        </p>
+        <p style="font-size:11px;color:var(--pp-text-muted);margin:10px 0 0;text-align:center;">Schliesst automatisch...</p>
     </div>
 
     {% elif import_job.status.value == 'completed' and pipeline_cancelled %}
@@ -214,15 +155,14 @@
         <p style="font-size:13px;color:var(--pp-text-muted);margin:0 0 12px;">
             {{ import_job.successful_rows }} Jobs wurden importiert. Die Verarbeitungs-Pipeline wurde abgebrochen.
         </p>
-        <button type="button"
-                onclick="closeModal(); htmx.trigger(document.body, 'jobsUpdated')"
+        <button type="button" onclick="closeModal(); htmx.trigger(document.body, 'jobsUpdated')"
                 style="font-size:13px;font-weight:600;color:var(--pp-text-muted);background:none;border:none;cursor:pointer;padding:0;">
             Schliessen
         </button>
     </div>
 
     {% elif import_job.status.value == 'completed' %}
-    {# ═══ Completed OHNE Pipeline-Info (alter Import oder keine neuen Jobs) ═══ #}
+    {# ═══ Completed OHNE Pipeline-Info ═══ #}
     <div style="border-radius:10px;background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2);padding:16px;">
         <div style="display:flex;align-items:flex-start;gap:12px;">
             <svg style="width:20px;height:20px;color:var(--pp-green);flex-shrink:0;margin-top:1px;" viewBox="0 0 20 20" fill="currentColor">
@@ -230,46 +170,35 @@
             </svg>
             <div style="flex:1;">
                 <p style="font-size:14px;font-weight:600;color:var(--pp-green);margin:0;">Import abgeschlossen</p>
-
                 <div style="margin-top:8px;font-size:13px;display:flex;flex-direction:column;gap:4px;">
                     {% if import_job.successful_rows > 0 %}
                     <div style="display:flex;align-items:center;gap:6px;color:var(--pp-green);">
-                        <span style="font-weight:600;">{{ import_job.successful_rows }}</span>
-                        <span>Jobs erfolgreich importiert</span>
+                        <span style="font-weight:600;">{{ import_job.successful_rows }}</span> <span>Jobs erfolgreich importiert</span>
                     </div>
                     {% endif %}
-
                     {% if duplicates_updated > 0 %}
                     <div style="display:flex;align-items:center;gap:6px;color:var(--pp-warning, #F59E0B);">
-                        <span style="font-weight:600;">{{ duplicates_updated }}</span>
-                        <span>Duplikate uebersprungen (bereits vorhanden)</span>
+                        <span style="font-weight:600;">{{ duplicates_updated }}</span> <span>Duplikate uebersprungen (bereits vorhanden)</span>
                     </div>
                     {% endif %}
-
                     {% if blacklisted > 0 %}
                     <div style="display:flex;align-items:center;gap:6px;color:var(--pp-text-muted);">
-                        <span style="font-weight:600;">{{ blacklisted }}</span>
-                        <span>Zeilen uebersprungen (Unternehmen auf Blacklist)</span>
+                        <span style="font-weight:600;">{{ blacklisted }}</span> <span>Zeilen uebersprungen (Unternehmen auf Blacklist)</span>
                     </div>
                     {% endif %}
-
                     {% if real_errors > 0 %}
                     <div style="display:flex;align-items:center;gap:6px;color:#EF4444;">
-                        <span style="font-weight:600;">{{ real_errors }}</span>
-                        <span>Zeilen mit Fehlern</span>
+                        <span style="font-weight:600;">{{ real_errors }}</span> <span>Zeilen mit Fehlern</span>
                     </div>
                     {% endif %}
-
                     {% if import_job.successful_rows == 0 and duplicates_updated > 0 %}
                     <p style="font-size:12px;color:var(--pp-text-muted);margin:6px 0 0;">
                         Alle {{ duplicates_updated }} Zeilen waren bereits im System vorhanden (gleicher Inhalt).
                     </p>
                     {% endif %}
                 </div>
-
                 <div style="margin-top:12px;">
-                    <button type="button"
-                            onclick="closeModal(); htmx.trigger(document.body, 'jobsUpdated')"
+                    <button type="button" onclick="closeModal(); htmx.trigger(document.body, 'jobsUpdated')"
                             style="font-size:13px;font-weight:600;color:var(--pp-primary);background:none;border:none;cursor:pointer;padding:0;">
                         Schliessen
                     </button>
@@ -290,7 +219,6 @@
                 <p style="font-size:13px;color:var(--pp-text-muted);margin:6px 0 0;">
                     {{ import_job.error_message | default('Unbekannter Fehler') }}
                 </p>
-
                 {% if import_job.errors_detail %}
                 {% set all_errors = import_job.errors_detail.get('validation_errors', []) + import_job.errors_detail.get('import_errors', []) %}
                 {% if all_errors | length > 0 %}
@@ -309,10 +237,8 @@
                 </details>
                 {% endif %}
                 {% endif %}
-
                 <div style="margin-top:12px;">
-                    <button type="button"
-                            onclick="closeModal()"
+                    <button type="button" onclick="closeModal()"
                             style="font-size:13px;font-weight:600;color:#EF4444;background:none;border:none;cursor:pointer;padding:0;">
                         Schliessen
                     </button>
@@ -334,8 +260,7 @@
                     {{ import_job.processed_rows }} von {{ import_job.total_rows }} Zeilen wurden vor dem Abbruch verarbeitet.
                 </p>
                 <div style="margin-top:12px;">
-                    <button type="button"
-                            onclick="closeModal()"
+                    <button type="button" onclick="closeModal()"
                             style="font-size:13px;font-weight:600;color:var(--pp-text-muted);background:none;border:none;cursor:pointer;padding:0;">
                         Schliessen
                     </button>
@@ -345,47 +270,90 @@
     </div>
     {% endif %}
 
-{# Debug: Bei jedem Render (polling oder initial) in Console loggen #}
-<script>
-console.log('[Poll] pipeline_status={{ pipeline_status }}, is_polling={{ is_polling if is_polling is defined else "undefined" }}, needs_polling={{ needs_polling }}, status={{ import_job.status.value }}');
-</script>
-
-{# ═══ WRAPPER SCHLIESSEN (nur beim initialen Render) ═══ #}
-{% if not is_polling %}
-
-    <script>
-    // Einmalig beim initialen Render: Spinner verstecken, Buttons aktivieren
-    (function() {
-        var wrapper = document.getElementById('import-progress-poller');
-        console.log('[Init] wrapper found:', !!wrapper, 'hx-get:', wrapper ? wrapper.getAttribute('hx-get') : 'N/A', 'hx-trigger:', wrapper ? wrapper.getAttribute('hx-trigger') : 'N/A');
-        if (wrapper) {
-            wrapper.addEventListener('htmx:afterSwap', function(e) {
-                console.log('[Swap] innerHTML updated, new content length:', wrapper.innerHTML.length);
-            });
-            wrapper.addEventListener('htmx:responseError', function(e) {
-                console.log('[Error] response error:', e.detail);
-            });
-            wrapper.addEventListener('htmx:targetError', function(e) {
-                console.log('[TargetError]', e.detail);
-            });
-            wrapper.addEventListener('htmx:beforeRequest', function(e) {
-                console.log('[Poll] requesting status...');
-            });
-        }
-        var spinner = document.getElementById('import-upload-spinner');
-        if (spinner) spinner.style.display = 'none';
-        var submitBtn = document.getElementById('import-submit-btn');
-        var cancelBtn = document.getElementById('import-cancel-btn');
-        if (submitBtn) { submitBtn.disabled = false; submitBtn.style.opacity = ''; submitBtn.style.cursor = ''; }
-        if (cancelBtn) { cancelBtn.disabled = false; cancelBtn.style.opacity = ''; cancelBtn.style.cursor = ''; }
-    })();
-    </script>
-
-    <style>
-    @keyframes scaleIn {
-        0% { transform: scale(0); opacity: 0; }
-        100% { transform: scale(1); opacity: 1; }
-    }
-    </style>
 </div>
+
+{# ═══ POLLING VIA JAVASCRIPT — kein HTMX, 100% zuverlaessig ═══ #}
+{# HTMX-Polling (hx-trigger="every 2s") stoppt nach dem ersten innerHTML-Swap. #}
+{# Deshalb: Einfacher setInterval + fetch + innerHTML-Ersetzung. #}
+{% if needs_polling %}
+<script>
+(function() {
+    // Spinner verstecken, Buttons aktivieren
+    var spinner = document.getElementById('import-upload-spinner');
+    if (spinner) spinner.style.display = 'none';
+    var submitBtn = document.getElementById('import-submit-btn');
+    var cancelBtn = document.getElementById('import-cancel-btn');
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.style.opacity = ''; submitBtn.style.cursor = ''; }
+    if (cancelBtn) { cancelBtn.disabled = false; cancelBtn.style.opacity = ''; cancelBtn.style.cursor = ''; }
+
+    var container = document.getElementById('import-progress');
+    var url = '/api/jobs/import/{{ import_job.id }}/status';
+    var polling = true;
+
+    function poll() {
+        if (!polling) return;
+        fetch(url, {
+            headers: { 'HX-Request': 'true' }
+        })
+        .then(function(res) { return res.text(); })
+        .then(function(html) {
+            if (!polling) return;
+            // Neuen Content parsen und nur den #import-progress Inhalt extrahieren
+            var tmp = document.createElement('div');
+            tmp.innerHTML = html;
+            var newProgress = tmp.querySelector('#import-progress');
+            if (newProgress) {
+                container.innerHTML = newProgress.innerHTML;
+            } else {
+                // Response hat keinen #import-progress wrapper — direkter Content
+                container.innerHTML = html;
+            }
+            // Pruefen ob Polling weiterlaufen soll
+            // Wenn kein Spinner-SVG mit animation mehr da ist UND kein "processing" text,
+            // dann ist die Pipeline fertig
+            var stillRunning = container.innerHTML.indexOf('animation:spin') !== -1;
+            if (!stillRunning) {
+                polling = false;
+                console.log('[Poll] Pipeline fertig — Polling gestoppt');
+                // Alpine.js initialisieren fuer Auto-Close
+                if (window.Alpine) {
+                    Alpine.initTree(container);
+                }
+            }
+        })
+        .catch(function(err) {
+            console.log('[Poll] Fetch-Fehler (wird ignoriert):', err.message);
+        });
+    }
+
+    // Alle 2 Sekunden pollen
+    var interval = setInterval(function() {
+        if (!polling) {
+            clearInterval(interval);
+            return;
+        }
+        poll();
+    }, 2000);
+
+    console.log('[Poll] JS-Polling gestartet fuer', url);
+})();
+</script>
+{% else %}
+<script>
+(function() {
+    var spinner = document.getElementById('import-upload-spinner');
+    if (spinner) spinner.style.display = 'none';
+    var submitBtn = document.getElementById('import-submit-btn');
+    var cancelBtn = document.getElementById('import-cancel-btn');
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.style.opacity = ''; submitBtn.style.cursor = ''; }
+    if (cancelBtn) { cancelBtn.disabled = false; cancelBtn.style.opacity = ''; cancelBtn.style.cursor = ''; }
+})();
+</script>
 {% endif %}
+
+<style>
+@keyframes scaleIn {
+    0% { transform: scale(0); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+</style>
