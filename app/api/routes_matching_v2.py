@@ -839,6 +839,84 @@ async def debug_pipeline(db: AsyncSession = Depends(get_db)):
 
 
 # ══════════════════════════════════════════════════════════════════
+# Temporary Debug: v2 Skills Inspector
+# ══════════════════════════════════════════════════════════════════
+
+
+@router.get("/debug/v2-skills/{entity_type}/{entity_id}")
+async def debug_v2_skills(
+    entity_type: str,
+    entity_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """TEMP DEBUG: Zeigt v2_structured_skills/v2_required_skills fuer ein Entity."""
+    from sqlalchemy import select
+    from app.models.candidate import Candidate
+    from app.models.job import Job
+
+    if entity_type == "candidate":
+        r = await db.execute(
+            select(
+                Candidate.id,
+                Candidate.first_name,
+                Candidate.last_name,
+                Candidate.current_position,
+                Candidate.v2_seniority_level,
+                Candidate.v2_structured_skills,
+                Candidate.v2_certifications,
+                Candidate.v2_industries,
+                Candidate.v2_current_role_summary,
+                Candidate.v2_years_experience,
+                Candidate.v2_profile_created_at,
+            ).where(Candidate.id == entity_id)
+        )
+        row = r.first()
+        if not row:
+            return {"error": "Candidate not found"}
+        return {
+            "entity": "candidate",
+            "id": str(row.id),
+            "name": f"{row.first_name} {row.last_name}",
+            "current_position": row.current_position,
+            "v2_seniority_level": row.v2_seniority_level,
+            "v2_structured_skills": row.v2_structured_skills,
+            "v2_certifications": row.v2_certifications,
+            "v2_industries": row.v2_industries,
+            "v2_current_role_summary": row.v2_current_role_summary,
+            "v2_years_experience": row.v2_years_experience,
+            "v2_profile_created_at": str(row.v2_profile_created_at) if row.v2_profile_created_at else None,
+        }
+    elif entity_type == "job":
+        r = await db.execute(
+            select(
+                Job.id,
+                Job.position,
+                Job.company_name,
+                Job.hotlist_job_title,
+                Job.v2_seniority_level,
+                Job.v2_required_skills,
+                Job.v2_role_summary,
+                Job.v2_profile_created_at,
+            ).where(Job.id == entity_id)
+        )
+        row = r.first()
+        if not row:
+            return {"error": "Job not found"}
+        return {
+            "entity": "job",
+            "id": str(row.id),
+            "position": row.position,
+            "company": row.company_name,
+            "hotlist_job_title": row.hotlist_job_title,
+            "v2_seniority_level": row.v2_seniority_level,
+            "v2_required_skills": row.v2_required_skills,
+            "v2_role_summary": row.v2_role_summary,
+            "v2_profile_created_at": str(row.v2_profile_created_at) if row.v2_profile_created_at else None,
+        }
+    return {"error": "entity_type must be 'candidate' or 'job'"}
+
+
+# ══════════════════════════════════════════════════════════════════
 # Feedback & Learning (Sprint 3)
 # ══════════════════════════════════════════════════════════════════
 
