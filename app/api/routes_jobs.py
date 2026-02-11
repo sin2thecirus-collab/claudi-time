@@ -990,6 +990,108 @@ async def clean_existing_job_texts(
 
 
 @router.post(
+    "/maintenance/run-pipeline",
+    summary="Pipeline nachholen fuer Jobs ohne Geocoding/Profiling/Embedding/Matching",
+    tags=["Maintenance"],
+)
+async def run_pipeline_backfill(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Fuehrt die komplette Post-Import-Pipeline fuer alle Jobs aus,
+    die noch nicht verarbeitet wurden (Backfill).
+
+    Pipeline: Kategorisierung → Geocoding → Profiling → Embedding → Matching
+    """
+    import time
+    start = time.time()
+    pipeline = {}
+
+    # 1. Auto-Kategorisierung
+    try:
+        from app.services.categorization_service import CategorizationService
+        cat_service = CategorizationService(db)
+        cat_result = await cat_service.categorize_all_jobs()
+        pipeline["categorization"] = {
+            "status": "ok",
+            "categorized": cat_result.categorized,
+            "finance": cat_result.finance,
+            "engineering": cat_result.engineering,
+        }
+    except Exception as e:
+        pipeline["categorization"] = {"status": "failed", "error": str(e)[:300]}
+
+    # 2. Auto-Geocoding
+    try:
+        from app.services.geocoding_service import GeocodingService
+        geo_service = GeocodingService(db)
+        geo_result = await geo_service.process_pending_jobs()
+        pipeline["geocoding"] = {
+            "status": "ok",
+            "successful": geo_result.successful,
+            "skipped": geo_result.skipped,
+            "failed": geo_result.failed,
+        }
+    except Exception as e:
+        pipeline["geocoding"] = {"status": "failed", "error": str(e)[:300]}
+
+    # 3. Auto-Profiling (FINANCE-Jobs, GPT-4o-mini)
+    try:
+        from app.services.profile_engine_service import ProfileEngineService
+        profile_service = ProfileEngineService(db)
+        profile_result = await profile_service.backfill_jobs(batch_size=50)
+        pipeline["profiling"] = {
+            "status": "ok",
+            "profiled": profile_result.profiled,
+            "skipped": profile_result.skipped,
+            "failed": profile_result.failed,
+            "cost_usd": round(profile_result.total_cost_usd, 4),
+        }
+    except Exception as e:
+        pipeline["profiling"] = {"status": "failed", "error": str(e)[:300]}
+
+    # 4. Auto-Embedding (OpenAI)
+    try:
+        from app.services.matching_engine_v2 import EmbeddingGenerationService
+        emb_service = EmbeddingGenerationService(db)
+        emb_result = await emb_service.generate_job_embeddings(batch_size=50)
+        pipeline["embedding"] = {
+            "status": "ok",
+            "generated": emb_result.get("generated", 0),
+            "failed": emb_result.get("failed", 0),
+        }
+        await emb_service.close()
+    except Exception as e:
+        pipeline["embedding"] = {"status": "failed", "error": str(e)[:300]}
+
+    # 5. Auto-Matching
+    try:
+        from app.services.matching_engine_v2 import MatchingEngineV2
+        match_engine = MatchingEngineV2(db)
+        match_result = await match_engine.match_batch(
+            unmatched_only=True,
+            max_jobs=0,
+        )
+        pipeline["matching"] = {
+            "status": "ok",
+            "jobs_matched": match_result.jobs_matched,
+            "matches_created": match_result.total_matches_created,
+            "duration_ms": round(match_result.total_duration_ms),
+        }
+    except Exception as e:
+        pipeline["matching"] = {"status": "failed", "error": str(e)[:300]}
+
+    duration_s = round(time.time() - start, 1)
+
+    return {
+        "status": "completed",
+        "duration_seconds": duration_s,
+        "pipeline": pipeline,
+    }
+
+
+@router.post(
     "/maintenance/cleanup-orphan-ats-jobs",
     summary="Verwaiste ATSJobs soft-deleten",
     tags=["Maintenance"],
