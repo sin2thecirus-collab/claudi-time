@@ -1100,54 +1100,55 @@ async def delete_jobs_by_timerange(
     created_after: str = Query(..., description="ISO datetime, z.B. 2026-02-11T17:57:00Z"),
     created_before: str = Query(..., description="ISO datetime, z.B. 2026-02-11T17:58:00Z"),
     dry_run: bool = Query(default=True, description="True = nur zaehlen, nicht loeschen"),
-    db: AsyncSession = Depends(get_db),
 ):
     """
     Hard-Delete von Jobs in einem Zeitraum (fuer Cleanup nach fehlerhaften Imports).
-    Loescht auch zugehoerige Matches.
+    Loescht auch zugehoerige Matches. Nutzt eigene DB-Session (kein Depends).
     """
     from sqlalchemy import select, delete as sql_delete, func
     from datetime import datetime as dt
+    from app.database import async_session_maker
 
     after = dt.fromisoformat(created_after.replace("Z", "+00:00"))
     before = dt.fromisoformat(created_before.replace("Z", "+00:00"))
 
-    # Zaehlen
-    count_q = select(func.count(Job.id)).where(
-        Job.created_at >= after,
-        Job.created_at <= before,
-    )
-    result = await db.execute(count_q)
-    count = result.scalar()
+    async with async_session_maker() as db:
+        # Zaehlen
+        count_q = select(func.count(Job.id)).where(
+            Job.created_at >= after,
+            Job.created_at <= before,
+        )
+        result = await db.execute(count_q)
+        count = result.scalar()
 
-    if dry_run:
-        return {
-            "dry_run": True,
-            "jobs_found": count,
-            "time_range": f"{created_after} bis {created_before}",
-            "message": f"{count} Jobs gefunden. Setze dry_run=false zum Loeschen.",
-        }
+        if dry_run:
+            return {
+                "dry_run": True,
+                "jobs_found": count,
+                "time_range": f"{created_after} bis {created_before}",
+                "message": f"{count} Jobs gefunden. Setze dry_run=false zum Loeschen.",
+            }
 
-    # Job-IDs sammeln
-    job_ids_q = select(Job.id).where(
-        Job.created_at >= after,
-        Job.created_at <= before,
-    )
-    job_ids_result = await db.execute(job_ids_q)
-    job_ids = [row[0] for row in job_ids_result.all()]
+        # Job-IDs sammeln
+        job_ids_q = select(Job.id).where(
+            Job.created_at >= after,
+            Job.created_at <= before,
+        )
+        job_ids_result = await db.execute(job_ids_q)
+        job_ids = [row[0] for row in job_ids_result.all()]
 
-    # Zugehoerige Matches loeschen
-    from app.models.match import Match
-    match_del = sql_delete(Match).where(Match.job_id.in_(job_ids))
-    match_result = await db.execute(match_del)
-    matches_deleted = match_result.rowcount
+        # Zugehoerige Matches loeschen
+        from app.models.match import Match
+        match_del = sql_delete(Match).where(Match.job_id.in_(job_ids))
+        match_result = await db.execute(match_del)
+        matches_deleted = match_result.rowcount
 
-    # Jobs hard-deleten
-    job_del = sql_delete(Job).where(Job.id.in_(job_ids))
-    job_result = await db.execute(job_del)
-    jobs_deleted = job_result.rowcount
+        # Jobs hard-deleten
+        job_del = sql_delete(Job).where(Job.id.in_(job_ids))
+        job_result = await db.execute(job_del)
+        jobs_deleted = job_result.rowcount
 
-    await db.commit()
+        await db.commit()
 
     return {
         "dry_run": False,
@@ -1220,17 +1221,20 @@ async def clean_existing_job_texts(
 )
 async def run_pipeline_backfill(
     request: Request,
-    db: AsyncSession = Depends(get_db),
 ):
     """
     Fuehrt die komplette Post-Import-Pipeline fuer alle Jobs aus,
     die noch nicht verarbeitet wurden (Backfill).
+    Nutzt eigene DB-Session (kein Depends, keine vergifteten Sessions).
 
     Pipeline: Kategorisierung → Geocoding → Profiling → Embedding → Matching
     """
     import time
+    from app.database import async_session_maker
+
     start = time.time()
-    pipeline = await _execute_pipeline_steps(db)
+    async with async_session_maker() as db:
+        pipeline = await _execute_pipeline_steps(db)
     duration_s = round(time.time() - start, 1)
 
     return {
