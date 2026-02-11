@@ -839,7 +839,7 @@ async def debug_pipeline(db: AsyncSession = Depends(get_db)):
 
 
 # ══════════════════════════════════════════════════════════════════
-# Temporary Debug: v2 Skills Inspector
+# Admin Debug: v2 Skills Inspector
 # ══════════════════════════════════════════════════════════════════
 
 
