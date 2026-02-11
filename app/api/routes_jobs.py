@@ -33,50 +33,22 @@ templates = Jinja2Templates(directory="app/templates")
 
 # ==================== Import ====================
 
-async def _save_pipeline_progress(import_job_id, pipeline: dict, pipeline_status: str):
-    """Speichert den aktuellen Pipeline-Fortschritt in der DB."""
-    from app.database import async_session_maker
-    from app.models.import_job import ImportJob
-
-    try:
-        async with async_session_maker() as db:
-            result = await db.execute(
-                select(ImportJob).where(ImportJob.id == import_job_id)
-            )
-            ij = result.scalar_one_or_none()
-            if ij:
-                ed = dict(ij.errors_detail) if ij.errors_detail else {}
-                ed["pipeline"] = pipeline
-                ed["pipeline_status"] = pipeline_status
-                ij.errors_detail = ed
-                await db.commit()
-    except Exception as e:
-        logger.warning(f"Pipeline-Progress speichern fehlgeschlagen: {e}")
-
-
 async def _run_pipeline_background(import_job_id):
     """
     Fuehrt die Post-Import-Pipeline im Hintergrund aus.
-    Nach JEDEM Schritt wird der Fortschritt in der DB gespeichert,
-    damit das Frontend live mitlesen kann (HTMX-Polling).
+    Fortschritt wird in Memory geschrieben (app.state), NICHT in die DB.
+    Nur am Ende wird einmal in die DB geschrieben (fuer Import-History).
     """
-    import asyncio
     from app.database import async_session_maker
+    from app.state import set_progress, cleanup_progress
 
-    # Kurz warten damit der Import-Commit sicher durch ist
-    await asyncio.sleep(1)
-
-    pipeline = {}
+    job_id_str = str(import_job_id)
     step_names = ["categorization", "geocoding", "profiling", "embedding", "matching"]
-
-    # Pipeline als "running" markieren, alle Steps als "pending"
-    for name in step_names:
-        pipeline[name] = {"status": "pending"}
-    await _save_pipeline_progress(import_job_id, pipeline, "running")
+    pipeline = {name: {"status": "pending"} for name in step_names}
 
     # --- Schritt 1: Kategorisierung ---
-    pipeline["categorization"] = {"status": "running"}
-    await _save_pipeline_progress(import_job_id, pipeline, "running")
+    pipeline["categorization"]["status"] = "running"
+    set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
     try:
         async with async_session_maker() as step_db:
             from app.services.categorization_service import CategorizationService
@@ -92,12 +64,12 @@ async def _run_pipeline_background(import_job_id):
     except Exception as e:
         pipeline["categorization"] = {"status": "failed", "error": str(e)[:200]}
         logger.warning(f"Pipeline: categorization fehlgeschlagen: {e}", exc_info=True)
-    await _save_pipeline_progress(import_job_id, pipeline, "running")
-    logger.info(f"Pipeline: categorization → {pipeline['categorization']['status']}")
+    set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
+    logger.info(f"Pipeline: categorization -> {pipeline['categorization']['status']}")
 
     # --- Schritt 2: Geocoding ---
-    pipeline["geocoding"] = {"status": "running"}
-    await _save_pipeline_progress(import_job_id, pipeline, "running")
+    pipeline["geocoding"]["status"] = "running"
+    set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
     try:
         async with async_session_maker() as step_db:
             from app.services.geocoding_service import GeocodingService
@@ -113,12 +85,12 @@ async def _run_pipeline_background(import_job_id):
     except Exception as e:
         pipeline["geocoding"] = {"status": "failed", "error": str(e)[:200]}
         logger.warning(f"Pipeline: geocoding fehlgeschlagen: {e}", exc_info=True)
-    await _save_pipeline_progress(import_job_id, pipeline, "running")
-    logger.info(f"Pipeline: geocoding → {pipeline['geocoding']['status']}")
+    set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
+    logger.info(f"Pipeline: geocoding -> {pipeline['geocoding']['status']}")
 
     # --- Schritt 3: Profiling (GPT-4o-mini) ---
-    pipeline["profiling"] = {"status": "running"}
-    await _save_pipeline_progress(import_job_id, pipeline, "running")
+    pipeline["profiling"]["status"] = "running"
+    set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
     try:
         async with async_session_maker() as step_db:
             from app.services.profile_engine_service import ProfileEngineService
@@ -135,12 +107,12 @@ async def _run_pipeline_background(import_job_id):
     except Exception as e:
         pipeline["profiling"] = {"status": "failed", "error": str(e)[:200]}
         logger.warning(f"Pipeline: profiling fehlgeschlagen: {e}", exc_info=True)
-    await _save_pipeline_progress(import_job_id, pipeline, "running")
-    logger.info(f"Pipeline: profiling → {pipeline['profiling']['status']}")
+    set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
+    logger.info(f"Pipeline: profiling -> {pipeline['profiling']['status']}")
 
     # --- Schritt 4: Embedding (OpenAI) ---
-    pipeline["embedding"] = {"status": "running"}
-    await _save_pipeline_progress(import_job_id, pipeline, "running")
+    pipeline["embedding"]["status"] = "running"
+    set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
     try:
         async with async_session_maker() as step_db:
             from app.services.embedding_service import EmbeddingService
@@ -154,12 +126,12 @@ async def _run_pipeline_background(import_job_id):
     except Exception as e:
         pipeline["embedding"] = {"status": "failed", "error": str(e)[:200]}
         logger.warning(f"Pipeline: embedding fehlgeschlagen: {e}", exc_info=True)
-    await _save_pipeline_progress(import_job_id, pipeline, "running")
-    logger.info(f"Pipeline: embedding → {pipeline['embedding']['status']}")
+    set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
+    logger.info(f"Pipeline: embedding -> {pipeline['embedding']['status']}")
 
     # --- Schritt 5: Matching ---
-    pipeline["matching"] = {"status": "running"}
-    await _save_pipeline_progress(import_job_id, pipeline, "running")
+    pipeline["matching"]["status"] = "running"
+    set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
     try:
         async with async_session_maker() as step_db:
             from app.services.matching_engine_v2 import MatchingEngineV2
@@ -176,9 +148,33 @@ async def _run_pipeline_background(import_job_id):
         pipeline["matching"] = {"status": "failed", "error": str(e)[:200]}
         logger.warning(f"Pipeline: matching fehlgeschlagen: {e}", exc_info=True)
 
-    # Pipeline als "done" markieren
-    await _save_pipeline_progress(import_job_id, pipeline, "done")
+    # Memory auf "done" setzen (Frontend sieht gruenen Haken)
+    set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "done"})
     logger.info(f"Pipeline fuer Import {import_job_id} abgeschlossen: {pipeline}")
+
+    # Einmal am Ende in DB schreiben (fuer Import-History)
+    try:
+        async with async_session_maker() as final_db:
+            from app.models.import_job import ImportJob
+            result = await final_db.execute(
+                select(ImportJob).where(ImportJob.id == import_job_id)
+            )
+            ij = result.scalar_one_or_none()
+            if ij:
+                ed = dict(ij.errors_detail) if ij.errors_detail else {}
+                ed["pipeline"] = pipeline
+                ed["pipeline_status"] = "done"
+                ij.errors_detail = ed
+                await final_db.commit()
+                logger.info(f"Pipeline-Ergebnis fuer Import {import_job_id} in DB gespeichert")
+    except Exception as e:
+        logger.warning(f"Pipeline-Ergebnis in DB speichern fehlgeschlagen: {e}")
+
+    # Memory-Eintrag nach kurzer Verzoegerung entfernen
+    # (damit das letzte Polling den "done"-Status noch sieht)
+    import asyncio
+    await asyncio.sleep(30)
+    cleanup_progress(job_id_str)
 
 
 async def _execute_pipeline_steps() -> dict:
@@ -349,22 +345,21 @@ async def import_jobs(
 
     # Pipeline im Hintergrund starten (eigene DB-Session, unabhaengig vom Request)
     if import_job.successful_rows and import_job.successful_rows > 0:
-        # Pipeline-Status SOFORT setzen, BEVOR die Response rausgeht,
-        # damit das Frontend den "Pipeline laeuft" Zustand sieht
+        from app.state import set_progress
+
+        # Pipeline-Status SOFORT in Memory setzen (kein DB-Write noetig)
         step_names = ["categorization", "geocoding", "profiling", "embedding", "matching"]
         pipeline_init = {name: {"status": "pending"} for name in step_names}
-        async with async_session_maker() as init_db:
-            from app.models.import_job import ImportJob as IJ
-            result = await init_db.execute(select(IJ).where(IJ.id == import_job.id))
-            ij = result.scalar_one_or_none()
-            if ij:
-                ed = dict(ij.errors_detail) if ij.errors_detail else {}
-                ed["pipeline"] = pipeline_init
-                ed["pipeline_status"] = "running"
-                ij.errors_detail = ed
-                await init_db.commit()
-                # Auch das lokale Objekt updaten fuer die HTMX-Response
-                import_job.errors_detail = ed
+        set_progress(str(import_job.id), {
+            "pipeline": pipeline_init,
+            "pipeline_status": "running",
+        })
+
+        # Lokales Objekt updaten fuer die erste HTMX-Response
+        ed = dict(import_job.errors_detail) if import_job.errors_detail else {}
+        ed["pipeline"] = pipeline_init
+        ed["pipeline_status"] = "running"
+        import_job.errors_detail = ed
 
         asyncio.create_task(_run_pipeline_background(import_job.id))
         logger.info(f"Pipeline-Background-Task gestartet fuer Import {import_job.id}")
@@ -512,33 +507,59 @@ async def get_import_detail(
 async def get_import_status(
     request: Request,
     import_id: UUID,
-    db: AsyncSession = Depends(get_db),
 ):
-    """Gibt den aktuellen Status eines Imports zurueck (mit frischen Daten)."""
+    """
+    Gibt den aktuellen Status eines Imports zurueck.
+    Liest Pipeline-Fortschritt aus Memory (waehrend Pipeline laeuft)
+    oder aus DB (wenn Pipeline fertig / kein Memory-Eintrag).
+    Eigene DB-Session — kein Depends(get_db), keine Session-Probleme.
+    """
+    from app.state import get_progress
+    from app.database import async_session_maker
     from app.models.import_job import ImportJob
-    from sqlalchemy import select as sel
-    # Frische Daten: expire + neu laden, damit Pipeline-Updates sichtbar sind
+
     try:
-        db.expire_all()
-    except Exception:
-        pass
-    result = await db.execute(sel(ImportJob).where(ImportJob.id == import_id))
-    import_job = result.scalar_one_or_none()
+        # DB: Import-Job laden (eigene Session)
+        async with async_session_maker() as db:
+            result = await db.execute(
+                select(ImportJob).where(ImportJob.id == import_id)
+            )
+            import_job = result.scalar_one_or_none()
 
-    if not import_job:
-        raise NotFoundException(message="Import-Job nicht gefunden")
+        if not import_job:
+            raise NotFoundException(message="Import-Job nicht gefunden")
 
-    # HTMX-Request: HTML zurueckgeben
-    is_htmx = request.headers.get("HX-Request") == "true"
-    if is_htmx:
-        from fastapi.templating import Jinja2Templates
-        templates = Jinja2Templates(directory="app/templates")
-        return templates.TemplateResponse(
-            "components/import_progress.html",
-            {"request": request, "import_job": import_job},
+        # Memory-First: Pipeline-Fortschritt aus Memory lesen
+        mem_progress = get_progress(str(import_id))
+        if mem_progress:
+            # Memory-Daten ins import_job.errors_detail einmischen
+            ed = dict(import_job.errors_detail) if import_job.errors_detail else {}
+            ed["pipeline"] = mem_progress.get("pipeline", {})
+            ed["pipeline_status"] = mem_progress.get("pipeline_status", "")
+            import_job.errors_detail = ed
+
+        # HTMX-Request: HTML zurueckgeben
+        is_htmx = request.headers.get("HX-Request") == "true"
+        if is_htmx:
+            return templates.TemplateResponse(
+                "components/import_progress.html",
+                {"request": request, "import_job": import_job},
+            )
+
+        return ImportJobResponse.model_validate(import_job)
+
+    except NotFoundException:
+        raise
+    except Exception as e:
+        logger.warning(f"Status-Endpoint Fehler: {e}", exc_info=True)
+        # Bei Fehler: leere HTML-Response statt 500 (verhindert Toast-Kaskade)
+        is_htmx = request.headers.get("HX-Request") == "true"
+        if is_htmx:
+            return HTMLResponse(content="", status_code=200)
+        return JSONResponse(
+            status_code=500,
+            content={"error": "internal_error"},
         )
-
-    return ImportJobResponse.model_validate(import_job)
 
 
 @router.post(

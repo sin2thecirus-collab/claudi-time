@@ -23,8 +23,9 @@
 <div id="import-progress"
      {% if needs_polling %}
      hx-get="/api/jobs/import/{{ import_job.id }}/status"
-     hx-trigger="every 1s"
+     hx-trigger="every 2s"
      hx-swap="outerHTML"
+     hx-on::response-error="event.preventDefault()"
      {% endif %}>
 
     {% if import_job.status.value == 'processing' %}
