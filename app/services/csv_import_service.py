@@ -479,6 +479,19 @@ class CSVImportService:
                 except Exception as profile_err:
                     logger.warning(f"Auto-Profiling fehlgeschlagen: {profile_err}")
 
+                # Auto-Embedding: Job-Embeddings generieren (OpenAI, ~$0.001 pro Import)
+                try:
+                    from app.services.matching_engine_v2 import EmbeddingGenerationService
+                    emb_service = EmbeddingGenerationService(self.db)
+                    emb_result = await emb_service.generate_job_embeddings(batch_size=50)
+                    logger.info(
+                        f"Auto-Embedding: {emb_result.get('generated', 0)} Job-Embeddings generiert, "
+                        f"{emb_result.get('failed', 0)} fehlgeschlagen"
+                    )
+                    await emb_service.close()
+                except Exception as emb_err:
+                    logger.warning(f"Auto-Embedding fehlgeschlagen: {emb_err}")
+
         except Exception as e:
             logger.error(f"Import fehlgeschlagen: {e}", exc_info=True)
             import_job.status = ImportStatus.FAILED
