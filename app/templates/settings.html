@@ -86,6 +86,241 @@
         </div>
     </div>
 
+    {# Import-Historie #}
+    <div x-data="importHistory()" class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg">
+        <div class="px-4 py-5 sm:px-6 flex items-center justify-between">
+            <div>
+                <h2 class="text-base font-semibold leading-6 text-gray-900">Import-Historie</h2>
+                <p class="mt-1 text-sm text-gray-500">
+                    Alle CSV-Imports mit Pipeline-Status und Fehlerdetails.
+                </p>
+            </div>
+            <button @click="loadImports()"
+                    class="inline-flex items-center gap-1.5 rounded-md bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-200 transition-colors">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
+                </svg>
+                Aktualisieren
+            </button>
+        </div>
+        <div class="border-t border-gray-200 px-4 py-5 sm:px-6">
+            {# Status-Filter #}
+            <div class="flex items-center gap-2 mb-4">
+                <button @click="statusFilter = null; loadImports()"
+                        :class="!statusFilter ? 'bg-gray-100 text-gray-700 border-gray-300' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'"
+                        class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium border rounded-full transition-colors">
+                    Alle
+                </button>
+                <button @click="statusFilter = 'completed'; loadImports()"
+                        :class="statusFilter === 'completed' ? 'bg-green-100 text-green-700 border-green-300' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'"
+                        class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium border rounded-full transition-colors">
+                    Erfolgreich
+                </button>
+                <button @click="statusFilter = 'failed'; loadImports()"
+                        :class="statusFilter === 'failed' ? 'bg-red-100 text-red-700 border-red-300' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'"
+                        class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium border rounded-full transition-colors">
+                    Fehlgeschlagen
+                </button>
+            </div>
+
+            {# Tabelle #}
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm" x-show="imports.length > 0">
+                    <thead>
+                        <tr class="border-b border-gray-200 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th class="pb-2 pr-3">Datum</th>
+                            <th class="pb-2 pr-3">Datei</th>
+                            <th class="pb-2 pr-3">Status</th>
+                            <th class="pb-2 pr-3 text-right">Zeilen</th>
+                            <th class="pb-2 pr-3">Pipeline</th>
+                            <th class="pb-2 pr-3 text-right">Dauer</th>
+                            <th class="pb-2"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="imp in imports" :key="imp.id">
+                            <tr class="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
+                                @click="imp._expanded = !imp._expanded">
+                                <td class="py-2.5 pr-3 text-xs text-gray-500" x-text="formatDate(imp.created_at)"></td>
+                                <td class="py-2.5 pr-3 font-medium text-gray-900 text-xs" x-text="imp.filename"></td>
+                                <td class="py-2.5 pr-3">
+                                    <span x-show="imp.status === 'completed'"
+                                          class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                                        Erfolgreich
+                                    </span>
+                                    <span x-show="imp.status === 'failed'"
+                                          class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                                        Fehlgeschlagen
+                                    </span>
+                                    <span x-show="imp.status === 'cancelled'"
+                                          class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                        Abgebrochen
+                                    </span>
+                                </td>
+                                <td class="py-2.5 pr-3 text-right text-xs">
+                                    <span class="text-green-600 font-medium" x-text="imp.successful_rows"></span>
+                                    <span class="text-gray-400">/</span>
+                                    <span class="text-gray-600" x-text="imp.total_rows"></span>
+                                    <template x-if="imp.failed_rows > 0">
+                                        <span class="text-red-500 ml-1" x-text="'(' + imp.failed_rows + ' Fehler)'"></span>
+                                    </template>
+                                </td>
+                                <td class="py-2.5 pr-3">
+                                    <div class="flex items-center gap-1">
+                                        <template x-for="step in ['categorization','geocoding','profiling','embedding','matching']" :key="step">
+                                            <span :title="step"
+                                                  :class="pipelineStatus(imp, step) === 'ok' ? 'bg-green-400' : pipelineStatus(imp, step) === 'failed' ? 'bg-red-400' : 'bg-gray-300'"
+                                                  class="w-2 h-2 rounded-full inline-block"></span>
+                                        </template>
+                                    </div>
+                                </td>
+                                <td class="py-2.5 pr-3 text-right text-xs text-gray-500" x-text="imp.duration_seconds ? imp.duration_seconds + 's' : '-'"></td>
+                                <td class="py-2.5 text-right">
+                                    <svg :class="imp._expanded ? 'rotate-180' : ''" class="w-4 h-4 text-gray-400 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                    </svg>
+                                </td>
+                            </tr>
+                            {# Expandierte Details #}
+                            <tr x-show="imp._expanded" x-transition>
+                                <td colspan="7" class="py-3 px-4 bg-gray-50">
+                                    <div class="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
+                                        <template x-for="step in ['categorization','geocoding','profiling','embedding','matching']" :key="step">
+                                            <div class="bg-white rounded-lg border border-gray-200 p-2.5">
+                                                <div class="font-medium text-gray-700 capitalize mb-1" x-text="stepLabel(step)"></div>
+                                                <template x-if="imp.pipeline && imp.pipeline[step]">
+                                                    <div>
+                                                        <template x-if="imp.pipeline[step].status === 'ok'">
+                                                            <div class="text-green-600">
+                                                                <template x-if="step === 'categorization'">
+                                                                    <span x-text="imp.pipeline[step].categorized + ' kategorisiert'"></span>
+                                                                </template>
+                                                                <template x-if="step === 'geocoding'">
+                                                                    <span x-text="imp.pipeline[step].successful + ' geocodiert'"></span>
+                                                                </template>
+                                                                <template x-if="step === 'profiling'">
+                                                                    <span x-text="imp.pipeline[step].profiled + ' profiliert ($' + (imp.pipeline[step].cost_usd || 0).toFixed(4) + ')'"></span>
+                                                                </template>
+                                                                <template x-if="step === 'embedding'">
+                                                                    <span x-text="imp.pipeline[step].generated + ' generiert'"></span>
+                                                                </template>
+                                                                <template x-if="step === 'matching'">
+                                                                    <span x-text="imp.pipeline[step].matches_created + ' Matches'"></span>
+                                                                </template>
+                                                            </div>
+                                                        </template>
+                                                        <template x-if="imp.pipeline[step].status === 'failed'">
+                                                            <div class="text-red-600" x-text="imp.pipeline[step].error || 'Fehler'"></div>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                                <template x-if="!imp.pipeline || !imp.pipeline[step]">
+                                                    <span class="text-gray-400">Keine Daten</span>
+                                                </template>
+                                            </div>
+                                        </template>
+                                    </div>
+                                    <template x-if="imp.error_message">
+                                        <div class="mt-3 p-2.5 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
+                                            <span class="font-medium">Fehler:</span> <span x-text="imp.error_message"></span>
+                                        </div>
+                                    </template>
+                                    <template x-if="imp.duplicates_updated > 0 || imp.blacklisted_skipped > 0">
+                                        <div class="mt-2 text-xs text-gray-500">
+                                            <template x-if="imp.duplicates_updated > 0">
+                                                <span x-text="imp.duplicates_updated + ' Duplikate aktualisiert'"></span>
+                                            </template>
+                                            <template x-if="imp.blacklisted_skipped > 0">
+                                                <span x-text="' · ' + imp.blacklisted_skipped + ' Blacklist-Skips'"></span>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+
+            {# Leer-Zustand #}
+            <div x-show="!loading && imports.length === 0" class="text-center text-sm text-gray-400 py-8">
+                Keine Imports gefunden.
+            </div>
+
+            {# Lade-Spinner #}
+            <div x-show="loading" class="text-center py-8">
+                {% include 'components/loading_spinner.html' %}
+            </div>
+
+            {# Pagination #}
+            <div x-show="totalPages > 1" class="flex items-center justify-center gap-2 mt-4">
+                <button @click="if (page > 1) { page--; loadImports(); }"
+                        :disabled="page <= 1"
+                        class="px-3 py-1.5 text-xs border rounded-md disabled:opacity-30 hover:bg-gray-50">
+                    Zurueck
+                </button>
+                <span class="text-xs text-gray-500" x-text="'Seite ' + page + ' von ' + totalPages"></span>
+                <button @click="if (page < totalPages) { page++; loadImports(); }"
+                        :disabled="page >= totalPages"
+                        class="px-3 py-1.5 text-xs border rounded-md disabled:opacity-30 hover:bg-gray-50">
+                    Weiter
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    function importHistory() {
+        return {
+            imports: [],
+            loading: true,
+            page: 1,
+            totalPages: 0,
+            statusFilter: null,
+
+            init() { this.loadImports(); },
+
+            async loadImports() {
+                this.loading = true;
+                const params = new URLSearchParams({ page: this.page, per_page: 10 });
+                if (this.statusFilter) params.set('status', this.statusFilter);
+                try {
+                    const resp = await fetch('/api/jobs/import/history?' + params.toString());
+                    const data = await resp.json();
+                    this.imports = (data.imports || []).map(i => ({ ...i, _expanded: false }));
+                    this.totalPages = data.pages || 0;
+                } catch (e) {
+                    console.error('Import-Historie laden fehlgeschlagen:', e);
+                    this.imports = [];
+                }
+                this.loading = false;
+            },
+
+            formatDate(iso) {
+                if (!iso) return '-';
+                const d = new Date(iso);
+                return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+            },
+
+            pipelineStatus(imp, step) {
+                if (!imp.pipeline || !imp.pipeline[step]) return 'none';
+                return imp.pipeline[step].status;
+            },
+
+            stepLabel(step) {
+                const labels = {
+                    categorization: 'Kategorisierung',
+                    geocoding: 'Geocoding',
+                    profiling: 'Profiling',
+                    embedding: 'Embedding',
+                    matching: 'Matching',
+                };
+                return labels[step] || step;
+            },
+        };
+    }
+    </script>
+
     {# Prio-Staedte #}
     <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg">
         <div class="px-4 py-5 sm:px-6">

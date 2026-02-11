@@ -6,8 +6,10 @@ from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request, UploadFile, File, status
 from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select
+import math
+from sqlalchemy import select, func, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.exception_handlers import NotFoundException, ConflictException
@@ -115,6 +117,129 @@ async def import_jobs(
         )
 
     return ImportJobResponse.model_validate(import_job)
+
+
+@router.get(
+    "/import/history",
+    summary="Import-Historie mit Pipeline-Details",
+)
+async def get_import_history(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(20, ge=1, le=100),
+    status: str = Query(None, alias="status", description="completed, failed, cancelled"),
+    date_from: str = Query(None, description="ISO date YYYY-MM-DD"),
+    date_to: str = Query(None, description="ISO date YYYY-MM-DD"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Listet alle vergangenen Imports mit Pipeline-Ergebnissen auf."""
+    from app.models.import_job import ImportJob, ImportStatus as IS
+    from datetime import date as date_type
+
+    query = select(ImportJob).where(
+        ImportJob.status.in_([IS.COMPLETED, IS.FAILED, IS.CANCELLED])
+    )
+
+    # Status-Filter
+    if status:
+        status_map = {"completed": IS.COMPLETED, "failed": IS.FAILED, "cancelled": IS.CANCELLED}
+        if status in status_map:
+            query = select(ImportJob).where(ImportJob.status == status_map[status])
+
+    # Datums-Filter
+    if date_from:
+        try:
+            d = date_type.fromisoformat(date_from)
+            query = query.where(func.date(ImportJob.created_at) >= d)
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            d = date_type.fromisoformat(date_to)
+            query = query.where(func.date(ImportJob.created_at) <= d)
+        except ValueError:
+            pass
+
+    # Total zaehlen
+    count_q = select(func.count()).select_from(query.subquery())
+    total = (await db.execute(count_q)).scalar() or 0
+
+    # Paginiert laden (neueste zuerst)
+    query = query.order_by(desc(ImportJob.created_at))
+    offset = (page - 1) * per_page
+    query = query.offset(offset).limit(per_page)
+
+    result = await db.execute(query)
+    imports = result.scalars().all()
+
+    def _build_import_dict(ij):
+        duration = None
+        if ij.started_at and ij.completed_at:
+            duration = round((ij.completed_at - ij.started_at).total_seconds())
+
+        ed = ij.errors_detail or {}
+        return {
+            "id": str(ij.id),
+            "filename": ij.filename,
+            "status": ij.status.value,
+            "total_rows": ij.total_rows,
+            "successful_rows": ij.successful_rows,
+            "failed_rows": ij.failed_rows,
+            "duplicates_updated": ed.get("duplicates_updated", 0),
+            "blacklisted_skipped": ed.get("blacklisted_skipped", 0),
+            "pipeline": ed.get("pipeline", {}),
+            "error_message": ij.error_message,
+            "started_at": ij.started_at.isoformat() if ij.started_at else None,
+            "completed_at": ij.completed_at.isoformat() if ij.completed_at else None,
+            "duration_seconds": duration,
+            "created_at": ij.created_at.isoformat() if ij.created_at else None,
+        }
+
+    return JSONResponse({
+        "imports": [_build_import_dict(ij) for ij in imports],
+        "total": total,
+        "page": page,
+        "pages": math.ceil(total / per_page) if total > 0 else 0,
+    })
+
+
+@router.get(
+    "/import/{import_id}/detail",
+    summary="Detaillierter Import-Status mit Pipeline + Fehlern",
+)
+async def get_import_detail(
+    import_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Gibt alle Details eines Imports zurueck inkl. Pipeline-Ergebnisse und Fehler."""
+    from app.models.import_job import ImportJob
+
+    ij = await db.get(ImportJob, import_id)
+    if not ij:
+        raise NotFoundException(message="Import-Job nicht gefunden")
+
+    duration = None
+    if ij.started_at and ij.completed_at:
+        duration = round((ij.completed_at - ij.started_at).total_seconds())
+
+    ed = ij.errors_detail or {}
+    return JSONResponse({
+        "id": str(ij.id),
+        "filename": ij.filename,
+        "status": ij.status.value,
+        "total_rows": ij.total_rows,
+        "processed_rows": ij.processed_rows,
+        "successful_rows": ij.successful_rows,
+        "failed_rows": ij.failed_rows,
+        "duplicates_updated": ed.get("duplicates_updated", 0),
+        "blacklisted_skipped": ed.get("blacklisted_skipped", 0),
+        "pipeline": ed.get("pipeline", {}),
+        "import_errors": ed.get("import_errors", []),
+        "error_message": ij.error_message,
+        "started_at": ij.started_at.isoformat() if ij.started_at else None,
+        "completed_at": ij.completed_at.isoformat() if ij.completed_at else None,
+        "duration_seconds": duration,
+        "created_at": ij.created_at.isoformat() if ij.created_at else None,
+    })
 
 
 @router.get(
