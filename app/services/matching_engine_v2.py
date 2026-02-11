@@ -123,7 +123,8 @@ class MatchingEngineV2:
     Alle Gewichte sind lernbar (aus match_v2_scoring_weights).
     """
 
-    TOP_N = 200  # Max. Matches pro Job (erhoeht von 50)
+    TOP_N = 50   # Max. Matches pro Job (zurueck von 200 — Bloat-Fix)
+    MIN_SCORE = 25.0  # Matches unter diesem Score werden nicht gespeichert
 
     # Skill-Weights Cache (Klassen-Level, einmal laden)
     _skill_weights: dict | None = None
@@ -1320,6 +1321,9 @@ class MatchingEngineV2:
 
         # Sortieren nach Score (hoechster zuerst)
         scored.sort(key=lambda x: x.total_score, reverse=True)
+
+        # Score-Minimum: Matches unter MIN_SCORE nicht speichern
+        scored = [s for s in scored if s.total_score >= self.MIN_SCORE]
 
         # Rang zuweisen
         for i, m in enumerate(scored):
