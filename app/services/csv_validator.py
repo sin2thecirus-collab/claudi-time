@@ -419,8 +419,12 @@ def calculate_content_hash(row: dict[str, str]) -> str:
     """
     Berechnet einen Hash für Duplikaterkennung.
 
-    Basiert auf: Unternehmen + Position + Stadt/Ort + PLZ
+    Basiert auf: Unternehmen + Position + Stadt/Ort + PLZ + URL
     Unterstuetzt alternative Spaltennamen (Aliase).
+
+    Die URL (Anzeigenlink) macht den Hash deutlich zuverlässiger,
+    da gleiche Firma + Position + Stadt sonst als Duplikat erkannt
+    würden, obwohl es verschiedene Stellenanzeigen sind.
 
     Args:
         row: Zeile als Dictionary
@@ -433,6 +437,7 @@ def calculate_content_hash(row: dict[str, str]) -> str:
         _get_first_value(row, "Position", "Funktion - AP Firma").lower(),
         _get_first_value(row, "Stadt", "Ort").lower(),
         row.get("PLZ", "").strip(),
+        _get_first_value(row, "URL", "Anzeigenlink", "Link").lower(),
     ]
     content = "|".join(components)
     return hashlib.sha256(content.encode("utf-8")).hexdigest()
