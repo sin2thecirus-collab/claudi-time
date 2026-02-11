@@ -339,6 +339,26 @@
     {% endif %}
 </div>
 
+<script>
+// Self-initializing: HTMX fuehrt inline Scripts nach Swap aus.
+// Damit werden die hx-* Attribute auf #import-progress erkannt.
+(function() {
+    var el = document.getElementById('import-progress');
+    if (el && el.hasAttribute('hx-get')) {
+        htmx.process(el);
+        console.log('[ImportProgress] htmx.process() auf #import-progress — Polling gestartet');
+    }
+    // Spinner im Import-Dialog verstecken
+    var spinner = document.getElementById('import-upload-spinner');
+    if (spinner) spinner.style.display = 'none';
+    // Buttons wieder aktivieren
+    var submitBtn = document.getElementById('import-submit-btn');
+    var cancelBtn = document.getElementById('import-cancel-btn');
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.style.opacity = ''; submitBtn.style.cursor = ''; }
+    if (cancelBtn) { cancelBtn.disabled = false; cancelBtn.style.opacity = ''; cancelBtn.style.cursor = ''; }
+})();
+</script>
+
 <style>
 @keyframes scaleIn {
     0% { transform: scale(0); opacity: 0; }
