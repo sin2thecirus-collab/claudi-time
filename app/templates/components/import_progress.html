@@ -345,12 +345,33 @@
     </div>
     {% endif %}
 
+{# Debug: Bei jedem Render (polling oder initial) in Console loggen #}
+<script>
+console.log('[Poll] pipeline_status={{ pipeline_status }}, is_polling={{ is_polling if is_polling is defined else "undefined" }}, needs_polling={{ needs_polling }}, status={{ import_job.status.value }}');
+</script>
+
 {# ═══ WRAPPER SCHLIESSEN (nur beim initialen Render) ═══ #}
 {% if not is_polling %}
 
     <script>
     // Einmalig beim initialen Render: Spinner verstecken, Buttons aktivieren
     (function() {
+        var wrapper = document.getElementById('import-progress-poller');
+        console.log('[Init] wrapper found:', !!wrapper, 'hx-get:', wrapper ? wrapper.getAttribute('hx-get') : 'N/A', 'hx-trigger:', wrapper ? wrapper.getAttribute('hx-trigger') : 'N/A');
+        if (wrapper) {
+            wrapper.addEventListener('htmx:afterSwap', function(e) {
+                console.log('[Swap] innerHTML updated, new content length:', wrapper.innerHTML.length);
+            });
+            wrapper.addEventListener('htmx:responseError', function(e) {
+                console.log('[Error] response error:', e.detail);
+            });
+            wrapper.addEventListener('htmx:targetError', function(e) {
+                console.log('[TargetError]', e.detail);
+            });
+            wrapper.addEventListener('htmx:beforeRequest', function(e) {
+                console.log('[Poll] requesting status...');
+            });
+        }
         var spinner = document.getElementById('import-upload-spinner');
         if (spinner) spinner.style.display = 'none';
         var submitBtn = document.getElementById('import-submit-btn');
