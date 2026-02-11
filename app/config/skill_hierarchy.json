@@ -1,0 +1,56 @@
+{
+  "finanzbuchhalter": {
+    "Finanzbuchhaltung": {
+      "children": [
+        "Kreditorenbuchhaltung",
+        "Debitorenbuchhaltung",
+        "Bankbuchungen",
+        "Zahlungsverkehr",
+        "OP-Verwaltung",
+        "Forderungsmanagement",
+        "Rechnungsprüfung"
+      ]
+    },
+    "Accounts Payable": {
+      "children": [
+        "Kreditorenbuchhaltung",
+        "Rechnungsprüfung",
+        "Zahlungsfreigabe",
+        "Lieferantenmanagement",
+        "Eingangsrechnungen"
+      ]
+    },
+    "Accounts Receivable": {
+      "children": [
+        "Debitorenbuchhaltung",
+        "Forderungsmanagement",
+        "Mahnwesen",
+        "Zahlungsabgleich",
+        "Ausgangsrechnungen"
+      ]
+    },
+    "Kreditoren": {
+      "children": [
+        "Kreditorenbuchhaltung",
+        "Kreditorenmanagement"
+      ]
+    },
+    "Debitoren": {
+      "children": [
+        "Debitorenbuchhaltung",
+        "Forderungsmanagement"
+      ]
+    }
+  },
+
+  "bilanzbuchhalter": {
+    "Abschlusserstellung": {
+      "children": [
+        "HGB-Abschlusserstellung",
+        "IFRS-Abschlusserstellung",
+        "Jahresabschlusserstellung",
+        "Monatsabschluss"
+      ]
+    }
+  }
+}

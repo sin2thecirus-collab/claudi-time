@@ -130,6 +130,9 @@ class MatchingEngineV2:
     _skill_weights: dict | None = None
     _skill_to_category: dict[str, tuple[str, int]] | None = None  # skill_lower → (kategorie, weight)
 
+    # Skill-Hierarchie Cache (Klassen-Level, einmal laden)
+    _skill_hierarchy: dict | None = None
+
     @classmethod
     def _load_skill_weights(cls) -> dict:
         """Laedt skill_weights.json (cached auf Klassen-Level)."""
@@ -159,6 +162,110 @@ class MatchingEngineV2:
             cls._skill_weights = {}
             cls._skill_to_category = {}
         return cls._skill_weights
+
+    @classmethod
+    def _load_skill_hierarchy(cls) -> dict:
+        """Laedt skill_hierarchy.json (cached auf Klassen-Level).
+
+        Die Hierarchie definiert Parent→Children-Beziehungen fuer Skills.
+        Beispiel: Job sucht 'Finanzbuchhaltung' → expandiert zu
+        'Kreditorenbuchhaltung', 'Debitorenbuchhaltung', etc.
+        """
+        if cls._skill_hierarchy is not None:
+            return cls._skill_hierarchy
+
+        config_path = Path(__file__).parent.parent / "config" / "skill_hierarchy.json"
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                cls._skill_hierarchy = json.load(f)
+            total_parents = sum(len(cats) for cats in cls._skill_hierarchy.values())
+            logger.info(
+                f"Skill-Hierarchie geladen: {len(cls._skill_hierarchy)} Rollen, "
+                f"{total_parents} Parent-Skills"
+            )
+        except FileNotFoundError:
+            logger.warning(f"skill_hierarchy.json nicht gefunden: {config_path}")
+            cls._skill_hierarchy = {}
+        except json.JSONDecodeError as e:
+            logger.error(f"skill_hierarchy.json Parse-Fehler: {e}")
+            cls._skill_hierarchy = {}
+        return cls._skill_hierarchy
+
+    @classmethod
+    def _expand_job_skills_with_hierarchy(
+        cls,
+        job_skills: list[dict],
+        job_role: str,
+    ) -> list[dict]:
+        """Expandiert generische Job-Skills mit Hierarchie-Children.
+
+        Beispiel fuer Rolle 'finanzbuchhalter':
+          Input:  [{"skill": "Finanzbuchhaltung", ...}, {"skill": "DATEV", ...}]
+          Output: [{"skill": "Finanzbuchhaltung", ...}, {"skill": "DATEV", ...},
+                   {"skill": "Kreditorenbuchhaltung", ...},
+                   {"skill": "Debitorenbuchhaltung", ...}, ...]
+
+        Children bekommen dieselben Attribute (importance, category) wie der Parent,
+        aber mit einem Flag 'from_hierarchy': True fuer Debugging.
+        """
+        hierarchy = cls._load_skill_hierarchy()
+        role_hierarchy = hierarchy.get(job_role, {})
+        if not role_hierarchy:
+            return job_skills
+
+        # Baue Lookup: parent_skill_lower → config
+        parent_lookup: dict[str, dict] = {}
+        for parent_skill, config in role_hierarchy.items():
+            parent_lookup[parent_skill.lower().strip()] = config
+            # Auch Synonym-normalisierten Namen registrieren
+            normalized = cls._normalize_skill(parent_skill.lower().strip())
+            if normalized not in parent_lookup:
+                parent_lookup[normalized] = config
+
+        # Sammle existierende Skill-Namen (lowercase) um Duplikate zu vermeiden
+        existing_skills = {js.get("skill", "").lower().strip() for js in job_skills}
+
+        expanded = list(job_skills)  # Kopie — Original nicht veraendern
+
+        for js in job_skills:
+            skill_name = js.get("skill", "").lower().strip()
+            if not skill_name:
+                continue
+
+            # Check ob dieser Job-Skill ein Parent in der Hierarchie ist
+            config = parent_lookup.get(skill_name)
+            if config is None:
+                # Auch normalisierten Namen versuchen
+                config = parent_lookup.get(cls._normalize_skill(skill_name))
+            if config is None:
+                # Auch Kern-Skill versuchen (z.B. "Finanzbuchhaltung (allg.)" → "finanzbuchhaltung")
+                core = cls._extract_core_skill(skill_name)
+                if core != skill_name:
+                    config = parent_lookup.get(core)
+
+            if config is None:
+                continue
+
+            # Parent gefunden → Children hinzufuegen
+            for child_skill in config.get("children", []):
+                child_lower = child_skill.lower().strip()
+                if child_lower not in existing_skills:
+                    expanded.append({
+                        "skill": child_skill,
+                        "importance": js.get("importance", "preferred"),
+                        "category": js.get("category", ""),
+                        "from_hierarchy": True,
+                    })
+                    existing_skills.add(child_lower)
+
+        if len(expanded) > len(job_skills):
+            added = len(expanded) - len(job_skills)
+            logger.debug(
+                f"Skill-Hierarchie ({job_role}): {added} Children hinzugefuegt "
+                f"({len(job_skills)} → {len(expanded)} Skills)"
+            )
+
+        return expanded
 
     @classmethod
     def _get_skill_weight(cls, role: str, skill_name: str) -> int | None:
@@ -660,6 +767,13 @@ class MatchingEngineV2:
 
         if not filtered_job_skills:
             return 0.0
+
+        # ── Skill-Hierarchie: Generische Job-Skills expandieren ──
+        # Beispiel: "Finanzbuchhaltung" → + "Kreditorenbuchhaltung", "Debitorenbuchhaltung", etc.
+        if job_role:
+            filtered_job_skills = self._expand_job_skills_with_hierarchy(
+                filtered_job_skills, job_role
+            )
 
         # ── Matching-Funktion (shared fuer beide Systeme) ──
         def _match_skill(skill_name: str) -> tuple[dict | None, float]:
@@ -1186,8 +1300,9 @@ class MatchingEngineV2:
         job_embedding = job.v2_embedding
         job_industry = job.industry
 
-        # Skill-Weights laden (einmalig) + Job-Rolle erkennen
+        # Skill-Weights + Skill-Hierarchie laden (einmalig) + Job-Rolle erkennen
         self._load_skill_weights()
+        self._load_skill_hierarchy()
         job_role = self._detect_job_role(
             getattr(job, "hotlist_job_title", None),
             job.position,
@@ -1275,7 +1390,7 @@ class MatchingEngineV2:
                 if candidate_has_bibu:
                     bibu_multiplier = 1.3   # +30% Bonus
                 else:
-                    bibu_multiplier = 0.6   # -40% Penalty
+                    bibu_multiplier = 0.75  # -25% Penalty (fairer als -40%)
                 total *= bibu_multiplier
 
             # ── Empty CV Penalty (dreistufig) ──
