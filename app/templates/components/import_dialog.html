@@ -8,7 +8,7 @@
       hx-target="#import-status"
       hx-swap="innerHTML"
       @htmx:before-request="if ($event.detail.elt === $el) uploading = true"
-      @htmx:after-request="if ($event.detail.elt === $el) uploading = false">
+      @htmx:after-settle="if ($event.detail.elt === $el) { uploading = false; htmx.process(document.getElementById('import-status')); }"
 
     <div style="padding:24px;">
         <div style="display:flex;align-items:flex-start;gap:16px;">
