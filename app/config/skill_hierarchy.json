@@ -8,7 +8,40 @@
         "Zahlungsverkehr",
         "OP-Verwaltung",
         "Forderungsmanagement",
-        "Rechnungsprüfung"
+        "Rechnungsprüfung",
+        "Accounts Payable",
+        "Accounts Receivable",
+        "Bank Reconciliation",
+        "Payment Processing"
+      ]
+    },
+    "Financial Accounting": {
+      "children": [
+        "Kreditorenbuchhaltung",
+        "Debitorenbuchhaltung",
+        "Bankbuchungen",
+        "Zahlungsverkehr",
+        "OP-Verwaltung",
+        "Forderungsmanagement",
+        "Rechnungsprüfung",
+        "Accounts Payable",
+        "Accounts Receivable",
+        "Bank Reconciliation",
+        "Payment Processing",
+        "General Ledger",
+        "Finanzbuchhaltung"
+      ]
+    },
+    "Accounting": {
+      "children": [
+        "Financial Accounting",
+        "Finanzbuchhaltung",
+        "Kreditorenbuchhaltung",
+        "Debitorenbuchhaltung",
+        "Accounts Payable",
+        "Accounts Receivable",
+        "General Ledger",
+        "Bank Reconciliation"
       ]
     },
     "Accounts Payable": {
@@ -17,7 +50,10 @@
         "Rechnungsprüfung",
         "Zahlungsfreigabe",
         "Lieferantenmanagement",
-        "Eingangsrechnungen"
+        "Eingangsrechnungen",
+        "Invoice Processing",
+        "Vendor Management",
+        "Payment Processing"
       ]
     },
     "Accounts Receivable": {
@@ -26,19 +62,76 @@
         "Forderungsmanagement",
         "Mahnwesen",
         "Zahlungsabgleich",
-        "Ausgangsrechnungen"
+        "Ausgangsrechnungen",
+        "Collections",
+        "Credit Management",
+        "Cash Application"
+      ]
+    },
+    "Kreditorenbuchhaltung": {
+      "children": [
+        "Accounts Payable",
+        "Invoice Processing",
+        "Vendor Management",
+        "Rechnungsprüfung",
+        "Zahlungsfreigabe",
+        "Eingangsrechnungen"
+      ]
+    },
+    "Debitorenbuchhaltung": {
+      "children": [
+        "Accounts Receivable",
+        "Collections",
+        "Forderungsmanagement",
+        "Mahnwesen",
+        "Ausgangsrechnungen",
+        "Cash Application"
       ]
     },
     "Kreditoren": {
       "children": [
         "Kreditorenbuchhaltung",
-        "Kreditorenmanagement"
+        "Kreditorenmanagement",
+        "Accounts Payable"
       ]
     },
     "Debitoren": {
       "children": [
         "Debitorenbuchhaltung",
-        "Forderungsmanagement"
+        "Forderungsmanagement",
+        "Accounts Receivable"
+      ]
+    },
+    "General Ledger": {
+      "children": [
+        "Hauptbuchhaltung",
+        "Finanzbuchhaltung",
+        "Kontenabstimmung",
+        "Bankbuchungen",
+        "Account Reconciliation"
+      ]
+    },
+    "Hauptbuchhaltung": {
+      "children": [
+        "General Ledger",
+        "Finanzbuchhaltung",
+        "Kontenabstimmung",
+        "Account Reconciliation"
+      ]
+    },
+    "Invoice Processing": {
+      "children": [
+        "Rechnungsprüfung",
+        "Eingangsrechnungen",
+        "Kreditorenbuchhaltung"
+      ]
+    },
+    "Bank Reconciliation": {
+      "children": [
+        "Bankbuchungen",
+        "Zahlungsabgleich",
+        "Kontenabstimmung",
+        "Account Reconciliation"
       ]
     }
   },
@@ -49,7 +142,42 @@
         "HGB-Abschlusserstellung",
         "IFRS-Abschlusserstellung",
         "Jahresabschlusserstellung",
-        "Monatsabschluss"
+        "Monatsabschluss",
+        "Financial Statements",
+        "Year-End Closing",
+        "Month-End Closing"
+      ]
+    },
+    "Financial Statements": {
+      "children": [
+        "HGB-Abschlusserstellung",
+        "IFRS-Abschlusserstellung",
+        "Jahresabschlusserstellung",
+        "Monatsabschluss",
+        "Abschlusserstellung",
+        "Balance Sheet",
+        "Profit and Loss"
+      ]
+    },
+    "Financial Reporting": {
+      "children": [
+        "Financial Statements",
+        "Abschlusserstellung",
+        "Jahresabschlusserstellung",
+        "Monatsabschluss",
+        "HGB-Abschlusserstellung",
+        "IFRS-Abschlusserstellung",
+        "Reporting",
+        "Berichtswesen"
+      ]
+    },
+    "Financial Close": {
+      "children": [
+        "Monatsabschluss",
+        "Jahresabschlusserstellung",
+        "Month-End Closing",
+        "Year-End Closing",
+        "Abschlusserstellung"
       ]
     }
   }

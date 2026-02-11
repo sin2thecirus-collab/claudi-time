@@ -310,6 +310,24 @@ class MatchingEngineV2:
         if "lohnbuchhalter" in search_text:
             return "lohnbuchhalter"
 
+        # Englische Jobtitel → deutsche Rollen-Keys
+        if "financial accountant" in search_text or "financial accounting" in search_text:
+            return "finanzbuchhalter"
+        if "accountant" in search_text and "tax" not in search_text:
+            return "finanzbuchhalter"
+        if "accounts payable" in search_text or "accounts receivable" in search_text:
+            return "finanzbuchhalter"
+        if "bookkeeper" in search_text or "book keeper" in search_text:
+            return "finanzbuchhalter"
+        if "payroll" in search_text:
+            return "lohnbuchhalter"
+        if "tax accountant" in search_text or "tax consultant" in search_text:
+            return "steuerfachangestellte"
+        if "financial controller" in search_text or "head of accounting" in search_text:
+            return "bilanzbuchhalter"
+        if "senior accountant" in search_text or "chief accountant" in search_text:
+            return "bilanzbuchhalter"
+
         return None
 
     def __init__(self, db: AsyncSession):
