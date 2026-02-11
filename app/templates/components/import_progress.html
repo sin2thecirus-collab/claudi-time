@@ -13,9 +13,11 @@
 {% set real_errors = import_job.failed_rows - duplicates_updated - blacklisted if import_job.failed_rows else 0 %}
 {% if real_errors < 0 %}{% set real_errors = 0 %}{% endif %}
 
-{# Pipeline-Status auslesen #}
-{% set pipeline = import_job.errors_detail.get('pipeline', {}) if import_job.errors_detail else {} %}
-{% set pipeline_status = import_job.errors_detail.get('pipeline_status', '') if import_job.errors_detail else '' %}
+{# Pipeline-Status auslesen — Nutzt pipeline_override wenn vorhanden (direkt aus Memory),
+   ansonsten Fallback auf import_job.errors_detail (DB).
+   GRUND: Detached SQLAlchemy MutableDict gibt Jinja2 alte Werte! #}
+{% set pipeline = pipeline_override if pipeline_override is defined and pipeline_override else (import_job.errors_detail.get('pipeline', {}) if import_job.errors_detail else {}) %}
+{% set pipeline_status = pipeline_status_override if pipeline_status_override is defined and pipeline_status_override else (import_job.errors_detail.get('pipeline_status', '') if import_job.errors_detail else '') %}
 
 {# Polling: Wenn import laeuft ODER pipeline laeuft #}
 {% set needs_polling = import_job.status.value == 'processing' or pipeline_status == 'running' %}
@@ -96,7 +98,7 @@
                     <circle style="opacity:0.25;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
                     <path style="opacity:0.75;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <span style="font-weight:600;color:var(--pp-primary);">{{ label }}...{% if 'progress' in step %} {{ step.progress }}%{% endif %}</span>
+                <span style="font-weight:600;color:var(--pp-primary);">{{ label }}...{% if step.get('progress') is not none %} {{ step.get('progress') }}%{% endif %}</span>
                 {% elif s == 'ok' %}
                 {# Haken #}
                 <svg style="width:16px;height:16px;color:var(--pp-green);flex-shrink:0;" viewBox="0 0 20 20" fill="currentColor">

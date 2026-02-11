@@ -418,9 +418,16 @@ async def import_jobs(
     if is_htmx:
         from fastapi.templating import Jinja2Templates
         templates = Jinja2Templates(directory="app/templates")
+        # Pipeline-Daten als separate Variablen (nicht ueber detached object!)
+        ed = import_job.errors_detail or {}
         return templates.TemplateResponse(
             "components/import_progress.html",
-            {"request": request, "import_job": import_job},
+            {
+                "request": request,
+                "import_job": import_job,
+                "pipeline_override": ed.get("pipeline", {}),
+                "pipeline_status_override": ed.get("pipeline_status", ""),
+            },
         )
 
     return ImportJobResponse.model_validate(import_job)
@@ -579,20 +586,30 @@ async def get_import_status(
             raise NotFoundException(message="Import-Job nicht gefunden")
 
         # Memory-First: Pipeline-Fortschritt aus Memory lesen
+        # WICHTIG: Daten als SEPARATE Variablen uebergeben, NICHT ueber
+        # das detached SQLAlchemy-Objekt (MutableDict auf detached object
+        # gibt Jinja2 die alten DB-Werte statt der neuen Memory-Werte!)
         mem_progress = get_progress(str(import_id))
         if mem_progress:
-            # Memory-Daten ins import_job.errors_detail einmischen
-            ed = dict(import_job.errors_detail) if import_job.errors_detail else {}
-            ed["pipeline"] = mem_progress.get("pipeline", {})
-            ed["pipeline_status"] = mem_progress.get("pipeline_status", "")
-            import_job.errors_detail = ed
+            pipeline_data = mem_progress.get("pipeline", {})
+            pipeline_status_data = mem_progress.get("pipeline_status", "")
+        else:
+            # Fallback: aus DB lesen (Pipeline fertig oder kein Memory)
+            ed = import_job.errors_detail or {}
+            pipeline_data = ed.get("pipeline", {})
+            pipeline_status_data = ed.get("pipeline_status", "")
 
         # HTMX-Request: HTML zurueckgeben (KEIN Cache — Polling muss frische Daten liefern)
         is_htmx = request.headers.get("HX-Request") == "true"
         if is_htmx:
             response = templates.TemplateResponse(
                 "components/import_progress.html",
-                {"request": request, "import_job": import_job},
+                {
+                    "request": request,
+                    "import_job": import_job,
+                    "pipeline_override": pipeline_data,
+                    "pipeline_status_override": pipeline_status_data,
+                },
             )
             response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
             response.headers["Pragma"] = "no-cache"
@@ -635,9 +652,15 @@ async def cancel_import(
     if is_htmx:
         from fastapi.templating import Jinja2Templates
         templates = Jinja2Templates(directory="app/templates")
+        ed = import_job.errors_detail or {}
         return templates.TemplateResponse(
             "components/import_progress.html",
-            {"request": request, "import_job": import_job},
+            {
+                "request": request,
+                "import_job": import_job,
+                "pipeline_override": ed.get("pipeline", {}),
+                "pipeline_status_override": ed.get("pipeline_status", ""),
+            },
         )
 
     return ImportJobResponse.model_validate(import_job)
