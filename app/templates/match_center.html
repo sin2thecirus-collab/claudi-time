@@ -292,6 +292,10 @@ function matchCenterApp() {
         statusFilter: null,
         scoreMin: null,
         scoreMax: null,
+        dateFrom: null,
+        dateTo: null,
+        datePreset: null,
+        lastImportDate: null,
         selectedMatchIds: [],
         matchesLoading: false,
         currentStage: '{{ current_stage }}',
@@ -334,6 +338,14 @@ function matchCenterApp() {
         // Methods
         async init() {
             await this.loadSidebar();
+            // Letztes Import-Datum fuer "Seit letztem Import"-Filter laden
+            try {
+                const resp = await fetch('/api/match-center/last-import-date');
+                const data = await resp.json();
+                this.lastImportDate = data.last_import_date;
+            } catch (e) {
+                this.lastImportDate = null;
+            }
         },
 
         async loadSidebar() {
@@ -404,6 +416,8 @@ function matchCenterApp() {
             if (this.statusFilter) params.set('status_filter', this.statusFilter);
             if (this.scoreMin !== null) params.set('score_min', this.scoreMin);
             if (this.scoreMax !== null) params.set('score_max', this.scoreMax);
+            if (this.dateFrom) params.set('date_from', this.dateFrom);
+            if (this.dateTo) params.set('date_to', this.dateTo);
 
             this.selectedMatchIds = [];
 
@@ -428,6 +442,43 @@ function matchCenterApp() {
             this.loadMatches();
         },
 
+        setDateFilter(preset) {
+            this.datePreset = preset;
+            const today = new Date();
+            const fmt = (d) => d.toISOString().split('T')[0];
+
+            if (preset === 'today') {
+                this.dateFrom = fmt(today);
+                this.dateTo = fmt(today);
+            } else if (preset === 'last_7') {
+                const d = new Date(today);
+                d.setDate(d.getDate() - 7);
+                this.dateFrom = fmt(d);
+                this.dateTo = fmt(today);
+            } else if (preset === 'this_month') {
+                const d = new Date(today.getFullYear(), today.getMonth(), 1);
+                this.dateFrom = fmt(d);
+                this.dateTo = fmt(today);
+            } else if (preset === 'last_import' && this.lastImportDate) {
+                this.dateFrom = this.lastImportDate;
+                this.dateTo = fmt(today);
+            } else if (preset === 'custom') {
+                return;
+            } else {
+                this.dateFrom = null;
+                this.dateTo = null;
+                this.datePreset = null;
+            }
+            this.currentPage = 1;
+            this.loadMatches();
+        },
+
+        applyCustomDateRange() {
+            this.datePreset = 'custom';
+            this.currentPage = 1;
+            this.loadMatches();
+        },
+
         setPage(page) {
             this.currentPage = page;
             this.loadMatches();
@@ -438,7 +489,8 @@ function matchCenterApp() {
                 this.sortDir = this.sortDir === 'desc' ? 'asc' : 'desc';
             } else {
                 this.sortBy = col;
-                this.sortDir = 'desc';
+                // Distanz: niedrigste Entfernung zuerst als Default
+                this.sortDir = col === 'distance' ? 'asc' : 'desc';
             }
             this.currentPage = 1;
             this.loadMatches();

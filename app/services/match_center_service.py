@@ -1329,6 +1329,8 @@ class MatchCenterService:
         status_filter: str | None = None,
         score_min: int | None = None,
         score_max: int | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
         page: int = 1,
         per_page: int = 15,
         sort_by: str = "score",
@@ -1391,6 +1393,24 @@ class MatchCenterService:
                 match_agg.c.match_count > 0,
             ))
 
+        # Date-Range-Filter (v2_matched_at bevorzugt, Fallback auf created_at)
+        date_clauses = []
+        if date_from or date_to:
+            from datetime import date as date_type
+            match_date = func.coalesce(Match.v2_matched_at, Match.created_at)
+            if date_from:
+                try:
+                    d = date_type.fromisoformat(date_from)
+                    date_clauses.append(func.date(match_date) >= d)
+                except ValueError:
+                    pass
+            if date_to:
+                try:
+                    d = date_type.fromisoformat(date_to)
+                    date_clauses.append(func.date(match_date) <= d)
+                except ValueError:
+                    pass
+
         # 1) Status-Counts berechnen (ohne Status-Filter)
         count_query = (
             select(
@@ -1409,6 +1429,8 @@ class MatchCenterService:
         )
         if stage_where:
             count_query = count_query.where(*stage_where)
+        if date_clauses:
+            count_query = count_query.where(*date_clauses)
 
         count_result = await self.db.execute(count_query)
         cr = count_result.one()
@@ -1451,6 +1473,8 @@ class MatchCenterService:
         )
         if stage_where:
             query = query.where(*stage_where)
+        if date_clauses:
+            query = query.where(*date_clauses)
 
         # Status-Filter
         if status_filter == "new":

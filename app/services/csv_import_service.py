@@ -492,6 +492,22 @@ class CSVImportService:
                 except Exception as emb_err:
                     logger.warning(f"Auto-Embedding fehlgeschlagen: {emb_err}")
 
+                # Auto-Matching: Batch-Matching fuer neue Jobs (kostet $0, nutzt Pre-Embeddings)
+                try:
+                    from app.services.matching_engine_v2 import MatchingEngineV2
+                    match_engine = MatchingEngineV2(self.db)
+                    match_result = await match_engine.match_batch(
+                        unmatched_only=True,
+                        max_jobs=0,
+                    )
+                    logger.info(
+                        f"Auto-Matching: {match_result.jobs_matched} Jobs gematcht, "
+                        f"{match_result.total_matches_created} Matches erstellt, "
+                        f"{match_result.total_duration_ms:.0f}ms"
+                    )
+                except Exception as match_err:
+                    logger.warning(f"Auto-Matching fehlgeschlagen: {match_err}")
+
         except Exception as e:
             logger.error(f"Import fehlgeschlagen: {e}", exc_info=True)
             import_job.status = ImportStatus.FAILED

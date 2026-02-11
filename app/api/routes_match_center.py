@@ -102,6 +102,24 @@ async def match_center_job_detail(
 # ═══════════════════════════════════════════════════════════════
 
 
+@router.get("/api/match-center/last-import-date")
+async def get_last_import_date(
+    db: AsyncSession = Depends(get_db),
+):
+    """Gibt das Datum des letzten erfolgreichen Imports zurueck."""
+    from sqlalchemy import select, func
+    from app.models.import_job import ImportJob, ImportStatus
+
+    result = await db.execute(
+        select(func.max(ImportJob.completed_at))
+        .where(ImportJob.status == ImportStatus.COMPLETED)
+    )
+    last_date = result.scalar_one_or_none()
+    return JSONResponse({
+        "last_import_date": last_date.strftime("%Y-%m-%d") if last_date else None
+    })
+
+
 @router.get("/api/match-center/sidebar")
 async def get_sidebar_data(
     stage: str = Query("new", regex="^(new|in_progress|archive)$"),
@@ -122,6 +140,8 @@ async def get_matches_table(
     status_filter: str = Query(None),
     score_min: int = Query(None, ge=0, le=100),
     score_max: int = Query(None, ge=0, le=100),
+    date_from: str = Query(None, description="ISO date YYYY-MM-DD"),
+    date_to: str = Query(None, description="ISO date YYYY-MM-DD"),
     page: int = Query(1, ge=1),
     per_page: int = Query(15, ge=1, le=100),
     sort_by: str = Query("score"),
@@ -138,6 +158,8 @@ async def get_matches_table(
         status_filter=status_filter,
         score_min=score_min,
         score_max=score_max,
+        date_from=date_from,
+        date_to=date_to,
         page=page,
         per_page=per_page,
         sort_by=sort_by,
@@ -160,6 +182,8 @@ async def get_matches_table(
             "current_status_filter": status_filter,
             "current_score_min": score_min,
             "current_score_max": score_max,
+            "current_date_from": date_from,
+            "current_date_to": date_to,
             "current_sort_by": sort_by,
             "current_sort_dir": sort_dir,
         },
