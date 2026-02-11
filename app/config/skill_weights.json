@@ -1,0 +1,185 @@
+{
+  "bilanzbuchhalter": {
+    "qualifikationen": {
+      "weight": 10,
+      "skills": [
+        "IHK Bilanzbuchhalter",
+        "Bilanzbuchhalter IHK",
+        "Geprüfter Bilanzbuchhalter",
+        "Steuerfachangestellte",
+        "Steuerfachangestellter",
+        "Wirtschaftsprüfer",
+        "Steuerberater",
+        "Steuerfachwirt",
+        "Bachelor Rechnungswesen",
+        "Master Rechnungswesen",
+        "Bachelor Accounting",
+        "Master Accounting",
+        "Bachelor Controlling",
+        "Master Controlling",
+        "Diplom Betriebswirt Rechnungswesen",
+        "Geprüfter Finanzbuchhalter"
+      ]
+    },
+    "fachkenntnisse": {
+      "weight": 9,
+      "skills": [
+        "HGB",
+        "Bilanzierung",
+        "Jahresabschluss",
+        "Steuerrecht",
+        "Umsatzsteuer",
+        "Handelsrecht",
+        "IFRS",
+        "Rechnungslegung",
+        "Bilanzanalyse",
+        "Konsolidierung"
+      ]
+    },
+    "taetigkeiten": {
+      "weight": 7,
+      "skills": [
+        "Kontenabstimmung",
+        "Monatsabschluss",
+        "Betriebsprüfung",
+        "Steuererklärung",
+        "Buchführung",
+        "Controlling",
+        "Konzernabschluss",
+        "Debitoren",
+        "Kreditoren",
+        "Debitorenbuchhaltung",
+        "Kreditorenbuchhaltung"
+      ]
+    },
+    "software": {
+      "weight": 3,
+      "skills": [
+        "DATEV",
+        "SAP",
+        "SAP FI",
+        "SAP CO",
+        "Lexware",
+        "Excel",
+        "Navision",
+        "Oracle"
+      ]
+    }
+  },
+
+  "finanzbuchhalter": {
+    "qualifikationen": {
+      "weight": 9,
+      "skills": [
+        "Steuerfachangestellte",
+        "Steuerfachangestellter",
+        "Finanzbuchhalter",
+        "Geprüfter Finanzbuchhalter",
+        "Finanzbuchhalter IHK",
+        "Bachelor Rechnungswesen",
+        "Bachelor Accounting",
+        "IHK Bilanzbuchhalter",
+        "Industriekaufmann",
+        "Bürokaufmann",
+        "Kaufmann Büromanagement"
+      ]
+    },
+    "fachkenntnisse": {
+      "weight": 9,
+      "skills": [
+        "Debitoren",
+        "Kreditoren",
+        "Debitorenbuchhaltung",
+        "Kreditorenbuchhaltung",
+        "Zahlungsverkehr",
+        "Kontenabstimmung",
+        "Buchführung",
+        "HGB",
+        "Umsatzsteuer",
+        "Rechnungswesen"
+      ]
+    },
+    "taetigkeiten": {
+      "weight": 7,
+      "skills": [
+        "Monatsabschluss",
+        "Mahnwesen",
+        "Rechnungsprüfung",
+        "Zahlungslauf",
+        "OP-Verwaltung",
+        "Jahresabschluss"
+      ]
+    },
+    "software": {
+      "weight": 3,
+      "skills": [
+        "DATEV",
+        "SAP",
+        "Lexware",
+        "Excel",
+        "Navision",
+        "Oracle"
+      ]
+    }
+  },
+
+  "steuerfachangestellte": {
+    "qualifikationen": {
+      "weight": 10,
+      "skills": [
+        "Steuerfachangestellte",
+        "Steuerfachangestellter",
+        "Geprüfter Steuerfachangestellter",
+        "Steuerfachwirt",
+        "Steuerberater",
+        "Wirtschaftsprüfer",
+        "Bachelor Steuern",
+        "Master Steuern",
+        "Bachelor Steuerrecht",
+        "Finanzbuchhalter",
+        "Geprüfter Finanzbuchhalter",
+        "Weiterbildung Finanzbuchhalter",
+        "Steuerschule",
+        "Steuerfachschule",
+        "IHK Bilanzbuchhalter"
+      ]
+    },
+    "fachkenntnisse": {
+      "weight": 10,
+      "skills": [
+        "Steuerrecht",
+        "Steuererklärung",
+        "Finanzbuchhaltung",
+        "Umsatzsteuer",
+        "Einkommensteuer",
+        "Körperschaftsteuer",
+        "Gewerbesteuer",
+        "HGB",
+        "Bilanzierung",
+        "Lohnsteuer"
+      ]
+    },
+    "taetigkeiten": {
+      "weight": 8,
+      "skills": [
+        "Mandantenbetreuung",
+        "Jahresabschluss",
+        "Lohnbuchhaltung",
+        "Betriebsprüfung",
+        "Beratung",
+        "Finanzbuchhaltung",
+        "Debitoren",
+        "Kreditoren"
+      ]
+    },
+    "software": {
+      "weight": 4,
+      "skills": [
+        "DATEV",
+        "Excel",
+        "Addison",
+        "Lexware"
+      ]
+    }
+  }
+}

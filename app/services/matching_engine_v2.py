@@ -7,10 +7,12 @@ Schicht 3: Pattern Boost/Penalty — gelernte Regeln anwenden
 Kosten pro Match: $0.00 (alles lokal/vorberechnet)
 """
 
+import json
 import logging
 import math
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Sequence
 from uuid import UUID
 
@@ -120,7 +122,86 @@ class MatchingEngineV2:
     Alle Gewichte sind lernbar (aus match_v2_scoring_weights).
     """
 
-    TOP_N = 50  # Max. Matches pro Job
+    TOP_N = 200  # Max. Matches pro Job (erhoeht von 50)
+
+    # Skill-Weights Cache (Klassen-Level, einmal laden)
+    _skill_weights: dict | None = None
+    _skill_to_category: dict[str, tuple[str, int]] | None = None  # skill_lower → (kategorie, weight)
+
+    @classmethod
+    def _load_skill_weights(cls) -> dict:
+        """Laedt skill_weights.json (cached auf Klassen-Level)."""
+        if cls._skill_weights is not None:
+            return cls._skill_weights
+
+        config_path = Path(__file__).parent.parent / "config" / "skill_weights.json"
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                cls._skill_weights = json.load(f)
+            # Baue Reverse-Lookup: skill_name_lower → (kategorie, weight)
+            cls._skill_to_category = {}
+            for role, categories in cls._skill_weights.items():
+                for cat_name, cat_data in categories.items():
+                    weight = cat_data.get("weight", 5)
+                    for skill in cat_data.get("skills", []):
+                        # Speichere pro Rolle: "bilanzbuchhalter::skill_lower" → (cat, weight)
+                        key = f"{role}::{skill.lower().strip()}"
+                        cls._skill_to_category[key] = (cat_name, weight)
+            logger.info(f"Skill-Weights geladen: {len(cls._skill_weights)} Rollen, {len(cls._skill_to_category)} Skill-Mappings")
+        except FileNotFoundError:
+            logger.warning(f"skill_weights.json nicht gefunden: {config_path}")
+            cls._skill_weights = {}
+            cls._skill_to_category = {}
+        except json.JSONDecodeError as e:
+            logger.error(f"skill_weights.json Parse-Fehler: {e}")
+            cls._skill_weights = {}
+            cls._skill_to_category = {}
+        return cls._skill_weights
+
+    @classmethod
+    def _get_skill_weight(cls, role: str, skill_name: str) -> int | None:
+        """Gibt das Kategorie-Gewicht fuer einen Skill zurueck (oder None wenn nicht gefunden)."""
+        if cls._skill_to_category is None:
+            cls._load_skill_weights()
+        if not cls._skill_to_category:
+            return None
+        # Suche: rolle::skill_name_lower
+        key = f"{role}::{skill_name.lower().strip()}"
+        result = cls._skill_to_category.get(key)
+        if result:
+            return result[1]
+        # Auch normalisierten Skill-Namen versuchen
+        normalized = cls._normalize_skill(skill_name)
+        key_norm = f"{role}::{normalized}"
+        result = cls._skill_to_category.get(key_norm)
+        return result[1] if result else None
+
+    @classmethod
+    def _detect_job_role(cls, job_title: str | None, position: str | None) -> str | None:
+        """Erkennt die Job-Rolle aus Titel/Position fuer Skill-Weight-Lookup."""
+        if cls._skill_weights is None:
+            cls._load_skill_weights()
+
+        search_text = ""
+        if job_title:
+            search_text += job_title.lower()
+        if position:
+            search_text += " " + position.lower()
+
+        if not search_text.strip():
+            return None
+
+        # Prioritaets-Reihenfolge: spezifischer zuerst
+        if "bilanzbuchhalter" in search_text:
+            return "bilanzbuchhalter"
+        if "steuerfachangestellte" in search_text or "steuerfachangestellter" in search_text:
+            return "steuerfachangestellte"
+        if "finanzbuchhalter" in search_text:
+            return "finanzbuchhalter"
+        if "lohnbuchhalter" in search_text:
+            return "lohnbuchhalter"
+
+        return None
 
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -334,63 +415,113 @@ class MatchingEngineV2:
     # Synonym-Tabelle: Varianten desselben Skills → gleicher normalisierter Name
     # Nur ECHTE Synonyme, keine "aehnlichen" Skills!
     SKILL_SYNONYMS: dict[str, str] = {
-        # Finanzbuchhaltung-Varianten
+        # ── Qualifikationen / Zertifizierungen ──
+        "bilanzbuchhalter ihk": "bilanzbuchhalter ihk",
+        "ihk bilanzbuchhalter": "bilanzbuchhalter ihk",
+        "geprüfter bilanzbuchhalter": "bilanzbuchhalter ihk",
+        "gepruefter bilanzbuchhalter": "bilanzbuchhalter ihk",
+        "bilanzbuchhalter (ihk)": "bilanzbuchhalter ihk",
+        "bilanzbuchhalter": "bilanzbuchhalter ihk",
+        "steuerfachangestellte": "steuerfachangestellte",
+        "steuerfachangestellter": "steuerfachangestellte",
+        "steuerfachangestellte/r": "steuerfachangestellte",
+        "geprüfter steuerfachangestellter": "steuerfachangestellte",
+        "gepruefter steuerfachangestellter": "steuerfachangestellte",
+        "steuerfachwirt": "steuerfachwirt",
+        "steuerfachwirt/in": "steuerfachwirt",
+        "geprüfter finanzbuchhalter": "finanzbuchhalter ihk",
+        "gepruefter finanzbuchhalter": "finanzbuchhalter ihk",
+        "finanzbuchhalter ihk": "finanzbuchhalter ihk",
+        "finanzbuchhalter (ihk)": "finanzbuchhalter ihk",
+        # ── Finanzbuchhaltung-Varianten ──
         "finanzbuchhaltung": "finanzbuchhaltung",
         "fibu": "finanzbuchhaltung",
         "finanz- und rechnungswesen": "finanzbuchhaltung",
-        # Kreditorenbuchhaltung-Varianten
+        # ── Kreditorenbuchhaltung-Varianten ──
         "kreditorenbuchhaltung": "kreditorenbuchhaltung",
         "kreditoren": "kreditorenbuchhaltung",
         "accounts payable": "kreditorenbuchhaltung",
         "ap": "kreditorenbuchhaltung",
-        # Debitorenbuchhaltung-Varianten
+        # ── Debitorenbuchhaltung-Varianten ──
         "debitorenbuchhaltung": "debitorenbuchhaltung",
         "debitoren": "debitorenbuchhaltung",
         "accounts receivable": "debitorenbuchhaltung",
         "ar": "debitorenbuchhaltung",
-        # Anlagenbuchhaltung
+        # ── Anlagenbuchhaltung ──
         "anlagenbuchhaltung": "anlagenbuchhaltung",
         "anlagevermögen": "anlagenbuchhaltung",
         "anlagevermoegen": "anlagenbuchhaltung",
-        # Abschluesse
+        # ── Abschluesse ──
         "jahresabschluss": "jahresabschluss",
         "jahresabschlüsse": "jahresabschluss",
         "abschlusserstellung": "jahresabschluss",
         "monatsabschluss": "monatsabschluss",
         "monatsabschlüsse": "monatsabschluss",
         "quartalsabschluss": "monatsabschluss",
-        # Umsatzsteuer
+        # ── Umsatzsteuer ──
         "umsatzsteuer": "umsatzsteuer",
         "ust": "umsatzsteuer",
         "umsatzsteuervoranmeldung": "umsatzsteuer",
         "ust-voranmeldung": "umsatzsteuer",
-        # Lohn
+        # ── Lohn ──
         "lohnbuchhaltung": "lohnbuchhaltung",
         "lohn- und gehaltsbuchhaltung": "lohnbuchhaltung",
         "lohn": "lohnbuchhaltung",
         "entgeltabrechnung": "lohnbuchhaltung",
         "gehaltsabrechnung": "lohnbuchhaltung",
         "payroll": "lohnbuchhaltung",
-        # Konsolidierung
+        # ── Konsolidierung ──
         "konsolidierung": "konsolidierung",
         "konzernkonsolidierung": "konsolidierung",
-        # HGB / IFRS
+        # ── HGB / IFRS ──
         "hgb": "hgb",
         "handelsgesetzbuch": "hgb",
         "ifrs": "ifrs",
         "international financial reporting standards": "ifrs",
-        # Intercompany
+        # ── Intercompany ──
         "intercompany": "intercompany",
         "ic-abstimmung": "intercompany",
         "konzernverrechnungen": "intercompany",
-        # Controlling
+        # ── Controlling ──
         "controlling": "controlling",
         "kostenrechnung": "controlling",
-        # Steuern
-        "steuererklärungen": "steuererklaerungen",
-        "steuererklaerungen": "steuererklaerungen",
-        "steuererklärung": "steuererklaerungen",
-        "steuererklaerung": "steuererklaerungen",
+        # ── Steuern ──
+        "steuererklärungen": "steuererklaerung",
+        "steuererklaerungen": "steuererklaerung",
+        "steuererklärung": "steuererklaerung",
+        "steuererklaerung": "steuererklaerung",
+        # ── Bilanzierung ──
+        "bilanzierung": "bilanzierung",
+        "bilanzierung nach hgb": "bilanzierung",
+        "bilanzierung nach ifrs": "bilanzierung",
+        # ── Software-Varianten ──
+        "datev": "datev",
+        "datev pro": "datev",
+        "datev kanzlei": "datev",
+        "datev unternehmen online": "datev",
+        "datev kanzlei-rechnungswesen": "datev",
+        "datev rechnungswesen": "datev",
+        "datev lodas": "datev",
+        "datev lohn und gehalt": "datev",
+        "sap": "sap",
+        "sap fi": "sap fi",
+        "sap co": "sap co",
+        "sap s/4hana": "sap",
+        "sap s4hana": "sap",
+        "sap r/3": "sap",
+        "sap hana": "sap",
+        "lexware": "lexware",
+        "lexware buchhaltung": "lexware",
+        "navision": "navision",
+        "microsoft dynamics nav": "navision",
+        "dynamics nav": "navision",
+        "ms excel": "excel",
+        "microsoft excel": "excel",
+        "excel": "excel",
+        "addison": "addison",
+        "addison oneclick": "addison",
+        "oracle": "oracle",
+        "oracle financials": "oracle",
     }
 
     @classmethod
@@ -403,14 +534,18 @@ class MatchingEngineV2:
         self,
         candidate_skills: list[dict],
         job_skills: list[dict],
+        job_role: str | None = None,
     ) -> float:
         """Berechnet Skill-Overlap Score (0.0 - 1.0).
 
-        Essential Skills wiegen mehr als Preferred.
-        Aktuelle Skills wiegen mehr als veraltete.
+        Wenn job_role bekannt (z.B. "bilanzbuchhalter"):
+          → Kategorie-gewichtetes Scoring aus skill_weights.json
+          → Qualifikationen (10) > Fachkenntnisse (9) > Taetigkeiten (7) > Software (3)
+
+        Fallback (unbekannte Rolle):
+          → Essential 70% / Preferred 30% (altes System)
 
         Matching: Exakt + Synonym-Tabelle. KEIN Substring-Matching!
-        "Buchhaltung" matched NICHT auf "Kreditorenbuchhaltung".
         """
         if not job_skills or not candidate_skills:
             return 0.0
@@ -422,63 +557,112 @@ class MatchingEngineV2:
             if name:
                 normalized = self._normalize_skill(name)
                 cand_skill_map[normalized] = s
-                # Auch den Original-Namen speichern fuer exakten Lookup
                 if name != normalized:
                     cand_skill_map[name] = s
 
-        essential_total = 0
-        essential_matched = 0.0
-        preferred_total = 0
-        preferred_matched = 0.0
+        # Prüfe ob gewichtetes Scoring moeglich ist
+        use_weighted = (
+            job_role is not None
+            and self._skill_weights is not None
+            and job_role in self._skill_weights
+        )
 
-        for js in job_skills:
-            skill_name = js.get("skill", "").lower().strip()
-            importance = js.get("importance", "preferred")
+        if use_weighted:
+            # ── NEUES SYSTEM: Kategorie-gewichtetes Scoring ──
+            weighted_score_sum = 0.0
+            weighted_max_sum = 0.0
 
-            if importance == "essential":
-                essential_total += 1
-            else:
-                preferred_total += 1
+            for js in job_skills:
+                skill_name = js.get("skill", "").lower().strip()
+                if not skill_name:
+                    continue
 
-            # 1. Exakter Match (Name-zu-Name)
-            match_score = 0.0
-            matched_skill = cand_skill_map.get(skill_name)
+                # Bestimme Gewicht fuer diesen Skill
+                skill_weight = self._get_skill_weight(job_role, skill_name) or 5  # Default 5
 
-            # 2. Synonym-Match (normalisierter Name)
-            if not matched_skill:
-                normalized_job = self._normalize_skill(skill_name)
-                matched_skill = cand_skill_map.get(normalized_job)
+                weighted_max_sum += skill_weight
+
+                # 1. Exakter Match
+                match_score = 0.0
+                matched_skill = cand_skill_map.get(skill_name)
+
+                # 2. Synonym-Match
+                if not matched_skill:
+                    normalized_job = self._normalize_skill(skill_name)
+                    matched_skill = cand_skill_map.get(normalized_job)
+                    if matched_skill:
+                        match_score = 0.9
+
                 if matched_skill:
-                    match_score = 0.9  # Synonym-Match leichter Abschlag
+                    if match_score == 0.0:
+                        match_score = 1.0
 
-            if matched_skill:
-                if match_score == 0.0:
-                    match_score = 1.0  # Exact match
+                    # Recency-Abschlag
+                    recency = matched_skill.get("recency", "aktuell")
+                    if recency == "kuerzlich":
+                        match_score *= 0.7
+                    elif recency == "veraltet":
+                        match_score *= 0.3
 
-                # Recency-Abschlag
-                recency = matched_skill.get("recency", "aktuell")
-                if recency == "aktuell":
-                    pass  # Kein Abschlag
-                elif recency == "kuerzlich":
-                    match_score *= 0.7
-                elif recency == "veraltet":
-                    match_score *= 0.3
+                    # Proficiency-Bonus
+                    prof = matched_skill.get("proficiency", "grundlagen")
+                    if prof == "experte":
+                        match_score = min(1.0, match_score * 1.1)
 
-                # Proficiency-Bonus
-                prof = matched_skill.get("proficiency", "grundlagen")
-                if prof == "experte":
-                    match_score = min(1.0, match_score * 1.1)
+                    weighted_score_sum += match_score * skill_weight
+
+            if weighted_max_sum == 0:
+                return 0.0
+            return weighted_score_sum / weighted_max_sum
+
+        else:
+            # ── FALLBACK: Altes essential/preferred System ──
+            essential_total = 0
+            essential_matched = 0.0
+            preferred_total = 0
+            preferred_matched = 0.0
+
+            for js in job_skills:
+                skill_name = js.get("skill", "").lower().strip()
+                importance = js.get("importance", "preferred")
 
                 if importance == "essential":
-                    essential_matched += match_score
+                    essential_total += 1
                 else:
-                    preferred_matched += match_score
+                    preferred_total += 1
 
-        # Gewichtete Berechnung: Essential zaehlt 70%, Preferred 30%
-        essential_score = (essential_matched / essential_total) if essential_total > 0 else 0.5
-        preferred_score = (preferred_matched / preferred_total) if preferred_total > 0 else 0.5
+                match_score = 0.0
+                matched_skill = cand_skill_map.get(skill_name)
 
-        return essential_score * 0.7 + preferred_score * 0.3
+                if not matched_skill:
+                    normalized_job = self._normalize_skill(skill_name)
+                    matched_skill = cand_skill_map.get(normalized_job)
+                    if matched_skill:
+                        match_score = 0.9
+
+                if matched_skill:
+                    if match_score == 0.0:
+                        match_score = 1.0
+
+                    recency = matched_skill.get("recency", "aktuell")
+                    if recency == "kuerzlich":
+                        match_score *= 0.7
+                    elif recency == "veraltet":
+                        match_score *= 0.3
+
+                    prof = matched_skill.get("proficiency", "grundlagen")
+                    if prof == "experte":
+                        match_score = min(1.0, match_score * 1.1)
+
+                    if importance == "essential":
+                        essential_matched += match_score
+                    else:
+                        preferred_matched += match_score
+
+            essential_score = (essential_matched / essential_total) if essential_total > 0 else 0.5
+            preferred_score = (preferred_matched / preferred_total) if preferred_total > 0 else 0.5
+
+            return essential_score * 0.7 + preferred_score * 0.3
 
     def _score_seniority_fit(self, candidate_level: int, job_level: int) -> tuple[float, str]:
         """Berechnet Seniority-Fit Score (0.0 - 1.0) + Qualification-Tag.
@@ -870,14 +1054,28 @@ class MatchingEngineV2:
         job_embedding = job.v2_embedding
         job_industry = job.industry
 
+        # Skill-Weights laden (einmalig) + Job-Rolle erkennen
+        self._load_skill_weights()
+        job_role = self._detect_job_role(
+            getattr(job, "hotlist_job_title", None),
+            job.position,
+        )
+
         # BiBu-Check: Braucht der Job einen Bilanzbuchhalter?
+        # Erweiterte Detection: Titel > Position > Skills
         job_requires_bibu = False
-        if job_skills:
+        title_text = ""
+        if getattr(job, "hotlist_job_title", None):
+            title_text += job.hotlist_job_title.lower()
+        if job.position:
+            title_text += " " + job.position.lower()
+        if "bilanzbuchhalter" in title_text:
+            job_requires_bibu = True
+        elif job_skills:
+            # Fallback: Check in Skills (gelockert — nur Name, ohne importance/category)
             for skill in job_skills:
                 name = skill.get("skill", "").lower()
-                imp = skill.get("importance", "")
-                cat = skill.get("category", "")
-                if "bilanzbuchhalter" in name and (imp == "essential" or cat == "zertifizierung"):
+                if "bilanzbuchhalter" in name:
                     job_requires_bibu = True
                     break
 
@@ -891,7 +1089,7 @@ class MatchingEngineV2:
             # ── 7 Score-Dimensionen (alle 0.0 - 1.0) ──
 
             skill_score = self._score_skill_overlap(
-                cand.structured_skills, job_skills
+                cand.structured_skills, job_skills, job_role=job_role
             )
             seniority_score, qualification_tag = self._score_seniority_fit(
                 cand.seniority_level, job_level
@@ -929,15 +1127,36 @@ class MatchingEngineV2:
             # ── BiBu-Multiplikator (NACH Gewichtung, VOR Speichern) ──
             bibu_multiplier = 1.0
             if job_requires_bibu:
+                # Check 1: v2_certifications (z.B. ["Bilanzbuchhalter"])
                 candidate_has_bibu = any(
                     "bilanzbuchhalter" in c.lower()
                     for c in cand.certifications
                 ) if cand.certifications else False
+                # Check 2: structured_skills mit category=zertifizierung
+                if not candidate_has_bibu and cand.structured_skills:
+                    candidate_has_bibu = any(
+                        "bilanzbuchhalter" in s.get("skill", "").lower()
+                        and s.get("category", "") == "zertifizierung"
+                        for s in cand.structured_skills
+                    )
                 if candidate_has_bibu:
-                    bibu_multiplier = 1.3
+                    bibu_multiplier = 1.3   # +30% Bonus
                 else:
-                    bibu_multiplier = 0.5
+                    bibu_multiplier = 0.6   # -40% Penalty
                 total *= bibu_multiplier
+
+            # ── Empty CV Penalty (dreistufig) ──
+            empty_cv_penalty = None
+            role_summary = (cand.current_role_summary or "").lower()
+            if "keine berufserfahrung" in role_summary:
+                empty_cv_penalty = 0.1
+                total *= 0.1  # 90% Penalty
+            elif "keine ausbildung" in role_summary:
+                empty_cv_penalty = 0.2
+                total *= 0.2  # 80% Penalty
+            elif len(cand.structured_skills) < 3:
+                empty_cv_penalty = 0.3
+                total *= 0.3  # 70% Penalty
 
             total = min(100, max(0, total))  # Cap 0-100
 
@@ -955,6 +1174,8 @@ class MatchingEngineV2:
                 "candidate_level": cand.seniority_level,
                 "job_level": job_level,
                 "bibu_multiplier": bibu_multiplier if bibu_multiplier != 1.0 else None,
+                "empty_cv_penalty": empty_cv_penalty,
+                "job_role": job_role,
             }
             if career_note:
                 breakdown["career_note"] = career_note
