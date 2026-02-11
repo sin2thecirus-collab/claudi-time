@@ -34,6 +34,121 @@ templates = Jinja2Templates(directory="app/templates")
 
 # ==================== Import ====================
 
+async def _execute_pipeline_steps(db) -> dict:
+    """
+    Fuehrt alle 5 Pipeline-Schritte aus. Jeder Schritt bekommt eine
+    eigene Fehlerbehandlung mit rollback(), damit ein fehlgeschlagener
+    Schritt nicht die gesamte Session vergiftet.
+    """
+    pipeline = {}
+
+    # 1. Auto-Kategorisierung
+    try:
+        from app.services.categorization_service import CategorizationService
+        cat_service = CategorizationService(db)
+        cat_result = await cat_service.categorize_all_jobs()
+        pipeline["categorization"] = {
+            "status": "ok",
+            "categorized": cat_result.categorized,
+            "finance": cat_result.finance,
+            "engineering": cat_result.engineering,
+        }
+        logger.info(f"Pipeline: Kategorisierung OK ({cat_result.categorized} Jobs)")
+    except Exception as e:
+        pipeline["categorization"] = {"status": "failed", "error": str(e)[:200]}
+        logger.warning(f"Pipeline: Kategorisierung fehlgeschlagen: {e}")
+        try:
+            await db.rollback()
+        except Exception:
+            pass
+
+    # 2. Auto-Geocoding
+    try:
+        from app.services.geocoding_service import GeocodingService
+        geo_service = GeocodingService(db)
+        geo_result = await geo_service.process_pending_jobs()
+        pipeline["geocoding"] = {
+            "status": "ok",
+            "successful": geo_result.successful,
+            "skipped": geo_result.skipped,
+            "failed": geo_result.failed,
+        }
+        logger.info(f"Pipeline: Geocoding OK ({geo_result.successful} Jobs)")
+    except Exception as e:
+        pipeline["geocoding"] = {"status": "failed", "error": str(e)[:200]}
+        logger.warning(f"Pipeline: Geocoding fehlgeschlagen: {e}")
+        try:
+            await db.rollback()
+        except Exception:
+            pass
+
+    # 3. Auto-Profiling (FINANCE-Jobs, GPT-4o-mini)
+    try:
+        from app.services.profile_engine_service import ProfileEngineService
+        profile_service = ProfileEngineService(db)
+        profile_result = await profile_service.backfill_jobs(batch_size=50)
+        pipeline["profiling"] = {
+            "status": "ok",
+            "profiled": profile_result.profiled,
+            "skipped": profile_result.skipped,
+            "failed": profile_result.failed,
+            "cost_usd": round(profile_result.total_cost_usd, 4),
+        }
+        logger.info(f"Pipeline: Profiling OK ({profile_result.profiled} Jobs)")
+    except Exception as e:
+        pipeline["profiling"] = {"status": "failed", "error": str(e)[:200]}
+        logger.warning(f"Pipeline: Profiling fehlgeschlagen: {e}")
+        try:
+            await db.rollback()
+        except Exception:
+            pass
+
+    # 4. Auto-Embedding (OpenAI)
+    try:
+        from app.services.matching_engine_v2 import EmbeddingGenerationService
+        emb_service = EmbeddingGenerationService(db)
+        emb_result = await emb_service.generate_job_embeddings(batch_size=50)
+        pipeline["embedding"] = {
+            "status": "ok",
+            "generated": emb_result.get("generated", 0),
+            "failed": emb_result.get("failed", 0),
+        }
+        logger.info(f"Pipeline: Embedding OK ({emb_result.get('generated', 0)} Jobs)")
+        await emb_service.close()
+    except Exception as e:
+        pipeline["embedding"] = {"status": "failed", "error": str(e)[:200]}
+        logger.warning(f"Pipeline: Embedding fehlgeschlagen: {e}")
+        try:
+            await db.rollback()
+        except Exception:
+            pass
+
+    # 5. Auto-Matching
+    try:
+        from app.services.matching_engine_v2 import MatchingEngineV2
+        match_engine = MatchingEngineV2(db)
+        match_result = await match_engine.match_batch(
+            unmatched_only=True,
+            max_jobs=0,
+        )
+        pipeline["matching"] = {
+            "status": "ok",
+            "jobs_matched": match_result.jobs_matched,
+            "matches_created": match_result.total_matches_created,
+            "duration_ms": round(match_result.total_duration_ms),
+        }
+        logger.info(f"Pipeline: Matching OK ({match_result.total_matches_created} Matches)")
+    except Exception as e:
+        pipeline["matching"] = {"status": "failed", "error": str(e)[:200]}
+        logger.warning(f"Pipeline: Matching fehlgeschlagen: {e}")
+        try:
+            await db.rollback()
+        except Exception:
+            pass
+
+    return pipeline
+
+
 async def _run_pipeline_background(import_job_id):
     """
     Fuehrt die Post-Import-Pipeline im Hintergrund aus.
@@ -56,91 +171,7 @@ async def _run_pipeline_background(import_job_id):
                 logger.error(f"Pipeline: Import-Job {import_job_id} nicht gefunden")
                 return
 
-            pipeline = {}
-
-            # 1. Auto-Kategorisierung
-            try:
-                from app.services.categorization_service import CategorizationService
-                cat_service = CategorizationService(db)
-                cat_result = await cat_service.categorize_all_jobs()
-                pipeline["categorization"] = {
-                    "status": "ok",
-                    "categorized": cat_result.categorized,
-                    "finance": cat_result.finance,
-                    "engineering": cat_result.engineering,
-                }
-                logger.info(f"Pipeline: Kategorisierung OK ({cat_result.categorized} Jobs)")
-            except Exception as e:
-                pipeline["categorization"] = {"status": "failed", "error": str(e)[:200]}
-                logger.warning(f"Pipeline: Kategorisierung fehlgeschlagen: {e}")
-
-            # 2. Auto-Geocoding
-            try:
-                from app.services.geocoding_service import GeocodingService
-                geo_service = GeocodingService(db)
-                geo_result = await geo_service.process_pending_jobs()
-                pipeline["geocoding"] = {
-                    "status": "ok",
-                    "successful": geo_result.successful,
-                    "skipped": geo_result.skipped,
-                    "failed": geo_result.failed,
-                }
-                logger.info(f"Pipeline: Geocoding OK ({geo_result.successful} Jobs)")
-            except Exception as e:
-                pipeline["geocoding"] = {"status": "failed", "error": str(e)[:200]}
-                logger.warning(f"Pipeline: Geocoding fehlgeschlagen: {e}")
-
-            # 3. Auto-Profiling (FINANCE-Jobs, GPT-4o-mini)
-            try:
-                from app.services.profile_engine_service import ProfileEngineService
-                profile_service = ProfileEngineService(db)
-                profile_result = await profile_service.backfill_jobs(batch_size=50)
-                pipeline["profiling"] = {
-                    "status": "ok",
-                    "profiled": profile_result.profiled,
-                    "skipped": profile_result.skipped,
-                    "failed": profile_result.failed,
-                    "cost_usd": round(profile_result.total_cost_usd, 4),
-                }
-                logger.info(f"Pipeline: Profiling OK ({profile_result.profiled} Jobs)")
-            except Exception as e:
-                pipeline["profiling"] = {"status": "failed", "error": str(e)[:200]}
-                logger.warning(f"Pipeline: Profiling fehlgeschlagen: {e}")
-
-            # 4. Auto-Embedding (OpenAI)
-            try:
-                from app.services.matching_engine_v2 import EmbeddingGenerationService
-                emb_service = EmbeddingGenerationService(db)
-                emb_result = await emb_service.generate_job_embeddings(batch_size=50)
-                pipeline["embedding"] = {
-                    "status": "ok",
-                    "generated": emb_result.get("generated", 0),
-                    "failed": emb_result.get("failed", 0),
-                }
-                logger.info(f"Pipeline: Embedding OK ({emb_result.get('generated', 0)} Jobs)")
-                await emb_service.close()
-            except Exception as e:
-                pipeline["embedding"] = {"status": "failed", "error": str(e)[:200]}
-                logger.warning(f"Pipeline: Embedding fehlgeschlagen: {e}")
-
-            # 5. Auto-Matching
-            try:
-                from app.services.matching_engine_v2 import MatchingEngineV2
-                match_engine = MatchingEngineV2(db)
-                match_result = await match_engine.match_batch(
-                    unmatched_only=True,
-                    max_jobs=0,
-                )
-                pipeline["matching"] = {
-                    "status": "ok",
-                    "jobs_matched": match_result.jobs_matched,
-                    "matches_created": match_result.total_matches_created,
-                    "duration_ms": round(match_result.total_duration_ms),
-                }
-                logger.info(f"Pipeline: Matching OK ({match_result.total_matches_created} Matches)")
-            except Exception as e:
-                pipeline["matching"] = {"status": "failed", "error": str(e)[:200]}
-                logger.warning(f"Pipeline: Matching fehlgeschlagen: {e}")
+            pipeline = await _execute_pipeline_steps(db)
 
             # Pipeline-Ergebnisse in Import-Job speichern
             if not import_job.errors_detail:
@@ -1199,82 +1230,7 @@ async def run_pipeline_backfill(
     """
     import time
     start = time.time()
-    pipeline = {}
-
-    # 1. Auto-Kategorisierung
-    try:
-        from app.services.categorization_service import CategorizationService
-        cat_service = CategorizationService(db)
-        cat_result = await cat_service.categorize_all_jobs()
-        pipeline["categorization"] = {
-            "status": "ok",
-            "categorized": cat_result.categorized,
-            "finance": cat_result.finance,
-            "engineering": cat_result.engineering,
-        }
-    except Exception as e:
-        pipeline["categorization"] = {"status": "failed", "error": str(e)[:300]}
-
-    # 2. Auto-Geocoding
-    try:
-        from app.services.geocoding_service import GeocodingService
-        geo_service = GeocodingService(db)
-        geo_result = await geo_service.process_pending_jobs()
-        pipeline["geocoding"] = {
-            "status": "ok",
-            "successful": geo_result.successful,
-            "skipped": geo_result.skipped,
-            "failed": geo_result.failed,
-        }
-    except Exception as e:
-        pipeline["geocoding"] = {"status": "failed", "error": str(e)[:300]}
-
-    # 3. Auto-Profiling (FINANCE-Jobs, GPT-4o-mini)
-    try:
-        from app.services.profile_engine_service import ProfileEngineService
-        profile_service = ProfileEngineService(db)
-        profile_result = await profile_service.backfill_jobs(batch_size=50)
-        pipeline["profiling"] = {
-            "status": "ok",
-            "profiled": profile_result.profiled,
-            "skipped": profile_result.skipped,
-            "failed": profile_result.failed,
-            "cost_usd": round(profile_result.total_cost_usd, 4),
-        }
-    except Exception as e:
-        pipeline["profiling"] = {"status": "failed", "error": str(e)[:300]}
-
-    # 4. Auto-Embedding (OpenAI)
-    try:
-        from app.services.matching_engine_v2 import EmbeddingGenerationService
-        emb_service = EmbeddingGenerationService(db)
-        emb_result = await emb_service.generate_job_embeddings(batch_size=50)
-        pipeline["embedding"] = {
-            "status": "ok",
-            "generated": emb_result.get("generated", 0),
-            "failed": emb_result.get("failed", 0),
-        }
-        await emb_service.close()
-    except Exception as e:
-        pipeline["embedding"] = {"status": "failed", "error": str(e)[:300]}
-
-    # 5. Auto-Matching
-    try:
-        from app.services.matching_engine_v2 import MatchingEngineV2
-        match_engine = MatchingEngineV2(db)
-        match_result = await match_engine.match_batch(
-            unmatched_only=True,
-            max_jobs=0,
-        )
-        pipeline["matching"] = {
-            "status": "ok",
-            "jobs_matched": match_result.jobs_matched,
-            "matches_created": match_result.total_matches_created,
-            "duration_ms": round(match_result.total_duration_ms),
-        }
-    except Exception as e:
-        pipeline["matching"] = {"status": "failed", "error": str(e)[:300]}
-
+    pipeline = await _execute_pipeline_steps(db)
     duration_s = round(time.time() - start, 1)
 
     return {
