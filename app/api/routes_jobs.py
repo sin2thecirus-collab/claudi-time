@@ -1340,6 +1340,16 @@ async def delete_jobs_by_timerange(
         job_ids_result = await db.execute(job_ids_q)
         job_ids = [row[0] for row in job_ids_result.all()]
 
+        # Zugehoerige ATS-Jobs loeschen (Foreign Key: source_job_id)
+        ats_deleted = 0
+        try:
+            from app.models.ats_job import ATSJob
+            ats_del = sql_delete(ATSJob).where(ATSJob.source_job_id.in_(job_ids))
+            ats_result = await db.execute(ats_del)
+            ats_deleted = ats_result.rowcount
+        except Exception:
+            pass  # Tabelle existiert evtl. nicht
+
         # Zugehoerige Matches loeschen
         from app.models.match import Match
         match_del = sql_delete(Match).where(Match.job_id.in_(job_ids))
@@ -1357,6 +1367,7 @@ async def delete_jobs_by_timerange(
         "dry_run": False,
         "jobs_deleted": jobs_deleted,
         "matches_deleted": matches_deleted,
+        "ats_jobs_deleted": ats_deleted,
         "time_range": f"{created_after} bis {created_before}",
     }
 
