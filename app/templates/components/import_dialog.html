@@ -2,13 +2,10 @@
 {# Wird via openModal('/partials/import-dialog') geladen #}
 
 <form id="import-form"
-      x-data="{ uploading: false, fileName: '', dragging: false }"
       hx-post="/api/jobs/import"
       hx-encoding="multipart/form-data"
       hx-target="#import-status"
-      hx-swap="innerHTML"
-      @htmx:before-request="if ($event.detail.elt === $el) uploading = true"
-      @htmx:after-settle="if ($event.detail.elt === $el) { uploading = false; htmx.process(document.getElementById('import-status')); }">
+      hx-swap="innerHTML">
 
     <div style="padding:24px;">
         <div style="display:flex;align-items:flex-start;gap:16px;">
@@ -28,10 +25,7 @@
 
         {# File Input #}
         <div style="margin-top:20px;">
-            <div @dragover.prevent="dragging = true"
-                 @dragleave.prevent="dragging = false"
-                 @drop.prevent="dragging = false; fileName = $event.dataTransfer.files[0]?.name || ''; $refs.fileInput.files = $event.dataTransfer.files"
-                 :style="dragging ? 'border-color: var(--pp-primary); background: rgba(99,102,241,0.05)' : ''"
+            <div id="import-dropzone"
                  style="display:flex;justify-content:center;border-radius:12px;border:2px dashed var(--pp-border);padding:40px 24px;transition:all 0.2s;">
                 <div style="text-align:center;">
                     <svg style="margin:0 auto;width:48px;height:48px;color:var(--pp-text-muted);opacity:0.4;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
@@ -45,25 +39,19 @@
                                    name="file"
                                    type="file"
                                    accept=".csv,.txt,.tsv"
-                                   x-ref="fileInput"
-                                   @change="fileName = $event.target.files[0]?.name || ''"
                                    style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);"
                                    required>
                         </label>
                         <span style="padding-left:4px;">oder per Drag & Drop</span>
                     </div>
                     <p style="font-size:12px;color:var(--pp-text-muted);margin-top:4px;">CSV, TSV oder TXT bis 50 MB</p>
-                    <p x-show="fileName"
-                       style="margin-top:10px;font-size:13px;font-weight:600;color:var(--pp-primary);">
-                        Datei "<span x-text="fileName"></span>" erkannt
-                    </p>
+                    <p id="import-file-name" style="display:none;margin-top:10px;font-size:13px;font-weight:600;color:var(--pp-primary);"></p>
                 </div>
             </div>
         </div>
 
-        {# Upload-Spinner — gesteuert von Alpine (x-show), VOR dem HTMX-Bereich #}
-        <div x-show="uploading" x-cloak
-             style="margin-top:16px;border-radius:10px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);padding:16px;">
+        {# Upload-Spinner — gesteuert per JS (kein Alpine!) #}
+        <div id="import-upload-spinner" style="display:none;margin-top:16px;border-radius:10px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);padding:16px;">
             <div style="display:flex;align-items:center;gap:12px;">
                 <svg style="width:20px;height:20px;color:var(--pp-primary);animation:spin 1s linear infinite;flex-shrink:0;" viewBox="0 0 24 24">
                     <circle style="opacity:0.25;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
@@ -76,41 +64,111 @@
                     </p>
                 </div>
             </div>
-            {# Animated progress bar #}
             <div style="margin-top:12px;height:4px;border-radius:2px;background:rgba(99,102,241,0.15);overflow:hidden;">
                 <div style="height:100%;width:30%;border-radius:2px;background:var(--pp-primary);animation:indeterminate 1.5s ease-in-out infinite;"></div>
             </div>
         </div>
 
-        {# Import Status + Pipeline Progress — NUR HTMX, kein Alpine.
-           Dieses div wird durch die HTMX-Response vom Import-Endpoint befuellt.
-           Danach pollt import_progress.html sich selbst per hx-swap="outerHTML". #}
+        {# Import Status + Pipeline Progress — wird von HTMX befuellt #}
         <div id="import-status" style="margin-top:16px;"></div>
     </div>
 
-    {# Footer mit Buttons — INNERHALB des Forms #}
+    {# Footer mit Buttons #}
     <div style="padding:16px 24px;border-top:1px solid var(--pp-border);display:flex;justify-content:flex-end;gap:10px;">
-        <button type="button"
+        <button type="button" id="import-cancel-btn"
                 onclick="closeModal()"
-                :disabled="uploading"
-                :style="uploading ? 'opacity:0.5;cursor:not-allowed;' : ''"
                 style="padding:8px 16px;font-size:13px;font-weight:500;color:var(--pp-text-muted);background:var(--pp-surface-hover);border:1px solid var(--pp-border);border-radius:8px;cursor:pointer;">
             Abbrechen
         </button>
-        <button type="submit"
-                :disabled="uploading"
-                :style="uploading ? 'opacity:0.6;cursor:not-allowed;' : ''"
+        <button type="submit" id="import-submit-btn"
                 style="padding:8px 20px;font-size:13px;font-weight:600;color:#fff;background:var(--pp-primary);border:none;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
-            <template x-if="uploading">
-                <svg style="width:16px;height:16px;animation:spin 1s linear infinite;" viewBox="0 0 24 24">
-                    <circle style="opacity:0.25;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
-                    <path style="opacity:0.75;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-            </template>
-            <span x-text="uploading ? 'Importiere...' : 'Importieren'"></span>
+            <span>Importieren</span>
         </button>
     </div>
 </form>
+
+<script>
+(function() {
+    var form = document.getElementById('import-form');
+    var spinner = document.getElementById('import-upload-spinner');
+    var submitBtn = document.getElementById('import-submit-btn');
+    var cancelBtn = document.getElementById('import-cancel-btn');
+    var fileInput = document.getElementById('csv-file');
+    var fileNameEl = document.getElementById('import-file-name');
+    var dropzone = document.getElementById('import-dropzone');
+
+    // Datei-Name anzeigen
+    if (fileInput) {
+        fileInput.addEventListener('change', function() {
+            var name = this.files[0] ? this.files[0].name : '';
+            if (name && fileNameEl) {
+                fileNameEl.textContent = 'Datei "' + name + '" erkannt';
+                fileNameEl.style.display = '';
+            }
+        });
+    }
+
+    // Drag & Drop
+    if (dropzone && fileInput) {
+        dropzone.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            dropzone.style.borderColor = 'var(--pp-primary)';
+            dropzone.style.background = 'rgba(99,102,241,0.05)';
+        });
+        dropzone.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            dropzone.style.borderColor = '';
+            dropzone.style.background = '';
+        });
+        dropzone.addEventListener('drop', function(e) {
+            e.preventDefault();
+            dropzone.style.borderColor = '';
+            dropzone.style.background = '';
+            if (e.dataTransfer.files.length > 0) {
+                fileInput.files = e.dataTransfer.files;
+                var name = e.dataTransfer.files[0].name;
+                if (fileNameEl) {
+                    fileNameEl.textContent = 'Datei "' + name + '" erkannt';
+                    fileNameEl.style.display = '';
+                }
+            }
+        });
+    }
+
+    // HTMX: Spinner anzeigen wenn Form abgeschickt wird
+    form.addEventListener('htmx:beforeRequest', function(e) {
+        if (e.detail.elt === form) {
+            spinner.style.display = '';
+            submitBtn.disabled = true;
+            submitBtn.style.opacity = '0.6';
+            submitBtn.style.cursor = 'not-allowed';
+            cancelBtn.disabled = true;
+            cancelBtn.style.opacity = '0.5';
+            cancelBtn.style.cursor = 'not-allowed';
+        }
+    });
+
+    // HTMX: Nach Response — Spinner weg + HTMX auf neuem Content initialisieren
+    form.addEventListener('htmx:afterSettle', function(e) {
+        if (e.detail.elt === form) {
+            // Spinner verstecken
+            spinner.style.display = 'none';
+            submitBtn.disabled = false;
+            submitBtn.style.opacity = '';
+            submitBtn.style.cursor = '';
+            cancelBtn.disabled = false;
+            cancelBtn.style.opacity = '';
+            cancelBtn.style.cursor = '';
+
+            // KRITISCH: HTMX muss die neuen hx-* Attribute im eingefuegten HTML entdecken
+            var statusEl = document.getElementById('import-status');
+            if (statusEl) {
+                htmx.process(statusEl);
+            }
+        }
+    });
+})();
+</script>
 
 <style>
 @keyframes indeterminate {
