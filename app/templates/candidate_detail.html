@@ -517,7 +517,7 @@
             </div>
 
             {# ── Recruiting-Daten (Phase 2) ── #}
-            <div class="kd-section kd-anim" style="animation-delay: 150ms;" id="recruiting-data"
+            <div class="kd-section kd-anim" style="animation-delay: 150ms; overflow: visible;" id="recruiting-data"
                  x-data="recruitingFields()">
                 <div class="kd-section-header">
                     <div class="kd-section-title"><span>&#x1F50D;</span> Recruiting-Daten</div>
@@ -662,7 +662,7 @@
             </div>
 
             {# ── Vorgestellt bei / Beworben bei ── #}
-            <div class="kd-section kd-anim" style="animation-delay: 275ms;" id="presented-at"
+            <div class="kd-section kd-anim" style="animation-delay: 275ms; overflow: visible;" id="presented-at"
                  x-data="{
                     entries: {{ (candidate.presented_at_companies or []) | tojson | safe }},
                     showAddForm: false,
@@ -683,7 +683,7 @@
                     filterCompanies() {
                         if (!this.newCompany || this.newCompany.length < 1) { this.filteredCompanies = []; this.showCompanyDropdown = false; return; }
                         var term = this.newCompany.toLowerCase();
-                        this.filteredCompanies = this.allCompanies.filter(function(n) { return n.toLowerCase().includes(term); }).slice(0, 8);
+                        this.filteredCompanies = this.allCompanies.filter(function(n) { return n.toLowerCase().includes(term); }).slice(0, 15);
                         this.showCompanyDropdown = this.filteredCompanies.length > 0;
                     },
                     selectCompany(name) {
@@ -735,8 +735,8 @@
                                     class="w-full rounded-lg text-sm outline-none"
                                     style="padding: 7px 10px; border: 1.5px solid var(--pp-border); color: var(--pp-text); background: var(--pp-surface); font-family: inherit;">
                                 <div x-show="showCompanyDropdown" x-cloak
-                                     class="absolute z-50 mt-1 max-h-60 overflow-auto rounded-xl py-1 text-sm shadow-lg"
-                                     style="background: var(--pp-surface); border: 1px solid var(--pp-border); min-width: 300px; width: max-content; max-width: 450px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);">
+                                     class="absolute z-50 mt-1 overflow-auto rounded-xl py-1 text-sm shadow-lg"
+                                     style="background: var(--pp-surface); border: 1px solid var(--pp-border); min-width: 300px; width: max-content; max-width: 500px; max-height: 280px; box-shadow: 0 12px 32px rgba(0,0,0,0.6);">
                                     <template x-for="name in filteredCompanies" :key="name">
                                         <button type="button" @click="selectCompany(name)"
                                             class="w-full cursor-pointer select-none py-2.5 pl-3 pr-4 text-left text-sm"
