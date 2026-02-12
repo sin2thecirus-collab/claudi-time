@@ -661,6 +661,8 @@ class CandidateService:
             last_contact=candidate.last_contact,
             willingness_to_change=candidate.willingness_to_change,
             candidate_notes=candidate.candidate_notes,
+            candidate_number=candidate.candidate_number,
+            presented_at_companies=candidate.presented_at_companies,
             has_coordinates=candidate.address_coords is not None,
             cv_url=candidate.cv_url,
             cv_parsed_at=candidate.cv_parsed_at,
