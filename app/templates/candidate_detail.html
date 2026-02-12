@@ -134,11 +134,13 @@
 
     /* Copy button */
     .kd-copy-btn {
-        background: var(--pp-surfaceHover); border: none; border-radius: 7px; padding: 5px 10px;
-        font-size: 13px; cursor: pointer; color: var(--pp-textDim); font-weight: 600;
-        transition: all 0.2s; font-family: inherit;
+        display: inline-flex; align-items: center; justify-content: center;
+        background: none; border: none; border-radius: 6px; padding: 4px;
+        cursor: pointer; color: var(--pp-accent); opacity: 0.5;
+        transition: all 0.15s; vertical-align: middle;
     }
-    .kd-copy-btn:hover { background: var(--pp-border); color: var(--pp-textMuted); }
+    .kd-copy-btn:hover { opacity: 1; background: rgba(99,102,241,0.12); }
+    .kd-copy-btn svg { width: 14px; height: 14px; }
 </style>
 {% endblock %}
 
@@ -202,9 +204,7 @@
                     <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 8px; background: rgba(99,102,241,0.2); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.3); margin-left: 6px;" title="Kandidaten-Nr.">
                         #{{ candidate.candidate_number }}
                     </span>
-                    <button type="button" onclick="copyToClipboard('#{{ candidate.candidate_number }}', 'Kandidaten-Nr.')" style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 7px; background: rgba(255,255,255,0.08); border: none; cursor: pointer; color: rgba(255,255,255,0.5); transition: all 0.15s;" onmouseenter="this.style.background='rgba(255,255,255,0.15)';this.style.color='#a5b4fc'" onmouseleave="this.style.background='rgba(255,255,255,0.08)';this.style.color='rgba(255,255,255,0.5)'" title="Kandidaten-Nr. kopieren">
-                        <svg style="width: 13px; height: 13px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9.75a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" /></svg>
-                    </button>
+                    <button type="button" onclick="copyToClipboard('#{{ candidate.candidate_number }}', 'Kandidaten-Nr.')" class="kd-copy-btn" title="Kandidaten-Nr. kopieren" style="margin-left: 2px;"><svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
                     {% endif %}
                 </div>
 
@@ -482,7 +482,7 @@
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 {% if candidate.email %}
                                 <span style="font-size: 13.5px; font-weight: 600; color: var(--pp-accent);">{{ candidate.email }}</span>
-                                <button type="button" onclick="copyToClipboard('{{ candidate.email }}', 'E-Mail')" class="kd-copy-btn">&#x1F4CB;</button>
+                                <button type="button" onclick="copyToClipboard('{{ candidate.email }}', 'E-Mail')" class="kd-copy-btn" title="E-Mail kopieren"><svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
                                 {% else %}
                                 <span style="font-size: 13.5px; font-weight: 600; color: var(--pp-textDim); font-style: italic;">Nicht angegeben</span>
                                 {% endif %}
@@ -494,7 +494,7 @@
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 {% if candidate.phone %}
                                 <span style="font-size: 13.5px; font-weight: 600; color: var(--pp-accent);">{{ candidate.phone }}</span>
-                                <button type="button" onclick="copyToClipboard('{{ candidate.phone }}', 'Telefonnummer')" class="kd-copy-btn">&#x1F4CB;</button>
+                                <button type="button" onclick="copyToClipboard('{{ candidate.phone }}', 'Telefonnummer')" class="kd-copy-btn" title="Telefonnummer kopieren"><svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
                                 {% else %}
                                 <span style="font-size: 13.5px; font-weight: 600; color: var(--pp-textDim); font-style: italic;">Nicht angegeben</span>
                                 {% endif %}
@@ -506,7 +506,7 @@
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 {% if candidate.street_address or candidate.postal_code or city_display %}
                                 <span style="font-size: 13.5px; font-weight: 600; color: var(--pp-text);" id="address-text">{% if candidate.street_address %}{{ candidate.street_address }}{% endif %}{% if candidate.postal_code or city_display %}{% if candidate.street_address %}, {% endif %}{{ candidate.postal_code }} {{ city_display }}{% endif %}</span>
-                                <button type="button" onclick="copyToClipboard(document.getElementById('address-text').textContent.trim(), 'Adresse')" class="kd-copy-btn">&#x1F4CB;</button>
+                                <button type="button" onclick="copyToClipboard(document.getElementById('address-text').textContent.trim(), 'Adresse')" class="kd-copy-btn" title="Adresse kopieren"><svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
                                 {% else %}
                                 <span style="font-size: 13.5px; font-weight: 600; color: var(--pp-textDim); font-style: italic;">Nicht angegeben</span>
                                 {% endif %}
@@ -729,14 +729,24 @@
                     {# Add form #}
                     <div x-show="showAddForm" x-cloak class="mb-3.5 overflow-visible" style="padding: 14px; border-radius: 10px; background: var(--pp-bg); border: 1px solid var(--pp-border);">
                         <div class="flex flex-wrap items-end gap-2.5 overflow-visible">
-                            <div class="relative flex-[2] min-w-[220px]" @click.away="showCompanyDropdown = false">
+                            <div class="relative flex-[2] min-w-[220px]" @click.away="showCompanyDropdown = false" x-ref="companyInputWrap">
                                 <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.06em;">Unternehmen</div>
                                 <input type="text" x-model="newCompany" @input="filterCompanies()" @focus="filterCompanies()" @keydown.enter.prevent="showCompanyDropdown = false; addEntry()" placeholder="z.B. Allianz, Siemens..."
                                     class="w-full rounded-lg text-sm outline-none"
+                                    x-ref="companyInput"
                                     style="padding: 7px 10px; border: 1.5px solid var(--pp-border); color: var(--pp-text); background: var(--pp-surface); font-family: inherit;">
                                 <div x-show="showCompanyDropdown" x-cloak
-                                     class="absolute z-50 mt-1 overflow-auto rounded-xl py-1 text-sm shadow-lg"
-                                     style="background: var(--pp-surface); border: 1px solid var(--pp-border); min-width: 300px; width: max-content; max-width: 500px; max-height: 280px; box-shadow: 0 12px 32px rgba(0,0,0,0.6);">
+                                     x-ref="companyDropdown"
+                                     class="overflow-auto rounded-xl py-1 text-sm shadow-lg"
+                                     x-effect="if (showCompanyDropdown && $refs.companyInput) {
+                                         let rect = $refs.companyInput.getBoundingClientRect();
+                                         let dd = $refs.companyDropdown;
+                                         dd.style.position = 'fixed';
+                                         dd.style.top = (rect.bottom + 4) + 'px';
+                                         dd.style.left = rect.left + 'px';
+                                         dd.style.minWidth = Math.max(rect.width, 300) + 'px';
+                                     }"
+                                     style="position: fixed; z-index: 9999; background: var(--pp-surface); border: 1px solid var(--pp-border); width: max-content; max-width: 500px; max-height: 320px; box-shadow: 0 12px 32px rgba(0,0,0,0.6);">
                                     <template x-for="name in filteredCompanies" :key="name">
                                         <button type="button" @click="selectCompany(name)"
                                             class="w-full cursor-pointer select-none py-2.5 pl-3 pr-4 text-left text-sm"
