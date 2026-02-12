@@ -645,7 +645,7 @@ class JobResponseRequest(BaseModel):
 class PresentedAtRequest(BaseModel):
     candidate_id: UUID
     company_name: str
-    entry_type: str = "presented"  # "presented" oder "applied"
+    entry_type: str = "presented"  # "presented", "applied" oder "pdl"
     note: Optional[str] = None
 
 
