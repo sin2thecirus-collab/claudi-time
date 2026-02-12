@@ -4,7 +4,7 @@ import uuid
 from datetime import date, datetime
 
 from geoalchemy2 import Geography
-from sqlalchemy import ARRAY, Boolean, Column, Date, DateTime, Float, Index, Integer, String, Text, func
+from sqlalchemy import ARRAY, Boolean, Column, Date, DateTime, Float, Index, Integer, String, Text, func, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -84,6 +84,15 @@ class Candidate(Base):
     notice_period: Mapped[str | None] = mapped_column(String(100))  # z.B. "3 Monate", "6 Wochen"
     erp: Mapped[list[str] | None] = mapped_column(ARRAY(String))  # z.B. ["SAP", "DATEV", "Addison"]
 
+    # Numerische Kandidaten-ID (fuer datenschutzsichere KI-Verarbeitung ohne PII)
+    # server_default sorgt dafuer, dass PostgreSQL automatisch die naechste Nummer vergibt
+    candidate_number: Mapped[int | None] = mapped_column(
+        Integer, server_default=text("nextval('candidates_candidate_number_seq')")
+    )
+
+    # Vorgestellt bei / Beworben bei (Unternehmensliste)
+    presented_at_companies: Mapped[dict | None] = mapped_column(JSONB)  # [{"company": "Allianz", "date": "2025-01-15", "type": "presented"/"applied"}]
+
     # Sterne-Bewertung (1-5, manuell vergeben)
     rating: Mapped[int | None] = mapped_column(Integer)
     rating_set_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -149,6 +158,8 @@ class Candidate(Base):
         Index("ix_candidates_current_position", "current_position"),
         Index("ix_candidates_skills", "skills", postgresql_using="gin"),
         Index("ix_candidates_hotlist_category", "hotlist_category"),
+        Index("ix_candidates_candidate_number", "candidate_number", unique=True),
+        Index("ix_candidates_email", "email"),
     )
 
     @property

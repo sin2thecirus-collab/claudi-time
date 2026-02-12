@@ -25,6 +25,7 @@ class ActivityType(str, enum.Enum):
     CANDIDATE_REMOVED = "candidate_removed"
     JOB_CREATED = "job_created"
     JOB_STATUS_CHANGED = "job_status_changed"
+    CANDIDATE_RESPONSE = "candidate_response"
 
 
 # Deutsche Labels fuer UI
@@ -40,6 +41,7 @@ ACTIVITY_TYPE_LABELS = {
     ActivityType.CANDIDATE_REMOVED: "Kandidat entfernt",
     ActivityType.JOB_CREATED: "Stelle erstellt",
     ActivityType.JOB_STATUS_CHANGED: "Status geaendert",
+    ActivityType.CANDIDATE_RESPONSE: "Kandidaten-Antwort",
 }
 
 # Icons fuer UI (Heroicons Name)
@@ -55,6 +57,7 @@ ACTIVITY_TYPE_ICONS = {
     ActivityType.CANDIDATE_REMOVED: "user-minus",
     ActivityType.JOB_CREATED: "briefcase",
     ActivityType.JOB_STATUS_CHANGED: "arrow-path",
+    ActivityType.CANDIDATE_RESPONSE: "chat-bubble-left-right",
 }
 
 

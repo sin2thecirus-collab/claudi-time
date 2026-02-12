@@ -1,6 +1,7 @@
 """n8n Webhook-Routen — Inbound-API fuer n8n-Automatisierung."""
 
 import logging
+from dataclasses import dataclass
 from typing import Optional
 from uuid import UUID
 
@@ -42,7 +43,8 @@ class PipelineMoveRequest(BaseModel):
 class TodoCreateRequest(BaseModel):
     title: str
     description: Optional[str] = None
-    priority: Optional[str] = "normal"
+    priority: Optional[str] = "wichtig"
+    due_date: Optional[str] = None  # ISO date, z.B. "2025-06-15"
     company_id: Optional[UUID] = None
     candidate_id: Optional[UUID] = None
     ats_job_id: Optional[UUID] = None
@@ -129,8 +131,19 @@ async def n8n_todo_create(
     _: None = Depends(verify_n8n_token),
 ):
     """n8n: Todo automatisch erstellen."""
+    from datetime import date as date_type
+
+    create_data = data.model_dump(exclude_unset=True)
+
+    # due_date von String zu date konvertieren
+    if "due_date" in create_data and create_data["due_date"]:
+        try:
+            create_data["due_date"] = date_type.fromisoformat(create_data["due_date"])
+        except (ValueError, TypeError):
+            raise HTTPException(status_code=400, detail="Ungueltiges due_date Format (ISO 8601 erwartet, z.B. 2025-06-15)")
+
     service = ATSTodoService(db)
-    todo = await service.create_todo(**data.model_dump(exclude_unset=True))
+    todo = await service.create_todo(**create_data)
     await db.commit()
     logger.info(f"n8n Todo Created: {todo.id} - {todo.title[:50]}")
     return {"success": True, "todo_id": str(todo.id), "title": todo.title}
@@ -614,3 +627,413 @@ async def n8n_profile_trigger(
     except Exception as e:
         logger.error(f"n8n Profile Trigger Fehler: {e}")
         raise HTTPException(status_code=422, detail=str(e))
+
+
+# ── Phase 2.1: Kandidaten-Antwort-System ──────────
+
+
+class JobResponseRequest(BaseModel):
+    candidate_id: UUID
+    ats_job_id: Optional[UUID] = None
+    response_type: str  # rejection, needs_info, wants_call, not_looking, already_presented, already_applied, follow_up_later, interested
+    follow_up_date: Optional[str] = None  # ISO date, fuer follow_up_later / not_looking
+    note: Optional[str] = None
+    email_subject: Optional[str] = None
+    company_name: Optional[str] = None  # Fuer already_presented / already_applied
+
+
+class PresentedAtRequest(BaseModel):
+    candidate_id: UUID
+    company_name: str
+    entry_type: str = "presented"  # "presented" oder "applied"
+    note: Optional[str] = None
+
+
+@dataclass
+class ResponseTypeConfig:
+    """Konfiguration fuer einen Kandidaten-Antwort-Typ."""
+    label: str
+    willingness: str | None = None  # "ja" / "nein" / "unbekannt" / None
+    todo_title: str | None = None
+    todo_priority: str = "wichtig"
+    use_follow_up_date: bool = False  # due_date aus Request nutzen
+    default_follow_up_days: int = 90  # Default Follow-up wenn kein Datum angegeben
+    move_to_feedback: bool = False  # Pipeline nach "feedback" verschieben
+    add_note: bool = False  # note an candidate_notes anhaengen
+    add_presented_at: bool = False  # Unternehmen in presented_at_companies eintragen
+    notify_whatsapp: bool = False  # WhatsApp-Benachrichtigung an Recruiter
+
+
+RESPONSE_TYPE_CONFIGS: dict[str, ResponseTypeConfig] = {
+    "rejection": ResponseTypeConfig(
+        label="Absage",
+        willingness="nein",
+        todo_title="Follow-up: Kandidat nochmals kontaktieren (nach Absage)",
+        todo_priority="mittelmaessig",
+        use_follow_up_date=True,
+        default_follow_up_days=90,
+        add_note=True,
+    ),
+    "needs_info": ResponseTypeConfig(
+        label="Braucht mehr Infos",
+        todo_title="Weitere Infos senden + Terminvorschlag fuer Telefonat",
+        todo_priority="dringend",
+        notify_whatsapp=True,
+    ),
+    "wants_call": ResponseTypeConfig(
+        label="Moechte Telefonat",
+        todo_title="Kandidat anrufen",
+        todo_priority="sehr_dringend",
+        notify_whatsapp=True,
+    ),
+    "not_looking": ResponseTypeConfig(
+        label="Aktuell nicht auf Suche",
+        willingness="nein",
+        todo_title="Follow-up: Kandidat nochmals kontaktieren",
+        todo_priority="mittelmaessig",
+        use_follow_up_date=True,
+        default_follow_up_days=90,
+        add_note=True,
+    ),
+    "already_presented": ResponseTypeConfig(
+        label="Bereits vorgestellt (anderer Recruiter)",
+        add_note=True,
+        add_presented_at=True,
+    ),
+    "already_applied": ResponseTypeConfig(
+        label="Eigenstaendige Bewerbung",
+        add_note=True,
+        add_presented_at=True,
+    ),
+    "follow_up_later": ResponseTypeConfig(
+        label="Spaeter kontaktieren",
+        willingness="unbekannt",
+        todo_title="Follow-up: Kandidat kontaktieren",
+        todo_priority="wichtig",
+        use_follow_up_date=True,
+        default_follow_up_days=90,
+        add_note=True,
+    ),
+    "interested": ResponseTypeConfig(
+        label="Interessiert",
+        willingness="ja",
+        todo_title="Kandidat kontaktieren — Vorstellung vorbereiten",
+        todo_priority="sehr_dringend",
+        move_to_feedback=True,
+        notify_whatsapp=True,
+    ),
+}
+
+
+@router.post("/candidate/job-response")
+async def n8n_candidate_job_response(
+    data: JobResponseRequest,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(verify_n8n_token),
+):
+    """n8n: Kandidaten-Antwort auf Job-Vorschlag verarbeiten.
+
+    Klassifizierte Antwort von n8n. Fuehrt automatisch alle passenden
+    Aktionen aus (Willingness, Todos, Pipeline, Notes, Activity, WhatsApp).
+    WICHTIG: n8n soll KEINE persoenlichen Daten an LLMs senden — immer candidate_number als Referenz.
+    """
+    from datetime import date as date_type, datetime, timezone, timedelta
+    from app.models.candidate import Candidate
+    from app.models.ats_activity import ATSActivity, ActivityType
+
+    # 1. Config laden
+    config = RESPONSE_TYPE_CONFIGS.get(data.response_type)
+    if not config:
+        valid = list(RESPONSE_TYPE_CONFIGS.keys())
+        raise HTTPException(
+            status_code=400,
+            detail=f"Ungueltiger response_type: {data.response_type}. Erlaubt: {valid}",
+        )
+
+    # 2. follow_up_date validieren
+    follow_up_date: date_type | None = None
+    if config.use_follow_up_date:
+        if data.follow_up_date:
+            try:
+                follow_up_date = date_type.fromisoformat(data.follow_up_date)
+            except (ValueError, TypeError):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Ungueltiges follow_up_date (ISO 8601 erwartet, z.B. 2025-06-15)",
+                )
+        else:
+            follow_up_date = (datetime.now(timezone.utc) + timedelta(days=config.default_follow_up_days)).date()
+
+    # 3. Kandidat laden
+    candidate = await db.get(Candidate, data.candidate_id)
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Kandidat nicht gefunden")
+
+    actions_taken = []
+
+    # 4. Willingness aktualisieren
+    if config.willingness:
+        candidate.willingness_to_change = config.willingness
+        actions_taken.append(f"willingness={config.willingness}")
+
+    # 5. last_contact aktualisieren (immer)
+    candidate.last_contact = datetime.now(timezone.utc)
+    candidate.updated_at = datetime.now(timezone.utc)
+
+    # 6. Note anhaengen
+    if config.add_note and data.note:
+        timestamp = datetime.now(timezone.utc).strftime("%d.%m.%Y %H:%M")
+        note_prefix = f"[{config.label}]"
+        note_text = f"{note_prefix} {data.note}"
+        if data.email_subject:
+            note_text = f"{note_prefix} (Betreff: {data.email_subject}) {data.note}"
+
+        if candidate.candidate_notes:
+            candidate.candidate_notes += f"\n\n--- {timestamp} ---\n{note_text}"
+        else:
+            candidate.candidate_notes = f"--- {timestamp} ---\n{note_text}"
+        actions_taken.append("note_added")
+
+    # 7. presented_at_companies eintragen (already_presented / already_applied)
+    if config.add_presented_at and data.company_name:
+        from datetime import date as date_type_import
+        entry = {
+            "company": data.company_name,
+            "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+            "type": "applied" if data.response_type == "already_applied" else "presented",
+        }
+        if data.note:
+            entry["note"] = data.note
+        if candidate.presented_at_companies:
+            candidate.presented_at_companies = candidate.presented_at_companies + [entry]
+        else:
+            candidate.presented_at_companies = [entry]
+        actions_taken.append(f"presented_at={data.company_name}")
+
+    # 8. Todo erstellen
+    todo_id = None
+    if config.todo_title:
+        service = ATSTodoService(db)
+        todo = await service.create_todo(
+            title=config.todo_title,
+            description=f"Automatisch erstellt: Kandidat hat auf Job-Vorschlag geantwortet ({config.label})"
+                + (f"\nBetreff: {data.email_subject}" if data.email_subject else "")
+                + (f"\nNotiz: {data.note}" if data.note else ""),
+            priority=config.todo_priority,
+            due_date=follow_up_date,
+            candidate_id=data.candidate_id,
+            ats_job_id=data.ats_job_id,
+        )
+        todo_id = str(todo.id)
+        actions_taken.append(f"todo_created={config.todo_title}")
+        if follow_up_date:
+            actions_taken.append(f"due_date={follow_up_date.isoformat()}")
+
+    # 9. Pipeline verschieben (nur bei "interested" + ats_job_id)
+    pipeline_moved = False
+    if config.move_to_feedback and data.ats_job_id:
+        pipeline_service = ATSPipelineService(db)
+        entries = await pipeline_service.get_entries_for_candidate(data.candidate_id)
+        for entry in entries:
+            if entry.ats_job_id == data.ats_job_id:
+                await pipeline_service.move_stage(entry.id, "feedback")
+                pipeline_moved = True
+                actions_taken.append("pipeline_moved=feedback")
+                break
+
+    # 10. Activity loggen
+    description = f"Kandidaten-Antwort: {config.label}"
+    if data.email_subject:
+        description += f" (Betreff: {data.email_subject[:60]})"
+
+    activity = ATSActivity(
+        activity_type=ActivityType.CANDIDATE_RESPONSE,
+        description=description,
+        ats_job_id=data.ats_job_id,
+        candidate_id=data.candidate_id,
+        metadata_json={
+            "response_type": data.response_type,
+            "label": config.label,
+            "email_subject": data.email_subject,
+            "actions_taken": actions_taken,
+            "follow_up_date": follow_up_date.isoformat() if follow_up_date else None,
+            "candidate_number": candidate.candidate_number,
+        },
+    )
+    db.add(activity)
+
+    await db.commit()
+    logger.info(f"n8n Job Response: {data.candidate_id} -> {data.response_type} ({actions_taken})")
+
+    return {
+        "success": True,
+        "candidate_id": str(data.candidate_id),
+        "candidate_number": candidate.candidate_number,
+        "response_type": data.response_type,
+        "label": config.label,
+        "actions_taken": actions_taken,
+        "todo_id": todo_id,
+        "pipeline_moved": pipeline_moved,
+        "follow_up_date": follow_up_date.isoformat() if follow_up_date else None,
+        "notify_whatsapp": config.notify_whatsapp,
+        "whatsapp_message": (
+            f"📩 {config.label}: {candidate.full_name} (#{candidate.candidate_number})"
+            + (f"\nBetreff: {data.email_subject}" if data.email_subject else "")
+            + (f"\n💬 {data.note[:100]}" if data.note else "")
+        ) if config.notify_whatsapp else None,
+    }
+
+
+@router.get("/candidates/by-email")
+async def n8n_get_candidate_by_email(
+    email: str = Query(..., description="E-Mail-Adresse des Kandidaten"),
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(verify_n8n_token),
+):
+    """n8n: Kandidat per E-Mail-Adresse suchen (fuer Sender-Aufloesung)."""
+    from sqlalchemy import select, func
+    from app.models.candidate import Candidate
+
+    result = await db.execute(
+        select(Candidate)
+        .where(func.lower(Candidate.email) == func.lower(email.strip()))
+        .where(Candidate.deleted_at.is_(None))
+        .limit(1)
+    )
+    candidate = result.scalar_one_or_none()
+
+    if not candidate:
+        raise HTTPException(status_code=404, detail=f"Kein Kandidat mit E-Mail '{email}' gefunden")
+
+    return {
+        "success": True,
+        "candidate_id": str(candidate.id),
+        "candidate_number": candidate.candidate_number,
+        "full_name": candidate.full_name,
+        "email": candidate.email,
+    }
+
+
+@router.post("/candidate/presented-at")
+async def n8n_add_presented_at(
+    data: PresentedAtRequest,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(verify_n8n_token),
+):
+    """n8n: Unternehmen zur 'vorgestellt bei / beworben bei' Liste hinzufuegen."""
+    from datetime import datetime, timezone
+    from app.models.candidate import Candidate
+
+    candidate = await db.get(Candidate, data.candidate_id)
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Kandidat nicht gefunden")
+
+    entry = {
+        "company": data.company_name,
+        "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        "type": data.entry_type,
+    }
+    if data.note:
+        entry["note"] = data.note
+
+    if candidate.presented_at_companies:
+        candidate.presented_at_companies = candidate.presented_at_companies + [entry]
+    else:
+        candidate.presented_at_companies = [entry]
+
+    candidate.updated_at = datetime.now(timezone.utc)
+    await db.commit()
+
+    logger.info(f"n8n Presented At: {data.candidate_id} -> {data.company_name} ({data.entry_type})")
+    return {
+        "success": True,
+        "candidate_id": str(data.candidate_id),
+        "candidate_number": candidate.candidate_number,
+        "company": data.company_name,
+        "type": data.entry_type,
+        "total_entries": len(candidate.presented_at_companies),
+    }
+
+
+@router.get("/daily-report")
+async def n8n_daily_report(
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(verify_n8n_token),
+):
+    """n8n: Tagesbericht — alle Aktivitaeten der letzten 24h fuer den Morgen-Report.
+
+    Gibt eine Zusammenfassung zurueck die n8n per WhatsApp/E-Mail senden kann.
+    WICHTIG: Nur candidate_number als Referenz, keine persoenlichen Daten.
+    """
+    from datetime import datetime, timezone, timedelta
+    from sqlalchemy import select, func
+    from app.models.ats_activity import ATSActivity, ActivityType, ACTIVITY_TYPE_LABELS
+    from app.models.ats_todo import ATSTodo
+
+    since = datetime.now(timezone.utc) - timedelta(hours=24)
+
+    # 1. Aktivitaeten der letzten 24h zaehlen nach Typ
+    result = await db.execute(
+        select(ATSActivity.activity_type, func.count())
+        .where(ATSActivity.created_at >= since)
+        .group_by(ATSActivity.activity_type)
+    )
+    activity_counts = {row[0].value: row[1] for row in result.all()}
+
+    # 2. Kandidaten-Antworten im Detail (ohne PII — nur candidate_number)
+    result = await db.execute(
+        select(ATSActivity)
+        .where(ATSActivity.created_at >= since)
+        .where(ATSActivity.activity_type == ActivityType.CANDIDATE_RESPONSE)
+        .order_by(ATSActivity.created_at.desc())
+    )
+    responses = result.scalars().all()
+
+    response_details = []
+    for r in responses:
+        meta = r.metadata_json or {}
+        response_details.append({
+            "response_type": meta.get("response_type"),
+            "label": meta.get("label"),
+            "candidate_number": meta.get("candidate_number"),
+            "actions_taken": meta.get("actions_taken", []),
+            "time": r.created_at.strftime("%H:%M") if r.created_at else None,
+        })
+
+    # 3. Offene Todos (faellig heute oder ueberfaellig)
+    from datetime import date as date_type
+    today = date_type.today()
+    result = await db.execute(
+        select(func.count())
+        .select_from(ATSTodo)
+        .where(ATSTodo.status.in_(["open", "in_progress"]))
+        .where(ATSTodo.due_date <= today)
+    )
+    overdue_count = result.scalar() or 0
+
+    # 4. Gesamt offene Todos
+    result = await db.execute(
+        select(func.count())
+        .select_from(ATSTodo)
+        .where(ATSTodo.status.in_(["open", "in_progress"]))
+    )
+    open_todos_count = result.scalar() or 0
+
+    total_activities = sum(activity_counts.values())
+
+    return {
+        "success": True,
+        "period": "24h",
+        "since": since.isoformat(),
+        "summary": {
+            "total_activities": total_activities,
+            "activity_breakdown": {
+                ACTIVITY_TYPE_LABELS.get(ActivityType(k), k): v
+                for k, v in activity_counts.items()
+            },
+            "candidate_responses": len(response_details),
+            "response_details": response_details,
+            "todos_overdue": overdue_count,
+            "todos_open_total": open_todos_count,
+        },
+    }

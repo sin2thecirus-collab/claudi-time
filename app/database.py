@@ -655,6 +655,9 @@ async def init_db() -> None:
         ("match_v2_training_data", "rejection_reason", "VARCHAR(50)"),
         ("match_v2_training_data", "job_category", "VARCHAR(100)"),
         ("match_v2_scoring_weights", "job_category", "VARCHAR(100)"),
+        # ── Phase 2.1: Kandidaten-Antwort-System + Numerische ID ──
+        ("candidates", "candidate_number", "INTEGER"),
+        ("candidates", "presented_at_companies", "JSONB"),
     ]
     for table_name, col_name, col_type in migrations:
         try:
@@ -804,6 +807,64 @@ async def init_db() -> None:
             """))
     except Exception as e:
         logger.warning(f"Todo Priority Daten-Migration uebersprungen: {e}")
+
+    # ── ActivityType Enum: candidate_response hinzufuegen ──
+    try:
+        async with engine.connect() as conn:
+            await conn.execution_options(isolation_level="AUTOCOMMIT")
+            try:
+                await conn.execute(text(
+                    "ALTER TYPE activitytype ADD VALUE IF NOT EXISTS 'candidate_response'"
+                ))
+            except Exception:
+                pass  # Wert existiert bereits
+            logger.info("ActivityType Enum: candidate_response sichergestellt")
+    except Exception as e:
+        logger.warning(f"ActivityType Enum Migration uebersprungen: {e}")
+
+    # ── Candidate Number: Sequence + Backfill + Unique Constraint ──
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("SET lock_timeout = '5s'"))
+            # 1. Sequence erstellen (idempotent)
+            await conn.execute(text("""
+                DO $$ BEGIN
+                    CREATE SEQUENCE IF NOT EXISTS candidates_candidate_number_seq;
+                EXCEPTION WHEN OTHERS THEN NULL;
+                END $$
+            """))
+            # 2. Default setzen (fuer neue Kandidaten)
+            await conn.execute(text("""
+                DO $$ BEGIN
+                    ALTER TABLE candidates
+                        ALTER COLUMN candidate_number
+                        SET DEFAULT nextval('candidates_candidate_number_seq');
+                EXCEPTION WHEN OTHERS THEN NULL;
+                END $$
+            """))
+            # 3. Backfill: bestehende Kandidaten ohne candidate_number
+            await conn.execute(text("""
+                UPDATE candidates
+                SET candidate_number = nextval('candidates_candidate_number_seq')
+                WHERE candidate_number IS NULL
+            """))
+            # 4. Unique Index (idempotent)
+            await conn.execute(text("""
+                CREATE UNIQUE INDEX IF NOT EXISTS ix_candidates_candidate_number
+                ON candidates (candidate_number)
+            """))
+            logger.info("Migration: candidates.candidate_number Sequence + Backfill erfolgreich.")
+    except Exception as e:
+        logger.warning(f"candidate_number Migration uebersprungen: {e}")
+
+    # ── Email-Index fuer n8n by-email Lookup ──
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_candidates_email ON candidates (email)"
+            ))
+    except Exception as e:
+        logger.warning(f"Email-Index uebersprungen: {e}")
 
     # ── MT Lern-Tabellen erstellen ──
     try:
