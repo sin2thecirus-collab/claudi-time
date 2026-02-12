@@ -152,6 +152,11 @@ class CandidateService:
         if "rating" in update_data:
             update_data["rating_set_at"] = datetime.now(timezone.utc)
 
+        # Wechselbereitschaft oder Notizen aendern = Kontakt, also last_contact updaten
+        contact_fields = {"willingness_to_change", "candidate_notes"}
+        if contact_fields & set(update_data.keys()):
+            update_data["last_contact"] = datetime.now(timezone.utc)
+
         for key, value in update_data.items():
             setattr(candidate, key, value)
 
@@ -652,6 +657,10 @@ class CandidateService:
             notice_period=candidate.notice_period,
             erp=candidate.erp,
             rating=candidate.rating,
+            source=candidate.source,
+            last_contact=candidate.last_contact,
+            willingness_to_change=candidate.willingness_to_change,
+            candidate_notes=candidate.candidate_notes,
             has_coordinates=candidate.address_coords is not None,
             cv_url=candidate.cv_url,
             cv_parsed_at=candidate.cv_parsed_at,

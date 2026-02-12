@@ -74,6 +74,26 @@ class CallNoteCreateRequest(BaseModel):
     action_items: Optional[list] = None
 
 
+class CandidateSourceRequest(BaseModel):
+    candidate_id: UUID
+    source: str
+
+
+class CandidateWillingnessRequest(BaseModel):
+    candidate_id: UUID
+    willingness: str  # "ja", "nein", "unbekannt"
+
+
+class CandidateNotesRequest(BaseModel):
+    candidate_id: UUID
+    notes: str
+
+
+class CandidateLastContactRequest(BaseModel):
+    candidate_id: UUID
+    contact_date: Optional[str] = None  # ISO-Format, None = jetzt
+
+
 # ── Endpoints ────────────────────────────────────
 
 @router.post("/pipeline/move")
@@ -89,7 +109,7 @@ async def n8n_pipeline_move(
         raise HTTPException(status_code=404, detail="Pipeline-Eintrag nicht gefunden")
     await db.commit()
     logger.info(f"n8n Pipeline Move: {data.entry_id} -> {data.stage}")
-    return {"success": True, "entry_id": str(entry.id), "stage": entry.stage.value}
+    return {"success": True, "entry_id": str(entry.id), "stage": entry.stage.value, "candidate_id": str(entry.candidate_id) if entry.candidate_id else None}
 
 
 @router.post("/todo/create")
@@ -155,6 +175,16 @@ async def n8n_email_received(
         },
     )
     db.add(activity)
+
+    # last_contact automatisch aktualisieren
+    if data.candidate_id:
+        from app.models.candidate import Candidate
+        candidate = await db.get(Candidate, data.candidate_id)
+        if candidate:
+            from datetime import datetime, timezone
+            candidate.last_contact = datetime.now(timezone.utc)
+            candidate.updated_at = datetime.now(timezone.utc)
+
     await db.commit()
     logger.info(f"n8n Email Received: {data.from_email} -> {data.subject[:50]}")
     return {"success": True, "activity_id": str(activity.id)}
@@ -177,3 +207,112 @@ async def n8n_call_note_create(
     await db.commit()
     logger.info(f"n8n CallNote Created: {note.id}")
     return {"success": True, "call_note_id": str(note.id)}
+
+
+# ── Phase 2: Recruiting-Daten Endpunkte (n8n-kompatibel) ──
+
+
+@router.post("/candidate/source")
+async def n8n_set_candidate_source(
+    data: CandidateSourceRequest,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(verify_n8n_token),
+):
+    """n8n: Quelle eines Kandidaten setzen (StepStone, LinkedIn, etc.)."""
+    from app.models.candidate import Candidate
+    from datetime import datetime, timezone
+
+    candidate = await db.get(Candidate, data.candidate_id)
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Kandidat nicht gefunden")
+
+    candidate.source = data.source
+    candidate.updated_at = datetime.now(timezone.utc)
+    await db.commit()
+
+    logger.info(f"n8n Source Set: {data.candidate_id} -> {data.source}")
+    return {"success": True, "candidate_id": str(data.candidate_id), "source": data.source}
+
+
+@router.post("/candidate/willingness")
+async def n8n_set_candidate_willingness(
+    data: CandidateWillingnessRequest,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(verify_n8n_token),
+):
+    """n8n: Wechselbereitschaft setzen (ja/nein/unbekannt). Aktualisiert auch last_contact."""
+    from app.models.candidate import Candidate
+    from datetime import datetime, timezone
+
+    candidate = await db.get(Candidate, data.candidate_id)
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Kandidat nicht gefunden")
+
+    if data.willingness not in ("ja", "nein", "unbekannt"):
+        raise HTTPException(status_code=400, detail="Wechselbereitschaft muss 'ja', 'nein' oder 'unbekannt' sein")
+
+    candidate.willingness_to_change = data.willingness
+    candidate.last_contact = datetime.now(timezone.utc)
+    candidate.updated_at = datetime.now(timezone.utc)
+    await db.commit()
+
+    logger.info(f"n8n Willingness Set: {data.candidate_id} -> {data.willingness}")
+    return {"success": True, "candidate_id": str(data.candidate_id), "willingness_to_change": data.willingness}
+
+
+@router.post("/candidate/notes")
+async def n8n_set_candidate_notes(
+    data: CandidateNotesRequest,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(verify_n8n_token),
+):
+    """n8n: Notizen setzen/aktualisieren (Gespraeche, Wechselmotivation etc.). Aktualisiert auch last_contact."""
+    from app.models.candidate import Candidate
+    from datetime import datetime, timezone
+
+    candidate = await db.get(Candidate, data.candidate_id)
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Kandidat nicht gefunden")
+
+    # Notizen anhaengen statt ueberschreiben (wenn bereits vorhanden)
+    if candidate.candidate_notes and data.notes:
+        timestamp = datetime.now(timezone.utc).strftime("%d.%m.%Y %H:%M")
+        candidate.candidate_notes = candidate.candidate_notes + f"\n\n--- {timestamp} ---\n{data.notes}"
+    else:
+        candidate.candidate_notes = data.notes
+
+    candidate.last_contact = datetime.now(timezone.utc)
+    candidate.updated_at = datetime.now(timezone.utc)
+    await db.commit()
+
+    logger.info(f"n8n Notes Updated: {data.candidate_id}")
+    return {"success": True, "candidate_id": str(data.candidate_id)}
+
+
+@router.post("/candidate/last-contact")
+async def n8n_set_candidate_last_contact(
+    data: CandidateLastContactRequest,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(verify_n8n_token),
+):
+    """n8n: Letzter-Kontakt-Datum manuell setzen. Ohne contact_date = jetzt."""
+    from app.models.candidate import Candidate
+    from datetime import datetime, timezone
+
+    candidate = await db.get(Candidate, data.candidate_id)
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Kandidat nicht gefunden")
+
+    if data.contact_date:
+        try:
+            candidate.last_contact = datetime.fromisoformat(data.contact_date)
+        except (ValueError, TypeError):
+            raise HTTPException(status_code=400, detail="Ungueltiges Datumsformat (ISO 8601 erwartet)")
+    else:
+        candidate.last_contact = datetime.now(timezone.utc)
+
+    candidate.updated_at = datetime.now(timezone.utc)
+    await db.commit()
+
+    logger.info(f"n8n Last Contact Set: {data.candidate_id}")
+    return {"success": True, "candidate_id": str(data.candidate_id), "last_contact": candidate.last_contact.isoformat()}

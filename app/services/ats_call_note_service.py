@@ -83,6 +83,10 @@ class ATSCallNoteService:
         self.db.add(activity)
         await self.db.flush()
 
+        # last_contact automatisch aktualisieren
+        if candidate_id:
+            await self._update_candidate_last_contact(candidate_id)
+
         logger.info(f"CallNote erstellt: {note.id} - {note.call_type.value}")
         return note
 
@@ -109,6 +113,16 @@ class ATSCallNoteService:
         await self.db.flush()
         logger.info(f"CallNote geloescht: {note_id}")
         return True
+
+    async def _update_candidate_last_contact(self, candidate_id: UUID) -> None:
+        """Aktualisiert last_contact des Kandidaten auf jetzt."""
+        from datetime import datetime as dt, timezone as tz
+        from app.models.candidate import Candidate
+        candidate = await self.db.get(Candidate, candidate_id)
+        if candidate:
+            candidate.last_contact = dt.now(tz.utc)
+            candidate.updated_at = dt.now(tz.utc)
+            await self.db.flush()
 
     # ── Listen ───────────────────────────────────────
 

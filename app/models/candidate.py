@@ -73,6 +73,12 @@ class Candidate(Base):
     manual_job_titles: Mapped[list[str] | None] = mapped_column(ARRAY(String))  # z.B. ["Finanzbuchhalter/in", "Kreditorenbuchhalter/in"]
     manual_job_titles_set_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
+    # Recruiting-Daten (Phase 2)
+    source: Mapped[str | None] = mapped_column(String(50))  # z.B. "StepStone", "Xing", "LinkedIn", "Empfehlung"
+    last_contact: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # Letzter Kontakt (Datum)
+    willingness_to_change: Mapped[str | None] = mapped_column(String(20))  # "ja" / "nein" / "unbekannt"
+    candidate_notes: Mapped[str | None] = mapped_column(Text)  # Freitext: Gespraechsnotizen, Wechselmotivation, Gehaltsvorstellung, Kuendigungsfrist
+
     # Gehalt, Kuendigungsfrist, ERP-Kenntnisse (fuer Pipeline-Ansicht)
     salary: Mapped[str | None] = mapped_column(String(100))  # z.B. "55.000 €", "60.000-70.000 €"
     notice_period: Mapped[str | None] = mapped_column(String(100))  # z.B. "3 Monate", "6 Wochen"

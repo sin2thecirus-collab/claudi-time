@@ -1,6 +1,7 @@
 """Candidate Schemas für das Matching-Tool."""
 
 from datetime import date, datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
@@ -80,6 +81,10 @@ class CandidateUpdate(BaseModel):
     notice_period: str | None = Field(default=None, max_length=100, description="Kuendigungsfrist z.B. '3 Monate'")
     erp: list[str] | None = Field(default=None, description="ERP-Kenntnisse z.B. ['SAP', 'DATEV']")
     rating: int | None = Field(default=None, description="Sterne-Bewertung 1-5")
+    source: str | None = Field(default=None, max_length=50, description="Quelle z.B. 'StepStone', 'LinkedIn'")
+    last_contact: datetime | None = Field(default=None, description="Datum des letzten Kontakts")
+    willingness_to_change: Literal["ja", "nein", "unbekannt"] | None = Field(default=None, description="Wechselbereitschaft")
+    candidate_notes: str | None = Field(default=None, description="Freitext-Notizen")
 
 
 class CandidateResponse(BaseModel):
@@ -109,6 +114,10 @@ class CandidateResponse(BaseModel):
     notice_period: str | None
     erp: list[str] | None
     rating: int | None
+    source: str | None
+    last_contact: datetime | None
+    willingness_to_change: str | None
+    candidate_notes: str | None
     has_coordinates: bool
     cv_url: str | None
     cv_parsed_at: datetime | None

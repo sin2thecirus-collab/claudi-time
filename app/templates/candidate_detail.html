@@ -508,8 +508,75 @@
                 </div>
             </div>
 
+            {# ── Recruiting-Daten (Phase 2) ── #}
+            <div class="kd-section kd-anim" style="animation-delay: 150ms;" id="recruiting-data"
+                 x-data="recruitingFields()">
+                <div class="kd-section-header">
+                    <div class="kd-section-title"><span>&#x1F50D;</span> Recruiting-Daten</div>
+                </div>
+                <div class="kd-section-body">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
+                        {# Quelle #}
+                        <div>
+                            <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em;">Quelle</div>
+                            <div style="position: relative;" @click.away="showSourceDropdown = false">
+                                <button type="button" @click="showSourceDropdown = !showSourceDropdown"
+                                    style="display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 6px 10px; border-radius: 8px; border: 1.5px solid var(--pp-border); background: var(--pp-surface); color: {% if candidate.source %}var(--pp-text){% else %}var(--pp-textDim){% endif %}; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; {% if not candidate.source %}font-style: italic;{% endif %}">
+                                    <span x-text="currentSource || 'Nicht angegeben'"></span>
+                                    <svg style="width: 14px; height: 14px; flex-shrink: 0; opacity: 0.5;" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+                                </button>
+                                <div x-show="showSourceDropdown" x-cloak
+                                     style="position: absolute; z-index: 10; top: 100%; left: 0; right: 0; margin-top: 4px; border-radius: 10px; border: 1px solid var(--pp-border); background: var(--pp-surface); box-shadow: 0 4px 12px rgba(0,0,0,0.3); overflow: hidden;">
+                                    <template x-for="src in sourceOptions" :key="src">
+                                        <button type="button" @click="setSource(src)"
+                                            style="display: block; width: 100%; text-align: left; padding: 8px 12px; font-size: 12.5px; font-weight: 500; color: var(--pp-text); background: none; border: none; cursor: pointer; font-family: inherit;"
+                                            :style="currentSource === src ? 'background: var(--pp-surfaceHover); color: var(--pp-accent); font-weight: 650;' : ''"
+                                            @mouseenter="$el.style.background = 'var(--pp-surfaceHover)'"
+                                            @mouseleave="if (currentSource !== src) $el.style.background = 'none'"
+                                            x-text="src"></button>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                        {# Wechselbereitschaft #}
+                        <div>
+                            <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em;">Wechselbereitschaft</div>
+                            <div style="display: flex; gap: 6px;">
+                                <template x-for="opt in [{val: 'ja', label: 'Ja', color: '#059669', bg: 'rgba(5,150,105,0.15)'}, {val: 'nein', label: 'Nein', color: '#dc2626', bg: 'rgba(220,38,38,0.15)'}, {val: 'unbekannt', label: '?', color: 'var(--pp-textMuted)', bg: 'var(--pp-surfaceHover)'}]" :key="opt.val">
+                                    <button type="button" @click="setWillingness(opt.val)"
+                                        style="padding: 5px 12px; border-radius: 8px; font-size: 12px; font-weight: 650; cursor: pointer; font-family: inherit; transition: all 0.15s; border: 1.5px solid;"
+                                        :style="currentWillingness === opt.val ? 'background: ' + opt.bg + '; color: ' + opt.color + '; border-color: ' + opt.color + ';' : 'background: var(--pp-surface); color: var(--pp-textDim); border-color: var(--pp-border);'"
+                                        x-text="opt.label"></button>
+                                </template>
+                            </div>
+                        </div>
+                        {# Letzter Kontakt #}
+                        <div>
+                            <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em;">Letzter Kontakt</div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <input type="date" x-model="lastContactDate" @change="setLastContact()"
+                                    style="padding: 5px 8px; border-radius: 8px; border: 1.5px solid var(--pp-border); font-size: 12.5px; font-weight: 600; color: var(--pp-text); background: var(--pp-surface); font-family: inherit; cursor: pointer; outline: none; color-scheme: dark;">
+                                <button type="button" @click="setLastContactNow()" title="Auf heute setzen"
+                                    style="padding: 5px 8px; border-radius: 8px; background: var(--pp-surfaceHover); border: 1.5px solid var(--pp-border); color: var(--pp-accent); font-size: 11px; font-weight: 650; cursor: pointer; font-family: inherit; white-space: nowrap;">Heute</button>
+                            </div>
+                        </div>
+                    </div>
+                    {# Notizen (Freitext) #}
+                    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--pp-surfaceHover);">
+                        <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.06em;">Notizen</div>
+                        <textarea x-model="notesText" @blur="saveNotes()" placeholder="Gespr&auml;chsnotizen, Wechselmotivation, Gehaltsvorstellung, K&uuml;ndigungsfrist..."
+                            style="width: 100%; min-height: 100px; padding: 12px 14px; border-radius: 10px; border: 1.5px solid var(--pp-border); font-size: 13px; font-weight: 500; color: var(--pp-text); background: var(--pp-surface); font-family: inherit; resize: vertical; outline: none; line-height: 1.5;"
+                            @focus="$el.style.borderColor = 'var(--pp-accent)'" @focusout="$el.style.borderColor = 'var(--pp-border)'"></textarea>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+                            <span style="font-size: 10.5px; color: var(--pp-textDim); font-weight: 500;" x-text="notesSaved ? 'Gespeichert' : 'Wird beim Verlassen gespeichert'"></span>
+                            <button type="button" @click="saveNotes()" style="padding: 5px 12px; border-radius: 8px; background: var(--pp-surfaceHover); border: 1.5px solid var(--pp-border); color: var(--pp-accent); font-size: 11px; font-weight: 650; cursor: pointer; font-family: inherit;">Speichern</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {# ── Pipeline-Daten ── #}
-            <div class="kd-section kd-anim" style="animation-delay: 200ms;" id="pipeline-data"
+            <div class="kd-section kd-anim" style="animation-delay: 250ms;" id="pipeline-data"
                  x-data="pipelineFields()">
                 <div class="kd-section-header">
                     <div class="kd-section-title"><span>&#x1F3AF;</span> Pipeline-Daten</div>
@@ -899,6 +966,7 @@
                 <div class="kd-sidebar-header">Navigation</div>
                 <div class="kd-sidebar-body" style="display: flex; flex-direction: column; gap: 2px;">
                     {% set nav_items = [
+                        {"id": "recruiting-data", "icon": "&#x1F50D;", "label": "Recruiting-Daten"},
                         {"id": "experience", "icon": "&#x1F4BC;", "label": "Berufserfahrung"},
                         {"id": "it-skills", "icon": "&#x1F4BB;", "label": "IT-Kenntnisse"},
                         {"id": "languages", "icon": "&#x1F310;", "label": "Sprachen"},
@@ -1018,6 +1086,87 @@
 
 {% block scripts %}
 <script>
+// ==================== Recruiting-Daten (Phase 2) ====================
+function recruitingFields() {
+    return {
+        currentSource: {{ (candidate.source or '') | tojson | safe }} || '',
+        currentWillingness: {{ (candidate.willingness_to_change or '') | tojson | safe }} || '',
+        lastContactDate: {{ (candidate.last_contact.strftime('%Y-%m-%d') if candidate.last_contact else '') | tojson | safe }},
+        notesText: {{ (candidate.candidate_notes or '') | tojson | safe }},
+        notesSaved: true,
+        showSourceDropdown: false,
+        sourceOptions: ['StepStone', 'Xing', 'LinkedIn', 'Indeed', 'Empfehlung', 'CRM', 'Direktansprache', 'Jobboerse', 'Sonstiges'],
+
+        async setSource(src) {
+            var candidateId = '{{ candidate.id }}';
+            try {
+                var response = await fetch('/api/candidates/' + candidateId, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ source: src })
+                });
+                if (response.ok) {
+                    this.currentSource = src;
+                    this.showSourceDropdown = false;
+                    if (typeof showToast === 'function') showToast('Quelle gespeichert', 'success');
+                }
+            } catch (err) { console.error('Quelle speichern fehlgeschlagen:', err); }
+        },
+
+        async setWillingness(val) {
+            var candidateId = '{{ candidate.id }}';
+            var newVal = this.currentWillingness === val ? null : val;
+            try {
+                var response = await fetch('/api/candidates/' + candidateId, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ willingness_to_change: newVal })
+                });
+                if (response.ok) {
+                    this.currentWillingness = newVal || '';
+                    if (typeof showToast === 'function') showToast('Wechselbereitschaft gespeichert', 'success');
+                }
+            } catch (err) { console.error('Wechselbereitschaft speichern fehlgeschlagen:', err); }
+        },
+
+        async setLastContact() {
+            var candidateId = '{{ candidate.id }}';
+            var dateVal = this.lastContactDate ? new Date(this.lastContactDate).toISOString() : null;
+            try {
+                var response = await fetch('/api/candidates/' + candidateId, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ last_contact: dateVal })
+                });
+                if (response.ok) {
+                    if (typeof showToast === 'function') showToast('Letzter Kontakt gespeichert', 'success');
+                }
+            } catch (err) { console.error('Letzter Kontakt speichern fehlgeschlagen:', err); }
+        },
+
+        async setLastContactNow() {
+            var today = new Date();
+            this.lastContactDate = today.toISOString().split('T')[0];
+            await this.setLastContact();
+        },
+
+        async saveNotes() {
+            var candidateId = '{{ candidate.id }}';
+            try {
+                var response = await fetch('/api/candidates/' + candidateId, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ candidate_notes: this.notesText || null })
+                });
+                if (response.ok) {
+                    this.notesSaved = true;
+                    if (typeof showToast === 'function') showToast('Notizen gespeichert', 'success');
+                }
+            } catch (err) { console.error('Notizen speichern fehlgeschlagen:', err); }
+        }
+    };
+}
+
 // ==================== Pipeline-Daten (ERP + Rating) ====================
 function pipelineFields() {
     return {
@@ -1099,8 +1248,9 @@ function pipelineFields() {
 // Global removeErp for Jinja-rendered buttons
 function removeErp(item) {
     var comp = document.querySelector('[x-data="pipelineFields()"]');
-    if (comp && comp.__x) {
-        comp.__x.$data.removeErp(item);
+    if (comp) {
+        var data = Alpine.$data(comp);
+        if (data) data.removeErp(item);
     }
 }
 
@@ -1234,7 +1384,7 @@ function saveDetailEdit(input) {
     .then(function(r) { return r.json(); })
     .then(function(data) {
         if (data.id) {
-            var fallbackTexts = { 'current_position': 'Keine Position angegeben', 'current_company': 'Kein Unternehmen', 'first_name': 'Vorname', 'last_name': 'Nachname', 'salary': 'Nicht angegeben', 'notice_period': 'Nicht angegeben' };
+            var fallbackTexts = { 'current_position': 'Keine Position angegeben', 'current_company': 'Kein Unternehmen', 'first_name': 'Vorname', 'last_name': 'Nachname', 'salary': 'Nicht angegeben', 'notice_period': 'Nicht angegeben', 'source': 'Nicht angegeben', 'candidate_notes': '' };
             display.textContent = newValue || fallbackTexts[field] || '\u2014';
             if (typeof showToast === 'function') showToast('Gespeichert', 'success');
         }

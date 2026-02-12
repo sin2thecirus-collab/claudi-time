@@ -72,6 +72,9 @@ class ATSPipelineService:
         self.db.add(activity)
         await self.db.flush()
 
+        # last_contact automatisch aktualisieren
+        await self._update_candidate_last_contact(candidate_id)
+
         logger.info(f"Pipeline: Kandidat {candidate_id} zu Job {ats_job_id} hinzugefuegt")
         return entry
 
@@ -141,6 +144,10 @@ class ATSPipelineService:
         self.db.add(activity)
         await self.db.flush()
 
+        # last_contact automatisch aktualisieren
+        if entry.candidate_id:
+            await self._update_candidate_last_contact(entry.candidate_id)
+
         logger.info(f"Pipeline: Entry {entry_id} von {old_stage} -> {new_stage}")
         return entry
 
@@ -161,6 +168,15 @@ class ATSPipelineService:
             if entry:
                 entries.append(entry)
         return entries
+
+    async def _update_candidate_last_contact(self, candidate_id: UUID) -> None:
+        """Aktualisiert last_contact des Kandidaten auf jetzt."""
+        from app.models.candidate import Candidate
+        candidate = await self.db.get(Candidate, candidate_id)
+        if candidate:
+            candidate.last_contact = datetime.now(timezone.utc)
+            candidate.updated_at = datetime.now(timezone.utc)
+            await self.db.flush()
 
     # ── Pipeline laden ───────────────────────────────
 

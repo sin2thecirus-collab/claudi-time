@@ -643,6 +643,11 @@ async def init_db() -> None:
         ("jobs", "work_arrangement", "VARCHAR(20)"),  # "vor_ort" / "hybrid" / "remote"
         ("candidates", "v2_certifications", "JSONB"),  # z.B. ["Bilanzbuchhalter"]
         ("candidates", "v2_industries", "JSONB"),  # z.B. ["Maschinenbau", "Pharma"]
+        # ── Phase 2: Recruiting-Daten (Quelle, Letzter Kontakt, Wechselbereitschaft, Notizen) ──
+        ("candidates", "source", "VARCHAR(50)"),
+        ("candidates", "last_contact", "TIMESTAMPTZ"),
+        ("candidates", "willingness_to_change", "VARCHAR(20)"),
+        ("candidates", "candidate_notes", "TEXT"),
         ("companies", "industry", "VARCHAR(100)"),
         ("companies", "erp_systems", "VARCHAR[]"),
         # ── Matching Learning System Upgrade ──
