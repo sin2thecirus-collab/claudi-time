@@ -198,6 +198,11 @@
                         <span class="detail-edit-display" onclick="startDetailEdit(this)" title="Nachname bearbeiten" style="font-size: 26px; font-weight: 800; color: #fff; letter-spacing: -0.03em; cursor: pointer;">{{ last_display or 'Nachname' }}</span>
                         <input type="text" class="detail-edit-input hidden" value="{{ last_display or '' }}" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)" style="font-size: 22px; font-weight: 800; color: var(--pp-text); padding: 2px 8px; border-radius: 8px; border: 2px solid var(--pp-accent); width: 200px; background: var(--pp-surface);">
                     </div>
+                    {% if candidate.candidate_number %}
+                    <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 8px; background: rgba(99,102,241,0.2); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.3); margin-left: 6px;" title="Kandidaten-Nr.">
+                        #{{ candidate.candidate_number }}
+                    </span>
+                    {% endif %}
                 </div>
 
                 {# Position + Company - editable #}
@@ -636,6 +641,96 @@
                             <button type="button" @click="addErp()" style="padding: 8px 14px; border-radius: 8px; background: var(--pp-surfaceHover); border: 1.5px solid var(--pp-border); color: var(--pp-accent); font-size: 12px; font-weight: 650; cursor: pointer; font-family: inherit;">+ Hinzuf&uuml;gen</button>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            {# ── Vorgestellt bei / Beworben bei ── #}
+            <div class="kd-section kd-anim" style="animation-delay: 275ms;" id="presented-at"
+                 x-data="{
+                    entries: {{ (candidate.presented_at_companies or []) | tojson | safe }},
+                    showAddForm: false,
+                    newCompany: '',
+                    newType: 'presented',
+                    newDate: new Date().toISOString().split('T')[0],
+                    async addEntry() {
+                        if (!this.newCompany.trim()) return;
+                        var entry = { company: this.newCompany.trim(), date: this.newDate, type: this.newType };
+                        this.entries.push(entry);
+                        var candidateId = '{{ candidate.id }}';
+                        try {
+                            await fetch('/api/candidates/' + candidateId, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ presented_at_companies: this.entries })
+                            });
+                            if (typeof showToast === 'function') showToast('Eintrag hinzugefuegt', 'success');
+                        } catch (err) { console.error(err); }
+                        this.newCompany = ''; this.showAddForm = false;
+                    },
+                    async removeEntry(idx) {
+                        this.entries.splice(idx, 1);
+                        var candidateId = '{{ candidate.id }}';
+                        try {
+                            await fetch('/api/candidates/' + candidateId, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ presented_at_companies: this.entries })
+                            });
+                            if (typeof showToast === 'function') showToast('Eintrag entfernt', 'success');
+                        } catch (err) { console.error(err); }
+                    }
+                 }">
+                <div class="kd-section-header">
+                    <div class="kd-section-title"><span>&#x1F3E2;</span> Vorgestellt / Beworben bei</div>
+                    <button type="button" @click="showAddForm = !showAddForm" style="display: flex; align-items: center; gap: 6px; background: var(--pp-surfaceHover); border: 1.5px solid var(--pp-border); border-radius: 8px; padding: 5px 12px; font-size: 11.5px; font-weight: 650; color: var(--pp-accent); cursor: pointer; font-family: inherit;">
+                        <span x-text="showAddForm ? 'Abbrechen' : '+ Hinzuf&uuml;gen'"></span>
+                    </button>
+                </div>
+                <div class="kd-section-body">
+                    {# Add form #}
+                    <div x-show="showAddForm" x-cloak style="margin-bottom: 14px; padding: 14px; border-radius: 10px; background: var(--pp-bg); border: 1px solid var(--pp-border);">
+                        <div style="display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap;">
+                            <div style="flex: 1; min-width: 160px;">
+                                <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.06em;">Unternehmen</div>
+                                <input type="text" x-model="newCompany" @keydown.enter.prevent="addEntry()" placeholder="z.B. Allianz, Siemens..." style="width: 100%; padding: 7px 10px; border-radius: 8px; border: 1.5px solid var(--pp-border); font-size: 13px; color: var(--pp-text); background: var(--pp-surface); font-family: inherit; outline: none;">
+                            </div>
+                            <div>
+                                <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.06em;">Typ</div>
+                                <select x-model="newType" style="padding: 7px 10px; border-radius: 8px; border: 1.5px solid var(--pp-border); font-size: 13px; color: var(--pp-text); background: var(--pp-surface); font-family: inherit; outline: none; cursor: pointer;">
+                                    <option value="presented">Vorgestellt</option>
+                                    <option value="applied">Beworben</option>
+                                </select>
+                            </div>
+                            <div>
+                                <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.06em;">Datum</div>
+                                <input type="date" x-model="newDate" style="padding: 7px 10px; border-radius: 8px; border: 1.5px solid var(--pp-border); font-size: 13px; color: var(--pp-text); background: var(--pp-surface); font-family: inherit; outline: none; color-scheme: dark;">
+                            </div>
+                            <button type="button" @click="addEntry()" style="padding: 8px 16px; border-radius: 8px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; font-size: 13px; font-weight: 650; cursor: pointer; font-family: inherit; border: none;">Speichern</button>
+                        </div>
+                    </div>
+                    {# Entries list #}
+                    <template x-if="entries.length > 0">
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            <template x-for="(entry, idx) in entries" :key="idx">
+                                <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: 10px; background: var(--pp-surfaceHover); border: 1px solid var(--pp-border);">
+                                    <div style="display: flex; align-items: center; gap: 10px;">
+                                        <span :style="entry.type === 'applied' ? 'background: rgba(245,158,11,0.15); color: #fbbf24;' : 'background: rgba(99,102,241,0.15); color: #a5b4fc;'" style="font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.05em;" x-text="entry.type === 'applied' ? 'Beworben' : 'Vorgestellt'"></span>
+                                        <span style="font-size: 13.5px; font-weight: 650; color: var(--pp-text);" x-text="entry.company"></span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span style="font-size: 12px; color: var(--pp-textDim); font-weight: 500;" x-text="entry.date ? new Date(entry.date).toLocaleDateString('de-DE') : ''"></span>
+                                        <button type="button" @click="removeEntry(idx)" style="background: none; border: none; cursor: pointer; color: var(--pp-textDim); font-size: 16px; padding: 0 4px; line-height: 1;" onmouseenter="this.style.color='#ef4444'" onmouseleave="this.style.color='var(--pp-textDim)'">&times;</button>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                    <template x-if="entries.length === 0 && !showAddForm">
+                        <div style="display: flex; flex-direction: column; align-items: center; padding: 20px 0;">
+                            <div style="font-size: 24px; margin-bottom: 8px; opacity: 0.4;">&#x1F3E2;</div>
+                            <div style="font-size: 12px; font-weight: 600; color: var(--pp-textDim);">Noch bei keinem Unternehmen vorgestellt</div>
+                        </div>
+                    </template>
                 </div>
             </div>
 

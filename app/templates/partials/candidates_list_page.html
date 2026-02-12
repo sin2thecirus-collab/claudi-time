@@ -127,6 +127,9 @@
                             <span class="kl-name-text" style="font-size: 13.5px; font-weight: 700; color: {% if has_valid_name %}var(--pp-text){% else %}var(--pp-textDim){% endif %}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; {% if not has_valid_name %}font-style: italic;{% endif %}">
                                 {{ display_name }}
                             </span>
+                            {% if candidate.candidate_number %}
+                            <span style="font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 5px; background: rgba(99,102,241,0.15); color: #a5b4fc; white-space: nowrap;">#{{ candidate.candidate_number }}</span>
+                            {% endif %}
                             {% if candidate.age %}
                             <span style="font-size: 11px; color: var(--pp-textDim); font-weight: 500;">({{ candidate.age }})</span>
                             {% endif %}

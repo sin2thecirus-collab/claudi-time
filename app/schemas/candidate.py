@@ -85,6 +85,7 @@ class CandidateUpdate(BaseModel):
     last_contact: datetime | None = Field(default=None, description="Datum des letzten Kontakts")
     willingness_to_change: Literal["ja", "nein", "unbekannt"] | None = Field(default=None, description="Wechselbereitschaft")
     candidate_notes: str | None = Field(default=None, description="Freitext-Notizen")
+    presented_at_companies: list[dict] | None = Field(default=None, description="Vorgestellt/Beworben bei Unternehmen")
 
 
 class CandidateResponse(BaseModel):
@@ -118,6 +119,8 @@ class CandidateResponse(BaseModel):
     last_contact: datetime | None
     willingness_to_change: str | None
     candidate_notes: str | None
+    candidate_number: int | None
+    presented_at_companies: list[dict] | None
     has_coordinates: bool
     cv_url: str | None
     cv_parsed_at: datetime | None
