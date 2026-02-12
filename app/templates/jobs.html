@@ -5,61 +5,85 @@
 {% block content %}
 <div x-data x-init="$store.jobsView = { mode: 'cards' }">
 
-    {# -- Header -- #}
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div>
-            <h1 class="text-2xl font-bold text-gray-900">Jobs</h1>
-            <p class="text-sm text-gray-500 mt-1">Alle importierten Stellenanzeigen verwalten</p>
-        </div>
-        <div class="flex items-center space-x-3">
-            {# View Toggle #}
-            <div class="flex bg-gray-100 rounded-lg p-1">
-                <button @click="$store.jobsView.mode = 'cards'"
-                        :class="$store.jobsView.mode === 'cards' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'"
-                        class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
-                        title="Kachelansicht">
-                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
-                    </svg>
-                </button>
-                <button @click="$store.jobsView.mode = 'list'"
-                        :class="$store.jobsView.mode === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'"
-                        class="px-3 py-1.5 text-sm font-medium rounded-md transition-colors"
-                        title="Listenansicht">
-                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" />
-                    </svg>
-                </button>
+    {# ═══ Hero Header mit Glassmorphism ═══ #}
+    <div style="position:relative;margin-bottom:32px;">
+        {# Ambient Glow hinter dem Header #}
+        <div style="position:absolute;top:-40px;left:50%;transform:translateX(-50%);width:600px;height:200px;background:radial-gradient(ellipse,rgba(79,140,255,0.08) 0%,transparent 70%);pointer-events:none;z-index:0;"></div>
+
+        <div style="position:relative;z-index:1;">
+            <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+                <div>
+                    <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
+                        <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--pp-accent),#7C5CFC);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(79,140,255,0.3);">
+                            <svg style="width:20px;height:20px;color:#fff;" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0" />
+                            </svg>
+                        </div>
+                        <h1 style="font-size:26px;font-weight:700;color:var(--pp-text);margin:0;letter-spacing:-0.5px;">
+                            Jobs
+                        </h1>
+                    </div>
+                    <p style="font-size:13px;color:var(--pp-textMuted);margin:0;padding-left:52px;">
+                        Alle importierten Stellenanzeigen verwalten
+                    </p>
+                </div>
+
+                {# Action Buttons — rechts #}
+                <div style="display:flex;align-items:center;gap:10px;">
+                    {# View Toggle — Glassmorphism Pill #}
+                    <div style="display:flex;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:10px;padding:3px;gap:2px;">
+                        <button @click="$store.jobsView.mode = 'cards'"
+                                :style="$store.jobsView.mode === 'cards' ? 'background:var(--pp-accentSoft);color:var(--pp-accent);box-shadow:0 1px 4px rgba(79,140,255,0.15);' : 'color:var(--pp-textDim);'"
+                                style="padding:7px 10px;border-radius:8px;border:none;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;"
+                                title="Kachelansicht">
+                            <svg style="width:16px;height:16px;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+                            </svg>
+                        </button>
+                        <button @click="$store.jobsView.mode = 'list'"
+                                :style="$store.jobsView.mode === 'list' ? 'background:var(--pp-accentSoft);color:var(--pp-accent);box-shadow:0 1px 4px rgba(79,140,255,0.15);' : 'color:var(--pp-textDim);'"
+                                style="padding:7px 10px;border-radius:8px;border:none;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;"
+                                title="Listenansicht">
+                            <svg style="width:16px;height:16px;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    {# Job hinzufuegen — Ghost Button #}
+                    <button type="button"
+                            onclick="openModal('/partials/job-add-dialog')"
+                            style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;font-size:13px;font-weight:600;color:var(--pp-green);background:var(--pp-greenSoft);border:1px solid rgba(52,211,153,0.2);border-radius:10px;cursor:pointer;transition:all 0.2s;"
+                            onmouseover="this.style.background='rgba(52,211,153,0.18)';this.style.borderColor='rgba(52,211,153,0.35)';this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 12px rgba(52,211,153,0.15)'"
+                            onmouseout="this.style.background='var(--pp-greenSoft)';this.style.borderColor='rgba(52,211,153,0.2)';this.style.transform='';this.style.boxShadow=''">
+                        <svg style="width:16px;height:16px;" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
+                        </svg>
+                        Job hinzufuegen
+                    </button>
+
+                    {# Import Button — Primary Gradient #}
+                    <button type="button"
+                            onclick="openModal('/partials/import-dialog')"
+                            style="display:inline-flex;align-items:center;gap:6px;padding:9px 18px;font-size:13px;font-weight:600;color:#fff;background:linear-gradient(135deg,var(--pp-accent),#6366F1);border:none;border-radius:10px;cursor:pointer;transition:all 0.2s;box-shadow:0 2px 8px rgba(79,140,255,0.25);"
+                            onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 6px 20px rgba(79,140,255,0.35)'"
+                            onmouseout="this.style.transform='';this.style.boxShadow='0 2px 8px rgba(79,140,255,0.25)'">
+                        <svg style="width:16px;height:16px;" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z" />
+                            <path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z" />
+                        </svg>
+                        Jobs importieren
+                    </button>
+                </div>
             </div>
-
-            {# Job hinzufügen Button #}
-            <button type="button"
-                    onclick="openModal('/partials/job-add-dialog')"
-                    class="inline-flex items-center rounded-lg bg-green-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-green-500 transition-colors">
-                <svg class="-ml-0.5 mr-1.5 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
-                </svg>
-                Job hinzufuegen
-            </button>
-
-            {# Import Button #}
-            <button type="button"
-                    onclick="openModal('/partials/import-dialog')"
-                    class="inline-flex items-center rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 transition-colors">
-                <svg class="-ml-0.5 mr-1.5 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z" />
-                    <path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z" />
-                </svg>
-                Jobs importieren
-            </button>
         </div>
     </div>
 
-    {# -- Filter + Suche -- #}
-    <div class="flex flex-col sm:flex-row gap-3 mb-6">
-        {# Suchfeld #}
-        <div class="flex-1 relative">
-            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+    {# ═══ Filter Bar — Floating Glass Panel ═══ #}
+    <div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:14px;padding:14px 18px;margin-bottom:24px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
+        {# Suchfeld mit Icon #}
+        <div style="flex:1;min-width:240px;position:relative;">
+            <svg style="position:absolute;left:12px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--pp-textDim);" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
             </svg>
             <input type="text"
@@ -69,11 +93,13 @@
                    hx-trigger="keyup changed delay:300ms"
                    hx-target="#jobs-content"
                    hx-include="[name='sort_by'],[name='imported_days'],[name='company']"
-                   class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm">
+                   style="width:100%;padding:10px 14px 10px 36px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:10px;color:var(--pp-text);font-size:13px;font-family:var(--pp-ff);transition:border-color 0.2s;"
+                   onfocus="this.style.borderColor='var(--pp-accent)';this.style.boxShadow='0 0 0 3px rgba(79,140,255,0.1)'"
+                   onblur="this.style.borderColor='var(--pp-border)';this.style.boxShadow=''">
         </div>
 
         {# Unternehmen-Filter #}
-        <div class="relative">
+        <div style="position:relative;">
             <input type="text"
                    name="company"
                    placeholder="Unternehmen..."
@@ -81,8 +107,13 @@
                    hx-trigger="keyup changed delay:400ms"
                    hx-target="#jobs-content"
                    hx-include="[name='search'],[name='sort_by'],[name='imported_days']"
-                   class="w-full sm:w-48 px-4 py-3 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                   style="width:160px;padding:10px 14px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:10px;color:var(--pp-text);font-size:13px;font-family:var(--pp-ff);transition:border-color 0.2s;"
+                   onfocus="this.style.borderColor='var(--pp-accent)'"
+                   onblur="this.style.borderColor='var(--pp-border)'">
         </div>
+
+        {# Trennlinie vertikal #}
+        <div style="width:1px;height:28px;background:var(--pp-border);"></div>
 
         {# Zeitraum-Filter #}
         <select name="imported_days"
@@ -90,7 +121,7 @@
                 hx-trigger="change"
                 hx-target="#jobs-content"
                 hx-include="[name='search'],[name='sort_by'],[name='company']"
-                class="px-4 py-3 border border-gray-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-primary-500">
+                style="padding:10px 32px 10px 14px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:10px;color:var(--pp-text);font-size:13px;font-family:var(--pp-ff);cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 12 12%22><path fill=%22%238B8FA3%22 d=%22M2.5 4.5L6 8l3.5-3.5%22 stroke=%22%238B8FA3%22 stroke-width=%221.5%22 fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/></svg>');background-repeat:no-repeat;background-position:right 10px center;">
             <option value="">Alle Zeitraeume</option>
             <option value="1">Heute importiert</option>
             <option value="7">Letzte 7 Tage</option>
@@ -104,7 +135,7 @@
                 hx-trigger="change"
                 hx-target="#jobs-content"
                 hx-include="[name='search'],[name='imported_days'],[name='company']"
-                class="px-4 py-3 border border-gray-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-primary-500">
+                style="padding:10px 32px 10px 14px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:10px;color:var(--pp-text);font-size:13px;font-family:var(--pp-ff);cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 12 12%22><path fill=%22%238B8FA3%22 d=%22M2.5 4.5L6 8l3.5-3.5%22 stroke=%22%238B8FA3%22 stroke-width=%221.5%22 fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/></svg>');background-repeat:no-repeat;background-position:right 10px center;">
             <option value="imported_at">Neueste zuerst</option>
             <option value="created_at">Erstellungsdatum</option>
             <option value="position">Position A-Z</option>
@@ -112,29 +143,41 @@
         </select>
     </div>
 
-    {# -- Batch-Aktionen (sichtbar wenn Jobs selektiert) -- #}
+    {# ═══ Batch-Aktionen — Floating Pill ═══ #}
     <div id="batch-actions"
          x-data="{ selectedCount: 0 }"
          x-show="selectedCount > 0"
          x-cloak
-         class="mb-4 p-3 bg-primary-50 border border-primary-200 rounded-xl flex items-center justify-between">
-        <span class="text-sm font-medium text-primary-700"
-              x-text="selectedCount + ' Job(s) ausgewaehlt'"></span>
-        <div class="flex items-center space-x-4">
-            {# Zur Pipeline #}
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 transform translate-y-2"
+         x-transition:enter-end="opacity-100 transform translate-y-0"
+         style="margin-bottom:20px;padding:12px 18px;background:linear-gradient(135deg,rgba(79,140,255,0.1),rgba(99,102,241,0.08));border:1px solid rgba(79,140,255,0.2);border-radius:12px;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(8px);">
+        <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:28px;height:28px;border-radius:8px;background:var(--pp-accentSoft);display:flex;align-items:center;justify-content:center;">
+                <svg style="width:14px;height:14px;color:var(--pp-accent);" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </div>
+            <span style="font-size:13px;font-weight:600;color:var(--pp-accent);"
+                  x-text="selectedCount + ' Job(s) ausgewaehlt'"></span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;">
             <button type="button"
                     @click="batchAddToPipeline()"
-                    class="inline-flex items-center text-sm font-medium text-green-600 hover:text-green-800">
-                <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    style="display:inline-flex;align-items:center;gap:5px;padding:7px 14px;font-size:12px;font-weight:600;color:var(--pp-green);background:var(--pp-greenSoft);border:1px solid rgba(52,211,153,0.2);border-radius:8px;cursor:pointer;transition:all 0.15s;"
+                    onmouseover="this.style.background='rgba(52,211,153,0.18)'"
+                    onmouseout="this.style.background='var(--pp-greenSoft)'">
+                <svg style="width:14px;height:14px;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3 4.5h14.25M3 9h9.75M3 13.5h9.75m4.5-4.5v12m0 0l-3.75-3.75M17.25 21l3.75-3.75" />
                 </svg>
                 Zur Pipeline
             </button>
-            {# Loeschen #}
             <button type="button"
                     @click="batchDeleteJobs()"
-                    class="inline-flex items-center text-sm font-medium text-red-600 hover:text-red-800">
-                <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    style="display:inline-flex;align-items:center;gap:5px;padding:7px 14px;font-size:12px;font-weight:600;color:var(--pp-red);background:var(--pp-redSoft);border:1px solid rgba(239,68,68,0.2);border-radius:8px;cursor:pointer;transition:all 0.15s;"
+                    onmouseover="this.style.background='rgba(239,68,68,0.18)'"
+                    onmouseout="this.style.background='var(--pp-redSoft)'">
+                <svg style="width:14px;height:14px;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
                 </svg>
                 Loeschen
@@ -142,14 +185,16 @@
         </div>
     </div>
 
-    {# -- Jobs-Content (HTMX geladen) -- #}
+    {# ═══ Jobs Content (HTMX geladen) ═══ #}
     <div id="jobs-content"
          hx-get="/partials/jobs-list?per_page=20"
          hx-trigger="load"
          hx-swap="innerHTML">
-        {# Skeleton waehrend des Ladens #}
-        <div class="bg-white rounded-xl border border-gray-200 p-12 text-center animate-skeleton">
-            <p class="text-gray-400">Lade Jobs...</p>
+        {# Skeleton — animierter Pulse #}
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:16px;">
+            <div style="height:180px;border-radius:14px;background:var(--pp-surface);border:1px solid var(--pp-border);animation:skeletonPulse 1.5s ease-in-out infinite;"></div>
+            <div style="height:180px;border-radius:14px;background:var(--pp-surface);border:1px solid var(--pp-border);animation:skeletonPulse 1.5s ease-in-out infinite;animation-delay:0.2s;"></div>
+            <div style="height:180px;border-radius:14px;background:var(--pp-surface);border:1px solid var(--pp-border);animation:skeletonPulse 1.5s ease-in-out infinite;animation-delay:0.4s;"></div>
         </div>
     </div>
 
