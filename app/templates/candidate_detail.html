@@ -662,7 +662,7 @@
             </div>
 
             {# ── Vorgestellt bei / Beworben bei ── #}
-            <div class="kd-section kd-anim" style="animation-delay: 275ms; overflow: visible;" id="presented-at"
+            <div class="kd-section kd-anim" style="animation-delay: 275ms; overflow: visible; position: relative; z-index: 10;" id="presented-at"
                  x-data="{
                     entries: {{ (candidate.presented_at_companies or []) | tojson | safe }},
                     showAddForm: false,
@@ -680,20 +680,11 @@
                             this.allCompanies = (data.items || []).map(function(c) { return c.name; });
                         } catch (err) { console.error(err); }
                     },
-                    ddTop: 0,
-                    ddLeft: 0,
-                    ddMinWidth: 300,
                     filterCompanies() {
                         if (!this.newCompany || this.newCompany.length < 1) { this.filteredCompanies = []; this.showCompanyDropdown = false; return; }
                         var term = this.newCompany.toLowerCase();
                         this.filteredCompanies = this.allCompanies.filter(function(n) { return n.toLowerCase().includes(term); }).slice(0, 15);
                         this.showCompanyDropdown = this.filteredCompanies.length > 0;
-                        if (this.showCompanyDropdown && this.$refs.companyInput) {
-                            var rect = this.$refs.companyInput.getBoundingClientRect();
-                            this.ddTop = rect.bottom + 4;
-                            this.ddLeft = rect.left;
-                            this.ddMinWidth = Math.max(rect.width, 300);
-                        }
                     },
                     selectCompany(name) {
                         this.newCompany = name;
@@ -734,31 +725,29 @@
                         <span x-text="showAddForm ? 'Abbrechen' : '+ Hinzuf&uuml;gen'"></span>
                     </button>
                 </div>
-                <div class="kd-section-body">
+                <div class="kd-section-body" style="overflow: visible;">
                     {# Add form #}
-                    <div x-show="showAddForm" x-cloak class="mb-3.5 overflow-visible" style="padding: 14px; border-radius: 10px; background: var(--pp-bg); border: 1px solid var(--pp-border);">
-                        <div class="flex flex-wrap items-end gap-2.5 overflow-visible">
-                            <div class="relative flex-[2] min-w-[220px]" x-ref="companyInputWrap">
+                    <div x-show="showAddForm" x-cloak class="mb-3.5" style="padding: 14px; border-radius: 10px; background: var(--pp-bg); border: 1px solid var(--pp-border); overflow: visible;">
+                        <div class="flex flex-wrap items-end gap-2.5" style="overflow: visible;">
+                            <div class="relative flex-[2] min-w-[220px]" x-ref="companyInputWrap" @click.away="showCompanyDropdown = false">
                                 <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.06em;">Unternehmen</div>
                                 <input type="text" x-model="newCompany" @input="filterCompanies()" @focus="filterCompanies()" @keydown.enter.prevent="showCompanyDropdown = false; addEntry()" placeholder="z.B. Allianz, Siemens..."
                                     class="w-full rounded-lg text-sm outline-none"
                                     x-ref="companyInput"
                                     style="padding: 7px 10px; border: 1.5px solid var(--pp-border); color: var(--pp-text); background: var(--pp-surface); font-family: inherit;">
-                                <template x-teleport="body">
-                                    <div x-show="showCompanyDropdown"
-                                         @click.away="showCompanyDropdown = false"
-                                         class="overflow-auto rounded-xl py-1 text-sm shadow-lg"
-                                         :style="'position:fixed; z-index:9999; top:' + ddTop + 'px; left:' + ddLeft + 'px; min-width:' + ddMinWidth + 'px; background:var(--pp-surface); border:1px solid var(--pp-border); width:max-content; max-width:500px; max-height:320px; box-shadow:0 12px 32px rgba(0,0,0,0.6); font-family:Outfit,DM Sans,sans-serif;'">
-                                        <template x-for="name in filteredCompanies" :key="name">
-                                            <button type="button" @click="selectCompany(name)"
-                                                class="w-full cursor-pointer select-none py-2.5 pl-3 pr-4 text-left text-sm"
-                                                style="font-family: inherit; white-space: nowrap; color: var(--pp-text); font-weight: 500; background: none; border: none;"
-                                                @mouseenter="$el.style.background='var(--pp-surfaceHover)'"
-                                                @mouseleave="$el.style.background='none'"
-                                                x-text="name"></button>
-                                        </template>
-                                    </div>
-                                </template>
+                                <div x-show="showCompanyDropdown" x-cloak
+                                     @click.away="showCompanyDropdown = false"
+                                     class="absolute z-[9999] mt-1 overflow-auto rounded-xl py-1 text-sm shadow-lg"
+                                     style="background: var(--pp-surface); border: 1px solid var(--pp-border); min-width: 300px; width: max-content; max-width: 500px; max-height: 320px; box-shadow: 0 12px 32px rgba(0,0,0,0.6);">
+                                    <template x-for="name in filteredCompanies" :key="name">
+                                        <button type="button" @click="selectCompany(name)"
+                                            class="w-full cursor-pointer select-none py-2.5 pl-3 pr-4 text-left text-sm"
+                                            style="font-family: inherit; white-space: nowrap; color: var(--pp-text); font-weight: 500; background: none; border: none;"
+                                            @mouseenter="$el.style.background='var(--pp-surfaceHover)'"
+                                            @mouseleave="$el.style.background='none'"
+                                            x-text="name"></button>
+                                    </template>
+                                </div>
                             </div>
                             <div>
                                 <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.06em;">Typ</div>
@@ -802,7 +791,7 @@
             </div>
 
             {# ── Berufserfahrung (Timeline) ── #}
-            <div class="kd-section kd-anim" style="animation-delay: 300ms;" id="experience">
+            <div class="kd-section kd-anim" style="animation-delay: 300ms; position: relative; z-index: 1;" id="experience">
                 <div class="kd-section-header">
                     <div class="kd-section-title"><span>&#x1F4BC;</span> Berufserfahrung</div>
                     <button type="button" onclick="copyWerdegang()" style="display: flex; align-items: center; gap: 6px; background: var(--pp-surfaceHover); border: 1.5px solid var(--pp-border); border-radius: 8px; padding: 5px 12px; font-size: 11.5px; font-weight: 650; color: var(--pp-text); cursor: pointer; font-family: inherit;">&#x1F4CB; Profil kopieren</button>
