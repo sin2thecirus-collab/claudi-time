@@ -26,121 +26,363 @@
     .kd-wrap ::-webkit-scrollbar-track { background: transparent; }
     .kd-wrap ::-webkit-scrollbar-thumb { background: var(--pp-border); border-radius: 3px; }
 
+    /* ═══ Animations ═══ */
     @keyframes kdFadeUp {
-        from { opacity: 0; transform: translateY(16px); }
-        to   { opacity: 1; transform: translateY(0); }
+        from { opacity: 0; transform: translateY(20px) scale(0.98); }
+        to   { opacity: 1; transform: translateY(0) scale(1); }
     }
     @keyframes kdSlideIn {
-        from { opacity: 0; transform: translateX(12px); }
+        from { opacity: 0; transform: translateX(16px); }
         to   { opacity: 1; transform: translateX(0); }
     }
-    .kd-anim { opacity: 0; animation: kdFadeUp 0.5s cubic-bezier(0.4,0,0.2,1) forwards; }
-    .kd-anim-side { opacity: 0; animation: kdSlideIn 0.5s cubic-bezier(0.4,0,0.2,1) forwards; }
+    @keyframes kdShimmer {
+        0% { background-position: -200% 0; }
+        100% { background-position: 200% 0; }
+    }
+    @keyframes kdPulseGlow {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(99,102,241,0); }
+        50% { box-shadow: 0 0 20px 2px rgba(99,102,241,0.08); }
+    }
+    @keyframes kdFloat {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-3px); }
+    }
+    .kd-anim { opacity: 0; animation: kdFadeUp 0.6s cubic-bezier(0.16,1,0.3,1) forwards; }
+    .kd-anim-side { opacity: 0; animation: kdSlideIn 0.6s cubic-bezier(0.16,1,0.3,1) forwards; }
 
+    /* ═══ Section Cards — Elevated Glassmorphism ═══ */
     .kd-section {
-        background: var(--pp-surface); border-radius: 16px; border: 1px solid var(--pp-border); overflow: hidden;
+        background: var(--pp-surface);
+        border-radius: 20px;
+        border: 1px solid var(--pp-border);
+        overflow: hidden;
+        transition: border-color 0.3s, box-shadow 0.3s;
+    }
+    .kd-section:hover {
+        border-color: rgba(99,102,241,0.15);
+        box-shadow: 0 8px 40px rgba(0,0,0,0.12), 0 0 0 1px rgba(99,102,241,0.05);
     }
     .kd-section-header {
         display: flex; align-items: center; justify-content: space-between;
-        padding: 18px 26px; border-bottom: 1px solid var(--pp-surfaceHover);
-        background: var(--pp-surfaceHover);
+        padding: 20px 28px;
+        border-bottom: 1px solid rgba(255,255,255,0.04);
+        background: linear-gradient(135deg, rgba(30,27,75,0.15), rgba(99,102,241,0.04));
+        backdrop-filter: blur(8px);
     }
     .kd-section-title {
         display: flex; align-items: center; gap: 12px;
         font-size: 17px; font-weight: 750; color: var(--pp-text); letter-spacing: -0.02em;
     }
-    .kd-section-body { padding: 22px 26px; }
+    .kd-section-title span {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 32px; height: 32px; border-radius: 10px;
+        background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.1));
+        font-size: 15px;
+    }
+    .kd-section-body { padding: 24px 28px; }
 
+    /* ═══ Sidebar Cards ═══ */
     .kd-sidebar-card {
-        background: var(--pp-surface); border-radius: 14px; border: 1px solid var(--pp-border); overflow: hidden;
+        background: var(--pp-surface);
+        border-radius: 18px;
+        border: 1px solid var(--pp-border);
+        overflow: hidden;
+        transition: border-color 0.3s, box-shadow 0.3s, transform 0.3s;
+    }
+    .kd-sidebar-card:hover {
+        border-color: rgba(99,102,241,0.12);
+        box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+        transform: translateY(-1px);
     }
     .kd-sidebar-header {
-        padding: 16px 22px; border-bottom: 1px solid var(--pp-surfaceHover);
+        padding: 16px 22px;
+        border-bottom: 1px solid rgba(255,255,255,0.04);
         display: flex; align-items: center; justify-content: space-between;
-        background: var(--pp-surfaceHover);
+        background: linear-gradient(135deg, rgba(30,27,75,0.12), rgba(99,102,241,0.03));
         font-size: 15px; font-weight: 700; color: var(--pp-text);
     }
     .kd-sidebar-body { padding: 18px 22px; }
 
+    /* ═══ Experience Timeline ═══ */
     .kd-exp-dot-current {
-        width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0;
-        background: var(--pp-accent);
-        border: 3px solid var(--pp-border);
+        width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0;
+        background: linear-gradient(135deg, #6366f1, #a78bfa);
+        border: 3px solid var(--pp-surface);
+        box-shadow: 0 0 0 3px rgba(99,102,241,0.2), 0 2px 8px rgba(99,102,241,0.3);
+        animation: kdPulseGlow 3s ease-in-out infinite;
     }
     .kd-exp-dot-past {
         width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0;
-        background: var(--pp-border); border: 3px solid var(--pp-surfaceHover);
+        background: var(--pp-border); border: 3px solid var(--pp-surface);
+        box-shadow: 0 0 0 2px rgba(42,45,58,0.5);
     }
     .kd-exp-line {
         width: 2px; flex: 1; margin-top: 6px;
-        background: linear-gradient(to bottom, var(--pp-border), transparent);
+        background: linear-gradient(to bottom, rgba(99,102,241,0.3), var(--pp-border), transparent);
     }
 
+    /* ═══ Language Bars ═══ */
     .kd-lang-bar {
-        height: 8px; border-radius: 4px; overflow: hidden; background: var(--pp-surfaceHover);
+        height: 6px; border-radius: 3px; overflow: hidden;
+        background: rgba(42,45,58,0.6);
     }
     .kd-lang-fill {
-        height: 100%; border-radius: 4px; transition: width 0.8s cubic-bezier(0.4,0,0.2,1);
+        height: 100%; border-radius: 3px;
+        transition: width 1s cubic-bezier(0.16,1,0.3,1);
+        box-shadow: 0 0 8px rgba(99,102,241,0.3);
     }
 
+    /* ═══ Quick Action Buttons ═══ */
     .kd-quickbtn {
         display: inline-flex; align-items: center; gap: 8px;
-        padding: 11px 20px; border-radius: 10px;
+        padding: 11px 20px; border-radius: 12px;
         font-size: 14px; font-weight: 630; cursor: pointer;
-        font-family: inherit; transition: all 0.2s; border: 1.5px solid var(--pp-border);
-        background: var(--pp-surface); color: var(--pp-text);
+        font-family: inherit; transition: all 0.25s cubic-bezier(0.16,1,0.3,1);
+        border: 1.5px solid rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.04); color: var(--pp-text);
+        backdrop-filter: blur(8px);
     }
-    .kd-quickbtn:hover { background: var(--pp-surfaceHover); }
+    .kd-quickbtn:hover {
+        background: rgba(255,255,255,0.08);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    }
     .kd-quickbtn-primary {
         background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; border: none;
-        box-shadow: 0 2px 8px rgba(99,102,241,0.25);
+        box-shadow: 0 4px 16px rgba(99,102,241,0.3), inset 0 1px 0 rgba(255,255,255,0.15);
     }
-    .kd-quickbtn-primary:hover { background: linear-gradient(135deg, #4f46e5, #7c3aed); }
+    .kd-quickbtn-primary:hover {
+        background: linear-gradient(135deg, #4f46e5, #7c3aed);
+        box-shadow: 0 8px 28px rgba(99,102,241,0.4), inset 0 1px 0 rgba(255,255,255,0.15);
+        transform: translateY(-2px);
+    }
     .kd-quickbtn-accent {
-        background: var(--pp-surface); color: var(--pp-accent); border: 1.5px solid var(--pp-border);
+        background: rgba(99,102,241,0.06); color: var(--pp-accent);
+        border: 1.5px solid rgba(99,102,241,0.2);
     }
-    .kd-quickbtn-accent:hover { background: var(--pp-surfaceHover); }
+    .kd-quickbtn-accent:hover {
+        background: rgba(99,102,241,0.12);
+        border-color: rgba(99,102,241,0.35);
+    }
     .kd-quickbtn-danger {
-        background: var(--pp-surface); color: #dc2626; border: 1.5px solid #fecaca;
+        background: rgba(220,38,38,0.04); color: #f87171;
+        border: 1.5px solid rgba(220,38,38,0.15);
     }
-    .kd-quickbtn-danger:hover { background: var(--pp-surfaceHover); }
+    .kd-quickbtn-danger:hover {
+        background: rgba(220,38,38,0.1);
+        border-color: rgba(220,38,38,0.3);
+    }
 
-    /* Nav item */
+    /* ═══ Navigation — Pill Style ═══ */
     .kd-nav-btn {
         display: flex; align-items: center; gap: 10px;
-        padding: 10px 16px; border-radius: 9px;
+        padding: 10px 16px; border-radius: 12px;
         background: transparent; border: none; cursor: pointer; width: 100%; text-align: left;
-        font-family: inherit; transition: all 0.15s; font-size: 14px; font-weight: 500; color: var(--pp-textMuted);
+        font-family: inherit; transition: all 0.2s cubic-bezier(0.16,1,0.3,1);
+        font-size: 14px; font-weight: 500; color: var(--pp-textMuted);
+        position: relative;
     }
-    .kd-nav-btn:hover { background: var(--pp-surfaceHover); }
-    .kd-nav-btn.active { background: var(--pp-surfaceHover); font-weight: 650; color: var(--pp-accent); }
+    .kd-nav-btn:hover {
+        background: rgba(99,102,241,0.05);
+        color: var(--pp-text);
+        transform: translateX(2px);
+    }
+    .kd-nav-btn.active {
+        background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.08));
+        font-weight: 680; color: var(--pp-accent);
+        box-shadow: inset 0 0 0 1px rgba(99,102,241,0.15);
+    }
+    .kd-nav-btn.active::before {
+        content: '';
+        position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+        width: 3px; height: 18px; border-radius: 0 3px 3px 0;
+        background: linear-gradient(180deg, #6366f1, #a78bfa);
+    }
 
-    /* Inline edit overrides for new design */
+    /* ═══ Inline Edit ═══ */
     .kd-wrap .detail-edit-display {
-        cursor: pointer; border-radius: 4px; padding: 2px 6px;
-        transition: all 0.15s;
+        cursor: pointer; border-radius: 6px; padding: 2px 6px;
+        transition: all 0.2s;
     }
     .kd-wrap .detail-edit-display:hover {
-        background: rgba(99,102,241,0.06);
+        background: rgba(99,102,241,0.08);
+        box-shadow: inset 0 0 0 1px rgba(99,102,241,0.15);
     }
     .kd-wrap .detail-edit-input {
-        font-family: inherit; border-radius: 8px;
+        font-family: inherit; border-radius: 10px;
     }
 
-    /* Skill category colors */
-    .skill-fach { background: var(--pp-surfaceHover); color: var(--pp-accent); border: 1px solid var(--pp-border); }
-    .skill-tech { background: var(--pp-surfaceHover); color: #34d399; border: 1px solid var(--pp-border); }
-    .skill-soft { background: var(--pp-surfaceHover); color: #fbbf24; border: 1px solid var(--pp-border); }
+    /* ═══ Skill Tags — Colored Glass ═══ */
+    .skill-fach {
+        background: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(99,102,241,0.04));
+        color: #a5b4fc; border: 1px solid rgba(99,102,241,0.15);
+    }
+    .skill-tech {
+        background: linear-gradient(135deg, rgba(16,185,129,0.08), rgba(16,185,129,0.04));
+        color: #6ee7b7; border: 1px solid rgba(16,185,129,0.15);
+    }
+    .skill-soft {
+        background: linear-gradient(135deg, rgba(245,158,11,0.08), rgba(245,158,11,0.04));
+        color: #fcd34d; border: 1px solid rgba(245,158,11,0.15);
+    }
 
-    /* Copy button */
+    /* ═══ Copy Button ═══ */
     .kd-copy-btn {
         display: inline-flex; align-items: center; justify-content: center;
-        background: none; border: none; border-radius: 6px; padding: 4px;
-        cursor: pointer; color: var(--pp-accent); opacity: 0.5;
-        transition: all 0.15s; vertical-align: middle;
+        background: none; border: none; border-radius: 8px; padding: 5px;
+        cursor: pointer; color: var(--pp-accent); opacity: 0.4;
+        transition: all 0.2s; vertical-align: middle;
     }
-    .kd-copy-btn:hover { opacity: 1; background: rgba(99,102,241,0.12); }
+    .kd-copy-btn:hover {
+        opacity: 1;
+        background: rgba(99,102,241,0.12);
+        transform: scale(1.1);
+    }
     .kd-copy-btn svg { width: 14px; height: 14px; }
+
+    /* ═══ PREMIUM — Animated Gradient Border on Sections ═══ */
+    @property --angle {
+        syntax: '<angle>';
+        initial-value: 0deg;
+        inherits: false;
+    }
+    @keyframes kdBorderRotate {
+        to { --angle: 360deg; }
+    }
+    .kd-section-glow {
+        position: relative;
+        background: var(--pp-surface);
+        border: 1px solid transparent;
+        border-radius: 20px;
+    }
+    .kd-section-glow::before {
+        content: '';
+        position: absolute; inset: -1px;
+        border-radius: 21px;
+        background: conic-gradient(from var(--angle), transparent 60%, rgba(99,102,241,0.25) 75%, rgba(139,92,246,0.2) 85%, transparent 95%);
+        animation: kdBorderRotate 8s linear infinite;
+        z-index: -1;
+        opacity: 0;
+        transition: opacity 0.5s;
+    }
+    .kd-section-glow:hover::before { opacity: 1; }
+
+    /* ═══ PREMIUM — Hero Animated Gradient Bar ═══ */
+    .kd-hero-accent-line {
+        height: 3px;
+        background: linear-gradient(90deg, transparent, #6366f1, #a78bfa, #c084fc, #a78bfa, #6366f1, transparent);
+        background-size: 200% 100%;
+        animation: kdShimmer 4s ease-in-out infinite;
+        border-radius: 2px;
+        opacity: 0.6;
+    }
+
+    /* ═══ PREMIUM — Avatar Ring Animation ═══ */
+    @keyframes kdAvatarRing {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    .kd-avatar-wrap {
+        position: relative;
+        width: 78px; height: 78px;
+        flex-shrink: 0;
+    }
+    .kd-avatar-wrap::before {
+        content: '';
+        position: absolute; inset: -3px;
+        border-radius: 22px;
+        background: conic-gradient(from 0deg, #6366f1, #a78bfa, #c084fc, #e879f9, #c084fc, #a78bfa, #6366f1);
+        animation: kdAvatarRing 6s linear infinite;
+        opacity: 0.7;
+    }
+    .kd-avatar-inner {
+        position: relative;
+        width: 72px; height: 72px;
+        border-radius: 20px;
+        background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%);
+        display: flex; align-items: center; justify-content: center;
+        color: #fff; font-size: 24px; font-weight: 800;
+        z-index: 1;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.1);
+    }
+
+    /* ═══ PREMIUM — Meta Badges ═══ */
+    .kd-meta-badge {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 6px 14px; border-radius: 10px;
+        font-size: 12.5px; font-weight: 600;
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.08);
+        color: rgba(255,255,255,0.7);
+        backdrop-filter: blur(8px);
+        transition: all 0.25s;
+    }
+    .kd-meta-badge:hover {
+        background: rgba(255,255,255,0.08);
+        border-color: rgba(255,255,255,0.15);
+        color: rgba(255,255,255,0.9);
+        transform: translateY(-1px);
+    }
+
+    /* ═══ PREMIUM — Floating Label Style ═══ */
+    .kd-field-label {
+        font-size: 10.5px !important;
+        font-weight: 700 !important;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--pp-textDim) !important;
+        margin-bottom: 6px;
+        display: flex; align-items: center; gap: 5px;
+    }
+    .kd-field-label::before {
+        content: '';
+        width: 6px; height: 6px; border-radius: 2px;
+        background: rgba(99,102,241,0.3);
+        flex-shrink: 0;
+    }
+
+    /* ═══ PREMIUM — Stat Counter in Hero ═══ */
+    .kd-stat-pill {
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 8px 16px; border-radius: 12px;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.08);
+        backdrop-filter: blur(12px);
+    }
+    .kd-stat-pill-value {
+        font-size: 18px; font-weight: 800;
+        background: linear-gradient(135deg, #a5b4fc, #c4b5fd);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    .kd-stat-pill-label {
+        font-size: 11px; font-weight: 600;
+        color: rgba(255,255,255,0.4);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    /* ═══ PREMIUM — Section Divider ═══ */
+    .kd-section-divider {
+        height: 1px;
+        background: linear-gradient(90deg, transparent, var(--pp-border), rgba(99,102,241,0.15), var(--pp-border), transparent);
+        margin: 20px 0;
+    }
+
+    /* ═══ PREMIUM — Focus Glow on Inputs ═══ */
+    .kd-wrap input:focus,
+    .kd-wrap textarea:focus,
+    .kd-wrap select:focus {
+        border-color: rgba(99,102,241,0.5) !important;
+        box-shadow: 0 0 0 3px rgba(99,102,241,0.08), 0 4px 12px rgba(0,0,0,0.15) !important;
+        outline: none !important;
+    }
+
+    /* ═══ PREMIUM — Smooth Page Transition ═══ */
+    .kd-wrap {
+        animation: kdFadeUp 0.4s cubic-bezier(0.16,1,0.3,1) forwards;
+    }
 </style>
 {% endblock %}
 
@@ -171,22 +413,26 @@
     {# ════════════════════════════════════════════════════
        VIOLET HERO HEADER
     ════════════════════════════════════════════════════ #}
-    <div style="background: linear-gradient(135deg, #1e1b4b 0%, #312e81 40%, #4338ca 100%); padding: 28px 40px 0; position: relative; overflow: hidden;">
-        {# Decorative circle #}
-        <div style="position: absolute; top: -60px; right: -60px; width: 200px; height: 200px; border-radius: 50%; background: radial-gradient(circle, rgba(129,140,248,0.15) 0%, transparent 70%);"></div>
+    <div style="background: linear-gradient(160deg, #0c0a1f 0%, #1a1145 25%, #2a1f6b 50%, #3730a3 80%, #4338ca 100%); padding: 32px 40px 0; position: relative; overflow: hidden;">
+        {# Decorative orbs + mesh texture #}
+        <div style="position: absolute; top: -80px; right: -40px; width: 300px; height: 300px; border-radius: 50%; background: radial-gradient(circle, rgba(129,140,248,0.12) 0%, rgba(99,102,241,0.05) 40%, transparent 70%); filter: blur(40px);"></div>
+        <div style="position: absolute; bottom: -60px; left: 20%; width: 250px; height: 250px; border-radius: 50%; background: radial-gradient(circle, rgba(167,139,250,0.08) 0%, transparent 60%); filter: blur(50px);"></div>
+        <div style="position: absolute; top: 30%; left: 10%; width: 150px; height: 150px; border-radius: 50%; background: radial-gradient(circle, rgba(99,102,241,0.06) 0%, transparent 60%); filter: blur(30px);"></div>
+        {# Subtle grid overlay #}
+        <div style="position: absolute; inset: 0; background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px); background-size: 24px 24px; pointer-events: none;"></div>
 
         {# Breadcrumb #}
-        <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: rgba(255,255,255,0.5); margin-bottom: 20px; font-weight: 500;">
-            <a href="/" style="cursor: pointer; color: rgba(255,255,255,0.6); text-decoration: none;">&#x1F3E0;</a>
-            <span>&#x203A;</span>
-            <a href="/kandidaten" style="cursor: pointer; color: rgba(255,255,255,0.6); text-decoration: none;">Kandidaten</a>
-            <span>&#x203A;</span>
-            <span style="color: rgba(255,255,255,0.85);">{{ display_name }}</span>
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: rgba(255,255,255,0.4); margin-bottom: 22px; font-weight: 500; position: relative; z-index: 1;">
+            <a href="/" style="cursor: pointer; color: rgba(255,255,255,0.5); text-decoration: none; transition: color 0.2s;" onmouseenter="this.style.color='rgba(255,255,255,0.9)'" onmouseleave="this.style.color='rgba(255,255,255,0.5)'">&#x1F3E0;</a>
+            <svg style="width: 12px; height: 12px; opacity: 0.4;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg>
+            <a href="/kandidaten" style="cursor: pointer; color: rgba(255,255,255,0.5); text-decoration: none; transition: color 0.2s;" onmouseenter="this.style.color='rgba(255,255,255,0.9)'" onmouseleave="this.style.color='rgba(255,255,255,0.5)'">Kandidaten</a>
+            <svg style="width: 12px; height: 12px; opacity: 0.4;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg>
+            <span style="color: rgba(255,255,255,0.85); font-weight: 600;">{{ display_name }}</span>
         </div>
 
         {# Avatar + Name + Meta #}
-        <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 22px;">
-            <div style="width: 68px; height: 68px; border-radius: 18px; background: linear-gradient(135deg, #818cf8 0%, #a78bfa 100%); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 24px; font-weight: 800; border: 3px solid rgba(255,255,255,0.2); box-shadow: 0 4px 20px rgba(0,0,0,0.2); flex-shrink: 0;">
+        <div style="display: flex; align-items: center; gap: 22px; margin-bottom: 24px; position: relative; z-index: 1;">
+            <div style="width: 72px; height: 72px; border-radius: 20px; background: linear-gradient(135deg, #6366f1 0%, #a78bfa 50%, #c084fc 100%); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 24px; font-weight: 800; border: 3px solid rgba(255,255,255,0.15); box-shadow: 0 8px 32px rgba(99,102,241,0.35), inset 0 1px 0 rgba(255,255,255,0.2); flex-shrink: 0; backdrop-filter: blur(4px);">
                 {{ (first_display or 'X')[0] | upper }}{{ (last_display or 'X')[0] | upper }}
             </div>
             <div style="flex: 1; min-width: 0;">
@@ -224,25 +470,25 @@
                 </div>
 
                 {# Meta badges #}
-                <div style="display: flex; gap: 12px; margin-top: 10px; flex-wrap: wrap;">
+                <div style="display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap;">
                     {% if candidate.birth_date or candidate.age %}
-                    <span style="display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: rgba(255,255,255,0.6); font-weight: 500; background: rgba(255,255,255,0.08); padding: 4px 10px; border-radius: 8px;">
+                    <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: rgba(255,255,255,0.65); font-weight: 500; background: rgba(255,255,255,0.06); padding: 5px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.06); backdrop-filter: blur(8px);">
                         <span style="font-size: 12px;">&#x1F4C5;</span>
                         {% if candidate.birth_date %}{{ candidate.birth_date.strftime('%d.%m.%Y') }}{% endif %}{% if candidate.age %} ({{ candidate.age }} Jahre){% endif %}
                     </span>
                     {% endif %}
                     {% if city_display %}
-                    <span style="display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: rgba(255,255,255,0.6); font-weight: 500; background: rgba(255,255,255,0.08); padding: 4px 10px; border-radius: 8px;">
+                    <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: rgba(255,255,255,0.65); font-weight: 500; background: rgba(255,255,255,0.06); padding: 5px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.06); backdrop-filter: blur(8px);">
                         <span style="font-size: 12px;">&#x1F4CD;</span>
                         {{ city_display }}{% if candidate.postal_code %}, {{ candidate.postal_code }}{% endif %}
                     </span>
                     {% endif %}
-                    <span style="display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: rgba(255,255,255,0.6); font-weight: 500; background: rgba(255,255,255,0.08); padding: 4px 10px; border-radius: 8px;">
-                        <span style="font-size: 12px;">&#x1F554;</span>
+                    <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: rgba(255,255,255,0.65); font-weight: 500; background: rgba(255,255,255,0.06); padding: 5px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.06); backdrop-filter: blur(8px);">
+                        <span style="font-size: 12px;">&#x1F7E2;</span>
                         Seit {{ candidate.created_at.strftime('%d.%m.%Y') if candidate.created_at else 'Unbekannt' }}
                     </span>
                     {% if candidate.work_history and candidate.work_history is iterable and candidate.work_history is not string and candidate.work_history | length > 0 %}
-                    <span style="display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: rgba(255,255,255,0.6); font-weight: 500; background: rgba(255,255,255,0.08); padding: 4px 10px; border-radius: 8px;">
+                    <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: rgba(255,255,255,0.65); font-weight: 500; background: rgba(255,255,255,0.06); padding: 5px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.06); backdrop-filter: blur(8px);">
                         <span style="font-size: 12px;">&#x1F4CA;</span>
                         {{ candidate.work_history | length }} Position{{ 'en' if candidate.work_history | length != 1 else '' }}
                     </span>
@@ -349,32 +595,32 @@
                 else { showToast('Fehler beim Hinzufuegen', 'error'); }
                 this.loading = false;
             }
-        }" style="display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-top: 1px solid rgba(255,255,255,0.1);">
+        }" style="display: flex; align-items: center; justify-content: space-between; padding: 16px 0; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.06); position: relative; z-index: 1;">
             <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                 {% if candidate.cv_url or candidate.cv_stored_path %}
-                <a href="/api/candidates/{{ candidate.id }}/cv-preview" target="_blank" class="kd-quickbtn" style="color: rgba(255,255,255,0.7); border-color: rgba(255,255,255,0.15); background: rgba(255,255,255,0.05); text-decoration: none;">
-                    <span style="font-size: 14px;">&#x1F4C4;</span> CV herunterladen
+                <a href="/api/candidates/{{ candidate.id }}/cv-preview" target="_blank" class="kd-quickbtn" style="color: rgba(255,255,255,0.75); border-color: rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); text-decoration: none; backdrop-filter: blur(8px);">
+                    <svg style="width: 15px; height: 15px; opacity: 0.7;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg> CV herunterladen
                 </a>
-                <button type="button" onclick="openCvPreview()" class="kd-quickbtn kd-quickbtn-accent">
-                    <span style="font-size: 14px;">&#x1F441;</span> CV ansehen
+                <button type="button" onclick="openCvPreview()" class="kd-quickbtn kd-quickbtn-accent" style="backdrop-filter: blur(8px);">
+                    <svg style="width: 15px; height: 15px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg> CV ansehen
                 </button>
                 {% endif %}
                 <button type="button" @click="showPipelineModal = true; loadJobs()" class="kd-quickbtn kd-quickbtn-primary">
-                    <span style="font-size: 14px;">+</span> Zur Pipeline
+                    <svg style="width: 15px; height: 15px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg> Zur Pipeline
                 </button>
             </div>
             <div style="display: flex; gap: 8px;">
                 {% if not candidate.hidden %}
-                <button type="button" hx-put="/api/candidates/{{ candidate.id }}/hide" hx-swap="none" hx-on::after-request="showToast('Kandidat ausgeblendet', 'success')" class="kd-quickbtn" style="color: rgba(255,255,255,0.5); border-color: rgba(255,255,255,0.1); background: transparent;">
-                    <span style="font-size: 14px;">&#x1F441;</span> Ausblenden
+                <button type="button" hx-put="/api/candidates/{{ candidate.id }}/hide" hx-swap="none" hx-on::after-request="showToast('Kandidat ausgeblendet', 'success')" class="kd-quickbtn" style="color: rgba(255,255,255,0.45); border-color: rgba(255,255,255,0.06); background: rgba(255,255,255,0.02); backdrop-filter: blur(8px);">
+                    <svg style="width: 15px; height: 15px; opacity: 0.6;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg> Ausblenden
                 </button>
                 {% else %}
-                <button type="button" hx-put="/api/candidates/{{ candidate.id }}/unhide" hx-swap="none" hx-on::after-request="showToast('Kandidat wieder eingeblendet', 'success')" class="kd-quickbtn" style="color: #6ee7b7; border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.1);">
-                    <span style="font-size: 14px;">&#x1F441;</span> Einblenden
+                <button type="button" hx-put="/api/candidates/{{ candidate.id }}/unhide" hx-swap="none" hx-on::after-request="showToast('Kandidat wieder eingeblendet', 'success')" class="kd-quickbtn" style="color: #6ee7b7; border-color: rgba(16,185,129,0.2); background: rgba(16,185,129,0.06); backdrop-filter: blur(8px);">
+                    <svg style="width: 15px; height: 15px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg> Einblenden
                 </button>
                 {% endif %}
                 <button type="button" onclick="deleteCandidate('{{ candidate.id }}', '{{ display_name }}')" class="kd-quickbtn kd-quickbtn-danger">
-                    <span style="font-size: 14px;">&#x1F5D1;</span> L&ouml;schen
+                    <svg style="width: 15px; height: 15px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg> L&ouml;schen
                 </button>
             </div>
 
@@ -464,10 +710,10 @@
     {# ════════════════════════════════════════════════════
        MAIN CONTENT: 2-Column Layout
     ════════════════════════════════════════════════════ #}
-    <div style="display: flex; gap: 24px; padding: 24px 40px; max-width: 1400px; margin: 0 auto;">
+    <div style="display: flex; gap: 28px; padding: 28px 40px 40px; max-width: 1400px; margin: 0 auto;">
 
         {# ── LEFT COLUMN (main content) ── #}
-        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 18px;">
+        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 20px;">
 
             {# ── Kontaktdaten ── #}
             <div class="kd-section kd-anim" style="animation-delay: 100ms;" id="contact">
@@ -1379,7 +1625,7 @@
         </div>
 
         {# ── RIGHT SIDEBAR (sticky) ── #}
-        <div style="width: 280px; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px; position: sticky; top: 20px; align-self: flex-start;">
+        <div style="width: 280px; flex-shrink: 0; display: flex; flex-direction: column; gap: 18px; position: sticky; top: 20px; align-self: flex-start;">
 
             {# Navigation #}
             <div class="kd-sidebar-card kd-anim-side" style="animation-delay: 150ms;">
