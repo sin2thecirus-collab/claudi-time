@@ -675,9 +675,18 @@
                     async loadCompanies() {
                         if (this.allCompanies.length > 0) return;
                         try {
-                            var response = await fetch('/api/companies?limit=500');
-                            var data = await response.json();
-                            this.allCompanies = (data.items || []).map(function(c) { return c.name; });
+                            var allNames = [];
+                            var page = 1;
+                            var totalPages = 1;
+                            while (page <= totalPages) {
+                                var response = await fetch('/api/companies?per_page=100&sort_by=name&page=' + page);
+                                var data = await response.json();
+                                var names = (data.items || []).map(function(c) { return c.name; });
+                                allNames = allNames.concat(names);
+                                totalPages = data.pages || 1;
+                                page++;
+                            }
+                            this.allCompanies = allNames;
                         } catch (err) { console.error(err); }
                     },
                     filterCompanies() {
