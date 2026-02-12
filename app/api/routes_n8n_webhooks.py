@@ -4,8 +4,8 @@ import logging
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -13,6 +13,7 @@ from app.database import get_db
 from app.services.ats_call_note_service import ATSCallNoteService
 from app.services.ats_pipeline_service import ATSPipelineService
 from app.services.ats_todo_service import ATSTodoService
+from app.services.interaction_analyzer_service import InteractionAnalyzerService
 
 logger = logging.getLogger(__name__)
 
@@ -361,3 +362,204 @@ async def n8n_set_candidate_last_contact(
 
     logger.info(f"n8n Last Contact Set: {data.candidate_id}")
     return {"success": True, "candidate_id": str(data.candidate_id), "last_contact": candidate.last_contact.isoformat()}
+
+
+# ── Phase 2.1: KI-Analyse + Query-Endpunkte ─────
+
+
+class ProcessInteractionRequest(BaseModel):
+    candidate_id: UUID
+    text: str = Field(..., min_length=10, description="Transkription oder E-Mail-Text")
+    interaction_type: str = Field(default="call", description="call, email_received, email_sent")
+
+
+class MatchFeedbackRequest(BaseModel):
+    ats_job_id: UUID
+    candidate_id: UUID
+    feedback: str = Field(..., description="accepted, rejected, maybe")
+    reason: Optional[str] = None
+
+
+class ProfileTriggerRequest(BaseModel):
+    candidate_id: UUID
+
+
+@router.post("/candidate/process-interaction")
+async def n8n_process_interaction(
+    data: ProcessInteractionRequest,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(verify_n8n_token),
+):
+    """n8n: Interaktion (Telefonat/E-Mail) per KI analysieren und Kandidaten-Felder aktualisieren."""
+    if data.interaction_type not in ("call", "email_received", "email_sent"):
+        raise HTTPException(status_code=400, detail="interaction_type muss 'call', 'email_received' oder 'email_sent' sein")
+
+    analyzer = InteractionAnalyzerService(db)
+    result = await analyzer.analyze_interaction(
+        candidate_id=data.candidate_id,
+        text=data.text,
+        interaction_type=data.interaction_type,
+    )
+
+    if not result.get("success"):
+        raise HTTPException(status_code=422, detail=result.get("error", "Analyse fehlgeschlagen"))
+
+    await db.commit()
+    logger.info(f"n8n Process Interaction: {data.candidate_id} ({data.interaction_type}) -> {result.get('fields_updated', [])}")
+    return result
+
+
+@router.get("/candidates/stale")
+async def n8n_get_stale_candidates(
+    days: int = Query(default=30, ge=1, le=365, description="Tage ohne Kontakt"),
+    limit: int = Query(default=50, ge=1, le=200),
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(verify_n8n_token),
+):
+    """n8n: Kandidaten die seit X Tagen keinen Kontakt hatten (fuer Follow-up Workflows)."""
+    from datetime import datetime, timezone, timedelta
+    from sqlalchemy import select, or_
+    from app.models.candidate import Candidate
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+
+    result = await db.execute(
+        select(Candidate)
+        .where(
+            or_(
+                Candidate.last_contact < cutoff,
+                Candidate.last_contact.is_(None),
+            )
+        )
+        .where(Candidate.willingness_to_change != "nein")  # Nur nicht-ablehnende
+        .order_by(Candidate.last_contact.asc().nullsfirst())
+        .limit(limit)
+    )
+    candidates = result.scalars().all()
+
+    return {
+        "success": True,
+        "count": len(candidates),
+        "days_threshold": days,
+        "candidates": [
+            {
+                "id": str(c.id),
+                "name": c.full_name,
+                "current_position": c.current_position,
+                "current_company": c.current_company,
+                "last_contact": c.last_contact.isoformat() if c.last_contact else None,
+                "willingness_to_change": c.willingness_to_change,
+                "source": c.source,
+            }
+            for c in candidates
+        ],
+    }
+
+
+@router.get("/candidates/willing")
+async def n8n_get_willing_candidates(
+    limit: int = Query(default=100, ge=1, le=500),
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(verify_n8n_token),
+):
+    """n8n: Alle wechselwilligen Kandidaten (fuer aktive Suche/Matching)."""
+    from sqlalchemy import select
+    from app.models.candidate import Candidate
+
+    result = await db.execute(
+        select(Candidate)
+        .where(Candidate.willingness_to_change == "ja")
+        .order_by(Candidate.last_contact.desc().nullslast())
+        .limit(limit)
+    )
+    candidates = result.scalars().all()
+
+    return {
+        "success": True,
+        "count": len(candidates),
+        "candidates": [
+            {
+                "id": str(c.id),
+                "name": c.full_name,
+                "current_position": c.current_position,
+                "current_company": c.current_company,
+                "salary": c.salary,
+                "notice_period": c.notice_period,
+                "erp": c.erp,
+                "last_contact": c.last_contact.isoformat() if c.last_contact else None,
+                "source": c.source,
+                "v2_seniority_level": c.v2_seniority_level,
+            }
+            for c in candidates
+        ],
+    }
+
+
+@router.post("/match/feedback")
+async def n8n_match_feedback(
+    data: MatchFeedbackRequest,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(verify_n8n_token),
+):
+    """n8n: Match-Feedback loggen (accepted/rejected/maybe + Grund)."""
+    from app.models.ats_activity import ATSActivity, ActivityType
+
+    if data.feedback not in ("accepted", "rejected", "maybe"):
+        raise HTTPException(status_code=400, detail="feedback muss 'accepted', 'rejected' oder 'maybe' sein")
+
+    feedback_labels = {"accepted": "Angenommen", "rejected": "Abgelehnt", "maybe": "Vielleicht"}
+    desc = f"Match-Feedback: {feedback_labels[data.feedback]}"
+    if data.reason:
+        desc += f" — {data.reason[:200]}"
+
+    activity = ATSActivity(
+        activity_type=ActivityType.NOTE_ADDED,
+        description=desc,
+        ats_job_id=data.ats_job_id,
+        candidate_id=data.candidate_id,
+        metadata_json={
+            "type": "match_feedback",
+            "feedback": data.feedback,
+            "reason": data.reason,
+        },
+    )
+    db.add(activity)
+
+    # last_contact aktualisieren (Feedback = Interaktion)
+    from app.models.candidate import Candidate
+    from datetime import datetime, timezone
+    candidate = await db.get(Candidate, data.candidate_id)
+    if candidate:
+        candidate.last_contact = datetime.now(timezone.utc)
+        candidate.updated_at = datetime.now(timezone.utc)
+
+    await db.commit()
+    logger.info(f"n8n Match Feedback: {data.candidate_id} + Job {data.ats_job_id} -> {data.feedback}")
+    return {"success": True, "feedback": data.feedback, "candidate_id": str(data.candidate_id), "ats_job_id": str(data.ats_job_id)}
+
+
+@router.post("/candidate/profile-trigger")
+async def n8n_profile_trigger(
+    data: ProfileTriggerRequest,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(verify_n8n_token),
+):
+    """n8n: v2-Profiling fuer einen einzelnen Kandidaten triggern."""
+    from app.services.profile_engine_service import ProfileEngineService
+
+    service = ProfileEngineService(db)
+    try:
+        profile = await service.create_candidate_profile(data.candidate_id)
+        await db.commit()
+        logger.info(f"n8n Profile Trigger: {data.candidate_id} -> Level {profile.seniority_level}")
+        return {
+            "success": True,
+            "candidate_id": str(data.candidate_id),
+            "seniority_level": profile.seniority_level,
+            "years_experience": profile.years_experience,
+            "career_trajectory": profile.career_trajectory,
+            "current_role_summary": profile.current_role_summary,
+        }
+    except Exception as e:
+        logger.error(f"n8n Profile Trigger Fehler: {e}")
+        raise HTTPException(status_code=422, detail=str(e))
