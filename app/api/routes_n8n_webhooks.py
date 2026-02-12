@@ -1,13 +1,16 @@
 """n8n Webhook-Routen — Inbound-API fuer n8n-Automatisierung."""
 
 import logging
+import re
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
 import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, Field
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -112,6 +115,28 @@ class CallTranscribeRequest(BaseModel):
     candidate_id: UUID
     audio_url: Optional[str] = Field(default=None, description="URL zur Audio-Datei")
     transcript_text: Optional[str] = Field(default=None, description="Bereits transkribierter Text (ueberspringt Whisper)")
+
+
+class CallStoreOrAssignRequest(BaseModel):
+    """Request fuer den Zwischenspeicher-Endpoint: Anruf zuordnen oder stagen."""
+    phone_number: Optional[str] = None
+    direction: str = "inbound"  # "inbound" / "outbound"
+    call_date: Optional[str] = None  # ISO DateTime
+    duration_seconds: Optional[int] = None
+    transcript: Optional[str] = None
+    call_summary: Optional[str] = None
+    extracted_data: Optional[dict] = None
+    recording_topic: Optional[str] = None
+    webex_recording_id: Optional[str] = None
+    webex_access_token: Optional[str] = None
+    mt_payload: Optional[dict] = None
+    candidate_id: Optional[str] = None  # Falls n8n den Kandidaten schon kennt
+
+
+class CallAssignRequest(BaseModel):
+    """Request fuer manuelle Zuordnung eines gestageten Anrufs."""
+    entity_type: str  # "candidate" / "contact" / "company"
+    entity_id: UUID
 
 
 # ── Endpoints ────────────────────────────────────
@@ -1367,3 +1392,619 @@ async def n8n_debug_db_fields(
         "missing_fields": missing,
         "all_candidate_columns": existing,
     }
+
+
+# ── Zwischenspeicher: Unzugeordnete Anrufe ──────────
+
+
+def _normalize_phone(phone: str) -> str:
+    """Entfernt alles ausser Ziffern, gibt letzte 8 Stellen zurueck.
+
+    Funktioniert mit +49, 0049, 0170, etc.
+    Vergleich ueber letzte 8 Stellen deckt laenderspezifische Praefixe ab.
+    """
+    if not phone:
+        return ""
+    digits = re.sub(r"\D", "", phone)
+    return digits[-8:] if len(digits) >= 8 else digits
+
+
+async def _phone_lookup(db: AsyncSession, phone: str):
+    """Sucht Telefonnummer in candidates, company_contacts, companies.
+
+    Gibt (entity_type, entity_id, entity_name, company_id) zurueck oder None.
+    Prioritaet: Kandidaten > Kontakte > Unternehmen.
+    """
+    normalized = _normalize_phone(phone)
+    if not normalized or len(normalized) < 4:
+        return None
+
+    like_pattern = f"%{normalized}"
+
+    # 1. Kandidaten-Suche
+    result = await db.execute(
+        text("""
+            SELECT id, first_name, last_name
+            FROM candidates
+            WHERE REGEXP_REPLACE(COALESCE(phone, ''), '[^0-9]', '', 'g') LIKE :pattern
+              AND deleted_at IS NULL
+            LIMIT 1
+        """),
+        {"pattern": like_pattern},
+    )
+    row = result.fetchone()
+    if row:
+        name = f"{row[1] or ''} {row[2] or ''}".strip()
+        return {"entity_type": "candidate", "entity_id": str(row[0]), "entity_name": name, "company_id": None}
+
+    # 2. Company-Contact-Suche (phone + mobile)
+    result = await db.execute(
+        text("""
+            SELECT cc.id, cc.first_name, cc.last_name, cc.company_id
+            FROM company_contacts cc
+            WHERE (REGEXP_REPLACE(COALESCE(cc.phone, ''), '[^0-9]', '', 'g') LIKE :pattern
+                OR REGEXP_REPLACE(COALESCE(cc.mobile, ''), '[^0-9]', '', 'g') LIKE :pattern)
+            LIMIT 1
+        """),
+        {"pattern": like_pattern},
+    )
+    row = result.fetchone()
+    if row:
+        name = f"{row[1] or ''} {row[2] or ''}".strip()
+        return {"entity_type": "contact", "entity_id": str(row[0]), "entity_name": name, "company_id": str(row[3]) if row[3] else None}
+
+    # 3. Company-Suche (Zentrale)
+    result = await db.execute(
+        text("""
+            SELECT id, name
+            FROM companies
+            WHERE REGEXP_REPLACE(COALESCE(phone, ''), '[^0-9]', '', 'g') LIKE :pattern
+            LIMIT 1
+        """),
+        {"pattern": like_pattern},
+    )
+    row = result.fetchone()
+    if row:
+        return {"entity_type": "company", "entity_id": str(row[0]), "entity_name": row[1] or "", "company_id": str(row[0])}
+
+    return None
+
+
+async def _auto_assign_to_candidate(
+    db: AsyncSession,
+    candidate_id: str,
+    data: CallStoreOrAssignRequest,
+):
+    """Ordnet Anrufdaten automatisch einem Kandidaten zu.
+
+    Aktualisiert: call_transcript, call_summary, call_date, call_type, last_contact
+    + Qualifizierungsfelder aus extracted_data.
+    Erstellt: ATSCallNote + ATSActivity.
+    """
+    from app.models.ats_activity import ATSActivity, ActivityType
+    from app.models.ats_call_note import ATSCallNote, CallDirection, CallType
+    from app.models.candidate import Candidate
+
+    # Kandidat laden
+    result = await db.execute(
+        select(Candidate).where(Candidate.id == candidate_id)
+    )
+    candidate = result.scalar_one_or_none()
+    if not candidate:
+        logger.warning(f"Auto-Assign: Kandidat {candidate_id} nicht gefunden")
+        return {"success": False, "error": f"Kandidat {candidate_id} nicht gefunden"}
+
+    # Kandidatenfelder updaten
+    now = datetime.now(timezone.utc)
+    if data.transcript:
+        candidate.call_transcript = data.transcript
+    if data.call_summary:
+        candidate.call_summary = data.call_summary
+    if data.call_date:
+        try:
+            candidate.call_date = datetime.fromisoformat(data.call_date.replace("Z", "+00:00"))
+        except (ValueError, AttributeError):
+            candidate.call_date = now
+    else:
+        candidate.call_date = now
+    candidate.call_type = "qualifizierung"
+    candidate.last_contact = now
+
+    # Qualifizierungsfelder aus extracted_data / mt_payload
+    ext = data.extracted_data or data.mt_payload or {}
+    field_mappings = {
+        "desired_positions": "desired_positions",
+        "key_activities": "key_activities",
+        "home_office_days": "home_office_days",
+        "commute_max": "commute_max",
+        "commute_transport": "commute_transport",
+        "erp_main": "erp_main",
+        "employment_type": "employment_type",
+        "part_time_hours": "part_time_hours",
+        "preferred_industries": "preferred_industries",
+        "avoided_industries": "avoided_industries",
+        "salary": "salary",
+        "notice_period": "notice_period",
+    }
+    fields_updated = []
+    for src_key, dest_key in field_mappings.items():
+        val = ext.get(src_key) or ext.get(f"call_{src_key}")
+        if val is not None and val != "" and val != []:
+            # Array-Felder als kommaseparierten String speichern falls noetig
+            if isinstance(val, list):
+                val = ", ".join(str(v) for v in val)
+            if hasattr(candidate, dest_key):
+                setattr(candidate, dest_key, val)
+                fields_updated.append(dest_key)
+
+    # Willingness aus extracted_data
+    willingness = ext.get("willingness_to_change") or ext.get("call_willingness_to_change")
+    if willingness in ("ja", "nein", "unbekannt", "unklar"):
+        if willingness == "unklar":
+            willingness = "unbekannt"
+        candidate.willingness_to_change = willingness
+        fields_updated.append("willingness_to_change")
+
+    # ATSCallNote erstellen
+    direction_val = CallDirection.INBOUND if data.direction == "inbound" else CallDirection.OUTBOUND
+    call_note = ATSCallNote(
+        candidate_id=candidate.id,
+        call_type=CallType.CANDIDATE_CALL,
+        direction=direction_val,
+        summary=data.call_summary or "KI-transkribiertes Gespraech",
+        raw_notes=data.transcript[:5000] if data.transcript else None,
+        duration_minutes=(data.duration_seconds // 60) if data.duration_seconds else None,
+        called_at=candidate.call_date or now,
+    )
+    db.add(call_note)
+
+    # Activity loggen
+    activity = ATSActivity(
+        activity_type=ActivityType.CALL_LOGGED,
+        description=f"Anruf automatisch zugeordnet: {data.call_summary[:100] if data.call_summary else 'Transkribiertes Gespraech'}",
+        candidate_id=candidate.id,
+        metadata_json={
+            "source": "webex_auto_assign",
+            "direction": data.direction,
+            "duration_seconds": data.duration_seconds,
+            "fields_updated": fields_updated,
+            "phone_number": data.phone_number,
+        },
+    )
+    db.add(activity)
+
+    return {
+        "success": True,
+        "candidate_name": f"{candidate.first_name or ''} {candidate.last_name or ''}".strip(),
+        "fields_updated": fields_updated,
+        "call_note_id": str(call_note.id),
+    }
+
+
+async def _auto_assign_to_contact_or_company(
+    db: AsyncSession,
+    entity_type: str,
+    entity_id: str,
+    company_id: str | None,
+    data: CallStoreOrAssignRequest,
+):
+    """Ordnet Anrufdaten einem Kontakt oder Unternehmen zu (ATSCallNote + Activity)."""
+    from app.models.ats_activity import ATSActivity, ActivityType
+    from app.models.ats_call_note import ATSCallNote, CallDirection, CallType
+
+    now = datetime.now(timezone.utc)
+    direction_val = CallDirection.INBOUND if data.direction == "inbound" else CallDirection.OUTBOUND
+
+    call_note = ATSCallNote(
+        call_type=CallType.ACQUISITION,
+        direction=direction_val,
+        summary=data.call_summary or "KI-transkribiertes Gespraech",
+        raw_notes=data.transcript[:5000] if data.transcript else None,
+        duration_minutes=(data.duration_seconds // 60) if data.duration_seconds else None,
+        called_at=now,
+    )
+
+    if entity_type == "contact":
+        call_note.contact_id = entity_id
+        if company_id:
+            call_note.company_id = company_id
+    elif entity_type == "company":
+        call_note.company_id = entity_id
+
+    db.add(call_note)
+
+    # Activity loggen
+    activity = ATSActivity(
+        activity_type=ActivityType.CALL_LOGGED,
+        description=f"Anruf automatisch zugeordnet ({entity_type}): {data.call_summary[:100] if data.call_summary else 'Gespraech'}",
+        company_id=company_id or (entity_id if entity_type == "company" else None),
+        metadata_json={
+            "source": "webex_auto_assign",
+            "entity_type": entity_type,
+            "entity_id": entity_id,
+            "direction": data.direction,
+            "phone_number": data.phone_number,
+        },
+    )
+    db.add(activity)
+
+    return {
+        "success": True,
+        "call_note_id": str(call_note.id),
+    }
+
+
+async def _delete_webex_recording(recording_id: str, access_token: str) -> str:
+    """Loescht ein Webex-Recording via API. Gibt Status zurueck."""
+    if not recording_id or not access_token:
+        return "skipped_no_credentials"
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.delete(
+                f"https://webexapis.com/v1/convergedRecordings/{recording_id}",
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+            if resp.status_code in (200, 204):
+                logger.info(f"Webex Recording {recording_id} geloescht")
+                return "deleted"
+            else:
+                logger.warning(f"Webex Delete fehlgeschlagen: {resp.status_code} {resp.text[:200]}")
+                return f"failed_{resp.status_code}"
+    except Exception as e:
+        logger.error(f"Webex Delete Error: {e}")
+        return f"error_{str(e)[:100]}"
+
+
+@router.post("/call/store-or-assign")
+async def n8n_call_store_or_assign(
+    data: CallStoreOrAssignRequest,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(verify_n8n_token),
+):
+    """n8n: Anruf zuordnen oder im Zwischenspeicher ablegen.
+
+    1. Falls candidate_id mitgegeben → direkt Auto-Assign
+    2. Sonst: Phone-Lookup in candidates, contacts, companies
+    3. Match gefunden → Auto-Assign + Webex Recording loeschen
+    4. Kein Match → In unassigned_calls Tabelle speichern (Staging)
+    """
+    from app.models.unassigned_call import UnassignedCall
+
+    actions_taken = []
+
+    # ── Pfad 1: candidate_id direkt mitgegeben ──
+    if data.candidate_id:
+        result = await _auto_assign_to_candidate(db, data.candidate_id, data)
+        if result.get("success"):
+            actions_taken.append(f"candidate_updated: {result.get('candidate_name')}")
+            actions_taken.append(f"fields: {result.get('fields_updated')}")
+
+            # Webex Recording loeschen
+            if data.webex_recording_id and data.webex_access_token:
+                delete_status = await _delete_webex_recording(
+                    data.webex_recording_id, data.webex_access_token,
+                )
+                actions_taken.append(f"webex_delete: {delete_status}")
+
+            await db.commit()
+
+            return {
+                "status": "auto_assigned",
+                "entity_type": "candidate",
+                "entity_id": data.candidate_id,
+                "entity_name": result.get("candidate_name"),
+                "actions": actions_taken,
+            }
+        else:
+            raise HTTPException(status_code=404, detail=result.get("error"))
+
+    # ── Pfad 2: Phone-Lookup ──
+    if data.phone_number:
+        lookup = await _phone_lookup(db, data.phone_number)
+
+        if lookup:
+            entity_type = lookup["entity_type"]
+            entity_id = lookup["entity_id"]
+            entity_name = lookup["entity_name"]
+
+            logger.info(
+                f"Phone-Lookup Match: {data.phone_number} → {entity_type} "
+                f"'{entity_name}' ({entity_id})"
+            )
+
+            if entity_type == "candidate":
+                result = await _auto_assign_to_candidate(db, entity_id, data)
+                if result.get("success"):
+                    actions_taken.append(f"phone_matched: {entity_name}")
+                    actions_taken.append(f"candidate_updated: {entity_id}")
+                    actions_taken.append(f"fields: {result.get('fields_updated')}")
+            else:
+                result = await _auto_assign_to_contact_or_company(
+                    db, entity_type, entity_id, lookup.get("company_id"), data,
+                )
+                if result.get("success"):
+                    actions_taken.append(f"phone_matched: {entity_name} ({entity_type})")
+                    actions_taken.append(f"call_note_created: {result.get('call_note_id')}")
+
+            # Webex Recording loeschen bei Auto-Assign
+            if data.webex_recording_id and data.webex_access_token:
+                delete_status = await _delete_webex_recording(
+                    data.webex_recording_id, data.webex_access_token,
+                )
+                actions_taken.append(f"webex_delete: {delete_status}")
+
+            await db.commit()
+
+            return {
+                "status": "auto_assigned",
+                "entity_type": entity_type,
+                "entity_id": entity_id,
+                "entity_name": entity_name,
+                "actions": actions_taken,
+            }
+
+    # ── Pfad 3: Kein Match → Staging ──
+    logger.info(f"Phone-Lookup kein Match: {data.phone_number} → Staging")
+
+    call_date = None
+    if data.call_date:
+        try:
+            call_date = datetime.fromisoformat(data.call_date.replace("Z", "+00:00"))
+        except (ValueError, AttributeError):
+            call_date = datetime.now(timezone.utc)
+
+    staged_call = UnassignedCall(
+        phone_number=data.phone_number,
+        direction=data.direction,
+        call_date=call_date or datetime.now(timezone.utc),
+        duration_seconds=data.duration_seconds,
+        transcript=data.transcript,
+        call_summary=data.call_summary,
+        extracted_data=data.extracted_data,
+        recording_topic=data.recording_topic,
+        webex_recording_id=data.webex_recording_id,
+        mt_payload=data.mt_payload,
+        assigned=False,
+    )
+    db.add(staged_call)
+    await db.commit()
+    await db.refresh(staged_call)
+
+    return {
+        "status": "staged",
+        "unassigned_call_id": str(staged_call.id),
+        "phone_number": data.phone_number,
+        "message": "Anruf im Zwischenspeicher abgelegt. Keine passende Telefonnummer in MT gefunden.",
+    }
+
+
+@router.post("/call/assign/{unassigned_call_id}")
+async def n8n_call_assign(
+    unassigned_call_id: UUID,
+    data: CallAssignRequest,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(verify_n8n_token),
+):
+    """Manuelle Zuordnung eines gestageten Anrufs zu einem Kandidaten/Kontakt/Unternehmen.
+
+    Wird vom Frontend aufgerufen wenn der User einen Anruf aus dem
+    Zwischenspeicher zuordnet.
+    """
+    from app.models.unassigned_call import UnassignedCall
+
+    # Staged Call laden
+    result = await db.execute(
+        select(UnassignedCall).where(UnassignedCall.id == unassigned_call_id)
+    )
+    call = result.scalar_one_or_none()
+    if not call:
+        raise HTTPException(status_code=404, detail="Unzugeordneter Anruf nicht gefunden")
+
+    if call.assigned:
+        raise HTTPException(status_code=400, detail="Anruf wurde bereits zugeordnet")
+
+    # Daten als CallStoreOrAssignRequest aufbereiten
+    assign_data = CallStoreOrAssignRequest(
+        phone_number=call.phone_number,
+        direction=call.direction or "inbound",
+        call_date=call.call_date.isoformat() if call.call_date else None,
+        duration_seconds=call.duration_seconds,
+        transcript=call.transcript,
+        call_summary=call.call_summary,
+        extracted_data=call.extracted_data,
+        recording_topic=call.recording_topic,
+        webex_recording_id=call.webex_recording_id,
+        mt_payload=call.mt_payload,
+    )
+
+    actions_taken = []
+
+    # Zuordnung durchfuehren
+    if data.entity_type == "candidate":
+        result = await _auto_assign_to_candidate(db, str(data.entity_id), assign_data)
+        if result.get("success"):
+            actions_taken.append(f"candidate_updated: {result.get('candidate_name')}")
+            actions_taken.append(f"fields: {result.get('fields_updated')}")
+        else:
+            raise HTTPException(status_code=404, detail=result.get("error"))
+    elif data.entity_type in ("contact", "company"):
+        result = await _auto_assign_to_contact_or_company(
+            db, data.entity_type, str(data.entity_id), None, assign_data,
+        )
+        if result.get("success"):
+            actions_taken.append(f"call_note_created: {result.get('call_note_id')}")
+    else:
+        raise HTTPException(status_code=400, detail=f"Ungueltiger entity_type: {data.entity_type}")
+
+    # Staging-Record als zugeordnet markieren
+    call.assigned = True
+    call.assigned_to_type = data.entity_type
+    call.assigned_to_id = data.entity_id
+    call.assigned_at = datetime.now(timezone.utc)
+
+    await db.commit()
+
+    return {
+        "success": True,
+        "status": "assigned",
+        "entity_type": data.entity_type,
+        "entity_id": str(data.entity_id),
+        "actions": actions_taken,
+        "message": f"Anruf erfolgreich zugeordnet ({data.entity_type})",
+    }
+
+
+@router.delete("/call/unassigned/{unassigned_call_id}")
+async def n8n_call_delete_unassigned(
+    unassigned_call_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(verify_n8n_token),
+):
+    """Loescht einen gestageten Anruf (Gespraech war irrelevant/Muell).
+
+    Hard Delete — Anruf wird komplett entfernt.
+    """
+    from app.models.unassigned_call import UnassignedCall
+
+    result = await db.execute(
+        select(UnassignedCall).where(UnassignedCall.id == unassigned_call_id)
+    )
+    call = result.scalar_one_or_none()
+    if not call:
+        raise HTTPException(status_code=404, detail="Unzugeordneter Anruf nicht gefunden")
+
+    call_id_str = str(call.id)
+    phone = call.phone_number
+
+    # Hard Delete
+    await db.delete(call)
+    await db.commit()
+
+    logger.info(f"Unassigned Call geloescht: {call_id_str} (Phone: {phone})")
+
+    return {
+        "success": True,
+        "deleted_id": call_id_str,
+        "message": "Anruf aus Zwischenspeicher geloescht",
+    }
+
+
+@router.get("/call/unassigned")
+async def n8n_call_list_unassigned(
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(verify_n8n_token),
+    search: Optional[str] = Query(default=None, description="Suche in Telefonnummer oder Summary"),
+    limit: int = Query(default=50, le=200),
+    offset: int = Query(default=0, ge=0),
+):
+    """Listet alle unzugeordneten Anrufe (fuer Frontend-Seite).
+
+    Sortiert nach Datum absteigend (neueste zuerst).
+    Optional: Suche in phone_number oder call_summary.
+    """
+    from app.models.unassigned_call import UnassignedCall
+
+    query = select(UnassignedCall).where(
+        UnassignedCall.assigned == False  # noqa: E712
+    )
+
+    if search:
+        search_pattern = f"%{search}%"
+        query = query.where(
+            UnassignedCall.phone_number.ilike(search_pattern)
+            | UnassignedCall.call_summary.ilike(search_pattern)
+            | UnassignedCall.recording_topic.ilike(search_pattern)
+        )
+
+    # Count
+    from sqlalchemy import func
+    count_query = select(func.count(UnassignedCall.id)).where(
+        UnassignedCall.assigned == False  # noqa: E712
+    )
+    total_count = await db.scalar(count_query)
+
+    # Results
+    query = query.order_by(UnassignedCall.created_at.desc()).offset(offset).limit(limit)
+    result = await db.execute(query)
+    calls = result.scalars().all()
+
+    return {
+        "success": True,
+        "total": total_count or 0,
+        "calls": [
+            {
+                "id": str(c.id),
+                "phone_number": c.phone_number,
+                "direction": c.direction,
+                "call_date": c.call_date.isoformat() if c.call_date else None,
+                "duration_seconds": c.duration_seconds,
+                "call_summary": c.call_summary,
+                "extracted_data": c.extracted_data,
+                "recording_topic": c.recording_topic,
+                "webex_recording_id": c.webex_recording_id,
+                "transcript_preview": c.transcript[:500] if c.transcript else None,
+                "created_at": c.created_at.isoformat() if c.created_at else None,
+            }
+            for c in calls
+        ],
+    }
+
+
+@router.post("/debug/simulate-call")
+async def n8n_debug_simulate_call(
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(verify_n8n_token),
+    phone_number: str = Query(default="0170 1234567", description="Telefonnummer zum Testen"),
+    direction: str = Query(default="inbound", description="inbound oder outbound"),
+    candidate_id: Optional[str] = Query(default=None, description="Kandidaten-ID (ueberspringt Phone-Lookup)"),
+):
+    """Debug: Simuliert einen Anruf mit Fake-Transkript.
+
+    Testet die gesamte store-or-assign Logik:
+    - Phone-Lookup
+    - Auto-Assign (bei Match)
+    - Staging (bei keinem Match)
+
+    Kein Webex, kein Whisper, kein GPT — nur DB-Logik.
+    """
+    fake_data = CallStoreOrAssignRequest(
+        phone_number=phone_number,
+        direction=direction,
+        call_date=datetime.now(timezone.utc).isoformat(),
+        duration_seconds=300,
+        transcript=(
+            "Das ist ein simuliertes Testtranskript. Der Kandidat arbeitet seit 3 Jahren "
+            "als Bilanzbuchhalter bei der DATEV in Muenchen. Er sucht eine neue Herausforderung "
+            "im Bereich Konzernbuchhaltung und wuenscht 2 Tage Home Office pro Woche. "
+            "Gehaltsvorstellung liegt bei 65.000 EUR brutto jaehrlich. "
+            "Kuendigungsfrist: 3 Monate zum Quartalsende."
+        ),
+        call_summary=(
+            "Kandidat ist Bilanzbuchhalter bei DATEV in Muenchen (3 Jahre). "
+            "Sucht Konzernbuchhaltung, 2 Tage HO, 65k Gehalt, 3 Monate Kuendigungsfrist."
+        ),
+        extracted_data={
+            "desired_positions": ["Bilanzbuchhalter", "Konzernbuchhalter"],
+            "key_activities": ["Bilanzierung", "Monatsabschluesse", "Konzernkonsolidierung"],
+            "home_office_days": 2,
+            "commute_max": "45 Minuten",
+            "commute_transport": "Auto",
+            "erp_main": "DATEV",
+            "employment_type": "Vollzeit",
+            "part_time_hours": None,
+            "preferred_industries": ["Industrie", "IT"],
+            "avoided_industries": ["Einzelhandel"],
+            "salary": "65.000 EUR brutto jaehrlich",
+            "notice_period": "3 Monate zum Quartalsende",
+            "willingness_to_change": "ja",
+            "call_summary": "Simuliertes Testgespraech",
+        },
+        recording_topic="DEBUG: Simulierter Anruf",
+        webex_recording_id=None,  # Kein echtes Recording
+        webex_access_token=None,
+        mt_payload=None,
+        candidate_id=candidate_id,
+    )
+
+    # Die gleiche Logik wie store-or-assign aufrufen
+    return await n8n_call_store_or_assign(data=fake_data, db=db, _=_)

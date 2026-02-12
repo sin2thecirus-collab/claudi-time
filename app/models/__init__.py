@@ -22,6 +22,7 @@ from app.models.mt_match_memory import MTMatchMemory
 from app.models.mt_training import MTTrainingData
 from app.models.settings import FilterPreset, PriorityCity
 from app.models.statistics import DailyStatistics, FilterUsage
+from app.models.unassigned_call import UnassignedCall
 
 __all__ = [
     "Job",
@@ -59,4 +60,5 @@ __all__ = [
     "MatchV2TrainingData",
     "MatchV2LearnedRule",
     "MatchV2ScoringWeight",
+    "UnassignedCall",
 ]

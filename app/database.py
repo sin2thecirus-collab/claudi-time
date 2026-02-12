@@ -527,6 +527,56 @@ async def _ensure_matching_v2_tables() -> None:
         logger.info("Matching v2 Tabellen erfolgreich erstellt.")
 
 
+async def _ensure_unassigned_calls_table() -> None:
+    """Erstellt unassigned_calls Tabelle (Zwischenspeicher fuer unzugeordnete Anrufe)."""
+
+    async with engine.begin() as conn:
+        result = await conn.execute(
+            text(
+                "SELECT table_name FROM information_schema.tables "
+                "WHERE table_schema = 'public' AND table_name = 'unassigned_calls'"
+            )
+        )
+        if result.fetchone() is not None:
+            logger.info("unassigned_calls Tabelle existiert bereits.")
+            return
+
+    logger.info("unassigned_calls Tabelle wird erstellt...")
+
+    async with engine.begin() as conn:
+        await conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS unassigned_calls (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                phone_number VARCHAR(100),
+                direction VARCHAR(20),
+                call_date TIMESTAMPTZ,
+                duration_seconds INTEGER,
+                transcript TEXT,
+                call_summary TEXT,
+                extracted_data JSONB,
+                recording_topic VARCHAR(500),
+                webex_recording_id VARCHAR(255),
+                mt_payload JSONB,
+                assigned BOOLEAN DEFAULT FALSE,
+                assigned_to_type VARCHAR(20),
+                assigned_to_id UUID,
+                assigned_at TIMESTAMPTZ,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        """))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_unassigned_calls_assigned ON unassigned_calls (assigned)"
+        ))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_unassigned_calls_phone ON unassigned_calls (phone_number)"
+        ))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_unassigned_calls_created ON unassigned_calls (created_at)"
+        ))
+
+        logger.info("unassigned_calls Tabelle erfolgreich erstellt.")
+
+
 async def init_db() -> None:
     """Initialisiert die Datenbankverbindung und führt Migrationen aus."""
     # Schritt 0: Alle haengenden Transaktionen killen (von vorherigen Deployments)
@@ -551,6 +601,7 @@ async def init_db() -> None:
     await _ensure_company_tables()
     await _ensure_ats_tables()
     await _ensure_matching_v2_tables()
+    await _ensure_unassigned_calls_table()
 
     # ── pgvector Extension NICHT noetig — Embeddings werden als JSONB gespeichert ──
     # Railway Standard-PostgreSQL hat kein pgvector vorinstalliert.

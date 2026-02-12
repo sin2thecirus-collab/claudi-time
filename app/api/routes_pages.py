@@ -1591,3 +1591,229 @@ async def company_notes_partial(
         "notes": notes,
         "company_id": str(company_id),
     })
+
+
+# ============================================================================
+# Gespräche (Zwischenspeicher für unzugeordnete Anrufe)
+# ============================================================================
+
+
+@router.get("/gespraeche", response_class=HTMLResponse)
+async def gespraeche_page(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Gespräche-Seite: Unzugeordnete transkribierte Anrufe."""
+    from sqlalchemy import func as sqla_func
+    from app.models.unassigned_call import UnassignedCall
+
+    count = await db.scalar(
+        select(sqla_func.count(UnassignedCall.id)).where(
+            UnassignedCall.assigned == False  # noqa: E712
+        )
+    )
+
+    return templates.TemplateResponse("gespraeche.html", {
+        "request": request,
+        "unassigned_count": count or 0,
+    })
+
+
+@router.get("/partials/gespraeche-list", response_class=HTMLResponse)
+async def gespraeche_list_partial(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    search: str = "",
+):
+    """Partial: Liste der unzugeordneten Gespräche."""
+    from app.models.unassigned_call import UnassignedCall
+
+    query = select(UnassignedCall).where(
+        UnassignedCall.assigned == False  # noqa: E712
+    )
+
+    if search:
+        search_pattern = f"%{search}%"
+        query = query.where(
+            UnassignedCall.phone_number.ilike(search_pattern)
+            | UnassignedCall.call_summary.ilike(search_pattern)
+            | UnassignedCall.recording_topic.ilike(search_pattern)
+        )
+
+    query = query.order_by(UnassignedCall.created_at.desc()).limit(100)
+    result = await db.execute(query)
+    calls = result.scalars().all()
+
+    return templates.TemplateResponse("partials/gespraeche_list.html", {
+        "request": request,
+        "calls": calls,
+        "search": search,
+    })
+
+
+@router.get("/partials/gespraech-assign/{call_id}", response_class=HTMLResponse)
+async def gespraech_assign_modal(
+    call_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Partial: Modal fuer Gespräch-Zuordnung."""
+    from app.models.unassigned_call import UnassignedCall
+
+    result = await db.execute(
+        select(UnassignedCall).where(UnassignedCall.id == call_id)
+    )
+    call = result.scalar_one_or_none()
+    if not call:
+        raise HTTPException(status_code=404, detail="Anruf nicht gefunden")
+
+    return templates.TemplateResponse("partials/gespraech_assign_modal.html", {
+        "request": request,
+        "call": call,
+    })
+
+
+@router.delete("/api/gespraeche/{call_id}")
+async def gespraeche_delete(
+    call_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Frontend: Löscht einen unzugeordneten Anruf (Hard Delete)."""
+    from app.models.unassigned_call import UnassignedCall
+
+    result = await db.execute(
+        select(UnassignedCall).where(UnassignedCall.id == call_id)
+    )
+    call = result.scalar_one_or_none()
+    if not call:
+        raise HTTPException(status_code=404, detail="Anruf nicht gefunden")
+
+    await db.delete(call)
+    await db.commit()
+
+    # Return empty HTML (Card wird via hx-swap entfernt)
+    from fastapi.responses import HTMLResponse
+    return HTMLResponse(content="", status_code=200)
+
+
+@router.post("/api/gespraeche/{call_id}/assign")
+async def gespraeche_assign(
+    call_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Frontend: Ordnet einen unzugeordneten Anruf manuell zu."""
+    from datetime import datetime, timezone
+    from app.models.unassigned_call import UnassignedCall
+    from app.models.ats_activity import ATSActivity, ActivityType
+    from app.models.ats_call_note import ATSCallNote, CallDirection, CallType
+    from app.models.candidate import Candidate
+    from fastapi.responses import JSONResponse
+
+    body = await request.json()
+    entity_type = body.get("entity_type", "candidate")
+    entity_id = body.get("entity_id")
+
+    if not entity_id:
+        raise HTTPException(status_code=400, detail="entity_id fehlt")
+
+    # Staged Call laden
+    result = await db.execute(
+        select(UnassignedCall).where(UnassignedCall.id == call_id)
+    )
+    call = result.scalar_one_or_none()
+    if not call:
+        raise HTTPException(status_code=404, detail="Anruf nicht gefunden")
+    if call.assigned:
+        raise HTTPException(status_code=400, detail="Anruf wurde bereits zugeordnet")
+
+    now = datetime.now(timezone.utc)
+    actions = []
+
+    if entity_type == "candidate":
+        # Kandidat laden + Felder updaten
+        cand_result = await db.execute(
+            select(Candidate).where(Candidate.id == entity_id)
+        )
+        candidate = cand_result.scalar_one_or_none()
+        if not candidate:
+            raise HTTPException(status_code=404, detail="Kandidat nicht gefunden")
+
+        # Call-Daten auf Kandidaten schreiben
+        if call.transcript:
+            candidate.call_transcript = call.transcript
+        if call.call_summary:
+            candidate.call_summary = call.call_summary
+        candidate.call_date = call.call_date or now
+        candidate.call_type = "qualifizierung"
+        candidate.last_contact = now
+
+        # Qualifizierungsfelder aus extracted_data
+        ext = call.extracted_data or {}
+        field_mappings = {
+            "desired_positions": "desired_positions",
+            "key_activities": "key_activities",
+            "home_office_days": "home_office_days",
+            "commute_max": "commute_max",
+            "commute_transport": "commute_transport",
+            "erp_main": "erp_main",
+            "employment_type": "employment_type",
+            "part_time_hours": "part_time_hours",
+            "preferred_industries": "preferred_industries",
+            "avoided_industries": "avoided_industries",
+            "salary": "salary",
+            "notice_period": "notice_period",
+        }
+        fields_updated = []
+        for src_key, dest_key in field_mappings.items():
+            val = ext.get(src_key)
+            if val is not None and val != "" and val != []:
+                if isinstance(val, list):
+                    val = ", ".join(str(v) for v in val)
+                if hasattr(candidate, dest_key):
+                    setattr(candidate, dest_key, val)
+                    fields_updated.append(dest_key)
+
+        willingness = ext.get("willingness_to_change")
+        if willingness in ("ja", "nein", "unbekannt", "unklar"):
+            candidate.willingness_to_change = "unbekannt" if willingness == "unklar" else willingness
+            fields_updated.append("willingness_to_change")
+
+        actions.append(f"Kandidat aktualisiert: {candidate.first_name} {candidate.last_name}")
+        actions.append(f"Felder: {fields_updated}")
+
+        # CallNote erstellen
+        direction_val = CallDirection.INBOUND if call.direction == "inbound" else CallDirection.OUTBOUND
+        call_note = ATSCallNote(
+            candidate_id=candidate.id,
+            call_type=CallType.CANDIDATE_CALL,
+            direction=direction_val,
+            summary=call.call_summary or "KI-transkribiertes Gespräch",
+            raw_notes=call.transcript[:5000] if call.transcript else None,
+            duration_minutes=(call.duration_seconds // 60) if call.duration_seconds else None,
+            called_at=call.call_date or now,
+        )
+        db.add(call_note)
+
+        # Activity loggen
+        activity = ATSActivity(
+            activity_type=ActivityType.CALL_LOGGED,
+            description=f"Anruf manuell zugeordnet: {call.call_summary[:100] if call.call_summary else 'Transkribiertes Gespräch'}",
+            candidate_id=candidate.id,
+            metadata_json={"source": "manual_assign", "fields_updated": fields_updated},
+        )
+        db.add(activity)
+
+    # Staging-Record als zugeordnet markieren
+    call.assigned = True
+    call.assigned_to_type = entity_type
+    call.assigned_to_id = entity_id
+    call.assigned_at = now
+
+    await db.commit()
+
+    return JSONResponse(content={
+        "success": True,
+        "message": f"Anruf erfolgreich zugeordnet",
+        "actions": actions,
+    })

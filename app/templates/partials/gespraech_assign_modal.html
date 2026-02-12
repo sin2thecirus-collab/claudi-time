@@ -1,0 +1,201 @@
+{# ══════════════════════════════════════════════
+   Modal: Gespräch einem Kandidaten/Kontakt/Unternehmen zuordnen
+   Geladen via: openModal('/partials/gespraech-assign/{call_id}')
+   ══════════════════════════════════════════════ #}
+<div x-data="{
+    entityType: 'candidate',
+    searchQuery: '',
+    results: [],
+    loading: false,
+    selectedId: null,
+    selectedName: '',
+    assigning: false,
+
+    async search() {
+        if (this.searchQuery.length < 2) { this.results = []; return; }
+        this.loading = true;
+        try {
+            let url = '';
+            if (this.entityType === 'candidate') {
+                url = '/api/candidates?search=' + encodeURIComponent(this.searchQuery) + '&per_page=10';
+            } else if (this.entityType === 'company') {
+                url = '/api/companies?search=' + encodeURIComponent(this.searchQuery) + '&per_page=10';
+            } else {
+                url = '/api/companies?search=' + encodeURIComponent(this.searchQuery) + '&per_page=10';
+            }
+            const resp = await fetch(url);
+            const data = await resp.json();
+            if (this.entityType === 'candidate') {
+                this.results = (data.items || data || []).map(c => ({
+                    id: c.id,
+                    name: (c.first_name || '') + ' ' + (c.last_name || ''),
+                    subtitle: c.current_position || c.email || '',
+                }));
+            } else {
+                this.results = (data.items || data || []).map(c => ({
+                    id: c.id,
+                    name: c.name || (c.first_name || '') + ' ' + (c.last_name || ''),
+                    subtitle: c.city || c.position || '',
+                }));
+            }
+        } catch (e) { console.error('Search failed:', e); this.results = []; }
+        this.loading = false;
+    },
+
+    selectEntity(id, name) {
+        this.selectedId = id;
+        this.selectedName = name;
+        this.results = [];
+    },
+
+    async assign() {
+        if (!this.selectedId) return;
+        this.assigning = true;
+        try {
+            const resp = await fetch('/api/gespraeche/{{ call.id }}/assign', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    entity_type: this.entityType,
+                    entity_id: this.selectedId,
+                }),
+            });
+            const data = await resp.json();
+            if (resp.ok && data.success) {
+                showToast('Gespräch erfolgreich zugeordnet!', 'success');
+                closeModal();
+                htmx.ajax('GET', '/partials/gespraeche-list', { target: '#gespraeche-list', swap: 'innerHTML' });
+            } else {
+                showToast(data.detail || 'Zuordnung fehlgeschlagen', 'error');
+            }
+        } catch (e) {
+            showToast('Fehler: ' + e.message, 'error');
+        }
+        this.assigning = false;
+    }
+}" style="padding: 24px; min-width: 480px; max-width: 600px;">
+
+    {# Header #}
+    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+        <div style="width: 40px; height: 40px; border-radius: 12px; background: rgba(79,140,255,0.12); display: flex; align-items: center; justify-content: center;">
+            <svg style="width: 18px; height: 18px; color: var(--pp-accent);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
+            </svg>
+        </div>
+        <div>
+            <h2 style="font-size: 18px; font-weight: 700; color: var(--pp-text); margin: 0;">Gespräch zuordnen</h2>
+            <p style="font-size: 13px; color: var(--pp-textMuted); margin: 2px 0 0;">
+                {{ call.phone_number or 'Unbekannte Nummer' }}
+                {% if call.call_date %} &bull; {{ call.call_date.strftime('%d.%m.%Y') }}{% endif %}
+            </p>
+        </div>
+    </div>
+
+    {# Summary Preview #}
+    {% if call.call_summary %}
+    <div style="padding: 12px 14px; background: var(--pp-bg); border-radius: 10px; border: 1px solid var(--pp-border); margin-bottom: 18px;">
+        <p style="font-size: 13px; color: var(--pp-textMuted); line-height: 1.5; margin: 0;">
+            {{ call.call_summary[:300] }}{% if call.call_summary|length > 300 %}...{% endif %}
+        </p>
+    </div>
+    {% endif %}
+
+    {# Entity Type Toggle #}
+    <div style="display: flex; gap: 6px; margin-bottom: 16px;">
+        <button type="button"
+                class="py-2 px-4 rounded-lg cursor-pointer text-sm font-semibold"
+                :style="entityType === 'candidate'
+                    ? 'background: rgba(79,140,255,0.15); color: var(--pp-accent); border: 1.5px solid var(--pp-accent);'
+                    : 'background: var(--pp-surface); color: var(--pp-textMuted); border: 1.5px solid var(--pp-border);'"
+                @click="entityType = 'candidate'; searchQuery = ''; results = []; selectedId = null;">
+            Kandidat
+        </button>
+        <button type="button"
+                class="py-2 px-4 rounded-lg cursor-pointer text-sm font-semibold"
+                :style="entityType === 'company'
+                    ? 'background: rgba(79,140,255,0.15); color: var(--pp-accent); border: 1.5px solid var(--pp-accent);'
+                    : 'background: var(--pp-surface); color: var(--pp-textMuted); border: 1.5px solid var(--pp-border);'"
+                @click="entityType = 'company'; searchQuery = ''; results = []; selectedId = null;">
+            Unternehmen
+        </button>
+    </div>
+
+    {# Search Input #}
+    <div style="position: relative; margin-bottom: 12px;">
+        <input type="text"
+               x-model="searchQuery"
+               @input.debounce.300ms="search()"
+               :placeholder="entityType === 'candidate' ? 'Kandidat suchen (Name, E-Mail...)' : 'Unternehmen suchen...'"
+               class="w-full py-3 px-4 rounded-xl text-sm"
+               style="background: var(--pp-surface); border: 1.5px solid var(--pp-border); color: var(--pp-text); font-family: inherit; outline: none;"
+               onfocus="this.style.borderColor='var(--pp-accent)'; this.style.boxShadow='0 0 0 3px rgba(79,140,255,0.1)';"
+               onblur="this.style.borderColor='var(--pp-border)'; this.style.boxShadow='';">
+
+        {# Loading spinner #}
+        <div x-show="loading" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%);">
+            <svg style="width: 16px; height: 16px; color: var(--pp-accent); animation: spin 1s linear infinite;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4m0 12v4m-7.07-15.07l2.83 2.83m8.49 8.49l2.83 2.83"/></svg>
+        </div>
+    </div>
+
+    {# Selected Entity #}
+    <div x-show="selectedId" style="padding: 10px 14px; background: rgba(52,211,153,0.08); border: 1.5px solid var(--pp-green); border-radius: 10px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
+        <div>
+            <span style="font-size: 13px; color: var(--pp-green); font-weight: 600;" x-text="selectedName"></span>
+            <span style="font-size: 12px; color: var(--pp-textMuted); margin-left: 8px;" x-text="entityType === 'candidate' ? 'Kandidat' : 'Unternehmen'"></span>
+        </div>
+        <button type="button" class="cursor-pointer" style="color: var(--pp-textMuted); background: none; border: none; font-size: 16px;"
+                @click="selectedId = null; selectedName = '';">&times;</button>
+    </div>
+
+    {# Search Results #}
+    <div x-show="results.length > 0 && !selectedId" style="max-height: 240px; overflow-y: auto; border: 1px solid var(--pp-border); border-radius: 10px; background: var(--pp-surface);">
+        <template x-for="r in results" :key="r.id">
+            <button type="button"
+                    class="w-full text-left py-3 px-4 cursor-pointer"
+                    style="border: none; border-bottom: 1px solid var(--pp-border); background: none; color: var(--pp-text); font-family: inherit; display: block; transition: background 0.15s;"
+                    onmouseover="this.style.background='var(--pp-surfaceHover)'"
+                    onmouseout="this.style.background='none'"
+                    @click="selectEntity(r.id, r.name)">
+                <span style="font-size: 14px; font-weight: 600;" x-text="r.name"></span>
+                <span style="font-size: 12px; color: var(--pp-textMuted); display: block; margin-top: 2px;" x-text="r.subtitle"></span>
+            </button>
+        </template>
+    </div>
+
+    {# No results #}
+    <div x-show="searchQuery.length >= 2 && results.length === 0 && !loading && !selectedId"
+         style="text-align: center; padding: 20px; color: var(--pp-textMuted); font-size: 13px;">
+        Keine Ergebnisse gefunden.
+        <a href="#" style="color: var(--pp-accent); display: block; margin-top: 6px;"
+           @click.prevent="entityType === 'candidate' ? openQuickAdd('kandidat') : openQuickAdd('unternehmen')">
+            + Neu anlegen
+        </a>
+    </div>
+
+    {# Action Buttons #}
+    <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--pp-border);">
+        <button type="button"
+                class="py-2 px-5 rounded-lg cursor-pointer text-sm font-semibold"
+                style="background: var(--pp-surface); color: var(--pp-textMuted); border: 1px solid var(--pp-border);"
+                onclick="closeModal()">
+            Abbrechen
+        </button>
+        <button type="button"
+                class="py-2 px-5 rounded-lg cursor-pointer text-sm font-semibold"
+                :style="selectedId
+                    ? 'background: var(--pp-accent); color: #fff; border: none; opacity: 1;'
+                    : 'background: var(--pp-surface); color: var(--pp-textDim); border: 1px solid var(--pp-border); opacity: 0.5; cursor: not-allowed;'"
+                :disabled="!selectedId || assigning"
+                @click="assign()">
+            <span x-show="!assigning">Zuordnen</span>
+            <span x-show="assigning">Wird zugeordnet...</span>
+        </button>
+    </div>
+
+</div>
+
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
