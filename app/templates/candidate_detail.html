@@ -661,6 +661,274 @@
                 </div>
             </div>
 
+            {# ── Qualifizierungsgespräch ── #}
+            <div class="kd-section kd-anim" style="animation-delay: 260ms; overflow: visible;" id="qualification-call"
+                 x-data="qualificationFields()">
+                <div class="kd-section-header">
+                    <div class="kd-section-title"><span>&#x1F4DE;</span> Qualifizierungsgespr&auml;ch</div>
+                    <span x-show="qfSaving" x-cloak style="font-size: 11px; font-weight: 600; color: var(--pp-accent);">Speichert...</span>
+                </div>
+                <div class="kd-section-body" style="overflow: visible;">
+                    {# Row 1: Gewünschte Positionen + Tätigkeiten #}
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                        <div>
+                            <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em;">Gew&uuml;nschte Positionen</div>
+                            <textarea x-model="qf.desired_positions" @blur="saveQField('desired_positions')" placeholder="z.B. Bilanzbuchhalterin, Finanzbuchhalterin..."
+                                class="w-full rounded-lg text-sm font-medium resize-vertical"
+                                style="min-height: 60px; padding: 10px 14px; border: 1.5px solid var(--pp-border); color: var(--pp-text); background: var(--pp-surface); font-family: inherit; outline: none; line-height: 1.5;"
+                                @focus="$el.style.borderColor = 'var(--pp-accent)'" @focusout="$el.style.borderColor = 'var(--pp-border)'"></textarea>
+                        </div>
+                        <div>
+                            <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em;">T&auml;tigkeiten (Kernkompetenzen)</div>
+                            <textarea x-model="qf.key_activities" @blur="saveQField('key_activities')" placeholder="T&auml;tigkeiten die voll umf&auml;nglich beherrscht werden..."
+                                class="w-full rounded-lg text-sm font-medium resize-vertical"
+                                style="min-height: 60px; padding: 10px 14px; border: 1.5px solid var(--pp-border); color: var(--pp-text); background: var(--pp-surface); font-family: inherit; outline: none; line-height: 1.5;"
+                                @focus="$el.style.borderColor = 'var(--pp-accent)'" @focusout="$el.style.borderColor = 'var(--pp-border)'"></textarea>
+                        </div>
+                    </div>
+
+                    {# Row 2: Home-Office + Pendel + Verkehrsmittel + ERP-Steckenpferd #}
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px; margin-top: 16px;">
+                        <div>
+                            <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em;">Home-Office Tage</div>
+                            <input type="text" x-model="qf.home_office_days" @blur="saveQField('home_office_days')" placeholder="z.B. 2 bis 3 Tage"
+                                class="w-full rounded-lg text-sm font-semibold"
+                                style="padding: 8px 12px; border: 1.5px solid var(--pp-border); color: var(--pp-text); background: var(--pp-surface); font-family: inherit; outline: none;"
+                                @focus="$el.style.borderColor = 'var(--pp-accent)'" @focusout="$el.style.borderColor = 'var(--pp-border)'">
+                        </div>
+                        <div>
+                            <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em;">Pendelbereitschaft</div>
+                            <input type="text" x-model="qf.commute_max" @blur="saveQField('commute_max')" placeholder="z.B. 30 min"
+                                class="w-full rounded-lg text-sm font-semibold"
+                                style="padding: 8px 12px; border: 1.5px solid var(--pp-border); color: var(--pp-text); background: var(--pp-surface); font-family: inherit; outline: none;"
+                                @focus="$el.style.borderColor = 'var(--pp-accent)'" @focusout="$el.style.borderColor = 'var(--pp-border)'">
+                        </div>
+                        <div>
+                            <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em;">Verkehrsmittel</div>
+                            <div class="relative" @click.away="showTransportDd = false">
+                                <button type="button" @click="showTransportDd = !showTransportDd"
+                                    class="relative w-full cursor-pointer rounded-lg py-2 pl-3 pr-8 text-left text-sm font-semibold"
+                                    style="font-family: inherit; background: var(--pp-surface); border: 1.5px solid var(--pp-border); color: var(--pp-text);">
+                                    <span class="block truncate" x-text="qf.commute_transport || 'Ausw&auml;hlen'"></span>
+                                    <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                                        <svg class="h-4 w-4 opacity-50" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+                                    </span>
+                                </button>
+                                <div x-show="showTransportDd" x-cloak
+                                     class="absolute z-50 mt-1 max-h-60 overflow-auto rounded-xl py-1 text-sm shadow-lg"
+                                     style="background: var(--pp-surface); border: 1px solid var(--pp-border); min-width: 180px; width: max-content; box-shadow: 0 8px 24px rgba(0,0,0,0.5);">
+                                    <template x-for="opt in ['Auto', '&Ouml;PNV', 'Beides']" :key="opt">
+                                        <button type="button" @click="qf.commute_transport = opt; showTransportDd = false; saveQField('commute_transport')"
+                                            class="w-full cursor-pointer select-none py-2.5 pl-3 pr-4 text-left text-sm"
+                                            style="font-family: inherit; white-space: nowrap; border: none;"
+                                            :style="qf.commute_transport === opt ? 'background: var(--pp-surfaceHover); color: var(--pp-accent); font-weight: 650;' : 'background: none; color: var(--pp-text); font-weight: 500;'"
+                                            @mouseenter="$el.style.background = 'var(--pp-surfaceHover)'"
+                                            @mouseleave="if (qf.commute_transport !== opt) $el.style.background = 'none'"
+                                            x-text="opt"></button>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em;">ERP-Steckenpferd</div>
+                            <input type="text" x-model="qf.erp_main" @blur="saveQField('erp_main')" placeholder="z.B. DATEV"
+                                class="w-full rounded-lg text-sm font-semibold"
+                                style="padding: 8px 12px; border: 1.5px solid var(--pp-border); color: var(--pp-text); background: var(--pp-surface); font-family: inherit; outline: none;"
+                                @focus="$el.style.borderColor = 'var(--pp-accent)'" @focusout="$el.style.borderColor = 'var(--pp-border)'">
+                        </div>
+                    </div>
+
+                    {# Row 3: Anstellung + Teilzeit-Stunden + Großraumbüro #}
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 16px;">
+                        <div>
+                            <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em;">Anstellungsart</div>
+                            <div class="relative" @click.away="showEmpTypeDd = false">
+                                <button type="button" @click="showEmpTypeDd = !showEmpTypeDd"
+                                    class="relative w-full cursor-pointer rounded-lg py-2 pl-3 pr-8 text-left text-sm font-semibold"
+                                    style="font-family: inherit; background: var(--pp-surface); border: 1.5px solid var(--pp-border); color: var(--pp-text);">
+                                    <span class="block truncate" x-text="qf.employment_type || 'Ausw&auml;hlen'"></span>
+                                    <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                                        <svg class="h-4 w-4 opacity-50" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+                                    </span>
+                                </button>
+                                <div x-show="showEmpTypeDd" x-cloak
+                                     class="absolute z-50 mt-1 max-h-60 overflow-auto rounded-xl py-1 text-sm shadow-lg"
+                                     style="background: var(--pp-surface); border: 1px solid var(--pp-border); min-width: 180px; width: max-content; box-shadow: 0 8px 24px rgba(0,0,0,0.5);">
+                                    <template x-for="opt in ['Vollzeit', 'Teilzeit', 'Beides']" :key="opt">
+                                        <button type="button" @click="qf.employment_type = opt; showEmpTypeDd = false; saveQField('employment_type')"
+                                            class="w-full cursor-pointer select-none py-2.5 pl-3 pr-4 text-left text-sm"
+                                            style="font-family: inherit; white-space: nowrap; border: none;"
+                                            :style="qf.employment_type === opt ? 'background: var(--pp-surfaceHover); color: var(--pp-accent); font-weight: 650;' : 'background: none; color: var(--pp-text); font-weight: 500;'"
+                                            @mouseenter="$el.style.background = 'var(--pp-surfaceHover)'"
+                                            @mouseleave="if (qf.employment_type !== opt) $el.style.background = 'none'"
+                                            x-text="opt"></button>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em;">Teilzeit-Stunden</div>
+                            <input type="text" x-model="qf.part_time_hours" @blur="saveQField('part_time_hours')" placeholder="z.B. 30 Stunden"
+                                class="w-full rounded-lg text-sm font-semibold"
+                                style="padding: 8px 12px; border: 1.5px solid var(--pp-border); color: var(--pp-text); background: var(--pp-surface); font-family: inherit; outline: none;"
+                                @focus="$el.style.borderColor = 'var(--pp-accent)'" @focusout="$el.style.borderColor = 'var(--pp-border)'"
+                                :style="!qf.employment_type || qf.employment_type === 'Vollzeit' ? 'opacity: 0.4;' : ''">
+                        </div>
+                        <div>
+                            <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em;">Grossraumb&uuml;ro OK?</div>
+                            <div class="flex gap-2">
+                                <button type="button" @click="setQfChoice('open_office_ok', 'ja')"
+                                    class="px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all duration-150"
+                                    :class="qf.open_office_ok === 'ja' ? 'bg-green-500/15 text-green-500 border-2 border-green-500 ring-1 ring-green-500/30' : 'border-2 hover:border-green-500/40 hover:text-green-400'"
+                                    :style="qf.open_office_ok !== 'ja' ? 'background: var(--pp-surface); color: var(--pp-textDim); border-color: var(--pp-border);' : ''"
+                                    style="font-family: inherit;">Ja</button>
+                                <button type="button" @click="setQfChoice('open_office_ok', 'nein')"
+                                    class="px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all duration-150"
+                                    :class="qf.open_office_ok === 'nein' ? 'bg-red-500/15 text-red-500 border-2 border-red-500 ring-1 ring-red-500/30' : 'border-2 hover:border-red-500/40 hover:text-red-400'"
+                                    :style="qf.open_office_ok !== 'nein' ? 'background: var(--pp-surface); color: var(--pp-textDim); border-color: var(--pp-border);' : ''"
+                                    style="font-family: inherit;">Nein</button>
+                                <button type="button" @click="setQfChoice('open_office_ok', 'egal')"
+                                    class="px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all duration-150"
+                                    :class="qf.open_office_ok === 'egal' ? 'border-2 ring-1 ring-gray-400/30' : 'border-2 hover:border-gray-400/40 hover:text-gray-300'"
+                                    :style="qf.open_office_ok === 'egal' ? 'background: var(--pp-surfaceHover); color: var(--pp-textMuted); border-color: var(--pp-textMuted);' : 'background: var(--pp-surface); color: var(--pp-textDim); border-color: var(--pp-border);'"
+                                    style="font-family: inherit;">Egal</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {# Row 4: Branchen #}
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--pp-surfaceHover);">
+                        <div>
+                            <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em;">Bevorzugte Branchen</div>
+                            <textarea x-model="qf.preferred_industries" @blur="saveQField('preferred_industries')" placeholder="Freitext: Bevorzugte Branchen..."
+                                class="w-full rounded-lg text-sm font-medium resize-vertical"
+                                style="min-height: 50px; padding: 10px 14px; border: 1.5px solid var(--pp-border); color: var(--pp-text); background: var(--pp-surface); font-family: inherit; outline: none; line-height: 1.5;"
+                                @focus="$el.style.borderColor = 'var(--pp-accent)'" @focusout="$el.style.borderColor = 'var(--pp-border)'"></textarea>
+                        </div>
+                        <div>
+                            <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em;">Branchen vermeiden</div>
+                            <textarea x-model="qf.avoided_industries" @blur="saveQField('avoided_industries')" placeholder="Freitext: Branchen die vermieden werden sollen..."
+                                class="w-full rounded-lg text-sm font-medium resize-vertical"
+                                style="min-height: 50px; padding: 10px 14px; border: 1.5px solid var(--pp-border); color: var(--pp-text); background: var(--pp-surface); font-family: inherit; outline: none; line-height: 1.5;"
+                                @focus="$el.style.borderColor = 'var(--pp-accent)'" @focusout="$el.style.borderColor = 'var(--pp-border)'"></textarea>
+                        </div>
+                    </div>
+
+                    {# Row 5: WhatsApp + Exklusivität + Andere Recruiter #}
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--pp-surfaceHover);">
+                        <div>
+                            <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em;">WhatsApp OK?</div>
+                            <div class="flex gap-2">
+                                <button type="button" @click="toggleQfBool('whatsapp_ok', true)"
+                                    class="px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all duration-150"
+                                    :class="qf.whatsapp_ok === true ? 'bg-green-500/15 text-green-500 border-2 border-green-500 ring-1 ring-green-500/30' : 'border-2 hover:border-green-500/40 hover:text-green-400'"
+                                    :style="qf.whatsapp_ok !== true ? 'background: var(--pp-surface); color: var(--pp-textDim); border-color: var(--pp-border);' : ''"
+                                    style="font-family: inherit;">Ja</button>
+                                <button type="button" @click="toggleQfBool('whatsapp_ok', false)"
+                                    class="px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all duration-150"
+                                    :class="qf.whatsapp_ok === false ? 'bg-red-500/15 text-red-500 border-2 border-red-500 ring-1 ring-red-500/30' : 'border-2 hover:border-red-500/40 hover:text-red-400'"
+                                    :style="qf.whatsapp_ok !== false ? 'background: var(--pp-surface); color: var(--pp-textDim); border-color: var(--pp-border);' : ''"
+                                    style="font-family: inherit;">Nein</button>
+                            </div>
+                        </div>
+                        <div>
+                            <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em;">Exklusivit&auml;t vereinbart?</div>
+                            <div class="flex gap-2">
+                                <button type="button" @click="toggleQfBool('exclusivity_agreed', true)"
+                                    class="px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all duration-150"
+                                    :class="qf.exclusivity_agreed === true ? 'bg-green-500/15 text-green-500 border-2 border-green-500 ring-1 ring-green-500/30' : 'border-2 hover:border-green-500/40 hover:text-green-400'"
+                                    :style="qf.exclusivity_agreed !== true ? 'background: var(--pp-surface); color: var(--pp-textDim); border-color: var(--pp-border);' : ''"
+                                    style="font-family: inherit;">Ja</button>
+                                <button type="button" @click="toggleQfBool('exclusivity_agreed', false)"
+                                    class="px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all duration-150"
+                                    :class="qf.exclusivity_agreed === false ? 'bg-red-500/15 text-red-500 border-2 border-red-500 ring-1 ring-red-500/30' : 'border-2 hover:border-red-500/40 hover:text-red-400'"
+                                    :style="qf.exclusivity_agreed !== false ? 'background: var(--pp-surface); color: var(--pp-textDim); border-color: var(--pp-border);' : ''"
+                                    style="font-family: inherit;">Nein</button>
+                            </div>
+                        </div>
+                        <div>
+                            <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em;">Andere Recruiter aktiv?</div>
+                            <input type="text" x-model="qf.other_recruiters" @blur="saveQField('other_recruiters')" placeholder="Details..."
+                                class="w-full rounded-lg text-sm font-semibold"
+                                style="padding: 8px 12px; border: 1.5px solid var(--pp-border); color: var(--pp-text); background: var(--pp-surface); font-family: inherit; outline: none;"
+                                @focus="$el.style.borderColor = 'var(--pp-accent)'" @focusout="$el.style.borderColor = 'var(--pp-border)'">
+                        </div>
+                    </div>
+
+                    {# Row 6: Bereits beworben bei (Freitext) #}
+                    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--pp-surfaceHover);">
+                        <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em;">Bereits beworben bei (aus Gespr&auml;ch)</div>
+                        <textarea x-model="qf.applied_at_companies_text" @blur="saveQField('applied_at_companies_text')" placeholder="Freitext aus Transkription: Wo hat sich der Kandidat bereits beworben?"
+                            class="w-full rounded-lg text-sm font-medium resize-vertical"
+                            style="min-height: 50px; padding: 10px 14px; border: 1.5px solid var(--pp-border); color: var(--pp-text); background: var(--pp-surface); font-family: inherit; outline: none; line-height: 1.5;"
+                            @focus="$el.style.borderColor = 'var(--pp-accent)'" @focusout="$el.style.borderColor = 'var(--pp-border)'"></textarea>
+                    </div>
+
+                    {# Row 7: Call-Daten #}
+                    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--pp-surfaceHover);">
+                        <div style="font-size: 13px; font-weight: 700; color: var(--pp-textMuted); margin-bottom: 12px;">Gespr&auml;chsdaten</div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                            <div>
+                                <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em;">Gespr&auml;chsdatum</div>
+                                <input type="date" x-model="qfCallDate" @change="saveCallDate()"
+                                    class="rounded-lg text-sm font-semibold cursor-pointer"
+                                    style="padding: 8px 12px; border: 1.5px solid var(--pp-border); color: var(--pp-text); background: var(--pp-surface); font-family: inherit; outline: none; color-scheme: dark;">
+                            </div>
+                            <div>
+                                <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em;">Gespr&auml;chstyp</div>
+                                <div class="relative" @click.away="showCallTypeDd = false">
+                                    <button type="button" @click="showCallTypeDd = !showCallTypeDd"
+                                        class="relative w-full cursor-pointer rounded-lg py-2 pl-3 pr-8 text-left text-sm font-semibold"
+                                        style="font-family: inherit; background: var(--pp-surface); border: 1.5px solid var(--pp-border); color: var(--pp-text);">
+                                        <span class="block truncate" x-text="callTypeLabels[qf.call_type] || 'Ausw&auml;hlen'"></span>
+                                        <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                                            <svg class="h-4 w-4 opacity-50" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+                                        </span>
+                                    </button>
+                                    <div x-show="showCallTypeDd" x-cloak
+                                         class="absolute z-50 mt-1 max-h-60 overflow-auto rounded-xl py-1 text-sm shadow-lg"
+                                         style="background: var(--pp-surface); border: 1px solid var(--pp-border); min-width: 220px; width: max-content; box-shadow: 0 8px 24px rgba(0,0,0,0.5);">
+                                        <template x-for="ct in callTypeOptions" :key="ct.value">
+                                            <button type="button" @click="qf.call_type = ct.value; showCallTypeDd = false; saveQField('call_type')"
+                                                class="w-full cursor-pointer select-none py-2.5 pl-3 pr-4 text-left text-sm"
+                                                style="font-family: inherit; white-space: nowrap; border: none;"
+                                                :style="qf.call_type === ct.value ? 'background: var(--pp-surfaceHover); color: var(--pp-accent); font-weight: 650;' : 'background: none; color: var(--pp-text); font-weight: 500;'"
+                                                @mouseenter="$el.style.background = 'var(--pp-surfaceHover)'"
+                                                @mouseleave="if (qf.call_type !== ct.value) $el.style.background = 'none'"
+                                                x-text="ct.label"></button>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {# KI-Zusammenfassung #}
+                        <div style="margin-top: 12px;">
+                            <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em;">KI-Zusammenfassung</div>
+                            <textarea x-model="qf.call_summary" @blur="saveQField('call_summary')" placeholder="KI-generierte Zusammenfassung des Gespr&auml;chs..."
+                                class="w-full rounded-lg text-sm font-medium resize-vertical"
+                                style="min-height: 80px; padding: 10px 14px; border: 1.5px solid var(--pp-border); color: var(--pp-text); background: var(--pp-surface); font-family: inherit; outline: none; line-height: 1.5;"
+                                @focus="$el.style.borderColor = 'var(--pp-accent)'" @focusout="$el.style.borderColor = 'var(--pp-border)'"></textarea>
+                        </div>
+                        {# Transkript (aufklappbar) #}
+                        <div style="margin-top: 12px;" x-data="{ showTranscript: false }">
+                            <button type="button" @click="showTranscript = !showTranscript"
+                                class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all duration-150"
+                                style="background: var(--pp-surfaceHover); border: 1.5px solid var(--pp-border); color: var(--pp-textMuted); font-family: inherit;">
+                                <svg :class="showTranscript ? 'rotate-90' : ''" class="w-3 h-3 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M9 5l7 7-7 7"/></svg>
+                                <span x-text="showTranscript ? 'Transkript ausblenden' : 'Transkript anzeigen'"></span>
+                                <span x-show="qf.call_transcript" x-cloak style="font-size: 10px; color: var(--pp-accent); font-weight: 600;">(vorhanden)</span>
+                            </button>
+                            <div x-show="showTranscript" x-cloak style="margin-top: 8px;">
+                                <textarea x-model="qf.call_transcript" @blur="saveQField('call_transcript')" placeholder="Volle Transkription des Gespr&auml;chs..."
+                                    class="w-full rounded-lg text-sm font-medium resize-vertical"
+                                    style="min-height: 200px; padding: 10px 14px; border: 1.5px solid var(--pp-border); color: var(--pp-text); background: var(--pp-surface); font-family: inherit; outline: none; line-height: 1.6; font-size: 12px;"
+                                    @focus="$el.style.borderColor = 'var(--pp-accent)'" @focusout="$el.style.borderColor = 'var(--pp-border)'"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {# ── Vorgestellt bei / Beworben bei ── #}
             <div class="kd-section kd-anim" style="animation-delay: 275ms; overflow: visible; position: relative; z-index: 10;" id="presented-at"
                  x-data="{
@@ -1119,6 +1387,7 @@
                 <div class="kd-sidebar-body" style="display: flex; flex-direction: column; gap: 2px;">
                     {% set nav_items = [
                         {"id": "recruiting-data", "icon": "&#x1F50D;", "label": "Recruiting-Daten"},
+                        {"id": "qualification-call", "icon": "&#x1F4DE;", "label": "Qualifizierung"},
                         {"id": "experience", "icon": "&#x1F4BC;", "label": "Berufserfahrung"},
                         {"id": "it-skills", "icon": "&#x1F4BB;", "label": "IT-Kenntnisse"},
                         {"id": "languages", "icon": "&#x1F310;", "label": "Sprachen"},
@@ -1417,6 +1686,98 @@ function pipelineFields() {
                     if (typeof showToast === 'function') showToast('Bewertung entfernt', 'success');
                 }
             } catch (err) { console.error('Rating entfernen fehlgeschlagen:', err); }
+        }
+    };
+}
+
+// ==================== Qualifizierungsgespräch ====================
+function qualificationFields() {
+    return {
+        qfSaving: false,
+        showTransportDd: false,
+        showEmpTypeDd: false,
+        showCallTypeDd: false,
+        qfCallDate: {{ (candidate.call_date.strftime('%Y-%m-%d') if candidate.call_date else '') | tojson | safe }},
+        callTypeOptions: [
+            { value: 'qualifizierung', label: 'Qualifizierungsgespräch' },
+            { value: 'kurz', label: 'Kurzer Call' },
+            { value: 'kunde', label: 'Kundengespräch' },
+            { value: 'sonstig', label: 'Sonstiges' }
+        ],
+        callTypeLabels: { 'qualifizierung': 'Qualifizierungsgespräch', 'kurz': 'Kurzer Call', 'kunde': 'Kundengespräch', 'sonstig': 'Sonstiges' },
+        qf: {
+            desired_positions: {{ (candidate.desired_positions or '') | tojson | safe }},
+            key_activities: {{ (candidate.key_activities or '') | tojson | safe }},
+            home_office_days: {{ (candidate.home_office_days or '') | tojson | safe }},
+            commute_max: {{ (candidate.commute_max or '') | tojson | safe }},
+            commute_transport: {{ (candidate.commute_transport or '') | tojson | safe }},
+            erp_main: {{ (candidate.erp_main or '') | tojson | safe }},
+            employment_type: {{ (candidate.employment_type or '') | tojson | safe }},
+            part_time_hours: {{ (candidate.part_time_hours or '') | tojson | safe }},
+            preferred_industries: {{ (candidate.preferred_industries or '') | tojson | safe }},
+            avoided_industries: {{ (candidate.avoided_industries or '') | tojson | safe }},
+            open_office_ok: {{ (candidate.open_office_ok or '') | tojson | safe }},
+            whatsapp_ok: {{ 'true' if candidate.whatsapp_ok == true else ('false' if candidate.whatsapp_ok == false else 'null') }},
+            other_recruiters: {{ (candidate.other_recruiters or '') | tojson | safe }},
+            exclusivity_agreed: {{ 'true' if candidate.exclusivity_agreed == true else ('false' if candidate.exclusivity_agreed == false else 'null') }},
+            applied_at_companies_text: {{ (candidate.applied_at_companies_text or '') | tojson | safe }},
+            call_transcript: {{ (candidate.call_transcript or '') | tojson | safe }},
+            call_summary: {{ (candidate.call_summary or '') | tojson | safe }},
+            call_type: {{ (candidate.call_type or '') | tojson | safe }}
+        },
+
+        async saveQField(fieldName) {
+            var candidateId = '{{ candidate.id }}';
+            var payload = {};
+            var val = this.qf[fieldName];
+            if (typeof val === 'string' && val.trim() === '') val = null;
+            payload[fieldName] = val;
+            this.qfSaving = true;
+            try {
+                var response = await fetch('/api/candidates/' + candidateId, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (response.ok) {
+                    if (typeof showToast === 'function') showToast('Gespeichert', 'success');
+                } else {
+                    if (typeof showToast === 'function') showToast('Fehler beim Speichern', 'error');
+                }
+            } catch (err) {
+                console.error('QF speichern fehlgeschlagen:', err);
+                if (typeof showToast === 'function') showToast('Fehler beim Speichern', 'error');
+            }
+            this.qfSaving = false;
+        },
+
+        async setQfChoice(fieldName, value) {
+            var current = this.qf[fieldName];
+            this.qf[fieldName] = current === value ? '' : value;
+            await this.saveQField(fieldName);
+        },
+
+        async toggleQfBool(fieldName, value) {
+            var current = this.qf[fieldName];
+            this.qf[fieldName] = current === value ? null : value;
+            await this.saveQField(fieldName);
+        },
+
+        async saveCallDate() {
+            var candidateId = '{{ candidate.id }}';
+            var dateVal = this.qfCallDate ? new Date(this.qfCallDate).toISOString() : null;
+            this.qfSaving = true;
+            try {
+                var response = await fetch('/api/candidates/' + candidateId, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ call_date: dateVal })
+                });
+                if (response.ok) {
+                    if (typeof showToast === 'function') showToast('Gesprächsdatum gespeichert', 'success');
+                }
+            } catch (err) { console.error('Call-Datum speichern fehlgeschlagen:', err); }
+            this.qfSaving = false;
         }
     };
 }
