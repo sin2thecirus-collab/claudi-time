@@ -669,31 +669,23 @@
                     newCompany: '',
                     newType: 'presented',
                     newDate: new Date().toISOString().split('T')[0],
-                    allCompanies: [],
                     filteredCompanies: [],
                     showCompanyDropdown: false,
-                    async loadCompanies() {
-                        if (this.allCompanies.length > 0) return;
-                        try {
-                            var allNames = [];
-                            var page = 1;
-                            var totalPages = 1;
-                            while (page <= totalPages) {
-                                var response = await fetch('/api/companies?per_page=100&sort_by=name&page=' + page);
-                                var data = await response.json();
-                                var names = (data.items || []).map(function(c) { return c.name; });
-                                allNames = allNames.concat(names);
-                                totalPages = data.pages || 1;
-                                page++;
-                            }
-                            this.allCompanies = allNames;
-                        } catch (err) { console.error(err); }
-                    },
+                    _searchTimeout: null,
+                    async loadCompanies() { /* no-op, search is now server-side */ },
                     filterCompanies() {
-                        if (!this.newCompany || this.newCompany.length < 1) { this.filteredCompanies = []; this.showCompanyDropdown = false; return; }
-                        var term = this.newCompany.toLowerCase();
-                        this.filteredCompanies = this.allCompanies.filter(function(n) { return n.toLowerCase().includes(term); }).slice(0, 15);
-                        this.showCompanyDropdown = this.filteredCompanies.length > 0;
+                        var self = this;
+                        if (self._searchTimeout) clearTimeout(self._searchTimeout);
+                        if (!self.newCompany || self.newCompany.length < 2) { self.filteredCompanies = []; self.showCompanyDropdown = false; return; }
+                        self._searchTimeout = setTimeout(function() {
+                            fetch('/api/companies?per_page=15&sort_by=name&search=' + encodeURIComponent(self.newCompany))
+                                .then(function(r) { return r.json(); })
+                                .then(function(data) {
+                                    self.filteredCompanies = (data.items || []).map(function(c) { return c.name; });
+                                    self.showCompanyDropdown = self.filteredCompanies.length > 0;
+                                })
+                                .catch(function(err) { console.error(err); });
+                        }, 250);
                     },
                     selectCompany(name) {
                         this.newCompany = name;
