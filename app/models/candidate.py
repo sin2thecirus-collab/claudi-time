@@ -84,6 +84,29 @@ class Candidate(Base):
     notice_period: Mapped[str | None] = mapped_column(String(100))  # z.B. "3 Monate", "6 Wochen"
     erp: Mapped[list[str] | None] = mapped_column(ARRAY(String))  # z.B. ["SAP", "DATEV", "Addison"]
 
+    # ── Qualifizierungsgespräch-Felder (Phase 4: KI-Transkription) ──
+    desired_positions: Mapped[str | None] = mapped_column(Text)  # Freitext: "Bilanzbuchhalterin, Finanzbuchhalterin"
+    key_activities: Mapped[str | None] = mapped_column(Text)  # Freitext: Tätigkeiten die voll umfänglich beherrscht werden
+    home_office_days: Mapped[str | None] = mapped_column(String(50))  # z.B. "2 bis 3 Tage", "kein Home-Office"
+    commute_max: Mapped[str | None] = mapped_column(String(100))  # z.B. "30 min", "40 km"
+    commute_transport: Mapped[str | None] = mapped_column(String(50))  # "Auto" / "ÖPNV" / "Beides"
+    erp_main: Mapped[str | None] = mapped_column(String(100))  # Steckenpferd-ERP z.B. "DATEV"
+    employment_type: Mapped[str | None] = mapped_column(String(50))  # "Vollzeit" / "Teilzeit" / Freitext
+    part_time_hours: Mapped[str | None] = mapped_column(String(50))  # z.B. "30 Stunden", "25-30 Stunden"
+    preferred_industries: Mapped[str | None] = mapped_column(Text)  # Freitext: Bevorzugte Branchen
+    avoided_industries: Mapped[str | None] = mapped_column(Text)  # Freitext: Branchen die vermieden werden sollen
+    open_office_ok: Mapped[str | None] = mapped_column(String(20))  # "ja" / "nein" / "egal"
+    whatsapp_ok: Mapped[bool | None] = mapped_column(Boolean)  # WhatsApp-Kontakt erlaubt?
+    other_recruiters: Mapped[str | None] = mapped_column(Text)  # Freitext: Andere Recruiter aktiv? Details
+    exclusivity_agreed: Mapped[bool | None] = mapped_column(Boolean)  # Exklusivität vereinbart?
+    applied_at_companies_text: Mapped[str | None] = mapped_column(Text)  # Freitext: Wo bereits beworben (aus Transkription)
+
+    # ── Call-Transkription / KI-Zusammenfassung ──
+    call_transcript: Mapped[str | None] = mapped_column(Text)  # Volle Transkription des Gesprächs
+    call_summary: Mapped[str | None] = mapped_column(Text)  # KI-generierte Zusammenfassung
+    call_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # Wann das Qualifizierungsgespräch war
+    call_type: Mapped[str | None] = mapped_column(String(50))  # "qualifizierung" / "kurz" / "kunde" / "sonstig"
+
     # Numerische Kandidaten-ID (fuer datenschutzsichere KI-Verarbeitung ohne PII)
     # server_default sorgt dafuer, dass PostgreSQL automatisch die naechste Nummer vergibt
     candidate_number: Mapped[int | None] = mapped_column(

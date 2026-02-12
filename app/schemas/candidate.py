@@ -86,6 +86,26 @@ class CandidateUpdate(BaseModel):
     willingness_to_change: Literal["ja", "nein", "unbekannt"] | None = Field(default=None, description="Wechselbereitschaft")
     candidate_notes: str | None = Field(default=None, description="Freitext-Notizen")
     presented_at_companies: list[dict] | None = Field(default=None, description="Vorgestellt/Beworben bei Unternehmen")
+    # Qualifizierungsgespräch-Felder
+    desired_positions: str | None = Field(default=None, description="Gewünschte Positionen (Freitext)")
+    key_activities: str | None = Field(default=None, description="Tätigkeiten die voll umfänglich beherrscht werden")
+    home_office_days: str | None = Field(default=None, max_length=50, description="Home-Office Tage z.B. '2 bis 3 Tage'")
+    commute_max: str | None = Field(default=None, max_length=100, description="Pendelbereitschaft z.B. '30 min'")
+    commute_transport: str | None = Field(default=None, max_length=50, description="Auto / ÖPNV / Beides")
+    erp_main: str | None = Field(default=None, max_length=100, description="ERP-Steckenpferd z.B. 'DATEV'")
+    employment_type: str | None = Field(default=None, max_length=50, description="Vollzeit / Teilzeit")
+    part_time_hours: str | None = Field(default=None, max_length=50, description="Teilzeit-Stunden z.B. '30 Stunden'")
+    preferred_industries: str | None = Field(default=None, description="Bevorzugte Branchen (Freitext)")
+    avoided_industries: str | None = Field(default=None, description="Branchen vermeiden (Freitext)")
+    open_office_ok: str | None = Field(default=None, max_length=20, description="Großraumbüro OK: ja/nein/egal")
+    whatsapp_ok: bool | None = Field(default=None, description="WhatsApp-Kontakt erlaubt?")
+    other_recruiters: str | None = Field(default=None, description="Andere Recruiter aktiv? Details")
+    exclusivity_agreed: bool | None = Field(default=None, description="Exklusivität vereinbart?")
+    applied_at_companies_text: str | None = Field(default=None, description="Wo bereits beworben (Freitext aus Transkription)")
+    call_transcript: str | None = Field(default=None, description="Volle Transkription des Gesprächs")
+    call_summary: str | None = Field(default=None, description="KI-generierte Zusammenfassung")
+    call_date: datetime | None = Field(default=None, description="Datum des Qualifizierungsgesprächs")
+    call_type: str | None = Field(default=None, max_length=50, description="qualifizierung/kurz/kunde/sonstig")
 
 
 class CandidateResponse(BaseModel):
@@ -121,6 +141,26 @@ class CandidateResponse(BaseModel):
     candidate_notes: str | None
     candidate_number: int | None
     presented_at_companies: list[dict] | None
+    # Qualifizierungsgespräch-Felder
+    desired_positions: str | None
+    key_activities: str | None
+    home_office_days: str | None
+    commute_max: str | None
+    commute_transport: str | None
+    erp_main: str | None
+    employment_type: str | None
+    part_time_hours: str | None
+    preferred_industries: str | None
+    avoided_industries: str | None
+    open_office_ok: str | None
+    whatsapp_ok: bool | None
+    other_recruiters: str | None
+    exclusivity_agreed: bool | None
+    applied_at_companies_text: str | None
+    call_transcript: str | None
+    call_summary: str | None
+    call_date: datetime | None
+    call_type: str | None
     has_coordinates: bool
     cv_url: str | None
     cv_parsed_at: datetime | None
