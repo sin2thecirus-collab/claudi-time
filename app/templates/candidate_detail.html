@@ -431,9 +431,11 @@
         </div>
 
         {# Avatar + Name + Meta #}
-        <div style="display: flex; align-items: center; gap: 22px; margin-bottom: 24px; position: relative; z-index: 1;">
-            <div style="width: 72px; height: 72px; border-radius: 20px; background: linear-gradient(135deg, #6366f1 0%, #a78bfa 50%, #c084fc 100%); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 24px; font-weight: 800; border: 3px solid rgba(255,255,255,0.15); box-shadow: 0 8px 32px rgba(99,102,241,0.35), inset 0 1px 0 rgba(255,255,255,0.2); flex-shrink: 0; backdrop-filter: blur(4px);">
-                {{ (first_display or 'X')[0] | upper }}{{ (last_display or 'X')[0] | upper }}
+        <div style="display: flex; align-items: center; gap: 24px; margin-bottom: 24px; position: relative; z-index: 1;">
+            <div class="kd-avatar-wrap">
+                <div class="kd-avatar-inner">
+                    {{ (first_display or 'X')[0] | upper }}{{ (last_display or 'X')[0] | upper }}
+                </div>
             </div>
             <div style="flex: 1; min-width: 0;">
                 {# Name - editable #}
@@ -470,25 +472,25 @@
                 </div>
 
                 {# Meta badges #}
-                <div style="display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap;">
+                <div style="display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap;">
                     {% if candidate.birth_date or candidate.age %}
-                    <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: rgba(255,255,255,0.65); font-weight: 500; background: rgba(255,255,255,0.06); padding: 5px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.06); backdrop-filter: blur(8px);">
+                    <span class="kd-meta-badge">
                         <span style="font-size: 12px;">&#x1F4C5;</span>
                         {% if candidate.birth_date %}{{ candidate.birth_date.strftime('%d.%m.%Y') }}{% endif %}{% if candidate.age %} ({{ candidate.age }} Jahre){% endif %}
                     </span>
                     {% endif %}
                     {% if city_display %}
-                    <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: rgba(255,255,255,0.65); font-weight: 500; background: rgba(255,255,255,0.06); padding: 5px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.06); backdrop-filter: blur(8px);">
+                    <span class="kd-meta-badge">
                         <span style="font-size: 12px;">&#x1F4CD;</span>
                         {{ city_display }}{% if candidate.postal_code %}, {{ candidate.postal_code }}{% endif %}
                     </span>
                     {% endif %}
-                    <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: rgba(255,255,255,0.65); font-weight: 500; background: rgba(255,255,255,0.06); padding: 5px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.06); backdrop-filter: blur(8px);">
+                    <span class="kd-meta-badge">
                         <span style="font-size: 12px;">&#x1F7E2;</span>
                         Seit {{ candidate.created_at.strftime('%d.%m.%Y') if candidate.created_at else 'Unbekannt' }}
                     </span>
                     {% if candidate.work_history and candidate.work_history is iterable and candidate.work_history is not string and candidate.work_history | length > 0 %}
-                    <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: rgba(255,255,255,0.65); font-weight: 500; background: rgba(255,255,255,0.06); padding: 5px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.06); backdrop-filter: blur(8px);">
+                    <span class="kd-meta-badge">
                         <span style="font-size: 12px;">&#x1F4CA;</span>
                         {{ candidate.work_history | length }} Position{{ 'en' if candidate.work_history | length != 1 else '' }}
                     </span>
@@ -706,6 +708,9 @@
             </div>
         </div>
     </div>
+
+    {# Hero accent line #}
+    <div class="kd-hero-accent-line"></div>
 
     {# ════════════════════════════════════════════════════
        MAIN CONTENT: 2-Column Layout
