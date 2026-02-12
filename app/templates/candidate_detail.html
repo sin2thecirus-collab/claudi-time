@@ -554,13 +554,22 @@
                         {# Wechselbereitschaft #}
                         <div>
                             <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em;">Wechselbereitschaft</div>
-                            <div style="display: flex; gap: 6px;">
-                                <template x-for="opt in [{val: 'ja', label: 'Ja', color: '#059669', bg: 'rgba(5,150,105,0.15)'}, {val: 'nein', label: 'Nein', color: '#dc2626', bg: 'rgba(220,38,38,0.15)'}, {val: 'unbekannt', label: '?', color: 'var(--pp-textMuted)', bg: 'var(--pp-surfaceHover)'}]" :key="opt.val">
-                                    <button type="button" @click="setWillingness(opt.val)"
-                                        style="padding: 5px 12px; border-radius: 8px; font-size: 12px; font-weight: 650; cursor: pointer; font-family: inherit; transition: all 0.15s; border: 1.5px solid;"
-                                        :style="currentWillingness === opt.val ? 'background: ' + opt.bg + '; color: ' + opt.color + '; border-color: ' + opt.color + ';' : 'background: var(--pp-surface); color: var(--pp-textDim); border-color: var(--pp-border);'"
-                                        x-text="opt.label"></button>
-                                </template>
+                            <div class="flex gap-2">
+                                <button type="button" @click="setWillingness('ja')"
+                                    class="px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all duration-150"
+                                    :class="currentWillingness === 'ja' ? 'bg-green-500/15 text-green-500 border-2 border-green-500 ring-1 ring-green-500/30' : 'border-2 hover:border-green-500/40 hover:text-green-400'"
+                                    :style="currentWillingness !== 'ja' ? 'background: var(--pp-surface); color: var(--pp-textDim); border-color: var(--pp-border);' : ''"
+                                    style="font-family: inherit;">Ja</button>
+                                <button type="button" @click="setWillingness('nein')"
+                                    class="px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all duration-150"
+                                    :class="currentWillingness === 'nein' ? 'bg-red-500/15 text-red-500 border-2 border-red-500 ring-1 ring-red-500/30' : 'border-2 hover:border-red-500/40 hover:text-red-400'"
+                                    :style="currentWillingness !== 'nein' ? 'background: var(--pp-surface); color: var(--pp-textDim); border-color: var(--pp-border);' : ''"
+                                    style="font-family: inherit;">Nein</button>
+                                <button type="button" @click="setWillingness('unbekannt')"
+                                    class="px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all duration-150"
+                                    :class="currentWillingness === 'unbekannt' ? 'border-2 ring-1 ring-gray-400/30' : 'border-2 hover:border-gray-400/40 hover:text-gray-300'"
+                                    :style="currentWillingness === 'unbekannt' ? 'background: var(--pp-surfaceHover); color: var(--pp-textMuted); border-color: var(--pp-textMuted);' : 'background: var(--pp-surface); color: var(--pp-textDim); border-color: var(--pp-border);'"
+                                    style="font-family: inherit;">?</button>
                             </div>
                         </div>
                         {# Letzter Kontakt #}
