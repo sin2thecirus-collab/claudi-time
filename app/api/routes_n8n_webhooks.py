@@ -74,6 +74,15 @@ class CallNoteCreateRequest(BaseModel):
     action_items: Optional[list] = None
 
 
+class EmailSentRequest(BaseModel):
+    to_email: str
+    from_email: str
+    subject: str
+    body: Optional[str] = None
+    candidate_id: Optional[UUID] = None
+    ats_job_id: Optional[UUID] = None
+
+
 class CandidateSourceRequest(BaseModel):
     candidate_id: UUID
     source: str
@@ -187,6 +196,42 @@ async def n8n_email_received(
 
     await db.commit()
     logger.info(f"n8n Email Received: {data.from_email} -> {data.subject[:50]}")
+    return {"success": True, "activity_id": str(activity.id)}
+
+
+@router.post("/email/sent")
+async def n8n_email_sent(
+    data: EmailSentRequest,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(verify_n8n_token),
+):
+    """n8n: Gesendete E-Mail verarbeiten. Aktualisiert last_contact."""
+    from app.models.ats_activity import ATSActivity, ActivityType
+
+    activity = ATSActivity(
+        activity_type=ActivityType.EMAIL_SENT,
+        description=f"E-Mail gesendet: {data.subject[:80]}",
+        ats_job_id=data.ats_job_id,
+        candidate_id=data.candidate_id,
+        metadata_json={
+            "from_email": data.from_email,
+            "to_email": data.to_email,
+            "subject": data.subject,
+        },
+    )
+    db.add(activity)
+
+    # last_contact automatisch aktualisieren
+    if data.candidate_id:
+        from app.models.candidate import Candidate
+        from datetime import datetime, timezone
+        candidate = await db.get(Candidate, data.candidate_id)
+        if candidate:
+            candidate.last_contact = datetime.now(timezone.utc)
+            candidate.updated_at = datetime.now(timezone.utc)
+
+    await db.commit()
+    logger.info(f"n8n Email Sent: {data.to_email} -> {data.subject[:50]}")
     return {"success": True, "activity_id": str(activity.id)}
 
 
