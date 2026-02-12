@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Optional
 from uuid import UUID
 
+import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,6 +15,7 @@ from app.database import get_db
 from app.services.ats_call_note_service import ATSCallNoteService
 from app.services.ats_pipeline_service import ATSPipelineService
 from app.services.ats_todo_service import ATSTodoService
+from app.services.call_transcription_service import CallTranscriptionService
 from app.services.interaction_analyzer_service import InteractionAnalyzerService
 
 logger = logging.getLogger(__name__)
@@ -104,6 +106,12 @@ class CandidateNotesRequest(BaseModel):
 class CandidateLastContactRequest(BaseModel):
     candidate_id: UUID
     contact_date: Optional[str] = None  # ISO-Format, None = jetzt
+
+
+class CallTranscribeRequest(BaseModel):
+    candidate_id: UUID
+    audio_url: Optional[str] = Field(default=None, description="URL zur Audio-Datei")
+    transcript_text: Optional[str] = Field(default=None, description="Bereits transkribierter Text (ueberspringt Whisper)")
 
 
 # ── Endpoints ────────────────────────────────────
@@ -1036,4 +1044,326 @@ async def n8n_daily_report(
             "todos_overdue": overdue_count,
             "todos_open_total": open_todos_count,
         },
+    }
+
+
+# ── Call Transcription ────────────────────────────
+
+
+@router.post("/call/transcribe")
+async def n8n_call_transcribe(
+    data: CallTranscribeRequest,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(verify_n8n_token),
+):
+    """n8n: Audio-Datei transkribieren + KI-Analyse → Kandidatenfelder aktualisieren.
+
+    Akzeptiert audio_url ODER transcript_text.
+    - audio_url: URL zur Audio-Datei (Whisper transkribiert)
+    - transcript_text: Bereits transkribierter Text (ueberspringt Whisper)
+
+    Pipeline:
+    1. Whisper: Audio → Transkript
+    2. GPT-4o-mini: Gespraechstyp klassifizieren
+    3. GPT-4o-mini: Felder extrahieren
+    4. DB-Update: Kandidatenfelder aktualisieren
+    """
+    if not data.audio_url and not data.transcript_text:
+        raise HTTPException(status_code=400, detail="Entweder audio_url oder transcript_text muss gesetzt sein")
+
+    service = CallTranscriptionService(db)
+    try:
+        result = await service.process_call(
+            candidate_id=data.candidate_id,
+            audio_url=data.audio_url,
+            transcript_text=data.transcript_text,
+        )
+
+        if not result.get("success"):
+            raise HTTPException(status_code=400, detail=result.get("error", "Unbekannter Fehler"))
+
+        await db.commit()
+
+        logger.info(
+            f"n8n Call Transcribed: Kandidat={result.get('candidate_name')}, "
+            f"Typ={result.get('call_type')}, Felder={len(result.get('fields_updated', []))}, "
+            f"Kosten=${result.get('cost_usd', 0):.4f}"
+        )
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Call-Transkription fehlgeschlagen: {e}")
+        raise HTTPException(status_code=500, detail=f"Interner Fehler: {str(e)}")
+    finally:
+        await service.close()
+
+
+# ── Debug Endpoints ────────────────────────────────
+
+
+@router.get("/debug/health")
+async def n8n_debug_health(
+    _: None = Depends(verify_n8n_token),
+):
+    """Debug: Prueft ob der n8n-Webhook-Service erreichbar ist."""
+    import platform
+    from datetime import datetime, timezone
+
+    return {
+        "success": True,
+        "status": "healthy",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "python_version": platform.python_version(),
+        "service": "matching-tool",
+    }
+
+
+@router.get("/debug/openai-status")
+async def n8n_debug_openai_status(
+    _: None = Depends(verify_n8n_token),
+):
+    """Debug: Prueft ob OpenAI API-Key konfiguriert ist und funktioniert."""
+    from app.config import settings
+
+    if not settings.openai_api_key:
+        return {"success": False, "error": "OPENAI_API_KEY nicht konfiguriert"}
+
+    key_preview = settings.openai_api_key[:8] + "..." + settings.openai_api_key[-4:]
+
+    # Test-Request an OpenAI (guenstigster Call: models list)
+    try:
+        async with httpx.AsyncClient(
+            base_url="https://api.openai.com/v1",
+            headers={"Authorization": f"Bearer {settings.openai_api_key}"},
+            timeout=10.0,
+        ) as client:
+            response = await client.get("/models")
+            response.raise_for_status()
+
+            models = response.json().get("data", [])
+            model_ids = [m["id"] for m in models if "whisper" in m["id"] or "gpt-4o-mini" in m["id"]]
+
+            return {
+                "success": True,
+                "api_key_preview": key_preview,
+                "relevant_models": sorted(model_ids),
+                "total_models_available": len(models),
+            }
+    except httpx.HTTPStatusError as e:
+        return {"success": False, "api_key_preview": key_preview, "error": f"HTTP {e.response.status_code}: {e.response.text[:200]}"}
+    except Exception as e:
+        return {"success": False, "api_key_preview": key_preview, "error": str(e)}
+
+
+@router.get("/debug/candidate/{candidate_id}")
+async def n8n_debug_candidate(
+    candidate_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(verify_n8n_token),
+):
+    """Debug: Zeigt alle Qualifizierungs-Felder eines Kandidaten."""
+    from app.models.candidate import Candidate
+
+    candidate = await db.get(Candidate, candidate_id)
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Kandidat nicht gefunden")
+
+    qualification_fields = {
+        "desired_positions": candidate.desired_positions,
+        "key_activities": candidate.key_activities,
+        "home_office_days": candidate.home_office_days,
+        "commute_max": candidate.commute_max,
+        "commute_transport": candidate.commute_transport,
+        "erp_main": candidate.erp_main,
+        "employment_type": candidate.employment_type,
+        "part_time_hours": candidate.part_time_hours,
+        "preferred_industries": candidate.preferred_industries,
+        "avoided_industries": candidate.avoided_industries,
+        "open_office_ok": candidate.open_office_ok,
+        "whatsapp_ok": candidate.whatsapp_ok,
+        "other_recruiters": candidate.other_recruiters,
+        "exclusivity_agreed": candidate.exclusivity_agreed,
+        "applied_at_companies_text": candidate.applied_at_companies_text,
+        "call_transcript": candidate.call_transcript[:200] + "..." if candidate.call_transcript and len(candidate.call_transcript) > 200 else candidate.call_transcript,
+        "call_summary": candidate.call_summary,
+        "call_date": candidate.call_date.isoformat() if candidate.call_date else None,
+        "call_type": candidate.call_type,
+    }
+
+    basic_fields = {
+        "salary": candidate.salary,
+        "notice_period": candidate.notice_period,
+        "erp": candidate.erp,
+        "willingness_to_change": candidate.willingness_to_change,
+        "last_contact": candidate.last_contact.isoformat() if candidate.last_contact else None,
+    }
+
+    filled_count = sum(1 for v in qualification_fields.values() if v is not None)
+
+    return {
+        "success": True,
+        "candidate_id": str(candidate_id),
+        "candidate_name": candidate.full_name,
+        "qualification_fields": qualification_fields,
+        "basic_fields": basic_fields,
+        "filled_count": filled_count,
+        "total_fields": len(qualification_fields),
+    }
+
+
+@router.post("/debug/whisper-test")
+async def n8n_debug_whisper_test(
+    audio_url: str = Query(..., description="URL zur Audio-Datei"),
+    _: None = Depends(verify_n8n_token),
+):
+    """Debug: Testet NUR die Whisper-Transkription (ohne Kandidat/DB)."""
+    import httpx as httpx_lib
+
+    if not settings.openai_api_key:
+        return {"success": False, "error": "OPENAI_API_KEY nicht konfiguriert"}
+
+    # Audio herunterladen
+    try:
+        async with httpx_lib.AsyncClient(timeout=120.0) as client:
+            dl_response = await client.get(audio_url)
+            dl_response.raise_for_status()
+            audio_data = dl_response.content
+            audio_size = len(audio_data)
+            logger.info(f"Debug Whisper: Audio heruntergeladen ({audio_size} Bytes)")
+    except Exception as e:
+        return {"success": False, "error": f"Audio-Download fehlgeschlagen: {str(e)}"}
+
+    # Whisper transkribieren
+    try:
+        async with httpx_lib.AsyncClient(
+            base_url="https://api.openai.com/v1",
+            headers={"Authorization": f"Bearer {settings.openai_api_key}"},
+            timeout=httpx_lib.Timeout(300.0),
+        ) as client:
+            filename = audio_url.split("/")[-1].split("?")[0] or "recording.mp3"
+            files = {"file": (filename, audio_data, "audio/mpeg")}
+            data = {"model": "whisper-1", "language": "de", "response_format": "text"}
+
+            response = await client.post(
+                "/audio/transcriptions",
+                files=files,
+                data=data,
+                headers={"Authorization": f"Bearer {settings.openai_api_key}"},
+            )
+            response.raise_for_status()
+            transcript = response.text.strip()
+
+            word_count = len(transcript.split())
+            estimated_minutes = max(1, word_count / 150)
+
+            return {
+                "success": True,
+                "audio_url": audio_url,
+                "audio_size_bytes": audio_size,
+                "transcript_length": len(transcript),
+                "word_count": word_count,
+                "estimated_minutes": round(estimated_minutes, 1),
+                "estimated_cost_usd": round(estimated_minutes * 0.006, 4),
+                "transcript_preview": transcript[:500] + ("..." if len(transcript) > 500 else ""),
+                "full_transcript": transcript,
+            }
+    except httpx_lib.HTTPStatusError as e:
+        return {"success": False, "error": f"Whisper HTTP-Fehler: {e.response.status_code} - {e.response.text[:300]}"}
+    except Exception as e:
+        return {"success": False, "error": f"Whisper-Fehler: {str(e)}"}
+
+
+@router.post("/debug/classify-test")
+async def n8n_debug_classify_test(
+    transcript_text: str = Query(..., description="Transkript-Text zur Klassifizierung"),
+    _: None = Depends(verify_n8n_token),
+):
+    """Debug: Testet NUR die GPT-Klassifizierung (ohne DB)."""
+    if not settings.openai_api_key:
+        return {"success": False, "error": "OPENAI_API_KEY nicht konfiguriert"}
+
+    from app.services.call_transcription_service import CLASSIFY_SYSTEM_PROMPT
+
+    snippet = transcript_text[:3000]
+    if len(transcript_text) > 3000:
+        snippet += "\n\n[... Transkript gekuerzt fuer Klassifizierung ...]"
+
+    try:
+        async with httpx.AsyncClient(
+            base_url="https://api.openai.com/v1",
+            headers={
+                "Authorization": f"Bearer {settings.openai_api_key}",
+                "Content-Type": "application/json",
+            },
+            timeout=30.0,
+        ) as client:
+            response = await client.post(
+                "/chat/completions",
+                json={
+                    "model": "gpt-4o-mini",
+                    "messages": [
+                        {"role": "system", "content": CLASSIFY_SYSTEM_PROMPT},
+                        {"role": "user", "content": snippet},
+                    ],
+                    "temperature": 0.1,
+                    "max_tokens": 150,
+                    "response_format": {"type": "json_object"},
+                },
+            )
+            response.raise_for_status()
+            result = response.json()
+
+            import json
+            content = result["choices"][0]["message"]["content"]
+            parsed = json.loads(content)
+
+            usage = result.get("usage", {})
+
+            return {
+                "success": True,
+                "classification": parsed,
+                "input_length": len(transcript_text),
+                "usage": usage,
+            }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@router.get("/debug/db-fields")
+async def n8n_debug_db_fields(
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(verify_n8n_token),
+):
+    """Debug: Prueft ob alle Qualifizierungs-Felder in der DB existieren."""
+    from sqlalchemy import text
+
+    expected_fields = [
+        "desired_positions", "key_activities", "home_office_days",
+        "commute_max", "commute_transport", "erp_main",
+        "employment_type", "part_time_hours", "preferred_industries",
+        "avoided_industries", "open_office_ok", "whatsapp_ok",
+        "other_recruiters", "exclusivity_agreed", "applied_at_companies_text",
+        "call_transcript", "call_summary", "call_date", "call_type",
+    ]
+
+    result = await db.execute(
+        text(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_name = 'candidates' ORDER BY ordinal_position"
+        )
+    )
+    existing = [row[0] for row in result.fetchall()]
+
+    missing = [f for f in expected_fields if f not in existing]
+    present = [f for f in expected_fields if f in existing]
+
+    return {
+        "success": len(missing) == 0,
+        "expected_fields": len(expected_fields),
+        "present_fields": len(present),
+        "missing_fields": missing,
+        "all_candidate_columns": existing,
     }
