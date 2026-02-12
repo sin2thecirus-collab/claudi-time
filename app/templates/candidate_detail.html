@@ -1725,11 +1725,18 @@ function qualificationFields() {
             call_summary: {{ (candidate.call_summary or '') | tojson | safe }},
             call_type: {{ (candidate.call_type or '') | tojson | safe }}
         },
+        _qfOriginal: {},
+        init() {
+            this._qfOriginal = JSON.parse(JSON.stringify(this.qf));
+        },
 
         async saveQField(fieldName) {
+            var val = this.qf[fieldName];
+            var origVal = this._qfOriginal[fieldName];
+            if (val === origVal) return;
+            if (typeof val === 'string' && val.trim() === '' && (origVal === '' || origVal === null || origVal === undefined)) return;
             var candidateId = '{{ candidate.id }}';
             var payload = {};
-            var val = this.qf[fieldName];
             if (typeof val === 'string' && val.trim() === '') val = null;
             payload[fieldName] = val;
             this.qfSaving = true;
@@ -1740,6 +1747,7 @@ function qualificationFields() {
                     body: JSON.stringify(payload)
                 });
                 if (response.ok) {
+                    this._qfOriginal[fieldName] = this.qf[fieldName];
                     if (typeof showToast === 'function') showToast('Gespeichert', 'success');
                 } else {
                     if (typeof showToast === 'function') showToast('Fehler beim Speichern', 'error');
