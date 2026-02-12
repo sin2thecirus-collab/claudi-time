@@ -374,10 +374,9 @@ class ProcessInteractionRequest(BaseModel):
 
 
 class MatchFeedbackRequest(BaseModel):
-    ats_job_id: UUID
-    candidate_id: UUID
-    feedback: str = Field(..., description="accepted, rejected, maybe")
-    reason: Optional[str] = None
+    match_id: UUID
+    feedback: str = Field(..., description="good, bad_distance, bad_skills, bad_seniority, maybe")
+    note: Optional[str] = None
 
 
 class ProfileTriggerRequest(BaseModel):
@@ -501,41 +500,93 @@ async def n8n_match_feedback(
     db: AsyncSession = Depends(get_db),
     _: None = Depends(verify_n8n_token),
 ):
-    """n8n: Match-Feedback loggen (accepted/rejected/maybe + Grund)."""
-    from app.models.ats_activity import ATSActivity, ActivityType
+    """n8n: Match-Feedback loggen — gleiche Werte wie im MT.
 
-    if data.feedback not in ("accepted", "rejected", "maybe"):
-        raise HTTPException(status_code=400, detail="feedback muss 'accepted', 'rejected' oder 'maybe' sein")
-
-    feedback_labels = {"accepted": "Angenommen", "rejected": "Abgelehnt", "maybe": "Vielleicht"}
-    desc = f"Match-Feedback: {feedback_labels[data.feedback]}"
-    if data.reason:
-        desc += f" — {data.reason[:200]}"
-
-    activity = ATSActivity(
-        activity_type=ActivityType.NOTE_ADDED,
-        description=desc,
-        ats_job_id=data.ats_job_id,
-        candidate_id=data.candidate_id,
-        metadata_json={
-            "type": "match_feedback",
-            "feedback": data.feedback,
-            "reason": data.reason,
-        },
-    )
-    db.add(activity)
-
-    # last_contact aktualisieren (Feedback = Interaktion)
-    from app.models.candidate import Candidate
+    Feedback-Werte:
+    - good: Guter Match
+    - bad_distance: Distanz passt nicht
+    - bad_skills: Taetigkeiten passen nicht
+    - bad_seniority: Seniority passt nicht
+    - maybe: Vielleicht / neutral
+    """
+    from app.models.match import Match, MatchStatus
+    from app.services.matching_learning_service import MatchingLearningService
     from datetime import datetime, timezone
-    candidate = await db.get(Candidate, data.candidate_id)
-    if candidate:
-        candidate.last_contact = datetime.now(timezone.utc)
-        candidate.updated_at = datetime.now(timezone.utc)
+
+    valid_feedback = ("good", "bad_distance", "bad_skills", "bad_seniority", "maybe")
+    if data.feedback not in valid_feedback:
+        raise HTTPException(
+            status_code=400,
+            detail=f"feedback muss einer von {valid_feedback} sein",
+        )
+
+    # Match laden
+    match = await db.get(Match, data.match_id)
+    if not match:
+        raise HTTPException(status_code=404, detail="Match nicht gefunden")
+
+    # Outcome bestimmen (gleiche Logik wie Match Center)
+    is_bad = data.feedback.startswith("bad_")
+    outcome = "bad" if is_bad else ("good" if data.feedback == "good" else "neutral")
+    rejection_reason = data.feedback if is_bad else None
+
+    # 1. Feedback in Match speichern
+    match.user_feedback = data.feedback
+    match.feedback_note = data.note
+    match.feedback_at = datetime.now(timezone.utc)
+    match.rejection_reason = rejection_reason
+
+    # 2. Bei negativem Feedback: Status auf REJECTED
+    if is_bad:
+        match.status = MatchStatus.REJECTED
+
+    await db.flush()
+
+    # 3. Job-Kategorie ermitteln (fuer pro-Kategorie-Lernen)
+    job_category = None
+    if match.job_id:
+        from app.models.job import Job
+        job = await db.get(Job, match.job_id)
+        if job:
+            job_category = job.hotlist_job_title or job.position
+
+    # 4. Learning Service aufrufen
+    learning_info = {}
+    try:
+        learning = MatchingLearningService(db)
+        lr = await learning.record_feedback(
+            match_id=data.match_id,
+            outcome=outcome,
+            note=data.note,
+            source="user_feedback",
+            rejection_reason=rejection_reason,
+            job_category=job_category,
+        )
+        learning_info = {
+            "weights_adjusted": lr.weights_adjusted,
+            "learning_stage": lr.learning_stage if hasattr(lr, "learning_stage") else None,
+        }
+    except Exception as le:
+        logger.warning(f"n8n Learning Service Fehler (Feedback trotzdem gespeichert): {le}")
+
+    # 5. last_contact aktualisieren
+    if match.candidate_id:
+        from app.models.candidate import Candidate
+        candidate = await db.get(Candidate, match.candidate_id)
+        if candidate:
+            candidate.last_contact = datetime.now(timezone.utc)
+            candidate.updated_at = datetime.now(timezone.utc)
 
     await db.commit()
-    logger.info(f"n8n Match Feedback: {data.candidate_id} + Job {data.ats_job_id} -> {data.feedback}")
-    return {"success": True, "feedback": data.feedback, "candidate_id": str(data.candidate_id), "ats_job_id": str(data.ats_job_id)}
+    logger.info(f"n8n Match Feedback: match={data.match_id}, feedback={data.feedback}, outcome={outcome}")
+    return {
+        "success": True,
+        "match_id": str(data.match_id),
+        "feedback": data.feedback,
+        "outcome": outcome,
+        "rejected": is_bad,
+        "learning": learning_info,
+    }
 
 
 @router.post("/candidate/profile-trigger")
