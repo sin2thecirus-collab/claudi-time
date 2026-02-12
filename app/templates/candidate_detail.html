@@ -527,24 +527,27 @@
                         {# Quelle #}
                         <div>
                             <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em;">Quelle</div>
-                            <div style="position: relative;" @click.away="showSourceDropdown = false">
+                            <div class="relative" @click.away="showSourceDropdown = false">
                                 <button type="button" @click="showSourceDropdown = !showSourceDropdown"
-                                    style="display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 6px 10px; border-radius: 8px; border: 1.5px solid var(--pp-border); background: var(--pp-surface); color: {% if candidate.source %}var(--pp-text){% else %}var(--pp-textDim){% endif %}; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; {% if not candidate.source %}font-style: italic;{% endif %}">
-                                    <span x-text="currentSource || 'Nicht angegeben'"></span>
-                                    <svg style="width: 14px; height: 14px; flex-shrink: 0; opacity: 0.5;" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+                                    class="relative w-full cursor-pointer rounded-lg py-2 pl-3 pr-8 text-left text-sm font-semibold"
+                                    style="font-family: inherit; background: var(--pp-surface); border: 1.5px solid var(--pp-border); color: {% if candidate.source %}var(--pp-text){% else %}var(--pp-textDim){% endif %}; {% if not candidate.source %}font-style: italic;{% endif %}">
+                                    <span class="block truncate" x-text="currentSource || 'Nicht angegeben'"></span>
+                                    <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                                        <svg class="h-4 w-4 opacity-50" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+                                    </span>
                                 </button>
                                 <div x-show="showSourceDropdown" x-cloak
-                                     style="position: absolute; z-index: 50; top: 100%; left: 0; margin-top: 4px; border-radius: 10px; border: 1px solid var(--pp-border); background: var(--pp-surface); box-shadow: 0 8px 24px rgba(0,0,0,0.5); max-height: 320px; overflow-y: auto; min-width: 220px; width: max-content;">
-                                    <div style="padding: 4px 0;">
+                                     class="absolute z-50 mt-1 max-h-60 overflow-auto rounded-xl py-1 text-sm shadow-lg"
+                                     style="background: var(--pp-surface); border: 1px solid var(--pp-border); min-width: 220px; width: max-content; box-shadow: 0 8px 24px rgba(0,0,0,0.5);">
                                     <template x-for="src in sourceOptions" :key="src">
                                         <button type="button" @click="setSource(src)"
-                                            style="display: block; width: 100%; text-align: left; padding: 9px 14px; font-size: 13px; font-weight: 500; color: var(--pp-text); background: none; border: none; cursor: pointer; font-family: inherit; white-space: nowrap; border-bottom: 1px solid rgba(255,255,255,0.04);"
-                                            :style="currentSource === src ? 'background: var(--pp-surfaceHover); color: var(--pp-accent); font-weight: 650;' : ''"
+                                            class="w-full cursor-pointer select-none py-2.5 pl-3 pr-4 text-left text-sm"
+                                            style="font-family: inherit; white-space: nowrap; border: none;"
+                                            :style="currentSource === src ? 'background: var(--pp-surfaceHover); color: var(--pp-accent); font-weight: 650;' : 'background: none; color: var(--pp-text); font-weight: 500;'"
                                             @mouseenter="$el.style.background = 'var(--pp-surfaceHover)'"
                                             @mouseleave="if (currentSource !== src) $el.style.background = 'none'"
                                             x-text="src"></button>
                                     </template>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -715,17 +718,24 @@
                 </div>
                 <div class="kd-section-body">
                     {# Add form #}
-                    <div x-show="showAddForm" x-cloak style="margin-bottom: 14px; padding: 14px; border-radius: 10px; background: var(--pp-bg); border: 1px solid var(--pp-border); overflow: visible;">
-                        <div style="display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; overflow: visible;">
-                            <div style="flex: 2; min-width: 220px; position: relative;" @click.away="showCompanyDropdown = false">
+                    <div x-show="showAddForm" x-cloak class="mb-3.5 overflow-visible" style="padding: 14px; border-radius: 10px; background: var(--pp-bg); border: 1px solid var(--pp-border);">
+                        <div class="flex flex-wrap items-end gap-2.5 overflow-visible">
+                            <div class="relative flex-[2] min-w-[220px]" @click.away="showCompanyDropdown = false">
                                 <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.06em;">Unternehmen</div>
-                                <input type="text" x-model="newCompany" @input="filterCompanies()" @focus="filterCompanies()" @keydown.enter.prevent="showCompanyDropdown = false; addEntry()" placeholder="z.B. Allianz, Siemens..." style="width: 100%; padding: 7px 10px; border-radius: 8px; border: 1.5px solid var(--pp-border); font-size: 13px; color: var(--pp-text); background: var(--pp-surface); font-family: inherit; outline: none;">
-                                <div x-show="showCompanyDropdown" x-cloak style="position: absolute; z-index: 50; top: 100%; left: 0; margin-top: 4px; border-radius: 10px; border: 1px solid var(--pp-border); background: var(--pp-surface); box-shadow: 0 8px 24px rgba(0,0,0,0.5); max-height: 240px; overflow-y: auto; min-width: 300px; width: max-content; max-width: 450px;">
-                                    <div style="padding: 4px 0;">
+                                <input type="text" x-model="newCompany" @input="filterCompanies()" @focus="filterCompanies()" @keydown.enter.prevent="showCompanyDropdown = false; addEntry()" placeholder="z.B. Allianz, Siemens..."
+                                    class="w-full rounded-lg text-sm outline-none"
+                                    style="padding: 7px 10px; border: 1.5px solid var(--pp-border); color: var(--pp-text); background: var(--pp-surface); font-family: inherit;">
+                                <div x-show="showCompanyDropdown" x-cloak
+                                     class="absolute z-50 mt-1 max-h-60 overflow-auto rounded-xl py-1 text-sm shadow-lg"
+                                     style="background: var(--pp-surface); border: 1px solid var(--pp-border); min-width: 300px; width: max-content; max-width: 450px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);">
                                     <template x-for="name in filteredCompanies" :key="name">
-                                        <button type="button" @click="selectCompany(name)" style="display: block; width: 100%; text-align: left; padding: 10px 14px; font-size: 13px; font-weight: 500; color: var(--pp-text); background: none; border: none; cursor: pointer; font-family: inherit; white-space: nowrap; border-bottom: 1px solid rgba(255,255,255,0.04);" @mouseenter="$el.style.background='var(--pp-surfaceHover)'" @mouseleave="$el.style.background='none'" x-text="name"></button>
+                                        <button type="button" @click="selectCompany(name)"
+                                            class="w-full cursor-pointer select-none py-2.5 pl-3 pr-4 text-left text-sm"
+                                            style="font-family: inherit; white-space: nowrap; color: var(--pp-text); font-weight: 500; background: none; border: none;"
+                                            @mouseenter="$el.style.background='var(--pp-surfaceHover)'"
+                                            @mouseleave="$el.style.background='none'"
+                                            x-text="name"></button>
                                     </template>
-                                    </div>
                                 </div>
                             </div>
                             <div>
