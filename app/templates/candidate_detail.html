@@ -202,6 +202,9 @@
                     <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 8px; background: rgba(99,102,241,0.2); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.3); margin-left: 6px;" title="Kandidaten-Nr.">
                         #{{ candidate.candidate_number }}
                     </span>
+                    <button type="button" onclick="copyToClipboard('#{{ candidate.candidate_number }}', 'Kandidaten-Nr.')" style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 7px; background: rgba(255,255,255,0.08); border: none; cursor: pointer; color: rgba(255,255,255,0.5); transition: all 0.15s;" onmouseenter="this.style.background='rgba(255,255,255,0.15)';this.style.color='#a5b4fc'" onmouseleave="this.style.background='rgba(255,255,255,0.08)';this.style.color='rgba(255,255,255,0.5)'" title="Kandidaten-Nr. kopieren">
+                        <svg style="width: 13px; height: 13px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9.75a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" /></svg>
+                    </button>
                     {% endif %}
                 </div>
 
@@ -531,7 +534,7 @@
                                     <svg style="width: 14px; height: 14px; flex-shrink: 0; opacity: 0.5;" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
                                 </button>
                                 <div x-show="showSourceDropdown" x-cloak
-                                     style="position: absolute; z-index: 10; top: 100%; left: 0; right: 0; margin-top: 4px; border-radius: 10px; border: 1px solid var(--pp-border); background: var(--pp-surface); box-shadow: 0 4px 12px rgba(0,0,0,0.3); overflow: hidden;">
+                                     style="position: absolute; z-index: 20; top: 100%; left: 0; right: 0; margin-top: 4px; border-radius: 10px; border: 1px solid var(--pp-border); background: var(--pp-surface); box-shadow: 0 8px 24px rgba(0,0,0,0.4); max-height: 280px; overflow-y: auto;">
                                     <template x-for="src in sourceOptions" :key="src">
                                         <button type="button" @click="setSource(src)"
                                             style="display: block; width: 100%; text-align: left; padding: 8px 12px; font-size: 12.5px; font-weight: 500; color: var(--pp-text); background: none; border: none; cursor: pointer; font-family: inherit;"
@@ -652,6 +655,28 @@
                     newCompany: '',
                     newType: 'presented',
                     newDate: new Date().toISOString().split('T')[0],
+                    allCompanies: [],
+                    filteredCompanies: [],
+                    showCompanyDropdown: false,
+                    async loadCompanies() {
+                        if (this.allCompanies.length > 0) return;
+                        try {
+                            var response = await fetch('/api/companies?limit=500');
+                            var data = await response.json();
+                            this.allCompanies = (data.items || []).map(function(c) { return c.name; });
+                        } catch (err) { console.error(err); }
+                    },
+                    filterCompanies() {
+                        if (!this.newCompany || this.newCompany.length < 1) { this.filteredCompanies = []; this.showCompanyDropdown = false; return; }
+                        var term = this.newCompany.toLowerCase();
+                        this.filteredCompanies = this.allCompanies.filter(function(n) { return n.toLowerCase().includes(term); }).slice(0, 8);
+                        this.showCompanyDropdown = this.filteredCompanies.length > 0;
+                    },
+                    selectCompany(name) {
+                        this.newCompany = name;
+                        this.filteredCompanies = [];
+                        this.showCompanyDropdown = false;
+                    },
                     async addEntry() {
                         if (!this.newCompany.trim()) return;
                         var entry = { company: this.newCompany.trim(), date: this.newDate, type: this.newType };
@@ -682,7 +707,7 @@
                  }">
                 <div class="kd-section-header">
                     <div class="kd-section-title"><span>&#x1F3E2;</span> Vorgestellt / Beworben bei</div>
-                    <button type="button" @click="showAddForm = !showAddForm" style="display: flex; align-items: center; gap: 6px; background: var(--pp-surfaceHover); border: 1.5px solid var(--pp-border); border-radius: 8px; padding: 5px 12px; font-size: 11.5px; font-weight: 650; color: var(--pp-accent); cursor: pointer; font-family: inherit;">
+                    <button type="button" @click="showAddForm = !showAddForm; if(showAddForm) loadCompanies()" style="display: flex; align-items: center; gap: 6px; background: var(--pp-surfaceHover); border: 1.5px solid var(--pp-border); border-radius: 8px; padding: 5px 12px; font-size: 11.5px; font-weight: 650; color: var(--pp-accent); cursor: pointer; font-family: inherit;">
                         <span x-text="showAddForm ? 'Abbrechen' : '+ Hinzuf&uuml;gen'"></span>
                     </button>
                 </div>
@@ -690,15 +715,21 @@
                     {# Add form #}
                     <div x-show="showAddForm" x-cloak style="margin-bottom: 14px; padding: 14px; border-radius: 10px; background: var(--pp-bg); border: 1px solid var(--pp-border);">
                         <div style="display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap;">
-                            <div style="flex: 1; min-width: 160px;">
+                            <div style="flex: 1; min-width: 160px; position: relative;" @click.away="showCompanyDropdown = false">
                                 <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.06em;">Unternehmen</div>
-                                <input type="text" x-model="newCompany" @keydown.enter.prevent="addEntry()" placeholder="z.B. Allianz, Siemens..." style="width: 100%; padding: 7px 10px; border-radius: 8px; border: 1.5px solid var(--pp-border); font-size: 13px; color: var(--pp-text); background: var(--pp-surface); font-family: inherit; outline: none;">
+                                <input type="text" x-model="newCompany" @input="filterCompanies()" @focus="filterCompanies()" @keydown.enter.prevent="showCompanyDropdown = false; addEntry()" placeholder="z.B. Allianz, Siemens..." style="width: 100%; padding: 7px 10px; border-radius: 8px; border: 1.5px solid var(--pp-border); font-size: 13px; color: var(--pp-text); background: var(--pp-surface); font-family: inherit; outline: none;">
+                                <div x-show="showCompanyDropdown" x-cloak style="position: absolute; z-index: 20; top: 100%; left: 0; right: 0; margin-top: 4px; border-radius: 10px; border: 1px solid var(--pp-border); background: var(--pp-surface); box-shadow: 0 4px 16px rgba(0,0,0,0.4); overflow: hidden; max-height: 200px; overflow-y: auto;">
+                                    <template x-for="name in filteredCompanies" :key="name">
+                                        <button type="button" @click="selectCompany(name)" style="display: block; width: 100%; text-align: left; padding: 8px 12px; font-size: 12.5px; font-weight: 500; color: var(--pp-text); background: none; border: none; cursor: pointer; font-family: inherit;" @mouseenter="$el.style.background='var(--pp-surfaceHover)'" @mouseleave="$el.style.background='none'" x-text="name"></button>
+                                    </template>
+                                </div>
                             </div>
                             <div>
                                 <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.06em;">Typ</div>
                                 <select x-model="newType" style="padding: 7px 10px; border-radius: 8px; border: 1.5px solid var(--pp-border); font-size: 13px; color: var(--pp-text); background: var(--pp-surface); font-family: inherit; outline: none; cursor: pointer;">
                                     <option value="presented">Vorgestellt</option>
                                     <option value="applied">Beworben</option>
+                                    <option value="pdl">PDL</option>
                                 </select>
                             </div>
                             <div>
@@ -714,7 +745,7 @@
                             <template x-for="(entry, idx) in entries" :key="idx">
                                 <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: 10px; background: var(--pp-surfaceHover); border: 1px solid var(--pp-border);">
                                     <div style="display: flex; align-items: center; gap: 10px;">
-                                        <span :style="entry.type === 'applied' ? 'background: rgba(245,158,11,0.15); color: #fbbf24;' : 'background: rgba(99,102,241,0.15); color: #a5b4fc;'" style="font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.05em;" x-text="entry.type === 'applied' ? 'Beworben' : 'Vorgestellt'"></span>
+                                        <span :style="entry.type === 'applied' ? 'background: rgba(245,158,11,0.15); color: #fbbf24;' : entry.type === 'pdl' ? 'background: rgba(16,185,129,0.15); color: #34d399;' : 'background: rgba(99,102,241,0.15); color: #a5b4fc;'" style="font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.05em;" x-text="entry.type === 'applied' ? 'Beworben' : entry.type === 'pdl' ? 'PDL' : 'Vorgestellt'"></span>
                                         <span style="font-size: 13.5px; font-weight: 650; color: var(--pp-text);" x-text="entry.company"></span>
                                     </div>
                                     <div style="display: flex; align-items: center; gap: 8px;">
@@ -1107,24 +1138,29 @@
             {# CV-Status + Upload #}
             <div class="kd-sidebar-card kd-anim-side" style="animation-delay: 450ms;"
                  x-data="{ cvUploading: false, cvDragging: false }">
-                <div class="kd-sidebar-header">CV-Status</div>
-                <div class="kd-sidebar-body">
-                    <div style="display: flex; flex-direction: column; gap: 10px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span style="font-size: 12px; color: var(--pp-textDim); font-weight: 500;">CV vorhanden</span>
-                            <span style="font-size: 12px; font-weight: 660; color: {% if candidate.cv_url or candidate.cv_stored_path %}#059669{% else %}var(--pp-textDim){% endif %};">{% if candidate.cv_url or candidate.cv_stored_path %}Ja{% else %}Nein{% endif %}</span>
-                        </div>
-                        {% if candidate.cv_parsed_at %}
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span style="font-size: 12px; color: var(--pp-textDim); font-weight: 500;">Zuletzt geparst</span>
-                            <span style="font-size: 12px; font-weight: 660; color: var(--pp-text);">{{ candidate.cv_parsed_at.strftime('%d.%m.%Y %H:%M') }}</span>
-                        </div>
-                        {% endif %}
+                <div class="kd-sidebar-header">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <svg style="width: 15px; height: 15px; color: var(--pp-accent);" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+                        CV-Status
                     </div>
+                    {% if candidate.cv_url or candidate.cv_stored_path %}
+                    <span style="font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 6px; background: rgba(5,150,105,0.15); color: #34d399; text-transform: uppercase; letter-spacing: 0.05em;">Vorhanden</span>
+                    {% else %}
+                    <span style="font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 6px; background: rgba(220,38,38,0.15); color: #fca5a5; text-transform: uppercase; letter-spacing: 0.05em;">Fehlt</span>
+                    {% endif %}
+                </div>
+                <div class="kd-sidebar-body" style="padding: 14px 18px;">
+                    {% if candidate.cv_parsed_at %}
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px; padding: 8px 12px; border-radius: 8px; background: var(--pp-bg); border: 1px solid var(--pp-border);">
+                        <svg style="width: 14px; height: 14px; color: var(--pp-textDim); flex-shrink: 0;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        <span style="font-size: 11.5px; color: var(--pp-textDim); font-weight: 500;">Geparst:</span>
+                        <span style="font-size: 11.5px; font-weight: 650; color: var(--pp-text);">{{ candidate.cv_parsed_at.strftime('%d.%m.%Y %H:%M') }}</span>
+                    </div>
+                    {% endif %}
 
                     {# Drag-Drop Upload Zone #}
-                    <div style="margin-top: 12px; border: 2px dashed; border-radius: 10px; padding: 16px; text-align: center; transition: all 0.2s ease; cursor: pointer;"
-                         :style="cvUploading ? 'opacity: 0.5; pointer-events: none; border-color: var(--pp-border);' : cvDragging ? 'border-color: var(--pp-accent); background: var(--pp-surfaceHover);' : 'border-color: var(--pp-border); background: var(--pp-bg);'"
+                    <div style="border: 2px dashed; border-radius: 10px; padding: 18px 14px; text-align: center; transition: all 0.2s ease; cursor: pointer;"
+                         :style="cvUploading ? 'opacity: 0.5; pointer-events: none; border-color: var(--pp-border);' : cvDragging ? 'border-color: var(--pp-accent); background: rgba(99,102,241,0.06);' : 'border-color: var(--pp-border); background: var(--pp-bg);'"
                          @dragover.prevent="cvDragging = true"
                          @dragenter.prevent="cvDragging = true"
                          @dragleave.prevent="cvDragging = false"
@@ -1132,15 +1168,15 @@
                          @click="$refs.cvFileInput.click()">
                         <input type="file" accept=".pdf" class="hidden" x-ref="cvFileInput"
                                @change="if ($event.target.files.length) { let f = $event.target.files[0]; if (!f.name.toLowerCase().endsWith('.pdf')) { showToast('Nur PDF-Dateien erlaubt', 'warning'); return; } cvUploading = true; let fd = new FormData(); fd.append('file', f); fetch('/api/candidates/{{ candidate.id }}/upload-cv', { method: 'POST', body: fd }).then(r => r.json()).then(d => { cvUploading = false; if (d.success) { showToast('CV hochgeladen — wird verarbeitet...', 'success'); setTimeout(() => location.reload(), 3000); } else { showToast(d.message || 'Upload fehlgeschlagen', 'error'); } }).catch(() => { cvUploading = false; showToast('Upload fehlgeschlagen', 'error'); }); $event.target.value = ''; }">
-                        <div style="font-size: 22px; margin-bottom: 4px; opacity: 0.5;">&#x1F4C4;</div>
-                        <p x-show="!cvUploading && !cvDragging" style="font-size: 11.5px; color: var(--pp-textMuted); font-weight: 600; margin: 0;">PDF hierher ziehen oder klicken</p>
-                        <p x-show="cvDragging" x-cloak style="font-size: 11.5px; color: #7c3aed; font-weight: 600; margin: 0;">PDF hier ablegen</p>
-                        <p x-show="cvUploading" x-cloak style="font-size: 11.5px; color: #7c3aed; font-weight: 600; margin: 0;">Wird hochgeladen...</p>
-                        <p x-show="!cvUploading" style="font-size: 10px; color: var(--pp-textDim); margin: 4px 0 0 0;">Automatisch: Parsing + Geocoding + Kategorisierung</p>
+                        <svg x-show="!cvUploading" style="width: 28px; height: 28px; color: var(--pp-textDim); margin: 0 auto 6px;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>
+                        <p x-show="!cvUploading && !cvDragging" style="font-size: 12px; color: var(--pp-textMuted); font-weight: 600; margin: 0;">PDF hochladen</p>
+                        <p x-show="cvDragging" x-cloak style="font-size: 12px; color: var(--pp-accent); font-weight: 600; margin: 0;">Hier ablegen</p>
+                        <p x-show="cvUploading" x-cloak style="font-size: 12px; color: var(--pp-accent); font-weight: 600; margin: 0;">Wird hochgeladen...</p>
+                        <p x-show="!cvUploading" style="font-size: 10px; color: var(--pp-textDim); margin: 4px 0 0 0; font-weight: 500;">Parsing + Geocoding + Kategorisierung</p>
                     </div>
 
                     {% if candidate.cv_url or candidate.cv_stored_path %}
-                    <button type="button" hx-post="/api/candidates/{{ candidate.id }}/reparse-cv" hx-swap="none" hx-on::after-request="showToast('CV wird neu geparst...', 'info'); setTimeout(() => location.reload(), 3000)" style="width: 100%; margin-top: 8px; padding: 9px 0; border-radius: 8px; background: var(--pp-surfaceHover); border: 1.5px solid var(--pp-border); color: var(--pp-text); font-size: 12px; font-weight: 650; cursor: pointer; font-family: inherit;">CV neu parsen</button>
+                    <button type="button" hx-post="/api/candidates/{{ candidate.id }}/reparse-cv" hx-swap="none" hx-on::after-request="showToast('CV wird neu geparst...', 'info'); setTimeout(() => location.reload(), 3000)" style="width: 100%; margin-top: 10px; padding: 9px 0; border-radius: 8px; background: var(--pp-surfaceHover); border: 1.5px solid var(--pp-border); color: var(--pp-text); font-size: 12px; font-weight: 650; cursor: pointer; font-family: inherit; transition: all 0.15s;" onmouseenter="this.style.borderColor='var(--pp-accent)';this.style.color='var(--pp-accent)'" onmouseleave="this.style.borderColor='var(--pp-border)';this.style.color='var(--pp-text)'">CV neu parsen</button>
                     {% endif %}
                 </div>
             </div>
