@@ -1545,3 +1545,103 @@ def _candidate_to_response(candidate) -> CandidateResponse:
         created_at=candidate.created_at,
         updated_at=candidate.updated_at,
     )
+
+
+# ══════════════════════════════════════════════════════════════
+#  Candidate Notes (Notizen-Verlauf)
+# ══════════════════════════════════════════════════════════════
+
+from datetime import datetime, timezone
+from pydantic import BaseModel, Field
+from sqlalchemy import select
+from app.models.candidate import Candidate
+from app.models.candidate_note import CandidateNote
+
+
+class CandidateNoteCreate(BaseModel):
+    """Schema fuer neue Kandidaten-Notiz."""
+    content: str = Field(..., min_length=1)
+    title: str | None = None
+    note_date: str | None = None  # ISO-String oder "YYYY-MM-DD" — Default: jetzt
+
+
+@router.get("/{candidate_id}/notes")
+async def list_candidate_notes(candidate_id: UUID, db: AsyncSession = Depends(get_db)):
+    """Listet alle Notizen eines Kandidaten (neueste zuerst)."""
+    result = await db.execute(
+        select(CandidateNote)
+        .where(CandidateNote.candidate_id == candidate_id)
+        .order_by(CandidateNote.note_date.desc())
+    )
+    notes = result.scalars().all()
+    return [
+        {
+            "id": str(n.id),
+            "candidate_id": str(n.candidate_id),
+            "title": n.title,
+            "content": n.content,
+            "source": n.source,
+            "note_date": n.note_date.isoformat() if n.note_date else None,
+            "created_at": n.created_at.isoformat() if n.created_at else None,
+        }
+        for n in notes
+    ]
+
+
+@router.post("/{candidate_id}/notes")
+async def create_candidate_note(
+    candidate_id: UUID,
+    data: CandidateNoteCreate,
+    db: AsyncSession = Depends(get_db),
+):
+    """Erstellt eine neue Notiz fuer einen Kandidaten."""
+    candidate = await db.get(Candidate, candidate_id)
+    if not candidate:
+        raise NotFoundException("Kandidat nicht gefunden")
+
+    # Datum parsen (falls angegeben)
+    note_date = None
+    if data.note_date:
+        try:
+            # Versuche ISO Format
+            note_date = datetime.fromisoformat(data.note_date.replace("Z", "+00:00"))
+        except ValueError:
+            try:
+                # Versuche deutsches Format DD.MM.YYYY
+                note_date = datetime.strptime(data.note_date, "%d.%m.%Y").replace(tzinfo=timezone.utc)
+            except ValueError:
+                note_date = None
+
+    note = CandidateNote(
+        candidate_id=candidate_id,
+        title=data.title,
+        content=data.content,
+        source="manual",
+        note_date=note_date or datetime.now(timezone.utc),
+    )
+    db.add(note)
+    await db.commit()
+    await db.refresh(note)
+
+    return {
+        "id": str(note.id),
+        "candidate_id": str(note.candidate_id),
+        "title": note.title,
+        "content": note.content,
+        "source": note.source,
+        "note_date": note.note_date.isoformat() if note.note_date else None,
+        "created_at": note.created_at.isoformat() if note.created_at else None,
+        "message": "Notiz erstellt",
+    }
+
+
+@router.delete("/notes/{note_id}")
+async def delete_candidate_note(note_id: UUID, db: AsyncSession = Depends(get_db)):
+    """Loescht eine Kandidaten-Notiz."""
+    note = await db.get(CandidateNote, note_id)
+    if not note:
+        raise NotFoundException("Notiz nicht gefunden")
+
+    await db.delete(note)
+    await db.commit()
+    return {"message": "Notiz geloescht"}

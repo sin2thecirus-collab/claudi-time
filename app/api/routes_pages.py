@@ -1817,3 +1817,29 @@ async def gespraeche_assign(
         "message": f"Anruf erfolgreich zugeordnet",
         "actions": actions,
     })
+
+
+# ============================================================================
+# Kandidaten-Notizen Partials
+# ============================================================================
+
+@router.get("/partials/candidate/{candidate_id}/notes", response_class=HTMLResponse)
+async def candidate_notes_partial(
+    candidate_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Partial: Notizen-Verlauf eines Kandidaten (neueste zuerst)."""
+    from app.models.candidate_note import CandidateNote
+
+    result = await db.execute(
+        select(CandidateNote)
+        .where(CandidateNote.candidate_id == candidate_id)
+        .order_by(CandidateNote.note_date.desc())
+    )
+    notes = result.scalars().all()
+    return templates.TemplateResponse("partials/candidate_notes.html", {
+        "request": request,
+        "notes": notes,
+        "candidate_id": str(candidate_id),
+    })

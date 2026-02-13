@@ -104,6 +104,9 @@ class CandidateWillingnessRequest(BaseModel):
 class CandidateNotesRequest(BaseModel):
     candidate_id: UUID
     notes: str
+    title: str | None = None  # z.B. "Qualifizierungsgespräch (KI)"
+    source: str | None = None  # "ki_transkription", "n8n", "manual"
+    note_date: str | None = None  # ISO oder DD.MM.YYYY
 
 
 class CandidateLastContactRequest(BaseModel):
@@ -358,27 +361,42 @@ async def n8n_set_candidate_notes(
     db: AsyncSession = Depends(get_db),
     _: None = Depends(verify_n8n_token),
 ):
-    """n8n: Notizen setzen/aktualisieren (Gespraeche, Wechselmotivation etc.). Aktualisiert auch last_contact."""
+    """n8n: Erstellt eine neue CandidateNote. Aktualisiert auch last_contact."""
     from app.models.candidate import Candidate
-    from datetime import datetime, timezone
+    from app.models.candidate_note import CandidateNote
 
     candidate = await db.get(Candidate, data.candidate_id)
     if not candidate:
         raise HTTPException(status_code=404, detail="Kandidat nicht gefunden")
 
-    # Notizen anhaengen statt ueberschreiben (wenn bereits vorhanden)
-    if candidate.candidate_notes and data.notes:
-        timestamp = datetime.now(timezone.utc).strftime("%d.%m.%Y %H:%M")
-        candidate.candidate_notes = candidate.candidate_notes + f"\n\n--- {timestamp} ---\n{data.notes}"
-    else:
-        candidate.candidate_notes = data.notes
+    # Datum parsen
+    note_date = datetime.now(timezone.utc)
+    if data.note_date:
+        try:
+            note_date = datetime.fromisoformat(data.note_date.replace("Z", "+00:00"))
+        except ValueError:
+            try:
+                note_date = datetime.strptime(data.note_date, "%d.%m.%Y").replace(tzinfo=timezone.utc)
+            except ValueError:
+                pass  # Fallback: jetzt
+
+    # Neue CandidateNote erstellen
+    note = CandidateNote(
+        candidate_id=data.candidate_id,
+        title=data.title or "n8n Notiz",
+        content=data.notes,
+        source=data.source or "n8n",
+        note_date=note_date,
+    )
+    db.add(note)
 
     candidate.last_contact = datetime.now(timezone.utc)
     candidate.updated_at = datetime.now(timezone.utc)
     await db.commit()
+    await db.refresh(note)
 
-    logger.info(f"n8n Notes Updated: {data.candidate_id}")
-    return {"success": True, "candidate_id": str(data.candidate_id)}
+    logger.info(f"n8n CandidateNote Created: {data.candidate_id} -> {note.id}")
+    return {"success": True, "candidate_id": str(data.candidate_id), "note_id": str(note.id)}
 
 
 @router.post("/candidate/last-contact")

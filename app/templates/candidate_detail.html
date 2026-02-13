@@ -374,15 +374,52 @@
                             </div>
                         </div>
                     </div>
-                    {# Notizen (Freitext) #}
+                    {# Notizen (einzelne Eintraege mit Datum) #}
                     <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(99,102,241,0.08);">
-                        <div style="font-size: 10px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.06em;">Notizen</div>
-                        <textarea x-model="notesText" @blur="saveNotes()" placeholder="Gespr&auml;chsnotizen, Wechselmotivation, Gehaltsvorstellung, K&uuml;ndigungsfrist..."
-                            style="width: 100%; min-height: 160px; max-height: 320px; padding: 10px 14px; border-radius: 8px; border: 1.5px solid var(--pp-border); font-size: 14px; font-weight: 500; color: var(--pp-text); background: var(--pp-surface); font-family: inherit; resize: vertical; outline: none; line-height: 1.75;"
-                            @focus="$el.style.borderColor = 'var(--pp-accent)'" @focusout="$el.style.borderColor = 'var(--pp-border)'"></textarea>
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
-                            <span style="font-size: 10.5px; color: var(--pp-textDim); font-weight: 500;" x-text="notesSaved ? 'Gespeichert' : 'Wird beim Verlassen gespeichert'"></span>
-                            <button type="button" @click="saveNotes()" style="padding: 5px 12px; border-radius: 8px; background: var(--pp-surfaceHover); border: 1.5px solid var(--pp-border); color: var(--pp-accent); font-size: 11px; font-weight: 650; cursor: pointer; font-family: inherit;">Speichern</button>
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                            <div style="font-size: 10px; color: var(--pp-textDim); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;">Notizen</div>
+                            <button type="button" @click="showNewNote = !showNewNote"
+                                class="py-1 px-3 rounded-lg cursor-pointer text-xs font-semibold"
+                                style="background: rgba(79,140,255,0.12); color: var(--pp-accent); border: 1px solid rgba(79,140,255,0.25);">
+                                <span x-text="showNewNote ? 'Abbrechen' : '+ Neue Notiz'"></span>
+                            </button>
+                        </div>
+
+                        {# Neue Notiz Formular #}
+                        <div x-show="showNewNote" x-collapse style="margin-bottom: 10px;">
+                            <div style="background: var(--pp-surface); border: 1.5px solid var(--pp-border); border-radius: 10px; padding: 12px;">
+                                <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                                    <input type="text" x-model="newNoteTitle" placeholder="Titel (optional)"
+                                        class="w-full py-2 px-3 rounded-lg text-sm"
+                                        style="background: var(--pp-bg); border: 1px solid var(--pp-border); color: var(--pp-text); font-family: inherit; outline: none; flex: 1;"
+                                        @focus="$el.style.borderColor = 'var(--pp-accent)'" @focusout="$el.style.borderColor = 'var(--pp-border)'">
+                                    <input type="date" x-model="newNoteDate"
+                                        class="py-2 px-3 rounded-lg text-sm"
+                                        style="background: var(--pp-bg); border: 1px solid var(--pp-border); color: var(--pp-text); font-family: inherit; outline: none; color-scheme: dark; min-width: 140px;">
+                                </div>
+                                <textarea x-model="newNoteContent" placeholder="Notiz eingeben..."
+                                    class="w-full py-2 px-3 rounded-lg text-sm"
+                                    style="background: var(--pp-bg); border: 1px solid var(--pp-border); color: var(--pp-text); font-family: inherit; outline: none; resize: vertical; min-height: 80px; line-height: 1.6;"
+                                    @focus="$el.style.borderColor = 'var(--pp-accent)'" @focusout="$el.style.borderColor = 'var(--pp-border)'"></textarea>
+                                <div style="display: flex; justify-content: flex-end; margin-top: 8px;">
+                                    <button type="button" @click="createNote()"
+                                        class="py-2 px-4 rounded-lg cursor-pointer text-sm font-semibold"
+                                        style="background: var(--pp-accent); color: #fff; border: none;"
+                                        :style="newNoteContent.trim() ? '' : 'opacity: 0.4; cursor: not-allowed;'"
+                                        :disabled="!newNoteContent.trim()">
+                                        Notiz speichern
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {# Notizen-Liste (via HTMX Partial) #}
+                        <div id="candidate-notes-list"
+                             hx-get="/partials/candidate/{{ candidate.id }}/notes"
+                             hx-trigger="load"
+                             hx-target="#candidate-notes-list"
+                             style="max-height: 400px; overflow-y: auto; border: 1px solid var(--pp-border); border-radius: 10px; background: var(--pp-surface);">
+                            <p style="font-size:13px;color:var(--pp-textDim);padding:12px 14px;">Lade Notizen...</p>
                         </div>
                     </div>
                 </div>
@@ -1410,8 +1447,10 @@ function recruitingFields() {
         currentSource: {{ (candidate.source or '') | tojson | safe }} || '',
         currentWillingness: {{ (candidate.willingness_to_change or '') | tojson | safe }} || '',
         lastContactDate: {{ (candidate.last_contact.strftime('%Y-%m-%d') if candidate.last_contact else '') | tojson | safe }},
-        notesText: {{ (candidate.candidate_notes or '') | tojson | safe }},
-        notesSaved: true,
+        showNewNote: false,
+        newNoteTitle: '',
+        newNoteContent: '',
+        newNoteDate: new Date().toISOString().split('T')[0],
         showSourceDropdown: false,
         sourceOptions: ['StepStone', 'Xing', 'LinkedIn', 'Indeed', 'Empfehlung', 'CRM', 'Direktansprache', 'Jobboerse', 'Sonstiges'],
 
@@ -1468,21 +1507,53 @@ function recruitingFields() {
             await this.setLastContact();
         },
 
-        async saveNotes() {
+        async createNote() {
+            var content = this.newNoteContent.trim();
+            if (!content) return;
             var candidateId = '{{ candidate.id }}';
             try {
-                var response = await fetch('/api/candidates/' + candidateId, {
-                    method: 'PATCH',
+                var response = await fetch('/api/candidates/' + candidateId + '/notes', {
+                    method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ candidate_notes: this.notesText || null })
+                    body: JSON.stringify({
+                        content: content,
+                        title: this.newNoteTitle.trim() || null,
+                        note_date: this.newNoteDate || null,
+                    })
                 });
                 if (response.ok) {
-                    this.notesSaved = true;
-                    if (typeof showToast === 'function') showToast('Notizen gespeichert', 'success');
+                    this.newNoteTitle = '';
+                    this.newNoteContent = '';
+                    this.newNoteDate = new Date().toISOString().split('T')[0];
+                    this.showNewNote = false;
+                    htmx.ajax('GET', '/partials/candidate/' + candidateId + '/notes', { target: '#candidate-notes-list', swap: 'innerHTML' });
+                    if (typeof showToast === 'function') showToast('Notiz gespeichert', 'success');
+                } else {
+                    if (typeof showToast === 'function') showToast('Fehler beim Speichern', 'error');
                 }
-            } catch (err) { console.error('Notizen speichern fehlgeschlagen:', err); }
+            } catch (err) {
+                console.error('Notiz erstellen fehlgeschlagen:', err);
+                if (typeof showToast === 'function') showToast('Fehler beim Speichern', 'error');
+            }
         }
     };
+}
+
+// ==================== Kandidaten-Notizen: Loeschen ====================
+async function deleteCandidateNote(noteId, candidateId) {
+    if (!confirm('Notiz wirklich loeschen?')) return;
+    try {
+        var response = await fetch('/api/candidates/notes/' + noteId, { method: 'DELETE' });
+        if (response.ok) {
+            htmx.ajax('GET', '/partials/candidate/' + candidateId + '/notes', { target: '#candidate-notes-list', swap: 'innerHTML' });
+            if (typeof showToast === 'function') showToast('Notiz geloescht', 'success');
+        } else {
+            if (typeof showToast === 'function') showToast('Fehler beim Loeschen', 'error');
+        }
+    } catch (err) {
+        console.error('Notiz loeschen fehlgeschlagen:', err);
+        if (typeof showToast === 'function') showToast('Fehler beim Loeschen', 'error');
+    }
 }
 
 // ==================== Pipeline-Daten (ERP + Rating) ====================

@@ -577,6 +577,127 @@ async def _ensure_unassigned_calls_table() -> None:
         logger.info("unassigned_calls Tabelle erfolgreich erstellt.")
 
 
+async def _ensure_candidate_notes_table() -> None:
+    """Erstellt candidate_notes Tabelle + Backfill aus altem Freitext-Feld."""
+
+    async with engine.begin() as conn:
+        result = await conn.execute(
+            text(
+                "SELECT table_name FROM information_schema.tables "
+                "WHERE table_schema = 'public' AND table_name = 'candidate_notes'"
+            )
+        )
+        if result.fetchone() is not None:
+            logger.info("candidate_notes Tabelle existiert bereits.")
+            return
+
+    logger.info("candidate_notes Tabelle wird erstellt...")
+
+    async with engine.begin() as conn:
+        await conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS candidate_notes (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                candidate_id UUID NOT NULL REFERENCES candidates(id) ON DELETE CASCADE,
+                title VARCHAR(500),
+                content TEXT NOT NULL,
+                source VARCHAR(50),
+                note_date TIMESTAMPTZ DEFAULT NOW(),
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        """))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_candidate_notes_candidate_id ON candidate_notes (candidate_id)"
+        ))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_candidate_notes_note_date ON candidate_notes (note_date)"
+        ))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_candidate_notes_created_at ON candidate_notes (created_at)"
+        ))
+
+        logger.info("candidate_notes Tabelle erfolgreich erstellt.")
+
+    # ── Backfill: Bestehende candidate_notes Freitext → einzelne CandidateNote Eintraege ──
+    try:
+        async with engine.begin() as conn:
+            # Alle Kandidaten mit Notizen-Text laden
+            rows = await conn.execute(text(
+                "SELECT id, candidate_notes FROM candidates "
+                "WHERE candidate_notes IS NOT NULL AND candidate_notes != ''"
+            ))
+            candidates_with_notes = rows.fetchall()
+
+            if not candidates_with_notes:
+                logger.info("Backfill: Keine bestehenden Kandidaten-Notizen zum Migrieren.")
+                return
+
+            migrated = 0
+            for row in candidates_with_notes:
+                cand_id, notes_text = row[0], row[1]
+                # Parse: Notizen sind getrennt durch "--- DATUM ---" oder einfach Freitext
+                # Format: "--- 12.02.2026 16:07 | Qualifizierungsgespräch (KI) ---\nText..."
+                import re
+                blocks = re.split(r'\n*---\s*(.+?)\s*---\n*', notes_text)
+
+                if len(blocks) <= 1:
+                    # Kein Datumsformat erkannt → als eine einzelne manuelle Notiz migrieren
+                    await conn.execute(text("""
+                        INSERT INTO candidate_notes (id, candidate_id, title, content, source, note_date, created_at)
+                        VALUES (gen_random_uuid(), :cid, 'Migrierte Notiz', :content, 'system', NOW(), NOW())
+                    """), {"cid": str(cand_id), "content": notes_text.strip()})
+                    migrated += 1
+                else:
+                    # blocks = ['', 'HEADER1', 'CONTENT1', 'HEADER2', 'CONTENT2', ...]
+                    # Ungerade Indizes = Header, gerade Indizes (>0) = Content
+                    # Block[0] kann Freitext vor dem ersten Separator sein
+                    if blocks[0].strip():
+                        await conn.execute(text("""
+                            INSERT INTO candidate_notes (id, candidate_id, title, content, source, note_date, created_at)
+                            VALUES (gen_random_uuid(), :cid, 'Migrierte Notiz', :content, 'system', NOW(), NOW())
+                        """), {"cid": str(cand_id), "content": blocks[0].strip()})
+                        migrated += 1
+
+                    for i in range(1, len(blocks) - 1, 2):
+                        header = blocks[i].strip()
+                        content = blocks[i + 1].strip() if (i + 1) < len(blocks) else ""
+                        if not content:
+                            continue
+
+                        # Versuche Datum aus Header zu parsen: "12.02.2026 16:07 | Qualifizierungsgespräch (KI)"
+                        title = header
+                        note_date_str = None
+                        source = "system"
+                        date_match = re.match(r'(\d{2}\.\d{2}\.\d{4}\s+\d{2}:\d{2})\s*\|\s*(.*)', header)
+                        if date_match:
+                            note_date_str = date_match.group(1)
+                            title = date_match.group(2).strip() or header
+                            if "KI" in title.upper() or "Transkription" in title.lower():
+                                source = "ki_transkription"
+
+                        if note_date_str:
+                            await conn.execute(text("""
+                                INSERT INTO candidate_notes (id, candidate_id, title, content, source, note_date, created_at)
+                                VALUES (gen_random_uuid(), :cid, :title, :content, :source,
+                                        TO_TIMESTAMP(:ndate, 'DD.MM.YYYY HH24:MI'), NOW())
+                            """), {
+                                "cid": str(cand_id), "title": title, "content": content,
+                                "source": source, "ndate": note_date_str,
+                            })
+                        else:
+                            await conn.execute(text("""
+                                INSERT INTO candidate_notes (id, candidate_id, title, content, source, note_date, created_at)
+                                VALUES (gen_random_uuid(), :cid, :title, :content, :source, NOW(), NOW())
+                            """), {
+                                "cid": str(cand_id), "title": title, "content": content, "source": source,
+                            })
+                        migrated += 1
+
+            if migrated > 0:
+                logger.info(f"Backfill: {migrated} Kandidaten-Notizen in candidate_notes migriert.")
+    except Exception as e:
+        logger.warning(f"Backfill candidate_notes uebersprungen: {e}")
+
+
 async def init_db() -> None:
     """Initialisiert die Datenbankverbindung und führt Migrationen aus."""
     # Schritt 0: Alle haengenden Transaktionen killen (von vorherigen Deployments)
@@ -602,6 +723,7 @@ async def init_db() -> None:
     await _ensure_ats_tables()
     await _ensure_matching_v2_tables()
     await _ensure_unassigned_calls_table()
+    await _ensure_candidate_notes_table()
 
     # ── pgvector Extension NICHT noetig — Embeddings werden als JSONB gespeichert ──
     # Railway Standard-PostgreSQL hat kein pgvector vorinstalliert.
