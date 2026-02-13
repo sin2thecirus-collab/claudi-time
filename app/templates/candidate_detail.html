@@ -8,20 +8,20 @@
     .kd-wrap, .kd-wrap * { font-family: 'Outfit', 'DM Sans', -apple-system, sans-serif; }
     .kd-wrap { background: var(--pp-bg); color: var(--pp-text); font-size: 15px; }
 
-    /* Globale Skalierung aller inline font-sizes innerhalb kd-wrap */
-    .kd-wrap [style*="font-size: 9px"]   { font-size: 11px !important; }
-    .kd-wrap [style*="font-size: 10px"]  { font-size: 12px !important; }
-    .kd-wrap [style*="font-size: 11px"]  { font-size: 13px !important; }
-    .kd-wrap [style*="font-size: 11.5px"]{ font-size: 13.5px !important; }
-    .kd-wrap [style*="font-size: 12px"]  { font-size: 14px !important; }
-    .kd-wrap [style*="font-size: 12.5px"]{ font-size: 14.5px !important; }
-    .kd-wrap [style*="font-size: 13px"]  { font-size: 15px !important; }
-    .kd-wrap [style*="font-size: 13.5px"]{ font-size: 15.5px !important; }
-    .kd-wrap [style*="font-size: 14px"]  { font-size: 16px !important; }
-    .kd-wrap [style*="font-size: 15px"]  { font-size: 17px !important; }
-    .kd-wrap [style*="font-size: 22px"]  { font-size: 26px !important; }
-    .kd-wrap [style*="font-size: 24px"]  { font-size: 28px !important; }
-    .kd-wrap [style*="font-size: 26px"]  { font-size: 30px !important; }
+    /* Globale Skalierung — moderate bumps für Lesbarkeit */
+    .kd-wrap [style*="font-size: 9px"]   { font-size: 10px !important; }
+    .kd-wrap [style*="font-size: 10px"]  { font-size: 11px !important; }
+    .kd-wrap [style*="font-size: 11px"]  { font-size: 12px !important; }
+    .kd-wrap [style*="font-size: 11.5px"]{ font-size: 12.5px !important; }
+    .kd-wrap [style*="font-size: 12px"]  { font-size: 13px !important; }
+    .kd-wrap [style*="font-size: 12.5px"]{ font-size: 13px !important; }
+    .kd-wrap [style*="font-size: 13px"]  { font-size: 13.5px !important; }
+    .kd-wrap [style*="font-size: 13.5px"]{ font-size: 14px !important; }
+    .kd-wrap [style*="font-size: 14px"]  { font-size: 14.5px !important; }
+    .kd-wrap [style*="font-size: 15px"]  { font-size: 15.5px !important; }
+    .kd-wrap [style*="font-size: 22px"]  { font-size: 24px !important; }
+    .kd-wrap [style*="font-size: 24px"]  { font-size: 26px !important; }
+    .kd-wrap [style*="font-size: 26px"]  { font-size: 28px !important; }
     .kd-wrap ::-webkit-scrollbar { width: 5px; }
     .kd-wrap ::-webkit-scrollbar-track { background: transparent; }
     .kd-wrap ::-webkit-scrollbar-thumb { background: var(--pp-border); border-radius: 3px; }
@@ -50,58 +50,56 @@
     .kd-anim { opacity: 0; animation: kdFadeUp 0.6s cubic-bezier(0.16,1,0.3,1) forwards; }
     .kd-anim-side { opacity: 0; animation: kdSlideIn 0.6s cubic-bezier(0.16,1,0.3,1) forwards; }
 
-    /* ═══ Section Cards — Elevated Glassmorphism ═══ */
+    /* ═══ Section Cards — Clean & Compact ═══ */
     .kd-section {
         background: var(--pp-surface);
-        border-radius: 20px;
+        border-radius: 14px;
         border: 1px solid var(--pp-border);
         overflow: hidden;
         transition: border-color 0.3s, box-shadow 0.3s;
     }
     .kd-section:hover {
         border-color: rgba(99,102,241,0.15);
-        box-shadow: 0 8px 40px rgba(0,0,0,0.12), 0 0 0 1px rgba(99,102,241,0.05);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1), 0 0 0 1px rgba(99,102,241,0.05);
     }
     .kd-section-header {
         display: flex; align-items: center; justify-content: space-between;
-        padding: 20px 28px;
+        padding: 14px 20px;
         border-bottom: 1px solid rgba(255,255,255,0.04);
-        background: linear-gradient(135deg, rgba(30,27,75,0.15), rgba(99,102,241,0.04));
-        backdrop-filter: blur(8px);
+        background: linear-gradient(135deg, rgba(30,27,75,0.1), rgba(99,102,241,0.03));
     }
     .kd-section-title {
-        display: flex; align-items: center; gap: 12px;
-        font-size: 17px; font-weight: 750; color: var(--pp-text); letter-spacing: -0.02em;
+        display: flex; align-items: center; gap: 10px;
+        font-size: 15px; font-weight: 700; color: var(--pp-text); letter-spacing: -0.01em;
     }
     .kd-section-title span {
         display: inline-flex; align-items: center; justify-content: center;
-        width: 32px; height: 32px; border-radius: 10px;
+        width: 28px; height: 28px; border-radius: 8px;
         background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.1));
-        font-size: 15px;
+        font-size: 14px;
     }
-    .kd-section-body { padding: 24px 28px; }
+    .kd-section-body { padding: 16px 20px; }
 
     /* ═══ Sidebar Cards ═══ */
     .kd-sidebar-card {
         background: var(--pp-surface);
-        border-radius: 18px;
+        border-radius: 12px;
         border: 1px solid var(--pp-border);
         overflow: hidden;
-        transition: border-color 0.3s, box-shadow 0.3s, transform 0.3s;
+        transition: border-color 0.3s, box-shadow 0.3s;
     }
     .kd-sidebar-card:hover {
         border-color: rgba(99,102,241,0.12);
-        box-shadow: 0 4px 24px rgba(0,0,0,0.1);
-        transform: translateY(-1px);
+        box-shadow: 0 4px 16px rgba(0,0,0,0.08);
     }
     .kd-sidebar-header {
-        padding: 16px 22px;
+        padding: 12px 16px;
         border-bottom: 1px solid rgba(255,255,255,0.04);
         display: flex; align-items: center; justify-content: space-between;
-        background: linear-gradient(135deg, rgba(30,27,75,0.12), rgba(99,102,241,0.03));
-        font-size: 15px; font-weight: 700; color: var(--pp-text);
+        background: linear-gradient(135deg, rgba(30,27,75,0.08), rgba(99,102,241,0.02));
+        font-size: 13px; font-weight: 700; color: var(--pp-text);
     }
-    .kd-sidebar-body { padding: 18px 22px; }
+    .kd-sidebar-body { padding: 12px 16px; }
 
     /* ═══ Experience Timeline ═══ */
     .kd-exp-dot-current {
@@ -134,9 +132,9 @@
 
     /* ═══ Quick Action Buttons ═══ */
     .kd-quickbtn {
-        display: inline-flex; align-items: center; gap: 8px;
-        padding: 11px 20px; border-radius: 12px;
-        font-size: 14px; font-weight: 630; cursor: pointer;
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 8px 16px; border-radius: 10px;
+        font-size: 13px; font-weight: 630; cursor: pointer;
         font-family: inherit; transition: all 0.25s cubic-bezier(0.16,1,0.3,1);
         border: 1.5px solid rgba(255,255,255,0.08);
         background: rgba(255,255,255,0.04); color: var(--pp-text);
@@ -175,11 +173,11 @@
 
     /* ═══ Navigation — Pill Style ═══ */
     .kd-nav-btn {
-        display: flex; align-items: center; gap: 10px;
-        padding: 10px 16px; border-radius: 12px;
+        display: flex; align-items: center; gap: 8px;
+        padding: 7px 12px; border-radius: 8px;
         background: transparent; border: none; cursor: pointer; width: 100%; text-align: left;
         font-family: inherit; transition: all 0.2s cubic-bezier(0.16,1,0.3,1);
-        font-size: 14px; font-weight: 500; color: var(--pp-textMuted);
+        font-size: 12.5px; font-weight: 500; color: var(--pp-textMuted);
         position: relative;
     }
     .kd-nav-btn:hover {
@@ -253,12 +251,12 @@
         position: relative;
         background: var(--pp-surface);
         border: 1px solid transparent;
-        border-radius: 20px;
+        border-radius: 14px;
     }
     .kd-section-glow::before {
         content: '';
         position: absolute; inset: -1px;
-        border-radius: 21px;
+        border-radius: 15px;
         background: conic-gradient(from var(--angle), transparent 60%, rgba(99,102,241,0.25) 75%, rgba(139,92,246,0.2) 85%, transparent 95%);
         animation: kdBorderRotate 8s linear infinite;
         z-index: -1;
@@ -284,33 +282,33 @@
     }
     .kd-avatar-wrap {
         position: relative;
-        width: 78px; height: 78px;
+        width: 60px; height: 60px;
         flex-shrink: 0;
     }
     .kd-avatar-wrap::before {
         content: '';
-        position: absolute; inset: -3px;
-        border-radius: 22px;
+        position: absolute; inset: -2px;
+        border-radius: 16px;
         background: conic-gradient(from 0deg, #6366f1, #a78bfa, #c084fc, #e879f9, #c084fc, #a78bfa, #6366f1);
         animation: kdAvatarRing 6s linear infinite;
         opacity: 0.7;
     }
     .kd-avatar-inner {
         position: relative;
-        width: 72px; height: 72px;
-        border-radius: 20px;
+        width: 56px; height: 56px;
+        border-radius: 14px;
         background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%);
         display: flex; align-items: center; justify-content: center;
-        color: #fff; font-size: 24px; font-weight: 800;
+        color: #fff; font-size: 20px; font-weight: 800;
         z-index: 1;
         box-shadow: inset 0 1px 0 rgba(255,255,255,0.1);
     }
 
     /* ═══ PREMIUM — Meta Badges ═══ */
     .kd-meta-badge {
-        display: inline-flex; align-items: center; gap: 6px;
-        padding: 6px 14px; border-radius: 10px;
-        font-size: 12.5px; font-weight: 600;
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 4px 10px; border-radius: 7px;
+        font-size: 11.5px; font-weight: 600;
         background: rgba(255,255,255,0.05);
         border: 1px solid rgba(255,255,255,0.08);
         color: rgba(255,255,255,0.7);
@@ -326,17 +324,17 @@
 
     /* ═══ PREMIUM — Floating Label Style ═══ */
     .kd-field-label {
-        font-size: 10.5px !important;
+        font-size: 10px !important;
         font-weight: 700 !important;
         text-transform: uppercase;
         letter-spacing: 0.08em;
         color: var(--pp-textDim) !important;
-        margin-bottom: 6px;
-        display: flex; align-items: center; gap: 5px;
+        margin-bottom: 4px;
+        display: flex; align-items: center; gap: 4px;
     }
     .kd-field-label::before {
         content: '';
-        width: 6px; height: 6px; border-radius: 2px;
+        width: 5px; height: 5px; border-radius: 2px;
         background: rgba(99,102,241,0.3);
         flex-shrink: 0;
     }
@@ -367,7 +365,7 @@
     .kd-section-divider {
         height: 1px;
         background: linear-gradient(90deg, transparent, var(--pp-border), rgba(99,102,241,0.15), var(--pp-border), transparent);
-        margin: 20px 0;
+        margin: 12px 0;
     }
 
     /* ═══ PREMIUM — Focus Glow on Inputs ═══ */
@@ -413,7 +411,7 @@
     {# ════════════════════════════════════════════════════
        VIOLET HERO HEADER
     ════════════════════════════════════════════════════ #}
-    <div style="background: linear-gradient(160deg, #0c0a1f 0%, #1a1145 25%, #2a1f6b 50%, #3730a3 80%, #4338ca 100%); padding: 32px 40px 0; position: relative; overflow: hidden;">
+    <div style="background: linear-gradient(160deg, #0c0a1f 0%, #1a1145 25%, #2a1f6b 50%, #3730a3 80%, #4338ca 100%); padding: 20px 28px 0; position: relative; overflow: hidden;">
         {# Decorative orbs + mesh texture #}
         <div style="position: absolute; top: -80px; right: -40px; width: 300px; height: 300px; border-radius: 50%; background: radial-gradient(circle, rgba(129,140,248,0.12) 0%, rgba(99,102,241,0.05) 40%, transparent 70%); filter: blur(40px);"></div>
         <div style="position: absolute; bottom: -60px; left: 20%; width: 250px; height: 250px; border-radius: 50%; background: radial-gradient(circle, rgba(167,139,250,0.08) 0%, transparent 60%); filter: blur(50px);"></div>
@@ -422,7 +420,7 @@
         <div style="position: absolute; inset: 0; background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px); background-size: 24px 24px; pointer-events: none;"></div>
 
         {# Breadcrumb #}
-        <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: rgba(255,255,255,0.4); margin-bottom: 22px; font-weight: 500; position: relative; z-index: 1;">
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 11px; color: rgba(255,255,255,0.4); margin-bottom: 14px; font-weight: 500; position: relative; z-index: 1;">
             <a href="/" style="cursor: pointer; color: rgba(255,255,255,0.5); text-decoration: none; transition: color 0.2s;" onmouseenter="this.style.color='rgba(255,255,255,0.9)'" onmouseleave="this.style.color='rgba(255,255,255,0.5)'">&#x1F3E0;</a>
             <svg style="width: 12px; height: 12px; opacity: 0.4;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg>
             <a href="/kandidaten" style="cursor: pointer; color: rgba(255,255,255,0.5); text-decoration: none; transition: color 0.2s;" onmouseenter="this.style.color='rgba(255,255,255,0.9)'" onmouseleave="this.style.color='rgba(255,255,255,0.5)'">Kandidaten</a>
@@ -431,7 +429,7 @@
         </div>
 
         {# Avatar + Name + Meta #}
-        <div style="display: flex; align-items: center; gap: 24px; margin-bottom: 24px; position: relative; z-index: 1;">
+        <div style="display: flex; align-items: center; gap: 18px; margin-bottom: 16px; position: relative; z-index: 1;">
             <div class="kd-avatar-wrap">
                 <div class="kd-avatar-inner">
                     {{ (first_display or 'X')[0] | upper }}{{ (last_display or 'X')[0] | upper }}
@@ -472,7 +470,7 @@
                 </div>
 
                 {# Meta badges #}
-                <div style="display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap;">
+                <div style="display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap;">
                     {% if candidate.birth_date or candidate.age %}
                     <span class="kd-meta-badge">
                         <span style="font-size: 12px;">&#x1F4C5;</span>
@@ -597,7 +595,7 @@
                 else { showToast('Fehler beim Hinzufuegen', 'error'); }
                 this.loading = false;
             }
-        }" style="display: flex; align-items: center; justify-content: space-between; padding: 16px 0; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.06); position: relative; z-index: 1;">
+        }" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 0; margin-top: 2px; border-top: 1px solid rgba(255,255,255,0.06); position: relative; z-index: 1;">
             <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                 {% if candidate.cv_url or candidate.cv_stored_path %}
                 <a href="/api/candidates/{{ candidate.id }}/cv-preview" target="_blank" class="kd-quickbtn" style="color: rgba(255,255,255,0.75); border-color: rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); text-decoration: none; backdrop-filter: blur(8px);">
@@ -715,10 +713,10 @@
     {# ════════════════════════════════════════════════════
        MAIN CONTENT: 2-Column Layout
     ════════════════════════════════════════════════════ #}
-    <div style="display: flex; gap: 28px; padding: 28px 40px 40px; max-width: 1400px; margin: 0 auto;">
+    <div style="display: flex; gap: 20px; padding: 20px 28px 32px; max-width: 1600px; margin: 0 auto;">
 
         {# ── LEFT COLUMN (main content) ── #}
-        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 20px;">
+        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px;">
 
             {# ── Kontaktdaten ── #}
             <div class="kd-section kd-section-glow kd-anim" style="animation-delay: 100ms;" id="contact">
@@ -726,40 +724,40 @@
                     <div class="kd-section-title"><span>&#x1F4C7;</span> Kontaktdaten</div>
                 </div>
                 <div class="kd-section-body">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
                         {# Email #}
                         <div>
                             <div class="kd-field-label">E-Mail</div>
-                            <div style="display: flex; align-items: center; gap: 8px;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
                                 {% if candidate.email %}
-                                <span style="font-size: 13.5px; font-weight: 600; color: var(--pp-accent);">{{ candidate.email }}</span>
+                                <span style="font-size: 13px; font-weight: 600; color: var(--pp-accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ candidate.email }}</span>
                                 <button type="button" onclick="copyToClipboard('{{ candidate.email }}', 'E-Mail')" class="kd-copy-btn" title="E-Mail kopieren"><svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
                                 {% else %}
-                                <span style="font-size: 13.5px; font-weight: 600; color: var(--pp-textDim); font-style: italic;">Nicht angegeben</span>
+                                <span style="font-size: 13px; font-weight: 600; color: var(--pp-textDim); font-style: italic;">Nicht angegeben</span>
                                 {% endif %}
                             </div>
                         </div>
                         {# Phone #}
                         <div>
                             <div class="kd-field-label">Telefon</div>
-                            <div style="display: flex; align-items: center; gap: 8px;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
                                 {% if candidate.phone %}
-                                <span style="font-size: 13.5px; font-weight: 600; color: var(--pp-accent);">{{ candidate.phone }}</span>
+                                <span style="font-size: 13px; font-weight: 600; color: var(--pp-accent);">{{ candidate.phone }}</span>
                                 <button type="button" onclick="copyToClipboard('{{ candidate.phone }}', 'Telefonnummer')" class="kd-copy-btn" title="Telefonnummer kopieren"><svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
                                 {% else %}
-                                <span style="font-size: 13.5px; font-weight: 600; color: var(--pp-textDim); font-style: italic;">Nicht angegeben</span>
+                                <span style="font-size: 13px; font-weight: 600; color: var(--pp-textDim); font-style: italic;">Nicht angegeben</span>
                                 {% endif %}
                             </div>
                         </div>
                         {# Address #}
-                        <div style="grid-column: 1 / -1;">
+                        <div>
                             <div class="kd-field-label">Adresse</div>
-                            <div style="display: flex; align-items: center; gap: 8px;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
                                 {% if candidate.street_address or candidate.postal_code or city_display %}
-                                <span style="font-size: 13.5px; font-weight: 600; color: var(--pp-text);" id="address-text">{% if candidate.street_address %}{{ candidate.street_address }}{% endif %}{% if candidate.postal_code or city_display %}{% if candidate.street_address %}, {% endif %}{{ candidate.postal_code }} {{ city_display }}{% endif %}</span>
+                                <span style="font-size: 13px; font-weight: 600; color: var(--pp-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" id="address-text">{% if candidate.street_address %}{{ candidate.street_address }}{% endif %}{% if candidate.postal_code or city_display %}{% if candidate.street_address %}, {% endif %}{{ candidate.postal_code }} {{ city_display }}{% endif %}</span>
                                 <button type="button" onclick="copyToClipboard(document.getElementById('address-text').textContent.trim(), 'Adresse')" class="kd-copy-btn" title="Adresse kopieren"><svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
                                 {% else %}
-                                <span style="font-size: 13.5px; font-weight: 600; color: var(--pp-textDim); font-style: italic;">Nicht angegeben</span>
+                                <span style="font-size: 13px; font-weight: 600; color: var(--pp-textDim); font-style: italic;">Nicht angegeben</span>
                                 {% endif %}
                             </div>
                         </div>
@@ -774,7 +772,7 @@
                     <div class="kd-section-title"><span>&#x1F50D;</span> Recruiting-Daten</div>
                 </div>
                 <div class="kd-section-body">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
                         {# Quelle #}
                         <div>
                             <div class="kd-field-label">Quelle</div>
@@ -835,10 +833,10 @@
                         </div>
                     </div>
                     {# Notizen (Freitext) #}
-                    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(99,102,241,0.08);">
+                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(99,102,241,0.08);">
                         <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.06em;">Notizen</div>
                         <textarea x-model="notesText" @blur="saveNotes()" placeholder="Gespr&auml;chsnotizen, Wechselmotivation, Gehaltsvorstellung, K&uuml;ndigungsfrist..."
-                            style="width: 100%; min-height: 100px; padding: 12px 14px; border-radius: 10px; border: 1.5px solid var(--pp-border); font-size: 13px; font-weight: 500; color: var(--pp-text); background: var(--pp-surface); font-family: inherit; resize: vertical; outline: none; line-height: 1.5;"
+                            style="width: 100%; min-height: 72px; padding: 10px 12px; border-radius: 8px; border: 1.5px solid var(--pp-border); font-size: 12.5px; font-weight: 500; color: var(--pp-text); background: var(--pp-surface); font-family: inherit; resize: vertical; outline: none; line-height: 1.5;"
                             @focus="$el.style.borderColor = 'var(--pp-accent)'" @focusout="$el.style.borderColor = 'var(--pp-border)'"></textarea>
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
                             <span style="font-size: 10.5px; color: var(--pp-textDim); font-weight: 500;" x-text="notesSaved ? 'Gespeichert' : 'Wird beim Verlassen gespeichert'"></span>
@@ -853,10 +851,10 @@
                  x-data="pipelineFields()">
                 <div class="kd-section-header">
                     <div class="kd-section-title"><span>&#x1F3AF;</span> Pipeline-Daten</div>
-                    <span style="font-size: 11.5px; font-weight: 650; padding: 5px 12px; border-radius: 8px; background: var(--pp-surfaceHover); color: var(--pp-accent); border: 1.5px solid var(--pp-border);">F&uuml;r Pipeline</span>
+                    <span style="font-size: 10.5px; font-weight: 650; padding: 4px 10px; border-radius: 6px; background: var(--pp-surfaceHover); color: var(--pp-accent); border: 1px solid var(--pp-border);">F&uuml;r Pipeline</span>
                 </div>
                 <div class="kd-section-body">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
                         {# Gehalt #}
                         <div>
                             <div class="kd-field-label">Gehaltswunsch</div>
@@ -890,7 +888,7 @@
                         </div>
                     </div>
                     {# ERP #}
-                    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(99,102,241,0.08);">
+                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(99,102,241,0.08);">
                         <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.06em;">ERP-Kenntnisse</div>
                         {% if candidate.erp and candidate.erp | length > 0 %}
                         <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;">
@@ -921,7 +919,7 @@
                 </div>
                 <div class="kd-section-body" style="overflow: visible;">
                     {# Row 1: Gewünschte Positionen + Tätigkeiten #}
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                         <div>
                             <div class="kd-field-label">Gew&uuml;nschte Positionen</div>
                             <textarea x-model="qf.desired_positions" @blur="saveQField('desired_positions')" placeholder="z.B. Bilanzbuchhalterin, Finanzbuchhalterin..."
@@ -939,7 +937,7 @@
                     </div>
 
                     {# Row 2: Home-Office + Pendel + Verkehrsmittel + ERP-Steckenpferd #}
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px; margin-top: 16px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; margin-top: 10px;">
                         <div>
                             <div class="kd-field-label">Home-Office Tage</div>
                             <input type="text" x-model="qf.home_office_days" @blur="saveQField('home_office_days')" placeholder="z.B. 2 bis 3 Tage"
@@ -990,7 +988,7 @@
                     </div>
 
                     {# Row 3: Anstellung + Teilzeit-Stunden + Großraumbüro #}
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 16px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 10px;">
                         <div>
                             <div class="kd-field-label">Anstellungsart</div>
                             <div class="relative" @click.away="showEmpTypeDd = false">
@@ -1048,7 +1046,7 @@
                     </div>
 
                     {# Row 4: Branchen #}
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(99,102,241,0.08);">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(99,102,241,0.08);">
                         <div>
                             <div class="kd-field-label">Bevorzugte Branchen</div>
                             <textarea x-model="qf.preferred_industries" @blur="saveQField('preferred_industries')" placeholder="Freitext: Bevorzugte Branchen..."
@@ -1066,7 +1064,7 @@
                     </div>
 
                     {# Row 5: WhatsApp + Exklusivität + Andere Recruiter #}
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(99,102,241,0.08);">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(99,102,241,0.08);">
                         <div>
                             <div class="kd-field-label">WhatsApp OK?</div>
                             <div class="flex gap-2">
@@ -1107,7 +1105,7 @@
                     </div>
 
                     {# Row 6: Bereits beworben bei (Freitext) #}
-                    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(99,102,241,0.08);">
+                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(99,102,241,0.08);">
                         <div class="kd-field-label">Bereits beworben bei (aus Gespr&auml;ch)</div>
                         <textarea x-model="qf.applied_at_companies_text" @blur="saveQField('applied_at_companies_text')" placeholder="Freitext aus Transkription: Wo hat sich der Kandidat bereits beworben?"
                             class="w-full rounded-lg text-sm font-medium resize-vertical"
@@ -1116,9 +1114,9 @@
                     </div>
 
                     {# Row 7: Call-Daten #}
-                    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(99,102,241,0.08);">
+                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(99,102,241,0.08);">
                         <div style="font-size: 13px; font-weight: 700; color: var(--pp-textMuted); margin-bottom: 12px;">Gespr&auml;chsdaten</div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                             <div>
                                 <div class="kd-field-label">Gespr&auml;chsdatum</div>
                                 <input type="date" x-model="qfCallDate" @change="saveCallDate()"
@@ -1314,7 +1312,7 @@
             <div class="kd-section kd-section-glow kd-anim" style="animation-delay: 300ms; position: relative; z-index: 1;" id="experience">
                 <div class="kd-section-header">
                     <div class="kd-section-title"><span>&#x1F4BC;</span> Berufserfahrung</div>
-                    <button type="button" onclick="copyWerdegang()" style="display: flex; align-items: center; gap: 6px; background: var(--pp-surfaceHover); border: 1.5px solid var(--pp-border); border-radius: 8px; padding: 5px 12px; font-size: 11.5px; font-weight: 650; color: var(--pp-text); cursor: pointer; font-family: inherit;">&#x1F4CB; Profil kopieren</button>
+                    <button type="button" onclick="copyWerdegang()" style="display: flex; align-items: center; gap: 5px; background: var(--pp-surfaceHover); border: 1px solid var(--pp-border); border-radius: 6px; padding: 4px 10px; font-size: 10.5px; font-weight: 650; color: var(--pp-text); cursor: pointer; font-family: inherit;">&#x1F4CB; Profil kopieren</button>
                 </div>
                 <div class="kd-section-body">
                     {% if candidate.work_history and candidate.work_history is iterable and candidate.work_history is not string and candidate.work_history | length > 0 %}
@@ -1358,7 +1356,7 @@
                                 {% endif %}
                             {% endif %}
                         {% endif %}
-                        <div style="display: flex; gap: 16px; padding: 18px 0; {% if not is_last %}border-bottom: 1px solid var(--pp-surfaceHover);{% endif %}">
+                        <div style="display: flex; gap: 12px; padding: 18px 0; {% if not is_last %}border-bottom: 1px solid var(--pp-surfaceHover);{% endif %}">
                             {# Timeline dot + line #}
                             <div style="display: flex; flex-direction: column; align-items: center; padding-top: 4px; flex-shrink: 0; width: 20px;">
                                 <div class="{% if is_first %}kd-exp-dot-current{% else %}kd-exp-dot-past{% endif %}"></div>
@@ -1630,7 +1628,7 @@
         </div>
 
         {# ── RIGHT SIDEBAR (sticky) ── #}
-        <div style="width: 280px; flex-shrink: 0; display: flex; flex-direction: column; gap: 18px; position: sticky; top: 20px; align-self: flex-start;">
+        <div style="width: 240px; flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; position: sticky; top: 16px; align-self: flex-start;">
 
             {# Navigation #}
             <div class="kd-sidebar-card kd-anim-side" style="animation-delay: 150ms;">
