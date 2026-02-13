@@ -95,6 +95,21 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 # Templates konfigurieren
 templates = Jinja2Templates(directory="app/templates")
 
+# Jinja2-Filter: UTC → deutsche Zeit (Europe/Berlin)
+from zoneinfo import ZoneInfo
+
+def to_berlin(dt_value):
+    """Konvertiert UTC datetime nach Europe/Berlin (MEZ/MESZ)."""
+    if dt_value is None:
+        return dt_value
+    berlin = ZoneInfo("Europe/Berlin")
+    if dt_value.tzinfo is None:
+        from datetime import timezone
+        dt_value = dt_value.replace(tzinfo=timezone.utc)
+    return dt_value.astimezone(berlin)
+
+templates.env.filters["to_berlin"] = to_berlin
+
 
 # Health-Check Endpoint
 @app.get("/health", tags=["System"])

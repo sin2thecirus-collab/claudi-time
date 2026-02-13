@@ -37,9 +37,9 @@
         {# Date #}
         <span style="font-size: 13px; color: var(--pp-textMuted); font-weight: 500;">
             {% if call.call_date %}
-                {{ call.call_date.strftime('%d.%m.%Y, %H:%M Uhr') }}
+                {{ (call.call_date|to_berlin).strftime('%d.%m.%Y, %H:%M Uhr') }}
             {% elif call.created_at %}
-                {{ call.created_at.strftime('%d.%m.%Y, %H:%M Uhr') }}
+                {{ (call.created_at|to_berlin).strftime('%d.%m.%Y, %H:%M Uhr') }}
             {% endif %}
         </span>
     </div>
