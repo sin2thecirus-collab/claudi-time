@@ -1,373 +1,118 @@
-{% extends "base.html" %}
-{% block title %}{% set _t_first = candidate.first_name or '' %}{% set _t_last = candidate.last_name or '' %}{% set _t_inv = ['not available','n/a','na','none','null','-','—',''] %}{% set _t_f = _t_first if _t_first|lower|trim not in _t_inv else '' %}{% set _t_l = _t_last if _t_last|lower|trim not in _t_inv else '' %}{% set _t_name = ((_t_f ~ ' ' ~ _t_l)|trim) if (_t_f or _t_l) else 'Unbekannt' %}{{ _t_name }} - Pulspoint{% endblock %}
+{%- extends "base.html" -%}
+{%- block title -%}
+{% set _t_first = candidate.first_name or '' %}{% set _t_last = candidate.last_name or '' %}{% set _t_inv = ['not available','n/a','na','none','null','-','\u2014',''] %}{% set _t_f = _t_first if _t_first|lower|trim not in _t_inv else '' %}{% set _t_l = _t_last if _t_last|lower|trim not in _t_inv else '' %}{% set _t_name = ((_t_f ~ ' ' ~ _t_l)|trim) if (_t_f or _t_l) else 'Unbekannt' %}{{ _t_name }} - Pulspoint
+{%- endblock -%}
 
 {% block head %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-    .kd-wrap, .kd-wrap * { font-family: 'Outfit', 'DM Sans', -apple-system, sans-serif; }
-    .kd-wrap { background: var(--pp-bg); color: var(--pp-text); font-size: 15px; }
-
-    /* Font-size bumps entfernt — base.html zoom: 1.15 reicht für Lesbarkeit */
+    .kd-wrap, .kd-wrap * { font-family: 'DM Sans', -apple-system, sans-serif; }
+    .kd-wrap { background: #0c1021; color: #e8ecf4; font-size: 15px; }
     .kd-wrap ::-webkit-scrollbar { width: 5px; }
     .kd-wrap ::-webkit-scrollbar-track { background: transparent; }
-    .kd-wrap ::-webkit-scrollbar-thumb { background: var(--pp-border); border-radius: 3px; }
+    .kd-wrap ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
 
-    /* ═══ Animations ═══ */
-    @keyframes kdFadeUp {
-        from { opacity: 0; transform: translateY(20px) scale(0.98); }
-        to   { opacity: 1; transform: translateY(0) scale(1); }
-    }
-    @keyframes kdSlideIn {
-        from { opacity: 0; transform: translateX(16px); }
-        to   { opacity: 1; transform: translateX(0); }
-    }
-    @keyframes kdShimmer {
-        0% { background-position: -200% 0; }
-        100% { background-position: 200% 0; }
-    }
-    @keyframes kdPulseGlow {
-        0%, 100% { box-shadow: 0 0 0 0 rgba(99,102,241,0); }
-        50% { box-shadow: 0 0 20px 2px rgba(99,102,241,0.08); }
-    }
-    @keyframes kdFloat {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-3px); }
-    }
-    .kd-anim { opacity: 0; animation: kdFadeUp 0.6s cubic-bezier(0.16,1,0.3,1) forwards; }
-    .kd-anim-side { opacity: 0; animation: kdSlideIn 0.6s cubic-bezier(0.16,1,0.3,1) forwards; }
+    @keyframes kdFadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes kdSlideIn { from { opacity:0; transform:translateX(12px); } to { opacity:1; transform:translateX(0); } }
+    .kd-anim { opacity:0; animation: kdFadeUp 0.5s cubic-bezier(0.16,1,0.3,1) forwards; }
+    .kd-anim-side { opacity:0; animation: kdSlideIn 0.5s cubic-bezier(0.16,1,0.3,1) forwards; }
 
-    /* ═══ Section Cards — Clean & Compact ═══ */
     .kd-section {
-        background: var(--pp-surface);
-        border-radius: 12px;
-        border: 1px solid var(--pp-border);
-        overflow: hidden;
-        transition: border-color 0.3s, box-shadow 0.3s;
+        background: rgba(22,28,45,0.85); border-radius: 18px;
+        border: 1px solid rgba(255,255,255,0.06); overflow: hidden;
+        backdrop-filter: blur(12px); transition: border-color 0.3s, box-shadow 0.3s;
     }
-    .kd-section:hover {
-        border-color: rgba(99,102,241,0.15);
-        box-shadow: 0 4px 20px rgba(0,0,0,0.1), 0 0 0 1px rgba(99,102,241,0.05);
-    }
+    .kd-section:hover { border-color: rgba(54,154,255,0.15); box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
     .kd-section-header {
-        display: flex; align-items: center; justify-content: space-between;
-        padding: 10px 16px;
-        border-bottom: 1px solid rgba(255,255,255,0.04);
-        background: linear-gradient(135deg, rgba(30,27,75,0.1), rgba(99,102,241,0.03));
+        display:flex; align-items:center; justify-content:space-between;
+        padding: 16px 24px 12px; border-bottom: 1px solid rgba(255,255,255,0.05);
     }
-    .kd-section-title {
-        display: flex; align-items: center; gap: 8px;
-        font-size: 13.5px; font-weight: 700; color: var(--pp-text); letter-spacing: -0.01em;
-    }
-    .kd-section-title span {
-        display: inline-flex; align-items: center; justify-content: center;
-        width: 24px; height: 24px; border-radius: 7px;
-        background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.1));
-        font-size: 13px;
-    }
-    .kd-section-body { padding: 12px 16px; }
+    .kd-section-title { display:flex; align-items:center; gap:10px; font-size:15px; font-weight:700; color:#e8ecf4; }
+    .kd-section-title span { font-size:17px; }
+    .kd-section-body { padding: 16px 24px; }
 
-    /* ═══ Sidebar Cards ═══ */
     .kd-sidebar-card {
-        background: var(--pp-surface);
-        border-radius: 10px;
-        border: 1px solid var(--pp-border);
-        overflow: hidden;
-        transition: border-color 0.3s, box-shadow 0.3s;
+        background: rgba(22,28,45,0.85); border-radius: 18px;
+        border: 1px solid rgba(255,255,255,0.06); overflow: hidden;
+        transition: border-color 0.3s;
     }
-    .kd-sidebar-card:hover {
-        border-color: rgba(99,102,241,0.12);
-        box-shadow: 0 4px 16px rgba(0,0,0,0.08);
-    }
+    .kd-sidebar-card:hover { border-color: rgba(54,154,255,0.12); }
     .kd-sidebar-header {
-        padding: 9px 14px;
-        border-bottom: 1px solid rgba(255,255,255,0.04);
-        display: flex; align-items: center; justify-content: space-between;
-        background: linear-gradient(135deg, rgba(30,27,75,0.08), rgba(99,102,241,0.02));
-        font-size: 12.5px; font-weight: 700; color: var(--pp-text);
+        padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.05);
+        display:flex; align-items:center; justify-content:space-between;
+        font-size:14px; font-weight:700; color:#e8ecf4;
     }
-    .kd-sidebar-body { padding: 10px 14px; }
+    .kd-sidebar-body { padding: 14px 16px; }
 
-    /* ═══ Experience Timeline ═══ */
-    .kd-exp-dot-current {
-        width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0;
-        background: linear-gradient(135deg, #6366f1, #a78bfa);
-        border: 3px solid var(--pp-surface);
-        box-shadow: 0 0 0 3px rgba(99,102,241,0.2), 0 2px 8px rgba(99,102,241,0.3);
-        animation: kdPulseGlow 3s ease-in-out infinite;
-    }
-    .kd-exp-dot-past {
-        width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0;
-        background: var(--pp-border); border: 3px solid var(--pp-surface);
-        box-shadow: 0 0 0 2px rgba(42,45,58,0.5);
-    }
-    .kd-exp-line {
-        width: 2px; flex: 1; margin-top: 6px;
-        background: linear-gradient(to bottom, rgba(99,102,241,0.3), var(--pp-border), transparent);
+    .kd-sticky-header {
+        background: linear-gradient(135deg, #0f1628, #141e36 50%, #1a1640);
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+        padding: 0 32px; position: sticky; top: 0; z-index: 100;
     }
 
-    /* ═══ Language Bars ═══ */
-    .kd-lang-bar {
-        height: 6px; border-radius: 3px; overflow: hidden;
-        background: rgba(42,45,58,0.6);
+    .kd-tab-btn {
+        padding: 14px 24px; background:none; border:none;
+        font-size:14px; font-weight:500; cursor:pointer;
+        display:flex; align-items:center; gap:8px;
+        border-bottom: 2px solid transparent;
+        transition: all 0.2s ease; color: #5a6a8a; font-family:inherit;
     }
-    .kd-lang-fill {
-        height: 100%; border-radius: 3px;
-        transition: width 1s cubic-bezier(0.16,1,0.3,1);
-        box-shadow: 0 0 8px rgba(99,102,241,0.3);
-    }
+    .kd-tab-btn:hover { color: #7c8db5; }
+    .kd-tab-btn.active { color: #369aff; font-weight:700; border-bottom-color: #369aff; }
 
-    /* ═══ Quick Action Buttons ═══ */
     .kd-quickbtn {
-        display: inline-flex; align-items: center; gap: 5px;
-        padding: 6px 14px; border-radius: 8px;
-        font-size: 12px; font-weight: 630; cursor: pointer;
-        font-family: inherit; transition: all 0.25s cubic-bezier(0.16,1,0.3,1);
-        border: 1.5px solid rgba(255,255,255,0.08);
-        background: rgba(255,255,255,0.04); color: var(--pp-text);
-        backdrop-filter: blur(8px);
+        display:inline-flex; align-items:center; gap:5px;
+        padding: 7px 16px; border-radius:10px; font-size:12.5px; font-weight:600;
+        cursor:pointer; font-family:inherit; transition: all 0.2s ease;
+        border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.06); color:#c5cee0;
     }
-    .kd-quickbtn:hover {
-        background: rgba(255,255,255,0.08);
-        transform: translateY(-1px);
-        box-shadow: 0 4px 16px rgba(0,0,0,0.15);
-    }
-    .kd-quickbtn-primary {
-        background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; border: none;
-        box-shadow: 0 4px 16px rgba(99,102,241,0.3), inset 0 1px 0 rgba(255,255,255,0.15);
-    }
-    .kd-quickbtn-primary:hover {
-        background: linear-gradient(135deg, #4f46e5, #7c3aed);
-        box-shadow: 0 8px 28px rgba(99,102,241,0.4), inset 0 1px 0 rgba(255,255,255,0.15);
-        transform: translateY(-2px);
-    }
-    .kd-quickbtn-accent {
-        background: rgba(99,102,241,0.06); color: var(--pp-accent);
-        border: 1.5px solid rgba(99,102,241,0.2);
-    }
-    .kd-quickbtn-accent:hover {
-        background: rgba(99,102,241,0.12);
-        border-color: rgba(99,102,241,0.35);
-    }
-    .kd-quickbtn-danger {
-        background: rgba(220,38,38,0.04); color: #f87171;
-        border: 1.5px solid rgba(220,38,38,0.15);
-    }
-    .kd-quickbtn-danger:hover {
-        background: rgba(220,38,38,0.1);
-        border-color: rgba(220,38,38,0.3);
-    }
+    .kd-quickbtn:hover { background:rgba(255,255,255,0.1); transform:translateY(-1px); }
+    .kd-quickbtn-primary { background:linear-gradient(135deg,#2ed573,#1fb85b); color:#fff; border:none; box-shadow:0 2px 12px rgba(46,213,115,0.25); font-weight:700; }
+    .kd-quickbtn-primary:hover { box-shadow:0 4px 20px rgba(46,213,115,0.35); }
+    .kd-quickbtn-accent { background:rgba(54,154,255,0.08); color:#369aff; border:1px solid rgba(54,154,255,0.2); }
+    .kd-quickbtn-accent:hover { background:rgba(54,154,255,0.15); }
+    .kd-quickbtn-danger { background:rgba(255,71,87,0.08); color:#ff4757; border:1px solid rgba(255,71,87,0.2); }
+    .kd-quickbtn-danger:hover { background:rgba(255,71,87,0.12); }
 
-    /* ═══ Navigation — Pill Style ═══ */
-    .kd-nav-btn {
-        display: flex; align-items: center; gap: 6px;
-        padding: 5px 10px; border-radius: 7px;
-        background: transparent; border: none; cursor: pointer; width: 100%; text-align: left;
-        font-family: inherit; transition: all 0.2s cubic-bezier(0.16,1,0.3,1);
-        font-size: 11.5px; font-weight: 500; color: var(--pp-textMuted);
-        position: relative;
+    .kd-quickglance {
+        background: linear-gradient(135deg, rgba(54,154,255,0.08), rgba(165,94,234,0.06));
+        border-radius:18px; padding:6px; border:1px solid rgba(54,154,255,0.12);
+        display:grid; grid-template-columns:1fr 1fr; gap:6px;
     }
-    .kd-nav-btn:hover {
-        background: rgba(99,102,241,0.05);
-        color: var(--pp-text);
-        transform: translateX(2px);
-    }
-    .kd-nav-btn.active {
-        background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.08));
-        font-weight: 680; color: var(--pp-accent);
-        box-shadow: inset 0 0 0 1px rgba(99,102,241,0.15);
-    }
-    .kd-nav-btn.active::before {
-        content: '';
-        position: absolute; left: 0; top: 50%; transform: translateY(-50%);
-        width: 3px; height: 18px; border-radius: 0 3px 3px 0;
-        background: linear-gradient(180deg, #6366f1, #a78bfa);
-    }
+    .kd-quickglance-item { display:flex; align-items:center; gap:14px; padding:16px 20px; border-radius:14px; background:rgba(15,20,35,0.5); }
+    .kd-quickglance-icon { font-size:26px; flex-shrink:0; }
+    .kd-quickglance-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#7c8db5; margin-bottom:3px; }
+    .kd-quickglance-value { font-size:16px; font-weight:700; white-space:nowrap; }
 
-    /* ═══ Inline Edit ═══ */
-    .kd-wrap .detail-edit-display {
-        cursor: pointer; border-radius: 6px; padding: 2px 6px;
-        transition: all 0.2s;
-    }
-    .kd-wrap .detail-edit-display:hover {
-        background: rgba(99,102,241,0.08);
-        box-shadow: inset 0 0 0 1px rgba(99,102,241,0.15);
-    }
-    .kd-wrap .detail-edit-input {
-        font-family: inherit; border-radius: 10px;
-    }
+    .kd-exp-dot-current { width:12px; height:12px; border-radius:50%; flex-shrink:0; background:#369aff; border:2px solid rgba(54,154,255,0.4); }
+    .kd-exp-dot-past { width:12px; height:12px; border-radius:50%; flex-shrink:0; background:#2d3654; border:2px solid #3d4a6e; }
+    .kd-exp-line { width:2px; flex:1; margin-top:6px; background:linear-gradient(to bottom, rgba(54,154,255,0.3), #2d3654, transparent); }
+    .kd-lang-bar { height:8px; border-radius:4px; overflow:hidden; background:rgba(255,255,255,0.06); }
+    .kd-lang-fill { height:100%; border-radius:4px; transition: width 0.6s ease; }
 
-    /* ═══ Skill Tags — Colored Glass ═══ */
-    .skill-fach {
-        background: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(99,102,241,0.04));
-        color: #a5b4fc; border: 1px solid rgba(99,102,241,0.15);
-    }
-    .skill-tech {
-        background: linear-gradient(135deg, rgba(16,185,129,0.08), rgba(16,185,129,0.04));
-        color: #6ee7b7; border: 1px solid rgba(16,185,129,0.15);
-    }
-    .skill-soft {
-        background: linear-gradient(135deg, rgba(245,158,11,0.08), rgba(245,158,11,0.04));
-        color: #fcd34d; border: 1px solid rgba(245,158,11,0.15);
-    }
+    .skill-fach { background:rgba(165,94,234,0.12); color:#a55eea; border:1px solid rgba(165,94,234,0.3); }
+    .skill-tech { background:rgba(46,213,115,0.12); color:#2ed573; border:1px solid rgba(46,213,115,0.3); }
+    .skill-soft { background:rgba(255,165,2,0.12); color:#ffa502; border:1px solid rgba(255,165,2,0.3); }
 
-    /* ═══ Copy Button ═══ */
-    .kd-copy-btn {
-        display: inline-flex; align-items: center; justify-content: center;
-        background: none; border: none; border-radius: 8px; padding: 5px;
-        cursor: pointer; color: var(--pp-accent); opacity: 0.4;
-        transition: all 0.2s; vertical-align: middle;
-    }
-    .kd-copy-btn:hover {
-        opacity: 1;
-        background: rgba(99,102,241,0.12);
-        transform: scale(1.1);
-    }
-    .kd-copy-btn svg { width: 14px; height: 14px; }
+    .kd-meta-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:6px; font-size:13px; font-weight:500; color:#7c8db5; }
+    .kd-field-label { font-size:11px !important; font-weight:700 !important; text-transform:uppercase; letter-spacing:1.2px; color:#7c8db5 !important; margin-bottom:8px; display:flex; align-items:center; gap:6px; }
 
-    /* ═══ PREMIUM — Animated Gradient Border on Sections ═══ */
-    @property --angle {
-        syntax: '<angle>';
-        initial-value: 0deg;
-        inherits: false;
-    }
-    @keyframes kdBorderRotate {
-        to { --angle: 360deg; }
-    }
-    .kd-section-glow {
-        position: relative;
-        background: var(--pp-surface);
-        border: 1px solid transparent;
-        border-radius: 12px;
-    }
-    .kd-section-glow::before {
-        content: '';
-        position: absolute; inset: -1px;
-        border-radius: 13px;
-        background: conic-gradient(from var(--angle), transparent 60%, rgba(99,102,241,0.25) 75%, rgba(139,92,246,0.2) 85%, transparent 95%);
-        animation: kdBorderRotate 8s linear infinite;
-        z-index: -1;
-        opacity: 0;
-        transition: opacity 0.5s;
-    }
-    .kd-section-glow:hover::before { opacity: 1; }
+    .kd-badge { display:inline-flex; align-items:center; padding:4px 12px; border-radius:20px; font-size:13px; font-weight:600; letter-spacing:0.2px; white-space:nowrap; }
+    .kd-badge-green { background:rgba(46,213,115,0.12); border:1px solid rgba(46,213,115,0.3); color:#2ed573; }
+    .kd-badge-cyan { background:rgba(0,210,211,0.12); border:1px solid rgba(0,210,211,0.3); color:#00d2d3; }
+    .kd-badge-orange { background:rgba(255,165,2,0.12); border:1px solid rgba(255,165,2,0.3); color:#ffa502; }
+    .kd-badge-purple { background:rgba(165,94,234,0.12); border:1px solid rgba(165,94,234,0.3); color:#a55eea; }
+    .kd-badge-blue { background:rgba(54,154,255,0.12); border:1px solid rgba(54,154,255,0.3); color:#369aff; }
+    .kd-badge-gray { background:rgba(160,174,192,0.10); border:1px solid rgba(160,174,192,0.25); color:#a0aec0; }
 
-    /* ═══ PREMIUM — Hero Animated Gradient Bar ═══ */
-    .kd-hero-accent-line {
-        height: 3px;
-        background: linear-gradient(90deg, transparent, #6366f1, #a78bfa, #c084fc, #a78bfa, #6366f1, transparent);
-        background-size: 200% 100%;
-        animation: kdShimmer 4s ease-in-out infinite;
-        border-radius: 2px;
-        opacity: 0.6;
+    .kd-wrap .detail-edit-display { cursor:pointer; border-radius:6px; padding:2px 6px; transition:all 0.2s; }
+    .kd-wrap .detail-edit-display:hover { background:rgba(54,154,255,0.08); }
+    .kd-wrap .detail-edit-input { font-family:inherit; border-radius:10px; }
+    .kd-wrap input:focus, .kd-wrap textarea:focus, .kd-wrap select:focus {
+        border-color:rgba(54,154,255,0.5) !important; box-shadow:0 0 0 3px rgba(54,154,255,0.08) !important; outline:none !important;
     }
-
-    /* ═══ PREMIUM — Avatar Ring Animation ═══ */
-    @keyframes kdAvatarRing {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
-    .kd-avatar-wrap {
-        position: relative;
-        width: 50px; height: 50px;
-        flex-shrink: 0;
-    }
-    .kd-avatar-wrap::before {
-        content: '';
-        position: absolute; inset: -2px;
-        border-radius: 14px;
-        background: conic-gradient(from 0deg, #6366f1, #a78bfa, #c084fc, #e879f9, #c084fc, #a78bfa, #6366f1);
-        animation: kdAvatarRing 6s linear infinite;
-        opacity: 0.7;
-    }
-    .kd-avatar-inner {
-        position: relative;
-        width: 46px; height: 46px;
-        border-radius: 12px;
-        background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%);
-        display: flex; align-items: center; justify-content: center;
-        color: #fff; font-size: 20px; font-weight: 800;
-        z-index: 1;
-        box-shadow: inset 0 1px 0 rgba(255,255,255,0.1);
-    }
-
-    /* ═══ PREMIUM — Meta Badges ═══ */
-    .kd-meta-badge {
-        display: inline-flex; align-items: center; gap: 4px;
-        padding: 3px 8px; border-radius: 6px;
-        font-size: 11px; font-weight: 600;
-        background: rgba(255,255,255,0.05);
-        border: 1px solid rgba(255,255,255,0.08);
-        color: rgba(255,255,255,0.7);
-        backdrop-filter: blur(8px);
-        transition: all 0.25s;
-    }
-    .kd-meta-badge:hover {
-        background: rgba(255,255,255,0.08);
-        border-color: rgba(255,255,255,0.15);
-        color: rgba(255,255,255,0.9);
-        transform: translateY(-1px);
-    }
-
-    /* ═══ PREMIUM — Floating Label Style ═══ */
-    .kd-field-label {
-        font-size: 9.5px !important;
-        font-weight: 700 !important;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        color: var(--pp-textDim) !important;
-        margin-bottom: 3px;
-        display: flex; align-items: center; gap: 4px;
-    }
-    .kd-field-label::before {
-        content: '';
-        width: 4px; height: 4px; border-radius: 2px;
-        background: rgba(99,102,241,0.3);
-        flex-shrink: 0;
-    }
-
-    /* ═══ PREMIUM — Stat Counter in Hero ═══ */
-    .kd-stat-pill {
-        display: inline-flex; align-items: center; gap: 8px;
-        padding: 8px 16px; border-radius: 12px;
-        background: rgba(255,255,255,0.04);
-        border: 1px solid rgba(255,255,255,0.08);
-        backdrop-filter: blur(12px);
-    }
-    .kd-stat-pill-value {
-        font-size: 18px; font-weight: 800;
-        background: linear-gradient(135deg, #a5b4fc, #c4b5fd);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-    }
-    .kd-stat-pill-label {
-        font-size: 11px; font-weight: 600;
-        color: rgba(255,255,255,0.4);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-
-    /* ═══ PREMIUM — Section Divider ═══ */
-    .kd-section-divider {
-        height: 1px;
-        background: linear-gradient(90deg, transparent, var(--pp-border), rgba(99,102,241,0.15), var(--pp-border), transparent);
-        margin: 8px 0;
-    }
-
-    /* ═══ PREMIUM — Focus Glow on Inputs ═══ */
-    .kd-wrap input:focus,
-    .kd-wrap textarea:focus,
-    .kd-wrap select:focus {
-        border-color: rgba(99,102,241,0.5) !important;
-        box-shadow: 0 0 0 3px rgba(99,102,241,0.08), 0 4px 12px rgba(0,0,0,0.15) !important;
-        outline: none !important;
-    }
-
-    /* ═══ PREMIUM — Smooth Page Transition ═══ */
-    .kd-wrap {
-        animation: kdFadeUp 0.4s cubic-bezier(0.16,1,0.3,1) forwards;
-    }
+    .kd-wrap { animation: kdFadeUp 0.4s cubic-bezier(0.16,1,0.3,1) forwards; }
 </style>
 {% endblock %}
 
@@ -393,320 +138,121 @@
 {% set city_invalid = raw_city | lower | trim in (invalid_names + ['keine adresse']) %}
 {% set city_display = '' if city_invalid else raw_city %}
 {# ── End Data Quality ── #}
-<div class="kd-wrap min-h-screen" x-data="{ activeSection: 'experience' }">
 
-    {# ════════════════════════════════════════════════════
-       VIOLET HERO HEADER
-    ════════════════════════════════════════════════════ #}
-    <div style="background: linear-gradient(160deg, #0c0a1f 0%, #1a1145 25%, #2a1f6b 50%, #3730a3 80%, #4338ca 100%); padding: 14px 24px 0; position: relative; overflow: hidden;">
-        {# Decorative orbs + mesh texture #}
-        <div style="position: absolute; top: -80px; right: -40px; width: 300px; height: 300px; border-radius: 50%; background: radial-gradient(circle, rgba(129,140,248,0.12) 0%, rgba(99,102,241,0.05) 40%, transparent 70%); filter: blur(40px);"></div>
-        <div style="position: absolute; bottom: -60px; left: 20%; width: 250px; height: 250px; border-radius: 50%; background: radial-gradient(circle, rgba(167,139,250,0.08) 0%, transparent 60%); filter: blur(50px);"></div>
-        <div style="position: absolute; top: 30%; left: 10%; width: 150px; height: 150px; border-radius: 50%; background: radial-gradient(circle, rgba(99,102,241,0.06) 0%, transparent 60%); filter: blur(30px);"></div>
-        {# Subtle grid overlay #}
-        <div style="position: absolute; inset: 0; background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px); background-size: 24px 24px; pointer-events: none;"></div>
+<div class="kd-wrap min-h-screen" x-data="{ activeTab: 'uebersicht', showPipelineModal: false, pipelineStatus: '{{ candidate.pipeline_status or 'new' }}' }">
 
-        {# Breadcrumb #}
-        <div style="display: flex; align-items: center; gap: 6px; font-size: 10.5px; color: rgba(255,255,255,0.4); margin-bottom: 8px; font-weight: 500; position: relative; z-index: 1;">
-            <a href="/" style="cursor: pointer; color: rgba(255,255,255,0.5); text-decoration: none; transition: color 0.2s;" onmouseenter="this.style.color='rgba(255,255,255,0.9)'" onmouseleave="this.style.color='rgba(255,255,255,0.5)'">&#x1F3E0;</a>
-            <svg style="width: 12px; height: 12px; opacity: 0.4;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg>
-            <a href="/kandidaten" style="cursor: pointer; color: rgba(255,255,255,0.5); text-decoration: none; transition: color 0.2s;" onmouseenter="this.style.color='rgba(255,255,255,0.9)'" onmouseleave="this.style.color='rgba(255,255,255,0.5)'">Kandidaten</a>
-            <svg style="width: 12px; height: 12px; opacity: 0.4;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg>
-            <span style="color: rgba(255,255,255,0.85); font-weight: 600;">{{ display_name }}</span>
-        </div>
-
-        {# Avatar + Name + Meta #}
-        <div style="display: flex; align-items: center; gap: 18px; margin-bottom: 16px; position: relative; z-index: 1;">
-            <div class="kd-avatar-wrap">
-                <div class="kd-avatar-inner">
-                    {{ (first_display or 'X')[0] | upper }}{{ (last_display or 'X')[0] | upper }}
-                </div>
-            </div>
-            <div style="flex: 1; min-width: 0;">
-                {# Name - editable #}
-                <div style="display: flex; align-items: center; gap: 6px;">
-                    <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="first_name">
-                        <span class="detail-edit-display" onclick="startDetailEdit(this)" title="Vorname bearbeiten" style="font-size: 26px; font-weight: 800; color: #fff; letter-spacing: -0.03em; cursor: pointer;">{{ first_display or 'Vorname' }}</span>
-                        <input type="text" class="detail-edit-input hidden" value="{{ first_display or '' }}" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)" style="font-size: 22px; font-weight: 800; color: var(--pp-text); padding: 2px 8px; border-radius: 8px; border: 2px solid var(--pp-accent); width: 200px; background: var(--pp-surface);">
-                    </div>
-                    <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="last_name">
-                        <span class="detail-edit-display" onclick="startDetailEdit(this)" title="Nachname bearbeiten" style="font-size: 26px; font-weight: 800; color: #fff; letter-spacing: -0.03em; cursor: pointer;">{{ last_display or 'Nachname' }}</span>
-                        <input type="text" class="detail-edit-input hidden" value="{{ last_display or '' }}" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)" style="font-size: 22px; font-weight: 800; color: var(--pp-text); padding: 2px 8px; border-radius: 8px; border: 2px solid var(--pp-accent); width: 200px; background: var(--pp-surface);">
-                    </div>
-                    {% if candidate.candidate_number %}
-                    <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 8px; background: rgba(99,102,241,0.2); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.3); margin-left: 6px;" title="Kandidaten-Nr.">
-                        #{{ candidate.candidate_number }}
-                    </span>
-                    <button type="button" onclick="copyToClipboard('#{{ candidate.candidate_number }}', 'Kandidaten-Nr.')" class="kd-copy-btn" title="Kandidaten-Nr. kopieren" style="margin-left: 2px;"><svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
-                    {% endif %}
-                </div>
-
-                {# Position + Company - editable #}
-                <div style="display: flex; align-items: center; gap: 6px; margin-top: 4px; flex-wrap: wrap;">
-                    <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="current_position">
-                        <span class="detail-edit-display" onclick="startDetailEdit(this)" title="Position bearbeiten" style="font-size: 14px; color: rgba(255,255,255,0.7); font-weight: 500; cursor: pointer;">{{ position_display or 'Keine Position angegeben' }}</span>
-                        <input type="text" class="detail-edit-input hidden" value="{{ position_display or '' }}" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)" style="font-size: 14px; color: var(--pp-text); padding: 2px 8px; border-radius: 8px; border: 2px solid var(--pp-accent); background: var(--pp-surface);">
-                    </div>
-                    {% if company_display %}
-                    <span style="color: rgba(255,255,255,0.4);">&middot;</span>
-                    {% endif %}
-                    <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="current_company">
-                        <span class="detail-edit-display" onclick="startDetailEdit(this)" title="Unternehmen bearbeiten" style="font-size: 14px; color: rgba(255,255,255,0.5); font-weight: 500; cursor: pointer;">{{ company_display or 'Kein Unternehmen' }}</span>
-                        <input type="text" class="detail-edit-input hidden" value="{{ company_display or '' }}" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)" style="font-size: 14px; color: var(--pp-text); padding: 2px 8px; border-radius: 8px; border: 2px solid var(--pp-accent); background: var(--pp-surface);">
-                    </div>
-                </div>
-
-                {# Meta badges #}
-                <div style="display: flex; gap: 5px; margin-top: 6px; flex-wrap: wrap;">
-                    {% if candidate.birth_date or candidate.age %}
-                    <span class="kd-meta-badge">
-                        <span style="font-size: 12px;">&#x1F4C5;</span>
-                        {% if candidate.birth_date %}{{ candidate.birth_date.strftime('%d.%m.%Y') }}{% endif %}{% if candidate.age %} ({{ candidate.age }} Jahre){% endif %}
-                    </span>
-                    {% endif %}
-                    {% if city_display %}
-                    <span class="kd-meta-badge">
-                        <span style="font-size: 12px;">&#x1F4CD;</span>
-                        {{ city_display }}{% if candidate.postal_code %}, {{ candidate.postal_code }}{% endif %}
-                    </span>
-                    {% endif %}
-                    <span class="kd-meta-badge">
-                        <span style="font-size: 12px;">&#x1F7E2;</span>
-                        Seit {{ candidate.created_at.strftime('%d.%m.%Y') if candidate.created_at else 'Unbekannt' }}
-                    </span>
-                    {% if candidate.work_history and candidate.work_history is iterable and candidate.work_history is not string and candidate.work_history | length > 0 %}
-                    <span class="kd-meta-badge">
-                        <span style="font-size: 12px;">&#x1F4CA;</span>
-                        {{ candidate.work_history | length }} Position{{ 'en' if candidate.work_history | length != 1 else '' }}
-                    </span>
-                    {% endif %}
-                </div>
-
-                {# Job title tags + Rating #}
-                {% if candidate.manual_job_titles and candidate.manual_job_titles | length > 0 %}
-                <div style="display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; align-items: center;">
-                    {% for title in candidate.manual_job_titles %}
-                    <span style="display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 8px; background: rgba(16,185,129,0.15); color: #6ee7b7;">
-                        &#x1F3F7; {{ title }}
-                    </span>
-                    {% endfor %}
-                    {% if candidate.rating %}
-                    <span style="display: inline-flex; align-items: center; gap: 2px; font-size: 13px; padding: 2px 8px; border-radius: 8px; background: rgba(245,158,11,0.15);">
-                        {% for i in range(1, 6) %}
-                        <span style="color: {% if i <= candidate.rating %}#f59e0b{% else %}rgba(255,255,255,0.2){% endif %};">&#9733;</span>
-                        {% endfor %}
-                    </span>
-                    {% endif %}
-                </div>
-                {% endif %}
-            </div>
-        </div>
-
-        {# Quick Action Buttons #}
-        <div x-data="{
-            showPipelineModal: false,
-            jobs: [],
-            selectedJob: '',
-            selectedStage: 'sent',
-            loading: false,
-            showNewJobForm: false,
-            newJobTitle: '',
-            newJobCompanyId: '',
-            newJobCompanyName: '',
-            newJobCity: '',
-            companies: [],
-            filteredCompanies: [],
-            creatingJob: false,
-            showJobDropdown: false,
-            selectedJobName: '',
-            async loadJobs() {
-                try {
-                    const response = await fetch('/api/ats/jobs');
-                    const data = await response.json();
-                    this.jobs = data.items || [];
-                } catch (err) {
-                    console.error('Error loading jobs:', err);
-                }
-            },
-            selectJob(job) {
-                this.selectedJob = job.id;
-                this.selectedJobName = job.company_name ? job.company_name + ' - ' + job.title : job.title;
-                this.showJobDropdown = false;
-            },
-            async loadCompanies() {
-                const response = await fetch('/api/companies?limit=500');
-                const data = await response.json();
-                this.companies = data.items || [];
-            },
-            filterCompanies() {
-                if (!this.newJobCompanyName) { this.filteredCompanies = []; return; }
-                const term = this.newJobCompanyName.toLowerCase();
-                this.filteredCompanies = this.companies.filter(c => c.name.toLowerCase().includes(term)).slice(0, 10);
-            },
-            selectCompany(company) {
-                this.newJobCompanyId = company.id;
-                this.newJobCompanyName = company.name;
-                this.filteredCompanies = [];
-            },
-            async createJob() {
-                if (!this.newJobTitle || !this.newJobCompanyId) return;
-                this.creatingJob = true;
-                const response = await fetch('/api/ats/jobs', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ title: this.newJobTitle, company_id: this.newJobCompanyId, location_city: this.newJobCity || null })
-                });
-                if (response.ok) {
-                    const job = await response.json();
-                    this.jobs.push(job);
-                    this.selectedJob = job.id;
-                    this.showNewJobForm = false;
-                    this.newJobTitle = ''; this.newJobCompanyId = ''; this.newJobCompanyName = ''; this.newJobCity = '';
-                    showToast('Stelle erstellt', 'success');
-                } else { showToast('Fehler beim Erstellen', 'error'); }
-                this.creatingJob = false;
-            },
-            async addToPipeline() {
-                if (!this.selectedJob) return;
-                this.loading = true;
-                const response = await fetch('/api/ats/pipeline/' + this.selectedJob + '/candidates', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ candidate_id: '{{ candidate.id }}', stage: this.selectedStage })
-                });
-                if (response.ok) {
-                    showToast('Kandidat zur Pipeline hinzugefuegt', 'success');
-                    this.showPipelineModal = false; this.selectedJob = ''; this.selectedStage = 'sent';
-                    htmx.trigger('#candidate-pipeline', 'load');
-                } else if (response.status === 409) { showToast('Kandidat ist bereits in dieser Pipeline', 'warning'); }
-                else { showToast('Fehler beim Hinzufuegen', 'error'); }
-                this.loading = false;
-            }
-        }" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 0; margin-top: 2px; border-top: 1px solid rgba(255,255,255,0.06); position: relative; z-index: 1;">
-            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+    {# ── Sticky Header ── #}
+    <div class="kd-sticky-header">
+        {# Row 1: Action buttons #}
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 0 8px;">
+            <a href="/kandidaten" class="kd-quickbtn" style="text-decoration:none;">&#x2190; Zur&uuml;ck</a>
+            <div style="display:flex; gap:8px;">
                 {% if candidate.cv_url or candidate.cv_stored_path %}
-                <a href="/api/candidates/{{ candidate.id }}/cv-preview" target="_blank" class="kd-quickbtn" style="color: rgba(255,255,255,0.75); border-color: rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); text-decoration: none; backdrop-filter: blur(8px);">
-                    <svg style="width: 15px; height: 15px; opacity: 0.7;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg> CV herunterladen
-                </a>
-                <button type="button" onclick="openCvPreview()" class="kd-quickbtn kd-quickbtn-accent" style="backdrop-filter: blur(8px);">
-                    <svg style="width: 15px; height: 15px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg> CV ansehen
-                </button>
+                <button type="button" onclick="openCvPreview()" class="kd-quickbtn kd-quickbtn-accent">&#x1F4C4; CV ansehen</button>
                 {% endif %}
-                <button type="button" @click="showPipelineModal = true; loadJobs()" class="kd-quickbtn kd-quickbtn-primary">
-                    <svg style="width: 15px; height: 15px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg> Zur Pipeline
-                </button>
+                <button type="button" @click="showPipelineModal = true" class="kd-quickbtn kd-quickbtn-primary">&#x1F680; Pipeline</button>
+                <button type="button" onclick="deleteCandidate('{{ candidate.id }}', '{{ display_name }}')" class="kd-quickbtn kd-quickbtn-danger">&#x1F5D1;</button>
             </div>
-            <div style="display: flex; gap: 6px;">
-                {% if not candidate.hidden %}
-                <button type="button" hx-put="/api/candidates/{{ candidate.id }}/hide" hx-swap="none" hx-on::after-request="showToast('Kandidat ausgeblendet', 'success')" class="kd-quickbtn" style="color: rgba(255,255,255,0.45); border-color: rgba(255,255,255,0.06); background: rgba(255,255,255,0.02); backdrop-filter: blur(8px);">
-                    <svg style="width: 15px; height: 15px; opacity: 0.6;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg> Ausblenden
-                </button>
-                {% else %}
-                <button type="button" hx-put="/api/candidates/{{ candidate.id }}/unhide" hx-swap="none" hx-on::after-request="showToast('Kandidat wieder eingeblendet', 'success')" class="kd-quickbtn" style="color: #6ee7b7; border-color: rgba(16,185,129,0.2); background: rgba(16,185,129,0.06); backdrop-filter: blur(8px);">
-                    <svg style="width: 15px; height: 15px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg> Einblenden
-                </button>
-                {% endif %}
-                <button type="button" onclick="deleteCandidate('{{ candidate.id }}', '{{ display_name }}')" class="kd-quickbtn kd-quickbtn-danger">
-                    <svg style="width: 15px; height: 15px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg> L&ouml;schen
-                </button>
-            </div>
+        </div>
 
-            {# ── Pipeline Modal (same logic, restyled) ── #}
-            <div x-show="showPipelineModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
-                <div class="flex items-center justify-center min-h-screen p-4">
-                    <div x-show="showPipelineModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm" @click="showPipelineModal = false"></div>
-                    <div x-show="showPipelineModal" x-transition class="relative rounded-2xl p-8 max-w-xl w-full shadow-2xl z-10" style="font-family: inherit; background: var(--pp-surface);">
-                        <div class="text-center mb-6">
-                            <div class="mx-auto flex items-center justify-center h-14 w-14 rounded-2xl mb-4" style="background: var(--pp-surfaceHover);"
-                                <svg class="h-7 w-7 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-                            </div>
-                            <h3 class="text-xl font-bold" style="color: var(--pp-text);">Zur Pipeline hinzuf&uuml;gen</h3>
-                            <p class="mt-1 text-sm" style="color: var(--pp-textDim);">Stelle und Phase w&auml;hlen</p>
-                        </div>
-                        <div class="space-y-4">
-                            <div>
-                                <label class="block text-sm font-semibold mb-2" style="color: var(--pp-text);">Stelle</label>
-                                <div class="relative" @click.away="showJobDropdown = false">
-                                    <button type="button" @click="showJobDropdown = !showJobDropdown" class="relative w-full cursor-pointer rounded-xl py-3 pl-4 pr-10 text-left text-sm shadow-sm focus:outline-none" style="font-family: inherit; background: var(--pp-surface); color: var(--pp-text); border: 1px solid var(--pp-border);">
-                                        <span class="block truncate" x-text="selectedJobName || 'Stelle ausw\u00e4hlen...'"></span>
-                                        <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3"><svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a.75.75 0 01.55.24l3.25 3.5a.75.75 0 11-1.1 1.02L10 4.852 7.3 7.76a.75.75 0 01-1.1-1.02l3.25-3.5A.75.75 0 0110 3zm-3.76 9.2a.75.75 0 011.06.04l2.7 2.908 2.7-2.908a.75.75 0 111.1 1.02l-3.25 3.5a.75.75 0 01-1.1 0l-3.25-3.5a.75.75 0 01.04-1.06z" clip-rule="evenodd" /></svg></span>
-                                    </button>
-                                    <div x-show="showJobDropdown" x-cloak class="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-xl py-1 text-sm shadow-lg ring-1 ring-black/5" style="background: var(--pp-surface);">
-                                        <template x-if="jobs.length === 0"><div class="px-4 py-3" style="color: var(--pp-textDim);">Keine Stellen vorhanden</div></template>
-                                        <template x-for="job in jobs" :key="job.id">
-                                            <button type="button" @click="selectJob(job)" class="relative w-full cursor-pointer select-none py-3 pl-4 pr-9 text-left" :style="selectedJob === job.id ? 'background: var(--pp-surfaceHover); color: var(--pp-accent);' : 'color: var(--pp-text);'" style="font-family: inherit;">
-                                                <span class="block truncate" x-text="job.company_name ? job.company_name + ' - ' + job.title : job.title"></span>
-                                            </button>
-                                        </template>
-                                    </div>
-                                </div>
-                                <div class="mt-2">
-                                    <button type="button" @click="showNewJobForm = !showNewJobForm; if(showNewJobForm && companies.length === 0) loadCompanies()" class="text-sm text-indigo-600 hover:text-indigo-800 flex items-center gap-1 font-semibold" style="font-family: inherit;">
-                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-                                        <span x-text="showNewJobForm ? 'Abbrechen' : 'Neue Stelle erstellen'"></span>
-                                    </button>
-                                </div>
-                                <div x-show="showNewJobForm" x-cloak class="mt-3 p-4 rounded-xl space-y-3" style="background: var(--pp-bg); border: 1px solid var(--pp-border);">
-                                    <div>
-                                        <label class="block text-sm font-medium" style="color: var(--pp-text);">Stellentitel *</label>
-                                        <input type="text" x-model="newJobTitle" class="mt-1 block w-full rounded-lg shadow-sm text-sm py-2" placeholder="z.B. Senior Accountant" style="font-family: inherit; background: var(--pp-surface); color: var(--pp-text); border: 1px solid var(--pp-border);">
-                                    </div>
-                                    <div class="relative" @click.away="filteredCompanies = []">
-                                        <label class="block text-sm font-medium" style="color: var(--pp-text);">Unternehmen *</label>
-                                        <input type="text" x-model="newJobCompanyName" @input="filterCompanies()" @focus="filterCompanies()" class="mt-1 block w-full rounded-lg shadow-sm text-sm py-2" placeholder="Unternehmen suchen..." style="font-family: inherit; background: var(--pp-surface); color: var(--pp-text); border: 1px solid var(--pp-border);">
-                                        <div x-show="filteredCompanies.length > 0" class="absolute z-10 mt-1 w-full rounded-lg shadow-lg max-h-48 overflow-y-auto" style="background: var(--pp-surface); border: 1px solid var(--pp-border);">
-                                            <template x-for="company in filteredCompanies" :key="company.id">
-                                                <button type="button" @click="selectCompany(company)" class="w-full text-left px-4 py-2 text-sm" x-text="company.name" style="font-family: inherit; color: var(--pp-text);" onmouseenter="this.style.background='var(--pp-surfaceHover)'" onmouseleave="this.style.background='transparent'"></button>
-                                            </template>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium" style="color: var(--pp-text);">Ort (optional)</label>
-                                        <input type="text" x-model="newJobCity" class="mt-1 block w-full rounded-lg shadow-sm text-sm py-2" placeholder="z.B. Berlin" style="font-family: inherit; background: var(--pp-surface); color: var(--pp-text); border: 1px solid var(--pp-border);">
-                                    </div>
-                                    <div class="flex gap-2 pt-1">
-                                        <button type="button" @click="createJob()" :disabled="!newJobTitle || !newJobCompanyId || creatingJob" class="inline-flex items-center px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg disabled:opacity-50" style="font-family: inherit;">Stelle erstellen</button>
-                                        <button type="button" @click="showNewJobForm = false" class="px-4 py-2 text-sm font-medium rounded-lg" style="font-family: inherit; background: var(--pp-surface); color: var(--pp-text); border: 1px solid var(--pp-border);">Abbrechen</button>
-                                    </div>
-                                </div>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-semibold mb-2" style="color: var(--pp-text);">Phase</label>
-                                <select x-model="selectedStage" class="block w-full rounded-xl shadow-sm text-sm py-3" style="font-family: inherit; background: var(--pp-surface); color: var(--pp-text); border: 1px solid var(--pp-border);">
-                                    <option value="sent">Vorgestellt</option>
-                                    <option value="interview_1">Interview 1</option>
-                                    <option value="interview_2">Interview 2</option>
-                                    <option value="interview_3">Interview 3</option>
-                                    <option value="offer">Angebot</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="mt-6 grid grid-cols-2 gap-3">
-                            <button type="button" @click="showPipelineModal = false" class="py-3 rounded-xl text-sm font-semibold" style="font-family: inherit; background: var(--pp-surfaceHover); color: var(--pp-text);">Abbrechen</button>
-                            <button type="button" @click="addToPipeline()" :disabled="!selectedJob || loading" class="py-3 rounded-xl text-white text-sm font-semibold disabled:opacity-50" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); font-family: inherit;">
-                                <svg x-show="loading" class="animate-spin inline -ml-1 mr-1.5 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
-                                Hinzuf&uuml;gen
-                            </button>
-                        </div>
-                    </div>
+        {# Row 2: Name + Badges #}
+        <div style="display:flex; align-items:center; gap:16px; padding-bottom:8px;">
+            {# Avatar #}
+            <div style="width:56px; height:56px; border-radius:50%; background:linear-gradient(135deg, #369aff, #a55eea); display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:700; color:#fff; flex-shrink:0;">
+                {{ display_name[0]|upper if display_name else '?' }}
+            </div>
+            <div style="flex:1; min-width:0;">
+                <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                    <h1 style="font-size:24px; font-weight:800; color:#e8ecf4; margin:0; letter-spacing:-0.02em;">{{ display_name }}</h1>
+                    {% if candidate.willingness_to_change == 'ja' %}
+                    <span class="kd-badge kd-badge-green">&#x2705; Wechselbereit</span>
+                    {% elif candidate.willingness_to_change == 'nein' %}
+                    <span class="kd-badge kd-badge-gray">Nicht wechselbereit</span>
+                    {% endif %}
+                    {% if candidate.employment_type %}
+                    <span class="kd-badge kd-badge-cyan">{{ candidate.employment_type }}</span>
+                    {% endif %}
+                    {% if candidate.rating %}
+                    <span class="kd-badge kd-badge-orange">&#x2B50; {{ candidate.rating }}/5</span>
+                    {% endif %}
+                </div>
+                <div style="display:flex; align-items:center; gap:12px; margin-top:4px; flex-wrap:wrap;">
+                    {% if candidate.current_position and candidate.current_position not in ['Not Available', 'N/A', 'n/a', 'None', 'null', '', '-'] %}
+                    <span class="kd-meta-badge">&#x1F4BC; {{ candidate.current_position }}</span>
+                    {% endif %}
+                    {% if candidate.current_company and candidate.current_company not in ['Not Available', 'N/A', 'n/a', 'None', 'null', '', '-'] %}
+                    <span class="kd-meta-badge">&#x1F3E2; {{ candidate.current_company }}</span>
+                    {% endif %}
+                    {% if candidate.location and candidate.location not in ['Not Available', 'N/A', 'n/a', 'None', 'null', '', '-'] %}
+                    <span class="kd-meta-badge">&#x1F4CD; {{ candidate.location }}</span>
+                    {% endif %}
                 </div>
             </div>
         </div>
+
+        {# Row 3: Tabs #}
+        
+    {# ── Tab Navigation ── #}
+    <div style="display:flex; gap:0; border-top:1px solid rgba(255,255,255,0.04); margin-top:4px;">
+        <button type="button" @click="activeTab = 'uebersicht'" class="kd-tab-btn" :class="activeTab === 'uebersicht' ? 'active' : ''">
+            <span>&#x1F4CB;</span> &Uuml;bersicht
+        </button>
+        <button type="button" @click="activeTab = 'qualifizierung'" class="kd-tab-btn" :class="activeTab === 'qualifizierung' ? 'active' : ''">
+            <span>&#x1F4DE;</span> Qualifizierung
+        </button>
+        <button type="button" @click="activeTab = 'profil'" class="kd-tab-btn" :class="activeTab === 'profil' ? 'active' : ''">
+            <span>&#x1F4BC;</span> Profil &amp; CV
+        </button>
+        <button type="button" @click="activeTab = 'gespraeche'" class="kd-tab-btn" :class="activeTab === 'gespraeche' ? 'active' : ''">
+            <span>&#x1F3A4;</span> Gespr&auml;che
+        </button>
+    </div>
     </div>
 
-    {# Hero accent line #}
-    <div class="kd-hero-accent-line"></div>
+    {# ── Pipeline Modal ── #}
+    <template x-if="showPipelineModal">
+        <div style="position:fixed; inset:0; z-index:200; display:flex; align-items:center; justify-content:center;" @click.self="showPipelineModal = false">
+            <div style="position:fixed; inset:0; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px);"></div>
+            <div style="position:relative; z-index:10; background:var(--pp-surface); border-radius:16px; border:1px solid var(--pp-border); padding:28px; width:420px; max-width:90vw; box-shadow:0 24px 48px rgba(0,0,0,0.4);">
+                <h3 style="font-size:17px; font-weight:700; color:var(--pp-text); margin:0 0 20px;">Pipeline-Status &auml;ndern</h3>
+                {% set pipeline_options = [
+                    {"value": "new", "label": "Neu", "color": "#6366f1"},
+                    {"value": "contacted", "label": "Kontaktiert", "color": "#3b82f6"},
+                    {"value": "qualified", "label": "Qualifiziert", "color": "#10b981"},
+                    {"value": "presented", "label": "Vorgestellt", "color": "#f59e0b"},
+                    {"value": "interview", "label": "Interview", "color": "#8b5cf6"},
+                    {"value": "offer", "label": "Angebot", "color": "#ef4444"},
+                    {"value": "placed", "label": "Platziert", "color": "#22c55e"},
+                    {"value": "rejected", "label": "Abgelehnt", "color": "#64748b"}
+                ] %}
+                <div style="display:flex; flex-direction:column; gap:6px;">
+                    {% for opt in pipeline_options %}
+                    <button type="button"
+                        @click="pipelineStatus = '{{ opt.value }}'; fetch('/api/candidates/{{ candidate.id }}', {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({pipeline_status:'{{ opt.value }}'}) }).then(r => { if(r.ok) { showToast('Pipeline-Status aktualisiert','success'); showPipelineModal=false; } })"
+                        class="w-full text-left py-3 px-4 rounded-xl text-sm font-semibold cursor-pointer transition-all duration-150"
+                        :style="pipelineStatus === '{{ opt.value }}' ? 'background: {{ opt.color }}22; border: 2px solid {{ opt.color }}; color: {{ opt.color }};' : 'background: var(--pp-surfaceHover); border: 2px solid transparent; color: var(--pp-text);'"
+                        style="font-family:inherit;"
+                        onmouseenter="if(!this.style.borderColor || this.style.borderColor==='transparent') this.style.background='var(--pp-surfaceHover)'"
+                        onmouseleave="if(!this.style.borderColor || this.style.borderColor==='transparent') this.style.background='var(--pp-surfaceHover)'">
+                        <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:{{ opt.color }}; margin-right:10px;"></span>
+                        {{ opt.label }}
+                    </button>
+                    {% endfor %}
+                </div>
+                <button type="button" @click="showPipelineModal = false" class="w-full mt-4 py-2.5 rounded-xl text-sm font-bold cursor-pointer" style="background:var(--pp-surfaceHover); border:1px solid var(--pp-border); color:var(--pp-textMuted); font-family:inherit;">Abbrechen</button>
+            </div>
+        </div>
+    </template>
 
-    {# ════════════════════════════════════════════════════
-       MAIN CONTENT: 2-Column Layout
-    ════════════════════════════════════════════════════ #}
-    <div style="display: flex; gap: 16px; padding: 14px 24px 28px; max-width: 1700px; margin: 0 auto;">
+    {# ══════════════ CONTENT + SIDEBAR ══════════════ #}
+    <div style="display:flex; gap:24px; padding:24px 32px 32px; max-width:1600px; margin:0 auto;">
 
-        {# ── LEFT COLUMN (main content) ── #}
-        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px;">
+        {# ── LEFT: Tab Content ── #}
+        <div style="flex:1; min-width:0;">
 
-            {# ── Kontaktdaten ── #}
-            <div class="kd-section kd-section-glow kd-anim" style="animation-delay: 100ms;" id="contact">
+            {# ═══ TAB: Übersicht ═══ #}
+            <div x-show="activeTab === 'uebersicht'" x-cloak style="display:flex; flex-direction:column; gap:20px;">
+                <div class="kd-section kd-section-glow kd-anim" style="animation-delay: 100ms;" id="contact">
                 <div class="kd-section-header">
                     <div class="kd-section-title"><span>&#x1F4C7;</span> Kontaktdaten</div>
                 </div>
@@ -752,8 +298,7 @@
                 </div>
             </div>
 
-            {# ── Recruiting-Daten (Phase 2) ── #}
-            <div class="kd-section kd-section-glow kd-anim" style="animation-delay: 150ms; overflow: visible;" id="recruiting-data"
+                <div class="kd-section kd-section-glow kd-anim" style="animation-delay: 150ms; overflow: visible;" id="recruiting-data"
                  x-data="recruitingFields()">
                 <div class="kd-section-header">
                     <div class="kd-section-title"><span>&#x1F50D;</span> Recruiting-Daten</div>
@@ -833,8 +378,7 @@
                 </div>
             </div>
 
-            {# ── Pipeline-Daten ── #}
-            <div class="kd-section kd-section-glow kd-anim" style="animation-delay: 250ms;" id="pipeline-data"
+                <div class="kd-section kd-section-glow kd-anim" style="animation-delay: 250ms;" id="pipeline-data"
                  x-data="pipelineFields()">
                 <div class="kd-section-header">
                     <div class="kd-section-title"><span>&#x1F3AF;</span> Pipeline-Daten</div>
@@ -896,10 +440,49 @@
                     </div>
                 </div>
             </div>
+            </div>
 
-            {# ── Qualifizierungsgespräch ── #}
-            <div class="kd-section kd-section-glow kd-anim" style="animation-delay: 260ms; overflow: visible;" id="qualification-call"
-                 x-data="qualificationFields()">
+            {# ═══ TAB: Qualifizierung (shares qualificationFields scope with Gespräche) ═══ #}
+            <div x-show="activeTab === 'qualifizierung' || activeTab === 'gespraeche'"
+                 x-data="qualificationFields()" style="overflow:visible;">
+
+                {# Qualifizierung content #}
+                <div x-show="activeTab === 'qualifizierung'" style="display:flex; flex-direction:column; gap:20px;">
+                    
+            {# ── Quick-Glance Bar ── #}
+            <div class="kd-quickglance kd-anim" style="animation-delay:50ms;">
+                <div class="kd-quickglance-item">
+                    <div class="kd-quickglance-icon">&#x1F4B0;</div>
+                    <div>
+                        <div class="kd-quickglance-label">Gehalt</div>
+                        <div class="kd-quickglance-value" style="color:#10b981;">{{ candidate.salary or '–' }}</div>
+                    </div>
+                </div>
+                <div class="kd-quickglance-item">
+                    <div class="kd-quickglance-icon">&#x23F3;</div>
+                    <div>
+                        <div class="kd-quickglance-label">K&uuml;ndigungsfrist</div>
+                        <div class="kd-quickglance-value" style="color:#f59e0b;">{{ candidate.notice_period or '–' }}</div>
+                    </div>
+                </div>
+                <div class="kd-quickglance-item">
+                    <div class="kd-quickglance-icon">&#x1F3E0;</div>
+                    <div>
+                        <div class="kd-quickglance-label">Home-Office</div>
+                        <div class="kd-quickglance-value" style="color:#3b82f6;">{{ candidate.home_office_days or '–' }}</div>
+                    </div>
+                </div>
+                <div class="kd-quickglance-item">
+                    <div class="kd-quickglance-icon">&#x1F6E3;</div>
+                    <div>
+                        <div class="kd-quickglance-label">Pendelweg</div>
+                        <div class="kd-quickglance-value" style="color:#8b5cf6;">{{ candidate.commute_max or '–' }}</div>
+                    </div>
+                </div>
+            </div>
+
+                    <div class="kd-section kd-section-glow kd-anim" style="animation-delay: 260ms; overflow: visible;" id="qualification-call"
+                 >
                 <div class="kd-section-header">
                     <div class="kd-section-title"><span>&#x1F4DE;</span> Qualifizierungsgespr&auml;ch</div>
                     <span x-show="qfSaving" x-cloak style="font-size: 11px; font-weight: 600; color: var(--pp-accent);">Speichert...</span>
@@ -1165,8 +748,7 @@
                 </div>
             </div>
 
-            {# ── Vorgestellt bei / Beworben bei ── #}
-            <div class="kd-section kd-section-glow kd-anim" style="animation-delay: 275ms; overflow: visible; position: relative; z-index: 10;" id="presented-at"
+                    <div class="kd-section kd-section-glow kd-anim" style="animation-delay: 275ms; overflow: visible; position: relative; z-index: 10;" id="presented-at"
                  x-data="{
                     entries: {{ (candidate.presented_at_companies or []) | tojson | safe }},
                     showAddForm: false,
@@ -1294,9 +876,79 @@
                     </template>
                 </div>
             </div>
+                </div>
 
-            {# ── Berufserfahrung (Timeline) ── #}
-            <div class="kd-section kd-section-glow kd-anim" style="animation-delay: 300ms; position: relative; z-index: 1;" id="experience">
+                {# Gespräche content #}
+                <div x-show="activeTab === 'gespraeche'" style="display:flex; flex-direction:column; gap:20px;">
+                    <div class="kd-section kd-anim" style="animation-delay:100ms; overflow:visible; position:relative; z-index:20;">
+                        <div class="kd-section-header">
+                            <div class="kd-section-title"><span>&#x1F3A4;</span> Gespr&auml;chsdaten</div>
+                        </div>
+                        <div class="kd-section-body" style="overflow:visible;">
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                                <div>
+                                    <div class="kd-field-label">Gespr&auml;chsdatum</div>
+                                    <input type="date" x-model="qfCallDate" @change="saveCallDate()"
+                                        class="rounded-lg text-sm font-semibold cursor-pointer"
+                                        style="padding:8px 12px; border:1.5px solid var(--pp-border); color:var(--pp-text); background:var(--pp-surface); font-family:inherit; outline:none; color-scheme:dark;">
+                                </div>
+                                <div>
+                                    <div class="kd-field-label">Gespr&auml;chstyp</div>
+                                    <div class="relative" @click.away="showCallTypeDd = false" style="overflow:visible;">
+                                        <button type="button" @click="showCallTypeDd = !showCallTypeDd"
+                                            class="relative w-full cursor-pointer rounded-lg py-2 pl-3 pr-8 text-left text-sm font-semibold"
+                                            style="font-family:inherit; background:var(--pp-surface); border:1.5px solid var(--pp-border); color:var(--pp-text);">
+                                            <span class="block truncate" x-text="callTypeLabels[qf.call_type] || 'Ausw&auml;hlen'"></span>
+                                            <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                                                <svg class="h-4 w-4 opacity-50" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+                                            </span>
+                                        </button>
+                                        <div x-show="showCallTypeDd" x-cloak
+                                             class="absolute z-50 mt-1 max-h-60 overflow-auto rounded-xl py-1 text-sm shadow-lg"
+                                             style="background:var(--pp-surface); border:1px solid var(--pp-border); min-width:220px; width:max-content; box-shadow:0 8px 24px rgba(0,0,0,0.5);">
+                                            <template x-for="ct in callTypeOptions" :key="ct.value">
+                                                <button type="button" @click="qf.call_type = ct.value; showCallTypeDd = false; saveQField('call_type')"
+                                                    class="w-full cursor-pointer select-none py-2.5 pl-3 pr-4 text-left text-sm"
+                                                    style="font-family:inherit; white-space:nowrap; border:none;"
+                                                    :style="qf.call_type === ct.value ? 'background:var(--pp-surfaceHover); color:var(--pp-accent); font-weight:650;' : 'background:none; color:var(--pp-text); font-weight:500;'"
+                                                    x-text="ct.label"></button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {# KI-Zusammenfassung #}
+                            <div style="margin-top:12px;">
+                                <div class="kd-field-label">KI-Zusammenfassung</div>
+                                <textarea x-model="qf.call_summary" @blur="saveQField('call_summary')" placeholder="KI-generierte Zusammenfassung des Gespr&auml;chs..."
+                                    class="w-full rounded-lg text-sm font-medium resize-vertical"
+                                    style="min-height:80px; padding:8px 12px; border:1.5px solid var(--pp-border); color:var(--pp-text); background:var(--pp-surface); font-family:inherit; outline:none; line-height:1.5;"
+                                    @focus="$el.style.borderColor = 'var(--pp-accent)'" @focusout="$el.style.borderColor = 'var(--pp-border)'"></textarea>
+                            </div>
+                            {# Transkript #}
+                            <div style="margin-top:12px;" x-data="{ showTranscript: false }">
+                                <button type="button" @click="showTranscript = !showTranscript"
+                                    class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all duration-150"
+                                    style="background:var(--pp-surfaceHover); border:1.5px solid var(--pp-border); color:var(--pp-textMuted); font-family:inherit;">
+                                    <svg :class="showTranscript ? 'rotate-90' : ''" class="w-3 h-3 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M9 5l7 7-7 7"/></svg>
+                                    <span x-text="showTranscript ? 'Transkript ausblenden' : 'Transkript anzeigen'"></span>
+                                    <span x-show="qf.call_transcript" x-cloak style="font-size:10px; color:var(--pp-accent); font-weight:600;">(vorhanden)</span>
+                                </button>
+                                <div x-show="showTranscript" x-cloak style="margin-top:8px;">
+                                    <textarea x-model="qf.call_transcript" @blur="saveQField('call_transcript')" placeholder="Volle Transkription des Gespr&auml;chs..."
+                                        class="w-full rounded-lg text-sm font-medium resize-vertical"
+                                        style="min-height:250px; padding:10px 14px; border:1.5px solid var(--pp-border); color:var(--pp-text); background:var(--pp-surface); font-family:inherit; outline:none; line-height:1.6; font-size:12px;"
+                                        @focus="$el.style.borderColor = 'var(--pp-accent)'" @focusout="$el.style.borderColor = 'var(--pp-border)'"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {# ═══ TAB: Profil & CV ═══ #}
+            <div x-show="activeTab === 'profil'" x-cloak style="display:flex; flex-direction:column; gap:20px;">
+                <div class="kd-section kd-section-glow kd-anim" style="animation-delay: 300ms; position: relative; z-index: 1;" id="experience">
                 <div class="kd-section-header">
                     <div class="kd-section-title"><span>&#x1F4BC;</span> Berufserfahrung</div>
                     <button type="button" onclick="copyWerdegang()" style="display: flex; align-items: center; gap: 5px; background: var(--pp-surfaceHover); border: 1px solid var(--pp-border); border-radius: 6px; padding: 4px 10px; font-size: 10.5px; font-weight: 650; color: var(--pp-text); cursor: pointer; font-family: inherit;">&#x1F4CB; Profil kopieren</button>
@@ -1401,8 +1053,7 @@
                 </div>
             </div>
 
-            {# ── IT-Kenntnisse (Core/Standard Tiering) ── #}
-            <div class="kd-section kd-section-glow kd-anim" style="animation-delay: 400ms;" id="it-skills">
+                <div class="kd-section kd-section-glow kd-anim" style="animation-delay: 400ms;" id="it-skills">
                 <div class="kd-section-header">
                     <div class="kd-section-title"><span>&#x1F4BB;</span> IT-Kenntnisse</div>
                 </div>
@@ -1433,8 +1084,7 @@
                 </div>
             </div>
 
-            {# ── Sprachen (Progress Bars) ── #}
-            <div class="kd-section kd-section-glow kd-anim" style="animation-delay: 500ms;" id="languages">
+                <div class="kd-section kd-section-glow kd-anim" style="animation-delay: 500ms;" id="languages">
                 <div class="kd-section-header">
                     <div class="kd-section-title"><span>&#x1F310;</span> Sprachen</div>
                 </div>
@@ -1468,8 +1118,7 @@
                 </div>
             </div>
 
-            {# ── Skills & Kenntnisse (Color Categories) ── #}
-            <div class="kd-section kd-section-glow kd-anim" style="animation-delay: 600ms;" id="skills">
+                <div class="kd-section kd-section-glow kd-anim" style="animation-delay: 600ms;" id="skills">
                 <div class="kd-section-header">
                     <div class="kd-section-title"><span>&#x1F9E9;</span> Skills &amp; Kenntnisse</div>
                 </div>
@@ -1507,8 +1156,7 @@
                 </div>
             </div>
 
-            {# ── Zertifikate & Weiterbildungen ── #}
-            <div class="kd-section kd-section-glow kd-anim" style="animation-delay: 700ms;" id="certifications">
+                <div class="kd-section kd-section-glow kd-anim" style="animation-delay: 700ms;" id="certifications">
                 <div class="kd-section-header">
                     <div class="kd-section-title"><span>&#x1F393;</span> Zertifikate &amp; Weiterbildungen</div>
                 </div>
@@ -1564,8 +1212,7 @@
                 </div>
             </div>
 
-            {# ── Ausbildung ── #}
-            <div class="kd-section kd-section-glow kd-anim" style="animation-delay: 800ms;" id="education">
+                <div class="kd-section kd-section-glow kd-anim" style="animation-delay: 800ms;" id="education">
                 <div class="kd-section-header">
                     <div class="kd-section-title"><span>&#x1F4DA;</span> Ausbildung</div>
                 </div>
@@ -1611,36 +1258,14 @@
                     {% endif %}
                 </div>
             </div>
+            </div>
 
         </div>
 
-        {# ── RIGHT SIDEBAR (sticky) ── #}
-        <div style="width: 260px; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; position: sticky; top: 12px; align-self: flex-start;">
+        {# ── RIGHT SIDEBAR ── #}
+        <div style="width: 300px; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; position: sticky; top: 12px; align-self: flex-start;">
 
-            {# Navigation #}
-            <div class="kd-sidebar-card kd-anim-side" style="animation-delay: 150ms;">
-                <div class="kd-sidebar-header">Navigation</div>
-                <div class="kd-sidebar-body" style="display: flex; flex-direction: column; gap: 2px;">
-                    {% set nav_items = [
-                        {"id": "recruiting-data", "icon": "&#x1F50D;", "label": "Recruiting-Daten"},
-                        {"id": "qualification-call", "icon": "&#x1F4DE;", "label": "Qualifizierung"},
-                        {"id": "experience", "icon": "&#x1F4BC;", "label": "Berufserfahrung"},
-                        {"id": "it-skills", "icon": "&#x1F4BB;", "label": "IT-Kenntnisse"},
-                        {"id": "languages", "icon": "&#x1F310;", "label": "Sprachen"},
-                        {"id": "skills", "icon": "&#x1F9E9;", "label": "Skills"},
-                        {"id": "certifications", "icon": "&#x1F393;", "label": "Zertifikate"},
-                        {"id": "education", "icon": "&#x1F4DA;", "label": "Ausbildung"}
-                    ] %}
-                    {% for nav in nav_items %}
-                    <button type="button"
-                            @click="activeSection = '{{ nav.id }}'; document.getElementById('{{ nav.id }}')?.scrollIntoView({behavior: 'smooth', block: 'start'})"
-                            class="kd-nav-btn" :class="activeSection === '{{ nav.id }}' ? 'active' : ''">
-                        <span style="font-size: 13px;">{{ nav.icon | safe }}</span>
-                        {{ nav.label }}
-                    </button>
-                    {% endfor %}
-                </div>
-            </div>
+            
 
             {# Pipeline-Status #}
             <div class="kd-sidebar-card kd-anim-side" style="animation-delay: 250ms;">
@@ -1731,6 +1356,7 @@
                 </div>
             </div>
         </div>
+
     </div>
 </div>
 
@@ -1763,6 +1389,7 @@
     </div>
 </div>
 {% endif %}
+
 {% endblock %}
 
 {% block scripts %}
