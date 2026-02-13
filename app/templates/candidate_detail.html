@@ -8,20 +8,7 @@
     .kd-wrap, .kd-wrap * { font-family: 'Outfit', 'DM Sans', -apple-system, sans-serif; }
     .kd-wrap { background: var(--pp-bg); color: var(--pp-text); font-size: 15px; }
 
-    /* Globale Skalierung — moderate bumps für Lesbarkeit */
-    .kd-wrap [style*="font-size: 9px"]   { font-size: 10px !important; }
-    .kd-wrap [style*="font-size: 10px"]  { font-size: 11px !important; }
-    .kd-wrap [style*="font-size: 11px"]  { font-size: 12px !important; }
-    .kd-wrap [style*="font-size: 11.5px"]{ font-size: 12.5px !important; }
-    .kd-wrap [style*="font-size: 12px"]  { font-size: 13px !important; }
-    .kd-wrap [style*="font-size: 12.5px"]{ font-size: 13px !important; }
-    .kd-wrap [style*="font-size: 13px"]  { font-size: 13.5px !important; }
-    .kd-wrap [style*="font-size: 13.5px"]{ font-size: 14px !important; }
-    .kd-wrap [style*="font-size: 14px"]  { font-size: 14.5px !important; }
-    .kd-wrap [style*="font-size: 15px"]  { font-size: 15.5px !important; }
-    .kd-wrap [style*="font-size: 22px"]  { font-size: 24px !important; }
-    .kd-wrap [style*="font-size: 24px"]  { font-size: 26px !important; }
-    .kd-wrap [style*="font-size: 26px"]  { font-size: 28px !important; }
+    /* Font-size bumps entfernt — base.html zoom: 1.15 reicht für Lesbarkeit */
     .kd-wrap ::-webkit-scrollbar { width: 5px; }
     .kd-wrap ::-webkit-scrollbar-track { background: transparent; }
     .kd-wrap ::-webkit-scrollbar-thumb { background: var(--pp-border); border-radius: 3px; }
@@ -53,7 +40,7 @@
     /* ═══ Section Cards — Clean & Compact ═══ */
     .kd-section {
         background: var(--pp-surface);
-        border-radius: 14px;
+        border-radius: 12px;
         border: 1px solid var(--pp-border);
         overflow: hidden;
         transition: border-color 0.3s, box-shadow 0.3s;
@@ -64,26 +51,26 @@
     }
     .kd-section-header {
         display: flex; align-items: center; justify-content: space-between;
-        padding: 14px 20px;
+        padding: 10px 16px;
         border-bottom: 1px solid rgba(255,255,255,0.04);
         background: linear-gradient(135deg, rgba(30,27,75,0.1), rgba(99,102,241,0.03));
     }
     .kd-section-title {
-        display: flex; align-items: center; gap: 10px;
-        font-size: 15px; font-weight: 700; color: var(--pp-text); letter-spacing: -0.01em;
+        display: flex; align-items: center; gap: 8px;
+        font-size: 13.5px; font-weight: 700; color: var(--pp-text); letter-spacing: -0.01em;
     }
     .kd-section-title span {
         display: inline-flex; align-items: center; justify-content: center;
-        width: 28px; height: 28px; border-radius: 8px;
+        width: 24px; height: 24px; border-radius: 7px;
         background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.1));
-        font-size: 14px;
+        font-size: 13px;
     }
-    .kd-section-body { padding: 16px 20px; }
+    .kd-section-body { padding: 12px 16px; }
 
     /* ═══ Sidebar Cards ═══ */
     .kd-sidebar-card {
         background: var(--pp-surface);
-        border-radius: 12px;
+        border-radius: 10px;
         border: 1px solid var(--pp-border);
         overflow: hidden;
         transition: border-color 0.3s, box-shadow 0.3s;
@@ -93,13 +80,13 @@
         box-shadow: 0 4px 16px rgba(0,0,0,0.08);
     }
     .kd-sidebar-header {
-        padding: 12px 16px;
+        padding: 9px 14px;
         border-bottom: 1px solid rgba(255,255,255,0.04);
         display: flex; align-items: center; justify-content: space-between;
         background: linear-gradient(135deg, rgba(30,27,75,0.08), rgba(99,102,241,0.02));
-        font-size: 13px; font-weight: 700; color: var(--pp-text);
+        font-size: 12.5px; font-weight: 700; color: var(--pp-text);
     }
-    .kd-sidebar-body { padding: 12px 16px; }
+    .kd-sidebar-body { padding: 10px 14px; }
 
     /* ═══ Experience Timeline ═══ */
     .kd-exp-dot-current {
@@ -132,9 +119,9 @@
 
     /* ═══ Quick Action Buttons ═══ */
     .kd-quickbtn {
-        display: inline-flex; align-items: center; gap: 6px;
-        padding: 8px 16px; border-radius: 10px;
-        font-size: 13px; font-weight: 630; cursor: pointer;
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 6px 14px; border-radius: 8px;
+        font-size: 12px; font-weight: 630; cursor: pointer;
         font-family: inherit; transition: all 0.25s cubic-bezier(0.16,1,0.3,1);
         border: 1.5px solid rgba(255,255,255,0.08);
         background: rgba(255,255,255,0.04); color: var(--pp-text);
@@ -173,11 +160,11 @@
 
     /* ═══ Navigation — Pill Style ═══ */
     .kd-nav-btn {
-        display: flex; align-items: center; gap: 8px;
-        padding: 7px 12px; border-radius: 8px;
+        display: flex; align-items: center; gap: 6px;
+        padding: 5px 10px; border-radius: 7px;
         background: transparent; border: none; cursor: pointer; width: 100%; text-align: left;
         font-family: inherit; transition: all 0.2s cubic-bezier(0.16,1,0.3,1);
-        font-size: 12.5px; font-weight: 500; color: var(--pp-textMuted);
+        font-size: 11.5px; font-weight: 500; color: var(--pp-textMuted);
         position: relative;
     }
     .kd-nav-btn:hover {
@@ -251,12 +238,12 @@
         position: relative;
         background: var(--pp-surface);
         border: 1px solid transparent;
-        border-radius: 14px;
+        border-radius: 12px;
     }
     .kd-section-glow::before {
         content: '';
         position: absolute; inset: -1px;
-        border-radius: 15px;
+        border-radius: 13px;
         background: conic-gradient(from var(--angle), transparent 60%, rgba(99,102,241,0.25) 75%, rgba(139,92,246,0.2) 85%, transparent 95%);
         animation: kdBorderRotate 8s linear infinite;
         z-index: -1;
@@ -282,21 +269,21 @@
     }
     .kd-avatar-wrap {
         position: relative;
-        width: 60px; height: 60px;
+        width: 50px; height: 50px;
         flex-shrink: 0;
     }
     .kd-avatar-wrap::before {
         content: '';
         position: absolute; inset: -2px;
-        border-radius: 16px;
+        border-radius: 14px;
         background: conic-gradient(from 0deg, #6366f1, #a78bfa, #c084fc, #e879f9, #c084fc, #a78bfa, #6366f1);
         animation: kdAvatarRing 6s linear infinite;
         opacity: 0.7;
     }
     .kd-avatar-inner {
         position: relative;
-        width: 56px; height: 56px;
-        border-radius: 14px;
+        width: 46px; height: 46px;
+        border-radius: 12px;
         background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%);
         display: flex; align-items: center; justify-content: center;
         color: #fff; font-size: 20px; font-weight: 800;
@@ -306,9 +293,9 @@
 
     /* ═══ PREMIUM — Meta Badges ═══ */
     .kd-meta-badge {
-        display: inline-flex; align-items: center; gap: 5px;
-        padding: 4px 10px; border-radius: 7px;
-        font-size: 11.5px; font-weight: 600;
+        display: inline-flex; align-items: center; gap: 4px;
+        padding: 3px 8px; border-radius: 6px;
+        font-size: 11px; font-weight: 600;
         background: rgba(255,255,255,0.05);
         border: 1px solid rgba(255,255,255,0.08);
         color: rgba(255,255,255,0.7);
@@ -324,17 +311,17 @@
 
     /* ═══ PREMIUM — Floating Label Style ═══ */
     .kd-field-label {
-        font-size: 10px !important;
+        font-size: 9.5px !important;
         font-weight: 700 !important;
         text-transform: uppercase;
         letter-spacing: 0.08em;
         color: var(--pp-textDim) !important;
-        margin-bottom: 4px;
+        margin-bottom: 3px;
         display: flex; align-items: center; gap: 4px;
     }
     .kd-field-label::before {
         content: '';
-        width: 5px; height: 5px; border-radius: 2px;
+        width: 4px; height: 4px; border-radius: 2px;
         background: rgba(99,102,241,0.3);
         flex-shrink: 0;
     }
@@ -365,7 +352,7 @@
     .kd-section-divider {
         height: 1px;
         background: linear-gradient(90deg, transparent, var(--pp-border), rgba(99,102,241,0.15), var(--pp-border), transparent);
-        margin: 12px 0;
+        margin: 8px 0;
     }
 
     /* ═══ PREMIUM — Focus Glow on Inputs ═══ */
@@ -411,7 +398,7 @@
     {# ════════════════════════════════════════════════════
        VIOLET HERO HEADER
     ════════════════════════════════════════════════════ #}
-    <div style="background: linear-gradient(160deg, #0c0a1f 0%, #1a1145 25%, #2a1f6b 50%, #3730a3 80%, #4338ca 100%); padding: 20px 28px 0; position: relative; overflow: hidden;">
+    <div style="background: linear-gradient(160deg, #0c0a1f 0%, #1a1145 25%, #2a1f6b 50%, #3730a3 80%, #4338ca 100%); padding: 14px 24px 0; position: relative; overflow: hidden;">
         {# Decorative orbs + mesh texture #}
         <div style="position: absolute; top: -80px; right: -40px; width: 300px; height: 300px; border-radius: 50%; background: radial-gradient(circle, rgba(129,140,248,0.12) 0%, rgba(99,102,241,0.05) 40%, transparent 70%); filter: blur(40px);"></div>
         <div style="position: absolute; bottom: -60px; left: 20%; width: 250px; height: 250px; border-radius: 50%; background: radial-gradient(circle, rgba(167,139,250,0.08) 0%, transparent 60%); filter: blur(50px);"></div>
@@ -420,7 +407,7 @@
         <div style="position: absolute; inset: 0; background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px); background-size: 24px 24px; pointer-events: none;"></div>
 
         {# Breadcrumb #}
-        <div style="display: flex; align-items: center; gap: 8px; font-size: 11px; color: rgba(255,255,255,0.4); margin-bottom: 14px; font-weight: 500; position: relative; z-index: 1;">
+        <div style="display: flex; align-items: center; gap: 6px; font-size: 10.5px; color: rgba(255,255,255,0.4); margin-bottom: 8px; font-weight: 500; position: relative; z-index: 1;">
             <a href="/" style="cursor: pointer; color: rgba(255,255,255,0.5); text-decoration: none; transition: color 0.2s;" onmouseenter="this.style.color='rgba(255,255,255,0.9)'" onmouseleave="this.style.color='rgba(255,255,255,0.5)'">&#x1F3E0;</a>
             <svg style="width: 12px; height: 12px; opacity: 0.4;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg>
             <a href="/kandidaten" style="cursor: pointer; color: rgba(255,255,255,0.5); text-decoration: none; transition: color 0.2s;" onmouseenter="this.style.color='rgba(255,255,255,0.9)'" onmouseleave="this.style.color='rgba(255,255,255,0.5)'">Kandidaten</a>
@@ -470,7 +457,7 @@
                 </div>
 
                 {# Meta badges #}
-                <div style="display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap;">
+                <div style="display: flex; gap: 5px; margin-top: 6px; flex-wrap: wrap;">
                     {% if candidate.birth_date or candidate.age %}
                     <span class="kd-meta-badge">
                         <span style="font-size: 12px;">&#x1F4C5;</span>
@@ -497,7 +484,7 @@
 
                 {# Job title tags + Rating #}
                 {% if candidate.manual_job_titles and candidate.manual_job_titles | length > 0 %}
-                <div style="display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; align-items: center;">
+                <div style="display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; align-items: center;">
                     {% for title in candidate.manual_job_titles %}
                     <span style="display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 8px; background: rgba(16,185,129,0.15); color: #6ee7b7;">
                         &#x1F3F7; {{ title }}
@@ -595,8 +582,8 @@
                 else { showToast('Fehler beim Hinzufuegen', 'error'); }
                 this.loading = false;
             }
-        }" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 0; margin-top: 2px; border-top: 1px solid rgba(255,255,255,0.06); position: relative; z-index: 1;">
-            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        }" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 0; margin-top: 2px; border-top: 1px solid rgba(255,255,255,0.06); position: relative; z-index: 1;">
+            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
                 {% if candidate.cv_url or candidate.cv_stored_path %}
                 <a href="/api/candidates/{{ candidate.id }}/cv-preview" target="_blank" class="kd-quickbtn" style="color: rgba(255,255,255,0.75); border-color: rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); text-decoration: none; backdrop-filter: blur(8px);">
                     <svg style="width: 15px; height: 15px; opacity: 0.7;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg> CV herunterladen
@@ -609,7 +596,7 @@
                     <svg style="width: 15px; height: 15px;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg> Zur Pipeline
                 </button>
             </div>
-            <div style="display: flex; gap: 8px;">
+            <div style="display: flex; gap: 6px;">
                 {% if not candidate.hidden %}
                 <button type="button" hx-put="/api/candidates/{{ candidate.id }}/hide" hx-swap="none" hx-on::after-request="showToast('Kandidat ausgeblendet', 'success')" class="kd-quickbtn" style="color: rgba(255,255,255,0.45); border-color: rgba(255,255,255,0.06); background: rgba(255,255,255,0.02); backdrop-filter: blur(8px);">
                     <svg style="width: 15px; height: 15px; opacity: 0.6;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg> Ausblenden
@@ -713,10 +700,10 @@
     {# ════════════════════════════════════════════════════
        MAIN CONTENT: 2-Column Layout
     ════════════════════════════════════════════════════ #}
-    <div style="display: flex; gap: 20px; padding: 20px 28px 32px; max-width: 1600px; margin: 0 auto;">
+    <div style="display: flex; gap: 16px; padding: 14px 24px 28px; max-width: 1700px; margin: 0 auto;">
 
         {# ── LEFT COLUMN (main content) ── #}
-        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px;">
+        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px;">
 
             {# ── Kontaktdaten ── #}
             <div class="kd-section kd-section-glow kd-anim" style="animation-delay: 100ms;" id="contact">
@@ -724,7 +711,7 @@
                     <div class="kd-section-title"><span>&#x1F4C7;</span> Kontaktdaten</div>
                 </div>
                 <div class="kd-section-body">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
                         {# Email #}
                         <div>
                             <div class="kd-field-label">E-Mail</div>
@@ -772,7 +759,7 @@
                     <div class="kd-section-title"><span>&#x1F50D;</span> Recruiting-Daten</div>
                 </div>
                 <div class="kd-section-body">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
                         {# Quelle #}
                         <div>
                             <div class="kd-field-label">Quelle</div>
@@ -833,10 +820,10 @@
                         </div>
                     </div>
                     {# Notizen (Freitext) #}
-                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(99,102,241,0.08);">
-                        <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.06em;">Notizen</div>
+                    <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(99,102,241,0.08);">
+                        <div style="font-size: 10px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.06em;">Notizen</div>
                         <textarea x-model="notesText" @blur="saveNotes()" placeholder="Gespr&auml;chsnotizen, Wechselmotivation, Gehaltsvorstellung, K&uuml;ndigungsfrist..."
-                            style="width: 100%; min-height: 72px; padding: 10px 12px; border-radius: 8px; border: 1.5px solid var(--pp-border); font-size: 12.5px; font-weight: 500; color: var(--pp-text); background: var(--pp-surface); font-family: inherit; resize: vertical; outline: none; line-height: 1.5;"
+                            style="width: 100%; min-height: 56px; padding: 8px 10px; border-radius: 8px; border: 1.5px solid var(--pp-border); font-size: 12.5px; font-weight: 500; color: var(--pp-text); background: var(--pp-surface); font-family: inherit; resize: vertical; outline: none; line-height: 1.5;"
                             @focus="$el.style.borderColor = 'var(--pp-accent)'" @focusout="$el.style.borderColor = 'var(--pp-border)'"></textarea>
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
                             <span style="font-size: 10.5px; color: var(--pp-textDim); font-weight: 500;" x-text="notesSaved ? 'Gespeichert' : 'Wird beim Verlassen gespeichert'"></span>
@@ -854,7 +841,7 @@
                     <span style="font-size: 10.5px; font-weight: 650; padding: 4px 10px; border-radius: 6px; background: var(--pp-surfaceHover); color: var(--pp-accent); border: 1px solid var(--pp-border);">F&uuml;r Pipeline</span>
                 </div>
                 <div class="kd-section-body">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
                         {# Gehalt #}
                         <div>
                             <div class="kd-field-label">Gehaltswunsch</div>
@@ -888,7 +875,7 @@
                         </div>
                     </div>
                     {# ERP #}
-                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(99,102,241,0.08);">
+                    <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(99,102,241,0.08);">
                         <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.06em;">ERP-Kenntnisse</div>
                         {% if candidate.erp and candidate.erp | length > 0 %}
                         <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;">
@@ -919,7 +906,7 @@
                 </div>
                 <div class="kd-section-body" style="overflow: visible;">
                     {# Row 1: Gewünschte Positionen + Tätigkeiten #}
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                         <div>
                             <div class="kd-field-label">Gew&uuml;nschte Positionen</div>
                             <textarea x-model="qf.desired_positions" @blur="saveQField('desired_positions')" placeholder="z.B. Bilanzbuchhalterin, Finanzbuchhalterin..."
@@ -937,7 +924,7 @@
                     </div>
 
                     {# Row 2: Home-Office + Pendel + Verkehrsmittel + ERP-Steckenpferd #}
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; margin-top: 10px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; margin-top: 8px;">
                         <div>
                             <div class="kd-field-label">Home-Office Tage</div>
                             <input type="text" x-model="qf.home_office_days" @blur="saveQField('home_office_days')" placeholder="z.B. 2 bis 3 Tage"
@@ -988,7 +975,7 @@
                     </div>
 
                     {# Row 3: Anstellung + Teilzeit-Stunden + Großraumbüro #}
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 10px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 6px;">
                         <div>
                             <div class="kd-field-label">Anstellungsart</div>
                             <div class="relative" @click.away="showEmpTypeDd = false">
@@ -1046,25 +1033,25 @@
                     </div>
 
                     {# Row 4: Branchen #}
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(99,102,241,0.08);">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(99,102,241,0.08);">
                         <div>
                             <div class="kd-field-label">Bevorzugte Branchen</div>
                             <textarea x-model="qf.preferred_industries" @blur="saveQField('preferred_industries')" placeholder="Freitext: Bevorzugte Branchen..."
                                 class="w-full rounded-lg text-sm font-medium resize-vertical"
-                                style="min-height: 50px; padding: 10px 14px; border: 1.5px solid var(--pp-border); color: var(--pp-text); background: var(--pp-surface); font-family: inherit; outline: none; line-height: 1.5;"
+                                style="min-height: 38px; padding: 8px 12px; border: 1.5px solid var(--pp-border); color: var(--pp-text); background: var(--pp-surface); font-family: inherit; outline: none; line-height: 1.5;"
                                 @focus="$el.style.borderColor = 'var(--pp-accent)'" @focusout="$el.style.borderColor = 'var(--pp-border)'"></textarea>
                         </div>
                         <div>
                             <div class="kd-field-label">Branchen vermeiden</div>
                             <textarea x-model="qf.avoided_industries" @blur="saveQField('avoided_industries')" placeholder="Freitext: Branchen die vermieden werden sollen..."
                                 class="w-full rounded-lg text-sm font-medium resize-vertical"
-                                style="min-height: 50px; padding: 10px 14px; border: 1.5px solid var(--pp-border); color: var(--pp-text); background: var(--pp-surface); font-family: inherit; outline: none; line-height: 1.5;"
+                                style="min-height: 38px; padding: 8px 12px; border: 1.5px solid var(--pp-border); color: var(--pp-text); background: var(--pp-surface); font-family: inherit; outline: none; line-height: 1.5;"
                                 @focus="$el.style.borderColor = 'var(--pp-accent)'" @focusout="$el.style.borderColor = 'var(--pp-border)'"></textarea>
                         </div>
                     </div>
 
                     {# Row 5: WhatsApp + Exklusivität + Andere Recruiter #}
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(99,102,241,0.08);">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(99,102,241,0.08);">
                         <div>
                             <div class="kd-field-label">WhatsApp OK?</div>
                             <div class="flex gap-2">
@@ -1105,18 +1092,18 @@
                     </div>
 
                     {# Row 6: Bereits beworben bei (Freitext) #}
-                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(99,102,241,0.08);">
+                    <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(99,102,241,0.08);">
                         <div class="kd-field-label">Bereits beworben bei (aus Gespr&auml;ch)</div>
                         <textarea x-model="qf.applied_at_companies_text" @blur="saveQField('applied_at_companies_text')" placeholder="Freitext aus Transkription: Wo hat sich der Kandidat bereits beworben?"
                             class="w-full rounded-lg text-sm font-medium resize-vertical"
-                            style="min-height: 50px; padding: 10px 14px; border: 1.5px solid var(--pp-border); color: var(--pp-text); background: var(--pp-surface); font-family: inherit; outline: none; line-height: 1.5;"
+                            style="min-height: 38px; padding: 8px 12px; border: 1.5px solid var(--pp-border); color: var(--pp-text); background: var(--pp-surface); font-family: inherit; outline: none; line-height: 1.5;"
                             @focus="$el.style.borderColor = 'var(--pp-accent)'" @focusout="$el.style.borderColor = 'var(--pp-border)'"></textarea>
                     </div>
 
                     {# Row 7: Call-Daten #}
-                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(99,102,241,0.08);">
-                        <div style="font-size: 13px; font-weight: 700; color: var(--pp-textMuted); margin-bottom: 12px;">Gespr&auml;chsdaten</div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(99,102,241,0.08);">
+                        <div style="font-size: 12px; font-weight: 700; color: var(--pp-textMuted); margin-bottom: 8px;">Gespr&auml;chsdaten</div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                             <div>
                                 <div class="kd-field-label">Gespr&auml;chsdatum</div>
                                 <input type="date" x-model="qfCallDate" @change="saveCallDate()"
@@ -1151,15 +1138,15 @@
                             </div>
                         </div>
                         {# KI-Zusammenfassung #}
-                        <div style="margin-top: 12px;">
+                        <div style="margin-top: 8px;">
                             <div class="kd-field-label">KI-Zusammenfassung</div>
                             <textarea x-model="qf.call_summary" @blur="saveQField('call_summary')" placeholder="KI-generierte Zusammenfassung des Gespr&auml;chs..."
                                 class="w-full rounded-lg text-sm font-medium resize-vertical"
-                                style="min-height: 80px; padding: 10px 14px; border: 1.5px solid var(--pp-border); color: var(--pp-text); background: var(--pp-surface); font-family: inherit; outline: none; line-height: 1.5;"
+                                style="min-height: 60px; padding: 8px 12px; border: 1.5px solid var(--pp-border); color: var(--pp-text); background: var(--pp-surface); font-family: inherit; outline: none; line-height: 1.5;"
                                 @focus="$el.style.borderColor = 'var(--pp-accent)'" @focusout="$el.style.borderColor = 'var(--pp-border)'"></textarea>
                         </div>
                         {# Transkript (aufklappbar) #}
-                        <div style="margin-top: 12px;" x-data="{ showTranscript: false }">
+                        <div style="margin-top: 8px;" x-data="{ showTranscript: false }">
                             <button type="button" @click="showTranscript = !showTranscript"
                                 class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all duration-150"
                                 style="background: var(--pp-surfaceHover); border: 1.5px solid var(--pp-border); color: var(--pp-textMuted); font-family: inherit;">
@@ -1284,9 +1271,9 @@
                     </div>
                     {# Entries list #}
                     <template x-if="entries.length > 0">
-                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <div style="display: flex; flex-direction: column; gap: 5px;">
                             <template x-for="(entry, idx) in entries" :key="idx">
-                                <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: 10px; background: var(--pp-surfaceHover); border: 1px solid var(--pp-border);">
+                                <div style="display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; border-radius: 8px; background: var(--pp-surfaceHover); border: 1px solid var(--pp-border);">
                                     <div style="display: flex; align-items: center; gap: 10px;">
                                         <span :style="entry.type === 'applied' ? 'background: rgba(245,158,11,0.15); color: #fbbf24;' : entry.type === 'pdl' ? 'background: rgba(16,185,129,0.15); color: #34d399;' : 'background: rgba(99,102,241,0.15); color: #a5b4fc;'" style="font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.05em;" x-text="entry.type === 'applied' ? 'Beworben' : entry.type === 'pdl' ? 'PDL' : 'Vorgestellt'"></span>
                                         <span style="font-size: 13.5px; font-weight: 650; color: var(--pp-text);" x-text="entry.company"></span>
@@ -1300,7 +1287,7 @@
                         </div>
                     </template>
                     <template x-if="entries.length === 0 && !showAddForm">
-                        <div style="display: flex; flex-direction: column; align-items: center; padding: 20px 0;">
+                        <div style="display: flex; flex-direction: column; align-items: center; padding: 10px 0;">
                             <div style="font-size: 24px; margin-bottom: 8px; opacity: 0.4;">&#x1F3E2;</div>
                             <div style="font-size: 12px; font-weight: 600; color: var(--pp-textDim);">Noch bei keinem Unternehmen vorgestellt</div>
                         </div>
@@ -1356,7 +1343,7 @@
                                 {% endif %}
                             {% endif %}
                         {% endif %}
-                        <div style="display: flex; gap: 12px; padding: 18px 0; {% if not is_last %}border-bottom: 1px solid var(--pp-surfaceHover);{% endif %}">
+                        <div style="display: flex; gap: 10px; padding: 12px 0; {% if not is_last %}border-bottom: 1px solid var(--pp-surfaceHover);{% endif %}">
                             {# Timeline dot + line #}
                             <div style="display: flex; flex-direction: column; align-items: center; padding-top: 4px; flex-shrink: 0; width: 20px;">
                                 <div class="{% if is_first %}kd-exp-dot-current{% else %}kd-exp-dot-past{% endif %}"></div>
@@ -1390,7 +1377,7 @@
                                 </div>
                                 {# Tasks/Description #}
                                 {% if job.description and job.description != 'null' and job.description != 'None' %}
-                                <div style="display: flex; flex-direction: column; gap: 5px; margin-top: 10px;">
+                                <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 6px;">
                                     {% for line in job.description.split('\n') %}
                                     {% set clean_line = line.strip().lstrip('•').lstrip('-').lstrip('–').strip() %}
                                     {% if clean_line and clean_line != 'None' and clean_line != 'null' %}
@@ -1406,7 +1393,7 @@
                         </div>
                         {% endif %}{% endfor %}
                     {% else %}
-                    <div style="display: flex; flex-direction: column; align-items: center; padding: 20px 0;">
+                    <div style="display: flex; flex-direction: column; align-items: center; padding: 10px 0;">
                         <div style="font-size: 24px; margin-bottom: 8px; opacity: 0.4;">&#x1F4BC;</div>
                         <div style="font-size: 12px; font-weight: 600; color: var(--pp-textDim);">Keine Berufserfahrung hinterlegt</div>
                     </div>
@@ -1421,12 +1408,12 @@
                 </div>
                 <div class="kd-section-body">
                     {% if candidate.it_skills and candidate.it_skills | length > 0 %}
-                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <div style="display: flex; flex-direction: column; gap: 5px;">
                         {% for skill in candidate.it_skills %}
                         {% if skill and skill != 'None' and skill != 'null' %}
                         {% set sk_low = skill.lower() %}
                         {% set is_core = sk_low in ['sap', 'sap s/4hana', 'sap-sem-bcs', 'sap fi', 'sap co', 'sap mm', 'sap bcs', 'cch tagetik', 'datev', 'addison', 'oracle', 'navision', 'dynamics', 'lucanet', 'sigma', 'hyperion', 'cognos', 'jedox', 'board', 'anaplan'] or 'sap' in sk_low or 'erp' in sk_low or 'datev' in sk_low or 'tagetik' in sk_low or 'lucanet' in sk_low or 'konsolidierung' in sk_low or 'hyperion' in sk_low or 'cognos' in sk_low %}
-                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: 10px; background: var(--pp-surfaceHover); border: 1px solid {% if is_core %}var(--pp-accent){% else %}var(--pp-border){% endif %};">
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; border-radius: 8px; background: var(--pp-surfaceHover); border: 1px solid {% if is_core %}var(--pp-accent){% else %}var(--pp-border){% endif %};">
                             <div style="display: flex; align-items: center; gap: 10px;">
                                 {% if is_core %}
                                 <span style="font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 5px; background: var(--pp-accent); color: #fff; text-transform: uppercase; letter-spacing: 0.05em;">CORE</span>
@@ -1438,7 +1425,7 @@
                         {% endfor %}
                     </div>
                     {% else %}
-                    <div style="display: flex; flex-direction: column; align-items: center; padding: 20px 0;">
+                    <div style="display: flex; flex-direction: column; align-items: center; padding: 10px 0;">
                         <div style="font-size: 24px; margin-bottom: 8px; opacity: 0.4;">&#x1F4BB;</div>
                         <div style="font-size: 12px; font-weight: 600; color: var(--pp-textDim);">Keine IT-Kenntnisse hinterlegt</div>
                     </div>
@@ -1459,7 +1446,7 @@
                         {% set lang_level = lang.level | default('') %}
                         {% set is_native = 'mutter' in lang_level.lower() if lang_level else false %}
                         {% set pct = 100 if is_native else (95 if 'flie' in lang_level.lower() else (85 if 'verhandlung' in lang_level.lower() else (70 if 'gut' in lang_level.lower() else (50 if 'grund' in lang_level.lower() else 60)))) if lang_level else 50 %}
-                        <div style="display: flex; align-items: center; gap: 14px; padding: 8px 0;">
+                        <div style="display: flex; align-items: center; gap: 12px; padding: 5px 0;">
                             <div style="width: 80px; font-size: 13px; font-weight: 650; color: var(--pp-text);">{{ lang_name }}</div>
                             <div style="flex: 1;">
                                 <div class="kd-lang-bar">
@@ -1473,7 +1460,7 @@
                         {% endif %}{% endfor %}
                     </div>
                     {% else %}
-                    <div style="display: flex; flex-direction: column; align-items: center; padding: 20px 0;">
+                    <div style="display: flex; flex-direction: column; align-items: center; padding: 10px 0;">
                         <div style="font-size: 24px; margin-bottom: 8px; opacity: 0.4;">&#x1F310;</div>
                         <div style="font-size: 12px; font-weight: 600; color: var(--pp-textDim);">Keine Sprachen hinterlegt</div>
                     </div>
@@ -1489,7 +1476,7 @@
                 <div class="kd-section-body">
                     {% if candidate.skills and candidate.skills | length > 0 %}
                     {# Legend #}
-                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
                         <span style="display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--pp-textDim); font-weight: 500;">
                             <span style="width: 8px; height: 8px; border-radius: 3px; background: #4f46e5;"></span> Fachlich
                         </span>
@@ -1500,7 +1487,7 @@
                             <span style="width: 8px; height: 8px; border-radius: 3px; background: #a16207;"></span> Sonstige
                         </span>
                     </div>
-                    <div style="display: flex; flex-wrap: wrap; gap: 7px;">
+                    <div style="display: flex; flex-wrap: wrap; gap: 5px;">
                         {% for skill in candidate.skills %}
                         {% if skill and skill != 'None' and skill != 'null' %}
                         {# Heuristic: tech keywords → green, fach (finance/accounting) → indigo, soft skills → amber #}
@@ -1512,7 +1499,7 @@
                         {% endfor %}
                     </div>
                     {% else %}
-                    <div style="display: flex; flex-direction: column; align-items: center; padding: 20px 0;">
+                    <div style="display: flex; flex-direction: column; align-items: center; padding: 10px 0;">
                         <div style="font-size: 24px; margin-bottom: 8px; opacity: 0.4;">&#x1F9E9;</div>
                         <div style="font-size: 12px; font-weight: 600; color: var(--pp-textDim);">Keine Skills hinterlegt</div>
                     </div>
@@ -1527,7 +1514,7 @@
                 </div>
                 <div class="kd-section-body">
                     {% if candidate.further_education and candidate.further_education is iterable and candidate.further_education is not string and candidate.further_education | length > 0 %}
-                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <div style="display: flex; flex-direction: column; gap: 5px;">
                         {% for wb in candidate.further_education %}{% if wb is mapping %}
                         {% set wb_name = wb.degree if (wb.degree and wb.degree != 'None' and wb.degree != 'null') else (wb.qualification if (wb.qualification and wb.qualification != 'None' and wb.qualification != 'null') else '') %}
                         {% set wb_inst = wb.institution | default('') %}
@@ -1552,7 +1539,7 @@
                         {# Generische Einträge ohne Details dezenter darstellen #}
                         {% set is_generic = wb_name.lower() in ['seminar', 'e-learning', 'kurs', 'workshop', 'webinar', 'schulung', 'weiterbildung', ''] and not wb_inst %}
                         {% if wb_name %}
-                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: 10px; background: var(--pp-surfaceHover); border: 1px solid var(--pp-border); {% if is_generic %}opacity: 0.7;{% endif %}">
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; border-radius: 8px; background: var(--pp-surfaceHover); border: 1px solid var(--pp-border); {% if is_generic %}opacity: 0.7;{% endif %}">
                             <div>
                                 <div style="font-size: 13.5px; font-weight: {% if is_generic %}550{% else %}650{% endif %}; color: {% if is_generic %}var(--pp-textMuted){% else %}var(--pp-text){% endif %};">
                                     {{ wb_name }}{% if is_generic and not wb_inst %} <span style="font-size: 11px; color: var(--pp-textDim); font-weight: 400; font-style: italic;">(ohne Details)</span>{% endif %}
@@ -1569,7 +1556,7 @@
                         {% endif %}{% endfor %}
                     </div>
                     {% else %}
-                    <div style="display: flex; flex-direction: column; align-items: center; padding: 20px 0;">
+                    <div style="display: flex; flex-direction: column; align-items: center; padding: 10px 0;">
                         <div style="font-size: 24px; margin-bottom: 8px; opacity: 0.4;">&#x1F393;</div>
                         <div style="font-size: 12px; font-weight: 600; color: var(--pp-textDim);">Keine Zertifikate hinterlegt</div>
                     </div>
@@ -1604,7 +1591,7 @@
                     {% else %}
                         {% set edu_timerange = '' %}
                     {% endif %}
-                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: 10px; background: var(--pp-surfaceHover); border: 1px solid var(--pp-border);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; border-radius: 8px; background: var(--pp-surfaceHover); border: 1px solid var(--pp-border);">
                         <div>
                             <div style="font-size: 14px; font-weight: 680; color: var(--pp-text);">{{ edu_name }}</div>
                             {% if edu_inst and edu_inst != 'None' and edu_inst != 'null' %}
@@ -1617,7 +1604,7 @@
                     </div>
                     {% endif %}{% endfor %}
                     {% else %}
-                    <div style="display: flex; flex-direction: column; align-items: center; padding: 20px 0;">
+                    <div style="display: flex; flex-direction: column; align-items: center; padding: 10px 0;">
                         <div style="font-size: 24px; margin-bottom: 8px; opacity: 0.4;">&#x1F4DA;</div>
                         <div style="font-size: 12px; font-weight: 600; color: var(--pp-textDim);">Keine Ausbildung hinterlegt</div>
                     </div>
@@ -1628,7 +1615,7 @@
         </div>
 
         {# ── RIGHT SIDEBAR (sticky) ── #}
-        <div style="width: 240px; flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; position: sticky; top: 16px; align-self: flex-start;">
+        <div style="width: 260px; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; position: sticky; top: 12px; align-self: flex-start;">
 
             {# Navigation #}
             <div class="kd-sidebar-card kd-anim-side" style="animation-delay: 150ms;">
@@ -1682,7 +1669,7 @@
             {# CV-Status + Upload #}
             <div class="kd-sidebar-card kd-anim-side" style="animation-delay: 450ms;"
                  x-data="{ cvUploading: false, cvDragging: false }">
-                <div class="kd-sidebar-body" style="padding: 16px 18px;">
+                <div class="kd-sidebar-body" style="padding: 12px 14px;">
                     {# Header Row: Icon + Title + Badge #}
                     <div class="flex items-center justify-between mb-3">
                         <div class="flex items-center gap-2">
