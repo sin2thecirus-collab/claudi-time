@@ -5,6 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Pulspoint{% endblock %}</title>
 
+    <!-- CSRF Token fuer HTMX -->
+    <meta name="csrf-token" content="">
+    <script>
+        // CSRF-Token aus Cookie lesen und in Meta-Tag + HTMX-Config setzen
+        (function() {
+            var match = document.cookie.match(/pp_csrf=([^;]+)/);
+            if (match) {
+                document.querySelector('meta[name="csrf-token"]').content = match[1];
+            }
+        })();
+    </script>
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -25,6 +37,15 @@
 
     <!-- HTMX -->
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script>
+        // HTMX: CSRF-Token bei jedem Request als Header mitschicken
+        document.addEventListener('htmx:configRequest', function(evt) {
+            var match = document.cookie.match(/pp_csrf=([^;]+)/);
+            if (match) {
+                evt.detail.headers['X-CSRF-Token'] = match[1];
+            }
+        });
+    </script>
 
     <!-- Alpine.js -->
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -678,6 +699,13 @@
                 <div style="width:8px;height:8px;border-radius:50%;background:var(--pp-green);"></div>
                 <span>Laden...</span>
             </div>
+
+            <!-- Logout Button -->
+            <form method="POST" action="/logout" style="margin:0;">
+                <button type="submit" title="Abmelden" style="width:34px;height:34px;border-radius:9px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);color:#F87171;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;" onmouseover="this.style.background='rgba(239,68,68,0.2)'" onmouseout="this.style.background='rgba(239,68,68,0.1)'">
+                    <svg style="width:16px;height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                </button>
+            </form>
         </div>
 
         <!-- Mobile Menu Button -->

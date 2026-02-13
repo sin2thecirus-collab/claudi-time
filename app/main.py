@@ -7,14 +7,27 @@ import logging
 import uuid
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import text
 
 from app.config import settings
-from app.database import init_db
+from app.database import engine, init_db
+from app.auth import (
+    AuthMiddleware,
+    SecurityHeadersMiddleware,
+    JWT_COOKIE_NAME,
+    CSRF_COOKIE_NAME,
+    check_login_rate_limit,
+    create_access_token,
+    generate_csrf_token,
+    record_login_attempt,
+    verify_password,
+    _get_client_ip,
+)
 
 # Logging konfigurieren
 logging.basicConfig(
@@ -66,7 +79,8 @@ app = FastAPI(
     redoc_url="/redoc" if settings.is_development else None,
 )
 
-# CORS Middleware
+# ── Middleware-Stack (Reihenfolge: zuletzt registriert = zuerst ausgefuehrt) ──
+# 1. CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"] if settings.is_development else [],
@@ -74,6 +88,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 2. Auth-Middleware (prueft JWT Cookie oder API-Key)
+app.add_middleware(AuthMiddleware)
+
+# 3. Security Headers (X-Frame-Options, HSTS, etc.)
+app.add_middleware(SecurityHeadersMiddleware)
 
 
 # Request-ID Middleware
@@ -123,12 +143,127 @@ async def health_check():
     }
 
 
+# ── Login-Seite ──
+@app.get("/login", tags=["Auth"])
+async def login_page(request: Request):
+    """Zeigt die Login-Seite an."""
+    # Bereits eingeloggt? → Dashboard
+    token = request.cookies.get(JWT_COOKIE_NAME)
+    if token:
+        from app.auth import decode_token
+        payload = decode_token(token)
+        if payload:
+            return RedirectResponse(url="/", status_code=302)
+
+    csrf_token = generate_csrf_token()
+    response = templates.TemplateResponse("login.html", {
+        "request": request,
+        "error": None,
+        "csrf_token": csrf_token,
+    })
+    response.set_cookie(
+        CSRF_COOKIE_NAME, csrf_token,
+        httponly=True, samesite="strict",
+        secure=settings.is_production,
+        max_age=3600,
+    )
+    return response
+
+
+@app.post("/login", tags=["Auth"])
+async def login_submit(
+    request: Request,
+    email: str = Form(...),
+    password: str = Form(...),
+):
+    """Verarbeitet den Login."""
+    client_ip = _get_client_ip(request)
+
+    # Rate-Limit pruefen
+    if not check_login_rate_limit(client_ip):
+        logger.warning(f"Login Rate-Limit erreicht fuer IP {client_ip}")
+        csrf_token = generate_csrf_token()
+        response = templates.TemplateResponse("login.html", {
+            "request": request,
+            "error": "Zu viele Login-Versuche. Bitte warte eine Minute.",
+            "csrf_token": csrf_token,
+        }, status_code=429)
+        response.set_cookie(
+            CSRF_COOKIE_NAME, csrf_token,
+            httponly=True, samesite="strict",
+            secure=settings.is_production,
+        )
+        return response
+
+    record_login_attempt(client_ip)
+
+    # User in DB suchen und Passwort pruefen
+    user = None
+    try:
+        async with engine.begin() as conn:
+            result = await conn.execute(
+                text("SELECT email, hashed_password, role FROM users WHERE email = :email"),
+                {"email": email.strip().lower()},
+            )
+            user = result.fetchone()
+    except Exception as e:
+        logger.error(f"Login DB-Fehler: {e}")
+
+    if user and verify_password(password, user[1]):
+        # Erfolgreicher Login
+        token = create_access_token(email=user[0], role=user[2])
+        csrf_token = generate_csrf_token()
+
+        logger.info(f"Login erfolgreich: {user[0]} von IP {client_ip}")
+
+        response = RedirectResponse(url="/", status_code=302)
+        response.set_cookie(
+            JWT_COOKIE_NAME, token,
+            httponly=True,
+            samesite="strict",
+            secure=settings.is_production,
+            max_age=settings.session_expire_hours * 3600,
+        )
+        response.set_cookie(
+            CSRF_COOKIE_NAME, csrf_token,
+            httponly=False,  # JS muss CSRF-Token lesen koennen
+            samesite="strict",
+            secure=settings.is_production,
+            max_age=settings.session_expire_hours * 3600,
+        )
+        return response
+
+    # Fehlgeschlagener Login
+    logger.warning(f"Login fehlgeschlagen fuer '{email}' von IP {client_ip}")
+    csrf_token = generate_csrf_token()
+    response = templates.TemplateResponse("login.html", {
+        "request": request,
+        "error": "E-Mail oder Passwort falsch.",
+        "csrf_token": csrf_token,
+    }, status_code=401)
+    response.set_cookie(
+        CSRF_COOKIE_NAME, csrf_token,
+        httponly=True, samesite="strict",
+        secure=settings.is_production,
+    )
+    return response
+
+
+@app.post("/logout", tags=["Auth"])
+async def logout(request: Request):
+    """Loggt den User aus."""
+    user_email = getattr(request.state, "user_email", "unknown")
+    logger.info(f"Logout: {user_email}")
+
+    response = RedirectResponse(url="/login", status_code=302)
+    response.delete_cookie(JWT_COOKIE_NAME)
+    response.delete_cookie(CSRF_COOKIE_NAME)
+    return response
+
+
 @app.post("/admin/reset-pool", tags=["System"])
 async def reset_db_pool():
     """Setzt den DB-Connection-Pool zurueck und killt haengende Verbindungen."""
-    from app.database import engine
-    from sqlalchemy import text
-
     try:
         # 1. Pool komplett zuruecksetzen (alle idle Connections schliessen)
         await engine.dispose()

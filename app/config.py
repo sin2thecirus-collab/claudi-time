@@ -102,6 +102,24 @@ class Settings(BaseSettings):
         description="API-Token fuer n8n-Inbound-Webhooks",
     )
 
+    # Authentifizierung
+    admin_email: str = Field(
+        default="",
+        description="E-Mail-Adresse des Admin-Users",
+    )
+    admin_password: str = Field(
+        default="",
+        description="Passwort des Admin-Users (wird gehasht gespeichert)",
+    )
+    api_access_key: str = Field(
+        default="",
+        description="API-Key fuer programmatischen Zugriff (X-API-Key Header)",
+    )
+    session_expire_hours: int = Field(
+        default=24,
+        description="Session-Gueltigkeitsdauer in Stunden",
+    )
+
     # Umgebung
     environment: str = Field(
         default="development",

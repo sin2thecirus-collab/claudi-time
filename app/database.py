@@ -698,6 +698,67 @@ async def _ensure_candidate_notes_table() -> None:
         logger.warning(f"Backfill candidate_notes uebersprungen: {e}")
 
 
+async def _ensure_users_table() -> None:
+    """Erstellt users Tabelle + Admin-User aus ENV-Variablen."""
+
+    async with engine.begin() as conn:
+        result = await conn.execute(
+            text(
+                "SELECT table_name FROM information_schema.tables "
+                "WHERE table_schema = 'public' AND table_name = 'users'"
+            )
+        )
+        tables_exist = result.fetchone() is not None
+
+    if not tables_exist:
+        logger.info("users Tabelle wird erstellt...")
+        async with engine.begin() as conn:
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    email VARCHAR(255) NOT NULL UNIQUE,
+                    hashed_password VARCHAR(255) NOT NULL,
+                    role VARCHAR(20) DEFAULT 'admin',
+                    created_at TIMESTAMPTZ DEFAULT NOW()
+                )
+            """))
+        logger.info("users Tabelle erfolgreich erstellt.")
+
+    # Admin-User aus ENV erstellen/aktualisieren
+    from app.config import settings
+    if settings.admin_email and settings.admin_password:
+        from passlib.context import CryptContext
+        pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+        hashed = pwd_context.hash(settings.admin_password)
+        admin_email = settings.admin_email.strip().lower()
+
+        async with engine.begin() as conn:
+            # Pruefen ob Admin existiert
+            result = await conn.execute(
+                text("SELECT id, hashed_password FROM users WHERE email = :email"),
+                {"email": admin_email},
+            )
+            existing = result.fetchone()
+
+            if existing:
+                # Passwort aktualisieren falls ENV geaendert wurde
+                if not pwd_context.verify(settings.admin_password, existing[1]):
+                    await conn.execute(
+                        text("UPDATE users SET hashed_password = :pw WHERE email = :email"),
+                        {"pw": hashed, "email": admin_email},
+                    )
+                    logger.info(f"Admin-User {admin_email} Passwort aktualisiert.")
+            else:
+                await conn.execute(
+                    text(
+                        "INSERT INTO users (id, email, hashed_password, role) "
+                        "VALUES (gen_random_uuid(), :email, :pw, 'admin')"
+                    ),
+                    {"email": admin_email, "pw": hashed},
+                )
+                logger.info(f"Admin-User {admin_email} erstellt.")
+
+
 async def init_db() -> None:
     """Initialisiert die Datenbankverbindung und führt Migrationen aus."""
     # Schritt 0: Alle haengenden Transaktionen killen (von vorherigen Deployments)
@@ -719,6 +780,7 @@ async def init_db() -> None:
         await conn.run_sync(lambda _: None)
 
     # ── Tabellen-Erstellung (fuer neue Tabellen die nicht via Alembic laufen) ──
+    await _ensure_users_table()
     await _ensure_company_tables()
     await _ensure_ats_tables()
     await _ensure_matching_v2_tables()
