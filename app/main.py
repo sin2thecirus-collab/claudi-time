@@ -213,7 +213,11 @@ async def auth_debug():
     if info["users_in_db"] == 0 and settings.admin_email and settings.admin_password:
         try:
             admin_email = settings.admin_email.strip().lower()
-            hashed = hash_password(settings.admin_password)
+            pw = settings.admin_password
+            info["pw_type"] = type(pw).__name__
+            info["pw_bytes_len"] = len(pw.encode("utf-8")) if isinstance(pw, str) else "not_str"
+            info["pw_repr"] = repr(pw[:3]) + "..." if len(pw) > 3 else repr(pw)
+            hashed = hash_password(pw)
             async with engine.begin() as conn:
                 await conn.execute(
                     text(
