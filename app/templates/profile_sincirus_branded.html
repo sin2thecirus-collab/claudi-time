@@ -431,14 +431,11 @@
 
     .cv-body {
       padding: 14px 44px 20px 44px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
     }
 
     /* CV-Sektionen — fließend über Seiten */
     .cv-section {
-      margin-top: 4px;
+      margin-top: 16px;
     }
 
     /* CV Section Headings — auffälliger */
@@ -930,25 +927,23 @@
 
     <!-- 1. Berufserfahrung -->
     {% if work_items %}
-    <div>
-      <div class="sh">Berufserfahrung</div>
-      {% for job in work_items %}
-      <div class="job-card{% if loop.index > 2 %} older{% endif %}">
-        <div class="job-top">
-          <span class="job-title">{{ job.title }}</span>
-          <span class="job-date">{{ job.date_range }}</span>
-        </div>
-        <div class="job-company">{{ job.company }}{% if job.note %} &nbsp;&middot;&nbsp; {{ job.note }}{% endif %}</div>
-        {% if job.bullets %}
-        <ul class="job-bullets">
-          {% for bullet in job.bullets %}
-          <li>{{ bullet }}</li>
-          {% endfor %}
-        </ul>
-        {% endif %}
+    <div class="sh">Berufserfahrung</div>
+    {% for job in work_items %}
+    <div class="job-card{% if loop.index > 2 %} older{% endif %}">
+      <div class="job-top">
+        <span class="job-title">{{ job.title }}</span>
+        <span class="job-date">{{ job.date_range }}</span>
       </div>
-      {% endfor %}
+      <div class="job-company">{{ job.company }}{% if job.note %} &nbsp;&middot;&nbsp; {{ job.note }}{% endif %}</div>
+      {% if job.bullets %}
+      <ul class="job-bullets">
+        {% for bullet in job.bullets %}
+        <li>{{ bullet }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
     </div>
+    {% endfor %}
     {% endif %}
 
     <!-- 2. Ausbildung -->
