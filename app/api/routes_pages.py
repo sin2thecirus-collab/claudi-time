@@ -1787,6 +1787,8 @@ async def gespraeche_assign(
             if val is not None and val != "" and val != []:
                 if isinstance(val, list):
                     val = ", ".join(str(v) for v in val)
+                # Alle Werte zu String konvertieren (GPT liefert z.B. Integer 3 statt "3")
+                val = str(val)
                 if hasattr(candidate, dest_key):
                     setattr(candidate, dest_key, val)
                     fields_updated.append(dest_key)
