@@ -161,6 +161,7 @@
                 {% if candidate.cv_url or candidate.cv_stored_path %}
                 <button type="button" onclick="openCvPreview()" class="kd-quickbtn kd-quickbtn-accent">&#x1F4C4; CV ansehen</button>
                 {% endif %}
+                <a href="/api/candidates/{{ candidate.id }}/profile-pdf" target="_blank" class="kd-quickbtn kd-quickbtn-accent" style="text-decoration:none;">&#x1F4CA; Profil-PDF</a>
                 <button type="button" @click="showPipelineModal = true" class="kd-quickbtn kd-quickbtn-primary">&#x1F680; Pipeline</button>
                 <button type="button" onclick="deleteCandidate('{{ candidate.id }}', '{{ display_name }}')" class="kd-quickbtn kd-quickbtn-danger">&#x1F5D1;</button>
             </div>

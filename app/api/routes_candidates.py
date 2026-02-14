@@ -1396,6 +1396,46 @@ async def cv_preview_proxy(
     )
 
 
+# ==================== Profil-PDF (Sincirus Branded) ====================
+
+@router.get(
+    "/{candidate_id}/profile-pdf",
+    summary="Sincirus Branded Profil-PDF generieren",
+)
+@rate_limit(RateLimitTier.AI)
+async def generate_profile_pdf(
+    candidate_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Generiert ein anonymes Kandidaten-Profil als PDF im Sincirus Dark Design.
+
+    Verwendet WeasyPrint fuer die PDF-Generierung.
+    Rechenintensiv — daher AI Rate-Limit (10 req/min).
+    """
+    from fastapi.responses import Response
+    from app.services.profile_pdf_service import ProfilePdfService
+
+    pdf_service = ProfilePdfService(db)
+
+    try:
+        pdf_bytes = await pdf_service.generate_profile_pdf(candidate_id)
+    except ValueError as e:
+        raise NotFoundException(message=str(e))
+    except Exception as e:
+        logger.error(f"PDF-Generierung fehlgeschlagen fuer {candidate_id}: {e}")
+        raise ConflictException(message=f"PDF-Generierung fehlgeschlagen: {str(e)[:200]}")
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": "inline",
+            "Cache-Control": "private, max-age=60",
+        },
+    )
+
+
 # ==================== R2 Migration ====================
 
 @router.post(

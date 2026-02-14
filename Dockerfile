@@ -4,7 +4,7 @@ FROM python:3.11-slim AS base
 # Arbeitsverzeichnis setzen
 WORKDIR /app
 
-# System-Dependencies für PyMuPDF, asyncpg und Word-zu-PDF Konvertierung
+# System-Dependencies für PyMuPDF, asyncpg, Word-zu-PDF und WeasyPrint
 RUN apt-get update && apt-get install -y \
     gcc \
     libpq-dev \
@@ -12,6 +12,11 @@ RUN apt-get update && apt-get install -y \
     libreoffice-writer \
     fonts-liberation \
     fontconfig \
+    libpango-1.0-0 \
+    libpangoft2-1.0-0 \
+    libcairo2 \
+    libgdk-pixbuf-2.0-0 \
+    libffi-dev \
     && rm -rf /var/lib/apt/lists/* \
     && fc-cache -f
 
