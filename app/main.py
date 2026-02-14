@@ -159,11 +159,17 @@ async def health_check():
 @app.get("/auth-debug", tags=["System"])
 async def auth_debug():
     """Zeigt Debug-Info zum Auth-System (TEMPORÄR — wird nach Login-Fix entfernt)."""
+    import os
     info = {
-        "env_admin_email_set": bool(settings.admin_email),
-        "env_admin_email_value": settings.admin_email.strip().lower() if settings.admin_email else "(leer)",
-        "env_admin_password_length": len(settings.admin_password) if settings.admin_password else 0,
-        "env_admin_password_first2": settings.admin_password[:2] + "***" if settings.admin_password and len(settings.admin_password) > 2 else "(zu kurz)",
+        # Direkt aus os.environ lesen (umgeht pydantic)
+        "raw_env_ADMIN_EMAIL": os.environ.get("ADMIN_EMAIL", "(nicht gesetzt)"),
+        "raw_env_ADMIN_PASSWORD_len": len(os.environ.get("ADMIN_PASSWORD", "")),
+        "raw_env_API_ACCESS_KEY_set": bool(os.environ.get("API_ACCESS_KEY")),
+        # Alle ENV-Keys die "ADMIN" oder "admin" enthalten
+        "env_keys_with_admin": [k for k in os.environ.keys() if "admin" in k.lower()],
+        # Pydantic Settings
+        "pydantic_admin_email": settings.admin_email if settings.admin_email else "(leer)",
+        "pydantic_admin_password_length": len(settings.admin_password) if settings.admin_password else 0,
         "users_in_db": 0,
         "admin_user_found": False,
         "admin_email_in_db": None,
