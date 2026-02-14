@@ -201,6 +201,22 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # HSTS (nur HTTPS, 1 Jahr)
         if settings.is_production:
             response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        # Content-Security-Policy — Whitelist fuer erlaubte Quellen
+        csp_parts = [
+            "default-src 'self'",
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://unpkg.com https://cdn.jsdelivr.net",
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tailwindcss.com",
+            "font-src 'self' https://fonts.gstatic.com",
+            "img-src 'self' data: blob:",
+            "connect-src 'self'",
+            "frame-src 'self'",
+            "object-src 'none'",
+            "base-uri 'self'",
+            "frame-ancestors 'none'",
+        ]
+        response.headers["Content-Security-Policy"] = "; ".join(csp_parts)
+        # Permissions-Policy — Browser-APIs deaktivieren die nicht gebraucht werden
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=()"
         # Keine Server-Info leaken
         if "server" in response.headers:
             del response.headers["server"]
