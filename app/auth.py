@@ -108,7 +108,6 @@ PUBLIC_PATHS = frozenset({
     "/health",
     "/login",
     "/favicon.ico",
-    "/auth-debug",  # TEMPORÄR — wird nach Login-Fix entfernt
 })
 
 PUBLIC_PREFIXES = (

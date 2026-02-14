@@ -1,6 +1,6 @@
 """FastAPI Hauptanwendung für das Matching-Tool."""
 
-# Build: 2026-02-09-v1 - Matching Engine v2.5 + Background Migrations
+# Build: 2026-02-14-v2 - Auth-System Fix (bcrypt/passlib Kompatibilität)
 
 import asyncio
 import logging
@@ -26,7 +26,6 @@ from app.auth import (
     generate_csrf_token,
     record_login_attempt,
     verify_password,
-    hash_password,
     _get_client_ip,
 )
 
@@ -155,85 +154,6 @@ async def health_check():
         "db_ready": _db_ready,
     }
 
-
-# ── TEMPORÄR: Debug-Endpoint zum Prüfen des Admin-Users (wird nach Fix entfernt) ──
-@app.get("/auth-debug", tags=["System"])
-async def auth_debug():
-    """Zeigt Debug-Info zum Auth-System (TEMPORÄR — wird nach Login-Fix entfernt)."""
-    import os
-    info = {
-        # Direkt aus os.environ lesen (umgeht pydantic)
-        "raw_env_ADMIN_EMAIL": os.environ.get("ADMIN_EMAIL", "(nicht gesetzt)"),
-        "raw_env_ADMIN_PASSWORD_len": len(os.environ.get("ADMIN_PASSWORD", "")),
-        "raw_env_API_ACCESS_KEY_set": bool(os.environ.get("API_ACCESS_KEY")),
-        # Alle ENV-Keys die "ADMIN" oder "admin" enthalten
-        "env_keys_with_admin": [k for k in os.environ.keys() if "admin" in k.lower()],
-        # Pydantic Settings
-        "pydantic_admin_email": settings.admin_email if settings.admin_email else "(leer)",
-        "pydantic_admin_password_length": len(settings.admin_password) if settings.admin_password else 0,
-        "users_in_db": 0,
-        "admin_user_found": False,
-        "admin_email_in_db": None,
-        "password_verify_test": None,
-    }
-    try:
-        async with engine.begin() as conn:
-            # Pruefen ob users-Tabelle existiert
-            result = await conn.execute(
-                text(
-                    "SELECT table_name FROM information_schema.tables "
-                    "WHERE table_schema = 'public' AND table_name = 'users'"
-                )
-            )
-            info["users_table_exists"] = result.fetchone() is not None
-
-            if info["users_table_exists"]:
-                # Alle User zaehlen
-                result = await conn.execute(text("SELECT COUNT(*) FROM users"))
-                info["users_in_db"] = result.scalar()
-
-                # Admin-User suchen
-                result = await conn.execute(
-                    text("SELECT email, hashed_password, role FROM users LIMIT 5")
-                )
-                users = result.fetchall()
-                if users:
-                    info["admin_user_found"] = True
-                    info["admin_email_in_db"] = users[0][0]
-                    info["admin_role"] = users[0][2]
-                    # Passwort-Verify testen
-                    if settings.admin_password:
-                        info["password_verify_test"] = verify_password(
-                            settings.admin_password, users[0][1]
-                        )
-    except Exception as e:
-        info["db_error"] = str(e)
-
-    # Wenn kein Admin-User existiert, versuche ihn JETZT zu erstellen
-    if info["users_in_db"] == 0 and settings.admin_email and settings.admin_password:
-        try:
-            admin_email = settings.admin_email.strip().lower()
-            pw = settings.admin_password
-            info["pw_type"] = type(pw).__name__
-            info["pw_bytes_len"] = len(pw.encode("utf-8")) if isinstance(pw, str) else "not_str"
-            info["pw_repr"] = repr(pw[:3]) + "..." if len(pw) > 3 else repr(pw)
-            hashed = hash_password(pw)
-            async with engine.begin() as conn:
-                await conn.execute(
-                    text(
-                        "INSERT INTO users (id, email, hashed_password, role) "
-                        "VALUES (gen_random_uuid(), :email, :pw, 'admin') "
-                        "ON CONFLICT (email) DO UPDATE SET hashed_password = :pw"
-                    ),
-                    {"email": admin_email, "pw": hashed},
-                )
-            info["admin_created_now"] = True
-            info["admin_created_email"] = admin_email
-            info["users_in_db"] = 1
-        except Exception as e:
-            info["admin_create_error"] = str(e)
-
-    return info
 
 
 # ── Login-Seite ──
