@@ -436,9 +436,8 @@
       gap: 16px;
     }
 
-    /* Jede CV-Sektion als Block — nicht auseinanderreißen */
+    /* CV-Sektionen — fließend über Seiten */
     .cv-section {
-      page-break-inside: avoid;
       margin-top: 4px;
     }
 
@@ -452,6 +451,7 @@
       border-radius: 0 6px 6px 0;
       padding: 8px 16px;
       margin-bottom: 12px;
+      page-break-after: avoid;
     }
 
     /* Job Cards */
@@ -462,7 +462,6 @@
       border-radius: 0 8px 8px 0;
       padding: 14px 18px;
       margin-bottom: 10px;
-      page-break-inside: avoid;
     }
 
     .job-card.older {
@@ -769,7 +768,6 @@
       body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .page { page-break-after: always; }
       .page:last-child { page-break-after: auto; }
-      .cv-pages { page-break-before: always; }
     }
   </style>
 </head>
