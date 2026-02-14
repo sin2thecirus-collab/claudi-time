@@ -20,10 +20,11 @@
 
     .kd-section {
         background: rgba(22,28,45,0.85); border-radius: 18px;
-        border: 1px solid rgba(255,255,255,0.06); overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.10); overflow: hidden;
         backdrop-filter: blur(12px); transition: border-color 0.3s, box-shadow 0.3s;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.25);
     }
-    .kd-section:hover { border-color: rgba(54,154,255,0.15); box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+    .kd-section:hover { border-color: rgba(54,154,255,0.20); box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
     .kd-section-header {
         display:flex; align-items:center; justify-content:space-between;
         padding: 16px 24px 12px; border-bottom: 1px solid rgba(255,255,255,0.05);
@@ -261,7 +262,7 @@
         <div style="flex:1; min-width:0;">
 
             {# ═══ TAB: Übersicht ═══ #}
-            <div x-show="activeTab === 'uebersicht'" x-cloak style="display:flex; flex-direction:column; gap:28px;">
+            <div x-show="activeTab === 'uebersicht'" x-cloak style="display:flex; flex-direction:column; gap:40px;">
                 <div class="kd-section kd-section-glow kd-anim" style="animation-delay: 100ms;" id="contact">
                 <div class="kd-section-header">
                     <div class="kd-section-title"><span>&#x1F4C7;</span> Kontaktdaten</div>
@@ -494,7 +495,7 @@
                  x-data="qualificationFields()" style="overflow:visible;">
 
                 {# Qualifizierung content #}
-                <div x-show="activeTab === 'qualifizierung'" style="display:flex; flex-direction:column; gap:28px;">
+                <div x-show="activeTab === 'qualifizierung'" style="display:flex; flex-direction:column; gap:40px;">
                     
             {# ── Quick-Glance Bar ── #}
             <div class="kd-quickglance kd-anim" style="animation-delay:50ms;">
@@ -926,7 +927,7 @@
                 </div>
 
                 {# Gespräche content #}
-                <div x-show="activeTab === 'gespraeche'" style="display:flex; flex-direction:column; gap:28px;">
+                <div x-show="activeTab === 'gespraeche'" style="display:flex; flex-direction:column; gap:40px;">
                     <div class="kd-section kd-anim" style="animation-delay:100ms; overflow:visible; position:relative; z-index:20;">
                         <div class="kd-section-header">
                             <div class="kd-section-title"><span>&#x1F3A4;</span> Gespr&auml;chsdaten</div>
@@ -994,7 +995,7 @@
             </div>
 
             {# ═══ TAB: Profil & CV ═══ #}
-            <div x-show="activeTab === 'profil'" x-cloak style="display:flex; flex-direction:column; gap:28px;">
+            <div x-show="activeTab === 'profil'" x-cloak style="display:flex; flex-direction:column; gap:40px;">
                 <div class="kd-section kd-section-glow kd-anim" style="animation-delay: 300ms; position: relative; z-index: 1;" id="experience">
                 <div class="kd-section-header">
                     <div class="kd-section-title"><span>&#x1F4BC;</span> Berufserfahrung</div>
