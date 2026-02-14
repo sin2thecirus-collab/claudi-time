@@ -747,15 +747,13 @@ async def _ensure_users_table() -> None:
             existing = result.fetchone()
 
             if existing:
-                # Passwort aktualisieren falls ENV geaendert wurde
-                if not pwd_context.verify(settings.admin_password, existing[1]):
-                    await conn.execute(
-                        text("UPDATE users SET hashed_password = :pw WHERE email = :email"),
-                        {"pw": hashed, "email": admin_email},
-                    )
-                    logger.info(f"Admin-User {admin_email} Passwort aktualisiert (neuer Hash).")
-                else:
-                    logger.info(f"Admin-User {admin_email} existiert bereits, Passwort stimmt ueberein.")
+                # Passwort IMMER neu hashen und speichern,
+                # damit sicher das aktuelle ENV-Passwort gilt
+                await conn.execute(
+                    text("UPDATE users SET hashed_password = :pw WHERE email = :email"),
+                    {"pw": hashed, "email": admin_email},
+                )
+                logger.info(f"Admin-User {admin_email} Passwort-Hash aktualisiert.")
             else:
                 await conn.execute(
                     text(
@@ -790,7 +788,8 @@ async def init_db() -> None:
         await conn.run_sync(lambda _: None)
 
     # ── Tabellen-Erstellung (fuer neue Tabellen die nicht via Alembic laufen) ──
-    await _ensure_users_table()
+    # HINWEIS: _ensure_users_table() wird NICHT hier aufgerufen,
+    # sondern synchron in main.py lifespan() VOR dem Health-Check
     await _ensure_company_tables()
     await _ensure_ats_tables()
     await _ensure_matching_v2_tables()

@@ -155,6 +155,46 @@ async def health_check():
     }
 
 
+# ── TEMPORÄR: Debug-Endpoint zum Prüfen des Admin-Users (wird nach Fix entfernt) ──
+@app.get("/auth-debug", tags=["System"])
+async def auth_debug():
+    """Zeigt Debug-Info zum Auth-System (TEMPORÄR — wird nach Login-Fix entfernt)."""
+    info = {
+        "env_admin_email_set": bool(settings.admin_email),
+        "env_admin_email_value": settings.admin_email.strip().lower() if settings.admin_email else "(leer)",
+        "env_admin_password_length": len(settings.admin_password) if settings.admin_password else 0,
+        "env_admin_password_first2": settings.admin_password[:2] + "***" if settings.admin_password and len(settings.admin_password) > 2 else "(zu kurz)",
+        "users_in_db": 0,
+        "admin_user_found": False,
+        "admin_email_in_db": None,
+        "password_verify_test": None,
+    }
+    try:
+        async with engine.begin() as conn:
+            # Alle User zaehlen
+            result = await conn.execute(text("SELECT COUNT(*) FROM users"))
+            info["users_in_db"] = result.scalar()
+
+            # Admin-User suchen
+            result = await conn.execute(
+                text("SELECT email, hashed_password, role FROM users LIMIT 5")
+            )
+            users = result.fetchall()
+            if users:
+                info["admin_user_found"] = True
+                info["admin_email_in_db"] = users[0][0]
+                info["admin_role"] = users[0][2]
+                # Passwort-Verify testen
+                if settings.admin_password:
+                    info["password_verify_test"] = verify_password(
+                        settings.admin_password, users[0][1]
+                    )
+    except Exception as e:
+        info["db_error"] = str(e)
+
+    return info
+
+
 # ── Login-Seite ──
 @app.get("/login", tags=["Auth"])
 async def login_page(request: Request):
