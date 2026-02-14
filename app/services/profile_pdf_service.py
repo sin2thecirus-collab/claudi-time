@@ -117,6 +117,22 @@ class ProfilePdfService:
             os.path.join(os.path.dirname(__file__), "..", "static")
         )
 
+        quick_facts = self._build_quick_facts(candidate)
+        kurzprofil_items = self._build_kurzprofil(candidate)
+        erp_items = self._build_erp_items(candidate)
+        languages = self._build_languages(candidate)
+        skill_tags = self._build_skill_tags(candidate)
+        work_items = self._build_work_items(candidate)
+
+        # Fallback-Kurzprofil: Wenn nichts aus Qualifizierungsgespräch da ist,
+        # baue ein Profil aus vorhandenen DB-Daten (Position, Standort, letzte Jobs)
+        if not kurzprofil_items:
+            kurzprofil_items = self._build_fallback_kurzprofil(candidate, work_items)
+
+        # Fallback-Quick-Facts: Position + Stadt wenn keine Qualidaten vorhanden
+        if not quick_facts:
+            quick_facts = self._build_fallback_quick_facts(candidate)
+
         return {
             # Meta
             "today_date": datetime.now().strftime("%d. %B %Y").replace(
@@ -133,18 +149,18 @@ class ProfilePdfService:
             "hero_meta": self._build_hero_meta(candidate),
 
             # Seite 1 Content
-            "quick_facts": self._build_quick_facts(candidate),
-            "kurzprofil_items": self._build_kurzprofil(candidate),
-            "erp_items": self._build_erp_items(candidate),
-            "languages": self._build_languages(candidate),
-            "skill_tags": self._build_skill_tags(candidate),
+            "quick_facts": quick_facts,
+            "kurzprofil_items": kurzprofil_items,
+            "erp_items": erp_items,
+            "languages": languages,
+            "skill_tags": skill_tags,
 
             # Seite 2+ Lebenslauf
-            "work_items": self._build_work_items(candidate),
+            "work_items": work_items,
             "edu_items": self._build_edu_items(candidate),
             "cert_items": self._build_cert_items(candidate),
             "it_tags": self._build_it_tags(candidate),
-            "cv_languages": self._build_languages(candidate),  # Nochmal für CV-Seite
+            "cv_languages": languages,  # Nochmal für CV-Seite
 
             # Empfehlung
             "empfehlung_from": "Milad Hamdard • Senior Consultant Finance & Engineering",
@@ -529,3 +545,73 @@ class ProfilePdfService:
         if summary:
             return summary
         return ""
+
+    def _build_fallback_kurzprofil(self, candidate, work_items: list) -> list[dict]:
+        """
+        Fallback wenn kein Qualifizierungsgespräch stattgefunden hat.
+        Baut ein Kurzprofil aus vorhandenen DB-Daten.
+        """
+        items = []
+
+        # Aktuelle Position + Firma
+        position = self._clean_val(getattr(candidate, "current_position", None))
+        company = self._clean_val(getattr(candidate, "current_company", None))
+        if position:
+            text = position
+            if company:
+                text += f" bei {company}"
+            items.append({"label": "Aktuelle Position", "text": text})
+
+        # Standort
+        city = self._clean_val(getattr(candidate, "city", None))
+        if city:
+            items.append({"label": "Standort", "text": city})
+
+        # Berufserfahrung Zusammenfassung aus work_items
+        if work_items and len(work_items) >= 2:
+            years = self._clean_val(getattr(candidate, "v2_years_experience", None))
+            if years:
+                items.append({
+                    "label": "Erfahrung",
+                    "text": f"Ca. {years} Jahre Berufserfahrung, zuletzt als {work_items[0]['title']}"
+                })
+
+        # v2_seniority_level
+        seniority = self._clean_val(getattr(candidate, "v2_seniority_level", None))
+        if seniority:
+            items.append({"label": "Senioritätslevel", "text": seniority})
+
+        # v2_career_trajectory
+        trajectory = self._clean_val(getattr(candidate, "v2_career_trajectory", None))
+        if trajectory:
+            items.append({"label": "Karriereverlauf", "text": trajectory})
+
+        return items
+
+    def _build_fallback_quick_facts(self, candidate) -> list[dict]:
+        """
+        Fallback Quick Facts aus Basisdaten wenn keine Qualifizierungsdaten vorhanden.
+        """
+        facts = []
+
+        # Position
+        position = self._clean_val(getattr(candidate, "current_position", None))
+        if position:
+            facts.append({"label": "Position", "value": position, "detail": ""})
+
+        # Standort
+        city = self._clean_val(getattr(candidate, "city", None))
+        if city:
+            facts.append({"label": "Standort", "value": city, "detail": ""})
+
+        # Erfahrung
+        years = self._clean_val(getattr(candidate, "v2_years_experience", None))
+        if years:
+            facts.append({"label": "Erfahrung", "value": f"{years} Jahre", "detail": ""})
+
+        # Seniority
+        seniority = self._clean_val(getattr(candidate, "v2_seniority_level", None))
+        if seniority:
+            facts.append({"label": "Level", "value": seniority, "detail": ""})
+
+        return facts
