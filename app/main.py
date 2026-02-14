@@ -57,8 +57,20 @@ async def _run_migrations():
 async def lifespan(app: FastAPI):
     """Startup und Shutdown Events."""
     global _db_migration_task
-    # Startup: Migrationen im Hintergrund starten
     logger.info("Starte Matching-Tool...")
+
+    # WICHTIG: Users-Tabelle + Admin SYNCHRON erstellen,
+    # damit Login sofort nach dem Health-Check funktioniert
+    try:
+        from app.database import _ensure_users_table
+        async with engine.begin() as conn:
+            await conn.run_sync(lambda _: None)  # DB-Verbindung testen
+        await _ensure_users_table()
+        logger.info("Users-Tabelle + Admin-User bereit.")
+    except Exception as e:
+        logger.error(f"KRITISCH: Users-Tabelle konnte nicht erstellt werden: {e}")
+
+    # Restliche Migrationen im Hintergrund starten
     _db_migration_task = asyncio.create_task(_run_migrations())
 
     yield
@@ -199,15 +211,21 @@ async def login_submit(
 
     # User in DB suchen und Passwort pruefen
     user = None
+    login_email = email.strip().lower()
     try:
         async with engine.begin() as conn:
             result = await conn.execute(
                 text("SELECT email, hashed_password, role FROM users WHERE email = :email"),
-                {"email": email.strip().lower()},
+                {"email": login_email},
             )
             user = result.fetchone()
     except Exception as e:
         logger.error(f"Login DB-Fehler: {e}")
+
+    if not user:
+        logger.warning(f"Login: Kein User mit E-Mail '{login_email}' gefunden")
+    elif not verify_password(password, user[1]):
+        logger.warning(f"Login: Passwort-Vergleich fehlgeschlagen fuer '{login_email}'")
 
     if user and verify_password(password, user[1]):
         # Erfolgreicher Login

@@ -726,11 +726,17 @@ async def _ensure_users_table() -> None:
 
     # Admin-User aus ENV erstellen/aktualisieren
     from app.config import settings
-    if settings.admin_email and settings.admin_password:
-        from passlib.context import CryptContext
-        pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    if not settings.admin_email or not settings.admin_password:
+        logger.warning("ADMIN_EMAIL oder ADMIN_PASSWORD nicht gesetzt — kein Admin-User erstellt!")
+        return
+
+    from passlib.context import CryptContext
+    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    admin_email = settings.admin_email.strip().lower()
+    logger.info(f"Admin-User Setup: E-Mail='{admin_email}', Passwort-Laenge={len(settings.admin_password)}")
+
+    try:
         hashed = pwd_context.hash(settings.admin_password)
-        admin_email = settings.admin_email.strip().lower()
 
         async with engine.begin() as conn:
             # Pruefen ob Admin existiert
@@ -747,7 +753,9 @@ async def _ensure_users_table() -> None:
                         text("UPDATE users SET hashed_password = :pw WHERE email = :email"),
                         {"pw": hashed, "email": admin_email},
                     )
-                    logger.info(f"Admin-User {admin_email} Passwort aktualisiert.")
+                    logger.info(f"Admin-User {admin_email} Passwort aktualisiert (neuer Hash).")
+                else:
+                    logger.info(f"Admin-User {admin_email} existiert bereits, Passwort stimmt ueberein.")
             else:
                 await conn.execute(
                     text(
@@ -756,7 +764,9 @@ async def _ensure_users_table() -> None:
                     ),
                     {"email": admin_email, "pw": hashed},
                 )
-                logger.info(f"Admin-User {admin_email} erstellt.")
+                logger.info(f"Admin-User {admin_email} neu erstellt.")
+    except Exception as e:
+        logger.error(f"Admin-User Setup FEHLGESCHLAGEN: {e}")
 
 
 async def init_db() -> None:
