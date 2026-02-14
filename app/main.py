@@ -26,6 +26,7 @@ from app.auth import (
     generate_csrf_token,
     record_login_attempt,
     verify_password,
+    hash_password,
     _get_client_ip,
 )
 
@@ -177,26 +178,56 @@ async def auth_debug():
     }
     try:
         async with engine.begin() as conn:
-            # Alle User zaehlen
-            result = await conn.execute(text("SELECT COUNT(*) FROM users"))
-            info["users_in_db"] = result.scalar()
-
-            # Admin-User suchen
+            # Pruefen ob users-Tabelle existiert
             result = await conn.execute(
-                text("SELECT email, hashed_password, role FROM users LIMIT 5")
+                text(
+                    "SELECT table_name FROM information_schema.tables "
+                    "WHERE table_schema = 'public' AND table_name = 'users'"
+                )
             )
-            users = result.fetchall()
-            if users:
-                info["admin_user_found"] = True
-                info["admin_email_in_db"] = users[0][0]
-                info["admin_role"] = users[0][2]
-                # Passwort-Verify testen
-                if settings.admin_password:
-                    info["password_verify_test"] = verify_password(
-                        settings.admin_password, users[0][1]
-                    )
+            info["users_table_exists"] = result.fetchone() is not None
+
+            if info["users_table_exists"]:
+                # Alle User zaehlen
+                result = await conn.execute(text("SELECT COUNT(*) FROM users"))
+                info["users_in_db"] = result.scalar()
+
+                # Admin-User suchen
+                result = await conn.execute(
+                    text("SELECT email, hashed_password, role FROM users LIMIT 5")
+                )
+                users = result.fetchall()
+                if users:
+                    info["admin_user_found"] = True
+                    info["admin_email_in_db"] = users[0][0]
+                    info["admin_role"] = users[0][2]
+                    # Passwort-Verify testen
+                    if settings.admin_password:
+                        info["password_verify_test"] = verify_password(
+                            settings.admin_password, users[0][1]
+                        )
     except Exception as e:
         info["db_error"] = str(e)
+
+    # Wenn kein Admin-User existiert, versuche ihn JETZT zu erstellen
+    if info["users_in_db"] == 0 and settings.admin_email and settings.admin_password:
+        try:
+            admin_email = settings.admin_email.strip().lower()
+            hashed = hash_password(settings.admin_password)
+            async with engine.begin() as conn:
+                await conn.execute(
+                    text(
+                        "INSERT INTO users (id, email, hashed_password, role) "
+                        "VALUES (gen_random_uuid(), :email, :pw, 'admin') "
+                        "ON CONFLICT (email) DO UPDATE SET hashed_password = :pw"
+                    ),
+                    {"email": admin_email, "pw": hashed},
+                )
+            info["admin_created_now"] = True
+            info["admin_created_email"] = admin_email
+            info["users_in_db"] = 1
+        except Exception as e:
+            info["admin_create_error"] = str(e)
 
     return info
 
