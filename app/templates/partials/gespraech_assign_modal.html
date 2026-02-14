@@ -52,10 +52,12 @@
         if (!this.selectedId) return;
         this.assigning = true;
         try {
+            const csrfMatch = document.cookie.match(/pp_csrf=([^;]+)/);
             const resp = await fetch('/api/gespraeche/{{ call.id }}/assign', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrfMatch ? csrfMatch[1] : '',
                 },
                 body: JSON.stringify({
                     entity_type: this.entityType,
@@ -68,7 +70,7 @@
                 closeModal();
                 htmx.ajax('GET', '/partials/gespraeche-list', { target: '#gespraeche-list', swap: 'innerHTML' });
             } else {
-                showToast(data.detail || 'Zuordnung fehlgeschlagen', 'error');
+                showToast(data.detail || data.message || 'Zuordnung fehlgeschlagen (Status: ' + resp.status + ')', 'error');
             }
         } catch (e) {
             showToast('Fehler: ' + e.message, 'error');
