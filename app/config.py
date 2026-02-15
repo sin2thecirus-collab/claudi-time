@@ -120,6 +120,24 @@ class Settings(BaseSettings):
         description="Session-Gueltigkeitsdauer in Stunden",
     )
 
+    # Microsoft Graph API (Email-Versand via Outlook/M365)
+    microsoft_tenant_id: str = Field(
+        default="",
+        description="Azure AD Tenant ID fuer Microsoft Graph API",
+    )
+    microsoft_client_id: str = Field(
+        default="",
+        description="Azure AD App Registration Client ID",
+    )
+    microsoft_client_secret: str = Field(
+        default="",
+        description="Azure AD App Registration Client Secret",
+    )
+    microsoft_sender_email: str = Field(
+        default="",
+        description="Absender-Email fuer automatische Emails (z.B. milad@sincirus.de)",
+    )
+
     # Umgebung
     environment: str = Field(
         default="development",

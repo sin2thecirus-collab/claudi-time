@@ -1700,12 +1700,32 @@ async def _auto_assign_to_candidate(
         db, call_note, candidate_id=candidate.id,
     )
 
+    # Automatisch Emails verarbeiten (email_actions aus GPT-Extrakt)
+    email_result = {"emails_sent": 0, "drafts_created": 0, "errors": []}
+    email_actions = ext.get("email_actions") or []
+    if email_actions or mapped_call_type == CallType.QUALIFICATION:
+        try:
+            from app.services.email_service import EmailService
+            email_service = EmailService(db)
+            email_result = await email_service.process_email_actions(
+                candidate_id=candidate.id,
+                email_actions=email_actions if isinstance(email_actions, list) else [],
+                call_note_id=call_note.id,
+                call_type=n8n_type,
+            )
+        except Exception as e:
+            logger.error(f"Email-Actions Fehler: {e}")
+            email_result["errors"].append(str(e))
+
     return {
         "success": True,
         "candidate_name": f"{candidate.first_name or ''} {candidate.last_name or ''}".strip(),
         "fields_updated": fields_updated,
         "call_note_id": str(call_note.id),
         "todos_created": todos_created,
+        "emails_sent": email_result.get("emails_sent", 0),
+        "email_drafts_created": email_result.get("drafts_created", 0),
+        "email_errors": email_result.get("errors", []),
     }
 
 

@@ -225,6 +225,10 @@
             {% if todos and todos | length > 0 %}
             <span style="font-size:11px;font-weight:700;background:var(--pp-green);color:#000;padding:1px 7px;border-radius:99px;margin-left:4px;">{{ todos | length }}</span>
             {% endif %}
+            {% set pending_drafts = (email_drafts_json or []) | selectattr('status', 'equalto', 'draft') | list %}
+            {% if pending_drafts | length > 0 %}
+            <span style="font-size:11px;font-weight:700;background:#f59e0b;color:#000;padding:1px 7px;border-radius:99px;margin-left:2px;" title="Offene Email-Entw&uuml;rfe">&#x2709; {{ pending_drafts | length }}</span>
+            {% endif %}
         </button>
     </div>
     </div>
@@ -1126,6 +1130,132 @@
                                 <div style="font-size:28px; margin-bottom:6px; opacity:0.25;">&#x1F4CB;</div>
                                 <div style="font-size:13px; font-weight:600; color:#5a6a8a;">Keine Aufgaben</div>
                                 <div style="font-size:11px; color:#3d4a6e; margin-top:3px;">Werden automatisch aus Anrufen erstellt</div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                {# ═══ Email-Entwürfe Sektion (im Aufgaben-Tab) ═══ #}
+                <div class="kd-section kd-anim" style="animation-delay:200ms;" x-data="emailDraftsManager()">
+                    <div class="kd-section-header">
+                        <div class="kd-section-title"><span>&#x2709;</span> Email-Entw&uuml;rfe</div>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <span style="font-size:12px; font-weight:600; color:var(--pp-textDim);" x-text="drafts.length + ' Entw\u00fcrfe'"></span>
+                            <template x-if="pendingCount > 0">
+                                <span style="font-size:11px;font-weight:700;background:#f59e0b;color:#000;padding:1px 7px;border-radius:99px;" x-text="pendingCount + ' offen'"></span>
+                            </template>
+                        </div>
+                    </div>
+                    <div class="kd-section-body" style="padding:12px 24px 16px;">
+
+                        {# ── Draft-Liste ── #}
+                        <div style="display:flex; flex-direction:column; gap:8px;">
+                            <template x-for="draft in drafts" :key="draft.id">
+                                <div style="border-radius:14px; border:1px solid rgba(255,255,255,0.08); transition:all .2s; background:rgba(15,20,35,0.5);"
+                                     :style="draft.status === 'sent' ? 'border-color:rgba(46,213,115,0.2); opacity:0.65;' : draft.status === 'failed' ? 'border-color:rgba(255,71,87,0.3); background:rgba(255,71,87,0.04);' : ''">
+
+                                    {# ── Hauptzeile ── #}
+                                    <div style="padding:12px 16px; display:flex; align-items:center; gap:10px;">
+                                        {# Status-Icon #}
+                                        <div style="flex-shrink:0; width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:14px;"
+                                             :style="draft.status === 'sent' ? 'background:rgba(46,213,115,0.12);' : draft.status === 'failed' ? 'background:rgba(255,71,87,0.12);' : 'background:rgba(54,154,255,0.12);'">
+                                            <span x-show="draft.status === 'draft'">&#x1F4E7;</span>
+                                            <span x-show="draft.status === 'sent'">&#x2705;</span>
+                                            <span x-show="draft.status === 'failed'">&#x26A0;</span>
+                                            <span x-show="draft.status === 'cancelled'">&#x274C;</span>
+                                        </div>
+
+                                        {# Typ + Subject #}
+                                        <div style="flex:1; min-width:0; cursor:pointer;" @click="draft._open = !draft._open">
+                                            <div style="display:flex; align-items:center; gap:8px;">
+                                                <span style="font-size:13.5px; font-weight:600; line-height:1.3; font-family:inherit; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"
+                                                      :style="draft.status === 'sent' ? 'color:#5a6a8a;' : draft.status === 'failed' ? 'color:#ff6b6b;' : 'color:#e8ecf4;'"
+                                                      x-text="draft.subject"></span>
+                                                <span style="font-size:10px; font-weight:700; padding:2px 7px; border-radius:6px; white-space:nowrap; font-family:inherit;"
+                                                      :style="draft.type_color"
+                                                      x-text="draft.type_label"></span>
+                                            </div>
+                                            <div style="font-size:11px; color:#5a6a8a; margin-top:2px; font-family:inherit;">
+                                                <span x-text="'An: ' + draft.to_email"></span>
+                                                <span x-show="draft.created_formatted" x-text="' \u2022 ' + draft.created_formatted"></span>
+                                            </div>
+                                        </div>
+
+                                        {# Status-Badge #}
+                                        <span style="font-size:10px; font-weight:700; padding:2px 7px; border-radius:6px; white-space:nowrap; font-family:inherit;"
+                                              :style="draft.status_style"
+                                              x-text="draft.status_label"></span>
+
+                                        {# Pfeil #}
+                                        <svg @click="draft._open = !draft._open" :style="draft._open ? 'transform:rotate(180deg)' : ''" width="14" height="14" style="color:#5a6a8a; flex-shrink:0; cursor:pointer; transition:transform .2s;" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+                                    </div>
+
+                                    {# ── Aufklapp-Detail (Email-Vorschau + Aktionen) ── #}
+                                    <div x-show="draft._open" x-transition.duration.150ms style="border-top:1px solid rgba(255,255,255,0.06); padding:14px 16px; background:rgba(22,28,45,0.6);">
+                                        {# Betreff editierbar bei draft-Status #}
+                                        <template x-if="draft.status === 'draft'">
+                                            <div style="margin-bottom:10px;">
+                                                <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#5a6a8a; margin-bottom:4px;">Betreff</div>
+                                                <input type="text" :value="draft.subject" @change="updateDraft(draft.id, {subject: $event.target.value})"
+                                                    style="width:100%; padding:6px 10px; border-radius:8px; border:1.5px solid rgba(255,255,255,0.08); font-size:13px; color:#e8ecf4; background:rgba(15,20,35,0.5); font-family:inherit; outline:none;">
+                                            </div>
+                                        </template>
+
+                                        {# Email-Body Vorschau #}
+                                        <div style="margin-bottom:12px; padding:14px; border-radius:12px; background:#0c1021; border:1px solid rgba(255,255,255,0.06); max-height:300px; overflow-y:auto;">
+                                            <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#5a6a8a; margin-bottom:8px;">Vorschau</div>
+                                            <div x-html="draft.body_html" style="font-size:13px; line-height:1.6; color:#c5cdd8;"></div>
+                                        </div>
+
+                                        {# Fehler anzeigen #}
+                                        <template x-if="draft.send_error">
+                                            <div style="margin-bottom:10px; padding:8px 12px; border-radius:8px; background:rgba(255,71,87,0.08); border:1px solid rgba(255,71,87,0.2); font-size:12px; color:#ff6b6b;">
+                                                <strong>Fehler:</strong> <span x-text="draft.send_error"></span>
+                                            </div>
+                                        </template>
+
+                                        {# Aktions-Buttons #}
+                                        <div style="display:flex; gap:8px; align-items:center;">
+                                            <template x-if="draft.status === 'draft'">
+                                                <button type="button" @click="sendDraft(draft.id)"
+                                                    class="px-4 py-1.5 rounded-lg text-xs font-bold cursor-pointer"
+                                                    style="background:linear-gradient(135deg,#2ed573,#1fb85b); color:#fff; border:none; font-family:inherit; box-shadow:0 2px 8px rgba(46,213,115,0.25);"
+                                                    :disabled="draft._sending">
+                                                    <span x-show="!draft._sending">&#x2709; Jetzt senden</span>
+                                                    <span x-show="draft._sending">Wird gesendet...</span>
+                                                </button>
+                                            </template>
+                                            <template x-if="draft.status === 'draft'">
+                                                <button type="button" @click="if(confirm('Entwurf verwerfen?')) cancelDraft(draft.id)"
+                                                    class="px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer"
+                                                    style="background:transparent; border:1px solid rgba(255,71,87,0.2); color:#ff6b6b; font-family:inherit;">
+                                                    Verwerfen
+                                                </button>
+                                            </template>
+                                            <template x-if="draft.status === 'failed'">
+                                                <button type="button" @click="sendDraft(draft.id)"
+                                                    class="px-4 py-1.5 rounded-lg text-xs font-bold cursor-pointer"
+                                                    style="background:rgba(54,154,255,0.15); color:#369aff; border:1px solid rgba(54,154,255,0.3); font-family:inherit;">
+                                                    &#x1F504; Erneut versuchen
+                                                </button>
+                                            </template>
+                                            <template x-if="draft.status === 'sent' && draft.sent_at">
+                                                <span style="font-size:11px; color:#2ed573; font-weight:600;">
+                                                    Gesendet <span x-text="draft.sent_formatted"></span>
+                                                </span>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+
+                        {# Empty State #}
+                        <template x-if="drafts.length === 0">
+                            <div style="display:flex; flex-direction:column; align-items:center; padding:28px 0;">
+                                <div style="font-size:28px; margin-bottom:6px; opacity:0.25;">&#x2709;</div>
+                                <div style="font-size:13px; font-weight:600; color:#5a6a8a;">Keine Email-Entw&uuml;rfe</div>
+                                <div style="font-size:11px; color:#3d4a6e; margin-top:3px;">Werden automatisch nach Gespr&auml;chen erstellt</div>
                             </div>
                         </template>
                     </div>
@@ -2321,6 +2451,114 @@ function aufgabenManager() {
             .then(function() {
                 self.todos = self.todos.filter(function(t){return t.id !== todoId;});
                 showToast('Aufgabe gelöscht','success');
+            })
+            .catch(function(e) { showToast('Fehler: '+e.message,'error'); });
+        }
+    };
+}
+
+// ==================== Email-Drafts Manager ====================
+function emailDraftsManager() {
+    var typeLabels = {kontaktdaten:'Kontaktdaten',stellenausschreibung:'Stellenausschreibung',individuell:'Individuell'};
+    var typeColors = {
+        kontaktdaten:'color:#2ed573; background:rgba(46,213,115,0.12);',
+        stellenausschreibung:'color:#369aff; background:rgba(54,154,255,0.12);',
+        individuell:'color:#f59e0b; background:rgba(245,158,11,0.12);'
+    };
+    var statusLabels = {draft:'Entwurf',sent:'Gesendet',failed:'Fehler',cancelled:'Verworfen',approved:'Genehmigt'};
+    var statusStyles = {
+        draft:'color:#f59e0b; background:rgba(245,158,11,0.12);',
+        sent:'color:#2ed573; background:rgba(46,213,115,0.12);',
+        failed:'color:#ff4757; background:rgba(255,71,87,0.12);',
+        cancelled:'color:#5a6a8a; background:rgba(90,106,138,0.12);',
+        approved:'color:#369aff; background:rgba(54,154,255,0.12);'
+    };
+
+    function enrichDraft(d) {
+        d._open = false;
+        d._sending = false;
+        d.type_label = typeLabels[d.email_type] || d.email_type;
+        d.type_color = typeColors[d.email_type] || 'color:#5a6a8a; background:rgba(90,106,138,0.12);';
+        d.status_label = statusLabels[d.status] || d.status;
+        d.status_style = statusStyles[d.status] || '';
+        if (d.created_at) {
+            var dt = new Date(d.created_at);
+            d.created_formatted = dt.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'}) + ' ' + dt.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+        } else { d.created_formatted = ''; }
+        if (d.sent_at) {
+            var st = new Date(d.sent_at);
+            d.sent_formatted = st.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'}) + ' ' + st.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+        } else { d.sent_formatted = ''; }
+        return d;
+    }
+
+    var rawDrafts = {{ (email_drafts_json or []) | tojson | safe }};
+    rawDrafts = rawDrafts.map(function(d) { return enrichDraft(d); });
+
+    return {
+        drafts: rawDrafts,
+
+        get pendingCount() {
+            return this.drafts.filter(function(d){ return d.status === 'draft'; }).length;
+        },
+
+        sendDraft: function(draftId) {
+            var self = this;
+            var idx = self.drafts.findIndex(function(d){return d.id === draftId;});
+            if (idx === -1) return;
+            self.drafts[idx]._sending = true;
+
+            fetch('/api/email/drafts/' + draftId + '/send', {method:'POST', headers:{'Content-Type':'application/json'}})
+            .then(function(r) { return r.json().then(function(data){return {ok:r.ok, data:data};}); })
+            .then(function(res) {
+                if (res.ok && !res.data.error) {
+                    self.drafts[idx].status = 'sent';
+                    self.drafts[idx].sent_at = new Date().toISOString();
+                    self.drafts[idx] = enrichDraft(self.drafts[idx]);
+                    self.drafts[idx]._open = true;
+                    showToast('Email gesendet!','success');
+                } else {
+                    self.drafts[idx].status = 'failed';
+                    self.drafts[idx].send_error = res.data.error || 'Unbekannter Fehler';
+                    self.drafts[idx] = enrichDraft(self.drafts[idx]);
+                    self.drafts[idx]._open = true;
+                    showToast('Email-Versand fehlgeschlagen','error');
+                }
+            })
+            .catch(function(e) {
+                self.drafts[idx]._sending = false;
+                showToast('Fehler: ' + e.message,'error');
+            });
+        },
+
+        updateDraft: function(draftId, fields) {
+            var self = this;
+            fetch('/api/email/drafts/' + draftId, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(fields)})
+            .then(function(r) { if (!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+            .then(function(data) {
+                var idx = self.drafts.findIndex(function(d){return d.id === draftId;});
+                if (idx !== -1) {
+                    var wasOpen = self.drafts[idx]._open;
+                    self.drafts[idx].subject = data.subject || self.drafts[idx].subject;
+                    self.drafts[idx].body_html = data.body_html || self.drafts[idx].body_html;
+                    self.drafts[idx]._open = wasOpen;
+                }
+                showToast('Entwurf aktualisiert','success');
+            })
+            .catch(function(e) { showToast('Fehler: '+e.message,'error'); });
+        },
+
+        cancelDraft: function(draftId) {
+            var self = this;
+            fetch('/api/email/drafts/' + draftId, {method:'DELETE'})
+            .then(function(r) { if (!r.ok) throw new Error('HTTP '+r.status); })
+            .then(function() {
+                var idx = self.drafts.findIndex(function(d){return d.id === draftId;});
+                if (idx !== -1) {
+                    self.drafts[idx].status = 'cancelled';
+                    self.drafts[idx] = enrichDraft(self.drafts[idx]);
+                }
+                showToast('Entwurf verworfen','success');
             })
             .catch(function(e) { showToast('Fehler: '+e.message,'error'); });
         }

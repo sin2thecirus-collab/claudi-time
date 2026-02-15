@@ -26,6 +26,7 @@ from app.services.statistics_service import StatisticsService
 from app.services.alert_service import AlertService
 from app.services.ats_call_note_service import ATSCallNoteService
 from app.services.ats_todo_service import ATSTodoService
+from app.services.email_service import EmailService
 
 logger = logging.getLogger(__name__)
 
@@ -169,6 +170,24 @@ async def candidate_detail(
             "created_at": t.created_at.isoformat() if t.created_at else None,
         })
 
+    # Email-Drafts fuer diesen Kandidaten laden
+    email_service = EmailService(db)
+    email_drafts = await email_service.list_drafts(candidate_id=candidate_id)
+    drafts_serialized = []
+    for d in email_drafts:
+        drafts_serialized.append({
+            "id": str(d.id),
+            "email_type": d.email_type,
+            "to_email": d.to_email,
+            "subject": d.subject,
+            "body_html": d.body_html,
+            "status": d.status,
+            "auto_send": d.auto_send,
+            "sent_at": d.sent_at.isoformat() if d.sent_at else None,
+            "send_error": d.send_error,
+            "created_at": d.created_at.isoformat() if d.created_at else None,
+        })
+
     return templates.TemplateResponse(
         "candidate_detail.html",
         {
@@ -177,6 +196,7 @@ async def candidate_detail(
             "call_notes": call_notes,
             "todos": todos,
             "todos_json": todos_serialized,
+            "email_drafts_json": drafts_serialized,
         }
     )
 

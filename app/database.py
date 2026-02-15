@@ -767,6 +767,56 @@ async def _ensure_users_table() -> None:
         logger.error(f"Admin-User Setup FEHLGESCHLAGEN: {e}")
 
 
+async def _ensure_email_drafts_table() -> None:
+    """Erstellt email_drafts Tabelle (automatische E-Mails nach Kandidatengespraechen)."""
+
+    async with engine.begin() as conn:
+        result = await conn.execute(
+            text(
+                "SELECT table_name FROM information_schema.tables "
+                "WHERE table_schema = 'public' AND table_name = 'email_drafts'"
+            )
+        )
+        if result.fetchone() is not None:
+            logger.info("email_drafts Tabelle existiert bereits.")
+            return
+
+    logger.info("email_drafts Tabelle wird erstellt...")
+
+    async with engine.begin() as conn:
+        await conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS email_drafts (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                candidate_id UUID REFERENCES candidates(id) ON DELETE SET NULL,
+                ats_job_id UUID REFERENCES ats_jobs(id) ON DELETE SET NULL,
+                call_note_id UUID REFERENCES ats_call_notes(id) ON DELETE SET NULL,
+                email_type VARCHAR(50) NOT NULL DEFAULT 'individuell',
+                to_email VARCHAR(500) NOT NULL,
+                subject VARCHAR(500) NOT NULL,
+                body_html TEXT NOT NULL,
+                status VARCHAR(20) NOT NULL DEFAULT 'draft',
+                gpt_context TEXT,
+                sent_at TIMESTAMPTZ,
+                send_error TEXT,
+                microsoft_message_id VARCHAR(255),
+                auto_send BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        """))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_email_drafts_candidate_id ON email_drafts (candidate_id)"
+        ))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_email_drafts_status ON email_drafts (status)"
+        ))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_email_drafts_created_at ON email_drafts (created_at)"
+        ))
+
+        logger.info("email_drafts Tabelle erfolgreich erstellt.")
+
+
 async def init_db() -> None:
     """Initialisiert die Datenbankverbindung und führt Migrationen aus."""
     # Schritt 0: Alle haengenden Transaktionen killen (von vorherigen Deployments)
@@ -795,6 +845,7 @@ async def init_db() -> None:
     await _ensure_matching_v2_tables()
     await _ensure_unassigned_calls_table()
     await _ensure_candidate_notes_table()
+    await _ensure_email_drafts_table()
 
     # ── pgvector Extension NICHT noetig — Embeddings werden als JSONB gespeichert ──
     # Railway Standard-PostgreSQL hat kein pgvector vorinstalliert.

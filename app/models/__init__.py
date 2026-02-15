@@ -9,6 +9,7 @@ from app.models.ats_pipeline import ATSPipelineEntry, PipelineStage
 from app.models.ats_todo import ATSTodo, TodoPriority, TodoStatus
 from app.models.candidate import Candidate
 from app.models.candidate_note import CandidateNote
+from app.models.email_draft import EmailDraft, EmailDraftStatus, EmailType
 from app.models.company import Company, CompanyStatus
 from app.models.company_contact import CompanyContact
 from app.models.company_correspondence import CompanyCorrespondence, CorrespondenceDirection
@@ -63,4 +64,7 @@ __all__ = [
     "MatchV2ScoringWeight",
     "UnassignedCall",
     "CandidateNote",
+    "EmailDraft",
+    "EmailDraftStatus",
+    "EmailType",
 ]
