@@ -24,6 +24,7 @@ from app.services.company_service import CompanyService
 from app.services.filter_service import FilterService
 from app.services.statistics_service import StatisticsService
 from app.services.alert_service import AlertService
+from app.services.ats_call_note_service import ATSCallNoteService
 
 logger = logging.getLogger(__name__)
 
@@ -138,11 +139,19 @@ async def candidate_detail(
     if not candidate:
         raise HTTPException(status_code=404, detail="Kandidat nicht gefunden")
 
+    # CallNotes fuer Anrufprotokoll laden
+    call_note_service = ATSCallNoteService(db)
+    call_notes_result = await call_note_service.list_call_notes(
+        candidate_id=candidate_id, per_page=100
+    )
+    call_notes = call_notes_result["items"]
+
     return templates.TemplateResponse(
         "candidate_detail.html",
         {
             "request": request,
-            "candidate": candidate
+            "candidate": candidate,
+            "call_notes": call_notes,
         }
     )
 

@@ -493,12 +493,12 @@
             </div>
             </div>
 
-            {# ═══ TAB: Qualifizierung (shares qualificationFields scope with Gespräche) ═══ #}
-            <div x-show="activeTab === 'qualifizierung' || activeTab === 'gespraeche'"
+            {# ═══ TAB: Qualifizierung ═══ #}
+            <div x-show="activeTab === 'qualifizierung'"
                  x-data="qualificationFields()" style="overflow:visible;">
 
                 {# Qualifizierung content #}
-                <div x-show="activeTab === 'qualifizierung'" style="display:flex; flex-direction:column; gap:40px;">
+                <div style="display:flex; flex-direction:column; gap:40px;">
                     
             {# ── Quick-Glance Bar ── #}
             <div class="kd-quickglance kd-anim" style="animation-delay:50ms;">
@@ -929,70 +929,118 @@
             </div>
                 </div>
 
-                {# Gespräche content #}
-                <div x-show="activeTab === 'gespraeche'" style="display:flex; flex-direction:column; gap:40px;">
-                    <div class="kd-section kd-anim" style="animation-delay:100ms; overflow:visible; position:relative; z-index:20;">
-                        <div class="kd-section-header">
-                            <div class="kd-section-title"><span>&#x1F3A4;</span> Gespr&auml;chsdaten</div>
+            </div>
+
+            {# ═══ TAB: Gespräche (Anrufprotokoll) ═══ #}
+            <div x-show="activeTab === 'gespraeche'" x-cloak x-data="callLogTimeline()" style="display:flex; flex-direction:column; gap:20px;">
+                {# Header mit Hinzufügen-Button #}
+                <div class="kd-section kd-anim" style="animation-delay:100ms;">
+                    <div class="kd-section-header">
+                        <div class="kd-section-title"><span>&#x1F4DE;</span> Anrufprotokoll</div>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <span style="font-size:12px; font-weight:600; color:var(--pp-textDim);" x-text="calls.length + ' Gespr&auml;che'"></span>
+                            <button type="button" @click="showAddCall = !showAddCall"
+                                class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer"
+                                style="background:var(--pp-surfaceHover); border:1.5px solid var(--pp-border); color:var(--pp-accent); font-family:inherit;">
+                                <span x-text="showAddCall ? 'Abbrechen' : '+ Anruf'"></span>
+                            </button>
                         </div>
-                        <div class="kd-section-body" style="overflow:visible;">
-                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                    </div>
+                    <div class="kd-section-body">
+                        {# Neuen Anruf hinzufügen #}
+                        <div x-show="showAddCall" x-cloak style="margin-bottom:16px; padding:16px; border-radius:12px; background:var(--pp-bg); border:1px solid var(--pp-border);">
+                            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:10px;">
                                 <div>
-                                    <div class="kd-field-label">Gespr&auml;chsdatum</div>
-                                    <input type="date" x-model="qfCallDate" @change="saveCallDate()"
-                                        class="rounded-lg text-sm font-semibold cursor-pointer"
+                                    <div class="kd-field-label">Datum</div>
+                                    <input type="datetime-local" x-model="newCall.called_at"
+                                        class="w-full rounded-lg text-sm font-semibold"
                                         style="padding:8px 12px; border:1.5px solid var(--pp-border); color:var(--pp-text); background:var(--pp-surface); font-family:inherit; outline:none; color-scheme:dark;">
                                 </div>
                                 <div>
-                                    <div class="kd-field-label">Gespr&auml;chstyp</div>
-                                    <div class="relative" @click.away="showCallTypeDd = false" style="overflow:visible;">
-                                        <button type="button" @click="showCallTypeDd = !showCallTypeDd"
-                                            class="relative w-full cursor-pointer rounded-lg py-2 pl-3 pr-8 text-left text-sm font-semibold"
-                                            style="font-family:inherit; background:var(--pp-surface); border:1.5px solid var(--pp-border); color:var(--pp-text);">
-                                            <span class="block truncate" x-text="callTypeLabels[qf.call_type] || 'Ausw&auml;hlen'"></span>
-                                            <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
-                                                <svg class="h-4 w-4 opacity-50" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
-                                            </span>
-                                        </button>
-                                        <div x-show="showCallTypeDd" x-cloak
-                                             class="absolute z-50 mt-1 max-h-60 overflow-auto rounded-xl py-1 text-sm shadow-lg"
-                                             style="background:var(--pp-surface); border:1px solid var(--pp-border); min-width:220px; width:max-content; box-shadow:0 8px 24px rgba(0,0,0,0.5);">
-                                            <template x-for="ct in callTypeOptions" :key="ct.value">
-                                                <button type="button" @click="qf.call_type = ct.value; showCallTypeDd = false; saveQField('call_type')"
-                                                    class="w-full cursor-pointer select-none py-2.5 pl-3 pr-4 text-left text-sm"
-                                                    style="font-family:inherit; white-space:nowrap; border:none;"
-                                                    :style="qf.call_type === ct.value ? 'background:var(--pp-surfaceHover); color:var(--pp-accent); font-weight:650;' : 'background:none; color:var(--pp-text); font-weight:500;'"
-                                                    x-text="ct.label"></button>
-                                            </template>
-                                        </div>
-                                    </div>
+                                    <div class="kd-field-label">Typ</div>
+                                    <select x-model="newCall.call_type"
+                                        class="w-full rounded-lg text-sm font-semibold cursor-pointer"
+                                        style="padding:8px 12px; border:1.5px solid var(--pp-border); color:var(--pp-text); background:var(--pp-surface); font-family:inherit; outline:none;">
+                                        <option value="candidate_call">Kandidatengespr&auml;ch</option>
+                                        <option value="qualification">Qualifizierung</option>
+                                        <option value="followup">Nachfassen</option>
+                                        <option value="acquisition">Akquise</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <div class="kd-field-label">Richtung</div>
+                                    <select x-model="newCall.direction"
+                                        class="w-full rounded-lg text-sm font-semibold cursor-pointer"
+                                        style="padding:8px 12px; border:1.5px solid var(--pp-border); color:var(--pp-text); background:var(--pp-surface); font-family:inherit; outline:none;">
+                                        <option value="outbound">Ausgehend</option>
+                                        <option value="inbound">Eingehend</option>
+                                    </select>
                                 </div>
                             </div>
-                            {# KI-Zusammenfassung #}
-                            <div style="margin-top:12px;">
-                                <div class="kd-field-label">KI-Zusammenfassung</div>
-                                <textarea x-model="qf.call_summary" @blur="saveQField('call_summary')" placeholder="KI-generierte Zusammenfassung des Gespr&auml;chs..."
+                            <div style="margin-bottom:10px;">
+                                <div class="kd-field-label">Zusammenfassung / Notiz</div>
+                                <textarea x-model="newCall.summary" placeholder="Worum ging es im Gespr&auml;ch?"
                                     class="w-full rounded-lg text-sm font-medium resize-vertical"
-                                    style="min-height:100px; padding:10px 14px; border:1.5px solid var(--pp-border); color:var(--pp-text); background:var(--pp-surface); font-family:inherit; outline:none; line-height:1.75;"
+                                    style="min-height:80px; padding:10px 14px; border:1.5px solid var(--pp-border); color:var(--pp-text); background:var(--pp-surface); font-family:inherit; outline:none; line-height:1.75;"
                                     @focus="$el.style.borderColor = 'var(--pp-accent)'" @focusout="$el.style.borderColor = 'var(--pp-border)'"></textarea>
                             </div>
-                            {# Transkript #}
-                            <div style="margin-top:12px;" x-data="{ showTranscript: false }">
-                                <button type="button" @click="showTranscript = !showTranscript"
-                                    class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all duration-150"
-                                    style="background:var(--pp-surfaceHover); border:1.5px solid var(--pp-border); color:var(--pp-textMuted); font-family:inherit;">
-                                    <svg :class="showTranscript ? 'rotate-90' : ''" class="w-3 h-3 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M9 5l7 7-7 7"/></svg>
-                                    <span x-text="showTranscript ? 'Transkript ausblenden' : 'Transkript anzeigen'"></span>
-                                    <span x-show="qf.call_transcript" x-cloak style="font-size:10px; color:var(--pp-accent); font-weight:600;">(vorhanden)</span>
+                            <div style="display:flex; justify-content:flex-end;">
+                                <button type="button" @click="saveNewCall()" :disabled="!newCall.summary.trim() || saving"
+                                    class="px-4 py-2 rounded-lg text-sm font-bold cursor-pointer"
+                                    style="background:linear-gradient(135deg, #6366f1, #8b5cf6); color:#fff; border:none; font-family:inherit;"
+                                    :style="(!newCall.summary.trim() || saving) ? 'opacity:0.5; cursor:not-allowed;' : ''">
+                                    <span x-text="saving ? 'Speichert...' : 'Anruf speichern'"></span>
                                 </button>
-                                <div x-show="showTranscript" x-cloak style="margin-top:8px;">
-                                    <textarea x-model="qf.call_transcript" @blur="saveQField('call_transcript')" placeholder="Volle Transkription des Gespr&auml;chs..."
-                                        class="w-full rounded-lg text-sm font-medium resize-vertical"
-                                        style="min-height:250px; padding:10px 14px; border:1.5px solid var(--pp-border); color:var(--pp-text); background:var(--pp-surface); font-family:inherit; outline:none; line-height:1.6; font-size:12px;"
-                                        @focus="$el.style.borderColor = 'var(--pp-accent)'" @focusout="$el.style.borderColor = 'var(--pp-border)'"></textarea>
-                                </div>
                             </div>
                         </div>
+
+                        {# Timeline #}
+                        <template x-if="calls.length > 0">
+                            <div style="display:flex; flex-direction:column; gap:0; position:relative;">
+                                {# Timeline-Linie #}
+                                <div style="position:absolute; left:15px; top:8px; bottom:8px; width:2px; background:var(--pp-border); border-radius:1px;"></div>
+                                <template x-for="(call, idx) in calls" :key="call.id">
+                                    <div style="display:flex; gap:16px; position:relative; padding:12px 0;">
+                                        {# Timeline-Dot #}
+                                        <div style="flex-shrink:0; width:32px; display:flex; justify-content:center; z-index:1;">
+                                            <div :style="call.call_type === 'qualification' ? 'background:rgba(99,102,241,0.3); border-color:#6366f1;' : call.call_type === 'acquisition' ? 'background:rgba(245,158,11,0.3); border-color:#f59e0b;' : call.call_type === 'followup' ? 'background:rgba(16,185,129,0.3); border-color:#10b981;' : 'background:rgba(148,163,184,0.3); border-color:#94a3b8;'"
+                                                style="width:12px; height:12px; border-radius:50%; border:2px solid; margin-top:4px;"></div>
+                                        </div>
+                                        {# Call Card #}
+                                        <div style="flex:1; padding:12px 16px; border-radius:12px; background:var(--pp-surfaceHover); border:1px solid var(--pp-border); transition:border-color 0.2s;"
+                                             @mouseenter="$el.style.borderColor='rgba(99,102,241,0.3)'" @mouseleave="$el.style.borderColor='var(--pp-border)'">
+                                            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+                                                <div style="display:flex; align-items:center; gap:8px;">
+                                                    <span :style="call.call_type === 'qualification' ? 'background:rgba(99,102,241,0.15); color:#a5b4fc;' : call.call_type === 'acquisition' ? 'background:rgba(245,158,11,0.15); color:#fbbf24;' : call.call_type === 'followup' ? 'background:rgba(16,185,129,0.15); color:#34d399;' : 'background:rgba(148,163,184,0.15); color:#94a3b8;'"
+                                                        style="font-size:10px; font-weight:700; padding:3px 8px; border-radius:6px; text-transform:uppercase; letter-spacing:0.05em;"
+                                                        x-text="call.call_type_label"></span>
+                                                    <span x-show="call.direction" style="font-size:10px; font-weight:600; color:var(--pp-textDim);"
+                                                        x-text="call.direction === 'inbound' ? 'Eingehend' : 'Ausgehend'"></span>
+                                                    <span x-show="call.duration_minutes" style="font-size:10px; font-weight:600; color:var(--pp-textDim);"
+                                                        x-text="call.duration_minutes + ' Min.'"></span>
+                                                </div>
+                                                <div style="display:flex; align-items:center; gap:8px;">
+                                                    <span style="font-size:11px; font-weight:600; color:var(--pp-textDim);"
+                                                        x-text="formatDate(call.called_at)"></span>
+                                                    <button type="button" @click="deleteCall(call.id, idx)"
+                                                        class="px-1 py-0.5 rounded text-xs cursor-pointer"
+                                                        style="background:none; border:none; color:var(--pp-textDim); font-size:14px; line-height:1;"
+                                                        @mouseenter="$el.style.color='#ef4444'" @mouseleave="$el.style.color='var(--pp-textDim)'">&times;</button>
+                                                </div>
+                                            </div>
+                                            <div style="font-size:13px; font-weight:500; color:var(--pp-text); line-height:1.6; white-space:pre-wrap;" x-text="call.summary"></div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                        <template x-if="calls.length === 0 && !showAddCall">
+                            <div style="display:flex; flex-direction:column; align-items:center; padding:30px 0;">
+                                <div style="font-size:28px; margin-bottom:8px; opacity:0.3;">&#x1F4DE;</div>
+                                <div style="font-size:13px; font-weight:600; color:var(--pp-textDim);">Noch keine Anrufe protokolliert</div>
+                                <div style="font-size:11px; color:var(--pp-textDim); margin-top:4px;">Anrufe werden automatisch von n8n erfasst oder k&ouml;nnen manuell hinzugef&uuml;gt werden.</div>
+                            </div>
+                        </template>
                     </div>
                 </div>
             </div>
@@ -1634,6 +1682,89 @@ function pipelineFields() {
                     if (typeof showToast === 'function') showToast('Bewertung entfernt', 'success');
                 }
             } catch (err) { console.error('Rating entfernen fehlgeschlagen:', err); }
+        }
+    };
+}
+
+// ==================== Anrufprotokoll (Gespräche-Tab) ====================
+function callLogTimeline() {
+    var candidateId = '{{ candidate.id }}';
+    var typeLabels = { 'acquisition': 'Akquise', 'qualification': 'Qualifizierung', 'followup': 'Nachfassen', 'candidate_call': 'Kandidatengespr\u00e4ch' };
+    return {
+        calls: [
+            {% for note in call_notes %}
+            {
+                id: '{{ note.id }}',
+                call_type: '{{ note.call_type.value }}',
+                call_type_label: '{{ note.call_type_label }}',
+                summary: {{ (note.summary or '') | tojson | safe }},
+                direction: {{ (note.direction.value if note.direction else None) | tojson | safe }},
+                duration_minutes: {{ note.duration_minutes | tojson | safe }},
+                called_at: {{ (note.called_at.isoformat() if note.called_at else None) | tojson | safe }}
+            }{{ ',' if not loop.last }}
+            {% endfor %}
+        ],
+        showAddCall: false,
+        saving: false,
+        newCall: {
+            called_at: new Date().toISOString().slice(0, 16),
+            call_type: 'candidate_call',
+            direction: 'outbound',
+            summary: ''
+        },
+        formatDate(isoStr) {
+            if (!isoStr) return '';
+            var d = new Date(isoStr);
+            return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ', ' + d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+        },
+        async saveNewCall() {
+            if (!this.newCall.summary.trim()) return;
+            this.saving = true;
+            try {
+                var payload = {
+                    candidate_id: candidateId,
+                    call_type: this.newCall.call_type,
+                    direction: this.newCall.direction,
+                    summary: this.newCall.summary.trim(),
+                    called_at: this.newCall.called_at ? new Date(this.newCall.called_at).toISOString() : null
+                };
+                var response = await fetch('/api/ats/calls', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (response.ok) {
+                    var result = await response.json();
+                    this.calls.unshift({
+                        id: result.id,
+                        call_type: this.newCall.call_type,
+                        call_type_label: typeLabels[this.newCall.call_type] || this.newCall.call_type,
+                        summary: this.newCall.summary.trim(),
+                        direction: this.newCall.direction,
+                        duration_minutes: null,
+                        called_at: this.newCall.called_at ? new Date(this.newCall.called_at).toISOString() : new Date().toISOString()
+                    });
+                    this.newCall = { called_at: new Date().toISOString().slice(0, 16), call_type: 'candidate_call', direction: 'outbound', summary: '' };
+                    this.showAddCall = false;
+                    if (typeof showToast === 'function') showToast('Anruf protokolliert', 'success');
+                } else {
+                    if (typeof showToast === 'function') showToast('Fehler beim Speichern', 'error');
+                }
+            } catch (err) {
+                console.error('CallNote erstellen fehlgeschlagen:', err);
+                if (typeof showToast === 'function') showToast('Fehler beim Speichern', 'error');
+            }
+            this.saving = false;
+        },
+        async deleteCall(callId, idx) {
+            if (!confirm('Anruf wirklich l\u00f6schen?')) return;
+            try {
+                var response = await fetch('/api/ats/calls/' + callId, { method: 'DELETE' });
+                if (response.ok) {
+                    this.calls.splice(idx, 1);
+                    if (typeof showToast === 'function') showToast('Anruf gel\u00f6scht', 'success');
+                }
+            } catch (err) { console.error('CallNote l\u00f6schen fehlgeschlagen:', err); }
         }
     };
 }
