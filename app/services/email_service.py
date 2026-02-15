@@ -148,77 +148,71 @@ class MicrosoftGraphClient:
 _BASE_URL = "https://claudi-time-production-46a5.up.railway.app"
 
 EMAIL_SIGNATURE = f"""
-<table cellpadding="0" cellspacing="0" border="0" style="font-family: Arial, Helvetica, sans-serif; margin-top: 28px; border-collapse: collapse; max-width: 520px;">
-    <!-- Trennlinie -->
-    <tr>
-        <td colspan="2" style="padding-bottom: 20px;">
-            <div style="height: 2px; background: linear-gradient(90deg, #002855 0%, #34D399 50%, #002855 100%); border-radius: 2px;"></div>
-        </td>
-    </tr>
-    <!-- Hauptzeile: Foto + Kontaktdaten -->
-    <tr>
-        <td style="vertical-align: top; padding-right: 20px; width: 90px;">
-            <img src="{_BASE_URL}/static/images/milad_foto.jpg"
-                 alt="Milad Hamdard" width="80" height="80"
-                 style="border-radius: 50%; border: 2px solid #002855; display: block;" />
-        </td>
-        <td style="vertical-align: top;">
-            <p style="margin: 0 0 2px; font-size: 17px; font-weight: 700; color: #002855;">Milad Hamdard</p>
-            <p style="margin: 0 0 10px; font-size: 13px; color: #5a6a7a; letter-spacing: 0.5px; text-transform: uppercase;">Senior Personalberater</p>
-            <table cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse;">
-                <tr>
-                    <td style="padding: 2px 8px 2px 0; font-size: 13px; color: #5a6a7a; white-space: nowrap;">Mobil</td>
-                    <td style="padding: 2px 0; font-size: 13px;"><a href="tel:+4917681605498" style="color: #002855; text-decoration: none; font-weight: 500;">+49 176 816 054 98</a></td>
-                </tr>
-                <tr>
-                    <td style="padding: 2px 8px 2px 0; font-size: 13px; color: #5a6a7a; white-space: nowrap;">Festnetz</td>
-                    <td style="padding: 2px 0; font-size: 13px;"><a href="tel:+4940238345320" style="color: #002855; text-decoration: none; font-weight: 500;">040 238 345 320</a></td>
-                </tr>
-                <tr>
-                    <td style="padding: 2px 8px 2px 0; font-size: 13px; color: #5a6a7a; white-space: nowrap;">E-Mail</td>
-                    <td style="padding: 2px 0; font-size: 13px;"><a href="mailto:hamdard@sincirus.com" style="color: #002855; text-decoration: none; font-weight: 500;">hamdard@sincirus.com</a></td>
-                </tr>
-                <tr>
-                    <td style="padding: 2px 8px 2px 0; font-size: 13px; color: #5a6a7a; white-space: nowrap;">Web</td>
-                    <td style="padding: 2px 0; font-size: 13px;"><a href="https://www.sincirus.com" style="color: #002855; text-decoration: none; font-weight: 500;">www.sincirus.com</a></td>
-                </tr>
+<table border="0" cellpadding="0" cellspacing="0" style="font-family:Arial,Helvetica,sans-serif; border-collapse:collapse; max-width:472px; width:100%;">
+  <tr><td colspan="2" style="border-top:2px solid #3E577E; padding-bottom:16px;"></td></tr>
+  <tr>
+    <td width="82" style="vertical-align:top; padding-right:16px;">
+      <img src="{_BASE_URL}/static/images/milad_foto.jpg" width="82" height="82" alt="Milad Hamdard" style="border-radius:10px; display:block;">
+    </td>
+    <td style="vertical-align:top;">
+      <table border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+        <tr><td style="font-family:Arial,Helvetica,sans-serif; font-size:17px; font-weight:bold; color:#1e2d45; line-height:20px; padding-bottom:1px;">Milad Hamdard</td></tr>
+        <tr><td style="font-family:Arial,Helvetica,sans-serif; font-size:11px; color:#8f8c8d; line-height:14px; padding-bottom:10px;">Senior Personalberater &middot; Rechnungswesen &amp; Controlling</td></tr>
+        <tr><td style="font-family:Arial,Helvetica,sans-serif; font-size:12px; line-height:19px; color:#3E577E;">
+          <a href="tel:+494087406088" style="text-decoration:none; color:#3E577E;">+49 40 874 060 88</a><span style="color:#c8c8c8;">&ensp;|&ensp;</span><a href="tel:+4917680004741" style="text-decoration:none; color:#3E577E;">+49 176 8000 47 41</a>
+        </td></tr>
+        <tr><td style="font-family:Arial,Helvetica,sans-serif; font-size:12px; line-height:19px; color:#3E577E;">
+          <a href="mailto:hamdard@sincirus.com" style="text-decoration:none; color:#3E577E;">hamdard@sincirus.com</a>
+        </td></tr>
+        <tr><td style="font-family:Arial,Helvetica,sans-serif; font-size:12px; line-height:19px; color:#3E577E;">
+          <a href="https://sincirus.com/" style="text-decoration:none; color:#3E577E;">www.sincirus.com</a><span style="color:#c8c8c8;">&ensp;|&ensp;</span><span style="color:#3E577E;">Ballindamm 3, 20095 Hamburg</span>
+        </td></tr>
+      </table>
+    </td>
+  </tr>
+  <tr><td colspan="2" style="padding-bottom:14px;"></td></tr>
+  <tr>
+    <td colspan="2" style="border-top:1px solid #eee; padding-top:12px;">
+      <table border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse; width:100%;">
+        <tr>
+          <td style="vertical-align:middle;">
+            <table border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+              <tr>
+                <td style="vertical-align:middle; padding-right:10px;">
+                  <a href="https://sincirus.com/" style="text-decoration:none;">
+                    <img src="{_BASE_URL}/static/images/sincirus_icon.png" alt="Sincirus" height="32" style="display:block;">
+                  </a>
+                </td>
+                <td style="vertical-align:middle;">
+                  <a href="https://sincirus.com/" style="text-decoration:none; font-family:Arial,Helvetica,sans-serif; font-size:18px; font-weight:bold; color:#6b7280; letter-spacing:0.5px;">Sincirus</a>
+                </td>
+              </tr>
             </table>
-            <!-- Social Icons -->
-            <div style="margin-top: 10px;">
-                <a href="https://www.linkedin.com/in/milad-hamdard-021629175" style="text-decoration: none; margin-right: 8px;" title="LinkedIn">
-                    <img src="{_BASE_URL}/static/images/linkedin_icon.png" alt="LinkedIn" width="22" height="22" style="border-radius: 4px; display: inline-block; vertical-align: middle;" />
-                </a>
-                <a href="https://www.xing.com/profile/Milad_Hamdard" style="text-decoration: none;" title="XING">
-                    <img src="{_BASE_URL}/static/images/xing_icon.png" alt="XING" width="22" height="22" style="border-radius: 4px; display: inline-block; vertical-align: middle;" />
-                </a>
-            </div>
-        </td>
-    </tr>
-    <!-- Company Logo + Adresse -->
-    <tr>
-        <td colspan="2" style="padding-top: 16px;">
-            <table cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse;">
-                <tr>
-                    <td style="vertical-align: middle; padding-right: 12px;">
-                        <img src="{_BASE_URL}/static/images/sincirus_logo.png"
-                             alt="sincirus GmbH" height="28"
-                             style="display: block;" />
-                    </td>
-                    <td style="vertical-align: middle; font-size: 12px; color: #8896a6; border-left: 1px solid #d1d9e0; padding-left: 12px;">
-                        sincirus GmbH &middot; Ballindamm 3 &middot; 20095 Hamburg
-                    </td>
-                </tr>
-            </table>
-        </td>
-    </tr>
-    <!-- Vertraulichkeitshinweis -->
-    <tr>
-        <td colspan="2" style="padding-top: 18px;">
-            <p style="font-size: 10px; line-height: 1.5; color: #a0aab4; margin: 0;">
-                Der Inhalt dieser E-Mail ist vertraulich und ausschlie&szlig;lich f&uuml;r die Empf&auml;nger innerhalb des Unternehmens und der Unternehmensgruppe bestimmt. Ohne die ausdr&uuml;ckliche schriftliche Zustimmung des Absenders ist es strengstens untersagt, den Inhalt dieser Nachricht ganz oder teilweise an Personen oder Organisationen au&szlig;erhalb des Unternehmens oder der Unternehmensgruppe weiterzugeben oder zug&auml;nglich zu machen. Unternehmen innerhalb der Unternehmensgruppe, wie beispielsweise Tochtergesellschaften oder Holdinggesellschaften, gelten nicht als Dritte im Sinne dieser Bestimmung. Innerhalb des Unternehmens und der Unternehmensgruppe ist die Weiterleitung dieser E-Mail an verschiedene Abteilungen gestattet; eine Weitergabe an externe Unternehmen ist jedoch unter keinen Umst&auml;nden zul&auml;ssig. Sollten Sie diese Nachricht irrt&uuml;mlich erhalten haben, benachrichtigen Sie bitte unverz&uuml;glich den Absender, indem Sie auf diese E-Mail antworten, und l&ouml;schen Sie die Nachricht anschlie&szlig;end, um sicherzustellen, dass ein solcher Fehler in Zukunft vermieden wird.
-            </p>
-        </td>
-    </tr>
+          </td>
+          <td style="vertical-align:middle; text-align:right;">
+            <a href="https://www.linkedin.com/in/milad-hamdard" style="text-decoration:none; display:inline-block; vertical-align:middle; margin-right:6px;">
+              <img src="{_BASE_URL}/static/images/linkedin_icon.png" alt="LinkedIn" width="20" height="20" style="display:inline-block; vertical-align:middle;">
+            </a>
+            <a href="https://www.xing.com/profile/Milad_Hamdard2" style="text-decoration:none; display:inline-block; vertical-align:middle;">
+              <img src="{_BASE_URL}/static/images/xing_icon.png" alt="XING" width="20" height="20" style="display:inline-block; vertical-align:middle;">
+            </a>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+<table border="0" cellpadding="0" cellspacing="0" style="border-collapse:collapse; max-width:472px; width:100%; margin-top:12px; border-top:1px solid #eee;">
+  <tr>
+    <td style="padding-top:8px; font-family:Arial,Helvetica,sans-serif; font-size:7.5px; line-height:10px; color:#9b9a98; text-align:justify;">
+      Der Inhalt dieser E-Mail ist vertraulich und ausschlie&szlig;lich f&uuml;r die Empf&auml;nger innerhalb des Unternehmens und der Unternehmensgruppe bestimmt. Ohne die ausdr&uuml;ckliche schriftliche Zustimmung des Absenders ist es strengstens untersagt, den Inhalt dieser Nachricht ganz oder teilweise an Personen oder Organisationen au&szlig;erhalb des Unternehmens oder der Unternehmensgruppe weiterzugeben oder zug&auml;nglich zu machen. Unternehmen innerhalb der Unternehmensgruppe, wie beispielsweise Tochtergesellschaften oder Holdinggesellschaften, gelten nicht als Dritte im Sinne dieser Bestimmung. Innerhalb des Unternehmens und der Unternehmensgruppe ist die Weiterleitung dieser E-Mail an verschiedene Abteilungen gestattet; eine Weitergabe an externe Unternehmen ist jedoch unter keinen Umst&auml;nden zul&auml;ssig.
+    </td>
+  </tr>
+  <tr>
+    <td style="padding-top:4px; font-family:Arial,Helvetica,sans-serif; font-size:7.5px; line-height:10px; color:#9b9a98; text-align:justify;">
+      Sollten Sie diese Nachricht irrt&uuml;mlich erhalten haben, benachrichtigen Sie bitte unverz&uuml;glich den Absender, indem Sie auf diese E-Mail antworten, und l&ouml;schen Sie die Nachricht anschlie&szlig;end, um sicherzustellen, dass ein solcher Fehler in Zukunft vermieden wird.
+    </td>
+  </tr>
 </table>
 """
 
