@@ -136,6 +136,169 @@
     }
   },
 
+  "lohnbuchhalter": {
+    "Lohnbuchhaltung": {
+      "children": [
+        "Lohn- und Gehaltsabrechnung",
+        "Payroll",
+        "Entgeltabrechnung",
+        "Gehaltsabrechnung",
+        "Lohnabrechnung",
+        "Payroll Processing",
+        "Payroll Accounting",
+        "Compensation Administration"
+      ]
+    },
+    "Payroll": {
+      "children": [
+        "Lohnbuchhaltung",
+        "Lohn- und Gehaltsabrechnung",
+        "Entgeltabrechnung",
+        "Gehaltsabrechnung",
+        "Lohnabrechnung",
+        "Payroll Processing",
+        "Payroll Accounting"
+      ]
+    },
+    "Sozialversicherung": {
+      "children": [
+        "SV-Meldungen",
+        "Sozialversicherungsmeldungen",
+        "Sozialversicherungsrecht",
+        "Social Security",
+        "Meldewesen",
+        "Beitragsnachweise"
+      ]
+    },
+    "Lohnsteuer": {
+      "children": [
+        "Lohnsteuermeldungen",
+        "Lohnsteuerrecht",
+        "Lohnsteueranmeldung",
+        "Payroll Tax",
+        "Wage Tax"
+      ]
+    },
+    "Meldewesen": {
+      "children": [
+        "SV-Meldungen",
+        "Sozialversicherungsmeldungen",
+        "Lohnsteuermeldungen",
+        "Bescheinigungswesen",
+        "Beitragsnachweise"
+      ]
+    },
+    "Zeitwirtschaft": {
+      "children": [
+        "Arbeitszeiterfassung",
+        "Time Management",
+        "Abwesenheitsverwaltung",
+        "Urlaubsverwaltung",
+        "Schichtplanung"
+      ]
+    },
+    "DATEV LODAS": {
+      "children": [
+        "DATEV Lohn und Gehalt",
+        "DATEV",
+        "Lohnprogramm"
+      ]
+    },
+    "DATEV Lohn und Gehalt": {
+      "children": [
+        "DATEV LODAS",
+        "DATEV",
+        "Lohnprogramm"
+      ]
+    },
+    "SAP HCM": {
+      "children": [
+        "SAP HR",
+        "SAP",
+        "SAP Personalwirtschaft"
+      ]
+    }
+  },
+
+  "steuerfachangestellte": {
+    "Steuererklärung": {
+      "children": [
+        "Einkommensteuererklärung",
+        "Körperschaftsteuererklärung",
+        "Gewerbesteuererklärung",
+        "Umsatzsteuererklärung",
+        "Tax Return",
+        "Tax Filing",
+        "Steuern"
+      ]
+    },
+    "Mandantenbetreuung": {
+      "children": [
+        "Mandantenkorrespondenz",
+        "Client Service",
+        "Mandantenpflege",
+        "Kanzleimanagement",
+        "Client Advisory"
+      ]
+    },
+    "Finanzbuchhaltung": {
+      "children": [
+        "Kreditorenbuchhaltung",
+        "Debitorenbuchhaltung",
+        "Buchführung",
+        "Kontenabstimmung",
+        "Financial Accounting",
+        "General Ledger"
+      ]
+    },
+    "Jahresabschluss": {
+      "children": [
+        "Jahresabschlusserstellung",
+        "Bilanzierung",
+        "HGB-Abschluss",
+        "Year-End Closing",
+        "Annual Accounts",
+        "Financial Statements"
+      ]
+    },
+    "Steuerrecht": {
+      "children": [
+        "Einkommensteuer",
+        "Körperschaftsteuer",
+        "Gewerbesteuer",
+        "Umsatzsteuer",
+        "Lohnsteuer",
+        "Tax Law",
+        "Abgabenordnung"
+      ]
+    },
+    "Betriebsprüfung": {
+      "children": [
+        "Steuerprüfung",
+        "Tax Audit",
+        "Prüfungsbegleitung",
+        "Audit Support"
+      ]
+    },
+    "DATEV": {
+      "children": [
+        "DATEV Unternehmen Online",
+        "DATEV Kanzlei-Rechnungswesen",
+        "DATEV LODAS",
+        "DATEV Lohn und Gehalt",
+        "DATEV pro"
+      ]
+    },
+    "Lohnbuchhaltung": {
+      "children": [
+        "Lohn- und Gehaltsabrechnung",
+        "Payroll",
+        "Entgeltabrechnung",
+        "Gehaltsabrechnung"
+      ]
+    }
+  },
+
   "bilanzbuchhalter": {
     "Abschlusserstellung": {
       "children": [

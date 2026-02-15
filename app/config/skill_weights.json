@@ -123,6 +123,79 @@
     }
   },
 
+  "lohnbuchhalter": {
+    "qualifikationen": {
+      "weight": 9,
+      "skills": [
+        "Lohnbuchhalter",
+        "Lohnbuchhalterin",
+        "Geprüfter Lohnbuchhalter",
+        "Entgeltabrechner",
+        "Personalfachkaufmann",
+        "Personalfachkauffrau",
+        "Steuerfachangestellte",
+        "Steuerfachangestellter",
+        "Industriekaufmann",
+        "Bürokaufmann",
+        "Kaufmann Büromanagement",
+        "Personalkaufmann",
+        "Fachassistent Lohn und Gehalt"
+      ]
+    },
+    "fachkenntnisse": {
+      "weight": 10,
+      "skills": [
+        "Lohnabrechnung",
+        "Gehaltsabrechnung",
+        "Entgeltabrechnung",
+        "Lohnsteuer",
+        "Sozialversicherung",
+        "Sozialversicherungsrecht",
+        "Lohnsteuerrecht",
+        "Betriebliche Altersvorsorge",
+        "Mutterschutz",
+        "Elternzeit",
+        "Pfändung",
+        "Tarifrecht",
+        "Arbeitsrecht",
+        "Reisekostenabrechnung"
+      ]
+    },
+    "taetigkeiten": {
+      "weight": 8,
+      "skills": [
+        "Lohn- und Gehaltsabrechnung",
+        "Payroll",
+        "Entgeltabrechnung",
+        "SV-Meldungen",
+        "Sozialversicherungsmeldungen",
+        "Lohnsteuermeldungen",
+        "Meldewesen",
+        "Bescheinigungswesen",
+        "Personaladministration",
+        "Zeitwirtschaft",
+        "Stammdatenpflege",
+        "Jahresabschlussarbeiten Lohn"
+      ]
+    },
+    "software": {
+      "weight": 4,
+      "skills": [
+        "DATEV",
+        "DATEV LODAS",
+        "DATEV Lohn und Gehalt",
+        "SAP HCM",
+        "SAP HR",
+        "Sage",
+        "Lexware",
+        "Loga",
+        "Paisy",
+        "ADP",
+        "Excel"
+      ]
+    }
+  },
+
   "steuerfachangestellte": {
     "qualifikationen": {
       "weight": 10,

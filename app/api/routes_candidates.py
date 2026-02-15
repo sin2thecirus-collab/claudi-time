@@ -4,7 +4,7 @@ import logging
 from uuid import UUID, uuid4
 
 import httpx
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Query, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Query, Request, UploadFile, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -1729,3 +1729,193 @@ async def delete_candidate_note(note_id: UUID, db: AsyncSession = Depends(get_db
     await db.delete(note)
     await db.commit()
     return {"message": "Notiz geloescht"}
+
+
+# ══════════════════════════════════════════════════════════════════
+# Phase 9: Deep Classification + Automatische Trigger
+# ══════════════════════════════════════════════════════════════════
+
+
+@router.post(
+    "/classify/{candidate_id}",
+    summary="Kandidat deep-klassifizieren (Werdegang-Analyse)",
+    tags=["Classification"],
+)
+@rate_limit(RateLimitTier.AI)
+async def classify_candidate(
+    request: Request,
+    candidate_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Deep Classification fuer einen einzelnen Kandidaten.
+    Analysiert den gesamten Werdegang und bestimmt die echte Rolle + Level.
+    """
+    from app.models.candidate import Candidate
+    from app.services.finance_classifier_service import FinanceClassifierService
+
+    candidate = await db.get(Candidate, candidate_id)
+    if not candidate:
+        raise NotFoundException("Kandidat nicht gefunden")
+
+    classifier = FinanceClassifierService(db)
+    classification = await classifier.classify_candidate(candidate)
+
+    if classification.success:
+        classifier.apply_to_candidate(candidate, classification)
+        await db.commit()
+
+    return {
+        "candidate_id": str(candidate_id),
+        "success": classification.success,
+        "is_leadership": classification.is_leadership,
+        "primary_role": classification.primary_role,
+        "roles": classification.roles,
+        "reasoning": classification.reasoning,
+        "cost_usd": classification.cost_usd,
+    }
+
+
+@router.post(
+    "/match/{candidate_id}",
+    summary="Kandidat gegen alle Jobs matchen",
+    tags=["Matching"],
+)
+@rate_limit(RateLimitTier.AI)
+async def match_candidate_against_jobs(
+    request: Request,
+    candidate_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Matcht einen einzelnen Kandidaten gegen alle offene FINANCE-Jobs.
+    Nutzt die Matching Engine V2 mit den neuen Gewichtungen.
+    """
+    from app.models.candidate import Candidate
+    from app.services.matching_engine_v2 import MatchingEngineV2
+
+    candidate = await db.get(Candidate, candidate_id)
+    if not candidate:
+        raise NotFoundException("Kandidat nicht gefunden")
+
+    matcher = MatchingEngineV2(db)
+    result = await matcher.match_candidate_against_all_jobs(candidate_id)
+    await db.commit()
+
+    return {
+        "candidate_id": str(candidate_id),
+        "matches_created": len(result) if isinstance(result, list) else getattr(result, "total_matches_created", 0),
+    }
+
+
+@router.post(
+    "/on-new",
+    summary="Trigger: Neuer Kandidat → volle Pipeline",
+    tags=["Automation"],
+)
+@rate_limit(RateLimitTier.AI)
+async def on_new_candidate(
+    request: Request,
+    candidate_id: UUID = Query(..., description="ID des neuen Kandidaten"),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    n8n-Webhook: Neuer Kandidat eingetroffen.
+    Loest die gesamte Kandidaten-Pipeline aus:
+    1. Deep Classification (Werdegang-Analyse)
+    2. GPT-Profiling
+    3. Embedding generieren
+    4. Matching gegen alle offene Jobs
+    """
+    from app.models.candidate import Candidate
+    from app.services.finance_classifier_service import FinanceClassifierService
+
+    candidate = await db.get(Candidate, candidate_id)
+    if not candidate:
+        raise NotFoundException("Kandidat nicht gefunden")
+
+    steps_completed = []
+
+    # Step 1: Deep Classification
+    try:
+        classifier = FinanceClassifierService(db)
+        classification = await classifier.classify_candidate(candidate)
+        if classification.success:
+            classifier.apply_to_candidate(candidate, classification)
+            await db.commit()
+            steps_completed.append("classification")
+    except Exception as e:
+        logger.error(f"on-new classification failed for {candidate_id}: {e}")
+
+    # Step 2: GPT-Profiling
+    try:
+        from app.services.profile_engine_service import ProfileEngineService
+        profiler = ProfileEngineService(db)
+        await profiler.profile_candidate(candidate)
+        await db.commit()
+        steps_completed.append("profiling")
+    except Exception as e:
+        logger.error(f"on-new profiling failed for {candidate_id}: {e}")
+
+    # Step 3: Embedding
+    try:
+        from app.services.embedding_service import EmbeddingService
+        emb_service = EmbeddingService(db)
+        await emb_service.embed_candidate(candidate)
+        await db.commit()
+        steps_completed.append("embedding")
+    except Exception as e:
+        logger.error(f"on-new embedding failed for {candidate_id}: {e}")
+
+    # Step 4: Matching gegen alle Jobs
+    matches_created = 0
+    try:
+        from app.services.matching_engine_v2 import MatchingEngineV2
+        matcher = MatchingEngineV2(db)
+        result = await matcher.match_candidate_against_all_jobs(candidate_id)
+        await db.commit()
+        matches_created = len(result) if isinstance(result, list) else getattr(result, "total_matches_created", 0)
+        steps_completed.append("matching")
+    except Exception as e:
+        logger.error(f"on-new matching failed for {candidate_id}: {e}")
+
+    return {
+        "candidate_id": str(candidate_id),
+        "status": "completed",
+        "steps_completed": steps_completed,
+        "matches_created": matches_created,
+    }
+
+
+@router.post(
+    "/maintenance/reclassify-finance",
+    summary="Alle FINANCE-Kandidaten neu klassifizieren",
+    tags=["Maintenance"],
+)
+@rate_limit(RateLimitTier.ADMIN)
+async def reclassify_finance_candidates(
+    request: Request,
+    force: bool = False,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Bulk Deep Classification fuer alle FINANCE-Kandidaten.
+    Nutzt den bestehenden classify_all_finance_candidates mit force-Option.
+    """
+    from app.services.finance_classifier_service import FinanceClassifierService
+
+    classifier = FinanceClassifierService(db)
+    result = await classifier.classify_all_finance_candidates(force=force)
+
+    return {
+        "status": "completed",
+        "total": result.total,
+        "classified": result.classified,
+        "leadership": result.skipped_leadership,
+        "no_cv": result.skipped_no_cv,
+        "no_role": result.skipped_no_role,
+        "errors": result.skipped_error,
+        "cost_usd": result.cost_usd,
+        "duration_seconds": result.duration_seconds,
+        "roles_distribution": result.roles_distribution,
+    }

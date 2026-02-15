@@ -4,7 +4,7 @@ import logging
 from datetime import datetime, timezone
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request, UploadFile, File, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, UploadFile, File, status
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 import math
@@ -49,7 +49,7 @@ async def _run_pipeline_background(import_job_id):
     from app.state import set_progress, cleanup_progress, is_cancelled
 
     job_id_str = str(import_job_id)
-    step_names = ["categorization", "geocoding", "profiling", "embedding", "matching"]
+    step_names = ["categorization", "classification", "geocoding", "profiling", "embedding", "matching"]
     pipeline = {name: {"status": "pending"} for name in step_names}
     cancelled = False
 
@@ -82,6 +82,46 @@ async def _run_pipeline_background(import_job_id):
             logger.warning(f"Pipeline: categorization fehlgeschlagen: {e}", exc_info=True)
         set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
         logger.info(f"Pipeline: categorization -> {pipeline['categorization']['status']}")
+
+        # --- Schritt 1.5: Deep Classification (FINANCE-Jobs) ---
+        check_cancel()
+        pipeline["classification"] = {"status": "running", "progress": 0}
+        set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
+
+        def classification_progress(processed, total):
+            """Callback: wird nach jedem klassifizierten Job aufgerufen."""
+            if is_cancelled(job_id_str):
+                raise PipelineCancelled("Pipeline abgebrochen")
+            pct = round(processed / total * 100) if total > 0 else 0
+            pipeline["classification"]["progress"] = pct
+            pipeline["classification"]["processed"] = processed
+            pipeline["classification"]["total"] = total
+            set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
+
+        try:
+            async with async_session_maker() as step_db:
+                from app.services.finance_classifier_service import FinanceClassifierService
+                classifier = FinanceClassifierService(step_db)
+                class_result = await classifier.deep_classify_finance_jobs(
+                    progress_callback=classification_progress
+                )
+                await step_db.commit()
+                pipeline["classification"] = {
+                    "status": "ok",
+                    "classified": class_result.get("classified", 0),
+                    "high_quality": class_result.get("high_quality", 0),
+                    "medium_quality": class_result.get("medium_quality", 0),
+                    "low_quality": class_result.get("low_quality", 0),
+                    "titles_corrected": class_result.get("titles_corrected", 0),
+                    "cost_usd": class_result.get("cost_usd", 0),
+                }
+        except PipelineCancelled:
+            raise
+        except Exception as e:
+            pipeline["classification"] = {"status": "failed", "error": str(e)[:200]}
+            logger.warning(f"Pipeline: classification fehlgeschlagen: {e}", exc_info=True)
+        set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
+        logger.info(f"Pipeline: classification -> {pipeline['classification']['status']}")
 
         # --- Schritt 2: Geocoding ---
         check_cancel()
@@ -250,6 +290,25 @@ async def _execute_pipeline_steps() -> dict:
             }
     except Exception as e:
         pipeline["categorization"] = {"status": "failed", "error": str(e)[:200]}
+
+    # --- Deep Classification (Step 1.5) ---
+    try:
+        async with async_session_maker() as step_db:
+            from app.services.finance_classifier_service import FinanceClassifierService
+            classifier = FinanceClassifierService(step_db)
+            class_result = await classifier.deep_classify_finance_jobs()
+            await step_db.commit()
+            pipeline["classification"] = {
+                "status": "ok",
+                "classified": class_result.get("classified", 0),
+                "high_quality": class_result.get("high_quality", 0),
+                "medium_quality": class_result.get("medium_quality", 0),
+                "low_quality": class_result.get("low_quality", 0),
+                "titles_corrected": class_result.get("titles_corrected", 0),
+                "cost_usd": class_result.get("cost_usd", 0),
+            }
+    except Exception as e:
+        pipeline["classification"] = {"status": "failed", "error": str(e)[:200]}
 
     # --- Geocoding ---
     try:
@@ -1579,4 +1638,351 @@ async def cleanup_orphan_ats_jobs(
         "deleted_with_dead_source": deleted_with_dead_source,
         "deleted_without_source": deleted_without_source,
         "total_deleted": deleted_count,
+    }
+
+
+# ══════════════════════════════════════════════════════════════════
+# Phase 8: Deep Classification — Backfill + Debug/Status Endpoints
+# ══════════════════════════════════════════════════════════════════
+
+
+@router.post(
+    "/maintenance/reclassify-finance",
+    summary="Alle FINANCE-Jobs deep-klassifizieren (Backfill)",
+    tags=["Maintenance"],
+)
+@rate_limit(RateLimitTier.ADMIN)
+async def reclassify_finance_jobs(
+    request: Request,
+    force: bool = False,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Deep Classification fuer alle FINANCE-Jobs ausfuehren.
+    Nutzt den V2-Prompt mit Quality Gate + Titel-Korrektur.
+
+    Args:
+        force: Bereits klassifizierte Jobs nochmal klassifizieren?
+    """
+    from app.services.finance_classifier_service import FinanceClassifierService
+
+    classifier = FinanceClassifierService(db)
+    result = await classifier.deep_classify_finance_jobs(force=force)
+
+    return {
+        "status": "completed",
+        **result,
+    }
+
+
+@router.post(
+    "/classify/{job_id}",
+    summary="Einzelnen Job deep-klassifizieren",
+    tags=["Classification"],
+)
+@rate_limit(RateLimitTier.AI)
+async def classify_single_job(
+    request: Request,
+    job_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Deep Classification fuer einen einzelnen Job."""
+    from uuid import UUID as PyUUID
+    from app.services.finance_classifier_service import FinanceClassifierService
+
+    try:
+        uuid_id = PyUUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Ungueltige Job-ID")
+
+    result = await db.execute(select(Job).where(Job.id == uuid_id))
+    job = result.scalar_one_or_none()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job nicht gefunden")
+
+    classifier = FinanceClassifierService(db)
+    classification = await classifier.classify_job(job)
+
+    if classification.success:
+        classifier.apply_to_job(job, classification)
+        await db.commit()
+
+    return {
+        "job_id": job_id,
+        "success": classification.success,
+        "primary_role": classification.primary_role,
+        "roles": classification.roles,
+        "sub_level": classification.sub_level,
+        "quality_score": classification.quality_score,
+        "quality_reason": classification.quality_reason,
+        "original_title": classification.original_title,
+        "corrected_title": classification.corrected_title,
+        "title_was_corrected": classification.title_was_corrected,
+        "reasoning": classification.reasoning,
+        "cost_usd": classification.cost_usd,
+    }
+
+
+@router.get(
+    "/debug/classification/{job_id}",
+    summary="Klassifizierungs-Details eines Jobs",
+    tags=["Debug"],
+)
+async def debug_classification(
+    job_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Zeigt alle classification_data und quality_score eines Jobs."""
+    from uuid import UUID as PyUUID
+
+    try:
+        uuid_id = PyUUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Ungueltige Job-ID")
+
+    result = await db.execute(select(Job).where(Job.id == uuid_id))
+    job = result.scalar_one_or_none()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job nicht gefunden")
+
+    return {
+        "job_id": job_id,
+        "position": job.position,
+        "company_name": job.company_name,
+        "hotlist_job_title": job.hotlist_job_title,
+        "hotlist_job_titles": job.hotlist_job_titles,
+        "quality_score": getattr(job, "quality_score", None),
+        "classification_data": getattr(job, "classification_data", None),
+    }
+
+
+@router.get(
+    "/debug/classification/stats",
+    summary="Klassifizierungs-Statistik (high/medium/low)",
+    tags=["Debug"],
+)
+async def debug_classification_stats(
+    db: AsyncSession = Depends(get_db),
+):
+    """Verteilung der Quality Scores fuer alle FINANCE-Jobs."""
+    from sqlalchemy import func as sqlfunc
+
+    # Gesamtzahl FINANCE-Jobs
+    total_result = await db.execute(
+        select(sqlfunc.count(Job.id)).where(
+            Job.hotlist_category == "FINANCE",
+            Job.deleted_at.is_(None),
+        )
+    )
+    total = total_result.scalar() or 0
+
+    # Mit classification_data
+    classified_result = await db.execute(
+        select(sqlfunc.count(Job.id)).where(
+            Job.hotlist_category == "FINANCE",
+            Job.deleted_at.is_(None),
+            Job.classification_data.isnot(None),
+        )
+    )
+    classified = classified_result.scalar() or 0
+
+    # Quality-Verteilung
+    quality_result = await db.execute(
+        select(Job.quality_score, sqlfunc.count(Job.id)).where(
+            Job.hotlist_category == "FINANCE",
+            Job.deleted_at.is_(None),
+            Job.quality_score.isnot(None),
+        ).group_by(Job.quality_score)
+    )
+    quality_dist = {row[0]: row[1] for row in quality_result.all()}
+
+    return {
+        "total_finance_jobs": total,
+        "classified": classified,
+        "not_classified": total - classified,
+        "quality_distribution": {
+            "high": quality_dist.get("high", 0),
+            "medium": quality_dist.get("medium", 0),
+            "low": quality_dist.get("low", 0),
+        },
+    }
+
+
+@router.get(
+    "/debug/classification/sample",
+    summary="10 zufaellige klassifizierte Jobs",
+    tags=["Debug"],
+)
+async def debug_classification_sample(
+    limit: int = 10,
+    db: AsyncSession = Depends(get_db),
+):
+    """Zeigt zufaellige klassifizierte FINANCE-Jobs mit Vorher/Nachher."""
+    from sqlalchemy import func as sqlfunc
+
+    result = await db.execute(
+        select(Job).where(
+            Job.hotlist_category == "FINANCE",
+            Job.deleted_at.is_(None),
+            Job.classification_data.isnot(None),
+        ).order_by(sqlfunc.random()).limit(limit)
+    )
+    jobs = result.scalars().all()
+
+    return {
+        "count": len(jobs),
+        "samples": [
+            {
+                "id": str(job.id),
+                "position": job.position,
+                "company_name": job.company_name,
+                "quality_score": getattr(job, "quality_score", None),
+                "classification_data": getattr(job, "classification_data", None),
+            }
+            for job in jobs
+        ],
+    }
+
+
+@router.get(
+    "/debug/classification/mismatches",
+    summary="Jobs wo Titel korrigiert wurde",
+    tags=["Debug"],
+)
+async def debug_classification_mismatches(
+    limit: int = 50,
+    db: AsyncSession = Depends(get_db),
+):
+    """Zeigt Jobs wo der Original-Titel vom klassifizierten Titel abweicht."""
+    from sqlalchemy import func as sqlfunc, cast, String
+
+    result = await db.execute(
+        select(Job).where(
+            Job.hotlist_category == "FINANCE",
+            Job.deleted_at.is_(None),
+            Job.classification_data.isnot(None),
+        ).limit(200)
+    )
+    jobs = result.scalars().all()
+
+    mismatches = []
+    for job in jobs:
+        cd = getattr(job, "classification_data", None)
+        if cd and isinstance(cd, dict) and cd.get("title_was_corrected"):
+            mismatches.append({
+                "id": str(job.id),
+                "position": job.position,
+                "company_name": job.company_name,
+                "original_title": cd.get("original_title"),
+                "corrected_title": cd.get("corrected_title"),
+                "primary_role": cd.get("primary_role"),
+                "reasoning": cd.get("reasoning"),
+                "quality_score": cd.get("quality_score"),
+            })
+            if len(mismatches) >= limit:
+                break
+
+    return {
+        "count": len(mismatches),
+        "mismatches": mismatches,
+    }
+
+
+# ══════════════════════════════════════════════════════════════
+# Phase 10: Google Maps Fahrzeit — Debug-Endpoints
+# ══════════════════════════════════════════════════════════════
+
+
+@router.get("/debug/drive-times/{job_id}")
+async def debug_drive_times(
+    job_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Zeigt Fahrzeit-Daten für alle Matches eines Jobs."""
+    from app.models.match import Match
+
+    result = await db.execute(
+        select(Match).where(
+            Match.job_id == job_id,
+            Match.v2_score.isnot(None),
+        ).order_by(Match.v2_score.desc()).limit(50)
+    )
+    matches = result.scalars().all()
+
+    if not matches:
+        raise HTTPException(status_code=404, detail="Keine Matches für diesen Job gefunden")
+
+    data = []
+    for m in matches:
+        data.append({
+            "match_id": str(m.id),
+            "candidate_id": str(m.candidate_id) if m.candidate_id else None,
+            "v2_score": m.v2_score,
+            "distance_km": m.distance_km,
+            "drive_time_car_min": m.drive_time_car_min,
+            "drive_time_transit_min": m.drive_time_transit_min,
+            "has_drive_time": m.drive_time_car_min is not None,
+        })
+
+    with_drive_time = sum(1 for d in data if d["has_drive_time"])
+
+    return {
+        "job_id": str(job_id),
+        "total_matches": len(data),
+        "matches_with_drive_time": with_drive_time,
+        "matches_without_drive_time": len(data) - with_drive_time,
+        "matches": data,
+    }
+
+
+@router.get("/debug/drive-times/cache-stats")
+async def debug_drive_time_cache_stats():
+    """Zeigt Cache-Statistiken des Distance Matrix Service."""
+    from app.services.distance_matrix_service import distance_matrix_service
+
+    return distance_matrix_service.get_cache_stats()
+
+
+@router.get("/debug/drive-times/summary")
+async def debug_drive_time_summary(
+    db: AsyncSession = Depends(get_db),
+):
+    """Zeigt Übersicht aller Matches mit Fahrzeit-Daten."""
+    from app.models.match import Match
+
+    # Gesamtzahl Matches
+    total_result = await db.execute(
+        select(func.count(Match.id)).where(Match.v2_score.isnot(None))
+    )
+    total = total_result.scalar() or 0
+
+    # Matches mit Fahrzeit
+    with_dt_result = await db.execute(
+        select(func.count(Match.id)).where(
+            Match.v2_score.isnot(None),
+            Match.drive_time_car_min.isnot(None),
+        )
+    )
+    with_drive_time = with_dt_result.scalar() or 0
+
+    # Durchschnittliche Fahrzeit
+    avg_result = await db.execute(
+        select(
+            func.avg(Match.drive_time_car_min).label("avg_car"),
+            func.avg(Match.drive_time_transit_min).label("avg_transit"),
+            func.min(Match.drive_time_car_min).label("min_car"),
+            func.max(Match.drive_time_car_min).label("max_car"),
+        ).where(Match.drive_time_car_min.isnot(None))
+    )
+    avg_row = avg_result.first()
+
+    return {
+        "total_v2_matches": total,
+        "matches_with_drive_time": with_drive_time,
+        "matches_without_drive_time": total - with_drive_time,
+        "coverage_percent": round(with_drive_time / total * 100, 1) if total > 0 else 0,
+        "avg_car_min": round(avg_row[0], 1) if avg_row and avg_row[0] else None,
+        "avg_transit_min": round(avg_row[1], 1) if avg_row and avg_row[1] else None,
+        "min_car_min": avg_row[2] if avg_row else None,
+        "max_car_min": avg_row[3] if avg_row else None,
     }

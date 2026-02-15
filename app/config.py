@@ -138,6 +138,12 @@ class Settings(BaseSettings):
         description="Absender-Email fuer automatische Emails (z.B. milad@sincirus.de)",
     )
 
+    # Google Maps
+    google_maps_api_key: str = Field(
+        default="",
+        description="Google Maps API-Schlüssel für Distance Matrix API (Fahrzeit)",
+    )
+
     # Umgebung
     environment: str = Field(
         default="development",

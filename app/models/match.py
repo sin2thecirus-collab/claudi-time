@@ -12,6 +12,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Index,
+    Integer,
     String,
     Text,
     UniqueConstraint,
@@ -104,6 +105,10 @@ class Match(Base):
     v2_score_breakdown: Mapped[dict | None] = mapped_column(JSONB)  # {skill_overlap, seniority_fit, embedding_sim, ...}
     v2_matched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
+    # ── Google Maps Fahrzeit (Phase 10) ──
+    drive_time_car_min: Mapped[int | None] = mapped_column(Integer)  # Fahrzeit Auto in Minuten
+    drive_time_transit_min: Mapped[int | None] = mapped_column(Integer)  # Fahrzeit ÖPNV in Minuten
+
     # Stale-Tracking (Match ist veraltet weil sich Kandidaten-Daten geaendert haben)
     stale: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     stale_reason: Mapped[str | None] = mapped_column(String(255))
@@ -140,6 +145,7 @@ class Match(Base):
         Index("ix_matches_pre_score", "pre_score"),
         Index("ix_matches_stale", "stale"),
         Index("ix_matches_matching_method", "matching_method"),
+        Index("ix_matches_drive_time_car_min", "drive_time_car_min"),
     )
 
     @property

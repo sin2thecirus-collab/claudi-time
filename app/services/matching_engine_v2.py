@@ -56,6 +56,12 @@ class MatchCandidate:
     industries: list[str] = field(default_factory=list)  # z.B. ["Maschinenbau"]
     erp: list[str] = field(default_factory=list)  # z.B. ["SAP", "DATEV"]
     job_titles: list[str] = field(default_factory=list)  # hotlist_job_titles + manual_job_titles
+    # Phase 10: Google Maps Fahrzeit
+    drive_time_car_min: int | None = None
+    drive_time_transit_min: int | None = None
+    postal_code: str | None = None  # PLZ für Fahrzeit-Caching
+    _lat: float | None = None  # Breitengrad (für Distance Matrix API)
+    _lng: float | None = None  # Längengrad (für Distance Matrix API)
 
 
 @dataclass
@@ -92,15 +98,17 @@ class BatchMatchResult:
 # ══════════════════════════════════════════════════════════════════
 
 DEFAULT_WEIGHTS = {
-    "skill_overlap": 27.0,
-    "seniority_fit": 20.0,
-    "job_title_fit": 18.0,  # NEU: Titel-Match (v2.5)
-    "embedding_sim": 15.0,
-    "industry_fit": 8.0,  # NEU: Branchenerfahrung (v2.5)
-    "career_fit": 7.0,
-    "software_match": 5.0,
-    # Summe: 27 + 20 + 18 + 15 + 8 + 7 + 5 = 100
+    "skill_overlap": 35.0,   # Skills sind das Wichtigste (war 27)
+    "seniority_fit": 30.0,   # Level-Matching statt Titel-Matching (war 20)
+    "job_title_fit": 0.0,    # RAUS — Titel sind zu oft falsch (war 18)
+    "embedding_sim": 15.0,   # Semantische Aehnlichkeit (bleibt)
+    "industry_fit": 8.0,     # Branchenerfahrung (bleibt)
+    "career_fit": 7.0,       # Karriere-Richtung (bleibt)
+    "software_match": 5.0,   # DATEV/SAP-Ecosystem (bleibt)
+    # Summe: 35 + 30 + 0 + 15 + 8 + 7 + 5 = 100
     # Location ist KEIN Score mehr — nur Hard Filter (30km)
+    # job_title_fit auf 0% weil Titel zu unzuverlaessig sind.
+    # Nur Level (seniority_fit) + Skills (skill_overlap) zaehlen.
 }
 
 # Entfernung ist ein HARD FILTER, kein Soft-Score!
@@ -286,11 +294,34 @@ class MatchingEngineV2:
         return result[1] if result else None
 
     @classmethod
-    def _detect_job_role(cls, job_title: str | None, position: str | None) -> str | None:
-        """Erkennt die Job-Rolle aus Titel/Position fuer Skill-Weight-Lookup."""
+    def _detect_job_role(cls, job_title: str | None, position: str | None, classification_data: dict | None = None) -> str | None:
+        """Erkennt die Job-Rolle fuer Skill-Weight-Lookup.
+
+        PRIORITAET (V2):
+        1. classification_data.primary_role (von Deep Classification) — zuverlaessigste Quelle
+        2. Fallback: Titel/Position Keywords (wie bisher)
+        """
         if cls._skill_weights is None:
             cls._load_skill_weights()
 
+        # V2: classification_data hat hoechste Prioritaet
+        if classification_data and isinstance(classification_data, dict):
+            primary_role = classification_data.get("primary_role")
+            if primary_role:
+                # Mapping: GPT-Rolle → skill_weights.json Key
+                role_mapping = {
+                    "Bilanzbuchhalter/in": "bilanzbuchhalter",
+                    "Finanzbuchhalter/in": "finanzbuchhalter",
+                    "Kreditorenbuchhalter/in": "finanzbuchhalter",  # nutzt FiBu-Weights
+                    "Debitorenbuchhalter/in": "finanzbuchhalter",   # nutzt FiBu-Weights
+                    "Lohnbuchhalter/in": "lohnbuchhalter",
+                    "Steuerfachangestellte/r": "steuerfachangestellte",
+                }
+                role_key = role_mapping.get(primary_role)
+                if role_key and role_key in (cls._skill_weights or {}):
+                    return role_key
+
+        # Fallback: Titel/Position Keywords
         search_text = ""
         if job_title:
             search_text += job_title.lower()
@@ -487,6 +518,10 @@ class MatchingEngineV2:
                 Candidate.erp,                    # 13
                 Candidate.hotlist_job_titles,      # 14
                 Candidate.manual_job_titles,       # 15
+                # Phase 10: PLZ + Koordinaten für Google Maps Fahrzeit
+                Candidate.postal_code,             # 16
+                func.ST_Y(func.ST_GeomFromWKB(Candidate.address_coords)).label("cand_lat"),  # 17
+                func.ST_X(func.ST_GeomFromWKB(Candidate.address_coords)).label("cand_lng"),  # 18
             )
             .where(and_(*conditions))
             .order_by(
@@ -524,6 +559,9 @@ class MatchingEngineV2:
                 industries=row[12] or [],
                 erp=row[13] or [],
                 job_titles=all_titles,
+                postal_code=row[16],
+                _lat=row[17],
+                _lng=row[18],
             ))
 
         logger.info(
@@ -1324,25 +1362,27 @@ class MatchingEngineV2:
         job_role = self._detect_job_role(
             getattr(job, "hotlist_job_title", None),
             job.position,
+            getattr(job, "classification_data", None),
         )
 
         # BiBu-Check: Braucht der Job einen Bilanzbuchhalter?
-        # Erweiterte Detection: Titel > Position > Skills
+        # V2: NUR wenn classification_data.primary_role == "Bilanzbuchhalter/in"
+        # NICHT wenn nur irgendwo im Text "BiBu erwuenscht" steht
         job_requires_bibu = False
-        title_text = ""
-        if getattr(job, "hotlist_job_title", None):
-            title_text += job.hotlist_job_title.lower()
-        if job.position:
-            title_text += " " + job.position.lower()
-        if "bilanzbuchhalter" in title_text:
-            job_requires_bibu = True
-        elif job_skills:
-            # Fallback: Check in Skills (gelockert — nur Name, ohne importance/category)
-            for skill in job_skills:
-                name = skill.get("skill", "").lower()
-                if "bilanzbuchhalter" in name:
-                    job_requires_bibu = True
-                    break
+        # V2: BiBu-Penalty NUR wenn Deep Classification die Stelle als echte BiBu identifiziert hat
+        job_classification = getattr(job, "classification_data", None)
+        if job_classification and isinstance(job_classification, dict):
+            if job_classification.get("primary_role") == "Bilanzbuchhalter/in":
+                job_requires_bibu = True
+        else:
+            # Fallback fuer Jobs ohne Deep Classification (altes Verhalten)
+            title_text = ""
+            if getattr(job, "hotlist_job_title", None):
+                title_text += job.hotlist_job_title.lower()
+            if job.position:
+                title_text += " " + job.position.lower()
+            if "bilanzbuchhalter" in title_text:
+                job_requires_bibu = True
 
         # Gewichte normalisieren (Summe = 100)
         total_weight = sum(weights.values())
@@ -1435,6 +1475,9 @@ class MatchingEngineV2:
                 "career_fit": round(career_score, 3),
                 "software_match": round(software_score, 3),
                 "distance_km": cand.distance_km,
+                # Phase 10: Google Maps Fahrzeit
+                "drive_time_car_min": cand.drive_time_car_min,
+                "drive_time_transit_min": cand.drive_time_transit_min,
                 # v2.5 Tags
                 "qualification_tag": qualification_tag,
                 "candidate_level": cand.seniority_level,
@@ -1580,6 +1623,21 @@ class MatchingEngineV2:
         if not job:
             raise ValueError(f"Job {job_id} nicht gefunden")
 
+        # ── Quality Gate: Jobs mit quality_score="low" werden NICHT gematcht ──
+        if getattr(job, "quality_score", None) == "low":
+            logger.info(
+                f"Quality Gate: Job '{job.position}' bei '{job.company_name}' "
+                f"uebersprungen (quality_score=low)"
+            )
+            return MatchResult(
+                job_id=job_id,
+                matches=[],
+                total_candidates_checked=0,
+                candidates_after_filter=0,
+                duration_ms=round((time.perf_counter() - start) * 1000, 1),
+                scoring_weights={},
+            )
+
         if not job.v2_profile_created_at:
             raise ValueError(f"Job {job_id} hat kein v2-Profil. Zuerst profilieren!")
 
@@ -1607,6 +1665,62 @@ class MatchingEngineV2:
                 duration_ms=round((time.perf_counter() - start) * 1000, 1),
                 scoring_weights=weights,
             )
+
+        # ── Phase 10: Google Maps Fahrzeit (nach Hard Filter, vor Scoring) ──
+        try:
+            from app.services.distance_matrix_service import distance_matrix_service
+
+            if distance_matrix_service.has_api_key and job.location_coords is not None:
+                # Job-Koordinaten extrahieren
+                from sqlalchemy import func as sa_func
+                job_lat = None
+                job_lng = None
+                if hasattr(job, "location_coords") and job.location_coords is not None:
+                    # Koordinaten aus PostGIS Point extrahieren
+                    coord_result = await self.db.execute(
+                        select(
+                            sa_func.ST_Y(sa_func.ST_GeomFromWKB(job.location_coords)).label("lat"),
+                            sa_func.ST_X(sa_func.ST_GeomFromWKB(job.location_coords)).label("lng"),
+                        )
+                    )
+                    coord_row = coord_result.first()
+                    if coord_row:
+                        job_lat = coord_row[0]
+                        job_lng = coord_row[1]
+
+                if job_lat and job_lng:
+                    # Nur Kandidaten mit Koordinaten
+                    cands_with_coords = [
+                        {
+                            "candidate_id": str(c.id),
+                            "lat": c._lat,
+                            "lng": c._lng,
+                            "plz": c.postal_code,
+                        }
+                        for c in candidates
+                        if c._lat is not None and c._lng is not None
+                    ]
+
+                    if cands_with_coords:
+                        drive_times = await distance_matrix_service.batch_drive_times(
+                            job_lat=job_lat,
+                            job_lng=job_lng,
+                            job_plz=job.postal_code,
+                            candidates=cands_with_coords,
+                        )
+
+                        # Fahrzeit auf Kandidaten-Objekte übertragen
+                        for c in candidates:
+                            result = drive_times.get(str(c.id))
+                            if result:
+                                c.drive_time_car_min = result.car_min
+                                c.drive_time_transit_min = result.transit_min
+
+                        logger.info(
+                            f"Google Maps Fahrzeit: {len(drive_times)} Ergebnisse für {len(cands_with_coords)} Kandidaten"
+                        )
+        except Exception as e:
+            logger.warning(f"Google Maps Fahrzeit-Fehler (nicht kritisch): {e}")
 
         # ── Schicht 2: Structured Scoring ──
         scored = await self._score_candidates(job, candidates, weights)
@@ -1652,8 +1766,10 @@ class MatchingEngineV2:
             )
             match_row = existing.scalar_one_or_none()
 
-            # Distanz aus Breakdown extrahieren
+            # Distanz + Fahrzeit aus Breakdown extrahieren
             dist = sm.breakdown.get("distance_km") if sm.breakdown else None
+            car_min = sm.breakdown.get("drive_time_car_min") if sm.breakdown else None
+            transit_min = sm.breakdown.get("drive_time_transit_min") if sm.breakdown else None
 
             if match_row:
                 # Update bestehendes Match
@@ -1666,6 +1782,8 @@ class MatchingEngineV2:
                     match_obj.v2_score_breakdown = sm.breakdown
                     match_obj.v2_matched_at = now
                     match_obj.distance_km = dist
+                    match_obj.drive_time_car_min = car_min
+                    match_obj.drive_time_transit_min = transit_min
                     # Re-Import Schutz: REJECTED/PLACED Status NICHT zuruecksetzen
                     # Nur NEW/AI_CHECKED duerfen aktualisiert werden
                     if match_obj.status not in (MatchStatus.REJECTED, MatchStatus.PLACED, MatchStatus.PRESENTED):
@@ -1680,6 +1798,8 @@ class MatchingEngineV2:
                     v2_matched_at=now,
                     status=MatchStatus.NEW,
                     distance_km=dist,
+                    drive_time_car_min=car_min,
+                    drive_time_transit_min=transit_min,
                 )
                 self.db.add(match)
 

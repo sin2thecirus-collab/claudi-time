@@ -73,6 +73,10 @@ class Job(Base):
     v2_profile_created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     v2_embedding: Mapped[dict | None] = mapped_column(JobJSONB)  # 384-dim Embedding
 
+    # ── Deep Classification (Phase 1) ──
+    classification_data = Column(JobJSONB, nullable=True)  # GPT-Klassifizierung: primary_role, roles, sub_level, quality etc.
+    quality_score: Mapped[str | None] = mapped_column(String(20))  # high / medium / low — Quality Gate
+
     # Duplikaterkennung
     content_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
 
@@ -126,6 +130,7 @@ class Job(Base):
         Index("ix_jobs_company_id", "company_id"),
         Index("ix_jobs_imported_at", "imported_at"),
         Index("ix_jobs_last_updated_at", "last_updated_at"),
+        Index("ix_jobs_quality_score", "quality_score"),
     )
 
     @property

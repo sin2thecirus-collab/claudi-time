@@ -201,31 +201,106 @@ roles = [], primary_role = null, reasoning = "Leitende Position: [Titel/Tätigke
 # JOB CLASSIFIER PROMPT — für Stellenbeschreibungen
 # ═══════════════════════════════════════════════════════════════
 
-FINANCE_JOB_CLASSIFIER_PROMPT = """Du bist ein sehr erfahrener Recruiter im Finance-Bereich (Deutschland).
+FINANCE_JOB_CLASSIFIER_PROMPT = """ROLLE DES MODELLS
 
-Analysiere die folgende Stellenbeschreibung und ordne sie einer oder mehreren Finance-Rollen zu.
+Du bist ein sehr erfahrener Recruiter im Finance-Bereich (Deutschland) mit 15+ Jahren Erfahrung.
+Du analysierst Stellenbeschreibungen und bestimmst die ECHTE Rolle — nicht den Titel.
 
-WICHTIG: Der Jobtitel der Stelle kann irreführend sein! Eine Stelle die als "Bilanzbuchhalter" ausgeschrieben ist,
-sucht möglicherweise nur einen Finanzbuchhalter, wenn in den Tätigkeiten steht "Unterstützung bei der Erstellung
-der Jahresabschlüsse" statt "Erstellung der Jahresabschlüsse".
+DEINE AUFGABE
 
-Gleiche Rollendefinitionen wie bei Kandidaten:
-- Bilanzbuchhalter/in: Erstellung von Abschlüssen + Bilanzbuchhalter-Qualifikation gefordert
-- Finanzbuchhalter/in: Kreditoren+Debitoren, laufende Buchhaltung, vorbereitende Abschlüsse
-- Kreditorenbuchhalter/in: Nur/überwiegend Kreditoren
-- Debitorenbuchhalter/in: Nur/überwiegend Debitoren
-- Lohnbuchhalter/in: Lohn- und Gehaltsabrechnung
-- Steuerfachangestellte/r: Steuerliche Tätigkeiten
+Analysiere die Stellenbeschreibung und bestimme:
+1. Die echte Berufsrolle (primary_role) — basierend auf TAETIGKEITEN, nicht Titel
+2. Alle relevanten Rollen (roles)
+3. Das Seniority-Level (sub_level)
+4. Die Qualitaet der Stellenbeschreibung (quality_score)
 
-AUSGABEFORMAT (strikt JSON):
+GRUNDREGEL: TITEL IGNORIEREN, NUR TAETIGKEITEN ZAEHLEN
+
+Der Jobtitel in einer CSV ist HAEUFIG falsch. In 90% aller FiBu-Stellen steht
+"Bilanzbuchhalter-Weiterbildung erwuenscht" — das ist HR-Wunschdenken, kein echtes
+Anforderungsprofil. Nur die konkreten AUFGABEN/TAETIGKEITEN bestimmen die Rolle.
+
+AUSNAHME: Bei Leitungspositionen (Leiter, Head of, Teamleiter, CFO) zaehlt der Titel MEHR,
+weil die Taetigkeiten oft generisch beschrieben sind.
+
+JAHRESABSCHLUSS-REGEL (KRITISCH)
+
+Diese Regel ist das wichtigste Unterscheidungsmerkmal zwischen FiBu und BiBu:
+
+| Formulierung | Bedeutung | Rolle |
+|-------------|-----------|-------|
+| "Eigenstaendige Erstellung" der JA | Staerkstes BiBu-Signal | Bilanzbuchhalter/in |
+| "Erstellung" der JA (ohne Zusatz) | BiBu-Signal | Bilanzbuchhalter/in |
+| "Vorbereitung" der JA | Kein BiBu! | Finanzbuchhalter/in (senior) |
+| "Unterstuetzung" / "Zuarbeit" / "Mitwirkung" bei JA | Kein BiBu! | Finanzbuchhalter/in (normal) |
+| "Mitarbeit" bei JA | Kein BiBu! | Finanzbuchhalter/in (normal) |
+| Kein JA erwaehnt | Kein BiBu! | FiBu/KrediBu/DebiBu je nach Taetigkeiten |
+
+ACHTUNG: "BiBu-Weiterbildung erwuenscht" oder "Bilanzbuchhalter als Qualifikation von Vorteil"
+ist KEIN BiBu-Signal! Das steht in fast jeder FiBu-Stelle. Nur die TAETIGKEITEN zaehlen.
+
+ROLLENDEFINITIONEN
+
+1. Bilanzbuchhalter/in
+   BEIDE Bedingungen muessen erfuellt sein:
+   A) Taetigkeiten: "Erstellung" oder "eigenstaendige Erstellung" von Abschluessen
+   B) Qualifikation gefordert: "Bilanzbuchhalter IHK" o.ae. als MUSS-Anforderung (nicht "von Vorteil")
+   Wenn nur A oder nur B → Finanzbuchhalter/in
+
+2. Finanzbuchhalter/in
+   Mindestens eines: Kreditoren UND Debitoren, laufende Buchhaltung, Kontenabstimmungen
+   ODER Abschluesse werden nur vorbereitend erwaehnt (Vorbereitung/Unterstuetzung/Mitwirkung)
+   sub_level = "senior" wenn: Anlagenbuchhaltung + JA-Vorbereitung + USt-Voranmeldung
+   sub_level = "normal" wenn: Standard Kredi+Debi+USt ohne JA-Bezug
+
+3. Kreditorenbuchhalter/in — Ueberwiegend/ausschliesslich Kreditoren, keine nennenswerten Debitoren
+
+4. Debitorenbuchhalter/in — Ueberwiegend/ausschliesslich Debitoren, keine nennenswerten Kreditoren
+
+5. Lohnbuchhalter/in — Lohn-/Gehaltsabrechnung, Entgeltabrechnung, Payroll, SV-Meldungen
+
+6. Steuerfachangestellte/r — Steuererklaerungen, Mandantenbetreuung in Kanzlei-Kontext
+
+SONDERREGEL: SACHBEARBEITER ≠ FINANZBUCHHALTER
+Wenn die Stelle NUR Debitoren ODER NUR Kreditoren beschreibt (z.B. "Sachbearbeiter Debitorenbuchhaltung"),
+dann ist das KEIN Finanzbuchhalter sondern Debitoren- bzw. Kreditorenbuchhalter.
+
+SONDERREGEL: LEITUNGSPOSITIONEN AUCH KLASSIFIZIEREN
+Im Gegensatz zur Kandidaten-Klassifizierung werden Leitungspositionen bei Jobs NICHT uebersprungen.
+Stattdessen: is_leadership = true UND trotzdem primary_role + roles vergeben.
+Grund: Ein "Leiter Finanzbuchhaltung" braucht trotzdem FiBu-Skills beim Matching.
+
+QUALITY GATE (quality_score)
+
+Bewerte die Qualitaet der Stellenbeschreibung:
+- "high": 5+ konkrete Aufgaben/Taetigkeiten beschrieben → MATCHEN
+- "medium": 2-4 konkrete Aufgaben beschrieben → MATCHEN
+- "low": Keine oder nur 1 Aufgabe, nur Stichworte, oder Stellenbeschreibung besteht
+  hauptsaechlich aus Anforderungen/Benefits ohne Taetigkeiten → NICHT MATCHEN
+
+WICHTIG: quality_reason muss erklaeren WARUM die Qualitaet so bewertet wurde.
+
+AUSGABEFORMAT (strikt JSON)
+
 {
+  "is_leadership": false,
   "roles": ["Finanzbuchhalter/in"],
   "primary_role": "Finanzbuchhalter/in",
-  "reasoning": "Kurze Begründung"
+  "sub_level": "senior",
+  "quality_score": "high",
+  "quality_reason": "6 konkrete Aufgaben: Kredi, Debi, USt, Anlagen, JA-Vorbereitung, Zahlungsverkehr",
+  "original_title": "Bilanzbuchhalter (m/w/d)",
+  "corrected_title": "Finanzbuchhalter/in",
+  "title_was_corrected": true,
+  "reasoning": "Trotz Titel 'Bilanzbuchhalter' beschreibt die Stelle nur vorbereitende JA-Taetigkeiten und fordert keine BiBu-Qualifikation als Muss. Taetigkeiten entsprechen FiBu Senior."
 }
 
-ERLAUBTE WERTE: "Bilanzbuchhalter/in", "Finanzbuchhalter/in", "Kreditorenbuchhalter/in",
-"Debitorenbuchhalter/in", "Lohnbuchhalter/in", "Steuerfachangestellte/r"
+ERLAUBTE WERTE:
+- roles: "Bilanzbuchhalter/in", "Finanzbuchhalter/in", "Kreditorenbuchhalter/in", "Debitorenbuchhalter/in", "Lohnbuchhalter/in", "Steuerfachangestellte/r"
+- sub_level: "normal", "senior" (nur bei Finanzbuchhalter/in relevant)
+- quality_score: "high", "medium", "low"
+- is_leadership: true/false
+- title_was_corrected: true/false
 """
 
 
@@ -245,6 +320,13 @@ class ClassificationResult:
     error: str | None = None
     input_tokens: int = 0
     output_tokens: int = 0
+    # V2-Felder fuer Deep Classification
+    sub_level: str | None = None  # "normal" / "senior" (nur bei FiBu)
+    quality_score: str | None = None  # "high" / "medium" / "low"
+    quality_reason: str | None = None  # Begruendung fuer quality_score
+    original_title: str | None = None  # Original-Titel aus CSV
+    corrected_title: str | None = None  # Korrigierter Titel
+    title_was_corrected: bool = False  # Titel wurde geaendert?
 
     @property
     def cost_usd(self) -> float:
@@ -490,11 +572,13 @@ class FinanceClassifierService:
         return "\n".join(parts)
 
     async def classify_job(self, job: Job) -> ClassificationResult:
-        """Klassifiziert einen einzelnen FINANCE-Job via OpenAI."""
+        """Klassifiziert einen einzelnen FINANCE-Job via OpenAI (V2 mit Quality Gate)."""
         if not job.job_text and not job.position:
             return ClassificationResult(
                 success=False,
                 error="Keine Stellenbeschreibung vorhanden",
+                quality_score="low",
+                quality_reason="Keine Stellenbeschreibung vorhanden",
             )
 
         user_prompt = self._build_job_prompt(job)
@@ -509,13 +593,29 @@ class FinanceClassifierService:
         if primary_role and primary_role not in ALLOWED_ROLES:
             primary_role = roles[0] if roles else None
 
+        # V2-Felder parsen
+        sub_level = result.get("sub_level")
+        if sub_level not in ("normal", "senior"):
+            sub_level = "normal"
+
+        quality_score = result.get("quality_score")
+        if quality_score not in ("high", "medium", "low"):
+            quality_score = "medium"  # Fallback
+
         return ClassificationResult(
+            is_leadership=result.get("is_leadership", False),
             roles=roles,
             primary_role=primary_role,
             reasoning=result.get("reasoning", ""),
             success=True,
             input_tokens=usage.get("input_tokens", 0),
             output_tokens=usage.get("output_tokens", 0),
+            sub_level=sub_level,
+            quality_score=quality_score,
+            quality_reason=result.get("quality_reason", ""),
+            original_title=result.get("original_title", job.position),
+            corrected_title=result.get("corrected_title"),
+            title_was_corrected=result.get("title_was_corrected", False),
         )
 
     # ──────────────────────────────────────────────────
@@ -538,10 +638,27 @@ class FinanceClassifierService:
         }
 
     def apply_to_job(self, job: Job, result: ClassificationResult) -> None:
-        """Setzt die Klassifizierungsergebnisse auf dem Job-Model."""
+        """Setzt die Klassifizierungsergebnisse auf dem Job-Model (V2 mit Deep Classification)."""
         if result.roles:
             job.hotlist_job_title = result.primary_role or result.roles[0]
             job.hotlist_job_titles = result.roles
+
+        # V2: classification_data + quality_score speichern
+        job.classification_data = {
+            "source": "openai_v2",
+            "is_leadership": result.is_leadership,
+            "roles": result.roles,
+            "primary_role": result.primary_role,
+            "sub_level": result.sub_level,
+            "reasoning": result.reasoning,
+            "quality_score": result.quality_score,
+            "quality_reason": result.quality_reason,
+            "original_title": result.original_title or job.position,
+            "corrected_title": result.corrected_title,
+            "title_was_corrected": result.title_was_corrected,
+            "classified_at": datetime.now(timezone.utc).isoformat(),
+        }
+        job.quality_score = result.quality_score
 
     # ──────────────────────────────────────────────────
     # Batch-Klassifizierung: Alle FINANCE-Kandidaten
@@ -755,3 +872,134 @@ class FinanceClassifierService:
         )
 
         return batch_result
+
+    # ──────────────────────────────────────────────────
+    # Deep Classification: Pipeline Step 1.5
+    # ──────────────────────────────────────────────────
+
+    async def deep_classify_finance_jobs(
+        self,
+        job_ids: list | None = None,
+        force: bool = False,
+        progress_callback=None,
+    ) -> dict:
+        """Deep Classification fuer FINANCE-Jobs (Pipeline Step 1.5).
+
+        Klassifiziert Jobs mit dem V2-Prompt und speichert classification_data + quality_score.
+        Wird nach der Kategorisierung (Step 1) und vor dem Geocoding (Step 2) aufgerufen.
+
+        Args:
+            job_ids: Optional — nur bestimmte Jobs klassifizieren. Wenn None, alle FINANCE-Jobs.
+            force: Bereits klassifizierte Jobs nochmal klassifizieren?
+            progress_callback: Callback(processed, total) fuer Fortschritts-Updates
+        """
+        import asyncio
+        start_time = datetime.now(timezone.utc)
+
+        # Query bauen
+        query = (
+            select(Job)
+            .where(
+                and_(
+                    Job.hotlist_category == "FINANCE",
+                    Job.deleted_at.is_(None),
+                )
+            )
+        )
+        if job_ids:
+            query = query.where(Job.id.in_(job_ids))
+        if not force:
+            query = query.where(Job.classification_data.is_(None))
+
+        result = await self.db.execute(query)
+        jobs = list(result.scalars().all())
+
+        stats = {
+            "total": len(jobs),
+            "classified": 0,
+            "high_quality": 0,
+            "medium_quality": 0,
+            "low_quality": 0,
+            "titles_corrected": 0,
+            "leadership": 0,
+            "errors": 0,
+            "skipped_no_text": 0,
+            "total_input_tokens": 0,
+            "total_output_tokens": 0,
+            "cost_usd": 0.0,
+            "duration_seconds": 0.0,
+        }
+
+        logger.info(f"Deep Classification: {len(jobs)} FINANCE-Jobs zu verarbeiten")
+
+        for i, job in enumerate(jobs):
+            try:
+                classification = await self.classify_job(job)
+
+                stats["total_input_tokens"] += classification.input_tokens
+                stats["total_output_tokens"] += classification.output_tokens
+
+                if not classification.success:
+                    stats["errors"] += 1
+                    if classification.error == "Keine Stellenbeschreibung vorhanden":
+                        stats["skipped_no_text"] += 1
+                    continue
+
+                # Ergebnis auf Job anwenden
+                self.apply_to_job(job, classification)
+                stats["classified"] += 1
+
+                # Quality-Statistik
+                qs = classification.quality_score
+                if qs == "high":
+                    stats["high_quality"] += 1
+                elif qs == "medium":
+                    stats["medium_quality"] += 1
+                elif qs == "low":
+                    stats["low_quality"] += 1
+
+                if classification.title_was_corrected:
+                    stats["titles_corrected"] += 1
+
+                if classification.is_leadership:
+                    stats["leadership"] += 1
+
+                # Fortschritt
+                if progress_callback and (i + 1) % 5 == 0:
+                    progress_callback(i + 1, len(jobs))
+
+                if (i + 1) % 50 == 0:
+                    logger.info(
+                        f"Deep Classification: {i + 1}/{len(jobs)} "
+                        f"(H:{stats['high_quality']} M:{stats['medium_quality']} L:{stats['low_quality']})"
+                    )
+
+                # Rate-Limiting
+                if (i + 1) % 10 == 0:
+                    await asyncio.sleep(0.5)
+
+                # Zwischenspeichern
+                if (i + 1) % 50 == 0:
+                    await self.db.commit()
+
+            except Exception as e:
+                logger.error(f"Deep Classification Fehler bei Job {job.id}: {e}")
+                stats["errors"] += 1
+
+        await self.db.commit()
+        await self.close()
+
+        duration = (datetime.now(timezone.utc) - start_time).total_seconds()
+        stats["duration_seconds"] = round(duration, 1)
+        input_cost = (stats["total_input_tokens"] / 1_000_000) * PRICE_INPUT_PER_1M
+        output_cost = (stats["total_output_tokens"] / 1_000_000) * PRICE_OUTPUT_PER_1M
+        stats["cost_usd"] = round(input_cost + output_cost, 4)
+
+        logger.info(
+            f"Deep Classification abgeschlossen: {stats['classified']}/{stats['total']} Jobs, "
+            f"Quality H:{stats['high_quality']} M:{stats['medium_quality']} L:{stats['low_quality']}, "
+            f"{stats['titles_corrected']} Titel korrigiert, "
+            f"${stats['cost_usd']:.2f} in {stats['duration_seconds']}s"
+        )
+
+        return stats
