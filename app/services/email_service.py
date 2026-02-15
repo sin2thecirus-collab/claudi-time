@@ -186,10 +186,10 @@ EMAIL_SIGNATURE = f"""
             <!-- Social Icons -->
             <div style="margin-top: 10px;">
                 <a href="https://www.linkedin.com/in/milad-hamdard-021629175" style="text-decoration: none; margin-right: 8px;" title="LinkedIn">
-                    <img src="https://cdn-icons-png.flaticon.com/512/174/174857.png" alt="LinkedIn" width="22" height="22" style="border-radius: 4px; display: inline-block; vertical-align: middle;" />
+                    <img src="{_BASE_URL}/static/images/linkedin_icon.png" alt="LinkedIn" width="22" height="22" style="border-radius: 4px; display: inline-block; vertical-align: middle;" />
                 </a>
                 <a href="https://www.xing.com/profile/Milad_Hamdard" style="text-decoration: none;" title="XING">
-                    <img src="https://cdn-icons-png.flaticon.com/512/174/174870.png" alt="XING" width="22" height="22" style="border-radius: 4px; display: inline-block; vertical-align: middle;" />
+                    <img src="{_BASE_URL}/static/images/xing_icon.png" alt="XING" width="22" height="22" style="border-radius: 4px; display: inline-block; vertical-align: middle;" />
                 </a>
             </div>
         </td>
