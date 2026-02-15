@@ -469,6 +469,7 @@ class EmailService:
                         result["errors"].append(f"Kontaktdaten-Email: {draft.send_error}")
 
                 elif action_type == "stellenausschreibung":
+                    # Stellenausschreibungen IMMER als Draft — Milad schaut drüber
                     job_keywords = action.get("job_keywords", "")
                     job = await self.match_job_from_keywords(job_keywords)
 
@@ -479,17 +480,12 @@ class EmailService:
                             email_type=EmailType.STELLENAUSSCHREIBUNG.value,
                             subject=subject,
                             body_html=body,
-                            auto_send=True,
+                            auto_send=False,
                             call_note_id=call_note_id,
                             ats_job_id=job.id,
                             gpt_context=action.get("description"),
                         )
-                        if draft.is_sent:
-                            result["emails_sent"] += 1
-                        else:
-                            result["errors"].append(f"Stellen-Email: {draft.send_error}")
                     else:
-                        # Kein Job gefunden → Draft erstellen
                         draft = await self._create_and_send_email(
                             candidate=candidate,
                             email_type=EmailType.STELLENAUSSCHREIBUNG.value,
@@ -499,7 +495,7 @@ class EmailService:
                             call_note_id=call_note_id,
                             gpt_context=f"Job nicht automatisch gefunden. Keywords: {job_keywords}",
                         )
-                        result["drafts_created"] += 1
+                    result["drafts_created"] += 1
 
                 elif action_type == "individuell":
                     # Individuell → immer Draft
