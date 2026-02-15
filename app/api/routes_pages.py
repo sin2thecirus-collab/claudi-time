@@ -1766,7 +1766,9 @@ async def gespraeche_assign(
         if call.call_summary:
             candidate.call_summary = call.call_summary
         candidate.call_date = call.call_date or now
-        candidate.call_type = "qualifizierung"
+        # call_type aus extracted_data uebernehmen (von GPT klassifiziert)
+        ext_call_type = (call.extracted_data or {}).get("call_type", "kurzer_call")
+        candidate.call_type = ext_call_type
         candidate.last_contact = now
 
         # Qualifizierungsfelder aus extracted_data
@@ -1835,9 +1837,9 @@ async def gespraeche_assign(
 
     await db.commit()
 
-    # Profil-PDF automatisch generieren wenn Kandidat zugeordnet
+    # Profil-PDF NUR bei Qualifizierungsgespraech generieren
     pdf_status = None
-    if entity_type == "candidate":
+    if entity_type == "candidate" and (call.extracted_data or {}).get("call_type", "").lower() == "qualifizierung":
         try:
             from datetime import timezone as tz
             from app.services.profile_pdf_service import ProfilePdfService

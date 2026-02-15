@@ -128,6 +128,7 @@ class CallStoreOrAssignRequest(BaseModel):
     duration_seconds: Optional[int] = None
     transcript: Optional[str] = None
     call_summary: Optional[str] = None
+    call_type: Optional[str] = None  # "qualifizierung" / "kurzer_call" / "akquise" / "sonstiges"
     extracted_data: Optional[dict] = None
     recording_topic: Optional[str] = None
     webex_recording_id: Optional[str] = None
@@ -1597,7 +1598,7 @@ async def _auto_assign_to_candidate(
             candidate.call_date = now
     else:
         candidate.call_date = now
-    candidate.call_type = "qualifizierung"
+    candidate.call_type = data.call_type or "kurzer_call"
     candidate.last_contact = now
 
     # Qualifizierungsfelder aus extracted_data / mt_payload
@@ -1780,11 +1781,15 @@ async def n8n_call_store_or_assign(
 
             await db.commit()
 
-            # Profil-PDF generieren (non-blocking)
-            pdf_result = await _generate_profile_pdf_background(
-                db, data.candidate_id, result.get("candidate_name", ""),
-            )
-            actions_taken.append(f"pdf: {pdf_result.get('pdf_status')}")
+            # Profil-PDF NUR bei Qualifizierungsgespraech generieren
+            pdf_result = None
+            if (data.call_type or "").lower() == "qualifizierung":
+                pdf_result = await _generate_profile_pdf_background(
+                    db, data.candidate_id, result.get("candidate_name", ""),
+                )
+                actions_taken.append(f"pdf: {pdf_result.get('pdf_status')}")
+            else:
+                actions_taken.append(f"pdf: skipped (call_type={data.call_type})")
 
             return {
                 "status": "auto_assigned",
@@ -1834,13 +1839,15 @@ async def n8n_call_store_or_assign(
 
             await db.commit()
 
-            # Profil-PDF generieren wenn Kandidat zugeordnet
+            # Profil-PDF NUR bei Qualifizierungsgespraech generieren
             pdf_result = None
-            if entity_type == "candidate":
+            if entity_type == "candidate" and (data.call_type or "").lower() == "qualifizierung":
                 pdf_result = await _generate_profile_pdf_background(
                     db, entity_id, entity_name,
                 )
                 actions_taken.append(f"pdf: {pdf_result.get('pdf_status')}")
+            elif entity_type == "candidate":
+                actions_taken.append(f"pdf: skipped (call_type={data.call_type})")
 
             return {
                 "status": "auto_assigned",
