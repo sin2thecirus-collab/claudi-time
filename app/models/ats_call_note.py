@@ -101,6 +101,7 @@ class ATSCallNote(Base):
     # Relationships
     ats_job: Mapped["ATSJob | None"] = relationship(
         "ATSJob", back_populates="call_notes",
+        foreign_keys=[ats_job_id],
     )
     company: Mapped["Company | None"] = relationship("Company")
     candidate: Mapped["Candidate | None"] = relationship("Candidate")
