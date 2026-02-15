@@ -209,7 +209,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "font-src 'self' https://fonts.gstatic.com",
             "img-src 'self' data: blob:",
             "connect-src 'self'",
-            "frame-src 'self'",
+            "frame-src 'self' blob:",
             "object-src 'none'",
             "base-uri 'self'",
             "frame-ancestors 'self'",
