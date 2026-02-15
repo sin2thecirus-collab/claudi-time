@@ -664,8 +664,9 @@ class CVParserService:
         if "current_position" not in manual and cv_data.current_position:
             candidate.current_position = cv_data.current_position
 
-        # Aktuelles Unternehmen (aus CV uebernehmen wenn leer)
-        if cv_data.current_company and not candidate.current_company:
+        # Aktuelles Unternehmen (IMMER aus CV uebernehmen — auch null/leer,
+        # damit halluzinierte Werte beim Re-Parse korrigiert werden)
+        if "current_company" not in manual:
             candidate.current_company = cv_data.current_company
 
         # Skills (erweitern, nicht überschreiben)
