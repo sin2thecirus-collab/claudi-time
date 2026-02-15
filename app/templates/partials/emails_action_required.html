@@ -1,22 +1,22 @@
 {% if emails | length == 0 %}
-<div class="em-empty" style="padding: 16px;">
+<div class="em-empty">
     <div class="em-empty-text" style="color: #34D399;">Keine Fehler — alles in Ordnung</div>
 </div>
 {% else %}
 {% for email in emails %}
-<div class="em-card" id="em-card-{{ email.id }}" style="border-left: 2px solid var(--pp-red);">
-    <div class="em-card-header">
-        <div class="em-card-left">
+<div class="em-card em-card--failed" id="em-card-{{ email.id }}">
+    <div class="em-card-top">
+        <div class="em-card-info">
             {% if email.candidate %}
-            <a href="/kandidaten/{{ email.candidate_id }}" class="em-candidate-name">{{ email.candidate.first_name }} {{ email.candidate.last_name }}</a>
+            <a href="/kandidaten/{{ email.candidate_id }}" class="em-name">{{ email.candidate.first_name }} {{ email.candidate.last_name }}</a>
             {% else %}
-            <span class="em-candidate-name">{{ email.to_email }}</span>
+            <span class="em-name">{{ email.to_email }}</span>
             {% endif %}
             <span class="em-badge em-badge-{{ email.email_type }}">
                 {% if email.email_type == 'kontaktdaten' %}Kontaktdaten{% elif email.email_type == 'stellenausschreibung' %}Stellenausschr.{% else %}Individuell{% endif %}
             </span>
         </div>
-        <div class="em-card-right">
+        <div class="em-card-actions">
             <span class="em-time">{{ email.created_at.strftime('%d.%m. %H:%M') if email.created_at else '' }}</span>
             <button class="em-btn em-btn-retry" onclick="emRetryDraft('{{ email.id }}', this)">Wiederholen</button>
             <button class="em-btn em-btn-discard" onclick="emDiscardDraft('{{ email.id }}', document.getElementById('em-card-{{ email.id }}'))">Verwerfen</button>
@@ -24,7 +24,7 @@
     </div>
     <div class="em-subject">{{ email.subject }}</div>
     {% if email.send_error %}
-    <div class="em-error">Fehler: {{ email.send_error[:150] }}</div>
+    <div class="em-error-msg">Fehler: {{ email.send_error[:150] }}</div>
     {% endif %}
 </div>
 {% endfor %}

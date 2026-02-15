@@ -7,22 +7,20 @@
 {% else %}
 {% for email in emails %}
 <div class="em-card" id="em-card-{{ email.id }}" x-data="{ showPreview: false }">
-    <div class="em-card-header">
-        <div class="em-card-left">
+    <div class="em-card-top">
+        <div class="em-card-info">
             {% if email.candidate %}
-            <a href="/kandidaten/{{ email.candidate_id }}" class="em-candidate-name">{{ email.candidate.first_name }} {{ email.candidate.last_name }}</a>
+            <a href="/kandidaten/{{ email.candidate_id }}" class="em-name">{{ email.candidate.first_name }} {{ email.candidate.last_name }}</a>
             {% else %}
-            <span class="em-candidate-name">{{ email.to_email }}</span>
+            <span class="em-name">{{ email.to_email }}</span>
             {% endif %}
             <span class="em-badge em-badge-{{ email.email_type }}">
                 {% if email.email_type == 'kontaktdaten' %}Kontaktdaten{% elif email.email_type == 'stellenausschreibung' %}Stellenausschr.{% else %}Individuell{% endif %}
             </span>
         </div>
-        <div class="em-card-right">
+        <div class="em-card-actions">
             <span class="em-time">
-                {% if email.created_at %}
-                {{ email.created_at.strftime('%d.%m. %H:%M') }}
-                {% endif %}
+                {% if email.created_at %}{{ email.created_at.strftime('%d.%m. %H:%M') }}{% endif %}
             </span>
             <button class="em-btn em-btn-preview" @click="showPreview = !showPreview" x-text="showPreview ? 'Ausblenden' : 'Vorschau'"></button>
             <button class="em-btn em-btn-send" onclick="emSendDraft('{{ email.id }}', this)">Senden</button>
@@ -31,10 +29,8 @@
     </div>
     <div class="em-subject">{{ email.subject }}</div>
     {% if email.gpt_context %}
-    <div style="font-size: 12px; color: var(--pp-textDim); margin-top: 4px; font-style: italic;">{{ email.gpt_context[:120] }}</div>
+    <div class="em-context">{{ email.gpt_context[:120] }}</div>
     {% endif %}
-
-    {# Inline-Vorschau #}
     <div x-show="showPreview" x-collapse>
         <div class="em-preview-box">
             {{ email.body_html | safe }}
