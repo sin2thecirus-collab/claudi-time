@@ -113,9 +113,9 @@ class CandidateResponse(BaseModel):
     """Schema für Kandidaten-Response."""
 
     id: UUID
-    crm_id: str | None
-    gender: str | None
-    first_name: str | None
+    crm_id: str | None = None
+    gender: str | None = None
+    first_name: str | None = None
     last_name: str | None
     full_name: str
     email: str | None
@@ -143,6 +143,26 @@ class CandidateResponse(BaseModel):
     candidate_notes: str | None
     candidate_number: int | None
     presented_at_companies: list[dict] | None
+    # Qualifizierungsgespräch-Felder
+    desired_positions: str | None = None
+    key_activities: str | None = None
+    home_office_days: str | None = None
+    commute_max: str | None = None
+    commute_transport: str | None = None
+    erp_main: str | None = None
+    employment_type: str | None = None
+    part_time_hours: str | None = None
+    preferred_industries: str | None = None
+    avoided_industries: str | None = None
+    open_office_ok: str | None = None
+    whatsapp_ok: bool | None = None
+    other_recruiters: str | None = None
+    exclusivity_agreed: bool | None = None
+    applied_at_companies_text: str | None = None
+    call_transcript: str | None = None
+    call_summary: str | None = None
+    call_date: datetime | None = None
+    call_type: str | None = None
     has_coordinates: bool
     cv_url: str | None
     cv_parsed_at: datetime | None

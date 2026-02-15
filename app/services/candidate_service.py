@@ -632,6 +632,7 @@ class CandidateService:
         return CandidateResponse(
             id=candidate.id,
             crm_id=candidate.crm_id,
+            gender=candidate.gender,
             first_name=candidate.first_name,
             last_name=candidate.last_name,
             full_name=candidate.full_name,
