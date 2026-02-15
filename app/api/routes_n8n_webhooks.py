@@ -1736,41 +1736,103 @@ async def _auto_assign_to_contact_or_company(
     company_id: str | None,
     data: CallStoreOrAssignRequest,
 ):
-    """Ordnet Anrufdaten einem Kontakt oder Unternehmen zu (ATSCallNote + Activity)."""
+    """Ordnet Anrufdaten einem Kontakt oder Unternehmen zu.
+
+    Nutzt KI-Klassifizierung (GPT-4o-mini) um den Subtyp zu erkennen:
+    - kein_bedarf → CallNote + Zusammenfassung
+    - follow_up → CallNote + ATSTodo mit Datum
+    - job_quali → CallNote + Staging-Eintrag (UnassignedCall mit extracted_job_data)
+    - sonstiges → CallNote + Zusammenfassung
+    """
     from app.models.ats_activity import ATSActivity, ActivityType
     from app.models.ats_call_note import ATSCallNote, CallDirection, CallType
+    from app.models.ats_todo import ATSTodo, TodoPriority
+    from app.models.unassigned_call import UnassignedCall
+    from app.services.call_transcription_service import CallTranscriptionService
 
     now = datetime.now(timezone.utc)
     direction_val = CallDirection.INBOUND if data.direction == "inbound" else CallDirection.OUTBOUND
 
-    # call_type korrekt mappen
-    n8n_type = (data.call_type or "").lower()
-    call_type_map = {
-        "qualifizierung": CallType.QUALIFICATION,
-        "kurzer_call": CallType.CANDIDATE_CALL,
-        "akquise": CallType.ACQUISITION,
-        "sonstiges": CallType.CANDIDATE_CALL,
-        "followup": CallType.FOLLOWUP,
+    # ── Kontakt-/Firmennamen laden fuer KI-Kontext ──
+    contact_name = ""
+    company_name = ""
+
+    if entity_type == "contact":
+        row = await db.execute(
+            text("SELECT first_name, last_name FROM company_contacts WHERE id = :id"),
+            {"id": entity_id},
+        )
+        r = row.fetchone()
+        if r:
+            contact_name = f"{r[0] or ''} {r[1] or ''}".strip()
+
+    if company_id:
+        row = await db.execute(
+            text("SELECT name FROM companies WHERE id = :id"),
+            {"id": company_id},
+        )
+        r = row.fetchone()
+        if r:
+            company_name = r[0] or ""
+    elif entity_type == "company":
+        row = await db.execute(
+            text("SELECT name FROM companies WHERE id = :id"),
+            {"id": entity_id},
+        )
+        r = row.fetchone()
+        if r:
+            company_name = r[0] or ""
+
+    # ── KI-Klassifizierung (wenn Transkript vorhanden) ──
+    subtype = "sonstiges"
+    ki_summary = data.call_summary or "Anruf ohne Zusammenfassung"
+    ki_result = None
+    job_data = None
+
+    if data.transcript and len(data.transcript) > 50:
+        try:
+            service = CallTranscriptionService(db)
+            ki_result = await service.process_contact_call(
+                transcript=data.transcript,
+                contact_name=contact_name or "Unbekannt",
+                company_name=company_name or "Unbekannt",
+            )
+            await service.close()
+
+            if ki_result.get("success"):
+                subtype = ki_result["subtype"]
+                ki_summary = ki_result.get("summary") or ki_summary
+                job_data = ki_result.get("job_data")
+                logger.info(
+                    f"KI-Klassifizierung: {subtype} fuer {contact_name} ({company_name}), "
+                    f"Kosten=${ki_result.get('cost_usd', 0):.4f}"
+                )
+            else:
+                logger.warning(f"KI-Klassifizierung fehlgeschlagen: {ki_result.get('error')}")
+        except Exception as e:
+            logger.exception(f"KI-Klassifizierung Fehler: {e}")
+
+    # ── CallType mappen (basierend auf KI-Subtyp) ──
+    subtype_to_calltype = {
+        "kein_bedarf": CallType.ACQUISITION,
+        "follow_up": CallType.FOLLOWUP,
+        "job_quali": CallType.QUALIFICATION,
+        "sonstiges": CallType.ACQUISITION,
     }
-    mapped_call_type = call_type_map.get(n8n_type, CallType.ACQUISITION)
+    mapped_call_type = subtype_to_calltype.get(subtype, CallType.ACQUISITION)
 
-    # Action Items aus extracted_data extrahieren
-    ext = data.extracted_data or data.mt_payload or {}
-    action_items = ext.get("action_items") or ext.get("follow_ups") or ext.get("tasks")
-
-    # Transkript (raw_notes) NUR bei Qualifizierung speichern
+    # ── CallNote erstellen (immer) ──
     raw_notes = None
-    if mapped_call_type == CallType.QUALIFICATION and data.transcript:
+    if subtype == "job_quali" and data.transcript:
         raw_notes = data.transcript[:5000]
 
     call_note = ATSCallNote(
         call_type=mapped_call_type,
         direction=direction_val,
-        summary=data.call_summary or "Anruf ohne Zusammenfassung",
+        summary=ki_summary,
         raw_notes=raw_notes,
         duration_minutes=(data.duration_seconds // 60) if data.duration_seconds else None,
         called_at=now,
-        action_items=action_items if isinstance(action_items, list) else None,
     )
 
     if entity_type == "contact":
@@ -1781,12 +1843,21 @@ async def _auto_assign_to_contact_or_company(
         call_note.company_id = entity_id
 
     db.add(call_note)
-    await db.flush()  # flush damit call_note.id verfuegbar ist
+    await db.flush()
 
-    # Activity loggen
+    # ── Activity loggen ──
+    subtype_labels = {
+        "kein_bedarf": "Kein Bedarf",
+        "follow_up": "Follow-up",
+        "job_quali": "Job-Qualifizierung",
+        "sonstiges": "Sonstiges",
+    }
     activity = ATSActivity(
         activity_type=ActivityType.CALL_LOGGED,
-        description=f"Anruf automatisch zugeordnet ({entity_type}): {data.call_summary[:100] if data.call_summary else 'Gespraech'}",
+        description=(
+            f"Anruf ({subtype_labels.get(subtype, 'Akquise')}): "
+            f"{ki_summary[:100] if ki_summary else 'Gespraech'}"
+        ),
         company_id=company_id or (entity_id if entity_type == "company" else None),
         metadata_json={
             "source": "webex_auto_assign",
@@ -1794,20 +1865,88 @@ async def _auto_assign_to_contact_or_company(
             "entity_id": entity_id,
             "direction": data.direction,
             "phone_number": data.phone_number,
+            "call_subtype": subtype,
         },
     )
     db.add(activity)
 
-    # Automatisch ATSTodos aus action_items erstellen
-    resolved_company_id = company_id or (entity_id if entity_type == "company" else None)
-    todos_created = await _create_todos_from_action_items(
-        db, call_note, company_id=resolved_company_id,
-    )
+    todos_created = 0
+    staging_id = None
+
+    # ── Subtyp-spezifische Aktionen ──
+    if subtype == "follow_up" and ki_result:
+        # ATSTodo mit Follow-up-Datum erstellen
+        follow_up_date = ki_result.get("follow_up_date")
+        follow_up_reason = ki_result.get("follow_up_reason", "")
+
+        due_date = None
+        if follow_up_date:
+            try:
+                from datetime import date as d_date
+                due_date = d_date.fromisoformat(follow_up_date)
+            except (ValueError, TypeError):
+                due_date = None
+
+        todo = ATSTodo(
+            title=f"Follow-up: {contact_name or company_name}",
+            description=follow_up_reason or ki_summary,
+            priority=TodoPriority.WICHTIG,
+            due_date=due_date,
+            call_note_id=call_note.id,
+        )
+        if company_id:
+            todo.company_id = company_id
+        elif entity_type == "company":
+            todo.company_id = entity_id
+        if entity_type == "contact":
+            todo.contact_id = entity_id
+
+        db.add(todo)
+        todos_created = 1
+        logger.info(f"Follow-up Todo erstellt: {todo.title} (Datum: {due_date})")
+
+    elif subtype == "job_quali" and job_data:
+        # Staging-Eintrag in unassigned_calls (Milad entscheidet im Frontend)
+        call_date = None
+        if data.call_date:
+            try:
+                call_date = datetime.fromisoformat(data.call_date.replace("Z", "+00:00"))
+            except (ValueError, AttributeError):
+                call_date = now
+
+        staged = UnassignedCall(
+            phone_number=data.phone_number,
+            direction=data.direction,
+            call_date=call_date or now,
+            duration_seconds=data.duration_seconds,
+            transcript=data.transcript,
+            call_summary=ki_summary,
+            extracted_data=data.extracted_data,
+            recording_topic=data.recording_topic,
+            webex_recording_id=data.webex_recording_id,
+            call_subtype="job_quali",
+            extracted_job_data=job_data,
+            contact_id=entity_id if entity_type == "contact" else None,
+            company_id=company_id or (entity_id if entity_type == "company" else None),
+            call_note_id=call_note.id,
+            assigned=False,
+        )
+        db.add(staged)
+        await db.flush()
+        staging_id = str(staged.id)
+
+        logger.info(
+            f"Job-Quali Staging erstellt: '{job_data.get('title', '?')}' "
+            f"fuer {company_name} (staging_id={staging_id})"
+        )
 
     return {
         "success": True,
         "call_note_id": str(call_note.id),
+        "call_subtype": subtype,
         "todos_created": todos_created,
+        "staging_id": staging_id,
+        "ki_cost_usd": ki_result.get("cost_usd", 0) if ki_result else 0,
     }
 
 
@@ -2304,3 +2443,307 @@ async def n8n_debug_simulate_call(
 
     # Die gleiche Logik wie store-or-assign aufrufen
     return await n8n_call_store_or_assign(data=fake_data, db=db, _=_)
+
+
+# ════════════════════════════════════════════════════════════════════
+# DEBUG: Kontakt-/Kunden-Call Pipeline (Akquise-Automatisierung)
+# ════════════════════════════════════════════════════════════════════
+
+@router.post("/debug/simulate-contact-call")
+async def n8n_debug_simulate_contact_call(
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(verify_n8n_token),
+    subtype: str = Query(
+        default="job_quali",
+        description="Simulierter Subtyp: job_quali / follow_up / kein_bedarf / sonstiges",
+    ),
+    phone_number: str = Query(
+        default="040238345320",
+        description="Telefonnummer eines bestehenden Kontakts im MT",
+    ),
+):
+    """Debug: Simuliert einen Kontakt-Call mit Fake-Transkript.
+
+    Testet die gesamte Kontakt-Pipeline:
+    - Phone-Lookup → Kontakt/Company
+    - GPT-Klassifizierung (MIT echtem GPT-Call!)
+    - CallNote + ggf. ATSTodo / Staging erstellen
+
+    ACHTUNG: Nutzt echte GPT-API-Calls (~$0.001-0.003 pro Test).
+    """
+    transcripts = {
+        "job_quali": (
+            "Hallo Herr Hamdard, ja wir suchen tatsächlich gerade einen Bilanzbuchhalter. "
+            "Das Team besteht aus 5 Leuten, die arbeiten hauptsächlich mit SAP S/4HANA. "
+            "Gehalt bieten wir zwischen 55 und 65 Tausend, je nach Erfahrung. "
+            "Home-Office ist 2-3 Tage die Woche möglich, wir haben Gleitzeit mit Kernzeit von 10 bis 15 Uhr. "
+            "30 Urlaubstage, Überstunden können abgefeiert werden. "
+            "Der Kandidat sollte idealerweise sofort anfangen können. "
+            "Wir haben noch keine Gespräche geführt, Sie wären der erste Personalberater. "
+            "Die Aufgaben sind zu 70% HGB-Bilanzierung und 30% Controlling-Unterstützung."
+        ),
+        "follow_up": (
+            "Hallo Herr Hamdard, danke für Ihren Anruf. Aktuell haben wir keinen konkreten Bedarf, "
+            "aber ab März könnte es interessant werden. Unser Teamleiter Rechnungswesen geht dann in Elternzeit "
+            "und wir bräuchten eventuell eine Vertretung. Rufen Sie mich doch bitte Anfang März nochmal an, "
+            "dann können wir das konkreter besprechen."
+        ),
+        "kein_bedarf": (
+            "Hallo Herr Hamdard, vielen Dank für Ihren Anruf. Wir sind aktuell komplett besetzt "
+            "und haben auch keine Fluktuation geplant. Im Moment brauchen wir keine Unterstützung "
+            "bei der Personalsuche. Aber danke fürs Anrufen."
+        ),
+        "sonstiges": (
+            "Hallo Herr Hamdard, ich wollte mich kurz nach dem Stand bei Herrn Schmidt erkundigen. "
+            "Sie hatten uns ja letzte Woche seinen Lebenslauf geschickt. Ist er noch verfügbar? "
+            "Meine Kollegin Frau Weber würde gerne ein Gespräch mit ihm führen."
+        ),
+    }
+
+    transcript = transcripts.get(subtype, transcripts["sonstiges"])
+
+    fake_data = CallStoreOrAssignRequest(
+        phone_number=phone_number,
+        direction="outbound",
+        call_date=datetime.now(timezone.utc).isoformat(),
+        duration_seconds=600,
+        transcript=transcript,
+        call_summary=None,  # Wird von KI generiert
+        call_type=None,  # Wird von KI klassifiziert
+        extracted_data=None,
+        recording_topic=f"DEBUG: Simulierter Kontakt-Call ({subtype})",
+        webex_recording_id=None,
+        webex_access_token=None,
+        mt_payload=None,
+        candidate_id=None,
+    )
+
+    return await n8n_call_store_or_assign(data=fake_data, db=db, _=_)
+
+
+@router.post("/debug/classify-contact-call")
+async def n8n_debug_classify_contact_call(
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(verify_n8n_token),
+    transcript: str = Query(
+        default="Wir suchen einen Bilanzbuchhalter mit SAP-Erfahrung, 60k Gehalt, 2 Tage Home-Office.",
+        description="Transkript-Text zum Klassifizieren",
+    ),
+    contact_name: str = Query(default="Max Mustermann"),
+    company_name: str = Query(default="Test GmbH"),
+):
+    """Debug: Testet NUR die GPT-Klassifizierung eines Kontakt-Calls.
+
+    Kein DB-Write, keine CallNote, kein Staging — nur GPT-Analyse.
+    Zeigt das rohe GPT-Ergebnis inkl. job_data (wenn job_quali).
+    """
+    from app.services.call_transcription_service import CallTranscriptionService
+
+    service = CallTranscriptionService(db)
+    try:
+        result = await service.process_contact_call(
+            transcript=transcript,
+            contact_name=contact_name,
+            company_name=company_name,
+        )
+        return result
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+    finally:
+        await service.close()
+
+
+@router.get("/debug/contact/{contact_id}")
+async def n8n_debug_contact(
+    contact_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(verify_n8n_token),
+):
+    """Debug: Zeigt alle Daten eines Kontakts + verknuepfte CallNotes + ATSJobs."""
+    from app.models.company_contact import CompanyContact
+    from app.models.ats_call_note import ATSCallNote
+    from app.models.ats_job import ATSJob
+    from app.models.ats_todo import ATSTodo
+
+    contact = await db.get(CompanyContact, contact_id)
+    if not contact:
+        raise HTTPException(status_code=404, detail="Kontakt nicht gefunden")
+
+    # CallNotes fuer diesen Kontakt
+    notes_result = await db.execute(
+        select(ATSCallNote)
+        .where(ATSCallNote.contact_id == contact_id)
+        .order_by(ATSCallNote.called_at.desc())
+        .limit(10)
+    )
+    call_notes = notes_result.scalars().all()
+
+    # ATSJobs fuer diesen Kontakt
+    jobs_result = await db.execute(
+        select(ATSJob)
+        .where(ATSJob.contact_id == contact_id)
+        .order_by(ATSJob.created_at.desc())
+        .limit(10)
+    )
+    jobs = jobs_result.scalars().all()
+
+    # Todos fuer diesen Kontakt
+    todos_result = await db.execute(
+        select(ATSTodo)
+        .where(ATSTodo.contact_id == contact_id)
+        .order_by(ATSTodo.created_at.desc())
+        .limit(10)
+    )
+    todos = todos_result.scalars().all()
+
+    return {
+        "contact": {
+            "id": str(contact.id),
+            "name": f"{contact.first_name or ''} {contact.last_name or ''}".strip(),
+            "position": contact.position,
+            "phone": contact.phone,
+            "mobile": contact.mobile,
+            "email": contact.email,
+            "company_id": str(contact.company_id) if contact.company_id else None,
+        },
+        "call_notes": [
+            {
+                "id": str(n.id),
+                "call_type": n.call_type.value if n.call_type else None,
+                "direction": n.direction.value if n.direction else None,
+                "summary": n.summary[:200] if n.summary else None,
+                "called_at": n.called_at.isoformat() if n.called_at else None,
+                "duration_minutes": n.duration_minutes,
+            }
+            for n in call_notes
+        ],
+        "ats_jobs": [
+            {
+                "id": str(j.id),
+                "title": j.title,
+                "status": j.status.value,
+                "salary_min": j.salary_min,
+                "salary_max": j.salary_max,
+                "source": j.source,
+                "source_call_note_id": str(j.source_call_note_id) if j.source_call_note_id else None,
+                "team_size": j.team_size,
+                "erp_system": j.erp_system,
+                "home_office_days": j.home_office_days,
+                "created_at": j.created_at.isoformat() if j.created_at else None,
+            }
+            for j in jobs
+        ],
+        "todos": [
+            {
+                "id": str(t.id),
+                "title": t.title,
+                "status": t.status.value if t.status else None,
+                "priority": t.priority.value if t.priority else None,
+                "due_date": t.due_date.isoformat() if t.due_date else None,
+                "call_note_id": str(t.call_note_id) if t.call_note_id else None,
+            }
+            for t in todos
+        ],
+        "stats": {
+            "total_call_notes": len(call_notes),
+            "total_jobs": len(jobs),
+            "total_todos": len(todos),
+        },
+    }
+
+
+@router.get("/debug/job-quali-staging")
+async def n8n_debug_job_quali_staging(
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(verify_n8n_token),
+):
+    """Debug: Zeigt alle Job-Quali Staging-Eintraege (unassigned_calls mit call_subtype=job_quali)."""
+    from app.models.unassigned_call import UnassignedCall
+
+    result = await db.execute(
+        select(UnassignedCall)
+        .where(UnassignedCall.call_subtype == "job_quali")
+        .order_by(UnassignedCall.created_at.desc())
+        .limit(20)
+    )
+    entries = result.scalars().all()
+
+    return {
+        "total": len(entries),
+        "entries": [
+            {
+                "id": str(e.id),
+                "phone_number": e.phone_number,
+                "call_subtype": e.call_subtype,
+                "call_summary": e.call_summary[:200] if e.call_summary else None,
+                "contact_id": str(e.contact_id) if e.contact_id else None,
+                "company_id": str(e.company_id) if e.company_id else None,
+                "call_note_id": str(e.call_note_id) if e.call_note_id else None,
+                "assigned": e.assigned,
+                "assigned_to_type": e.assigned_to_type,
+                "extracted_job_data": e.extracted_job_data,
+                "created_at": e.created_at.isoformat() if e.created_at else None,
+            }
+            for e in entries
+        ],
+    }
+
+
+@router.get("/debug/ats-job/{job_id}")
+async def n8n_debug_ats_job(
+    job_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(verify_n8n_token),
+):
+    """Debug: Zeigt ALLE Felder eines ATSJobs inkl. Job-Quali-Felder."""
+    from app.models.ats_job import ATSJob
+
+    job = await db.get(ATSJob, job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Stelle nicht gefunden")
+
+    return {
+        "id": str(job.id),
+        "title": job.title,
+        "status": job.status.value,
+        "priority": job.priority.value,
+        "company_id": str(job.company_id) if job.company_id else None,
+        "contact_id": str(job.contact_id) if job.contact_id else None,
+        "source": job.source,
+        "description": job.description[:200] if job.description else None,
+        "requirements": job.requirements[:200] if job.requirements else None,
+        "location_city": job.location_city,
+        "salary_min": job.salary_min,
+        "salary_max": job.salary_max,
+        "employment_type": job.employment_type,
+        "in_pipeline": job.in_pipeline,
+        # Job-Quali-Felder
+        "job_quali_fields": {
+            "team_size": job.team_size,
+            "erp_system": job.erp_system,
+            "home_office_days": job.home_office_days,
+            "flextime": job.flextime,
+            "core_hours": job.core_hours,
+            "vacation_days": job.vacation_days,
+            "overtime_handling": job.overtime_handling,
+            "open_office": job.open_office,
+            "english_requirements": job.english_requirements,
+            "hiring_process_steps": job.hiring_process_steps,
+            "feedback_timeline": job.feedback_timeline,
+            "digitalization_level": job.digitalization_level,
+            "older_candidates_ok": job.older_candidates_ok,
+            "desired_start_date": job.desired_start_date,
+            "interviews_started": job.interviews_started,
+            "ideal_candidate_description": job.ideal_candidate_description[:200] if job.ideal_candidate_description else None,
+            "candidate_tasks": job.candidate_tasks[:200] if job.candidate_tasks else None,
+            "multiple_entities": job.multiple_entities,
+            "task_distribution": job.task_distribution,
+            "source_call_note_id": str(job.source_call_note_id) if job.source_call_note_id else None,
+        },
+        "has_job_quali_data": any([
+            job.team_size, job.erp_system, job.home_office_days,
+            job.flextime is not None, job.vacation_days, job.overtime_handling,
+        ]),
+        "created_at": job.created_at.isoformat() if job.created_at else None,
+        "updated_at": job.updated_at.isoformat() if job.updated_at else None,
+    }

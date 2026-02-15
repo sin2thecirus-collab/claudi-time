@@ -86,7 +86,49 @@
     </div>
     {% endif %}
 
-    {# Badges: Extracted fields (if available) #}
+    {# ── Job-Quali: Extrahierte Stellen-Daten ── #}
+    {% if call.call_subtype == 'job_quali' and call.extracted_job_data %}
+    {% set jd = call.extracted_job_data %}
+    <div style="margin-top: 14px; padding: 16px; background: rgba(139,92,246,0.06); border-radius: 12px; border: 1px solid rgba(139,92,246,0.15);">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+            <span style="display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 7px; background: rgba(139,92,246,0.15); color: #a78bfa; font-size: 12px; font-weight: 700;">
+                <svg style="width: 12px; height: 12px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2Z"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+                Job Quali
+            </span>
+            {% if jd.title %}
+            <span style="font-size: 15px; font-weight: 700; color: var(--pp-text);">{{ jd.title }}</span>
+            {% endif %}
+        </div>
+        {# Key fields as grid #}
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px 20px; font-size: 13px;">
+            {% if jd.salary_min or jd.salary_max %}
+            <div><span style="color: var(--pp-textDim);">Gehalt:</span> <span style="color: var(--pp-text); font-weight: 600;">{% if jd.salary_min and jd.salary_max %}{{ '{:,.0f}'.format(jd.salary_min) }} - {{ '{:,.0f}'.format(jd.salary_max) }}{% elif jd.salary_min %}ab {{ '{:,.0f}'.format(jd.salary_min) }}{% else %}bis {{ '{:,.0f}'.format(jd.salary_max) }}{% endif %}</span></div>
+            {% endif %}
+            {% if jd.erp_system %}
+            <div><span style="color: var(--pp-textDim);">ERP:</span> <span style="color: var(--pp-text); font-weight: 600;">{{ jd.erp_system }}</span></div>
+            {% endif %}
+            {% if jd.location %}
+            <div><span style="color: var(--pp-textDim);">Standort:</span> <span style="color: var(--pp-text);">{{ jd.location }}</span></div>
+            {% endif %}
+            {% if jd.team_size %}
+            <div><span style="color: var(--pp-textDim);">Team:</span> <span style="color: var(--pp-text);">{{ jd.team_size }}</span></div>
+            {% endif %}
+            {% if jd.home_office_days %}
+            <div><span style="color: var(--pp-textDim);">Home-Office:</span> <span style="color: var(--pp-text);">{{ jd.home_office_days }}</span></div>
+            {% endif %}
+            {% if jd.employment_type %}
+            <div><span style="color: var(--pp-textDim);">Arbeitszeit:</span> <span style="color: var(--pp-text);">{{ jd.employment_type }}</span></div>
+            {% endif %}
+            {% if jd.vacation_days %}
+            <div><span style="color: var(--pp-textDim);">Urlaub:</span> <span style="color: var(--pp-text);">{{ jd.vacation_days }} Tage</span></div>
+            {% endif %}
+            {% if jd.desired_start_date %}
+            <div><span style="color: var(--pp-textDim);">Start:</span> <span style="color: var(--pp-text);">{{ jd.desired_start_date }}</span></div>
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+    {# Badges: Extracted fields (if available) — Kandidaten-Calls #}
     {% if call.extracted_data %}
     <div style="display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap;">
         {% if call.extracted_data.desired_positions %}
@@ -108,6 +150,7 @@
         {% endif %}
     </div>
     {% endif %}
+    {% endif %}
 
     {# Transcript toggle #}
     {% if call.transcript %}
@@ -123,6 +166,30 @@
 
     {# Action Buttons #}
     <div style="display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--pp-border);">
+        {% if call.call_subtype == 'job_quali' and call.extracted_job_data %}
+        {# Job-Quali: Stelle anlegen oder zuordnen #}
+        <button type="button"
+                class="gc-btn"
+                style="background: rgba(139,92,246,0.15); color: #a78bfa;"
+                onclick="createJobFromStaging('{{ call.id }}')">
+            <svg style="width: 14px; height: 14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 5v14m-7-7h14"/>
+            </svg>
+            Neue Stelle anlegen
+        </button>
+        {% if call.company_id %}
+        <button type="button"
+                class="gc-btn"
+                style="background: rgba(79,140,255,0.15); color: var(--pp-accent);"
+                onclick="openJobAssignModal('{{ call.id }}', '{{ call.company_id }}')">
+            <svg style="width: 14px; height: 14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2Z"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
+            </svg>
+            Zu bestehender Stelle
+        </button>
+        {% endif %}
+        {% else %}
+        {# Standard: Kandidaten-Zuordnung #}
         <button type="button"
                 class="gc-btn gc-btn-assign"
                 onclick="openModal('/partials/gespraech-assign/{{ call.id }}')">
@@ -131,6 +198,7 @@
             </svg>
             Zuordnen
         </button>
+        {% endif %}
         <button type="button"
                 class="gc-btn gc-btn-delete"
                 hx-delete="/api/gespraeche/{{ call.id }}"

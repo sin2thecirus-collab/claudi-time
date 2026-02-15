@@ -53,6 +53,13 @@ class UnassignedCall(Base):
     # MT-Payload (fertig aufbereitetes Kandidaten-Update)
     mt_payload: Mapped[dict | None] = mapped_column(JSONB)
 
+    # ── Job-Quali Staging (Kontakt-Calls) ──
+    call_subtype: Mapped[str | None] = mapped_column(String(50))  # kein_bedarf/follow_up/job_quali/sonstiges
+    extracted_job_data: Mapped[dict | None] = mapped_column(JSONB)  # Alle Job-Quali-Felder
+    contact_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    company_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    call_note_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+
     # Zuordnungs-Status
     assigned: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     assigned_to_type: Mapped[str | None] = mapped_column(String(20))  # "candidate"/"company"/"contact"

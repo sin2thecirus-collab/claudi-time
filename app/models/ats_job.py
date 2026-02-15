@@ -91,6 +91,34 @@ class ATSJob(Base):
     source: Mapped[str | None] = mapped_column(String(100))
     notes: Mapped[str | None] = mapped_column(Text)
 
+    # ── Job-Quali Felder (aus KI-Transkription) ──
+    team_size: Mapped[str | None] = mapped_column(String(100))
+    erp_system: Mapped[str | None] = mapped_column(String(255))
+    home_office_days: Mapped[str | None] = mapped_column(String(100))
+    flextime: Mapped[bool | None] = mapped_column(Boolean)
+    core_hours: Mapped[str | None] = mapped_column(String(100))
+    vacation_days: Mapped[int | None] = mapped_column(Integer)
+    overtime_handling: Mapped[str | None] = mapped_column(String(255))
+    open_office: Mapped[str | None] = mapped_column(String(100))
+    english_requirements: Mapped[str | None] = mapped_column(String(255))
+    hiring_process_steps: Mapped[str | None] = mapped_column(String(500))
+    feedback_timeline: Mapped[str | None] = mapped_column(String(255))
+    digitalization_level: Mapped[str | None] = mapped_column(String(255))
+    older_candidates_ok: Mapped[bool | None] = mapped_column(Boolean)
+    desired_start_date: Mapped[str | None] = mapped_column(String(100))
+    interviews_started: Mapped[bool | None] = mapped_column(Boolean)
+    ideal_candidate_description: Mapped[str | None] = mapped_column(Text)
+    candidate_tasks: Mapped[str | None] = mapped_column(Text)
+    multiple_entities: Mapped[bool | None] = mapped_column(Boolean)
+    task_distribution: Mapped[str | None] = mapped_column(String(500))
+
+    # FK zum Ursprungs-Call (Job-Quali)
+    source_call_note_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("ats_call_notes.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
     # Pipeline-Uebersicht Flag
     # Jobs erscheinen erst nach Klick auf "To Interview" in der Pipeline-Uebersicht
     in_pipeline: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -123,8 +151,13 @@ class ATSJob(Base):
     pipeline_entries: Mapped[list["ATSPipelineEntry"]] = relationship(
         "ATSPipelineEntry", back_populates="ats_job", cascade="all, delete-orphan",
     )
+    source_call_note: Mapped["ATSCallNote | None"] = relationship(
+        "ATSCallNote",
+        foreign_keys=[source_call_note_id],
+    )
     call_notes: Mapped[list["ATSCallNote"]] = relationship(
         "ATSCallNote", back_populates="ats_job", cascade="all, delete-orphan",
+        foreign_keys="ATSCallNote.ats_job_id",
     )
     activities: Mapped[list["ATSActivity"]] = relationship(
         "ATSActivity",

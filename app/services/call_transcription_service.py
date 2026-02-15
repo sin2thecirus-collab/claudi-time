@@ -117,6 +117,73 @@ Antworte als JSON:
 }"""
 
 
+# ── Kontakt-Call: Subtyp-Klassifizierung ──
+CUSTOMER_SUBTYPE_SYSTEM_PROMPT = """Du bist ein Recruiting-Assistent. Du analysierst ein Akquise-/Vertriebsgespräch mit einem Kunden-Kontakt und bestimmst das Ergebnis des Gesprächs.
+
+ERGEBNIS-TYPEN:
+- "kein_bedarf": Der Kontakt hat aktuell keinen Personalbedarf. Kein Follow-up nötig.
+- "follow_up": Der Kontakt hat potenziell Bedarf, aber es soll zu einem späteren Zeitpunkt nochmal telefoniert werden. Erkennbar an: "rufen Sie nächsten Monat an", "ab Q2 wird es interessant", "melden Sie sich im März".
+- "job_quali": Der Kontakt beschreibt eine konkrete offene Stelle oder einen Personalbedarf. Erkennbar an: Stellenbeschreibung, Gehalt, Anforderungen, Team-Größe, ERP-System, Home-Office, Gleitzeit — typisch für ein ausführliches Qualifizierungsgespräch über eine offene Position.
+- "sonstiges": Alles andere (Smalltalk, Rückfrage zu laufender Besetzung, Absage eines Kandidaten etc.)
+
+Antworte NUR als JSON:
+{
+  "call_subtype": "kein_bedarf" | "follow_up" | "job_quali" | "sonstiges",
+  "summary": "Zusammenfassung des Gesprächs (2-4 Sätze)",
+  "confidence": 0.0-1.0,
+  "follow_up_date": "YYYY-MM-DD" | null,
+  "follow_up_reason": "Grund für Follow-up" | null
+}
+
+REGELN:
+- follow_up_date nur bei "follow_up" setzen. Wenn kein konkretes Datum genannt wird, schätze basierend auf Kontext (z.B. "nächsten Monat" → erster Werktag nächsten Monats).
+- Bei "job_quali" ist KEIN follow_up_date nötig (wird separat behandelt).
+- Extrahiere NUR was explizit gesagt wird. Erfinde NICHTS."""
+
+
+# ── Kontakt-Call: Job-Quali Felder extrahieren ──
+JOB_QUALI_SYSTEM_PROMPT = """Du bist ein Recruiting-Assistent. Du extrahierst strukturierte Daten über eine offene Stelle aus einem Kundengespräch.
+
+Der Personalberater hat mit einem Kunden telefoniert und eine offene Position qualifiziert. Extrahiere ALLE Details die im Gespräch genannt werden.
+
+REGELN:
+- Extrahiere NUR was explizit im Gespräch gesagt wird. Erfinde NICHTS.
+- Wenn eine Information nicht vorkommt, setze den Wert auf null.
+- Gehalt: salary_min und salary_max als Zahlen (Jahresbrutto). Bei "60.000 bis 70.000" → salary_min=60000, salary_max=70000.
+- Wenn nur ein Gehalt genannt wird: salary_min und salary_max gleich setzen.
+- title: Die offizielle Stellenbezeichnung, z.B. "Bilanzbuchhalter (m/w/d)". Immer mit (m/w/d) ergänzen.
+
+Antworte IMMER als JSON:
+{
+  "title": "Stellenbezeichnung (m/w/d)" | null,
+  "salary_min": 55000 | null,
+  "salary_max": 65000 | null,
+  "employment_type": "Vollzeit" | "Teilzeit" | "Vollzeit oder Teilzeit" | null,
+  "location": "Stadt" | null,
+  "requirements": "Anforderungen an den Kandidaten (Freitext)" | null,
+  "description": "Stellenbeschreibung / Kontext (Freitext)" | null,
+  "team_size": "Größe des Teams" | null,
+  "erp_system": "Verwendetes ERP-System" | null,
+  "home_office_days": "Home-Office Regelung" | null,
+  "flextime": true | false | null,
+  "core_hours": "Kernarbeitszeit" | null,
+  "vacation_days": 30 | null,
+  "overtime_handling": "Umgang mit Überstunden" | null,
+  "open_office": "Einzelbüro" | "Großraum" | "Mix" | null,
+  "english_requirements": "Englisch-Anforderungen" | null,
+  "hiring_process_steps": "Bewerbungsprozess / Interview-Stufen" | null,
+  "feedback_timeline": "Feedback-Zeitraum nach Vorstellung" | null,
+  "digitalization_level": "Digitalisierungsgrad" | null,
+  "older_candidates_ok": true | false | null,
+  "desired_start_date": "Gewünschter Starttermin" | null,
+  "interviews_started": true | false | null,
+  "ideal_candidate_description": "Beschreibung des idealen Kandidaten" | null,
+  "candidate_tasks": "Konkrete Aufgaben / Tätigkeiten" | null,
+  "multiple_entities": true | false | null,
+  "task_distribution": "Aufgabenverteilung (z.B. 70% HGB, 30% Controlling)" | null
+}"""
+
+
 class CallTranscriptionService:
     """Transkribiert Audio-Dateien und extrahiert strukturierte Daten."""
 
@@ -527,3 +594,82 @@ class CallTranscriptionService:
             updated.append("notice_period")
 
         return updated
+
+    # ────────────────────────────────────────────────────
+    # Kontakt-Call Verarbeitung (Akquise/Vertrieb)
+    # ────────────────────────────────────────────────────
+
+    async def process_contact_call(
+        self,
+        transcript: str,
+        contact_name: str,
+        company_name: str,
+    ) -> dict:
+        """Verarbeitet einen Kontakt-/Kundencall: Subtyp klassifizieren + ggf. Job-Quali extrahieren.
+
+        Returns:
+            Dict mit: subtype, summary, confidence, follow_up_date, follow_up_reason,
+                      job_data (nur bei job_quali), cost_usd
+        """
+        if not self.api_key:
+            return {"success": False, "error": "OpenAI API-Key nicht konfiguriert"}
+
+        total_cost = 0.0
+
+        # ── Stufe 1: Subtyp klassifizieren ──
+        context = f"Ansprechpartner: {contact_name}\nUnternehmen: {company_name}"
+        user_message = f"KONTEXT:\n{context}\n\nTRANSKRIPTION DES GESPRÄCHS:\n{transcript}"
+
+        result = await self._call_gpt(CUSTOMER_SUBTYPE_SYSTEM_PROMPT, user_message, max_tokens=400)
+        if not result:
+            return {
+                "success": False,
+                "error": "GPT-Klassifizierung fehlgeschlagen",
+                "subtype": "sonstiges",
+                "summary": "KI-Analyse fehlgeschlagen",
+            }
+
+        parsed, cost = result
+        total_cost += cost
+
+        subtype = parsed.get("call_subtype", "sonstiges")
+        if subtype not in ("kein_bedarf", "follow_up", "job_quali", "sonstiges"):
+            subtype = "sonstiges"
+
+        response = {
+            "success": True,
+            "subtype": subtype,
+            "summary": parsed.get("summary", ""),
+            "confidence": parsed.get("confidence", 0.0),
+            "follow_up_date": parsed.get("follow_up_date"),
+            "follow_up_reason": parsed.get("follow_up_reason"),
+            "job_data": None,
+            "cost_usd": 0.0,
+        }
+
+        # ── Stufe 2: Bei job_quali → strukturierte Felder extrahieren ──
+        if subtype == "job_quali":
+            job_context = f"Ansprechpartner: {contact_name}\nUnternehmen: {company_name}"
+            job_user_msg = f"KONTEXT:\n{job_context}\n\nTRANSKRIPTION DES GESPRÄCHS:\n{transcript}"
+
+            job_result = await self._call_gpt(JOB_QUALI_SYSTEM_PROMPT, job_user_msg, max_tokens=1500)
+            if job_result:
+                job_parsed, job_cost = job_result
+                total_cost += job_cost
+                response["job_data"] = job_parsed
+
+                logger.info(
+                    f"Job-Quali extrahiert: '{job_parsed.get('title', '?')}' "
+                    f"bei {company_name} ({contact_name})"
+                )
+            else:
+                logger.warning(f"Job-Quali-Extraktion fehlgeschlagen fuer {company_name}")
+
+        response["cost_usd"] = round(total_cost, 4)
+
+        logger.info(
+            f"Kontakt-Call verarbeitet: subtype={subtype}, "
+            f"Kosten=${total_cost:.4f}, Kontakt={contact_name} ({company_name})"
+        )
+
+        return response

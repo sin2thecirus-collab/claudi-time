@@ -28,6 +28,27 @@ class ATSJobCreate(BaseModel):
     priority: Optional[str] = "medium"
     source: Optional[str] = None
     notes: Optional[str] = None
+    # Job-Quali-Felder (aus KI-Transkription)
+    team_size: Optional[str] = None
+    erp_system: Optional[str] = None
+    home_office_days: Optional[str] = None
+    flextime: Optional[bool] = None
+    core_hours: Optional[str] = None
+    vacation_days: Optional[int] = None
+    overtime_handling: Optional[str] = None
+    open_office: Optional[str] = None
+    english_requirements: Optional[str] = None
+    hiring_process_steps: Optional[str] = None
+    feedback_timeline: Optional[str] = None
+    digitalization_level: Optional[str] = None
+    older_candidates_ok: Optional[bool] = None
+    desired_start_date: Optional[str] = None
+    interviews_started: Optional[bool] = None
+    ideal_candidate_description: Optional[str] = None
+    candidate_tasks: Optional[str] = None
+    multiple_entities: Optional[bool] = None
+    task_distribution: Optional[str] = None
+    source_call_note_id: Optional[UUID] = None
 
 
 class ATSJobUpdate(BaseModel):
@@ -44,6 +65,27 @@ class ATSJobUpdate(BaseModel):
     source: Optional[str] = None
     notes: Optional[str] = None
     in_pipeline: Optional[bool] = None
+    # Job-Quali-Felder (aus KI-Transkription)
+    team_size: Optional[str] = None
+    erp_system: Optional[str] = None
+    home_office_days: Optional[str] = None
+    flextime: Optional[bool] = None
+    core_hours: Optional[str] = None
+    vacation_days: Optional[int] = None
+    overtime_handling: Optional[str] = None
+    open_office: Optional[str] = None
+    english_requirements: Optional[str] = None
+    hiring_process_steps: Optional[str] = None
+    feedback_timeline: Optional[str] = None
+    digitalization_level: Optional[str] = None
+    older_candidates_ok: Optional[bool] = None
+    desired_start_date: Optional[str] = None
+    interviews_started: Optional[bool] = None
+    ideal_candidate_description: Optional[str] = None
+    candidate_tasks: Optional[str] = None
+    multiple_entities: Optional[bool] = None
+    task_distribution: Optional[str] = None
+    source_call_note_id: Optional[UUID] = None
 
 
 # ── Endpoints ────────────────────────────────────

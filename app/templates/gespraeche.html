@@ -150,4 +150,97 @@
 <style>
 @keyframes spin { to { transform: rotate(360deg); } }
 </style>
+
+<script>
+async function createJobFromStaging(callId) {
+    if (!confirm('Neue Stelle aus den extrahierten Daten anlegen?')) return;
+    try {
+        const csrfToken = document.cookie.split('; ').find(c => c.startsWith('pp_csrf='))?.split('=')[1] || '';
+        const res = await fetch(`/api/gespraeche/${callId}/create-job`, {
+            method: 'POST',
+            headers: { 'x-csrf-token': csrfToken },
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast(data.message, 'success');
+            // Karte entfernen + Liste neu laden
+            htmx.ajax('GET', '/partials/gespraeche-list', '#gespraeche-list');
+        } else {
+            showToast(data.detail || 'Fehler beim Anlegen', 'error');
+        }
+    } catch (e) {
+        showToast('Netzwerkfehler', 'error');
+    }
+}
+
+async function openJobAssignModal(callId, companyId) {
+    // Offene Stellen des Unternehmens laden
+    try {
+        const res = await fetch(`/api/ats/jobs?company_id=${companyId}&status=open&per_page=50`);
+        const data = await res.json();
+        const jobs = data.items || [];
+
+        if (jobs.length === 0) {
+            showToast('Keine offenen Stellen fuer dieses Unternehmen gefunden. Bitte "Neue Stelle anlegen" nutzen.', 'info');
+            return;
+        }
+
+        // Einfaches Auswahl-Modal
+        let html = '<div style="padding: 24px;">';
+        html += '<h3 style="font-size: 18px; font-weight: 700; color: var(--pp-text); margin: 0 0 16px;">Zu welcher Stelle zuordnen?</h3>';
+        html += '<div style="display: flex; flex-direction: column; gap: 8px;">';
+        for (const job of jobs) {
+            const loc = job.location_city ? ` — ${job.location_city}` : '';
+            html += `<button type="button" class="gc-btn" style="background: var(--pp-surfaceHover); color: var(--pp-text); justify-content: flex-start; padding: 12px 16px; width: 100%; text-align: left;" onclick="assignToExistingJob('${callId}', '${job.id}')">`;
+            html += `<span style="font-weight: 600;">${job.title}</span>`;
+            html += `<span style="color: var(--pp-textDim); font-size: 12px; margin-left: 8px;">${loc}</span>`;
+            html += '</button>';
+        }
+        html += '</div></div>';
+
+        openModalWithHTML(html);
+    } catch (e) {
+        showToast('Fehler beim Laden der Stellen', 'error');
+    }
+}
+
+async function assignToExistingJob(callId, jobId) {
+    try {
+        const csrfToken = document.cookie.split('; ').find(c => c.startsWith('pp_csrf='))?.split('=')[1] || '';
+        const res = await fetch(`/api/gespraeche/${callId}/assign-to-job/${jobId}`, {
+            method: 'POST',
+            headers: { 'x-csrf-token': csrfToken },
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast(data.message, 'success');
+            closeModal();
+            htmx.ajax('GET', '/partials/gespraeche-list', '#gespraeche-list');
+        } else {
+            showToast(data.detail || 'Fehler bei Zuordnung', 'error');
+        }
+    } catch (e) {
+        showToast('Netzwerkfehler', 'error');
+    }
+}
+
+function openModalWithHTML(html) {
+    // Nutze das bestehende Modal-System oder erstelle ein einfaches Overlay
+    let overlay = document.getElementById('jq-modal-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'jq-modal-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;';
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
+        document.body.appendChild(overlay);
+    }
+    overlay.innerHTML = `<div style="background:var(--pp-surface);border-radius:16px;border:1px solid var(--pp-border);max-width:500px;width:90%;max-height:70vh;overflow-y:auto;">${html}</div>`;
+    overlay.style.display = 'flex';
+}
+
+function closeModal() {
+    const overlay = document.getElementById('jq-modal-overlay');
+    if (overlay) overlay.style.display = 'none';
+}
+</script>
 {% endblock %}

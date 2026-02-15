@@ -979,6 +979,33 @@ async def init_db() -> None:
         # ── Profil-PDF ──
         ("candidates", "profile_pdf_r2_key", "VARCHAR(500)"),
         ("candidates", "profile_pdf_generated_at", "TIMESTAMPTZ"),
+        # ── ATS-Job: Job-Quali-Felder (aus KI-Transkription) ──
+        ("ats_jobs", "team_size", "VARCHAR(100)"),
+        ("ats_jobs", "erp_system", "VARCHAR(255)"),
+        ("ats_jobs", "home_office_days", "VARCHAR(100)"),
+        ("ats_jobs", "flextime", "BOOLEAN"),
+        ("ats_jobs", "core_hours", "VARCHAR(100)"),
+        ("ats_jobs", "vacation_days", "INTEGER"),
+        ("ats_jobs", "overtime_handling", "VARCHAR(255)"),
+        ("ats_jobs", "open_office", "VARCHAR(100)"),
+        ("ats_jobs", "english_requirements", "VARCHAR(255)"),
+        ("ats_jobs", "hiring_process_steps", "VARCHAR(500)"),
+        ("ats_jobs", "feedback_timeline", "VARCHAR(255)"),
+        ("ats_jobs", "digitalization_level", "VARCHAR(255)"),
+        ("ats_jobs", "older_candidates_ok", "BOOLEAN"),
+        ("ats_jobs", "desired_start_date", "VARCHAR(100)"),
+        ("ats_jobs", "interviews_started", "BOOLEAN"),
+        ("ats_jobs", "ideal_candidate_description", "TEXT"),
+        ("ats_jobs", "candidate_tasks", "TEXT"),
+        ("ats_jobs", "multiple_entities", "BOOLEAN"),
+        ("ats_jobs", "task_distribution", "VARCHAR(500)"),
+        ("ats_jobs", "source_call_note_id", "UUID REFERENCES ats_call_notes(id) ON DELETE SET NULL"),
+        # ── UnassignedCall: Job-Quali Staging-Felder ──
+        ("unassigned_calls", "call_subtype", "VARCHAR(50)"),
+        ("unassigned_calls", "extracted_job_data", "JSONB"),
+        ("unassigned_calls", "contact_id", "UUID"),
+        ("unassigned_calls", "company_id", "UUID"),
+        ("unassigned_calls", "call_note_id", "UUID"),
     ]
     for table_name, col_name, col_type in migrations:
         try:

@@ -1933,6 +1933,161 @@ async def gespraeche_assign(
     })
 
 
+@router.post("/api/gespraeche/{call_id}/create-job")
+async def gespraeche_create_job(
+    call_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Frontend: Erstellt einen neuen ATSJob aus Job-Quali Staging-Daten."""
+    from app.models.unassigned_call import UnassignedCall
+    from app.models.ats_job import ATSJob
+    from fastapi.responses import JSONResponse
+
+    result = await db.execute(
+        select(UnassignedCall).where(UnassignedCall.id == call_id)
+    )
+    call = result.scalar_one_or_none()
+    if not call:
+        raise HTTPException(status_code=404, detail="Anruf nicht gefunden")
+    if call.call_subtype != "job_quali" or not call.extracted_job_data:
+        raise HTTPException(status_code=400, detail="Kein Job-Quali-Staging vorhanden")
+
+    jd = call.extracted_job_data
+
+    job = ATSJob(
+        title=jd.get("title", "Neue Stelle (aus Gespräch)"),
+        company_id=call.company_id,
+        contact_id=call.contact_id,
+        description=jd.get("description"),
+        requirements=jd.get("requirements"),
+        location_city=jd.get("location"),
+        salary_min=jd.get("salary_min"),
+        salary_max=jd.get("salary_max"),
+        employment_type=jd.get("employment_type"),
+        source="job_quali_call",
+        team_size=jd.get("team_size"),
+        erp_system=jd.get("erp_system"),
+        home_office_days=jd.get("home_office_days"),
+        flextime=jd.get("flextime"),
+        core_hours=jd.get("core_hours"),
+        vacation_days=jd.get("vacation_days"),
+        overtime_handling=jd.get("overtime_handling"),
+        open_office=jd.get("open_office"),
+        english_requirements=jd.get("english_requirements"),
+        hiring_process_steps=jd.get("hiring_process_steps"),
+        feedback_timeline=jd.get("feedback_timeline"),
+        digitalization_level=jd.get("digitalization_level"),
+        older_candidates_ok=jd.get("older_candidates_ok"),
+        desired_start_date=jd.get("desired_start_date"),
+        interviews_started=jd.get("interviews_started"),
+        ideal_candidate_description=jd.get("ideal_candidate_description"),
+        candidate_tasks=jd.get("candidate_tasks"),
+        multiple_entities=jd.get("multiple_entities"),
+        task_distribution=jd.get("task_distribution"),
+        source_call_note_id=call.call_note_id,
+    )
+    db.add(job)
+
+    # Staging als erledigt markieren
+    call.assigned = True
+    call.assigned_to_type = "ats_job"
+    from datetime import datetime, timezone
+    call.assigned_at = datetime.now(timezone.utc)
+
+    await db.commit()
+    await db.refresh(job)
+
+    return JSONResponse(content={
+        "success": True,
+        "job_id": str(job.id),
+        "job_title": job.title,
+        "message": f"Stelle '{job.title}' erfolgreich angelegt",
+    })
+
+
+@router.post("/api/gespraeche/{call_id}/assign-to-job/{job_id}")
+async def gespraeche_assign_to_job(
+    call_id: UUID,
+    job_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Frontend: Merged Job-Quali-Daten in einen bestehenden ATSJob."""
+    from app.models.unassigned_call import UnassignedCall
+    from app.models.ats_job import ATSJob
+    from fastapi.responses import JSONResponse
+
+    # Staging laden
+    result = await db.execute(
+        select(UnassignedCall).where(UnassignedCall.id == call_id)
+    )
+    call = result.scalar_one_or_none()
+    if not call:
+        raise HTTPException(status_code=404, detail="Anruf nicht gefunden")
+    if call.call_subtype != "job_quali" or not call.extracted_job_data:
+        raise HTTPException(status_code=400, detail="Kein Job-Quali-Staging vorhanden")
+
+    # ATSJob laden
+    result = await db.execute(
+        select(ATSJob).where(ATSJob.id == job_id)
+    )
+    job = result.scalar_one_or_none()
+    if not job:
+        raise HTTPException(status_code=404, detail="Stelle nicht gefunden")
+
+    jd = call.extracted_job_data
+    fields_updated = []
+
+    # Nur leere Felder befuellen (bestehende Werte nicht ueberschreiben)
+    merge_fields = [
+        ("description", "description"), ("requirements", "requirements"),
+        ("location_city", "location"), ("salary_min", "salary_min"),
+        ("salary_max", "salary_max"), ("employment_type", "employment_type"),
+        ("team_size", "team_size"), ("erp_system", "erp_system"),
+        ("home_office_days", "home_office_days"), ("flextime", "flextime"),
+        ("core_hours", "core_hours"), ("vacation_days", "vacation_days"),
+        ("overtime_handling", "overtime_handling"), ("open_office", "open_office"),
+        ("english_requirements", "english_requirements"),
+        ("hiring_process_steps", "hiring_process_steps"),
+        ("feedback_timeline", "feedback_timeline"),
+        ("digitalization_level", "digitalization_level"),
+        ("older_candidates_ok", "older_candidates_ok"),
+        ("desired_start_date", "desired_start_date"),
+        ("interviews_started", "interviews_started"),
+        ("ideal_candidate_description", "ideal_candidate_description"),
+        ("candidate_tasks", "candidate_tasks"),
+        ("multiple_entities", "multiple_entities"),
+        ("task_distribution", "task_distribution"),
+    ]
+
+    for job_field, jd_key in merge_fields:
+        new_val = jd.get(jd_key)
+        if new_val is not None and getattr(job, job_field) is None:
+            setattr(job, job_field, new_val)
+            fields_updated.append(job_field)
+
+    # source_call_note_id immer setzen
+    if call.call_note_id and not job.source_call_note_id:
+        job.source_call_note_id = call.call_note_id
+        fields_updated.append("source_call_note_id")
+
+    # Staging als erledigt markieren
+    call.assigned = True
+    call.assigned_to_type = "ats_job"
+    call.assigned_to_id = job_id
+    from datetime import datetime, timezone
+    call.assigned_at = datetime.now(timezone.utc)
+
+    await db.commit()
+
+    return JSONResponse(content={
+        "success": True,
+        "job_id": str(job.id),
+        "job_title": job.title,
+        "fields_updated": fields_updated,
+        "message": f"Daten in '{job.title}' übernommen ({len(fields_updated)} Felder)",
+    })
+
+
 # ============================================================================
 # Kandidaten-Notizen Partials
 # ============================================================================
