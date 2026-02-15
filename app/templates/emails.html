@@ -1,0 +1,358 @@
+{% extends "base.html" %}
+{% block title %}Emails - Pulspoint{% endblock %}
+
+{% block head %}
+<style>
+    .em-wrap, .em-wrap * { font-family: 'DM Sans', -apple-system, sans-serif; }
+    .em-wrap { background: var(--pp-bg); color: var(--pp-text); min-height: 100vh; font-size: 15px; }
+
+    @keyframes emFadeUp {
+        from { opacity: 0; transform: translateY(16px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    .em-anim { opacity: 0; animation: emFadeUp 0.5s cubic-bezier(0.4,0,0.2,1) forwards; }
+
+    .em-stat-card {
+        background: rgba(255,255,255,0.15); backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,0.2); border-radius: 14px;
+        padding: 16px 24px; min-width: 130px; text-align: center;
+    }
+    .em-stat-value { font-size: 26px; font-weight: 800; color: #fff; }
+    .em-stat-label { font-size: 12.5px; font-weight: 500; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 3px; }
+
+    .em-section {
+        background: var(--pp-surface); border-radius: 14px; border: 1px solid var(--pp-border);
+        padding: 20px 24px; margin-bottom: 16px;
+    }
+    .em-section-header {
+        display: flex; align-items: center; justify-content: space-between;
+    }
+    .em-section-title {
+        font-size: 16px; font-weight: 700; color: var(--pp-text);
+        display: flex; align-items: center; gap: 10px;
+    }
+    .em-section-count {
+        font-size: 13px; font-weight: 600; padding: 2px 10px; border-radius: 99px;
+    }
+    .em-section-toggle {
+        font-size: 13px; color: var(--pp-textMuted); cursor: pointer; user-select: none;
+        display: flex; align-items: center; gap: 4px;
+    }
+    .em-section-toggle:hover { color: var(--pp-accent); }
+
+    .em-card {
+        background: var(--pp-bg); border-radius: 12px; border: 1px solid var(--pp-border);
+        padding: 16px 20px; margin-top: 10px; transition: border-color 0.15s;
+    }
+    .em-card:hover { border-color: var(--pp-borderLight); }
+
+    .em-card-header {
+        display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+    }
+    .em-card-left { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+    .em-card-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+    .em-candidate-name {
+        font-weight: 600; font-size: 14px; color: var(--pp-text);
+        text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .em-candidate-name:hover { color: var(--pp-accent); }
+
+    .em-badge {
+        display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 6px;
+        font-size: 11px; font-weight: 600; white-space: nowrap;
+    }
+    .em-badge-kontaktdaten { background: rgba(52,211,153,0.12); color: #34D399; }
+    .em-badge-stellenausschreibung { background: rgba(139,92,246,0.12); color: #a78bfa; }
+    .em-badge-individuell { background: rgba(79,140,255,0.12); color: #4F8CFF; }
+
+    .em-subject { font-size: 13px; color: var(--pp-textMuted); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .em-time { font-size: 12px; color: var(--pp-textDim); white-space: nowrap; }
+    .em-error { font-size: 12px; color: var(--pp-red); margin-top: 6px; background: rgba(239,68,68,0.08); padding: 6px 10px; border-radius: 8px; }
+
+    .em-btn {
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 600;
+        cursor: pointer; transition: all 0.15s; border: none; font-family: inherit;
+    }
+    .em-btn-send { background: rgba(52,211,153,0.15); color: #34D399; }
+    .em-btn-send:hover { background: rgba(52,211,153,0.25); }
+    .em-btn-retry { background: rgba(245,158,11,0.15); color: #f59e0b; }
+    .em-btn-retry:hover { background: rgba(245,158,11,0.25); }
+    .em-btn-discard { background: rgba(239,68,68,0.08); color: var(--pp-red); }
+    .em-btn-discard:hover { background: rgba(239,68,68,0.15); }
+    .em-btn-preview { background: rgba(79,140,255,0.1); color: var(--pp-accent); }
+    .em-btn-preview:hover { background: rgba(79,140,255,0.18); }
+    .em-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .em-preview-box {
+        background: #fff; border-radius: 10px; padding: 16px; margin-top: 10px;
+        max-height: 300px; overflow-y: auto; border: 1px solid var(--pp-border);
+        pointer-events: none;
+    }
+
+    .em-empty {
+        text-align: center; padding: 30px 20px; color: var(--pp-textMuted);
+    }
+    .em-empty-icon { font-size: 28px; margin-bottom: 8px; }
+    .em-empty-text { font-size: 14px; font-weight: 500; }
+    .em-empty-sub { font-size: 12px; color: var(--pp-textDim); margin-top: 4px; }
+
+    .em-row {
+        display: flex; align-items: center; gap: 12px; padding: 10px 14px;
+        border-radius: 10px; transition: background 0.1s;
+    }
+    .em-row:hover { background: var(--pp-bg); }
+    .em-row-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+    .em-skeleton {
+        height: 60px; background: var(--pp-bg); border-radius: 10px; margin-top: 8px;
+        animation: emPulse 1.5s ease-in-out infinite;
+    }
+    @keyframes emPulse { 0%,100% { opacity: 0.4; } 50% { opacity: 0.7; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="em-wrap">
+
+    {# ═══════════════════════════════════════════════
+       HERO HEADER
+    ═══════════════════════════════════════════════ #}
+    <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%); padding: 32px 40px 28px; position: relative; overflow: hidden;">
+        <div style="position: absolute; top: -80px; right: -40px; width: 220px; height: 220px; border-radius: 50%; background: radial-gradient(circle, rgba(79,140,255,0.1) 0%, transparent 70%);"></div>
+        <div style="position: absolute; bottom: -50px; left: 20%; width: 160px; height: 160px; border-radius: 50%; background: radial-gradient(circle, rgba(52,211,153,0.06) 0%, transparent 70%);"></div>
+
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 14px; color: rgba(255,255,255,0.5); margin-bottom: 20px; font-weight: 500;">
+            <a href="/" style="color: rgba(255,255,255,0.6); text-decoration: none; font-size: 16px;">&#x1F3E0;</a>
+            <span>&#x203A;</span>
+            <span style="color: rgba(255,255,255,0.85);">Emails</span>
+        </div>
+
+        <h1 style="font-size: 32px; font-weight: 800; color: #fff; letter-spacing: -0.03em; margin: 0;">
+            Email-Dashboard
+        </h1>
+        <p style="font-size: 16px; color: rgba(255,255,255,0.5); margin-top: 6px; font-weight: 400;">
+            Entwuerfe pruefen, senden, nachverfolgen
+        </p>
+
+        <div style="display: flex; gap: 14px; margin-top: 22px; flex-wrap: wrap;">
+            {% if stats.failed > 0 %}
+            <div class="em-stat-card" style="border-color: rgba(239,68,68,0.4);">
+                <div class="em-stat-value" id="stat-failed" style="color: #f87171;">{{ stats.failed }}</div>
+                <div class="em-stat-label" style="color: rgba(248,113,113,0.7);">Fehler</div>
+            </div>
+            {% endif %}
+            <div class="em-stat-card">
+                <div class="em-stat-value" id="stat-pending">{{ stats.pending }}</div>
+                <div class="em-stat-label">Offen</div>
+            </div>
+            <div class="em-stat-card">
+                <div class="em-stat-value" id="stat-sent-today" style="color: #34D399;">{{ stats.sent_today }}</div>
+                <div class="em-stat-label">Heute gesendet</div>
+            </div>
+            <div class="em-stat-card">
+                <div class="em-stat-value" id="stat-7d">{{ stats.sent_7d }}</div>
+                <div class="em-stat-label">Letzte 7 Tage</div>
+            </div>
+        </div>
+    </div>
+
+    {# ═══════════════════════════════════════════════
+       CONTENT AREA
+    ═══════════════════════════════════════════════ #}
+    <div style="padding: 22px 40px 40px;" class="em-anim">
+
+        {# ── SEKTION 1: Sofort erledigen (FAILED) ── #}
+        {% if stats.failed > 0 %}
+        <div class="em-section" style="border-left: 3px solid var(--pp-red);">
+            <div class="em-section-header">
+                <div class="em-section-title">
+                    <span style="color: var(--pp-red);">&#x26A0;&#xFE0F;</span>
+                    Sofort erledigen
+                    <span class="em-section-count" style="background: rgba(239,68,68,0.12); color: var(--pp-red);">{{ stats.failed }}</span>
+                </div>
+            </div>
+            <div id="emails-action-required"
+                 hx-get="/partials/emails-action-required"
+                 hx-trigger="load"
+                 hx-swap="innerHTML">
+                <div class="em-skeleton"></div>
+                <div class="em-skeleton"></div>
+            </div>
+        </div>
+        {% endif %}
+
+        {# ── SEKTION 2: Offene Entwuerfe (DRAFT) ── #}
+        <div class="em-section">
+            <div class="em-section-header">
+                <div class="em-section-title">
+                    Offene Entwuerfe
+                    <span class="em-section-count" style="background: rgba(79,140,255,0.12); color: var(--pp-accent);">{{ stats.pending }}</span>
+                </div>
+            </div>
+            <div id="emails-pending"
+                 hx-get="/partials/emails-pending"
+                 hx-trigger="load"
+                 hx-swap="innerHTML">
+                <div class="em-skeleton"></div>
+                <div class="em-skeleton"></div>
+            </div>
+        </div>
+
+        {# ── SEKTION 3: Heute gesendet ── #}
+        <div class="em-section" x-data="{ expanded: true }">
+            <div class="em-section-header" @click="expanded = !expanded" style="cursor: pointer;">
+                <div class="em-section-title">
+                    <span style="color: #34D399;">&#x2705;</span>
+                    Heute gesendet
+                    <span class="em-section-count" style="background: rgba(52,211,153,0.12); color: #34D399;">{{ stats.sent_today }}</span>
+                </div>
+                <div class="em-section-toggle">
+                    <span x-text="expanded ? 'Einklappen' : 'Aufklappen'"></span>
+                    <svg :style="expanded ? 'transform:rotate(180deg)' : ''" style="width:14px;height:14px;transition:transform 0.2s;" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                </div>
+            </div>
+            <div x-show="expanded" x-collapse>
+                <div id="emails-sent-today"
+                     hx-get="/partials/emails-sent-today"
+                     hx-trigger="load"
+                     hx-swap="innerHTML">
+                    <div class="em-skeleton"></div>
+                </div>
+            </div>
+        </div>
+
+        {# ── SEKTION 4: Letzte 7 Tage ── #}
+        <div class="em-section" x-data="{ expanded: false, loaded: false }">
+            <div class="em-section-header" @click="expanded = !expanded; if (!loaded) { loaded = true; $nextTick(() => htmx.trigger(document.getElementById('emails-history'), 'load-history')); }" style="cursor: pointer;">
+                <div class="em-section-title" style="color: var(--pp-textMuted);">
+                    Letzte 7 Tage
+                    <span class="em-section-count" style="background: var(--pp-surfaceHover); color: var(--pp-textMuted);">{{ stats.sent_7d }}</span>
+                </div>
+                <div class="em-section-toggle">
+                    <span x-text="expanded ? 'Einklappen' : 'Aufklappen'"></span>
+                    <svg :style="expanded ? 'transform:rotate(180deg)' : ''" style="width:14px;height:14px;transition:transform 0.2s;" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                </div>
+            </div>
+            <div x-show="expanded" x-collapse>
+                <div id="emails-history"
+                     hx-get="/partials/emails-history"
+                     hx-trigger="load-history"
+                     hx-swap="innerHTML">
+                    <div class="em-skeleton"></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function emGetCsrf() {
+    const m = document.cookie.match(/pp_csrf=([^;]+)/);
+    return m ? m[1] : '';
+}
+
+async function emSendDraft(draftId, btn) {
+    btn.disabled = true;
+    const orig = btn.textContent;
+    btn.textContent = 'Sende...';
+    try {
+        const csrf = await emGetCsrf();
+        const resp = await fetch('/api/email/drafts/' + draftId + '/send', {
+            method: 'POST',
+            headers: { 'X-CSRF-Token': csrf }
+        });
+        const data = await resp.json();
+        if (resp.ok) {
+            showToast('Email gesendet', 'success');
+            emReloadSections();
+        } else {
+            showToast(data.error || 'Senden fehlgeschlagen', 'error');
+            btn.disabled = false;
+            btn.textContent = orig;
+        }
+    } catch (e) {
+        showToast('Netzwerkfehler', 'error');
+        btn.disabled = false;
+        btn.textContent = orig;
+    }
+}
+
+async function emRetryDraft(draftId, btn) {
+    btn.disabled = true;
+    const orig = btn.textContent;
+    btn.textContent = 'Sende...';
+    try {
+        const csrf = await emGetCsrf();
+        const resp = await fetch('/api/email/drafts/' + draftId + '/retry', {
+            method: 'POST',
+            headers: { 'X-CSRF-Token': csrf }
+        });
+        const data = await resp.json();
+        if (resp.ok) {
+            showToast('Email erfolgreich gesendet', 'success');
+            emReloadSections();
+        } else {
+            showToast(data.error || 'Erneuter Versuch fehlgeschlagen', 'error');
+            btn.disabled = false;
+            btn.textContent = orig;
+        }
+    } catch (e) {
+        showToast('Netzwerkfehler', 'error');
+        btn.disabled = false;
+        btn.textContent = orig;
+    }
+}
+
+async function emDiscardDraft(draftId, card) {
+    if (!confirm('Diesen Entwurf wirklich verwerfen?')) return;
+    try {
+        const csrf = await emGetCsrf();
+        const resp = await fetch('/api/email/drafts/' + draftId, {
+            method: 'DELETE',
+            headers: { 'X-CSRF-Token': csrf }
+        });
+        if (resp.ok) {
+            card.style.transition = 'all 0.3s';
+            card.style.opacity = '0';
+            card.style.maxHeight = '0';
+            card.style.padding = '0';
+            card.style.margin = '0';
+            card.style.overflow = 'hidden';
+            setTimeout(() => card.remove(), 300);
+            showToast('Entwurf verworfen', 'info');
+            emRefreshStats();
+        }
+    } catch (e) {
+        showToast('Fehler beim Verwerfen', 'error');
+    }
+}
+
+function emReloadSections() {
+    // Reload all HTMX sections
+    const pending = document.getElementById('emails-pending');
+    const sentToday = document.getElementById('emails-sent-today');
+    const actionReq = document.getElementById('emails-action-required');
+    if (pending) htmx.trigger(pending, 'load');
+    if (sentToday) htmx.trigger(sentToday, 'load');
+    if (actionReq) htmx.trigger(actionReq, 'load');
+    emRefreshStats();
+}
+
+async function emRefreshStats() {
+    try {
+        const resp = await fetch('/api/email/stats');
+        const s = await resp.json();
+        const el = (id) => document.getElementById(id);
+        if (el('stat-pending')) el('stat-pending').textContent = s.pending;
+        if (el('stat-sent-today')) el('stat-sent-today').textContent = s.sent_today;
+        if (el('stat-failed')) el('stat-failed').textContent = s.failed;
+        if (el('stat-7d')) el('stat-7d').textContent = s.sent_7d;
+    } catch (e) { /* silent */ }
+}
+</script>
+{% endblock %}

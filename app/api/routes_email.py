@@ -149,6 +149,39 @@ async def cancel_draft(draft_id: UUID, db: AsyncSession = Depends(get_db)):
     return {"message": "Draft verworfen", "id": str(draft_id)}
 
 
+@router.get("/stats")
+async def email_stats(db: AsyncSession = Depends(get_db)):
+    """Aggregierte Email-Statistiken fuer das Dashboard."""
+    service = EmailService(db)
+    stats = await service.get_email_stats()
+    return stats
+
+
+@router.post("/drafts/{draft_id}/retry")
+async def retry_draft(draft_id: UUID, db: AsyncSession = Depends(get_db)):
+    """Versucht eine fehlgeschlagene Email erneut zu senden."""
+    draft = await db.get(EmailDraft, draft_id)
+    if not draft:
+        return {"error": "Draft nicht gefunden"}, 404
+
+    if draft.status != EmailDraftStatus.FAILED.value:
+        return {"error": f"Draft hat Status '{draft.status}', nur fehlgeschlagene koennen wiederholt werden"}, 400
+
+    # Reset to draft, then send
+    draft.status = EmailDraftStatus.DRAFT.value
+    draft.send_error = None
+    await db.flush()
+
+    service = EmailService(db)
+    result = await service.send_draft(draft_id)
+    await db.commit()
+
+    if result["success"]:
+        return {"message": "Email erfolgreich gesendet", "message_id": result.get("message_id")}
+    else:
+        return {"error": result.get("error")}, 500
+
+
 @router.post("/test-send")
 async def test_email_send(
     to_email: str = "hamdard@sincirus.com",

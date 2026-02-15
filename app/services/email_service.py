@@ -13,7 +13,7 @@ Architektur:
 
 import logging
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import httpx
@@ -585,3 +585,78 @@ class EmailService:
             )
         )
         return result.scalar() or 0
+
+    async def get_email_stats(self) -> dict:
+        """Aggregierte Statistiken fuer das Email-Dashboard."""
+        now = datetime.now(timezone.utc)
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        seven_days_ago = now - timedelta(days=7)
+
+        # Count by status
+        status_counts = {}
+        for status_val in [
+            EmailDraftStatus.DRAFT.value,
+            EmailDraftStatus.SENT.value,
+            EmailDraftStatus.FAILED.value,
+            EmailDraftStatus.CANCELLED.value,
+        ]:
+            result = await self.db.execute(
+                select(func.count(EmailDraft.id)).where(
+                    EmailDraft.status == status_val
+                )
+            )
+            status_counts[status_val] = result.scalar() or 0
+
+        # Sent today
+        sent_today_result = await self.db.execute(
+            select(func.count(EmailDraft.id)).where(
+                EmailDraft.status == EmailDraftStatus.SENT.value,
+                EmailDraft.sent_at >= today_start,
+            )
+        )
+        sent_today = sent_today_result.scalar() or 0
+
+        # Sent last 7 days
+        sent_7d_result = await self.db.execute(
+            select(func.count(EmailDraft.id)).where(
+                EmailDraft.status == EmailDraftStatus.SENT.value,
+                EmailDraft.sent_at >= seven_days_ago,
+            )
+        )
+        sent_7d = sent_7d_result.scalar() or 0
+
+        return {
+            "pending": status_counts.get(EmailDraftStatus.DRAFT.value, 0),
+            "failed": status_counts.get(EmailDraftStatus.FAILED.value, 0),
+            "sent_today": sent_today,
+            "sent_7d": sent_7d,
+            "total_sent": status_counts.get(EmailDraftStatus.SENT.value, 0),
+        }
+
+    async def list_drafts_by_date(
+        self,
+        status: str = None,
+        since: datetime = None,
+        until: datetime = None,
+        limit: int = 50,
+    ) -> list[EmailDraft]:
+        """Listet Email-Drafts mit Zeitraum-Filter."""
+        query = (
+            select(EmailDraft)
+            .order_by(EmailDraft.created_at.desc())
+            .limit(limit)
+        )
+        if status:
+            query = query.where(EmailDraft.status == status)
+        if since:
+            if status == EmailDraftStatus.SENT.value:
+                query = query.where(EmailDraft.sent_at >= since)
+            else:
+                query = query.where(EmailDraft.created_at >= since)
+        if until:
+            if status == EmailDraftStatus.SENT.value:
+                query = query.where(EmailDraft.sent_at < until)
+            else:
+                query = query.where(EmailDraft.created_at < until)
+        result = await self.db.execute(query)
+        return list(result.scalars().all())

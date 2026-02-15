@@ -1,0 +1,45 @@
+{% if emails | length == 0 %}
+<div class="em-empty">
+    <div class="em-empty-icon">&#x2705;</div>
+    <div class="em-empty-text">Alles erledigt!</div>
+    <div class="em-empty-sub">Keine offenen Email-Entwuerfe</div>
+</div>
+{% else %}
+{% for email in emails %}
+<div class="em-card" id="em-card-{{ email.id }}" x-data="{ showPreview: false }">
+    <div class="em-card-header">
+        <div class="em-card-left">
+            {% if email.candidate %}
+            <a href="/kandidaten/{{ email.candidate_id }}" class="em-candidate-name">{{ email.candidate.first_name }} {{ email.candidate.last_name }}</a>
+            {% else %}
+            <span class="em-candidate-name">{{ email.to_email }}</span>
+            {% endif %}
+            <span class="em-badge em-badge-{{ email.email_type }}">
+                {% if email.email_type == 'kontaktdaten' %}Kontaktdaten{% elif email.email_type == 'stellenausschreibung' %}Stellenausschr.{% else %}Individuell{% endif %}
+            </span>
+        </div>
+        <div class="em-card-right">
+            <span class="em-time">
+                {% if email.created_at %}
+                {{ email.created_at.strftime('%d.%m. %H:%M') }}
+                {% endif %}
+            </span>
+            <button class="em-btn em-btn-preview" @click="showPreview = !showPreview" x-text="showPreview ? 'Ausblenden' : 'Vorschau'"></button>
+            <button class="em-btn em-btn-send" onclick="emSendDraft('{{ email.id }}', this)">Senden</button>
+            <button class="em-btn em-btn-discard" onclick="emDiscardDraft('{{ email.id }}', document.getElementById('em-card-{{ email.id }}'))">Verwerfen</button>
+        </div>
+    </div>
+    <div class="em-subject">{{ email.subject }}</div>
+    {% if email.gpt_context %}
+    <div style="font-size: 12px; color: var(--pp-textDim); margin-top: 4px; font-style: italic;">{{ email.gpt_context[:120] }}</div>
+    {% endif %}
+
+    {# Inline-Vorschau #}
+    <div x-show="showPreview" x-collapse>
+        <div class="em-preview-box">
+            {{ email.body_html | safe }}
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endif %}

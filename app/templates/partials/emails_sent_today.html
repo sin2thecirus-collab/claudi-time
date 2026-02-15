@@ -1,0 +1,25 @@
+{% if emails | length == 0 %}
+<div class="em-empty" style="padding: 16px;">
+    <div class="em-empty-text">Heute noch keine Emails gesendet</div>
+</div>
+{% else %}
+<div style="margin-top: 8px;">
+{% for email in emails %}
+    <div class="em-row">
+        <div class="em-row-dot" style="background: #34D399;"></div>
+        {% if email.candidate %}
+        <a href="/kandidaten/{{ email.candidate_id }}" style="font-size: 13px; font-weight: 600; color: var(--pp-text); text-decoration: none; min-width: 140px;">
+            {{ email.candidate.first_name }} {{ email.candidate.last_name }}
+        </a>
+        {% else %}
+        <span style="font-size: 13px; font-weight: 600; color: var(--pp-text); min-width: 140px;">{{ email.to_email }}</span>
+        {% endif %}
+        <span class="em-badge em-badge-{{ email.email_type }}" style="font-size: 10px;">
+            {% if email.email_type == 'kontaktdaten' %}Kontakt{% elif email.email_type == 'stellenausschreibung' %}Stelle{% else %}Indiv.{% endif %}
+        </span>
+        <span style="font-size: 13px; color: var(--pp-textMuted); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ email.subject }}</span>
+        <span class="em-time">{{ email.sent_at.strftime('%H:%M') if email.sent_at else '' }}</span>
+    </div>
+{% endfor %}
+</div>
+{% endif %}

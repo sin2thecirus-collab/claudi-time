@@ -1957,3 +1957,101 @@ async def candidate_notes_partial(
         "notes": notes,
         "candidate_id": str(candidate_id),
     })
+
+
+# ============================================================================
+# Email-Dashboard
+# ============================================================================
+
+@router.get("/emails", response_class=HTMLResponse)
+async def emails_page(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Email-Dashboard: Alle Emails auf einen Blick."""
+    from app.services.email_service import EmailService
+
+    email_service = EmailService(db)
+    stats = await email_service.get_email_stats()
+
+    return templates.TemplateResponse("emails.html", {
+        "request": request,
+        "stats": stats,
+    })
+
+
+@router.get("/partials/emails-action-required", response_class=HTMLResponse)
+async def emails_action_required_partial(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Partial: Fehlgeschlagene Emails (Sofort erledigen)."""
+    from app.services.email_service import EmailService
+
+    email_service = EmailService(db)
+    failed = await email_service.list_drafts(status="failed", limit=50)
+
+    return templates.TemplateResponse("partials/emails_action_required.html", {
+        "request": request,
+        "emails": failed,
+    })
+
+
+@router.get("/partials/emails-pending", response_class=HTMLResponse)
+async def emails_pending_partial(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Partial: Offene Entwuerfe."""
+    from app.services.email_service import EmailService
+
+    email_service = EmailService(db)
+    drafts = await email_service.list_drafts(status="draft", limit=50)
+
+    return templates.TemplateResponse("partials/emails_pending.html", {
+        "request": request,
+        "emails": drafts,
+    })
+
+
+@router.get("/partials/emails-sent-today", response_class=HTMLResponse)
+async def emails_sent_today_partial(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Partial: Heute gesendete Emails."""
+    from datetime import datetime as dt, timezone as tz
+    from app.services.email_service import EmailService
+
+    email_service = EmailService(db)
+    today_start = dt.now(tz.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    sent = await email_service.list_drafts_by_date(
+        status="sent", since=today_start, limit=50
+    )
+
+    return templates.TemplateResponse("partials/emails_sent_today.html", {
+        "request": request,
+        "emails": sent,
+    })
+
+
+@router.get("/partials/emails-history", response_class=HTMLResponse)
+async def emails_history_partial(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Partial: Letzte 7 Tage Email-Verlauf."""
+    from datetime import datetime as dt, timezone as tz, timedelta
+    from app.services.email_service import EmailService
+
+    email_service = EmailService(db)
+    seven_days_ago = dt.now(tz.utc) - timedelta(days=7)
+    today_start = dt.now(tz.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    history = await email_service.list_drafts_by_date(
+        status="sent", since=seven_days_ago, until=today_start, limit=100
+    )
+
+    return templates.TemplateResponse("partials/emails_history.html", {
+        "request": request,
+        "emails": history,
+    })
