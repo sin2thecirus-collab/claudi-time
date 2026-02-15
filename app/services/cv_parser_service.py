@@ -403,6 +403,19 @@ class CVParserService:
                 # In Pydantic-Schema konvertieren
                 cv_result = self._map_to_cv_result(parsed_data)
 
+                # Post-Processing: Halluzinierte Daten entfernen
+                if cv_result.work_history:
+                    cv_result.work_history = self._verify_work_history(
+                        cv_result.work_history, cv_text
+                    )
+                # current_company verifizieren
+                if cv_result.current_company and cv_result.current_company.lower() not in cv_text.lower():
+                    logger.warning(
+                        f"Halluzinierte current_company entfernt: '{cv_result.current_company}' "
+                        f"nicht im CV-Text gefunden"
+                    )
+                    cv_result.current_company = None
+
                 return ParseResult(
                     success=True,
                     data=cv_result,
@@ -448,6 +461,56 @@ class CVParserService:
             error=last_error or "Unbekannter Fehler nach allen Versuchen",
             raw_text=cv_text,
         )
+
+    @staticmethod
+    def _verify_work_history(work_history: list | None, cv_text: str) -> list | None:
+        """Prueft ob work_history descriptions im CV-Text vorkommen.
+
+        Entfernt halluzinierte Aufgaben die nicht im Originaltext stehen.
+        Prueft pro Eintrag: Wenn weniger als 30% der Woerter aus der
+        description im cv_text vorkommen → description = null (halluziniert).
+        """
+        if not work_history or not cv_text:
+            return work_history
+
+        cv_lower = cv_text.lower()
+
+        for entry in work_history:
+            desc = getattr(entry, "description", None)
+            if not desc:
+                continue
+
+            # Woerter aus description extrahieren (mind. 4 Zeichen, keine Stopwords)
+            stopwords = {
+                "und", "der", "die", "das", "von", "mit", "fuer", "für", "bei",
+                "den", "dem", "des", "ein", "eine", "einer", "eines", "einem",
+                "auf", "aus", "als", "ist", "sind", "war", "wird", "zum", "zur",
+                "nach", "ueber", "über", "unter", "oder", "auch", "sich", "nicht",
+                "sowie", "bzw", "inkl", "etc", "ggf", "bspw",
+            }
+            words = [
+                w.strip("•-–—·,.;:()[]/ \n\t").lower()
+                for w in desc.split()
+                if len(w.strip("•-–—·,.;:()[]/ \n\t")) >= 4
+            ]
+            words = [w for w in words if w and w not in stopwords]
+
+            if not words:
+                continue
+
+            # Wie viele Woerter kommen im cv_text vor?
+            found = sum(1 for w in words if w in cv_lower)
+            ratio = found / len(words) if words else 0
+
+            if ratio < 0.3:
+                logger.warning(
+                    f"Halluzination erkannt bei '{getattr(entry, 'position', '?')}': "
+                    f"Nur {found}/{len(words)} Woerter ({ratio:.0%}) im CV-Text gefunden. "
+                    f"Description wird auf null gesetzt."
+                )
+                entry.description = None
+
+        return work_history
 
     @staticmethod
     def _clean_null(value: str | None) -> str | None:
