@@ -1585,10 +1585,8 @@ async def _auto_assign_to_candidate(
         logger.warning(f"Auto-Assign: Kandidat {candidate_id} nicht gefunden")
         return {"success": False, "error": f"Kandidat {candidate_id} nicht gefunden"}
 
-    # Kandidatenfelder updaten
+    # Basis-Felder IMMER updaten (Summary, Datum, Typ, letzter Kontakt)
     now = datetime.now(timezone.utc)
-    if data.transcript:
-        candidate.call_transcript = data.transcript
     if data.call_summary:
         candidate.call_summary = data.call_summary
     if data.call_date:
@@ -1601,42 +1599,53 @@ async def _auto_assign_to_candidate(
     candidate.call_type = data.call_type or "kurzer_call"
     candidate.last_contact = now
 
-    # Qualifizierungsfelder aus extracted_data / mt_payload
+    # Qualifizierungsfelder + Transkript NUR bei Qualifizierung updaten
     ext = data.extracted_data or data.mt_payload or {}
-    field_mappings = {
-        "desired_positions": "desired_positions",
-        "key_activities": "key_activities",
-        "home_office_days": "home_office_days",
-        "commute_max": "commute_max",
-        "commute_transport": "commute_transport",
-        "erp_main": "erp_main",
-        "employment_type": "employment_type",
-        "part_time_hours": "part_time_hours",
-        "preferred_industries": "preferred_industries",
-        "avoided_industries": "avoided_industries",
-        "salary": "salary",
-        "notice_period": "notice_period",
-    }
     fields_updated = []
-    for src_key, dest_key in field_mappings.items():
-        val = ext.get(src_key) or ext.get(f"call_{src_key}")
-        if val is not None and val != "" and val != []:
-            # Array-Felder als kommaseparierten String speichern falls noetig
-            if isinstance(val, list):
-                val = ", ".join(str(v) for v in val)
-            # Alle Werte zu String konvertieren (GPT liefert z.B. Integer 3 statt "3")
-            val = str(val)
-            if hasattr(candidate, dest_key):
-                setattr(candidate, dest_key, val)
-                fields_updated.append(dest_key)
+    n8n_type = (data.call_type or "").lower()
+    is_quali = n8n_type == "qualifizierung"
 
-    # Willingness aus extracted_data
-    willingness = ext.get("willingness_to_change") or ext.get("call_willingness_to_change")
-    if willingness in ("ja", "nein", "unbekannt", "unklar"):
-        if willingness == "unklar":
-            willingness = "unbekannt"
-        candidate.willingness_to_change = willingness
-        fields_updated.append("willingness_to_change")
+    if is_quali:
+        # Transkript nur bei Qualifizierung
+        if data.transcript:
+            candidate.call_transcript = data.transcript
+
+        # Qualifizierungsfelder aus extracted_data / mt_payload
+        field_mappings = {
+            "desired_positions": "desired_positions",
+            "key_activities": "key_activities",
+            "home_office_days": "home_office_days",
+            "commute_max": "commute_max",
+            "commute_transport": "commute_transport",
+            "erp_main": "erp_main",
+            "employment_type": "employment_type",
+            "part_time_hours": "part_time_hours",
+            "preferred_industries": "preferred_industries",
+            "avoided_industries": "avoided_industries",
+            "salary": "salary",
+            "notice_period": "notice_period",
+        }
+        for src_key, dest_key in field_mappings.items():
+            val = ext.get(src_key) or ext.get(f"call_{src_key}")
+            if val is not None and val != "" and val != []:
+                # Array-Felder als kommaseparierten String speichern falls noetig
+                if isinstance(val, list):
+                    val = ", ".join(str(v) for v in val)
+                # Alle Werte zu String konvertieren (GPT liefert z.B. Integer 3 statt "3")
+                val = str(val)
+                if hasattr(candidate, dest_key):
+                    setattr(candidate, dest_key, val)
+                    fields_updated.append(dest_key)
+
+        # Willingness aus extracted_data
+        willingness = ext.get("willingness_to_change") or ext.get("call_willingness_to_change")
+        if willingness in ("ja", "nein", "unbekannt", "unklar"):
+            if willingness == "unklar":
+                willingness = "unbekannt"
+            candidate.willingness_to_change = willingness
+            fields_updated.append("willingness_to_change")
+    else:
+        logger.info(f"Auto-Assign: Kein Quali-Call ({n8n_type}) — Kandidatenfelder nicht aktualisiert")
 
     # ATSCallNote erstellen — call_type korrekt mappen
     direction_val = CallDirection.INBOUND if data.direction == "inbound" else CallDirection.OUTBOUND
