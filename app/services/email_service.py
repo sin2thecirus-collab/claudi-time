@@ -145,6 +145,95 @@ class MicrosoftGraphClient:
 #  Email-Templates (Jinja2 Rendering)
 # ═══════════════════════════════════════════════════════════════
 
+EMAIL_SIGNATURE = """
+<table cellpadding="0" cellspacing="0" border="0" style="font-family: Arial, Helvetica, sans-serif; margin-top: 28px; border-collapse: collapse;">
+    <!-- Trennlinie -->
+    <tr>
+        <td colspan="2" style="padding-bottom: 20px;">
+            <div style="height: 2px; background: linear-gradient(90deg, #002855 0%, #34D399 50%, #002855 100%); border-radius: 2px;"></div>
+        </td>
+    </tr>
+    <!-- Hauptzeile: Foto + Kontaktdaten -->
+    <tr>
+        <td style="vertical-align: top; padding-right: 20px; width: 90px;">
+            <img src="https://sincirus.de/wp-content/uploads/2024/12/milad-sincirus-2.jpg"
+                 alt="Milad Hamdard" width="80" height="80"
+                 style="border-radius: 50%; border: 2px solid #002855; display: block;" />
+        </td>
+        <td style="vertical-align: top;">
+            <p style="margin: 0 0 2px; font-size: 17px; font-weight: 700; color: #002855;">Milad Hamdard</p>
+            <p style="margin: 0 0 10px; font-size: 13px; color: #5a6a7a; letter-spacing: 0.5px; text-transform: uppercase;">Senior Personalberater</p>
+            <table cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse;">
+                <tr>
+                    <td style="padding: 2px 8px 2px 0; font-size: 13px; color: #5a6a7a; white-space: nowrap;">Mobil</td>
+                    <td style="padding: 2px 0; font-size: 13px;"><a href="tel:+4917681605498" style="color: #002855; text-decoration: none; font-weight: 500;">+49 176 816 054 98</a></td>
+                </tr>
+                <tr>
+                    <td style="padding: 2px 8px 2px 0; font-size: 13px; color: #5a6a7a; white-space: nowrap;">Festnetz</td>
+                    <td style="padding: 2px 0; font-size: 13px;"><a href="tel:+494023834532" style="color: #002855; text-decoration: none; font-weight: 500;">040 238 345 320</a></td>
+                </tr>
+                <tr>
+                    <td style="padding: 2px 8px 2px 0; font-size: 13px; color: #5a6a7a; white-space: nowrap;">E-Mail</td>
+                    <td style="padding: 2px 0; font-size: 13px;"><a href="mailto:hamdard@sincirus.com" style="color: #002855; text-decoration: none; font-weight: 500;">hamdard@sincirus.com</a></td>
+                </tr>
+                <tr>
+                    <td style="padding: 2px 8px 2px 0; font-size: 13px; color: #5a6a7a; white-space: nowrap;">Web</td>
+                    <td style="padding: 2px 0; font-size: 13px;"><a href="https://www.sincirus.de" style="color: #002855; text-decoration: none; font-weight: 500;">www.sincirus.de</a></td>
+                </tr>
+            </table>
+            <!-- Social Icons -->
+            <div style="margin-top: 10px;">
+                <a href="https://www.linkedin.com/in/milad-hamdard-021629175" style="text-decoration: none; margin-right: 8px;" title="LinkedIn">
+                    <img src="https://cdn-icons-png.flaticon.com/512/174/174857.png" alt="LinkedIn" width="22" height="22" style="border-radius: 4px; display: inline-block; vertical-align: middle;" />
+                </a>
+                <a href="https://www.xing.com/profile/Milad_Hamdard" style="text-decoration: none;" title="XING">
+                    <img src="https://cdn-icons-png.flaticon.com/512/174/174870.png" alt="XING" width="22" height="22" style="border-radius: 4px; display: inline-block; vertical-align: middle;" />
+                </a>
+            </div>
+        </td>
+    </tr>
+    <!-- Company Logo + Adresse -->
+    <tr>
+        <td colspan="2" style="padding-top: 16px;">
+            <table cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse;">
+                <tr>
+                    <td style="vertical-align: middle; padding-right: 12px;">
+                        <img src="https://sincirus.de/wp-content/uploads/2024/12/sincirus-logo-2024.png"
+                             alt="sincirus GmbH" height="28"
+                             style="display: block;" />
+                    </td>
+                    <td style="vertical-align: middle; font-size: 12px; color: #8896a6; border-left: 1px solid #d1d9e0; padding-left: 12px;">
+                        sincirus GmbH &middot; Ballindamm 3 &middot; 20095 Hamburg
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+    <!-- Banner -->
+    <tr>
+        <td colspan="2" style="padding-top: 16px;">
+            <a href="https://www.sincirus.de" style="text-decoration: none;">
+                <img src="https://sincirus.de/wp-content/uploads/2024/12/sincirus-email-banner.png"
+                     alt="sincirus – Personalberatung für Finance & Accounting"
+                     width="500" style="max-width: 100%; border-radius: 8px; display: block;" />
+            </a>
+        </td>
+    </tr>
+    <!-- Disclaimer -->
+    <tr>
+        <td colspan="2" style="padding-top: 14px;">
+            <p style="font-size: 10px; line-height: 1.4; color: #a0aab4; margin: 0;">
+                sincirus GmbH &middot; Ballindamm 3 &middot; 20095 Hamburg &middot;
+                Geschäftsführer: Navid Willms &middot; HRB Hamburg 178493 &middot;
+                USt-IdNr.: DE361557956<br>
+                Diese E-Mail kann vertrauliche Informationen enthalten. Wenn Sie nicht der beabsichtigte Empfänger sind,
+                informieren Sie bitte den Absender und löschen Sie diese E-Mail.
+            </p>
+        </td>
+    </tr>
+</table>
+"""
+
 TEMPLATE_KONTAKTDATEN_SUBJECT = "Schön, dass wir gesprochen haben – Ihre Kontaktdaten bei sincirus"
 
 TEMPLATE_KONTAKTDATEN_BODY = """
@@ -161,23 +250,15 @@ TEMPLATE_KONTAKTDATEN_BODY = """
         und beruflichen Expertise ebenfalls zu erhalten.
     </p>
 
-    <div style="background: #f7fafc; border-left: 4px solid #34D399; padding: 16px 20px; margin: 20px 0; border-radius: 8px;">
-        <p style="margin: 0 0 4px; font-weight: 600; font-size: 15px;">Milad Hamdard</p>
-        <p style="margin: 0 0 4px; font-size: 14px; color: #718096;">Senior Personalberater</p>
-        <p style="margin: 0 0 4px; font-size: 14px;">📞 +49 176 81605498</p>
-        <p style="margin: 0 0 4px; font-size: 14px;">✉️ hamdard@sincirus.com</p>
-        <p style="margin: 0; font-size: 14px;">🌐 www.sincirus.de</p>
-    </div>
-
     <p style="font-size: 15px; line-height: 1.6;">
         Sobald sich bei uns interessante Themen ergeben, melde ich mich umgehend bei Ihnen.
     </p>
 
     <p style="font-size: 15px; line-height: 1.6;">
-        Mit freundlichen Grüßen<br>
-        <strong>Milad Hamdard</strong><br>
-        <span style="color: #718096; font-size: 13px;">sincirus GmbH – Personalberatung</span>
+        Mit freundlichen Grüßen
     </p>
+
+    """ + EMAIL_SIGNATURE + """
 </div>
 """
 
@@ -224,10 +305,10 @@ TEMPLATE_STELLENAUSSCHREIBUNG_BODY = """
     </p>
 
     <p style="font-size: 15px; line-height: 1.6;">
-        Mit freundlichen Grüßen<br>
-        <strong>Milad Hamdard</strong><br>
-        <span style="color: #718096; font-size: 13px;">sincirus GmbH – Personalberatung</span>
+        Mit freundlichen Grüßen
     </p>
+
+    """ + EMAIL_SIGNATURE + """
 </div>
 """
 
@@ -500,20 +581,20 @@ class EmailService:
                 elif action_type == "individuell":
                     # Individuell → immer Draft
                     description = action.get("description", "Email-Zusage aus Gespräch")
-                    draft = await self._create_and_send_email(
-                        candidate=candidate,
-                        email_type=EmailType.INDIVIDUELL.value,
-                        subject=f"Nachricht an {candidate.first_name} {candidate.last_name} – sincirus",
-                        body_html=f"""
+                    individuell_body = f"""
 <div style="font-family: 'DM Sans', Arial, sans-serif; color: #2d3748; max-width: 600px; margin: 0 auto; padding: 20px;">
     <p style="font-size: 15px; line-height: 1.6;">{self._get_salutation(candidate)},</p>
     <p style="font-size: 15px; line-height: 1.6;">[Hier Inhalt ergänzen]</p>
     <p style="font-size: 15px; line-height: 1.6;">
-        Mit freundlichen Grüßen<br>
-        <strong>Milad Hamdard</strong><br>
-        <span style="color: #718096; font-size: 13px;">sincirus GmbH – Personalberatung</span>
+        Mit freundlichen Grüßen
     </p>
-</div>""",
+    {EMAIL_SIGNATURE}
+</div>"""
+                    draft = await self._create_and_send_email(
+                        candidate=candidate,
+                        email_type=EmailType.INDIVIDUELL.value,
+                        subject=f"Nachricht an {candidate.first_name} {candidate.last_name} – sincirus",
+                        body_html=individuell_body,
                         auto_send=False,
                         call_note_id=call_note_id,
                         gpt_context=description,
