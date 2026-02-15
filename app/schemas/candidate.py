@@ -143,26 +143,6 @@ class CandidateResponse(BaseModel):
     candidate_notes: str | None
     candidate_number: int | None
     presented_at_companies: list[dict] | None
-    # Qualifizierungsgespräch-Felder
-    desired_positions: str | None
-    key_activities: str | None
-    home_office_days: str | None
-    commute_max: str | None
-    commute_transport: str | None
-    erp_main: str | None
-    employment_type: str | None
-    part_time_hours: str | None
-    preferred_industries: str | None
-    avoided_industries: str | None
-    open_office_ok: str | None
-    whatsapp_ok: bool | None
-    other_recruiters: str | None
-    exclusivity_agreed: bool | None
-    applied_at_companies_text: str | None
-    call_transcript: str | None
-    call_summary: str | None
-    call_date: datetime | None
-    call_type: str | None
     has_coordinates: bool
     cv_url: str | None
     cv_parsed_at: datetime | None
