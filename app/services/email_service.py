@@ -145,8 +145,10 @@ class MicrosoftGraphClient:
 #  Email-Templates (Jinja2 Rendering)
 # ═══════════════════════════════════════════════════════════════
 
-EMAIL_SIGNATURE = """
-<table cellpadding="0" cellspacing="0" border="0" style="font-family: Arial, Helvetica, sans-serif; margin-top: 28px; border-collapse: collapse;">
+_BASE_URL = "https://claudi-time-production-46a5.up.railway.app"
+
+EMAIL_SIGNATURE = f"""
+<table cellpadding="0" cellspacing="0" border="0" style="font-family: Arial, Helvetica, sans-serif; margin-top: 28px; border-collapse: collapse; max-width: 520px;">
     <!-- Trennlinie -->
     <tr>
         <td colspan="2" style="padding-bottom: 20px;">
@@ -156,7 +158,7 @@ EMAIL_SIGNATURE = """
     <!-- Hauptzeile: Foto + Kontaktdaten -->
     <tr>
         <td style="vertical-align: top; padding-right: 20px; width: 90px;">
-            <img src="https://sincirus.de/wp-content/uploads/2024/12/milad-sincirus-2.jpg"
+            <img src="{_BASE_URL}/static/images/milad_foto.jpg"
                  alt="Milad Hamdard" width="80" height="80"
                  style="border-radius: 50%; border: 2px solid #002855; display: block;" />
         </td>
@@ -170,7 +172,7 @@ EMAIL_SIGNATURE = """
                 </tr>
                 <tr>
                     <td style="padding: 2px 8px 2px 0; font-size: 13px; color: #5a6a7a; white-space: nowrap;">Festnetz</td>
-                    <td style="padding: 2px 0; font-size: 13px;"><a href="tel:+494023834532" style="color: #002855; text-decoration: none; font-weight: 500;">040 238 345 320</a></td>
+                    <td style="padding: 2px 0; font-size: 13px;"><a href="tel:+4940238345320" style="color: #002855; text-decoration: none; font-weight: 500;">040 238 345 320</a></td>
                 </tr>
                 <tr>
                     <td style="padding: 2px 8px 2px 0; font-size: 13px; color: #5a6a7a; white-space: nowrap;">E-Mail</td>
@@ -178,7 +180,7 @@ EMAIL_SIGNATURE = """
                 </tr>
                 <tr>
                     <td style="padding: 2px 8px 2px 0; font-size: 13px; color: #5a6a7a; white-space: nowrap;">Web</td>
-                    <td style="padding: 2px 0; font-size: 13px;"><a href="https://www.sincirus.de" style="color: #002855; text-decoration: none; font-weight: 500;">www.sincirus.de</a></td>
+                    <td style="padding: 2px 0; font-size: 13px;"><a href="https://www.sincirus.com" style="color: #002855; text-decoration: none; font-weight: 500;">www.sincirus.com</a></td>
                 </tr>
             </table>
             <!-- Social Icons -->
@@ -198,7 +200,7 @@ EMAIL_SIGNATURE = """
             <table cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse;">
                 <tr>
                     <td style="vertical-align: middle; padding-right: 12px;">
-                        <img src="https://sincirus.de/wp-content/uploads/2024/12/sincirus-logo-2024.png"
+                        <img src="{_BASE_URL}/static/images/sincirus_logo.png"
                              alt="sincirus GmbH" height="28"
                              style="display: block;" />
                     </td>
@@ -209,25 +211,11 @@ EMAIL_SIGNATURE = """
             </table>
         </td>
     </tr>
-    <!-- Banner -->
+    <!-- Vertraulichkeitshinweis -->
     <tr>
-        <td colspan="2" style="padding-top: 16px;">
-            <a href="https://www.sincirus.de" style="text-decoration: none;">
-                <img src="https://sincirus.de/wp-content/uploads/2024/12/sincirus-email-banner.png"
-                     alt="sincirus – Personalberatung für Finance & Accounting"
-                     width="500" style="max-width: 100%; border-radius: 8px; display: block;" />
-            </a>
-        </td>
-    </tr>
-    <!-- Disclaimer -->
-    <tr>
-        <td colspan="2" style="padding-top: 14px;">
-            <p style="font-size: 10px; line-height: 1.4; color: #a0aab4; margin: 0;">
-                sincirus GmbH &middot; Ballindamm 3 &middot; 20095 Hamburg &middot;
-                Geschäftsführer: Navid Willms &middot; HRB Hamburg 178493 &middot;
-                USt-IdNr.: DE361557956<br>
-                Diese E-Mail kann vertrauliche Informationen enthalten. Wenn Sie nicht der beabsichtigte Empfänger sind,
-                informieren Sie bitte den Absender und löschen Sie diese E-Mail.
+        <td colspan="2" style="padding-top: 18px;">
+            <p style="font-size: 10px; line-height: 1.5; color: #a0aab4; margin: 0;">
+                Der Inhalt dieser E-Mail ist vertraulich und ausschlie&szlig;lich f&uuml;r die Empf&auml;nger innerhalb des Unternehmens und der Unternehmensgruppe bestimmt. Ohne die ausdr&uuml;ckliche schriftliche Zustimmung des Absenders ist es strengstens untersagt, den Inhalt dieser Nachricht ganz oder teilweise an Personen oder Organisationen au&szlig;erhalb des Unternehmens oder der Unternehmensgruppe weiterzugeben oder zug&auml;nglich zu machen. Unternehmen innerhalb der Unternehmensgruppe, wie beispielsweise Tochtergesellschaften oder Holdinggesellschaften, gelten nicht als Dritte im Sinne dieser Bestimmung. Innerhalb des Unternehmens und der Unternehmensgruppe ist die Weiterleitung dieser E-Mail an verschiedene Abteilungen gestattet; eine Weitergabe an externe Unternehmen ist jedoch unter keinen Umst&auml;nden zul&auml;ssig. Sollten Sie diese Nachricht irrt&uuml;mlich erhalten haben, benachrichtigen Sie bitte unverz&uuml;glich den Absender, indem Sie auf diese E-Mail antworten, und l&ouml;schen Sie die Nachricht anschlie&szlig;end, um sicherzustellen, dass ein solcher Fehler in Zukunft vermieden wird.
             </p>
         </td>
     </tr>
