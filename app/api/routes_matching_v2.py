@@ -4,14 +4,19 @@ Sprint 1: Profile-Erstellung, Backfill, Stats.
 Sprint 2: Matching, Embedding-Generierung, Batch-Matching.
 """
 
+import json
 import logging
 from uuid import UUID
 
+import httpx
 from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException, Query
 from fastapi.responses import JSONResponse
+from sqlalchemy import select, func, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
+from app.models.candidate import Candidate
 from app.services.profile_engine_service import ProfileEngineService
 
 logger = logging.getLogger(__name__)
@@ -1715,4 +1720,123 @@ async def admin_profile_sync(
         "total_cost_usd": round(
             jobs_result_data["cost_usd"] + cands_result_data["cost_usd"], 6
         ),
+    }
+
+
+# ══════════════════════════════════════════════════════════════════
+# Admin: Bulk Gender-Klassifizierung per GPT-4o-mini
+# ══════════════════════════════════════════════════════════════════
+
+GENDER_SYSTEM_PROMPT = """Du bist ein Namensexperte. Bestimme fuer jeden deutschen Vornamen das Geschlecht.
+
+Regeln:
+- "Herr" fuer maennliche Vornamen (Thomas, Max, Stefan, Andreas, ...)
+- "Frau" fuer weibliche Vornamen (Anna, Petra, Sabine, Julia, ...)
+- null fuer unklare/neutrale Namen (Kim, Robin, Sascha, Andrea, ...)
+- Bei zusammengesetzten Namen (Hans-Peter) den ersten Teil nehmen
+- Deutsche und internationale Namen beruecksichtigen
+
+Antworte NUR als JSON-Array mit Objekten: [{"name": "...", "gender": "Herr"|"Frau"|null}]
+Keine Erklaerungen, kein Markdown — nur valides JSON."""
+
+
+@router.post("/admin/gender-sync")
+async def admin_gender_sync(
+    db: AsyncSession = Depends(get_db),
+    batch_size: int = Query(default=50, ge=10, le=200),
+    max_total: int = Query(default=5000, ge=1, le=25000),
+):
+    """Bulk-Klassifizierung: GPT-4o-mini bestimmt Herr/Frau aus Vornamen.
+
+    Verarbeitet alle Kandidaten ohne gender-Feld in Batches.
+    ~$0.001 pro 50 Namen (~$0.40 fuer 20.000 Kandidaten).
+    """
+    # Kandidaten ohne Gender laden
+    result = await db.execute(
+        select(Candidate.id, Candidate.first_name)
+        .where(Candidate.gender.is_(None))
+        .where(Candidate.first_name.isnot(None))
+        .where(Candidate.first_name != "")
+        .where(Candidate.deleted_at.is_(None))
+        .limit(max_total)
+    )
+    candidates = result.all()
+
+    if not candidates:
+        return {"status": "ok", "message": "Keine Kandidaten ohne Anrede gefunden", "updated": 0}
+
+    total_updated = 0
+    total_skipped = 0
+    total_failed = 0
+    errors = []
+
+    # In Batches verarbeiten
+    for i in range(0, len(candidates), batch_size):
+        batch = candidates[i : i + batch_size]
+        names_list = [{"name": c.first_name.strip()} for c in batch]
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.post(
+                    "https://api.openai.com/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {settings.openai_api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": "gpt-4o-mini",
+                        "temperature": 0.0,
+                        "messages": [
+                            {"role": "system", "content": GENDER_SYSTEM_PROMPT},
+                            {"role": "user", "content": json.dumps(names_list, ensure_ascii=False)},
+                        ],
+                    },
+                )
+                resp.raise_for_status()
+                data = resp.json()
+
+            content = data["choices"][0]["message"]["content"].strip()
+            # JSON parsen (manchmal in ```json ... ``` gewrappt)
+            if content.startswith("```"):
+                content = content.split("```")[1]
+                if content.startswith("json"):
+                    content = content[4:]
+            gpt_results = json.loads(content)
+
+            # Name→Gender Mapping erstellen
+            gender_map = {}
+            for item in gpt_results:
+                name = item.get("name", "").strip()
+                gender = item.get("gender")
+                if gender in ("Herr", "Frau"):
+                    gender_map[name.lower()] = gender
+
+            # Kandidaten updaten
+            for cand_id, first_name in batch:
+                mapped_gender = gender_map.get(first_name.strip().lower())
+                if mapped_gender:
+                    await db.execute(
+                        update(Candidate)
+                        .where(Candidate.id == cand_id)
+                        .values(gender=mapped_gender)
+                    )
+                    total_updated += 1
+                else:
+                    total_skipped += 1
+
+            await db.commit()
+
+        except Exception as e:
+            total_failed += len(batch)
+            errors.append(f"Batch {i // batch_size + 1}: {str(e)[:200]}")
+            logger.error(f"Gender-Sync Batch {i // batch_size + 1} fehlgeschlagen: {e}")
+            await db.rollback()
+
+    return {
+        "status": "ok",
+        "total_candidates": len(candidates),
+        "updated": total_updated,
+        "skipped": total_skipped,
+        "failed": total_failed,
+        "errors": errors[:5] if errors else [],
     }

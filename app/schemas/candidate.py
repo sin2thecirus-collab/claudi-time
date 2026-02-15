@@ -62,6 +62,7 @@ class CandidateCreate(CandidateBase):
 class CandidateUpdate(BaseModel):
     """Schema für Kandidaten-Updates."""
 
+    gender: str | None = Field(default=None, max_length=20, description="Anrede: 'Herr' oder 'Frau'")
     first_name: str | None = Field(default=None, max_length=100)
     last_name: str | None = Field(default=None, max_length=100)
     email: EmailStr | None = None
@@ -113,6 +114,7 @@ class CandidateResponse(BaseModel):
 
     id: UUID
     crm_id: str | None
+    gender: str | None
     first_name: str | None
     last_name: str | None
     full_name: str
@@ -201,6 +203,7 @@ class CandidateWithMatch(CandidateResponse):
 class CVParseResult(BaseModel):
     """Schema für das Ergebnis des CV-Parsings."""
 
+    gender: str | None = None  # "Herr" / "Frau" / null (aus Vornamen abgeleitet)
     first_name: str | None = None
     last_name: str | None = None
     email: str | None = None

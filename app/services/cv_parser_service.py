@@ -79,7 +79,9 @@ KATEGORIEN:
 
 8. skills: Fachkenntnisse (NICHT IT, NICHT Sprachen), Fuehrerschein
 
-9. Persoenlich: first_name, last_name, email, phone, birth_date (DD.MM.YYYY)
+9. Persoenlich: gender, first_name, last_name, email, phone, birth_date (DD.MM.YYYY)
+   - gender: Anhand des Vornamens bestimmen! "Herr" fuer maennliche, "Frau" fuer weibliche Vornamen. null wenn unklar.
+     Beispiele: "Anna"->"Frau", "Max"->"Herr", "Kim"->null, "Petra"->"Frau", "Thomas"->"Herr"
    - NAMEN: Korrekte Gross-/Kleinschreibung! "LARA" -> "Lara", "SOPHIE" -> "Sophie"
    - email: E-Mail-Adresse aus dem CV extrahieren! Steht oft in der Kopfzeile/Kontaktdaten.
    - phone: Telefonnummer (Festnetz oder Mobil) extrahieren!
@@ -96,7 +98,7 @@ KATEGORIEN:
     - "Musterstr. 12, 60311 Frankfurt" -> street_address: "Musterstr. 12", postal_code: "60311", city: "Frankfurt"
 
 JSON-Ausgabe:
-{"current_position":"...","current_company":"...","work_history":[{"company":"...","position":"...","start_date":"...","end_date":"...","description":"• Task1\\n• Task2"}],"education":[{"institution":"...","degree":"...","field_of_study":"...","start_date":"...","end_date":"..."}],"further_education":[...],"it_skills":["..."],"languages":[{"language":"...","level":"..."}],"skills":["..."],"first_name":"...","last_name":"...","email":"...","phone":"...","birth_date":"...","estimated_age":null,"street_address":"...","postal_code":"...","city":"..."}"""
+{"current_position":"...","current_company":"...","work_history":[{"company":"...","position":"...","start_date":"...","end_date":"...","description":"• Task1\\n• Task2"}],"education":[{"institution":"...","degree":"...","field_of_study":"...","start_date":"...","end_date":"..."}],"further_education":[...],"it_skills":["..."],"languages":[{"language":"...","level":"..."}],"skills":["..."],"gender":"Herr","first_name":"...","last_name":"...","email":"...","phone":"...","birth_date":"...","estimated_age":null,"street_address":"...","postal_code":"...","city":"..."}"""
 
 
 @dataclass
@@ -599,7 +601,12 @@ class CVParserService:
             except (ValueError, TypeError):
                 estimated_age = None
 
+        # Gender validieren (nur "Herr" oder "Frau" akzeptieren)
+        raw_gender = self._clean_null(data.get("gender"))
+        gender = raw_gender if raw_gender in ("Herr", "Frau") else None
+
         return CVParseResult(
+            gender=gender,
             first_name=self._normalize_case(data.get("first_name")),
             last_name=self._normalize_case(data.get("last_name")),
             email=self._clean_null(data.get("email")),
@@ -702,6 +709,10 @@ class CVParserService:
             candidate.first_name = cv_data.first_name
         if cv_data.last_name and (not candidate.last_name or _is_bad_name):
             candidate.last_name = cv_data.last_name
+
+        # Gender (Anrede) aus CV-Parsing uebernehmen wenn noch nicht gesetzt
+        if cv_data.gender and not candidate.gender:
+            candidate.gender = cv_data.gender
 
         # Geburtsdatum parsen (immer aus CV übernehmen wenn vorhanden)
         if cv_data.birth_date:

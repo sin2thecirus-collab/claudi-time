@@ -149,7 +149,7 @@ TEMPLATE_KONTAKTDATEN_SUBJECT = "Schön, dass wir gesprochen haben – Ihre Kont
 
 TEMPLATE_KONTAKTDATEN_BODY = """
 <div style="font-family: 'DM Sans', Arial, sans-serif; color: #2d3748; max-width: 600px; margin: 0 auto; padding: 20px;">
-    <p style="font-size: 15px; line-height: 1.6;">Hallo {{ candidate_first_name }},</p>
+    <p style="font-size: 15px; line-height: 1.6;">{{ salutation }},</p>
 
     <p style="font-size: 15px; line-height: 1.6;">
         vielen Dank für das angenehme Gespräch heute. Wie besprochen, hier meine Kontaktdaten
@@ -180,7 +180,7 @@ TEMPLATE_STELLENAUSSCHREIBUNG_SUBJECT = "Stellenangebot: {{ job_title }} bei {{ 
 
 TEMPLATE_STELLENAUSSCHREIBUNG_BODY = """
 <div style="font-family: 'DM Sans', Arial, sans-serif; color: #2d3748; max-width: 600px; margin: 0 auto; padding: 20px;">
-    <p style="font-size: 15px; line-height: 1.6;">Hallo {{ candidate_first_name }},</p>
+    <p style="font-size: 15px; line-height: 1.6;">{{ salutation }},</p>
 
     <p style="font-size: 15px; line-height: 1.6;">
         wie besprochen, hier die Details zur Stelle, über die wir heute telefoniert haben:
@@ -237,13 +237,26 @@ class EmailService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
+    # ── Anrede-Helper ──
+
+    @staticmethod
+    def _get_salutation(candidate: Candidate) -> str:
+        """Erzeugt formelle Anrede: 'Sehr geehrter Herr Schmidt' / 'Sehr geehrte Frau Mueller'.
+        Fallback: 'Hallo Vorname' wenn kein gender gesetzt."""
+        if candidate.gender and candidate.last_name:
+            if candidate.gender == "Herr":
+                return f"Sehr geehrter Herr {candidate.last_name}"
+            elif candidate.gender == "Frau":
+                return f"Sehr geehrte Frau {candidate.last_name}"
+        return f"Hallo {candidate.first_name or 'zusammen'}"
+
     # ── Template Rendering ──
 
     def _render_kontaktdaten(self, candidate: Candidate) -> tuple[str, str]:
         """Rendert Kontaktdaten-Email. Returns (subject, body_html)."""
         subject = TEMPLATE_KONTAKTDATEN_SUBJECT
         body = Template(TEMPLATE_KONTAKTDATEN_BODY).render(
-            candidate_first_name=candidate.first_name or "Hallo",
+            salutation=self._get_salutation(candidate),
         )
         return subject, body
 
@@ -253,7 +266,7 @@ class EmailService:
         """Rendert Stellenausschreibung-Email. Returns (subject, body_html)."""
         company_name = job.company.name if job.company else "Unternehmen"
         ctx = {
-            "candidate_first_name": candidate.first_name or "Hallo",
+            "salutation": self._get_salutation(candidate),
             "job_title": job.title,
             "company_name": company_name,
             "job_location": job.location_city or "",
@@ -495,7 +508,7 @@ class EmailService:
                         subject=f"Nachricht an {candidate.first_name} {candidate.last_name} – sincirus",
                         body_html=f"""
 <div style="font-family: 'DM Sans', Arial, sans-serif; color: #2d3748; max-width: 600px; margin: 0 auto; padding: 20px;">
-    <p style="font-size: 15px; line-height: 1.6;">Hallo {candidate.first_name or 'Hallo'},</p>
+    <p style="font-size: 15px; line-height: 1.6;">{self._get_salutation(candidate)},</p>
     <p style="font-size: 15px; line-height: 1.6;">[Hier Inhalt ergänzen]</p>
     <p style="font-size: 15px; line-height: 1.6;">
         Mit freundlichen Grüßen<br>

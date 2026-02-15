@@ -281,7 +281,17 @@
                     <div class="kd-section-title"><span>&#x1F4C7;</span> Kontaktdaten</div>
                 </div>
                 <div class="kd-section-body">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div style="display: grid; grid-template-columns: 100px 1fr 1fr; gap: 10px;">
+                        {# Anrede #}
+                        <div>
+                            <div class="kd-field-label">Anrede</div>
+                            <select onchange="saveGenderField(this, '{{ candidate.id }}')"
+                                    style="font-size: 13px; padding: 4px 8px; border-radius: 8px; border: 1.5px solid var(--pp-border); background: var(--pp-bg); color: var(--pp-text); font-family: inherit; cursor: pointer; width: 100%; min-height: 28px;">
+                                <option value="" {% if not candidate.gender %}selected{% endif %}>—</option>
+                                <option value="Herr" {% if candidate.gender == 'Herr' %}selected{% endif %}>Herr</option>
+                                <option value="Frau" {% if candidate.gender == 'Frau' %}selected{% endif %}>Frau</option>
+                            </select>
+                        </div>
                         {# Vorname #}
                         <div>
                             <div class="kd-field-label">Vorname</div>
@@ -2350,6 +2360,14 @@ function saveDetailEdit(input) {
     })
     .catch(function() { input.value = oldText; })
     .finally(function() { input.classList.add('hidden'); display.classList.remove('hidden'); });
+}
+
+function saveGenderField(select, candidateId) {
+    var val = select.value || null;
+    fetch('/api/candidates/' + candidateId, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ gender: val }) })
+    .then(function(r) { return r.json(); })
+    .then(function(data) { if (data.id && typeof showToast === 'function') showToast('Anrede gespeichert', 'success'); })
+    .catch(function() { if (typeof showToast === 'function') showToast('Fehler beim Speichern', 'error'); });
 }
 
 // ==================== Aufgaben-Manager ====================

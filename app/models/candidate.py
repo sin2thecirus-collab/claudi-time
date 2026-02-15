@@ -27,6 +27,7 @@ class Candidate(Base):
     crm_id: Mapped[str | None] = mapped_column(String(255), unique=True)
 
     # Persönliche Daten
+    gender: Mapped[str | None] = mapped_column(String(20))  # "Herr" / "Frau" / null
     first_name: Mapped[str | None] = mapped_column(String(100))
     last_name: Mapped[str | None] = mapped_column(String(100))
     email: Mapped[str | None] = mapped_column(String(500))
