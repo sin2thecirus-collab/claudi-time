@@ -1664,6 +1664,7 @@ async def _auto_assign_to_candidate(
         action_items=action_items if isinstance(action_items, list) else None,
     )
     db.add(call_note)
+    await db.flush()  # flush damit call_note.id verfuegbar ist
 
     # Activity loggen
     activity = ATSActivity(
@@ -1680,11 +1681,17 @@ async def _auto_assign_to_candidate(
     )
     db.add(activity)
 
+    # Automatisch ATSTodos aus action_items erstellen
+    todos_created = await _create_todos_from_action_items(
+        db, call_note, candidate_id=candidate.id,
+    )
+
     return {
         "success": True,
         "candidate_name": f"{candidate.first_name or ''} {candidate.last_name or ''}".strip(),
         "fields_updated": fields_updated,
         "call_note_id": str(call_note.id),
+        "todos_created": todos_created,
     }
 
 
@@ -1713,6 +1720,10 @@ async def _auto_assign_to_contact_or_company(
     }
     mapped_call_type = call_type_map.get(n8n_type, CallType.ACQUISITION)
 
+    # Action Items aus extracted_data extrahieren
+    ext = data.extracted_data or data.mt_payload or {}
+    action_items = ext.get("action_items") or ext.get("follow_ups") or ext.get("tasks")
+
     call_note = ATSCallNote(
         call_type=mapped_call_type,
         direction=direction_val,
@@ -1720,6 +1731,7 @@ async def _auto_assign_to_contact_or_company(
         raw_notes=data.transcript[:5000] if data.transcript else None,
         duration_minutes=(data.duration_seconds // 60) if data.duration_seconds else None,
         called_at=now,
+        action_items=action_items if isinstance(action_items, list) else None,
     )
 
     if entity_type == "contact":
@@ -1730,6 +1742,7 @@ async def _auto_assign_to_contact_or_company(
         call_note.company_id = entity_id
 
     db.add(call_note)
+    await db.flush()  # flush damit call_note.id verfuegbar ist
 
     # Activity loggen
     activity = ATSActivity(
@@ -1746,10 +1759,101 @@ async def _auto_assign_to_contact_or_company(
     )
     db.add(activity)
 
+    # Automatisch ATSTodos aus action_items erstellen
+    resolved_company_id = company_id or (entity_id if entity_type == "company" else None)
+    todos_created = await _create_todos_from_action_items(
+        db, call_note, company_id=resolved_company_id,
+    )
+
     return {
         "success": True,
         "call_note_id": str(call_note.id),
+        "todos_created": todos_created,
     }
+
+
+async def _create_todos_from_action_items(
+    db: AsyncSession,
+    call_note,
+    candidate_id=None,
+    company_id=None,
+) -> int:
+    """Erstellt ATSTodo-Records aus action_items einer CallNote.
+
+    GPT liefert action_items als Liste von Dicts:
+    [{title: str, due_date: str (ISO), priority: str (hoch/mittel/niedrig)}]
+    Gibt Anzahl erstellter Todos zurueck.
+    """
+    from datetime import date as d_date
+    from app.models.ats_todo import ATSTodo, TodoPriority
+    from app.models.ats_activity import ATSActivity, ActivityType
+
+    items = call_note.action_items
+    if not items or not isinstance(items, list):
+        return 0
+
+    # Prioritaet-Mapping: GPT-Werte → TodoPriority
+    priority_map = {
+        "hoch": TodoPriority.DRINGEND,
+        "mittel": TodoPriority.WICHTIG,
+        "niedrig": TodoPriority.MITTELMAESSIG,
+        "high": TodoPriority.DRINGEND,
+        "medium": TodoPriority.WICHTIG,
+        "low": TodoPriority.MITTELMAESSIG,
+    }
+
+    created = 0
+    for item in items:
+        # item kann ein Dict oder ein String sein
+        if isinstance(item, dict):
+            title = (item.get("title") or "").strip()
+            due_date_str = item.get("due_date") or item.get("dueDate")
+            priority_str = (item.get("priority") or "mittel").lower()
+        elif isinstance(item, str):
+            title = item.strip()
+            due_date_str = None
+            priority_str = "mittel"
+        else:
+            continue
+
+        if not title:
+            continue
+
+        # due_date parsen
+        parsed_due_date = None
+        if due_date_str:
+            try:
+                parsed_due_date = d_date.fromisoformat(due_date_str[:10])
+            except (ValueError, TypeError):
+                parsed_due_date = None
+
+        priority = priority_map.get(priority_str, TodoPriority.WICHTIG)
+
+        todo = ATSTodo(
+            title=title[:500],
+            priority=priority,
+            due_date=parsed_due_date,
+            candidate_id=candidate_id,
+            company_id=company_id,
+            call_note_id=call_note.id,
+        )
+        db.add(todo)
+        created += 1
+
+        # Activity loggen
+        activity = ATSActivity(
+            activity_type=ActivityType.TODO_CREATED,
+            description=f"Aufgabe aus Anruf: {title[:80]}",
+            candidate_id=candidate_id,
+            company_id=company_id,
+        )
+        db.add(activity)
+
+    if created > 0:
+        await db.flush()
+        logger.info(f"Auto-Todos: {created} Aufgaben aus CallNote {call_note.id} erstellt")
+
+    return created
 
 
 async def _delete_webex_recording(recording_id: str, access_token: str) -> str:
