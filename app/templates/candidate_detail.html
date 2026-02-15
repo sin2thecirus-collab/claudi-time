@@ -199,6 +199,7 @@
                     {% if candidate.location and candidate.location not in ['Not Available', 'N/A', 'n/a', 'None', 'null', '', '-'] %}
                     <span class="kd-meta-badge">&#x1F4CD; {{ candidate.location }}</span>
                     {% endif %}
+                    <span class="kd-meta-badge">&#x1F382; {% if candidate.birth_date %}{{ candidate.birth_date.strftime('%d.%m.%Y') }} ({{ candidate.age }} J.){% else %}/{% endif %}</span>
                 </div>
             </div>
         </div>
@@ -276,16 +277,35 @@
                     <div class="kd-section-title"><span>&#x1F4C7;</span> Kontaktdaten</div>
                 </div>
                 <div class="kd-section-body">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        {# Vorname #}
+                        <div>
+                            <div class="kd-field-label">Vorname</div>
+                            <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="first_name">
+                                <span class="detail-edit-display" onclick="startDetailEdit(this)" title="Vorname bearbeiten" style="font-size: 13.5px; font-weight: 600; color: {% if first_display %}var(--pp-text){% else %}var(--pp-textDim){% endif %}; {% if not first_display %}font-style: italic;{% endif %} cursor: pointer;">{{ first_display or 'Vorname' }}</span>
+                                <input type="text" class="detail-edit-input hidden" value="{{ candidate.first_name or '' }}" placeholder="Vorname" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)" style="font-size: 13px; padding: 4px 8px; border-radius: 8px; border: 1.5px solid var(--pp-accent); width: 100%; font-family: inherit;">
+                            </div>
+                        </div>
+                        {# Nachname #}
+                        <div>
+                            <div class="kd-field-label">Nachname</div>
+                            <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="last_name">
+                                <span class="detail-edit-display" onclick="startDetailEdit(this)" title="Nachname bearbeiten" style="font-size: 13.5px; font-weight: 600; color: {% if last_display %}var(--pp-text){% else %}var(--pp-textDim){% endif %}; {% if not last_display %}font-style: italic;{% endif %} cursor: pointer;">{{ last_display or 'Nachname' }}</span>
+                                <input type="text" class="detail-edit-input hidden" value="{{ candidate.last_name or '' }}" placeholder="Nachname" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)" style="font-size: 13px; padding: 4px 8px; border-radius: 8px; border: 1.5px solid var(--pp-accent); width: 100%; font-family: inherit;">
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 10px;">
                         {# Email #}
                         <div>
                             <div class="kd-field-label">E-Mail</div>
                             <div style="display: flex; align-items: center; gap: 6px;">
+                                <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="email" style="flex:1; min-width:0;">
+                                    <span class="detail-edit-display" onclick="startDetailEdit(this)" title="E-Mail bearbeiten" style="font-size: 13px; font-weight: 600; color: {% if candidate.email %}var(--pp-accent){% else %}var(--pp-textDim){% endif %}; {% if not candidate.email %}font-style: italic;{% endif %} cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display:block;">{{ candidate.email or 'Nicht angegeben' }}</span>
+                                    <input type="email" class="detail-edit-input hidden" value="{{ candidate.email or '' }}" placeholder="email@beispiel.de" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)" style="font-size: 13px; padding: 4px 8px; border-radius: 8px; border: 1.5px solid var(--pp-accent); width: 100%; font-family: inherit;">
+                                </div>
                                 {% if candidate.email %}
-                                <span style="font-size: 13px; font-weight: 600; color: var(--pp-accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ candidate.email }}</span>
                                 <button type="button" onclick="copyToClipboard('{{ candidate.email }}', 'E-Mail')" class="kd-copy-btn" title="E-Mail kopieren"><svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
-                                {% else %}
-                                <span style="font-size: 13px; font-weight: 600; color: var(--pp-textDim); font-style: italic;">Nicht angegeben</span>
                                 {% endif %}
                             </div>
                         </div>
@@ -293,25 +313,40 @@
                         <div>
                             <div class="kd-field-label">Telefon</div>
                             <div style="display: flex; align-items: center; gap: 6px;">
+                                <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="phone" style="flex:1; min-width:0;">
+                                    <span class="detail-edit-display" onclick="startDetailEdit(this)" title="Telefon bearbeiten" style="font-size: 13px; font-weight: 600; color: {% if candidate.phone %}var(--pp-accent){% else %}var(--pp-textDim){% endif %}; {% if not candidate.phone %}font-style: italic;{% endif %} cursor: pointer;">{{ candidate.phone or 'Nicht angegeben' }}</span>
+                                    <input type="tel" class="detail-edit-input hidden" value="{{ candidate.phone or '' }}" placeholder="+49 170 1234567" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)" style="font-size: 13px; padding: 4px 8px; border-radius: 8px; border: 1.5px solid var(--pp-accent); width: 100%; font-family: inherit;">
+                                </div>
                                 {% if candidate.phone %}
-                                <a href="tel:{{ candidate.phone }}" style="font-size: 13px; font-weight: 600; color: var(--pp-accent); text-decoration: none;" title="Anrufen">{{ candidate.phone }}</a>
                                 <a href="tel:{{ candidate.phone }}" class="kd-copy-btn" title="Anrufen" style="color: var(--pp-green);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></a>
                                 <button type="button" onclick="copyToClipboard('{{ candidate.phone }}', 'Telefonnummer')" class="kd-copy-btn" title="Telefonnummer kopieren"><svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
-                                {% else %}
-                                <span style="font-size: 13px; font-weight: 600; color: var(--pp-textDim); font-style: italic;">Nicht angegeben</span>
                                 {% endif %}
                             </div>
                         </div>
-                        {# Address #}
+                        {# Position #}
+                        <div>
+                            <div class="kd-field-label">Position</div>
+                            <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="current_position">
+                                <span class="detail-edit-display" onclick="startDetailEdit(this)" title="Position bearbeiten" style="font-size: 13.5px; font-weight: 600; color: {% if position_display %}var(--pp-text){% else %}var(--pp-textDim){% endif %}; {% if not position_display %}font-style: italic;{% endif %} cursor: pointer;">{{ position_display or 'Keine Position angegeben' }}</span>
+                                <input type="text" class="detail-edit-input hidden" value="{{ candidate.current_position or '' }}" placeholder="z.B. Finanzbuchhalter" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)" style="font-size: 13px; padding: 4px 8px; border-radius: 8px; border: 1.5px solid var(--pp-accent); width: 100%; font-family: inherit;">
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+                        {# Adresse #}
                         <div>
                             <div class="kd-field-label">Adresse</div>
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                {% if candidate.street_address or candidate.postal_code or city_display %}
-                                <span style="font-size: 13px; font-weight: 600; color: var(--pp-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" id="address-text">{% if candidate.street_address %}{{ candidate.street_address }}{% endif %}{% if candidate.postal_code or city_display %}{% if candidate.street_address %}, {% endif %}{{ candidate.postal_code }} {{ city_display }}{% endif %}</span>
-                                <button type="button" onclick="copyToClipboard(document.getElementById('address-text').textContent.trim(), 'Adresse')" class="kd-copy-btn" title="Adresse kopieren"><svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
-                                {% else %}
-                                <span style="font-size: 13px; font-weight: 600; color: var(--pp-textDim); font-style: italic;">Nicht angegeben</span>
-                                {% endif %}
+                            <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="location">
+                                <span class="detail-edit-display" onclick="startDetailEdit(this)" title="Adresse bearbeiten" style="font-size: 13.5px; font-weight: 600; color: {% if candidate.location %}var(--pp-text){% else %}var(--pp-textDim){% endif %}; {% if not candidate.location %}font-style: italic;{% endif %} cursor: pointer;">{{ candidate.location or 'Nicht angegeben' }}</span>
+                                <input type="text" class="detail-edit-input hidden" value="{{ candidate.location or '' }}" placeholder="z.B. M&uuml;nchen" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)" style="font-size: 13px; padding: 4px 8px; border-radius: 8px; border: 1.5px solid var(--pp-accent); width: 100%; font-family: inherit;">
+                            </div>
+                        </div>
+                        {# Geburtsdatum #}
+                        <div>
+                            <div class="kd-field-label">Geburtsdatum</div>
+                            <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="birth_date">
+                                <span class="detail-edit-display" onclick="startDetailEdit(this)" title="Geburtsdatum bearbeiten" style="font-size: 13.5px; font-weight: 600; color: {% if candidate.birth_date %}var(--pp-text){% else %}var(--pp-textDim){% endif %}; {% if not candidate.birth_date %}font-style: italic;{% endif %} cursor: pointer;">{% if candidate.birth_date %}{{ candidate.birth_date.strftime('%d.%m.%Y') }}{% else %}Nicht angegeben{% endif %}</span>
+                                <input type="date" class="detail-edit-input hidden" value="{{ candidate.birth_date.isoformat() if candidate.birth_date else '' }}" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)" style="font-size: 13px; padding: 4px 8px; border-radius: 8px; border: 1.5px solid var(--pp-accent); width: 100%; font-family: inherit; color-scheme: dark;">
                             </div>
                         </div>
                     </div>
@@ -951,163 +986,119 @@
                             </button>
                         </div>
                     </div>
-                    <div class="kd-section-body">
+                    <div class="kd-section-body" style="padding:12px 24px 16px;">
 
-                        {# ── Neue Aufgabe hinzufuegen ── #}
-                        <div x-show="showAddForm" x-cloak style="margin-bottom:16px; padding:16px; border-radius:12px; background:var(--pp-bg); border:1px solid var(--pp-border);">
-                            <div style="margin-bottom:10px;">
-                                <div class="kd-field-label">Titel</div>
-                                <input type="text" x-model="newTodo.title" placeholder="Was muss erledigt werden?"
-                                    class="w-full rounded-lg text-sm font-semibold"
-                                    style="padding:8px 12px; border:1.5px solid var(--pp-border); color:var(--pp-text); background:var(--pp-surface); font-family:inherit; outline:none;">
+                        {# ── Neue Aufgabe inline ── #}
+                        <div x-show="showAddForm" x-cloak style="margin-bottom:12px; padding:12px 14px; border-radius:12px; background:rgba(54,154,255,0.04); border:1.5px solid rgba(54,154,255,0.15);">
+                            <input type="text" x-model="newTodo.title" placeholder="Was muss erledigt werden?" @keydown.enter="addTodo()"
+                                class="w-full rounded-lg text-sm font-semibold"
+                                style="padding:7px 10px; border:1.5px solid var(--pp-border); color:var(--pp-text); background:var(--pp-surface); font-family:inherit; outline:none; margin-bottom:8px;">
+                            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                                <input type="date" x-model="newTodo.due_date"
+                                    style="padding:5px 8px; border-radius:8px; border:1.5px solid var(--pp-border); font-size:12px; color:var(--pp-text); background:var(--pp-surface); font-family:inherit; outline:none; color-scheme:dark;">
+                                <select x-model="newTodo.priority"
+                                    style="padding:5px 8px; border-radius:8px; border:1.5px solid var(--pp-border); font-size:12px; color:var(--pp-text); background:var(--pp-surface); font-family:inherit; outline:none; cursor:pointer;">
+                                    <option value="unwichtig">Unwichtig</option>
+                                    <option value="mittelmaessig">Mittel</option>
+                                    <option value="wichtig" selected>Wichtig</option>
+                                    <option value="dringend">Dringend</option>
+                                    <option value="sehr_dringend">Sehr dringend</option>
+                                </select>
+                                <div style="flex:1;"></div>
+                                <button type="button" @click="addTodo()"
+                                    class="px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer"
+                                    style="background:linear-gradient(135deg,#2ed573,#1fb85b); color:#fff; border:none; font-family:inherit; box-shadow:0 2px 8px rgba(46,213,115,0.25);">
+                                    Erstellen
+                                </button>
                             </div>
-                            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:10px;">
-                                <div>
-                                    <div class="kd-field-label">F&auml;llig am</div>
-                                    <input type="date" x-model="newTodo.due_date"
-                                        class="w-full rounded-lg text-sm font-semibold"
-                                        style="padding:8px 12px; border:1.5px solid var(--pp-border); color:var(--pp-text); background:var(--pp-surface); font-family:inherit; outline:none; color-scheme:dark;">
-                                </div>
-                                <div>
-                                    <div class="kd-field-label">Priorit&auml;t</div>
-                                    <select x-model="newTodo.priority"
-                                        class="w-full rounded-lg text-sm font-semibold cursor-pointer"
-                                        style="padding:8px 12px; border:1.5px solid var(--pp-border); color:var(--pp-text); background:var(--pp-surface); font-family:inherit; outline:none;">
-                                        <option value="unwichtig">Unwichtig</option>
-                                        <option value="mittelmaessig">Mittelm&auml;&szlig;ig</option>
-                                        <option value="wichtig" selected>Wichtig</option>
-                                        <option value="dringend">Dringend</option>
-                                        <option value="sehr_dringend">Sehr dringend</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <div class="kd-field-label">Status</div>
-                                    <select x-model="newTodo.status"
-                                        class="w-full rounded-lg text-sm font-semibold cursor-pointer"
-                                        style="padding:8px 12px; border:1.5px solid var(--pp-border); color:var(--pp-text); background:var(--pp-surface); font-family:inherit; outline:none;">
-                                        <option value="open">Offen</option>
-                                        <option value="in_progress">In Bearbeitung</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div style="margin-bottom:10px;">
-                                <div class="kd-field-label">Notizen</div>
-                                <textarea x-model="newTodo.description" rows="2" placeholder="Optionale Beschreibung..."
-                                    class="w-full rounded-lg text-sm"
-                                    style="padding:8px 12px; border:1.5px solid var(--pp-border); color:var(--pp-text); background:var(--pp-surface); font-family:inherit; outline:none; resize:vertical;"></textarea>
-                            </div>
-                            <button type="button" @click="addTodo()"
-                                class="px-4 py-2 rounded-lg text-xs font-bold cursor-pointer"
-                                style="background:var(--pp-green); color:#000; border:none; font-family:inherit;">
-                                Aufgabe erstellen
-                            </button>
                         </div>
 
                         {# ── Filter-Leiste ── #}
-                        <div x-show="todos.length > 0" style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
+                        <div x-show="todos.length > 0" style="display:flex; gap:6px; margin-bottom:10px;">
                             <button type="button" @click="filter = 'all'" class="px-3 py-1 rounded-lg text-xs font-bold cursor-pointer"
-                                :style="filter === 'all' ? 'background:var(--pp-accent);color:#fff;border:1px solid var(--pp-accent);' : 'background:var(--pp-surfaceHover);color:var(--pp-textDim);border:1px solid var(--pp-border);'"
+                                :style="filter === 'all' ? 'background:rgba(54,154,255,0.15);color:#369aff;border:1px solid rgba(54,154,255,0.3);' : 'background:transparent;color:#5a6a8a;border:1px solid transparent;'"
                                 style="font-family:inherit;">Alle</button>
                             <button type="button" @click="filter = 'open'" class="px-3 py-1 rounded-lg text-xs font-bold cursor-pointer"
-                                :style="filter === 'open' ? 'background:var(--pp-blue);color:#fff;border:1px solid var(--pp-blue);' : 'background:var(--pp-surfaceHover);color:var(--pp-textDim);border:1px solid var(--pp-border);'"
+                                :style="filter === 'open' ? 'background:rgba(54,154,255,0.15);color:#369aff;border:1px solid rgba(54,154,255,0.3);' : 'background:transparent;color:#5a6a8a;border:1px solid transparent;'"
                                 style="font-family:inherit;">Offen</button>
                             <button type="button" @click="filter = 'done'" class="px-3 py-1 rounded-lg text-xs font-bold cursor-pointer"
-                                :style="filter === 'done' ? 'background:var(--pp-green);color:#000;border:1px solid var(--pp-green);' : 'background:var(--pp-surfaceHover);color:var(--pp-textDim);border:1px solid var(--pp-border);'"
+                                :style="filter === 'done' ? 'background:rgba(46,213,115,0.15);color:#2ed573;border:1px solid rgba(46,213,115,0.3);' : 'background:transparent;color:#5a6a8a;border:1px solid transparent;'"
                                 style="font-family:inherit;">Erledigt</button>
                         </div>
 
-                        {# ── Todo-Liste ── #}
-                        <div style="display:flex; flex-direction:column; gap:8px;">
+                        {# ── Todo-Liste (kompakt wie Anrufprotokoll) ── #}
+                        <div style="display:flex; flex-direction:column; gap:6px;">
                             <template x-for="todo in filteredTodos" :key="todo.id">
-                                <div style="border-radius:12px; border:1px solid var(--pp-border); overflow:hidden; transition:all .2s;"
-                                     :style="todo.status === 'done' ? 'border-color:rgba(52,211,153,0.25);background:rgba(52,211,153,0.06);' : todo.is_overdue ? 'border-color:rgba(239,68,68,0.25);background:rgba(239,68,68,0.06);' : 'background:var(--pp-bg);'">
+                                <div style="border-radius:14px; border:1px solid rgba(255,255,255,0.08); transition:all .2s; background:rgba(15,20,35,0.5);"
+                                     :style="todo.status === 'done' ? 'border-color:rgba(46,213,115,0.2); opacity:0.6;' : todo.is_overdue ? 'border-color:rgba(255,71,87,0.3); background:rgba(255,71,87,0.04);' : ''">
 
-                                    {# Kopfzeile #}
-                                    <div style="padding:14px 16px; display:flex; align-items:flex-start; gap:12px;">
+                                    {# ── Hauptzeile ── #}
+                                    <div style="padding:12px 16px; display:flex; align-items:center; gap:10px;">
                                         {# Checkbox #}
                                         <button type="button" @click="toggleStatus(todo)"
-                                            style="margin-top:2px; flex-shrink:0; width:22px; height:22px; border-radius:50%; border:2.5px solid var(--pp-textDim); display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all .15s; padding:0;"
-                                            :style="todo.status === 'done' ? 'border-color:var(--pp-green);background:var(--pp-green);' : ''">
-                                            <svg x-show="todo.status === 'done'" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+                                            style="flex-shrink:0; width:20px; height:20px; border-radius:6px; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all .15s; padding:0;"
+                                            :style="todo.status === 'done' ? 'border:2px solid #2ed573; background:#2ed573;' : 'border:2px solid #3d4a6e; background:transparent;'">
+                                            <svg x-show="todo.status === 'done'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
                                         </button>
 
-                                        {# Inhalt #}
+                                        {# Titel + Priority #}
                                         <div style="flex:1; min-width:0; cursor:pointer;" @click="todo._open = !todo._open">
-                                            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                                                <span style="font-size:13px; font-weight:600; font-family:var(--pp-ff); line-height:1.3;"
-                                                      :style="todo.status === 'done' ? 'color:var(--pp-textDim);text-decoration:line-through;' : 'color:var(--pp-text);'"
+                                            <div style="display:flex; align-items:center; gap:8px;">
+                                                <span style="font-size:13.5px; font-weight:600; line-height:1.3; font-family:inherit;"
+                                                      :style="todo.status === 'done' ? 'color:#5a6a8a; text-decoration:line-through;' : 'color:#e8ecf4;'"
                                                       x-text="todo.title"></span>
-                                                {# Priority Badge #}
-                                                <span style="font-size:10px; font-weight:700; padding:2px 8px; border-radius:99px; font-family:var(--pp-ff);"
-                                                      :style="'color:' + todo.priority_color + ';background:' + todo.priority_color + '1a;'"
+                                                <span style="font-size:10px; font-weight:700; padding:2px 7px; border-radius:6px; white-space:nowrap; font-family:inherit;"
+                                                      :style="'color:' + todo.priority_color + '; background:' + todo.priority_color + '18;'"
                                                       x-text="todo.priority_label"></span>
-                                            </div>
-                                            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:4px;">
-                                                <template x-if="todo.due_date">
-                                                    <span style="font-size:11px; display:inline-flex; align-items:center; gap:3px;"
-                                                          :style="todo.is_overdue ? 'color:var(--pp-red);font-weight:600;' : 'color:var(--pp-textDim);'">
-                                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/></svg>
-                                                        <span x-text="(todo.is_overdue ? 'Überfällig ' : '') + todo.due_date_formatted"></span>
-                                                    </span>
-                                                </template>
-                                                <template x-if="todo.description">
-                                                    <span style="font-size:11px; color:var(--pp-textMuted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:300px;" x-text="todo.description"></span>
-                                                </template>
                                             </div>
                                         </div>
 
-                                        {# Aufklapp-Pfeil #}
-                                        <svg @click="todo._open = !todo._open" :style="todo._open ? 'transform:rotate(180deg)' : ''" width="16" height="16" style="color:var(--pp-textDim); flex-shrink:0; margin-top:4px; cursor:pointer; transition:transform .2s;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+                                        {# Datum rechts #}
+                                        <template x-if="todo.due_date">
+                                            <span style="font-size:12px; font-weight:600; white-space:nowrap; font-family:inherit;"
+                                                  :style="todo.is_overdue ? 'color:#ff4757;' : 'color:#5a6a8a;'"
+                                                  x-text="todo.due_date_formatted"></span>
+                                        </template>
+
+                                        {# Pfeil #}
+                                        <svg @click="todo._open = !todo._open" :style="todo._open ? 'transform:rotate(180deg)' : ''" width="14" height="14" style="color:#5a6a8a; flex-shrink:0; cursor:pointer; transition:transform .2s;" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
                                     </div>
 
-                                    {# ── Aufklapp-Bereich (Edit) ── #}
-                                    <div x-show="todo._open" x-transition style="border-top:1px solid var(--pp-border); padding:16px; background:var(--pp-surface);">
-                                        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:12px;">
-                                            <div>
-                                                <div class="kd-field-label">F&auml;llig am</div>
+                                    {# ── Aufklapp-Detail ── #}
+                                    <div x-show="todo._open" x-transition.duration.150ms style="border-top:1px solid rgba(255,255,255,0.06); padding:12px 16px; background:rgba(22,28,45,0.6);">
+                                        <div style="display:flex; gap:8px; align-items:end; flex-wrap:wrap; margin-bottom:8px;">
+                                            <div style="flex:1; min-width:120px;">
+                                                <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#5a6a8a; margin-bottom:4px;">F&auml;llig</div>
                                                 <input type="date" :value="todo.due_date || ''" @change="updateTodo(todo.id, {due_date: $event.target.value || null})"
-                                                    class="w-full rounded-lg text-sm font-semibold"
-                                                    style="padding:8px 12px; border:1.5px solid var(--pp-border); color:var(--pp-text); background:var(--pp-bg); font-family:inherit; outline:none; color-scheme:dark;">
+                                                    style="width:100%; padding:5px 8px; border-radius:8px; border:1.5px solid rgba(255,255,255,0.08); font-size:12px; color:#e8ecf4; background:rgba(15,20,35,0.5); font-family:inherit; outline:none; color-scheme:dark;">
                                             </div>
-                                            <div>
-                                                <div class="kd-field-label">Priorit&auml;t</div>
+                                            <div style="min-width:100px;">
+                                                <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#5a6a8a; margin-bottom:4px;">Priorit&auml;t</div>
                                                 <select :value="todo.priority" @change="updateTodo(todo.id, {priority: $event.target.value})"
-                                                    class="w-full rounded-lg text-sm font-semibold cursor-pointer"
-                                                    style="padding:8px 12px; border:1.5px solid var(--pp-border); color:var(--pp-text); background:var(--pp-bg); font-family:inherit; outline:none;">
+                                                    style="width:100%; padding:5px 8px; border-radius:8px; border:1.5px solid rgba(255,255,255,0.08); font-size:12px; color:#e8ecf4; background:rgba(15,20,35,0.5); font-family:inherit; outline:none; cursor:pointer;">
                                                     <option value="unwichtig">Unwichtig</option>
-                                                    <option value="mittelmaessig">Mittelm&auml;&szlig;ig</option>
+                                                    <option value="mittelmaessig">Mittel</option>
                                                     <option value="wichtig">Wichtig</option>
                                                     <option value="dringend">Dringend</option>
                                                     <option value="sehr_dringend">Sehr dringend</option>
                                                 </select>
                                             </div>
-                                            <div>
-                                                <div class="kd-field-label">Status</div>
+                                            <div style="min-width:110px;">
+                                                <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#5a6a8a; margin-bottom:4px;">Status</div>
                                                 <select :value="todo.status" @change="updateTodo(todo.id, {status: $event.target.value})"
-                                                    class="w-full rounded-lg text-sm font-semibold cursor-pointer"
-                                                    style="padding:8px 12px; border:1.5px solid var(--pp-border); color:var(--pp-text); background:var(--pp-bg); font-family:inherit; outline:none;">
+                                                    style="width:100%; padding:5px 8px; border-radius:8px; border:1.5px solid rgba(255,255,255,0.08); font-size:12px; color:#e8ecf4; background:rgba(15,20,35,0.5); font-family:inherit; outline:none; cursor:pointer;">
                                                     <option value="open">Offen</option>
                                                     <option value="in_progress">In Bearbeitung</option>
                                                     <option value="done">Erledigt</option>
                                                     <option value="cancelled">Abgebrochen</option>
                                                 </select>
                                             </div>
+                                            <button type="button" @click="if(confirm('L\u00f6schen?')) deleteTodo(todo.id)"
+                                                style="padding:5px 10px; border-radius:8px; border:1px solid rgba(255,71,87,0.2); background:rgba(255,71,87,0.08); color:#ff4757; font-size:11px; font-weight:600; cursor:pointer; font-family:inherit; white-space:nowrap;">&#x1F5D1;</button>
                                         </div>
-                                        <div style="margin-bottom:12px;">
-                                            <div class="kd-field-label">Notizen</div>
-                                            <textarea :value="todo.description || ''" @change="updateTodo(todo.id, {description: $event.target.value || null})" rows="2"
-                                                class="w-full rounded-lg text-sm"
-                                                style="padding:8px 12px; border:1.5px solid var(--pp-border); color:var(--pp-text); background:var(--pp-bg); font-family:inherit; outline:none; resize:vertical;"></textarea>
-                                        </div>
-                                        <div style="display:flex; gap:8px; align-items:center;">
-                                            <button type="button" @click="todo._open = false"
-                                                class="px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer"
-                                                style="background:var(--pp-surfaceHover); border:1px solid var(--pp-border); color:var(--pp-text); font-family:inherit;">Schlie&szlig;en</button>
-                                            <div style="flex:1;"></div>
-                                            <button type="button" @click="if(confirm('Aufgabe l\u00f6schen?')) deleteTodo(todo.id)"
-                                                class="px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer"
-                                                style="background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.25); color:var(--pp-red); font-family:inherit;">L&ouml;schen</button>
-                                        </div>
+                                        <template x-if="todo.description">
+                                            <div style="font-size:12px; color:#7c8db5; line-height:1.5; padding:6px 0;" x-text="todo.description"></div>
+                                        </template>
                                     </div>
                                 </div>
                             </template>
@@ -1115,10 +1106,10 @@
 
                         {# Empty State #}
                         <template x-if="todos.length === 0 && !showAddForm">
-                            <div style="display:flex; flex-direction:column; align-items:center; padding:32px 0;">
-                                <div style="font-size:32px; margin-bottom:8px; opacity:0.3;">&#x2705;</div>
-                                <div style="font-size:13px; font-weight:600; color:var(--pp-textDim);">Keine Aufgaben vorhanden</div>
-                                <div style="font-size:11px; color:var(--pp-textMuted); margin-top:4px;">Aufgaben werden automatisch aus Anrufen erstellt oder k&ouml;nnen manuell hinzugef&uuml;gt werden.</div>
+                            <div style="display:flex; flex-direction:column; align-items:center; padding:28px 0;">
+                                <div style="font-size:28px; margin-bottom:6px; opacity:0.25;">&#x1F4CB;</div>
+                                <div style="font-size:13px; font-weight:600; color:#5a6a8a;">Keine Aufgaben</div>
+                                <div style="font-size:11px; color:#3d4a6e; margin-top:3px;">Werden automatisch aus Anrufen erstellt</div>
                             </div>
                         </template>
                     </div>
