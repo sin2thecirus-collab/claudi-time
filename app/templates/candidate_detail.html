@@ -1461,27 +1461,23 @@
 
 {# CV-Vorschau Slide-Over Panel #}
 {% if candidate.cv_url or candidate.cv_stored_path %}
-<div id="cv-preview-overlay" class="hidden" style="z-index: 9999; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; zoom: 1;">
-    <div class="cv-overlay-bg absolute inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity duration-300 ease-in-out opacity-0" onclick="closeCvPreview()"></div>
-    <div class="absolute inset-0 overflow-hidden">
-        <div class="absolute inset-0 overflow-hidden">
-            <div class="pointer-events-none absolute inset-y-0 right-0 flex max-w-full pl-10">
-                <div id="cv-preview-panel" class="pointer-events-auto w-screen max-w-2xl transform transition-transform duration-300 ease-in-out translate-x-full">
-                    <div class="flex h-full flex-col shadow-xl" style="font-family: 'Outfit', sans-serif; background: var(--pp-surface);">
-                        <div class="flex items-center justify-between px-6 py-4" style="background: var(--pp-surfaceHover); border-bottom: 1px solid var(--pp-border);">
-                            <div>
-                                <h2 class="text-lg font-bold" style="color: var(--pp-text);">CV-Vorschau</h2>
-                                <p class="text-sm" style="color: var(--pp-textDim);">{{ display_name }}</p>
-                            </div>
-                            <div class="flex items-center gap-3">
-                                <a href="/api/candidates/{{ candidate.id }}/cv-preview" target="_blank" class="kd-quickbtn" style="font-size: 11.5px; padding: 7px 12px;">&#x2197; Neuer Tab</a>
-                                <button type="button" onclick="closeCvPreview()" style="background: var(--pp-surfaceHover); border: none; border-radius: 8px; width: 32px; height: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--pp-textMuted); font-size: 16px;">&#x2715;</button>
-                            </div>
-                        </div>
-                        <div class="flex-1 overflow-hidden relative">
-                            <iframe id="cv-preview-iframe" src="" class="w-full h-full border-0" title="CV-Vorschau"></iframe>
-                        </div>
+<div id="cv-preview-overlay" class="hidden" style="z-index: 9999; position: fixed; top: 0; left: 0; right: 0; bottom: 0; zoom: calc(1 / 1.15);">
+    <div class="cv-overlay-bg transition-opacity duration-300 ease-in-out opacity-0" style="position: absolute; inset: 0; background: rgba(17,24,39,0.6); backdrop-filter: blur(4px); cursor: pointer;" onclick="closeCvPreview()"></div>
+    <div style="position: absolute; top: 0; right: 0; bottom: 0; width: 100%; max-width: 42rem; pointer-events: none;">
+        <div id="cv-preview-panel" style="pointer-events: auto; height: 100%; transform: translateX(100%); transition: transform 300ms ease-in-out;">
+            <div style="display: flex; flex-direction: column; height: 100%; box-shadow: -4px 0 24px rgba(0,0,0,0.4); font-family: 'Outfit', sans-serif; background: var(--pp-surface);">
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; background: var(--pp-surfaceHover); border-bottom: 1px solid var(--pp-border);">
+                    <div>
+                        <h2 style="font-size: 18px; font-weight: 700; margin: 0; color: var(--pp-text);">CV-Vorschau</h2>
+                        <p style="font-size: 13px; margin: 2px 0 0; color: var(--pp-textDim);">{{ display_name }}</p>
                     </div>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <a href="/api/candidates/{{ candidate.id }}/cv-preview" target="_blank" class="kd-quickbtn" style="font-size: 11.5px; padding: 7px 12px;">&#x2197; Neuer Tab</a>
+                        <button type="button" onclick="closeCvPreview()" style="background: var(--pp-surface); border: 1px solid var(--pp-border); border-radius: 8px; width: 36px; height: 36px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--pp-textMuted); font-size: 18px; font-weight: bold; z-index: 10;">&#x2715;</button>
+                    </div>
+                </div>
+                <div style="flex: 1; overflow: hidden; position: relative;">
+                    <iframe id="cv-preview-iframe" src="" style="width: 100%; height: 100%; border: 0;" title="CV-Vorschau"></iframe>
                 </div>
             </div>
         </div>
@@ -2026,28 +2022,51 @@ function saveDetailEdit(input) {
 }
 
 // ==================== CV-Vorschau ====================
+var _cvBlobUrl = null;
+
 function openCvPreview() {
     var overlay = document.getElementById('cv-preview-overlay');
     var panel = document.getElementById('cv-preview-panel');
     var iframe = document.getElementById('cv-preview-iframe');
-    iframe.src = '/api/candidates/{{ candidate.id }}/cv-preview';
+
+    // Alte Blob-URL aufräumen
+    if (_cvBlobUrl) { URL.revokeObjectURL(_cvBlobUrl); _cvBlobUrl = null; }
+
+    // PDF per fetch laden (sendet Cookies mit!) → Blob-URL für iframe
+    iframe.src = 'about:blank';
     overlay.classList.remove('hidden');
     requestAnimationFrame(function() {
-        overlay.querySelector('.cv-overlay-bg').classList.remove('opacity-0');
-        overlay.querySelector('.cv-overlay-bg').classList.add('opacity-100');
-        panel.classList.remove('translate-x-full'); panel.classList.add('translate-x-0');
+        overlay.querySelector('.cv-overlay-bg').style.opacity = '1';
+        panel.style.transform = 'translateX(0)';
     });
     document.body.style.overflow = 'hidden';
+
+    fetch('/api/candidates/{{ candidate.id }}/cv-preview', { credentials: 'same-origin' })
+        .then(function(resp) {
+            if (!resp.ok) throw new Error('CV laden fehlgeschlagen: ' + resp.status);
+            return resp.blob();
+        })
+        .then(function(blob) {
+            _cvBlobUrl = URL.createObjectURL(blob);
+            iframe.src = _cvBlobUrl;
+        })
+        .catch(function(err) {
+            console.error('CV-Vorschau Fehler:', err);
+            iframe.srcdoc = '<html><body style="display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#181A23;color:#E8E9ED;font-family:sans-serif;"><div style="text-align:center;"><p style="font-size:18px;">CV konnte nicht geladen werden</p><p style="font-size:13px;color:#9CA3AF;margin-top:8px;">Bitte versuche es über "Neuer Tab"</p></div></body></html>';
+        });
 }
 
 function closeCvPreview() {
     var overlay = document.getElementById('cv-preview-overlay');
     var panel = document.getElementById('cv-preview-panel');
     var iframe = document.getElementById('cv-preview-iframe');
-    panel.classList.remove('translate-x-0'); panel.classList.add('translate-x-full');
-    overlay.querySelector('.cv-overlay-bg').classList.remove('opacity-100');
-    overlay.querySelector('.cv-overlay-bg').classList.add('opacity-0');
-    setTimeout(function() { overlay.classList.add('hidden'); iframe.src = ''; }, 300);
+    panel.style.transform = 'translateX(100%)';
+    overlay.querySelector('.cv-overlay-bg').style.opacity = '0';
+    setTimeout(function() {
+        overlay.classList.add('hidden');
+        iframe.src = 'about:blank';
+        if (_cvBlobUrl) { URL.revokeObjectURL(_cvBlobUrl); _cvBlobUrl = null; }
+    }, 300);
     document.body.style.overflow = '';
 }
 
