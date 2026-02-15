@@ -30,6 +30,13 @@ logger = logging.getLogger(__name__)
 # System-Prompt für CV-Parsing (optimiert für Geschwindigkeit)
 CV_PARSING_SYSTEM_PROMPT = """Extrahiere strukturierte Daten aus dem CV. Texte 1:1 uebernehmen, nicht umformulieren!
 
+WICHTIGSTE REGEL — NIEMALS DATEN ERFINDEN:
+- Extrahiere NUR Informationen die WORTWÖRTLICH im CV-Text stehen!
+- Wenn bei einer Position KEINE Taetigkeiten/Aufgaben beschrieben sind → description: null
+- Wenn KEIN Firmenname bei einer Position steht → company: null
+- NIEMALS Aufgaben, Taetigkeiten, Firmen oder andere Daten ERFINDEN oder VERMUTEN!
+- Lieber null zurueckgeben als etwas zu halluzinieren!
+
 REGELN:
 - Fehlende Info = null (JSON null, nicht String "null")
 - Datum: "MM/YYYY" oder "YYYY", aktuell = "heute"
@@ -40,11 +47,12 @@ REGELN:
 KATEGORIEN:
 
 1. current_position: Aktuelle/letzte Berufsbezeichnung (korrekte Schreibweise!)
-2. current_company: Aktueller/letzter Arbeitgeber aus dem Werdegang
+2. current_company: Aktueller/letzter Arbeitgeber aus dem Werdegang. Wenn kein Firmenname im CV steht → null!
 
 3. work_history: ALLE Jobs (auch Praktika, Nebenjobs), neueste zuerst
    - {company, position, start_date, end_date, description}
-   - description: Taetigkeiten als Bullets oder null
+   - description: NUR Taetigkeiten die EXPLIZIT im CV stehen als Bullets. Wenn KEINE Aufgaben beschrieben → null! NIEMALS Aufgaben erfinden!
+   - company: NUR wenn ein Firmenname im CV steht. Wenn kein Firmenname → null!
    - NICHT hier: Ausbildungen, Weiterbildungen, IHK, Zertifikate -> education/further_education
 
 4. education: Schulen, Berufsausbildungen (NICHT IHK!), Studium
@@ -292,7 +300,7 @@ class CVParserService:
                         {
                             "role": "user",
                             "content": [
-                                {"type": "text", "text": "Analysiere diesen Lebenslauf (als Bild) und extrahiere den VOLLSTÄNDIGEN beruflichen Werdegang mit ALLEN Stationen:"},
+                                {"type": "text", "text": "Analysiere diesen Lebenslauf (als Bild) und extrahiere den VOLLSTÄNDIGEN beruflichen Werdegang mit ALLEN Stationen. WICHTIG: Nur Informationen extrahieren die im Bild sichtbar sind! NIEMALS Aufgaben oder Firmen erfinden!"},
                                 *image_contents,
                             ],
                         },
@@ -373,7 +381,7 @@ class CVParserService:
                         "model": "gpt-4o-mini",
                         "messages": [
                             {"role": "system", "content": CV_PARSING_SYSTEM_PROMPT},
-                            {"role": "user", "content": f"Analysiere diesen Lebenslauf und extrahiere den VOLLSTÄNDIGEN beruflichen Werdegang mit ALLEN Stationen:\n\n{cv_text}"},
+                            {"role": "user", "content": f"Analysiere diesen Lebenslauf und extrahiere den VOLLSTÄNDIGEN beruflichen Werdegang mit ALLEN Stationen. WICHTIG: Nur Informationen extrahieren die im Text stehen! NIEMALS Aufgaben oder Firmen erfinden!\n\n{cv_text}"},
                         ],
                         "temperature": 0.1,
                         "max_tokens": 4000,  # Erhöht für vollständigen Werdegang
