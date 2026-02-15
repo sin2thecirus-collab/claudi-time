@@ -953,6 +953,32 @@ async def init_db() -> None:
         # ── Phase 2.1: Kandidaten-Antwort-System + Numerische ID ──
         ("candidates", "candidate_number", "INTEGER"),
         ("candidates", "presented_at_companies", "JSONB"),
+        # ── Anrede / Gender ──
+        ("candidates", "gender", "VARCHAR(20)"),
+        # ── Qualifizierungsgespräch-Felder (Phase 4) ──
+        ("candidates", "desired_positions", "TEXT"),
+        ("candidates", "key_activities", "TEXT"),
+        ("candidates", "home_office_days", "VARCHAR(50)"),
+        ("candidates", "commute_max", "VARCHAR(100)"),
+        ("candidates", "commute_transport", "VARCHAR(50)"),
+        ("candidates", "erp_main", "VARCHAR(100)"),
+        ("candidates", "employment_type", "VARCHAR(50)"),
+        ("candidates", "part_time_hours", "VARCHAR(50)"),
+        ("candidates", "preferred_industries", "TEXT"),
+        ("candidates", "avoided_industries", "TEXT"),
+        ("candidates", "open_office_ok", "VARCHAR(20)"),
+        ("candidates", "whatsapp_ok", "BOOLEAN"),
+        ("candidates", "other_recruiters", "TEXT"),
+        ("candidates", "exclusivity_agreed", "BOOLEAN"),
+        ("candidates", "applied_at_companies_text", "TEXT"),
+        # ── Call-Transkription / KI-Zusammenfassung ──
+        ("candidates", "call_transcript", "TEXT"),
+        ("candidates", "call_summary", "TEXT"),
+        ("candidates", "call_date", "TIMESTAMPTZ"),
+        ("candidates", "call_type", "VARCHAR(50)"),
+        # ── Profil-PDF ──
+        ("candidates", "profile_pdf_r2_key", "VARCHAR(500)"),
+        ("candidates", "profile_pdf_generated_at", "TIMESTAMPTZ"),
     ]
     for table_name, col_name, col_type in migrations:
         try:
