@@ -80,11 +80,7 @@ async def create_todo(data: TodoCreate, db: AsyncSession = Depends(get_db)):
     service = ATSTodoService(db)
     todo = await service.create_todo(**data.model_dump(exclude_unset=True))
     await db.commit()
-    return {
-        "id": str(todo.id),
-        "title": todo.title,
-        "message": "Aufgabe erstellt",
-    }
+    return _serialize_todo(todo)
 
 
 @router.get("")
@@ -149,7 +145,7 @@ async def update_todo(
     if not todo:
         raise HTTPException(status_code=404, detail="Aufgabe nicht gefunden")
     await db.commit()
-    return {"message": "Aufgabe aktualisiert", "id": str(todo.id)}
+    return _serialize_todo(todo)
 
 
 @router.put("/{todo_id}/complete")

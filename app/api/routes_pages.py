@@ -25,6 +25,7 @@ from app.services.filter_service import FilterService
 from app.services.statistics_service import StatisticsService
 from app.services.alert_service import AlertService
 from app.services.ats_call_note_service import ATSCallNoteService
+from app.services.ats_todo_service import ATSTodoService
 
 logger = logging.getLogger(__name__)
 
@@ -146,12 +147,35 @@ async def candidate_detail(
     )
     call_notes = call_notes_result["items"]
 
+    # Todos fuer Aufgaben-Tab laden
+    todo_service = ATSTodoService(db)
+    todos_result = await todo_service.list_todos(
+        candidate_id=candidate_id, per_page=100
+    )
+    todos = todos_result["items"]
+
+    # Todos serialisieren fuer Alpine.js tojson im Template
+    todos_serialized = []
+    for t in todos:
+        todos_serialized.append({
+            "id": str(t.id),
+            "title": t.title,
+            "description": t.description,
+            "status": t.status.value if hasattr(t.status, 'value') else t.status,
+            "priority": t.priority.value if hasattr(t.priority, 'value') else t.priority,
+            "due_date": t.due_date.isoformat() if t.due_date else None,
+            "is_overdue": t.is_overdue if hasattr(t, 'is_overdue') else False,
+            "created_at": t.created_at.isoformat() if t.created_at else None,
+        })
+
     return templates.TemplateResponse(
         "candidate_detail.html",
         {
             "request": request,
             "candidate": candidate,
             "call_notes": call_notes,
+            "todos": todos,
+            "todos_json": todos_serialized,
         }
     )
 
