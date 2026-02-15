@@ -152,8 +152,13 @@ TEMPLATE_KONTAKTDATEN_BODY = """
     <p style="font-size: 15px; line-height: 1.6;">{{ salutation }},</p>
 
     <p style="font-size: 15px; line-height: 1.6;">
-        vielen Dank für das angenehme Gespräch heute. Wie besprochen, hier meine Kontaktdaten
-        – melden Sie sich jederzeit, wenn Sie Fragen haben oder wir etwas Passendes für Sie finden:
+        herzlichen Dank für das angenehme Gespräch heute.
+    </p>
+
+    <p style="font-size: 15px; line-height: 1.6;">
+        Wie besprochen, erhalten Sie anbei meine Kontaktdaten. Falls Sie Ihre Zeugnisse aktuell
+        zur Hand haben, würde ich mich freuen, diese zur besseren Einschätzung Ihrer fachlichen
+        und beruflichen Expertise ebenfalls zu erhalten.
     </p>
 
     <div style="background: #f7fafc; border-left: 4px solid #34D399; padding: 16px 20px; margin: 20px 0; border-radius: 8px;">
@@ -165,7 +170,7 @@ TEMPLATE_KONTAKTDATEN_BODY = """
     </div>
 
     <p style="font-size: 15px; line-height: 1.6;">
-        Ich freue mich auf die weitere Zusammenarbeit!
+        Sobald sich bei uns interessante Themen ergeben, melde ich mich umgehend bei Ihnen.
     </p>
 
     <p style="font-size: 15px; line-height: 1.6;">
