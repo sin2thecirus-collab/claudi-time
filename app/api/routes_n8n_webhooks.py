@@ -1638,23 +1638,37 @@ async def _auto_assign_to_candidate(
         candidate.willingness_to_change = willingness
         fields_updated.append("willingness_to_change")
 
-    # ATSCallNote erstellen
+    # ATSCallNote erstellen — call_type korrekt mappen
     direction_val = CallDirection.INBOUND if data.direction == "inbound" else CallDirection.OUTBOUND
+    n8n_type = (data.call_type or "").lower()
+    call_type_map = {
+        "qualifizierung": CallType.QUALIFICATION,
+        "kurzer_call": CallType.CANDIDATE_CALL,
+        "akquise": CallType.ACQUISITION,
+        "sonstiges": CallType.CANDIDATE_CALL,
+        "followup": CallType.FOLLOWUP,
+    }
+    mapped_call_type = call_type_map.get(n8n_type, CallType.CANDIDATE_CALL)
+
+    # Action Items aus extracted_data extrahieren
+    action_items = ext.get("action_items") or ext.get("follow_ups") or ext.get("tasks")
+
     call_note = ATSCallNote(
         candidate_id=candidate.id,
-        call_type=CallType.CANDIDATE_CALL,
+        call_type=mapped_call_type,
         direction=direction_val,
-        summary=data.call_summary or "KI-transkribiertes Gespraech",
+        summary=data.call_summary or "Anruf ohne Zusammenfassung",
         raw_notes=data.transcript[:5000] if data.transcript else None,
         duration_minutes=(data.duration_seconds // 60) if data.duration_seconds else None,
         called_at=candidate.call_date or now,
+        action_items=action_items if isinstance(action_items, list) else None,
     )
     db.add(call_note)
 
     # Activity loggen
     activity = ATSActivity(
         activity_type=ActivityType.CALL_LOGGED,
-        description=f"Anruf automatisch zugeordnet: {data.call_summary[:100] if data.call_summary else 'Transkribiertes Gespraech'}",
+        description=f"Anruf zugeordnet ({mapped_call_type.value}): {data.call_summary[:100] if data.call_summary else 'Gespraech'}",
         candidate_id=candidate.id,
         metadata_json={
             "source": "webex_auto_assign",
@@ -1688,10 +1702,21 @@ async def _auto_assign_to_contact_or_company(
     now = datetime.now(timezone.utc)
     direction_val = CallDirection.INBOUND if data.direction == "inbound" else CallDirection.OUTBOUND
 
+    # call_type korrekt mappen
+    n8n_type = (data.call_type or "").lower()
+    call_type_map = {
+        "qualifizierung": CallType.QUALIFICATION,
+        "kurzer_call": CallType.CANDIDATE_CALL,
+        "akquise": CallType.ACQUISITION,
+        "sonstiges": CallType.CANDIDATE_CALL,
+        "followup": CallType.FOLLOWUP,
+    }
+    mapped_call_type = call_type_map.get(n8n_type, CallType.ACQUISITION)
+
     call_note = ATSCallNote(
-        call_type=CallType.ACQUISITION,
+        call_type=mapped_call_type,
         direction=direction_val,
-        summary=data.call_summary or "KI-transkribiertes Gespraech",
+        summary=data.call_summary or "Anruf ohne Zusammenfassung",
         raw_notes=data.transcript[:5000] if data.transcript else None,
         duration_minutes=(data.duration_seconds // 60) if data.duration_seconds else None,
         called_at=now,

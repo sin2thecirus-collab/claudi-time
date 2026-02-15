@@ -1461,11 +1461,11 @@
 
 {# CV-Vorschau Slide-Over Panel #}
 {% if candidate.cv_url or candidate.cv_stored_path %}
-<div id="cv-preview-overlay" class="hidden fixed inset-0" style="z-index: 9999;">
-    <div class="cv-overlay-bg fixed inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity duration-300 ease-in-out opacity-0" onclick="closeCvPreview()"></div>
-    <div class="fixed inset-0 overflow-hidden">
+<div id="cv-preview-overlay" class="hidden" style="z-index: 9999; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; zoom: 1;">
+    <div class="cv-overlay-bg absolute inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity duration-300 ease-in-out opacity-0" onclick="closeCvPreview()"></div>
+    <div class="absolute inset-0 overflow-hidden">
         <div class="absolute inset-0 overflow-hidden">
-            <div class="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10">
+            <div class="pointer-events-none absolute inset-y-0 right-0 flex max-w-full pl-10">
                 <div id="cv-preview-panel" class="pointer-events-auto w-screen max-w-2xl transform transition-transform duration-300 ease-in-out translate-x-full">
                     <div class="flex h-full flex-col shadow-xl" style="font-family: 'Outfit', sans-serif; background: var(--pp-surface);">
                         <div class="flex items-center justify-between px-6 py-4" style="background: var(--pp-surfaceHover); border-bottom: 1px solid var(--pp-border);">
