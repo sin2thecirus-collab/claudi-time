@@ -1653,12 +1653,17 @@ async def _auto_assign_to_candidate(
     # Action Items aus extracted_data extrahieren
     action_items = ext.get("action_items") or ext.get("follow_ups") or ext.get("tasks")
 
+    # Transkript (raw_notes) NUR bei Qualifizierung speichern
+    raw_notes = None
+    if mapped_call_type == CallType.QUALIFICATION and data.transcript:
+        raw_notes = data.transcript[:5000]
+
     call_note = ATSCallNote(
         candidate_id=candidate.id,
         call_type=mapped_call_type,
         direction=direction_val,
         summary=data.call_summary or "Anruf ohne Zusammenfassung",
-        raw_notes=data.transcript[:5000] if data.transcript else None,
+        raw_notes=raw_notes,
         duration_minutes=(data.duration_seconds // 60) if data.duration_seconds else None,
         called_at=candidate.call_date or now,
         action_items=action_items if isinstance(action_items, list) else None,
@@ -1724,11 +1729,16 @@ async def _auto_assign_to_contact_or_company(
     ext = data.extracted_data or data.mt_payload or {}
     action_items = ext.get("action_items") or ext.get("follow_ups") or ext.get("tasks")
 
+    # Transkript (raw_notes) NUR bei Qualifizierung speichern
+    raw_notes = None
+    if mapped_call_type == CallType.QUALIFICATION and data.transcript:
+        raw_notes = data.transcript[:5000]
+
     call_note = ATSCallNote(
         call_type=mapped_call_type,
         direction=direction_val,
         summary=data.call_summary or "Anruf ohne Zusammenfassung",
-        raw_notes=data.transcript[:5000] if data.transcript else None,
+        raw_notes=raw_notes,
         duration_minutes=(data.duration_seconds // 60) if data.duration_seconds else None,
         called_at=now,
         action_items=action_items if isinstance(action_items, list) else None,
