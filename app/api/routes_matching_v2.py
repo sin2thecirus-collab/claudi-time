@@ -9,14 +9,16 @@ import logging
 from uuid import UUID
 
 import httpx
-from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException, Query
+from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy import select, func, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.rate_limiter import RateLimitTier, rate_limit
 from app.config import settings
 from app.database import get_db
 from app.models.candidate import Candidate
+from app.models.company_contact import CompanyContact
 from app.services.profile_engine_service import ProfileEngineService
 
 logger = logging.getLogger(__name__)
@@ -1741,7 +1743,9 @@ Keine Erklaerungen, kein Markdown — nur valides JSON."""
 
 
 @router.post("/admin/gender-sync")
+@rate_limit(RateLimitTier.ADMIN)
 async def admin_gender_sync(
+    request: Request,
     db: AsyncSession = Depends(get_db),
     batch_size: int = Query(default=50, ge=10, le=200),
     max_total: int = Query(default=5000, ge=1, le=25000),
@@ -1835,6 +1839,103 @@ async def admin_gender_sync(
     return {
         "status": "ok",
         "total_candidates": len(candidates),
+        "updated": total_updated,
+        "skipped": total_skipped,
+        "failed": total_failed,
+        "errors": errors[:5] if errors else [],
+    }
+
+
+@router.post("/admin/gender-sync-contacts")
+@rate_limit(RateLimitTier.ADMIN)
+async def admin_gender_sync_contacts(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    batch_size: int = Query(default=50, ge=10, le=200),
+    max_total: int = Query(default=5000, ge=1, le=25000),
+):
+    """Bulk-Klassifizierung fuer CompanyContacts: GPT-4o-mini bestimmt Herr/Frau aus Vornamen.
+
+    Verarbeitet alle Kontakte ohne salutation-Feld in Batches.
+    """
+    result = await db.execute(
+        select(CompanyContact.id, CompanyContact.first_name)
+        .where(CompanyContact.salutation.is_(None))
+        .where(CompanyContact.first_name.isnot(None))
+        .where(CompanyContact.first_name != "")
+        .limit(max_total)
+    )
+    contacts = result.all()
+
+    if not contacts:
+        return {"status": "ok", "message": "Keine Kontakte ohne Anrede gefunden", "updated": 0}
+
+    total_updated = 0
+    total_skipped = 0
+    total_failed = 0
+    errors = []
+
+    for i in range(0, len(contacts), batch_size):
+        batch = contacts[i : i + batch_size]
+        names_list = [{"name": c.first_name.strip()} for c in batch]
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.post(
+                    "https://api.openai.com/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {settings.openai_api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": "gpt-4o-mini",
+                        "temperature": 0.0,
+                        "messages": [
+                            {"role": "system", "content": GENDER_SYSTEM_PROMPT},
+                            {"role": "user", "content": json.dumps(names_list, ensure_ascii=False)},
+                        ],
+                    },
+                )
+                resp.raise_for_status()
+                data = resp.json()
+
+            content = data["choices"][0]["message"]["content"].strip()
+            if content.startswith("```"):
+                content = content.split("```")[1]
+                if content.startswith("json"):
+                    content = content[4:]
+            gpt_results = json.loads(content)
+
+            gender_map = {}
+            for item in gpt_results:
+                name = item.get("name", "").strip()
+                gender = item.get("gender")
+                if gender in ("Herr", "Frau"):
+                    gender_map[name.lower()] = gender
+
+            for contact_id, first_name in batch:
+                mapped_gender = gender_map.get(first_name.strip().lower())
+                if mapped_gender:
+                    await db.execute(
+                        update(CompanyContact)
+                        .where(CompanyContact.id == contact_id)
+                        .values(salutation=mapped_gender)
+                    )
+                    total_updated += 1
+                else:
+                    total_skipped += 1
+
+            await db.commit()
+
+        except Exception as e:
+            total_failed += len(batch)
+            errors.append(f"Batch {i // batch_size + 1}: {str(e)[:200]}")
+            logger.error(f"Contact Gender-Sync Batch {i // batch_size + 1} fehlgeschlagen: {e}")
+            await db.rollback()
+
+    return {
+        "status": "ok",
+        "total_contacts": len(contacts),
         "updated": total_updated,
         "skipped": total_skipped,
         "failed": total_failed,
