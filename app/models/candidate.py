@@ -107,6 +107,10 @@ class Candidate(Base):
     call_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # Wann das Qualifizierungsgespräch war
     call_type: Mapped[str | None] = mapped_column(String(50))  # "qualifizierung" / "kurz" / "kunde" / "sonstig"
 
+    # ── Profil-PDF (Sincirus Branded) ──
+    profile_pdf_r2_key: Mapped[str | None] = mapped_column(String(500))  # R2 Object Key: "profiles/{id}_{Name}_profil.pdf"
+    profile_pdf_generated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # Wann das PDF zuletzt generiert wurde
+
     # Numerische Kandidaten-ID (fuer datenschutzsichere KI-Verarbeitung ohne PII)
     # server_default sorgt dafuer, dass PostgreSQL automatisch die naechste Nummer vergibt
     candidate_number: Mapped[int | None] = mapped_column(

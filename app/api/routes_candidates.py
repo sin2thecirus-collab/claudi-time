@@ -1400,22 +1400,52 @@ async def cv_preview_proxy(
 
 @router.get(
     "/{candidate_id}/profile-pdf",
-    summary="Sincirus Branded Profil-PDF generieren",
+    summary="Sincirus Branded Profil-PDF generieren oder aus R2 laden",
 )
 @rate_limit(RateLimitTier.AI)
 async def generate_profile_pdf(
     candidate_id: UUID,
+    regenerate: bool = False,
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Generiert ein anonymes Kandidaten-Profil als PDF im Sincirus Dark Design.
+    Liefert das Kandidaten-Profil-PDF.
 
-    Verwendet WeasyPrint fuer die PDF-Generierung.
-    Rechenintensiv — daher AI Rate-Limit (10 req/min).
+    1. Wenn ein gespeichertes PDF in R2 existiert UND regenerate=false → R2-Version laden
+    2. Sonst → Neu generieren mit WeasyPrint, in R2 speichern, am Kandidaten verknuepfen
     """
+    import re
+    from datetime import datetime, timezone
     from fastapi.responses import Response
+    from app.models.candidate import Candidate
     from app.services.profile_pdf_service import ProfilePdfService
+    from app.services.r2_storage_service import R2StorageService
 
+    # Kandidat laden um R2-Key zu pruefen
+    candidate = await db.get(Candidate, candidate_id)
+    if not candidate:
+        raise NotFoundException(message=f"Kandidat {candidate_id} nicht gefunden")
+
+    # Versuch 1: Gespeichertes PDF aus R2 laden
+    if not regenerate and candidate.profile_pdf_r2_key:
+        try:
+            r2 = R2StorageService()
+            if r2.is_available:
+                pdf_bytes = r2.download_cv(candidate.profile_pdf_r2_key)
+                if pdf_bytes:
+                    logger.info(f"Profil-PDF aus R2 geladen: {candidate.profile_pdf_r2_key}")
+                    return Response(
+                        content=pdf_bytes,
+                        media_type="application/pdf",
+                        headers={
+                            "Content-Disposition": "inline",
+                            "Cache-Control": "private, max-age=300",
+                        },
+                    )
+        except Exception as e:
+            logger.warning(f"R2-Download fehlgeschlagen, generiere neu: {e}")
+
+    # Versuch 2: Neu generieren
     pdf_service = ProfilePdfService(db)
 
     try:
@@ -1425,6 +1455,20 @@ async def generate_profile_pdf(
     except Exception as e:
         logger.error(f"PDF-Generierung fehlgeschlagen fuer {candidate_id}: {e}")
         raise ConflictException(message=f"PDF-Generierung fehlgeschlagen: {str(e)[:200]}")
+
+    # In R2 speichern und am Kandidaten verknuepfen
+    try:
+        r2 = R2StorageService()
+        if r2.is_available and pdf_bytes:
+            safe_name = re.sub(r"[^a-zA-Z0-9_-]", "_", f"{candidate.first_name}_{candidate.last_name}")
+            r2_key = f"profiles/{str(candidate_id)[:8]}_{safe_name}_profil.pdf"
+            r2.upload_file(key=r2_key, file_content=pdf_bytes, content_type="application/pdf")
+            candidate.profile_pdf_r2_key = r2_key
+            candidate.profile_pdf_generated_at = datetime.now(timezone.utc)
+            await db.commit()
+            logger.info(f"Profil-PDF generiert + R2 + DB: {r2_key}")
+    except Exception as e:
+        logger.warning(f"R2-Upload nach manueller Generierung fehlgeschlagen: {e}")
 
     return Response(
         content=pdf_bytes,

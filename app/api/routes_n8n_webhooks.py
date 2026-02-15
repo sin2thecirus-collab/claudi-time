@@ -1412,6 +1412,78 @@ async def n8n_debug_db_fields(
     }
 
 
+# ── Profil-PDF nach Quali-Gespraech ──────────────────
+
+
+async def _generate_profile_pdf_background(
+    db: AsyncSession,
+    candidate_id: str,
+    candidate_name: str,
+) -> dict:
+    """Generiert Profil-PDF, speichert es in R2 und verknuepft es mit dem Kandidaten.
+
+    Fehler werden geloggt aber NICHT weitergegeben — die Zuordnung soll
+    NIEMALS an der PDF-Generierung scheitern.
+
+    Returns:
+        Dict mit pdf_status, pdf_r2_key, pdf_size_bytes
+    """
+    try:
+        from app.models.candidate import Candidate
+        from app.services.profile_pdf_service import ProfilePdfService
+        from app.services.r2_storage_service import R2StorageService
+
+        pdf_service = ProfilePdfService(db)
+        pdf_bytes = await pdf_service.generate_profile_pdf(UUID(candidate_id))
+
+        if not pdf_bytes:
+            logger.warning(f"PDF-Generierung lieferte leere Bytes fuer {candidate_name}")
+            return {"pdf_status": "empty", "pdf_r2_key": None}
+
+        # In R2 speichern
+        r2 = R2StorageService()
+        if r2.is_available:
+            # Sicherer Dateiname: Sonderzeichen entfernen
+            safe_name = re.sub(r"[^a-zA-Z0-9_-]", "_", candidate_name)
+            r2_key = f"profiles/{candidate_id[:8]}_{safe_name}_profil.pdf"
+            r2.upload_file(
+                key=r2_key,
+                file_content=pdf_bytes,
+                content_type="application/pdf",
+            )
+
+            # R2-Key am Kandidaten speichern
+            candidate = await db.get(Candidate, UUID(candidate_id))
+            if candidate:
+                candidate.profile_pdf_r2_key = r2_key
+                candidate.profile_pdf_generated_at = datetime.now(timezone.utc)
+                await db.commit()
+
+            logger.info(
+                f"Profil-PDF generiert + R2 + DB: {r2_key} "
+                f"({len(pdf_bytes)} Bytes) fuer {candidate_name}"
+            )
+            return {
+                "pdf_status": "generated_and_uploaded",
+                "pdf_r2_key": r2_key,
+                "pdf_size_bytes": len(pdf_bytes),
+            }
+        else:
+            logger.info(
+                f"Profil-PDF generiert (kein R2): "
+                f"{len(pdf_bytes)} Bytes fuer {candidate_name}"
+            )
+            return {
+                "pdf_status": "generated_no_r2",
+                "pdf_r2_key": None,
+                "pdf_size_bytes": len(pdf_bytes),
+            }
+
+    except Exception as e:
+        logger.error(f"Profil-PDF Generierung fehlgeschlagen fuer {candidate_name}: {e}")
+        return {"pdf_status": f"error: {str(e)[:200]}", "pdf_r2_key": None}
+
+
 # ── Zwischenspeicher: Unzugeordnete Anrufe ──────────
 
 
@@ -1708,12 +1780,19 @@ async def n8n_call_store_or_assign(
 
             await db.commit()
 
+            # Profil-PDF generieren (non-blocking)
+            pdf_result = await _generate_profile_pdf_background(
+                db, data.candidate_id, result.get("candidate_name", ""),
+            )
+            actions_taken.append(f"pdf: {pdf_result.get('pdf_status')}")
+
             return {
                 "status": "auto_assigned",
                 "entity_type": "candidate",
                 "entity_id": data.candidate_id,
                 "entity_name": result.get("candidate_name"),
                 "actions": actions_taken,
+                "pdf": pdf_result,
             }
         else:
             raise HTTPException(status_code=404, detail=result.get("error"))
@@ -1755,12 +1834,21 @@ async def n8n_call_store_or_assign(
 
             await db.commit()
 
+            # Profil-PDF generieren wenn Kandidat zugeordnet
+            pdf_result = None
+            if entity_type == "candidate":
+                pdf_result = await _generate_profile_pdf_background(
+                    db, entity_id, entity_name,
+                )
+                actions_taken.append(f"pdf: {pdf_result.get('pdf_status')}")
+
             return {
                 "status": "auto_assigned",
                 "entity_type": entity_type,
                 "entity_id": entity_id,
                 "entity_name": entity_name,
                 "actions": actions_taken,
+                "pdf": pdf_result,
             }
 
     # ── Pfad 3: Kein Match → Staging ──

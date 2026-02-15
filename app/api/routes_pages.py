@@ -1,5 +1,7 @@
 """Page Routes - HTML-Seiten fuer das Frontend."""
 
+import logging
+import re
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
@@ -22,6 +24,8 @@ from app.services.company_service import CompanyService
 from app.services.filter_service import FilterService
 from app.services.statistics_service import StatisticsService
 from app.services.alert_service import AlertService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Pages"])
 templates = Jinja2Templates(directory="app/templates")
@@ -1831,10 +1835,45 @@ async def gespraeche_assign(
 
     await db.commit()
 
+    # Profil-PDF automatisch generieren wenn Kandidat zugeordnet
+    pdf_status = None
+    if entity_type == "candidate":
+        try:
+            from datetime import timezone as tz
+            from app.services.profile_pdf_service import ProfilePdfService
+            from app.services.r2_storage_service import R2StorageService
+
+            pdf_service = ProfilePdfService(db)
+            pdf_bytes = await pdf_service.generate_profile_pdf(UUID(entity_id))
+
+            if pdf_bytes:
+                r2 = R2StorageService()
+                if r2.is_available:
+                    safe_name = re.sub(r"[^a-zA-Z0-9_-]", "_", f"{candidate.first_name}_{candidate.last_name}")
+                    r2_key = f"profiles/{str(entity_id)[:8]}_{safe_name}_profil.pdf"
+                    r2.upload_file(key=r2_key, file_content=pdf_bytes, content_type="application/pdf")
+
+                    # R2-Key am Kandidaten speichern
+                    candidate.profile_pdf_r2_key = r2_key
+                    candidate.profile_pdf_generated_at = datetime.now(tz.utc)
+                    await db.commit()
+
+                    pdf_status = "generated_and_uploaded"
+                    actions.append(f"pdf: {pdf_status} ({len(pdf_bytes)} Bytes)")
+                    logger.info(f"Profil-PDF generiert + R2 + DB: {r2_key} fuer {candidate.first_name} {candidate.last_name}")
+                else:
+                    pdf_status = "generated_no_r2"
+                    actions.append(f"pdf: {pdf_status}")
+        except Exception as e:
+            pdf_status = f"error"
+            actions.append(f"pdf: error ({str(e)[:100]})")
+            logger.error(f"Profil-PDF Generierung fehlgeschlagen bei manueller Zuordnung: {e}")
+
     return JSONResponse(content={
         "success": True,
         "message": f"Anruf erfolgreich zugeordnet",
         "actions": actions,
+        "pdf_status": pdf_status,
     })
 
 

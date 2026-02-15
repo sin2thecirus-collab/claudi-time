@@ -161,7 +161,8 @@
                 {% if candidate.cv_url or candidate.cv_stored_path %}
                 <button type="button" onclick="openCvPreview()" class="kd-quickbtn kd-quickbtn-accent">&#x1F4C4; CV ansehen</button>
                 {% endif %}
-                <a href="/api/candidates/{{ candidate.id }}/profile-pdf" target="_blank" class="kd-quickbtn kd-quickbtn-accent" style="text-decoration:none;">&#x1F4CA; Profil-PDF</a>
+                <a href="/api/candidates/{{ candidate.id }}/profile-pdf" target="_blank" class="kd-quickbtn kd-quickbtn-accent" style="text-decoration:none;" title="{% if candidate.profile_pdf_generated_at %}Zuletzt: {{ candidate.profile_pdf_generated_at.strftime('%d.%m.%Y %H:%M') }}{% else %}Wird beim Klick generiert{% endif %}">&#x1F4CA; Profil-PDF{% if candidate.profile_pdf_r2_key %} &#x2713;{% endif %}</a>
+                <a href="/api/candidates/{{ candidate.id }}/profile-pdf?regenerate=true" target="_blank" class="kd-quickbtn" style="text-decoration:none; font-size:12px;" title="PDF neu generieren (Cache ignorieren)">&#x1F504;</a>
                 <button type="button" @click="showPipelineModal = true" class="kd-quickbtn kd-quickbtn-primary">&#x1F680; Pipeline</button>
                 <button type="button" onclick="deleteCandidate('{{ candidate.id }}', '{{ display_name }}')" class="kd-quickbtn kd-quickbtn-danger">&#x1F5D1;</button>
             </div>
