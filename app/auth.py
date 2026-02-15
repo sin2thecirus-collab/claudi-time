@@ -190,8 +190,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
 
-        # Anti-Clickjacking
-        response.headers["X-Frame-Options"] = "DENY"
+        # Anti-Clickjacking (SAMEORIGIN erlaubt eigene iframes, z.B. CV-Vorschau)
+        response.headers["X-Frame-Options"] = "SAMEORIGIN"
         # Verhindert MIME-Type Sniffing
         response.headers["X-Content-Type-Options"] = "nosniff"
         # XSS-Schutz (Legacy-Browser)
@@ -212,7 +212,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "frame-src 'self'",
             "object-src 'none'",
             "base-uri 'self'",
-            "frame-ancestors 'none'",
+            "frame-ancestors 'self'",
         ]
         response.headers["Content-Security-Policy"] = "; ".join(csp_parts)
         # Permissions-Policy — Browser-APIs deaktivieren die nicht gebraucht werden
