@@ -241,13 +241,10 @@ class EmailService:
 
     @staticmethod
     def _get_salutation(candidate: Candidate) -> str:
-        """Erzeugt formelle Anrede: 'Sehr geehrter Herr Schmidt' / 'Sehr geehrte Frau Mueller'.
+        """Erzeugt Anrede: 'Hallo Herr Schmidt' / 'Hallo Frau Mueller'.
         Fallback: 'Hallo Vorname' wenn kein gender gesetzt."""
         if candidate.gender and candidate.last_name:
-            if candidate.gender == "Herr":
-                return f"Sehr geehrter Herr {candidate.last_name}"
-            elif candidate.gender == "Frau":
-                return f"Sehr geehrte Frau {candidate.last_name}"
+            return f"Hallo {candidate.gender} {candidate.last_name}"
         return f"Hallo {candidate.first_name or 'zusammen'}"
 
     # ── Template Rendering ──
