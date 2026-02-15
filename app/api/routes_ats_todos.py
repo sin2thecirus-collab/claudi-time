@@ -21,6 +21,7 @@ class TodoCreate(BaseModel):
     description: Optional[str] = None
     priority: Optional[str] = "wichtig"
     due_date: Optional[date] = None
+    due_time: Optional[str] = None  # z.B. "14:00"
     company_id: Optional[UUID] = None
     candidate_id: Optional[UUID] = None
     ats_job_id: Optional[UUID] = None
@@ -35,6 +36,7 @@ class TodoUpdate(BaseModel):
     status: Optional[str] = None
     priority: Optional[str] = None
     due_date: Optional[date] = None
+    due_time: Optional[str] = None
 
 
 # ── Helper ───────────────────────────────────────
@@ -51,6 +53,7 @@ def _serialize_todo(todo) -> dict:
         "priority_label": todo.priority_label,
         "priority_color": todo.priority_color,
         "due_date": todo.due_date.isoformat() if todo.due_date else None,
+        "due_time": todo.due_time,
         "is_overdue": todo.is_overdue,
         "completed_at": todo.completed_at.isoformat() if todo.completed_at else None,
         "company_id": str(todo.company_id) if todo.company_id else None,

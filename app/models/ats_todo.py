@@ -83,6 +83,7 @@ class ATSTodo(Base):
 
     # Faelligkeit
     due_date: Mapped[date | None] = mapped_column(Date)
+    due_time: Mapped[str | None] = mapped_column(String(5))  # z.B. "14:00"
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     # Foreign Keys (alle optional — Todo kann zu verschiedenen Entitaeten gehoeren)

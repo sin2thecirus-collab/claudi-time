@@ -1828,10 +1828,12 @@ async def _create_todos_from_action_items(
             title = (item.get("title") or "").strip()
             due_date_str = item.get("due_date") or item.get("dueDate")
             priority_str = (item.get("priority") or "mittel").lower()
+            due_time_str = item.get("due_time") or item.get("dueTime") or item.get("time")
         elif isinstance(item, str):
             title = item.strip()
             due_date_str = None
             priority_str = "mittel"
+            due_time_str = None
         else:
             continue
 
@@ -1846,12 +1848,23 @@ async def _create_todos_from_action_items(
             except (ValueError, TypeError):
                 parsed_due_date = None
 
+        # due_time parsen (z.B. "14:00", "9:30", "14:00 Uhr")
+        parsed_due_time = None
+        if due_time_str and isinstance(due_time_str, str):
+            import re
+            time_match = re.search(r'(\d{1,2}):(\d{2})', due_time_str)
+            if time_match:
+                h, m = int(time_match.group(1)), int(time_match.group(2))
+                if 0 <= h <= 23 and 0 <= m <= 59:
+                    parsed_due_time = f"{h:02d}:{m:02d}"
+
         priority = priority_map.get(priority_str, TodoPriority.WICHTIG)
 
         todo = ATSTodo(
             title=title[:500],
             priority=priority,
             due_date=parsed_due_date,
+            due_time=parsed_due_time,
             candidate_id=candidate_id,
             company_id=company_id,
             call_note_id=call_note.id,

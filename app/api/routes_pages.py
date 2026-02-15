@@ -164,6 +164,7 @@ async def candidate_detail(
             "status": t.status.value if hasattr(t.status, 'value') else t.status,
             "priority": t.priority.value if hasattr(t.priority, 'value') else t.priority,
             "due_date": t.due_date.isoformat() if t.due_date else None,
+            "due_time": t.due_time if hasattr(t, 'due_time') else None,
             "is_overdue": t.is_overdue if hasattr(t, 'is_overdue') else False,
             "created_at": t.created_at.isoformat() if t.created_at else None,
         })

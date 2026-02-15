@@ -996,6 +996,8 @@
                             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                                 <input type="date" x-model="newTodo.due_date"
                                     style="padding:5px 8px; border-radius:8px; border:1.5px solid var(--pp-border); font-size:12px; color:var(--pp-text); background:var(--pp-surface); font-family:inherit; outline:none; color-scheme:dark;">
+                                <input type="time" x-model="newTodo.due_time" placeholder="HH:MM"
+                                    style="padding:5px 8px; border-radius:8px; border:1.5px solid var(--pp-border); font-size:12px; color:var(--pp-text); background:var(--pp-surface); font-family:inherit; outline:none; color-scheme:dark; width:90px;">
                                 <select x-model="newTodo.priority"
                                     style="padding:5px 8px; border-radius:8px; border:1.5px solid var(--pp-border); font-size:12px; color:var(--pp-text); background:var(--pp-surface); font-family:inherit; outline:none; cursor:pointer;">
                                     <option value="unwichtig">Unwichtig</option>
@@ -1053,11 +1055,13 @@
                                             </div>
                                         </div>
 
-                                        {# Datum rechts #}
-                                        <template x-if="todo.due_date">
-                                            <span style="font-size:12px; font-weight:600; white-space:nowrap; font-family:inherit;"
-                                                  :style="todo.is_overdue ? 'color:#ff4757;' : 'color:#5a6a8a;'"
-                                                  x-text="todo.due_date_formatted"></span>
+                                        {# Datum + Uhrzeit rechts #}
+                                        <template x-if="todo.due_date || todo.due_time">
+                                            <span style="font-size:12px; font-weight:600; white-space:nowrap; font-family:inherit; display:inline-flex; align-items:center; gap:4px;"
+                                                  :style="todo.is_overdue ? 'color:#ff4757;' : 'color:#5a6a8a;'">
+                                                <span x-show="todo.due_date" x-text="todo.due_date_formatted"></span>
+                                                <span x-show="todo.due_time" x-text="todo.due_time" style="font-size:11px;"></span>
+                                            </span>
                                         </template>
 
                                         {# Loeschen #}
@@ -1077,6 +1081,11 @@
                                             <div style="flex:1; min-width:120px;">
                                                 <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#5a6a8a; margin-bottom:4px;">F&auml;llig</div>
                                                 <input type="date" :value="todo.due_date || ''" @change="updateTodo(todo.id, {due_date: $event.target.value || null})"
+                                                    style="width:100%; padding:5px 8px; border-radius:8px; border:1.5px solid rgba(255,255,255,0.08); font-size:12px; color:#e8ecf4; background:rgba(15,20,35,0.5); font-family:inherit; outline:none; color-scheme:dark;">
+                                            </div>
+                                            <div style="min-width:85px;">
+                                                <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#5a6a8a; margin-bottom:4px;">Uhrzeit</div>
+                                                <input type="time" :value="todo.due_time || ''" @change="updateTodo(todo.id, {due_time: $event.target.value || null})"
                                                     style="width:100%; padding:5px 8px; border-radius:8px; border:1.5px solid rgba(255,255,255,0.08); font-size:12px; color:#e8ecf4; background:rgba(15,20,35,0.5); font-family:inherit; outline:none; color-scheme:dark;">
                                             </div>
                                             <div style="min-width:100px;">
@@ -2245,7 +2254,7 @@ function aufgabenManager() {
         todos: rawTodos,
         filter: 'all',
         showAddForm: false,
-        newTodo: { title: '', description: '', priority: 'wichtig', status: 'open', due_date: '' },
+        newTodo: { title: '', description: '', priority: 'wichtig', status: 'open', due_date: '', due_time: '' },
 
         get filteredTodos() {
             var self = this;
@@ -2272,11 +2281,12 @@ function aufgabenManager() {
             };
             if (self.newTodo.description.trim()) payload.description = self.newTodo.description.trim();
             if (self.newTodo.due_date) payload.due_date = self.newTodo.due_date;
+            if (self.newTodo.due_time) payload.due_time = self.newTodo.due_time;
             fetch('/api/ats/todos', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)})
             .then(function(r) { if (!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
             .then(function(data) {
                 self.todos.push(enrichTodo(data));
-                self.newTodo = {title:'', description:'', priority:'wichtig', status:'open', due_date:''};
+                self.newTodo = {title:'', description:'', priority:'wichtig', status:'open', due_date:'', due_time:''};
                 self.showAddForm = false;
                 showToast('Aufgabe erstellt','success');
             })

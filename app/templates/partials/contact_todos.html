@@ -8,7 +8,8 @@
                    editDesc: '{{ (todo.description or '') | replace("'", "\\'") | replace('\n', '\\n') }}',
                    editPriority: '{{ todo.priority.value }}',
                    editStatus: '{{ todo.status.value }}',
-                   editDueDate: '{{ todo.due_date.isoformat() if todo.due_date else '' }}' }"
+                   editDueDate: '{{ todo.due_date.isoformat() if todo.due_date else '' }}',
+                   editDueTime: '{{ todo.due_time or '' }}' }"
          style="border-radius:12px;border:1px solid {% if todo.status.value == 'done' %}rgba(52,211,153,0.25){% elif todo.is_overdue %}rgba(239,68,68,0.25){% else %}var(--pp-border){% endif %};background:{% if todo.status.value == 'done' %}rgba(52,211,153,0.08){% elif todo.is_overdue %}rgba(239,68,68,0.08){% else %}var(--pp-surface){% endif %};overflow:hidden;transition:all .2s;">
 
         {# ── Aufgaben-Kopfzeile (immer sichtbar, klickbar) ── #}
@@ -38,7 +39,7 @@
                     {% if todo.due_date %}
                     <span style="font-size:22px;white-space:nowrap;color:{% if todo.is_overdue %}var(--pp-red);font-weight:600{% else %}var(--pp-textDim){% endif %};display:inline-flex;align-items:center;gap:5px;">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/></svg>
-                        {% if todo.is_overdue %}Überfällig{% endif %} {{ todo.due_date.strftime('%d.%m.%Y') }}
+                        {% if todo.is_overdue %}Überfällig{% endif %} {{ todo.due_date.strftime('%d.%m.%Y') }}{% if todo.due_time %} {{ todo.due_time }} Uhr{% endif %}
                     </span>
                     {% endif %}
                     {% if todo.company %}
@@ -75,11 +76,15 @@
                 <label style="font-size:21px;font-weight:600;color:var(--pp-text);display:block;margin-bottom:8px;font-family:var(--pp-ff);">Notizen</label>
                 <textarea x-model="editDesc" rows="3" style="width:100%;padding:16px 18px;font-size:22px;border:1px solid var(--pp-border);border-radius:10px;font-family:var(--pp-ff);background:var(--pp-bg);color:var(--pp-text);resize:vertical;"></textarea>
             </div>
-            {# Datum + Priorität + Status in einer Zeile #}
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:22px;">
+            {# Datum + Uhrzeit + Priorität + Status in einer Zeile #}
+            <div style="display:grid;grid-template-columns:1fr 0.7fr 1fr 1fr;gap:14px;margin-bottom:22px;">
                 <div>
                     <label style="font-size:21px;font-weight:600;color:var(--pp-text);display:block;margin-bottom:8px;font-family:var(--pp-ff);">Fällig am</label>
                     <input type="date" x-model="editDueDate" style="width:100%;padding:16px 18px;font-size:22px;border:1px solid var(--pp-border);border-radius:10px;font-family:var(--pp-ff);background:var(--pp-bg);color:var(--pp-text);height:58px;">
+                </div>
+                <div>
+                    <label style="font-size:21px;font-weight:600;color:var(--pp-text);display:block;margin-bottom:8px;font-family:var(--pp-ff);">Uhrzeit</label>
+                    <input type="time" x-model="editDueTime" style="width:100%;padding:16px 18px;font-size:22px;border:1px solid var(--pp-border);border-radius:10px;font-family:var(--pp-ff);background:var(--pp-bg);color:var(--pp-text);height:58px;">
                 </div>
                 <div>
                     <label style="font-size:21px;font-weight:600;color:var(--pp-text);display:block;margin-bottom:8px;font-family:var(--pp-ff);">Priorität</label>
@@ -105,7 +110,7 @@
             <div style="display:flex;gap:12px;align-items:center;">
                 <button @click="
                     saving = true;
-                    var payload = {title: editTitle.trim(), description: editDesc.trim() || null, priority: editPriority, status: editStatus, due_date: editDueDate || null};
+                    var payload = {title: editTitle.trim(), description: editDesc.trim() || null, priority: editPriority, status: editStatus, due_date: editDueDate || null, due_time: editDueTime || null};
                     fetch('/api/ats/todos/{{ todo.id }}', {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)})
                     .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
                     .then(function(){ showToast('Aufgabe gespeichert','success'); document.body.dispatchEvent(new CustomEvent('refreshTodos')); })
