@@ -429,7 +429,18 @@ class ProfilePdfService:
             if desc:
                 for line in desc.split("\n"):
                     line = line.strip().lstrip("•-▸►→ ").strip()
-                    if line:
+                    if not line:
+                        continue
+                    # Lange Komma-getrennte Sätze in Einzel-Bullets splitten
+                    # (nur wenn der Text > 120 Zeichen und Kommas enthält)
+                    if len(line) > 120 and ", " in line:
+                        parts = [p.strip() for p in line.split(", ") if p.strip()]
+                        # Nur splitten wenn wir mind. 3 sinnvolle Teile bekommen
+                        if len(parts) >= 3:
+                            bullets.extend(parts)
+                        else:
+                            bullets.append(line)
+                    else:
                         bullets.append(line)
 
             # Dauer
