@@ -96,8 +96,16 @@ _backfill_status: dict = {
 
 
 async def _run_backfill(entity_type: str, max_total: int, batch_size: int, force_reprofile: bool = False):
-    """Background-Task fuer Backfill."""
+    """Background-Task fuer Backfill — per-Entity DB-Sessions (Railway-safe).
+
+    Nutzt pro Kandidat/Job eine eigene DB-Session um Railway idle-in-transaction
+    Timeout (30s) zu vermeiden. Semaphore(2) fuer Parallelisierung.
+    """
+    import asyncio
+    from datetime import date, datetime, timezone
+    from sqlalchemy import or_
     from app.database import async_session_maker
+    from app.models.job import Job
 
     _backfill_status["running"] = True
     _backfill_status["type"] = f"reprofile_{entity_type}" if force_reprofile else entity_type
@@ -105,72 +113,142 @@ async def _run_backfill(entity_type: str, max_total: int, batch_size: int, force
     _backfill_status["total"] = 0
     _backfill_status["cost_usd"] = 0.0
     _backfill_status["result"] = None
+    _backfill_status["started_at"] = datetime.now(timezone.utc).isoformat()
+    _backfill_status["last_update"] = None
+    _backfill_status["errors_list"] = []
+
+    stats = {"profiled": 0, "skipped": 0, "failed": 0, "cost_usd": 0.0}
+    semaphore = asyncio.Semaphore(2)
+
+    async def _profile_one_candidate(cid):
+        """Profil EINEN Kandidaten mit eigener DB-Session."""
+        async with semaphore:
+            try:
+                async with async_session_maker() as db2:
+                    service = ProfileEngineService(db2)
+                    try:
+                        profile = await service.create_candidate_profile(cid)
+                        if profile.success:
+                            await db2.commit()
+                            stats["profiled"] += 1
+                            stats["cost_usd"] += profile.cost_usd
+                        else:
+                            stats["skipped"] += 1
+                    finally:
+                        await service.close()
+            except Exception as e:
+                stats["failed"] += 1
+                if len(_backfill_status["errors_list"]) < 20:
+                    _backfill_status["errors_list"].append(f"{cid}: {str(e)[:150]}")
+                logger.error(f"Profiling Kandidat {cid} fehlgeschlagen: {e}")
+            finally:
+                _backfill_status["processed"] = stats["profiled"] + stats["skipped"] + stats["failed"]
+                _backfill_status["cost_usd"] = round(stats["cost_usd"], 4)
+                _backfill_status["last_update"] = datetime.now(timezone.utc).isoformat()
+
+    async def _profile_one_job(jid):
+        """Profil EINEN Job mit eigener DB-Session."""
+        async with semaphore:
+            try:
+                async with async_session_maker() as db2:
+                    service = ProfileEngineService(db2)
+                    try:
+                        profile = await service.create_job_profile(jid)
+                        if profile.success:
+                            await db2.commit()
+                            stats["profiled"] += 1
+                            stats["cost_usd"] += profile.cost_usd
+                        else:
+                            stats["skipped"] += 1
+                    finally:
+                        await service.close()
+            except Exception as e:
+                stats["failed"] += 1
+                if len(_backfill_status["errors_list"]) < 20:
+                    _backfill_status["errors_list"].append(f"{jid}: {str(e)[:150]}")
+                logger.error(f"Profiling Job {jid} fehlgeschlagen: {e}")
+            finally:
+                _backfill_status["processed"] = stats["profiled"] + stats["skipped"] + stats["failed"]
+                _backfill_status["cost_usd"] = round(stats["cost_usd"], 4)
+                _backfill_status["last_update"] = datetime.now(timezone.utc).isoformat()
 
     try:
-        async with async_session_maker() as db:
-            service = ProfileEngineService(db)
-            try:
-                def on_progress(processed, total):
-                    _backfill_status["processed"] = processed
-                    _backfill_status["total"] = total
+        entity_types_to_process = []
+        if entity_type == "all":
+            entity_types_to_process = ["candidates", "jobs"]
+        else:
+            entity_types_to_process = [entity_type]
 
-                if entity_type == "candidates":
-                    result = await service.backfill_candidates(
-                        batch_size=batch_size,
-                        max_total=max_total,
-                        progress_callback=on_progress,
-                        force_reprofile=force_reprofile,
-                    )
-                elif entity_type == "jobs":
-                    result = await service.backfill_jobs(
-                        batch_size=batch_size,
-                        max_total=max_total,
-                        progress_callback=on_progress,
-                        force_reprofile=force_reprofile,
-                    )
-                elif entity_type == "all":
-                    # Erst Kandidaten, dann Jobs
-                    result_c = await service.backfill_candidates(
-                        batch_size=batch_size,
-                        max_total=max_total,
-                        progress_callback=on_progress,
-                        force_reprofile=force_reprofile,
-                    )
-                    result_j = await service.backfill_jobs(
-                        batch_size=batch_size,
-                        max_total=max_total,
-                        progress_callback=on_progress,
-                        force_reprofile=force_reprofile,
-                    )
-                    result = {
-                        "candidates": {
-                            "profiled": result_c.profiled,
-                            "skipped": result_c.skipped,
-                            "failed": result_c.failed,
-                            "cost_usd": result_c.total_cost_usd,
-                        },
-                        "jobs": {
-                            "profiled": result_j.profiled,
-                            "skipped": result_j.skipped,
-                            "failed": result_j.failed,
-                            "cost_usd": result_j.total_cost_usd,
-                        },
-                        "total_cost_usd": result_c.total_cost_usd + result_j.total_cost_usd,
-                    }
-                    _backfill_status["result"] = result
-                    _backfill_status["cost_usd"] = result_c.total_cost_usd + result_j.total_cost_usd
-                    return
+        for current_type in entity_types_to_process:
+            # Reset stats for each entity type (for "all" mode)
+            if entity_type == "all" and current_type == "jobs":
+                stats = {"profiled": 0, "skipped": 0, "failed": 0, "cost_usd": 0.0}
+                _backfill_status["processed"] = 0
 
-                _backfill_status["result"] = {
-                    "profiled": result.profiled,
-                    "skipped": result.skipped,
-                    "failed": result.failed,
-                    "cost_usd": result.total_cost_usd,
-                    "errors": result.errors[:10],
-                }
-                _backfill_status["cost_usd"] = result.total_cost_usd
-            finally:
-                await service.close()
+            # 1. IDs laden (kurze Session)
+            async with async_session_maker() as db:
+                if current_type == "candidates":
+                    from app.models.candidate import Candidate
+                    from sqlalchemy import or_
+                    max_age = 58
+                    cutoff_date = date(date.today().year - max_age, date.today().month, date.today().day)
+                    conditions = [
+                        Candidate.deleted_at.is_(None),
+                        Candidate.hidden == False,
+                        Candidate.hotlist_category == "FINANCE",
+                        or_(
+                            Candidate.birth_date.is_(None),
+                            Candidate.birth_date >= cutoff_date,
+                        ),
+                    ]
+                    if not force_reprofile:
+                        conditions.append(Candidate.v2_profile_created_at.is_(None))
+                    result = await db.execute(
+                        select(Candidate.id).where(*conditions).order_by(Candidate.created_at.asc())
+                    )
+                else:  # jobs
+                    conditions = [
+                        Job.deleted_at.is_(None),
+                        Job.hotlist_category == "FINANCE",
+                    ]
+                    if not force_reprofile:
+                        conditions.append(Job.v2_profile_created_at.is_(None))
+                    result = await db.execute(
+                        select(Job.id).where(*conditions).order_by(Job.created_at.asc())
+                    )
+
+                entity_ids = [row[0] for row in result.fetchall()]
+                if max_total > 0:
+                    entity_ids = entity_ids[:max_total]
+
+            total = len(entity_ids)
+            _backfill_status["total"] = total
+            _backfill_status["type"] = f"reprofile_{current_type}" if force_reprofile else current_type
+            logger.info(f"Backfill {current_type}: {total} Entitäten zu profilen (force={force_reprofile})")
+
+            if total == 0:
+                continue
+
+            # 2. Chunks von 10 parallel, 2s Pause zwischen Chunks
+            profile_fn = _profile_one_candidate if current_type == "candidates" else _profile_one_job
+            for i in range(0, total, 10):
+                chunk = entity_ids[i:i + 10]
+                await asyncio.gather(*[profile_fn(eid) for eid in chunk])
+                await asyncio.sleep(2)
+
+            logger.info(
+                f"Backfill {current_type} fertig: {stats['profiled']} profiled, "
+                f"{stats['skipped']} skipped, {stats['failed']} failed, "
+                f"${stats['cost_usd']:.4f}"
+            )
+
+        _backfill_status["result"] = {
+            "profiled": stats["profiled"],
+            "skipped": stats["skipped"],
+            "failed": stats["failed"],
+            "cost_usd": round(stats["cost_usd"], 4),
+            "errors": _backfill_status["errors_list"][:10],
+        }
     except Exception as e:
         logger.error(f"Backfill Fehler: {e}", exc_info=True)
         _backfill_status["result"] = {"error": str(e)}
@@ -227,6 +305,9 @@ async def get_backfill_status():
         "processed": _backfill_status["processed"],
         "total": _backfill_status["total"],
         "cost_usd": round(_backfill_status["cost_usd"], 4),
+        "started_at": _backfill_status.get("started_at"),
+        "last_update": _backfill_status.get("last_update"),
+        "errors_count": len(_backfill_status.get("errors_list", [])),
         "result": _backfill_status["result"],
     }
 
