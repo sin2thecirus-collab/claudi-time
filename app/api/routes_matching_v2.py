@@ -2101,3 +2101,239 @@ async def admin_gender_sync_contacts(
         "failed": total_failed,
         "errors": errors[:5] if errors else [],
     }
+
+
+# ══════════════════════════════════════════════════════════════════
+# DRIVE TIME BACKFILL — Phase 10 Optimierung
+# ══════════════════════════════════════════════════════════════════
+
+_drive_time_backfill_status = {
+    "running": False,
+    "processed": 0,
+    "total": 0,
+    "skipped": 0,
+    "errors": 0,
+    "started_at": None,
+    "finished_at": None,
+}
+
+
+@router.post("/drive-times/backfill")
+@rate_limit(RateLimitTier.ADMIN)
+async def drive_time_backfill(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+    min_score: float = Query(70.0, description="Minimum Score für Fahrzeit-Berechnung"),
+    force: bool = Query(False, description="Auch Matches mit bestehender Fahrzeit neu berechnen"),
+):
+    """Backfill: Google Maps Fahrzeit für bestehende Matches mit Score >= min_score.
+
+    Läuft im Hintergrund. Status abfragbar über GET /drive-times/backfill/status.
+    """
+    from app.models.match import Match
+    from app.models.job import Job
+
+    if _drive_time_backfill_status["running"]:
+        return JSONResponse(
+            status_code=409,
+            content={"error": "Backfill läuft bereits", "status": _drive_time_backfill_status},
+        )
+
+    # Zähle betroffene Matches
+    eff = func.coalesce(Match.v2_score, Match.ai_score * 100, 0)
+    count_query = (
+        select(func.count(Match.id))
+        .where(eff >= min_score)
+        .where(Match.candidate_id.isnot(None))
+    )
+    if not force:
+        count_query = count_query.where(Match.drive_time_car_min.is_(None))
+
+    total = (await db.execute(count_query)).scalar() or 0
+
+    if total == 0:
+        return {"status": "nothing_to_do", "message": "Keine Matches ohne Fahrzeit mit Score >= {min_score}"}
+
+    _drive_time_backfill_status.update({
+        "running": True,
+        "processed": 0,
+        "total": total,
+        "skipped": 0,
+        "errors": 0,
+        "started_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
+        "finished_at": None,
+    })
+
+    background_tasks.add_task(
+        _run_drive_time_backfill, min_score=min_score, force=force
+    )
+
+    return {
+        "status": "started",
+        "total_matches": total,
+        "min_score": min_score,
+        "force": force,
+        "message": f"Backfill gestartet für {total} Matches",
+    }
+
+
+async def _run_drive_time_backfill(min_score: float = 70.0, force: bool = False):
+    """Hintergrund-Task: Berechnet Fahrzeit für Matches ohne drive_time."""
+    import asyncio
+    from datetime import datetime, timezone
+    from app.database import async_session_factory
+    from app.models.match import Match
+    from app.models.job import Job
+    from app.models.candidate import Candidate
+    from app.services.distance_matrix_service import distance_matrix_service
+    from sqlalchemy import func as sa_func
+
+    status = _drive_time_backfill_status
+
+    if not distance_matrix_service.has_api_key:
+        status.update({"running": False, "finished_at": datetime.now(timezone.utc).isoformat()})
+        logger.error("Drive Time Backfill: Kein Google Maps API Key konfiguriert")
+        return
+
+    try:
+        async with async_session_factory() as db:
+            # Alle Jobs mit Matches laden die Fahrzeit brauchen
+            eff = func.coalesce(Match.v2_score, Match.ai_score * 100, 0)
+            query = (
+                select(
+                    Match.id,
+                    Match.job_id,
+                    Match.candidate_id,
+                )
+                .where(eff >= min_score)
+                .where(Match.candidate_id.isnot(None))
+            )
+            if not force:
+                query = query.where(Match.drive_time_car_min.is_(None))
+
+            query = query.order_by(Match.job_id)
+            result = await db.execute(query)
+            matches = result.all()
+
+            if not matches:
+                status.update({"running": False, "finished_at": datetime.now(timezone.utc).isoformat()})
+                return
+
+            status["total"] = len(matches)
+
+            # Gruppiere nach Job für Batch-API-Calls
+            from itertools import groupby
+            matches_by_job = {}
+            for m in matches:
+                if m.job_id not in matches_by_job:
+                    matches_by_job[m.job_id] = []
+                matches_by_job[m.job_id].append(m)
+
+            for job_id, job_matches in matches_by_job.items():
+                try:
+                    # Job-Koordinaten laden
+                    job = await db.get(Job, job_id)
+                    if not job or job.location_coords is None:
+                        status["skipped"] += len(job_matches)
+                        status["processed"] += len(job_matches)
+                        continue
+
+                    # Job-Koordinaten extrahieren
+                    coord_result = await db.execute(
+                        select(
+                            sa_func.ST_Y(sa_func.ST_GeomFromWKB(job.location_coords)).label("lat"),
+                            sa_func.ST_X(sa_func.ST_GeomFromWKB(job.location_coords)).label("lng"),
+                        )
+                    )
+                    coord_row = coord_result.first()
+                    if not coord_row or not coord_row[0] or not coord_row[1]:
+                        status["skipped"] += len(job_matches)
+                        status["processed"] += len(job_matches)
+                        continue
+
+                    job_lat, job_lng = coord_row[0], coord_row[1]
+
+                    # Kandidaten-Koordinaten laden
+                    cand_ids = [m.candidate_id for m in job_matches]
+                    cand_result = await db.execute(
+                        select(
+                            Candidate.id,
+                            Candidate.postal_code,
+                            sa_func.ST_Y(sa_func.ST_GeomFromWKB(Candidate.address_coords)).label("lat"),
+                            sa_func.ST_X(sa_func.ST_GeomFromWKB(Candidate.address_coords)).label("lng"),
+                        )
+                        .where(Candidate.id.in_(cand_ids))
+                        .where(Candidate.address_coords.isnot(None))
+                    )
+                    cand_rows = cand_result.all()
+
+                    cands_with_coords = [
+                        {
+                            "candidate_id": str(cr.id),
+                            "lat": cr.lat,
+                            "lng": cr.lng,
+                            "plz": cr.postal_code,
+                        }
+                        for cr in cand_rows
+                        if cr.lat is not None and cr.lng is not None
+                    ]
+
+                    if not cands_with_coords:
+                        status["skipped"] += len(job_matches)
+                        status["processed"] += len(job_matches)
+                        continue
+
+                    # Google Maps API aufrufen
+                    drive_times = await distance_matrix_service.batch_drive_times(
+                        job_lat=job_lat,
+                        job_lng=job_lng,
+                        job_plz=job.postal_code,
+                        candidates=cands_with_coords,
+                    )
+
+                    # Matches updaten
+                    for m in job_matches:
+                        dt = drive_times.get(str(m.candidate_id))
+                        if dt:
+                            match_obj = await db.get(Match, m.id)
+                            if match_obj:
+                                match_obj.drive_time_car_min = dt.car_min
+                                match_obj.drive_time_transit_min = dt.transit_min
+                        else:
+                            status["skipped"] += 1
+
+                        status["processed"] += 1
+
+                    await db.commit()
+
+                except Exception as e:
+                    status["errors"] += 1
+                    logger.error(f"Drive Time Backfill Job {job_id}: {e}")
+                    await db.rollback()
+                    status["processed"] += len(job_matches)
+
+                # Rate-Limit: Kurze Pause zwischen Jobs
+                await asyncio.sleep(0.2)
+
+    except Exception as e:
+        logger.error(f"Drive Time Backfill Fehler: {e}")
+        status["errors"] += 1
+    finally:
+        status["running"] = False
+        status["finished_at"] = datetime.now(timezone.utc).isoformat()
+        logger.info(
+            f"Drive Time Backfill fertig: {status['processed']} verarbeitet, "
+            f"{status['skipped']} übersprungen, {status['errors']} Fehler"
+        )
+
+
+@router.get("/drive-times/backfill/status")
+async def drive_time_backfill_status(request: Request):
+    """Status des Drive Time Backfill-Prozesses."""
+    status = _drive_time_backfill_status.copy()
+    if status["total"] > 0:
+        status["percent"] = round(status["processed"] / status["total"] * 100, 1)
+    else:
+        status["percent"] = 0
+    return status

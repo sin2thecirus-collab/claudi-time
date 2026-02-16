@@ -24,7 +24,16 @@
                     <div class="flex items-center space-x-2 text-sm text-gray-500">
                         <span>{{ match.candidate.current_position | default('Keine Position') }}</span>
                         <span>&middot;</span>
+                        {% if match.drive_time_car_min is not none %}
+                        <span class="{% if match.drive_time_car_min <= 20 %}text-green-600{% elif match.drive_time_car_min <= 40 %}text-amber-600{% else %}text-gray-500{% endif %}">
+                            {{ match.drive_time_car_min }} min
+                        </span>
+                        {% if match.drive_time_transit_min is not none %}
+                        <span class="text-gray-400">({{ match.drive_time_transit_min }} min ÖPNV)</span>
+                        {% endif %}
+                        {% else %}
                         <span>{{ match.distance_km | round(1) }} km</span>
+                        {% endif %}
                     </div>
                 </div>
             </div>

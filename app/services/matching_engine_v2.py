@@ -1666,7 +1666,17 @@ class MatchingEngineV2:
                 scoring_weights=weights,
             )
 
-        # ── Phase 10: Google Maps Fahrzeit (nach Hard Filter, vor Scoring) ──
+        # ── Schicht 2: Structured Scoring (OHNE Fahrzeit — wird danach geholt) ──
+        scored = await self._score_candidates(job, candidates, weights)
+
+        # Build Lookup fuer Schicht 3
+        cand_map = {c.id: c for c in candidates}
+
+        # ── Schicht 3: Pattern Boost ──
+        scored = await self._apply_learned_rules(scored, job, cand_map)
+
+        # ── Phase 10: Google Maps Fahrzeit (NUR für Score ≥ 70) ──
+        DRIVE_TIME_SCORE_THRESHOLD = 70
         try:
             from app.services.distance_matrix_service import distance_matrix_service
 
@@ -1676,7 +1686,6 @@ class MatchingEngineV2:
                 job_lat = None
                 job_lng = None
                 if hasattr(job, "location_coords") and job.location_coords is not None:
-                    # Koordinaten aus PostGIS Point extrahieren
                     coord_result = await self.db.execute(
                         select(
                             sa_func.ST_Y(sa_func.ST_GeomFromWKB(job.location_coords)).label("lat"),
@@ -1689,7 +1698,11 @@ class MatchingEngineV2:
                         job_lng = coord_row[1]
 
                 if job_lat and job_lng:
-                    # Nur Kandidaten mit Koordinaten
+                    # Nur Top-Matches (Score ≥ 70) MIT Koordinaten
+                    top_candidate_ids = {
+                        sm.candidate_id for sm in scored
+                        if sm.total_score >= DRIVE_TIME_SCORE_THRESHOLD
+                    }
                     cands_with_coords = [
                         {
                             "candidate_id": str(c.id),
@@ -1698,7 +1711,7 @@ class MatchingEngineV2:
                             "plz": c.postal_code,
                         }
                         for c in candidates
-                        if c._lat is not None and c._lng is not None
+                        if c.id in top_candidate_ids and c._lat is not None and c._lng is not None
                     ]
 
                     if cands_with_coords:
@@ -1709,27 +1722,21 @@ class MatchingEngineV2:
                             candidates=cands_with_coords,
                         )
 
-                        # Fahrzeit auf Kandidaten-Objekte übertragen
-                        for c in candidates:
-                            result = drive_times.get(str(c.id))
-                            if result:
-                                c.drive_time_car_min = result.car_min
-                                c.drive_time_transit_min = result.transit_min
+                        # Fahrzeit in die Breakdowns der ScoredMatches schreiben
+                        for sm in scored:
+                            result = drive_times.get(str(sm.candidate_id))
+                            if result and sm.breakdown:
+                                sm.breakdown["drive_time_car_min"] = result.car_min
+                                sm.breakdown["drive_time_transit_min"] = result.transit_min
 
                         logger.info(
-                            f"Google Maps Fahrzeit: {len(drive_times)} Ergebnisse für {len(cands_with_coords)} Kandidaten"
+                            f"Google Maps Fahrzeit: {len(drive_times)} Ergebnisse "
+                            f"für {len(cands_with_coords)} Top-Kandidaten "
+                            f"(Score ≥ {DRIVE_TIME_SCORE_THRESHOLD}, "
+                            f"von {len(scored)} Matches gesamt)"
                         )
         except Exception as e:
             logger.warning(f"Google Maps Fahrzeit-Fehler (nicht kritisch): {e}")
-
-        # ── Schicht 2: Structured Scoring ──
-        scored = await self._score_candidates(job, candidates, weights)
-
-        # Build Lookup fuer Schicht 3
-        cand_map = {c.id: c for c in candidates}
-
-        # ── Schicht 3: Pattern Boost ──
-        scored = await self._apply_learned_rules(scored, job, cand_map)
 
         # ── In DB speichern ──
         if save_to_db and scored:
@@ -1782,8 +1789,12 @@ class MatchingEngineV2:
                     match_obj.v2_score_breakdown = sm.breakdown
                     match_obj.v2_matched_at = now
                     match_obj.distance_km = dist
-                    match_obj.drive_time_car_min = car_min
-                    match_obj.drive_time_transit_min = transit_min
+                    # Fahrzeit NUR überschreiben wenn neue Daten vorhanden
+                    # → Schützt bestehende Werte bei Re-Matching ohne Google Maps
+                    if car_min is not None:
+                        match_obj.drive_time_car_min = car_min
+                    if transit_min is not None:
+                        match_obj.drive_time_transit_min = transit_min
                     # Re-Import Schutz: REJECTED/PLACED Status NICHT zuruecksetzen
                     # Nur NEW/AI_CHECKED duerfen aktualisiert werden
                     if match_obj.status not in (MatchStatus.REJECTED, MatchStatus.PLACED, MatchStatus.PRESENTED):

@@ -12,7 +12,19 @@
                     {% endif %}
                 </div>
                 <div class="ml-3 flex flex-col items-end space-y-1">
-                    {% if job.distance_km is not none %}
+                    {% if job.drive_time_car_min is not none %}
+                    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium
+                        {% if job.drive_time_car_min <= 20 %}bg-green-100 text-green-700
+                        {% elif job.drive_time_car_min <= 40 %}bg-yellow-100 text-yellow-700
+                        {% else %}bg-gray-100 text-gray-600{% endif %}">
+                        {{ job.drive_time_car_min }} min
+                    </span>
+                    {% if job.drive_time_transit_min is not none %}
+                    <span class="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-gray-50 text-gray-500">
+                        {{ job.drive_time_transit_min }} min ÖPNV
+                    </span>
+                    {% endif %}
+                    {% elif job.distance_km is not none %}
                     <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium
                         {% if job.distance_km <= 10 %}bg-green-100 text-green-700
                         {% elif job.distance_km <= 25 %}bg-yellow-100 text-yellow-700

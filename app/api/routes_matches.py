@@ -752,6 +752,8 @@ async def get_interested_candidates(
 )
 async def filter_matches(
     max_drive_time: int | None = Query(default=None, ge=1, description="Max Fahrzeit Auto in Minuten"),
+    max_transit_time: int | None = Query(default=None, ge=1, description="Max Fahrzeit ÖPNV in Minuten"),
+    has_drive_time: bool | None = Query(default=None, description="Nur Matches mit/ohne Fahrzeit-Daten"),
     min_score: float | None = Query(default=None, ge=0, description="Min Matching-Score"),
     role: str | None = Query(default=None, description="Job-Rolle (z.B. finanzbuchhalter)"),
     city: str | None = Query(default=None, description="Job-Stadt"),
@@ -780,6 +782,14 @@ async def filter_matches(
 
     if max_drive_time:
         conditions.append(Match.drive_time_car_min <= max_drive_time)
+
+    if max_transit_time:
+        conditions.append(Match.drive_time_transit_min <= max_transit_time)
+
+    if has_drive_time is True:
+        conditions.append(Match.drive_time_car_min.isnot(None))
+    elif has_drive_time is False:
+        conditions.append(Match.drive_time_car_min.is_(None))
 
     if min_score:
         conditions.append(Match.v2_score >= min_score)
@@ -841,6 +851,8 @@ async def filter_matches(
         "filters_applied": {
             k: v for k, v in {
                 "max_drive_time": max_drive_time,
+                "max_transit_time": max_transit_time,
+                "has_drive_time": has_drive_time,
                 "min_score": min_score,
                 "role": role,
                 "city": city,

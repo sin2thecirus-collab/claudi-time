@@ -148,7 +148,14 @@
                                     {% if m.candidate_city %}
                                     <span class="text-sm text-gray-400">· {{ m.candidate_city }}</span>
                                     {% endif %}
-                                    {% if m.distance_km %}
+                                    {% if m.drive_time_car_min is not none %}
+                                    <span class="text-sm {% if m.drive_time_car_min <= 20 %}text-green-500{% elif m.drive_time_car_min <= 40 %}text-amber-500{% else %}text-gray-400{% endif %}">
+                                        · {{ m.drive_time_car_min }} min
+                                        {% if m.drive_time_transit_min is not none %}
+                                        <span class="text-gray-400">({{ m.drive_time_transit_min }} min ÖPNV)</span>
+                                        {% endif %}
+                                    </span>
+                                    {% elif m.distance_km %}
                                     <span class="text-sm text-gray-400">· {{ m.distance_km }} km</span>
                                     {% endif %}
                                 </div>

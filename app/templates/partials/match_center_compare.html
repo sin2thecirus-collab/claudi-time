@@ -42,12 +42,21 @@
     <!-- Info-Karten: Entfernung, Firma, Jobtitel, Adressen -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
 
-        <!-- Entfernung -->
+        <!-- Entfernung / Fahrzeit -->
         <div class="bg-blue-50 rounded-lg p-3">
             <p class="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-1">Entfernung</p>
-            <p class="text-lg font-bold text-blue-800">
-                {% if data.distance_km is not none %}{{ data.distance_km }} km{% else %}Unbekannt{% endif %}
+            {% if data.drive_time_car_min is not none %}
+            <p class="text-lg font-bold {% if data.drive_time_car_min <= 20 %}text-green-700{% elif data.drive_time_car_min <= 40 %}text-amber-700{% else %}text-blue-800{% endif %}">
+                {{ data.drive_time_car_min }} min Auto
             </p>
+            {% if data.drive_time_transit_min is not none %}
+            <p class="text-sm text-gray-500 mt-0.5">{{ data.drive_time_transit_min }} min ÖPNV</p>
+            {% endif %}
+            {% elif data.distance_km is not none %}
+            <p class="text-lg font-bold text-blue-800">{{ data.distance_km }} km</p>
+            {% else %}
+            <p class="text-lg font-bold text-blue-800">Unbekannt</p>
+            {% endif %}
         </div>
 
         <!-- Firma (kopierbar) -->

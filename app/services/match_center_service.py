@@ -258,11 +258,13 @@ class MatchDetail:
     ai_strengths: list[str] | None
     ai_weaknesses: list[str] | None
     distance_km: float | None
-    status: str
-    matching_method: str | None
-    user_feedback: str | None
-    feedback_note: str | None
-    created_at: datetime | None
+    drive_time_car_min: int | None = None
+    drive_time_transit_min: int | None = None
+    status: str = "new"
+    matching_method: str | None = None
+    user_feedback: str | None = None
+    feedback_note: str | None = None
+    created_at: datetime | None = None
 
 
 @dataclass
@@ -276,13 +278,15 @@ class MatchComparisonData:
     ai_strengths: list[str] | None
     ai_weaknesses: list[str] | None
     distance_km: float | None
-    status: str
-    user_feedback: str | None
+    drive_time_car_min: int | None = None
+    drive_time_transit_min: int | None = None
+    status: str = "new"
+    user_feedback: str | None = None
 
     # Job
-    job_id: UUID | None
-    job_position: str
-    job_company_name: str
+    job_id: UUID | None = None
+    job_position: str = ""
+    job_company_name: str = ""
     job_city: str
     job_postal_code: str
     job_street_address: str
@@ -766,6 +770,8 @@ class MatchCenterService:
                 Match.ai_strengths,
                 Match.ai_weaknesses,
                 Match.distance_km,
+                Match.drive_time_car_min,
+                Match.drive_time_transit_min,
                 Match.status,
                 Match.user_feedback,
                 Match.v2_score_breakdown,
@@ -818,6 +824,8 @@ class MatchCenterService:
             ai_strengths=row.ai_strengths,
             ai_weaknesses=row.ai_weaknesses,
             distance_km=round(row.distance_km, 1) if row.distance_km else None,
+            drive_time_car_min=row.drive_time_car_min,
+            drive_time_transit_min=row.drive_time_transit_min,
             status=row.status.value if row.status else "new",
             user_feedback=row.user_feedback,
             v2_score_breakdown=row.v2_score_breakdown,
@@ -949,6 +957,7 @@ class MatchCenterService:
                 Match.id, Match.candidate_id, Match.ai_score, Match.ai_explanation,
                 Match.ai_strengths, Match.ai_weaknesses, Match.distance_km, Match.status,
                 Match.matching_method, Match.user_feedback, Match.feedback_note, Match.created_at,
+                Match.drive_time_car_min, Match.drive_time_transit_min,
                 Candidate.first_name, Candidate.last_name, Candidate.hotlist_job_title, Candidate.hotlist_city,
             )
             .join(Candidate, Match.candidate_id == Candidate.id, isouter=True)
@@ -987,6 +996,8 @@ class MatchCenterService:
                     ai_strengths=row.ai_strengths,
                     ai_weaknesses=row.ai_weaknesses,
                     distance_km=round(row.distance_km, 1) if row.distance_km else None,
+                    drive_time_car_min=row.drive_time_car_min,
+                    drive_time_transit_min=row.drive_time_transit_min,
                     status=row.status.value if row.status else "new",
                     matching_method=row.matching_method,
                     user_feedback=row.user_feedback,
@@ -1449,6 +1460,8 @@ class MatchCenterService:
                 Match.job_id,
                 Match.status,
                 Match.distance_km,
+                Match.drive_time_car_min,
+                Match.drive_time_transit_min,
                 Match.user_feedback,
                 Match.v2_score_breakdown,
                 Match.created_at.label("match_created_at"),
@@ -1502,6 +1515,8 @@ class MatchCenterService:
             order_col = Candidate.last_name
         elif sort_by == "distance":
             order_col = Match.distance_km
+        elif sort_by == "drive_time":
+            order_col = Match.drive_time_car_min
         elif sort_by == "activity":
             order_col = Candidate.updated_at
         else:  # score (default)
@@ -1554,6 +1569,8 @@ class MatchCenterService:
                 "score": round(float(row.score), 1) if row.score else 0,
                 "status": status_val,
                 "distance_km": round(float(row.distance_km), 1) if row.distance_km else None,
+                "drive_time_car_min": row.drive_time_car_min,
+                "drive_time_transit_min": row.drive_time_transit_min,
                 "activity_days": activity_days,
                 "salary": row.salary or "",
                 "email": row.email or "",

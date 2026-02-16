@@ -44,7 +44,7 @@
                 <div class="text-xs text-gray-500 truncate mt-0.5">
                     {% if m.candidate_title %}{{ m.candidate_title }}{% endif %}
                     {% if m.candidate_city %} · {{ m.candidate_city }}{% endif %}
-                    {% if m.distance_km %} · {{ m.distance_km }} km{% endif %}
+                    {% if m.drive_time_car_min is not none %} · <span class="{% if m.drive_time_car_min <= 20 %}text-green-600{% elif m.drive_time_car_min <= 40 %}text-amber-600{% endif %}">{{ m.drive_time_car_min }} min</span>{% elif m.distance_km %} · {{ m.distance_km }} km{% endif %}
                 </div>
             </div>
         </div>

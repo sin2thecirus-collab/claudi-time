@@ -496,6 +496,8 @@ class CandidateService:
                 "position": job.position,
                 "city": job.city or job.work_location_city,
                 "distance_km": round(match.distance_km, 1) if match.distance_km else None,
+                "drive_time_car_min": match.drive_time_car_min,
+                "drive_time_transit_min": match.drive_time_transit_min,
                 "keyword_score": match.keyword_score,
                 "matched_keywords": match.matched_keywords,
                 "ai_score": match.ai_score,
