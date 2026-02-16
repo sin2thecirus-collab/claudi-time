@@ -316,6 +316,50 @@
         {# Wird nach KI-Check gefuellt #}
     </div>
 </div>
+
+{# ═══ CV Sidebar (Slide-Over von rechts) ═══ #}
+<div id="cv-sidebar-backdrop"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:998;transition:opacity 0.25s;"
+     onclick="closeCvSidebar()"></div>
+<div id="cv-sidebar"
+     style="display:none;position:fixed;top:0;right:0;bottom:0;width:min(700px,90vw);background:#fff;z-index:999;box-shadow:-4px 0 24px rgba(0,0,0,0.15);transform:translateX(100%);transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);flex-direction:column;">
+    {# Header #}
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #e5e7eb;flex-shrink:0;">
+        <h3 id="cv-sidebar-title" style="font-size:16px;font-weight:600;color:#111827;margin:0;">Lebenslauf</h3>
+        <div style="display:flex;align-items:center;gap:8px;">
+            <a id="cv-sidebar-download"
+               href="#"
+               target="_blank"
+               rel="noopener noreferrer"
+               style="padding:6px 12px;font-size:13px;font-weight:500;color:#4f8cff;background:#eff6ff;border-radius:6px;text-decoration:none;display:inline-flex;align-items:center;gap:4px;transition:background 0.15s;"
+               onmouseover="this.style.background='#dbeafe'"
+               onmouseout="this.style.background='#eff6ff'"
+               title="In neuem Tab oeffnen">
+                <svg style="width:14px;height:14px;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                </svg>
+                Neuer Tab
+            </a>
+            <button type="button"
+                    onclick="closeCvSidebar()"
+                    style="padding:6px;border:none;background:transparent;cursor:pointer;color:#6b7280;border-radius:6px;display:flex;transition:all 0.15s;"
+                    onmouseover="this.style.background='#f3f4f6';this.style.color='#111827'"
+                    onmouseout="this.style.background='transparent';this.style.color='#6b7280'"
+                    title="Schliessen">
+                <svg style="width:20px;height:20px;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+    </div>
+    {# PDF iframe #}
+    <div style="flex:1;overflow:hidden;">
+        <iframe id="cv-sidebar-iframe"
+                src="about:blank"
+                style="width:100%;height:100%;border:none;"
+                title="Lebenslauf"></iframe>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -348,5 +392,53 @@
             updateAiCheckPanel();
         }
     });
+
+    // ═══ CV Sidebar Funktionen ═══
+    function openCvSidebar(url, name) {
+        var sidebar = document.getElementById('cv-sidebar');
+        var backdrop = document.getElementById('cv-sidebar-backdrop');
+        var iframe = document.getElementById('cv-sidebar-iframe');
+        var title = document.getElementById('cv-sidebar-title');
+        var downloadLink = document.getElementById('cv-sidebar-download');
+
+        title.textContent = 'Lebenslauf — ' + name;
+        downloadLink.href = url;
+        iframe.src = url;
+
+        backdrop.style.display = 'block';
+        sidebar.style.display = 'flex';
+
+        // Animation triggern (naechster Frame)
+        requestAnimationFrame(function() {
+            requestAnimationFrame(function() {
+                backdrop.style.opacity = '1';
+                sidebar.style.transform = 'translateX(0)';
+            });
+        });
+
+        // ESC-Taste zum Schliessen
+        document.addEventListener('keydown', cvSidebarEscHandler);
+    }
+
+    function closeCvSidebar() {
+        var sidebar = document.getElementById('cv-sidebar');
+        var backdrop = document.getElementById('cv-sidebar-backdrop');
+        var iframe = document.getElementById('cv-sidebar-iframe');
+
+        sidebar.style.transform = 'translateX(100%)';
+        backdrop.style.opacity = '0';
+
+        setTimeout(function() {
+            sidebar.style.display = 'none';
+            backdrop.style.display = 'none';
+            iframe.src = 'about:blank';
+        }, 300);
+
+        document.removeEventListener('keydown', cvSidebarEscHandler);
+    }
+
+    function cvSidebarEscHandler(e) {
+        if (e.key === 'Escape') closeCvSidebar();
+    }
 </script>
 {% endblock %}
