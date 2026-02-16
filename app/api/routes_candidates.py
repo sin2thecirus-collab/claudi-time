@@ -1919,3 +1919,134 @@ async def reclassify_finance_candidates(
         "duration_seconds": result.duration_seconds,
         "roles_distribution": result.roles_distribution,
     }
+
+
+# ==================== Temporär: n8n Massen-Profiling ====================
+
+
+@router.get(
+    "/maintenance/unprofiled-ids",
+    summary="IDs aller unprufilierten Kandidaten",
+    tags=["Maintenance"],
+)
+@rate_limit(RateLimitTier.STANDARD)
+async def get_unprofiled_ids(
+    db: AsyncSession = Depends(get_db),
+):
+    """Gibt IDs aller Kandidaten ohne v2-Profil zurueck (fuer n8n Batch)."""
+    from sqlalchemy import text
+
+    result = await db.execute(text(
+        "SELECT id::text FROM candidates "
+        "WHERE v2_seniority_level IS NULL AND is_active = true "
+        "ORDER BY created_at DESC"
+    ))
+    ids = [row[0] for row in result.fetchall()]
+    return {"count": len(ids), "ids": ids}
+
+
+@router.get(
+    "/maintenance/profile-data/{candidate_id}",
+    summary="Rohdaten fuer GPT-Profiling eines Kandidaten",
+    tags=["Maintenance"],
+)
+@rate_limit(RateLimitTier.STANDARD)
+async def get_profile_data(
+    candidate_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Gibt die strukturierten Kandidaten-Daten zurueck die der GPT-Prompt braucht."""
+    from app.models.candidate import Candidate
+
+    c = await db.get(Candidate, candidate_id)
+    if not c:
+        raise NotFoundException("Kandidat nicht gefunden")
+
+    # Selbe Logik wie _build_candidate_input
+    parts = []
+    if c.current_position:
+        parts.append(f"Aktuelle Position: {c.current_position}")
+    if c.current_company:
+        parts.append(f"Aktuelles Unternehmen: {c.current_company}")
+    if c.work_history:
+        parts.append("\nBerufserfahrung:")
+        if isinstance(c.work_history, list):
+            for entry in c.work_history[:10]:
+                if isinstance(entry, dict):
+                    period = entry.get("period", "")
+                    title = entry.get("title", entry.get("position", ""))
+                    company = entry.get("company", "")
+                    tasks = entry.get("tasks", entry.get("description", ""))
+                    parts.append(f"  - {period}: {title} bei {company}")
+                    if tasks:
+                        if isinstance(tasks, list):
+                            parts.append(f"    Taetigkeiten: {'; '.join(tasks[:5])}")
+                        else:
+                            parts.append(f"    Taetigkeiten: {str(tasks)[:300]}")
+    if c.education:
+        parts.append("\nAusbildung:")
+        if isinstance(c.education, list):
+            for entry in c.education[:5]:
+                if isinstance(entry, dict):
+                    parts.append(f"  - {entry.get('degree', '')} - {entry.get('institution', '')} ({entry.get('year', '')})")
+    if c.further_education:
+        parts.append("\nWeiterbildungen:")
+        if isinstance(c.further_education, list):
+            for entry in c.further_education[:5]:
+                parts.append(f"  - {str(entry)[:200]}")
+    if c.skills:
+        parts.append(f"\nSkills: {', '.join(c.skills[:20])}")
+    if c.it_skills:
+        parts.append(f"IT-Skills: {', '.join(c.it_skills[:15])}")
+    if c.erp:
+        parts.append(f"ERP-Systeme: {', '.join(c.erp[:10])}")
+    if c.languages:
+        if isinstance(c.languages, list):
+            parts.append(f"Sprachen: {', '.join(str(l) for l in c.languages[:5])}")
+
+    prompt_text = "\n".join(parts) if parts else ""
+
+    return {
+        "candidate_id": str(c.id),
+        "full_name": c.full_name,
+        "prompt_text": prompt_text,
+        "has_data": len(prompt_text) >= 50,
+    }
+
+
+@router.patch(
+    "/maintenance/save-profile/{candidate_id}",
+    summary="GPT-Profil-Ergebnis speichern (n8n Callback)",
+    tags=["Maintenance"],
+)
+@rate_limit(RateLimitTier.STANDARD)
+async def save_profile_result(
+    candidate_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Speichert das GPT-Profil-Ergebnis direkt in die v2-Felder."""
+    from app.models.candidate import Candidate
+    from datetime import datetime, timezone
+
+    body = await request.json()
+
+    c = await db.get(Candidate, candidate_id)
+    if not c:
+        raise NotFoundException("Kandidat nicht gefunden")
+
+    c.v2_seniority_level = body.get("seniority_level")
+    c.v2_career_trajectory = body.get("career_trajectory")
+    c.v2_years_experience = body.get("years_experience")
+    c.v2_current_role_summary = body.get("current_role_summary", "")[:500]
+    c.v2_structured_skills = body.get("structured_skills", [])
+    c.v2_certifications = body.get("certifications", [])
+    c.v2_industries = body.get("industries", [])
+    c.v2_profile_created_at = datetime.now(timezone.utc)
+    await db.commit()
+
+    return {
+        "candidate_id": str(c.id),
+        "saved": True,
+        "seniority_level": c.v2_seniority_level,
+    }
