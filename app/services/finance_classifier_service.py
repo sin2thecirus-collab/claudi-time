@@ -739,7 +739,7 @@ class FinanceClassifierService:
     async def classify_all_finance_candidates(
         self, force: bool = False, progress_callback=None,
     ) -> BatchClassificationResult:
-        """Klassifiziert alle FINANCE-Kandidaten via OpenAI."""
+        """Klassifiziert alle FINANCE-Kandidaten via OpenAI (parallel, 5 gleichzeitig)."""
         import asyncio
         start_time = datetime.now(timezone.utc)
 
@@ -761,95 +761,112 @@ class FinanceClassifierService:
         candidates = list(result.scalars().all())
 
         batch_result = BatchClassificationResult(total=len(candidates))
-        logger.info(f"Finance-Klassifizierung: {len(candidates)} Kandidaten zu verarbeiten")
+        logger.info(f"Finance-Klassifizierung: {len(candidates)} Kandidaten zu verarbeiten (parallel, 5 gleichzeitig)")
 
-        for i, candidate in enumerate(candidates):
-            try:
-                classification = await self.classify_candidate(candidate)
+        # Semaphore fuer max 5 parallele OpenAI-Requests
+        semaphore = asyncio.Semaphore(5)
+        processed_count = 0
 
-                batch_result.total_input_tokens += classification.input_tokens
-                batch_result.total_output_tokens += classification.output_tokens
+        async def _classify_one(candidate: Candidate) -> None:
+            """Klassifiziert einen Kandidaten mit Semaphore-Begrenzung."""
+            nonlocal processed_count
+            async with semaphore:
+                try:
+                    classification = await self.classify_candidate(candidate)
 
-                if not classification.success:
-                    if classification.error == "Kein Werdegang vorhanden":
-                        batch_result.skipped_no_cv += 1
-                    else:
-                        batch_result.skipped_error += 1
-                        batch_result.error_candidates.append({
+                    batch_result.total_input_tokens += classification.input_tokens
+                    batch_result.total_output_tokens += classification.output_tokens
+
+                    if not classification.success:
+                        if classification.error == "Kein Werdegang vorhanden":
+                            batch_result.skipped_no_cv += 1
+                        else:
+                            batch_result.skipped_error += 1
+                            batch_result.error_candidates.append({
+                                "id": str(candidate.id),
+                                "name": candidate.full_name,
+                                "position": candidate.current_position,
+                                "error": classification.error,
+                            })
+                        return
+
+                    if classification.is_leadership:
+                        batch_result.skipped_leadership += 1
+                        batch_result.leadership_candidates.append({
                             "id": str(candidate.id),
                             "name": candidate.full_name,
                             "position": candidate.current_position,
-                            "error": classification.error,
+                            "reasoning": classification.reasoning,
                         })
-                    continue
+                        self.apply_to_candidate(candidate, classification)
+                        return
 
-                if classification.is_leadership:
-                    batch_result.skipped_leadership += 1
-                    batch_result.leadership_candidates.append({
+                    if not classification.roles:
+                        batch_result.skipped_no_role += 1
+                        batch_result.unclassified_candidates.append({
+                            "id": str(candidate.id),
+                            "name": candidate.full_name,
+                            "position": candidate.current_position,
+                            "reasoning": classification.reasoning,
+                        })
+                        self.apply_to_candidate(candidate, classification)
+                        return
+
+                    # Ergebnis anwenden
+                    self.apply_to_candidate(candidate, classification)
+                    batch_result.classified += 1
+                    batch_result.classified_candidates.append({
                         "id": str(candidate.id),
                         "name": candidate.full_name,
                         "position": candidate.current_position,
+                        "roles": classification.roles,
+                        "primary_role": classification.primary_role,
+                        "sub_level": classification.sub_level,
                         "reasoning": classification.reasoning,
                     })
-                    # Trotzdem Trainingsdaten speichern
-                    self.apply_to_candidate(candidate, classification)
-                    continue
 
-                if not classification.roles:
-                    batch_result.skipped_no_role += 1
-                    batch_result.unclassified_candidates.append({
-                        "id": str(candidate.id),
-                        "name": candidate.full_name,
-                        "position": candidate.current_position,
-                        "reasoning": classification.reasoning,
-                    })
-                    self.apply_to_candidate(candidate, classification)
-                    continue
+                    if len(classification.roles) > 1:
+                        batch_result.multi_title_count += 1
 
-                # Ergebnis anwenden
-                self.apply_to_candidate(candidate, classification)
-                batch_result.classified += 1
-                batch_result.classified_candidates.append({
-                    "id": str(candidate.id),
-                    "name": candidate.full_name,
-                    "position": candidate.current_position,
-                    "roles": classification.roles,
-                    "primary_role": classification.primary_role,
-                    "reasoning": classification.reasoning,
-                })
-
-                if len(classification.roles) > 1:
-                    batch_result.multi_title_count += 1
-
-                for role in classification.roles:
-                    batch_result.roles_distribution[role] = (
-                        batch_result.roles_distribution.get(role, 0) + 1
-                    )
-
-                # Fortschritt loggen + Callback
-                if (i + 1) % 10 == 0:
-                    if progress_callback:
-                        progress_callback(i + 1, len(candidates), batch_result)
-                    if (i + 1) % 50 == 0:
-                        logger.info(
-                            f"Finance-Klassifizierung: {i + 1}/{len(candidates)} "
-                            f"({batch_result.classified} klassifiziert, "
-                            f"${batch_result.cost_usd:.2f})"
+                    for role in classification.roles:
+                        batch_result.roles_distribution[role] = (
+                            batch_result.roles_distribution.get(role, 0) + 1
                         )
 
-                # Rate-Limiting: kurze Pause alle 10 Requests
-                if (i + 1) % 10 == 0:
-                    await asyncio.sleep(0.5)
+                except Exception as e:
+                    logger.error(f"Fehler bei Kandidat {candidate.id}: {e}")
+                    batch_result.skipped_error += 1
 
-                # Zwischenspeichern alle 50 Kandidaten
-                if (i + 1) % 50 == 0:
-                    await self.db.commit()
+                finally:
+                    processed_count += 1
 
-            except Exception as e:
-                logger.error(f"Fehler bei Kandidat {candidate.id}: {e}")
-                batch_result.skipped_error += 1
+        # In Chunks von 50 verarbeiten fuer regelmaessiges Commit + Logging
+        chunk_size = 50
+        for chunk_start in range(0, len(candidates), chunk_size):
+            chunk = candidates[chunk_start:chunk_start + chunk_size]
 
-        # Finale Änderungen committen
+            # Alle Kandidaten im Chunk parallel starten (Semaphore begrenzt auf 5)
+            tasks = [_classify_one(c) for c in chunk]
+            await asyncio.gather(*tasks)
+
+            # Chunk committen
+            await self.db.commit()
+
+            # Fortschritt loggen
+            done = min(chunk_start + chunk_size, len(candidates))
+            elapsed = (datetime.now(timezone.utc) - start_time).total_seconds()
+            rate = done / elapsed if elapsed > 0 else 0
+            eta = (len(candidates) - done) / rate if rate > 0 else 0
+            logger.info(
+                f"Finance-Klassifizierung: {done}/{len(candidates)} "
+                f"({batch_result.classified} klassifiziert, "
+                f"${batch_result.cost_usd:.2f}, "
+                f"{rate:.1f}/s, ETA {eta:.0f}s)"
+            )
+            if progress_callback:
+                progress_callback(done, len(candidates), batch_result)
+
+        # Finale Commit
         await self.db.commit()
         await self.close()
 
@@ -859,7 +876,7 @@ class FinanceClassifierService:
         logger.info(
             f"Finance-Klassifizierung abgeschlossen: "
             f"{batch_result.classified}/{batch_result.total} klassifiziert, "
-            f"{batch_result.skipped_leadership} Führungskräfte, "
+            f"{batch_result.skipped_leadership} Fuehrungskraefte, "
             f"{batch_result.multi_title_count} Multi-Titel, "
             f"${batch_result.cost_usd:.2f} in {batch_result.duration_seconds}s"
         )
