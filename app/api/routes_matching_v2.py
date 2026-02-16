@@ -1239,6 +1239,62 @@ async def get_feedback_history(
 # ═══════════════════════════════════════════════════════
 
 
+@router.post("/admin/sync-weights")
+async def sync_weights_to_v2(db: AsyncSession = Depends(get_db)):
+    """ADMIN: Synchronisiert DB-Gewichte auf die aktuellen DEFAULT_WEIGHTS.
+
+    Entfernt veraltete Komponenten (distance, city_metro) und setzt
+    alle Gewichte auf die V2-Defaults (skill_overlap=35, seniority_fit=30, job_title_fit=0).
+    """
+    from sqlalchemy import select, delete
+    from app.models.match_v2_models import MatchV2ScoringWeight
+    from app.services.matching_engine_v2 import DEFAULT_WEIGHTS
+
+    # 1. Veraltete Komponenten entfernen
+    obsolete = ["distance", "city_metro"]
+    await db.execute(
+        delete(MatchV2ScoringWeight).where(
+            MatchV2ScoringWeight.component.in_(obsolete)
+        )
+    )
+
+    # 2. Alle Gewichte auf DEFAULT_WEIGHTS setzen
+    result = await db.execute(select(MatchV2ScoringWeight))
+    existing = {w.component: w for w in result.scalars().all()}
+
+    updated = []
+    for component, weight in DEFAULT_WEIGHTS.items():
+        if component in existing:
+            existing[component].weight = weight
+            existing[component].default_weight = weight
+            updated.append(component)
+        else:
+            # Neue Komponente anlegen
+            db.add(MatchV2ScoringWeight(
+                component=component,
+                weight=weight,
+                default_weight=weight,
+                adjustment_count=0,
+            ))
+            updated.append(f"{component} (neu)")
+
+    await db.commit()
+
+    # Verify
+    result = await db.execute(
+        select(MatchV2ScoringWeight).order_by(MatchV2ScoringWeight.component)
+    )
+    final = {w.component: w.weight for w in result.scalars().all()}
+
+    return {
+        "status": "synced",
+        "removed": obsolete,
+        "updated": updated,
+        "weights": final,
+        "total_weight": sum(final.values()),
+    }
+
+
 @router.post("/admin/reset-matches")
 async def reset_all_matches(
     confirm: str = Query(..., pattern="^YES_DELETE_ALL$"),
