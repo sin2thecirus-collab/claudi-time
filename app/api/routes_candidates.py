@@ -1937,18 +1937,14 @@ async def reclassify_finance_candidates(
 async def _run_classification_background(force: bool = False) -> None:
     """Background-Task fuer Kandidaten-Klassifizierung.
 
-    Drei-Phasen-Ansatz pro Chunk um idle-in-transaction Timeout zu vermeiden:
-    1. LOAD: Kurze DB-Session — Kandidaten-Daten laden → Session schliessen
-    2. CLASSIFY: Kein DB — OpenAI-Requests (5 parallel)
-    3. SAVE: Kurze DB-Session — Ergebnisse schreiben → Session schliessen
+    Verarbeitet Kandidaten EINZELN mit eigener DB-Session pro Kandidat.
+    5 parallel via Semaphore. Jeder Kandidat: Load → Classify → Save.
+    Kein idle-in-transaction moeglich.
     """
     global _classification_progress
     import asyncio
     from app.database import async_session_maker
-    from app.services.finance_classifier_service import (
-        FinanceClassifierService, BatchClassificationResult,
-        FINANCE_CLASSIFIER_SYSTEM_PROMPT, ALLOWED_ROLES, ClassificationResult,
-    )
+    from app.services.finance_classifier_service import FinanceClassifierService
 
     log = logging.getLogger(__name__)
 
@@ -1993,193 +1989,110 @@ async def _run_classification_background(force: bool = False) -> None:
             _classification_progress["result"] = {"total": 0, "classified": 0, "message": "Keine Kandidaten"}
             return
 
-        batch_result = BatchClassificationResult(total=total)
         start_time = datetime.now(timezone.utc)
         semaphore = asyncio.Semaphore(5)
-        chunk_size = 25
 
-        # Standalone OpenAI-Classifier (OHNE DB-Session)
-        classifier = FinanceClassifierService(db=None)
+        # Zaehler (thread-safe via asyncio single-thread)
+        stats = {
+            "classified": 0, "leadership": 0, "no_cv": 0,
+            "no_role": 0, "errors": 0, "processed": 0,
+            "input_tokens": 0, "output_tokens": 0,
+            "roles": {},
+        }
 
-        for chunk_start in range(0, total, chunk_size):
-            chunk_ids = candidate_ids[chunk_start:chunk_start + chunk_size]
+        async def _classify_single(cid) -> None:
+            """Einen einzelnen Kandidaten klassifizieren (eigene DB-Session)."""
+            async with semaphore:
+                try:
+                    async with async_session_maker() as db:
+                        classifier = FinanceClassifierService(db)
+                        from app.models.candidate import Candidate
 
-            try:
-                # PHASE 1: LOAD — Kandidaten-Daten laden (kurze Session, <1s)
-                candidate_data = []
-                async with async_session_maker() as db:
-                    from app.models.candidate import Candidate
-                    chunk_result = await db.execute(
-                        select(Candidate).where(Candidate.id.in_(chunk_ids))
-                    )
-                    for c in chunk_result.scalars().all():
-                        candidate_data.append({
-                            "id": c.id,
-                            "prompt": classifier._build_candidate_prompt(c),
-                            "has_data": bool(c.work_history or c.current_position),
-                        })
-                # Session ist GESCHLOSSEN — kein idle-in-transaction
-
-                # PHASE 2: CLASSIFY — OpenAI-Requests (OHNE DB, ~15-25s)
-                classifications = {}
-
-                async def _classify_one(cdata: dict):
-                    async with semaphore:
-                        cid = cdata["id"]
-                        if not cdata["has_data"]:
-                            classifications[cid] = ClassificationResult(
-                                success=False, error="Kein Werdegang vorhanden",
-                                reasoning="Kein Werdegang vorhanden",
-                            )
+                        # Kandidat laden
+                        result = await db.execute(
+                            select(Candidate).where(Candidate.id == cid)
+                        )
+                        candidate = result.scalar_one_or_none()
+                        if not candidate:
+                            stats["errors"] += 1
                             return
-                        try:
-                            result = await classifier._call_openai(
-                                FINANCE_CLASSIFIER_SYSTEM_PROMPT, cdata["prompt"],
-                            )
-                            if result is None:
-                                classifications[cid] = ClassificationResult(
-                                    success=False, error="OpenAI-Aufruf fehlgeschlagen",
-                                )
-                                return
 
-                            usage = result.pop("_usage", {})
-                            roles = [r for r in result.get("roles", []) if r in ALLOWED_ROLES]
-                            primary_role = result.get("primary_role")
-                            if primary_role and primary_role not in ALLOWED_ROLES:
-                                primary_role = roles[0] if roles else None
-                            sub_level = result.get("sub_level")
-                            if sub_level not in ("normal", "senior"):
-                                sub_level = "normal"
+                        # Klassifizieren (OpenAI-Call)
+                        classification = await classifier.classify_candidate(candidate)
+                        stats["input_tokens"] += classification.input_tokens
+                        stats["output_tokens"] += classification.output_tokens
 
-                            classifications[cid] = ClassificationResult(
-                                is_leadership=result.get("is_leadership", False),
-                                roles=roles,
-                                primary_role=primary_role,
-                                reasoning=result.get("reasoning", ""),
-                                success=True,
-                                input_tokens=usage.get("input_tokens", 0),
-                                output_tokens=usage.get("output_tokens", 0),
-                                sub_level=sub_level,
-                            )
-                        except Exception as e:
-                            log.error(f"OpenAI-Fehler bei {cid}: {e}")
-                            classifications[cid] = ClassificationResult(
-                                success=False, error=str(e),
-                            )
-
-                tasks = [_classify_one(cd) for cd in candidate_data]
-                await asyncio.gather(*tasks)
-
-                # PHASE 3: SAVE — Ergebnisse in DB schreiben (kurze Session, <2s)
-                async with async_session_maker() as db:
-                    from sqlalchemy import text as sql_text
-
-                    for cd in candidate_data:
-                        cid = cd["id"]
-                        cr = classifications.get(cid)
-                        if not cr:
-                            continue
-
-                        batch_result.total_input_tokens += cr.input_tokens
-                        batch_result.total_output_tokens += cr.output_tokens
-
-                        if not cr.success:
-                            if cr.error == "Kein Werdegang vorhanden":
-                                batch_result.skipped_no_cv += 1
+                        if not classification.success:
+                            if classification.error == "Kein Werdegang vorhanden":
+                                stats["no_cv"] += 1
                             else:
-                                batch_result.skipped_error += 1
-                            continue
-
-                        if cr.is_leadership:
-                            batch_result.skipped_leadership += 1
-
-                        if not cr.roles and not cr.is_leadership:
-                            batch_result.skipped_no_role += 1
-
-                        if cr.roles:
-                            batch_result.classified += 1
-                            for role in cr.roles:
-                                batch_result.roles_distribution[role] = (
-                                    batch_result.roles_distribution.get(role, 0) + 1
-                                )
-
-                        # Direkt via SQL updaten (keine ORM-Objekte noetig)
-                        import json as json_mod
-                        classification_json = json_mod.dumps({
-                            "source": "openai_v2",
-                            "is_leadership": cr.is_leadership,
-                            "roles": cr.roles,
-                            "primary_role": cr.primary_role,
-                            "sub_level": cr.sub_level,
-                            "reasoning": cr.reasoning,
-                            "classified_at": datetime.now(timezone.utc).isoformat(),
-                        })
-
-                        if cr.roles:
-                            await db.execute(sql_text(
-                                "UPDATE candidates SET "
-                                "hotlist_job_title = :title, "
-                                "classification_data = :cdata::jsonb, "
-                                "updated_at = now() "
-                                "WHERE id = :cid"
-                            ), {
-                                "title": cr.primary_role or cr.roles[0],
-                                "cdata": classification_json,
-                                "cid": str(cid),
-                            })
+                                stats["errors"] += 1
+                                log.warning(f"Kandidat {cid}: {classification.error}")
+                        elif classification.is_leadership:
+                            stats["leadership"] += 1
+                            classifier.apply_to_candidate(candidate, classification)
+                            await db.commit()
+                        elif not classification.roles:
+                            stats["no_role"] += 1
+                            classifier.apply_to_candidate(candidate, classification)
+                            await db.commit()
                         else:
-                            await db.execute(sql_text(
-                                "UPDATE candidates SET "
-                                "classification_data = :cdata::jsonb, "
-                                "updated_at = now() "
-                                "WHERE id = :cid"
-                            ), {
-                                "cdata": classification_json,
-                                "cid": str(cid),
-                            })
+                            classifier.apply_to_candidate(candidate, classification)
+                            await db.commit()
+                            stats["classified"] += 1
+                            for role in classification.roles:
+                                stats["roles"][role] = stats["roles"].get(role, 0) + 1
 
-                    await db.commit()
+                except Exception as e:
+                    log.error(f"Fehler Kandidat {cid}: {e}")
+                    stats["errors"] += 1
 
-            except Exception as e:
-                log.error(f"Chunk-Fehler bei {chunk_start}: {e}")
-                batch_result.skipped_error += len(chunk_ids)
+                finally:
+                    stats["processed"] += 1
+
+        # In Chunks von 25 verarbeiten fuer regelmaessiges Logging
+        chunk_size = 25
+        for chunk_start in range(0, total, chunk_size):
+            chunk = candidate_ids[chunk_start:chunk_start + chunk_size]
+            tasks = [_classify_single(cid) for cid in chunk]
+            await asyncio.gather(*tasks)
 
             # Fortschritt aktualisieren
-            done = min(chunk_start + chunk_size, total)
             elapsed = (datetime.now(timezone.utc) - start_time).total_seconds()
+            done = stats["processed"]
             rate = done / elapsed if elapsed > 0 else 0
             eta = (total - done) / rate if rate > 0 else 0
 
             _classification_progress["processed"] = done
-            _classification_progress["classified"] = batch_result.classified
-            _classification_progress["errors"] = batch_result.skipped_error
-            _classification_progress["cost_usd"] = round(batch_result.cost_usd, 4)
+            _classification_progress["classified"] = stats["classified"]
+            _classification_progress["errors"] = stats["errors"]
+            input_cost = (stats["input_tokens"] / 1_000_000) * 0.15
+            output_cost = (stats["output_tokens"] / 1_000_000) * 0.60
+            _classification_progress["cost_usd"] = round(input_cost + output_cost, 4)
             _classification_progress["last_update"] = datetime.now(timezone.utc).isoformat()
 
             log.info(
                 f"Klassifizierung: {done}/{total} "
-                f"({batch_result.classified} klass., "
-                f"${batch_result.cost_usd:.2f}, "
+                f"({stats['classified']} klass., {stats['errors']} err, "
+                f"${input_cost + output_cost:.3f}, "
                 f"{rate:.1f}/s, ETA {eta:.0f}s)"
             )
 
         # Ergebnis
         duration = (datetime.now(timezone.utc) - start_time).total_seconds()
-        batch_result.duration_seconds = round(duration, 1)
-        await classifier.close()
 
         _classification_progress["result"] = {
-            "total": batch_result.total,
-            "classified": batch_result.classified,
-            "leadership": batch_result.skipped_leadership,
-            "no_cv": batch_result.skipped_no_cv,
-            "no_role": batch_result.skipped_no_role,
-            "errors": batch_result.skipped_error,
-            "cost_usd": round(batch_result.cost_usd, 4),
-            "duration_seconds": batch_result.duration_seconds,
-            "roles_distribution": dict(batch_result.roles_distribution),
+            "total": total,
+            "classified": stats["classified"],
+            "leadership": stats["leadership"],
+            "no_cv": stats["no_cv"],
+            "no_role": stats["no_role"],
+            "errors": stats["errors"],
+            "cost_usd": _classification_progress["cost_usd"],
+            "duration_seconds": round(duration, 1),
+            "roles_distribution": stats["roles"],
         }
-        log.info(f"Klassifizierung fertig: {batch_result.classified}/{total} in {duration:.0f}s")
+        log.info(f"Klassifizierung fertig: {stats['classified']}/{total} in {duration:.0f}s")
 
     except Exception as e:
         log.error(f"Klassifizierung fehlgeschlagen: {e}")
