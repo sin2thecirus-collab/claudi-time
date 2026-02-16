@@ -1,6 +1,7 @@
 """Candidates API Routes - Endpoints für Kandidaten."""
 
 import logging
+from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
 import httpx
@@ -13,6 +14,19 @@ from app.api.rate_limiter import RateLimitTier, rate_limit
 from app.config import Limits
 from app.database import get_db
 from app.schemas.candidate import CandidateListResponse, CandidateResponse, CandidateUpdate, LanguageEntry
+
+# ── Globaler Klassifizierungs-Fortschritt (In-Memory) ──────────────
+_classification_progress: dict = {
+    "running": False,
+    "started_at": None,
+    "total": 0,
+    "processed": 0,
+    "classified": 0,
+    "errors": 0,
+    "cost_usd": 0.0,
+    "last_update": None,
+    "result": None,
+}
 from app.schemas.filters import CandidateFilterParams, SortOrder
 from app.schemas.pagination import PaginationParams
 from app.schemas.validators import BatchDeleteRequest, BatchHideRequest
@@ -1889,35 +1903,140 @@ async def on_new_candidate(
 
 @router.post(
     "/maintenance/reclassify-finance",
-    summary="Alle FINANCE-Kandidaten neu klassifizieren",
+    summary="Alle FINANCE-Kandidaten neu klassifizieren (Background)",
     tags=["Maintenance"],
 )
 @rate_limit(RateLimitTier.ADMIN)
 async def reclassify_finance_candidates(
     request: Request,
     force: bool = False,
+):
+    """
+    Startet Bulk Deep Classification als Background-Task.
+    Fortschritt abrufbar via GET /candidates/maintenance/classification-status.
+    """
+    global _classification_progress
+
+    if _classification_progress["running"]:
+        return {
+            "status": "already_running",
+            "message": "Klassifizierung laeuft bereits",
+            "progress": _classification_progress,
+        }
+
+    # Background-Task starten
+    import asyncio
+    asyncio.create_task(_run_classification_background(force=force))
+
+    return {
+        "status": "started",
+        "message": "Klassifizierung als Background-Task gestartet. Status via GET /candidates/maintenance/classification-status",
+    }
+
+
+async def _run_classification_background(force: bool = False) -> None:
+    """Background-Task fuer Kandidaten-Klassifizierung."""
+    global _classification_progress
+    from app.database import async_session_maker
+    from app.services.finance_classifier_service import FinanceClassifierService
+
+    logger = logging.getLogger(__name__)
+
+    _classification_progress = {
+        "running": True,
+        "started_at": datetime.now(timezone.utc).isoformat(),
+        "total": 0,
+        "processed": 0,
+        "classified": 0,
+        "errors": 0,
+        "cost_usd": 0.0,
+        "last_update": datetime.now(timezone.utc).isoformat(),
+        "result": None,
+    }
+
+    try:
+        async with async_session_maker() as db:
+            classifier = FinanceClassifierService(db)
+
+            def progress_callback(processed: int, total: int, batch_result) -> None:
+                _classification_progress["total"] = total
+                _classification_progress["processed"] = processed
+                _classification_progress["classified"] = batch_result.classified
+                _classification_progress["errors"] = batch_result.skipped_error
+                _classification_progress["cost_usd"] = round(batch_result.cost_usd, 4)
+                _classification_progress["last_update"] = datetime.now(timezone.utc).isoformat()
+
+            result = await classifier.classify_all_finance_candidates(
+                force=force,
+                progress_callback=progress_callback,
+            )
+
+            _classification_progress["result"] = {
+                "total": result.total,
+                "classified": result.classified,
+                "leadership": result.skipped_leadership,
+                "no_cv": result.skipped_no_cv,
+                "no_role": result.skipped_no_role,
+                "errors": result.skipped_error,
+                "cost_usd": round(result.cost_usd, 4),
+                "duration_seconds": result.duration_seconds,
+                "roles_distribution": dict(result.roles_distribution),
+            }
+            logger.info(f"Klassifizierung abgeschlossen: {result.classified}/{result.total}")
+
+    except Exception as e:
+        logger.error(f"Klassifizierung fehlgeschlagen: {e}")
+        _classification_progress["result"] = {"error": str(e)}
+
+    finally:
+        _classification_progress["running"] = False
+        _classification_progress["last_update"] = datetime.now(timezone.utc).isoformat()
+
+
+@router.get(
+    "/maintenance/classification-status",
+    summary="Status der Kandidaten-Klassifizierung",
+    tags=["Maintenance"],
+)
+@rate_limit(RateLimitTier.STANDARD)
+async def candidate_classification_status(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Bulk Deep Classification fuer alle FINANCE-Kandidaten.
-    Nutzt den bestehenden classify_all_finance_candidates mit force-Option.
+    Zeigt den kombinierten Status: DB-Stand + Live-Fortschritt der laufenden Klassifizierung.
     """
-    from app.services.finance_classifier_service import FinanceClassifierService
+    from sqlalchemy import text
 
-    classifier = FinanceClassifierService(db)
-    result = await classifier.classify_all_finance_candidates(force=force)
+    # DB-Stand abfragen
+    result = await db.execute(text("""
+        SELECT
+            COUNT(*) FILTER (WHERE hotlist_category = 'FINANCE' AND deleted_at IS NULL) as total_finance,
+            COUNT(*) FILTER (WHERE hotlist_category = 'FINANCE' AND deleted_at IS NULL AND classification_data IS NOT NULL) as classified,
+            COUNT(*) FILTER (WHERE hotlist_category = 'FINANCE' AND deleted_at IS NULL AND classification_data IS NULL) as unclassified,
+            COUNT(*) FILTER (WHERE is_active = true AND deleted_at IS NULL) as total_all,
+            COUNT(*) FILTER (WHERE v2_seniority_level IS NOT NULL AND is_active = true AND deleted_at IS NULL AND hotlist_category = 'FINANCE') as profiled
+        FROM candidates
+    """))
+    row = result.fetchone()
+
+    total_finance = row[0] or 0
+    classified = row[1] or 0
+    unclassified = row[2] or 0
+    total_all = row[3] or 0
+    profiled = row[4] or 0
 
     return {
-        "status": "completed",
-        "total": result.total,
-        "classified": result.classified,
-        "leadership": result.skipped_leadership,
-        "no_cv": result.skipped_no_cv,
-        "no_role": result.skipped_no_role,
-        "errors": result.skipped_error,
-        "cost_usd": result.cost_usd,
-        "duration_seconds": result.duration_seconds,
-        "roles_distribution": result.roles_distribution,
+        "db_status": {
+            "total_candidates": total_all,
+            "total_finance": total_finance,
+            "classified": classified,
+            "unclassified": unclassified,
+            "profiled": profiled,
+            "unprofiled": total_finance - profiled,
+            "classification_percent": round((classified / total_finance * 100), 1) if total_finance > 0 else 0,
+            "profiling_percent": round((profiled / total_finance * 100), 1) if total_finance > 0 else 0,
+        },
+        "live_progress": _classification_progress,
     }
 
 
