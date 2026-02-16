@@ -372,8 +372,8 @@ async def jobs_list_partial(
     company: Optional[str] = None,
     sort_by: str = "imported_at",
     sort_order: str = "desc",
-    imported_days: Optional[int] = None,
-    updated_days: Optional[int] = None,
+    imported_days: Optional[str] = None,
+    updated_days: Optional[str] = None,
     view: str = "cards",
     db: AsyncSession = Depends(get_db),
 ):
@@ -407,6 +407,15 @@ async def jobs_list_partial(
         city_parts = [c.strip() for c in cities.split(",") if c.strip() and len(c.strip()) >= 2]
         safe_cities = city_parts if city_parts else None
 
+    # imported_days / updated_days: HTMX sendet "" (leerer String) bei "Alle Zeitraeume"
+    # FastAPI kann "" nicht als int parsen -> daher als str empfangen und manuell parsen
+    safe_imported_days = None
+    if imported_days and imported_days.strip().isdigit():
+        safe_imported_days = int(imported_days.strip())
+    safe_updated_days = None
+    if updated_days and updated_days.strip().isdigit():
+        safe_updated_days = int(updated_days.strip())
+
     # Filter aufbauen
     filters = JobFilterParams(
         search=safe_search,
@@ -415,8 +424,8 @@ async def jobs_list_partial(
         company=safe_company,
         sort_by=sort_by_enum,
         sort_order=sort_order_enum,
-        imported_days=imported_days,
-        updated_days=updated_days,
+        imported_days=safe_imported_days,
+        updated_days=safe_updated_days,
     )
 
     # Jobs laden
