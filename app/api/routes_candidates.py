@@ -2007,23 +2007,35 @@ async def candidate_classification_status(
     """
     from sqlalchemy import text
 
-    # DB-Stand abfragen
-    result = await db.execute(text("""
-        SELECT
-            COUNT(*) FILTER (WHERE hotlist_category = 'FINANCE' AND deleted_at IS NULL) as total_finance,
-            COUNT(*) FILTER (WHERE hotlist_category = 'FINANCE' AND deleted_at IS NULL AND classification_data IS NOT NULL) as classified,
-            COUNT(*) FILTER (WHERE hotlist_category = 'FINANCE' AND deleted_at IS NULL AND classification_data IS NULL) as unclassified,
-            COUNT(*) FILTER (WHERE is_active = true AND deleted_at IS NULL) as total_all,
-            COUNT(*) FILTER (WHERE v2_seniority_level IS NOT NULL AND is_active = true AND deleted_at IS NULL AND hotlist_category = 'FINANCE') as profiled
-        FROM candidates
-    """))
-    row = result.fetchone()
+    try:
+        # DB-Stand abfragen (separate Queries fuer Robustheit)
+        r1 = await db.execute(text(
+            "SELECT COUNT(*) FROM candidates WHERE hotlist_category = 'FINANCE' AND deleted_at IS NULL"
+        ))
+        total_finance = r1.scalar() or 0
 
-    total_finance = row[0] or 0
-    classified = row[1] or 0
-    unclassified = row[2] or 0
-    total_all = row[3] or 0
-    profiled = row[4] or 0
+        r2 = await db.execute(text(
+            "SELECT COUNT(*) FROM candidates WHERE hotlist_category = 'FINANCE' AND deleted_at IS NULL AND classification_data IS NOT NULL"
+        ))
+        classified = r2.scalar() or 0
+
+        r3 = await db.execute(text(
+            "SELECT COUNT(*) FROM candidates WHERE is_active = true AND deleted_at IS NULL"
+        ))
+        total_all = r3.scalar() or 0
+
+        r4 = await db.execute(text(
+            "SELECT COUNT(*) FROM candidates WHERE v2_seniority_level IS NOT NULL AND is_active = true AND deleted_at IS NULL AND hotlist_category = 'FINANCE'"
+        ))
+        profiled = r4.scalar() or 0
+
+        unclassified = total_finance - classified
+
+    except Exception as e:
+        return {
+            "db_status": {"error": str(e)},
+            "live_progress": _classification_progress,
+        }
 
     return {
         "db_status": {
