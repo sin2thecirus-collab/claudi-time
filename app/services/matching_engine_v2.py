@@ -1366,27 +1366,11 @@ class MatchingEngineV2:
         )
 
         # Rollen-Check: Welche Qualifikation braucht der Job?
-        # V2: NUR wenn classification_data.primary_role die Rolle explizit nennt
-        job_requires_bibu = False
-        job_requires_fibu = False
-        job_classification = getattr(job, "classification_data", None)
-        if job_classification and isinstance(job_classification, dict):
-            primary_role = job_classification.get("primary_role", "")
-            if primary_role == "Bilanzbuchhalter/in":
-                job_requires_bibu = True
-            elif primary_role == "Finanzbuchhalter/in":
-                job_requires_fibu = True
-        else:
-            # Fallback fuer Jobs ohne Deep Classification
-            title_text = ""
-            if getattr(job, "hotlist_job_title", None):
-                title_text += job.hotlist_job_title.lower()
-            if job.position:
-                title_text += " " + job.position.lower()
-            if "bilanzbuchhalter" in title_text:
-                job_requires_bibu = True
-            elif "finanzbuchhalter" in title_text:
-                job_requires_fibu = True
+        # V2.7: Nutzt job_role von _detect_job_role (gleiche Logik, keine Doppelpflege)
+        job_requires_bibu = job_role == "bilanzbuchhalter"
+        job_requires_fibu = job_role == "finanzbuchhalter"
+        job_requires_lohn = job_role == "lohnbuchhalter"
+        job_requires_stfa = job_role == "steuerfachangestellte"
 
         # Gewichte normalisieren (Summe = 100)
         total_weight = sum(weights.values())
@@ -1435,7 +1419,8 @@ class MatchingEngineV2:
             ) / total_weight * 100
 
             # ── Qualifikations-Multiplikator (NACH Gewichtung, VOR Speichern) ──
-            bibu_multiplier = 1.0
+            # v2.7: Symmetrische Multiplier fuer alle Rollen (Bonus + Penalty)
+            role_multiplier = 1.0
             if job_requires_bibu:
                 # Check 1: v2_certifications (z.B. ["Bilanzbuchhalter"])
                 candidate_has_bibu = any(
@@ -1450,13 +1435,13 @@ class MatchingEngineV2:
                         for s in cand.structured_skills
                     )
                 if candidate_has_bibu:
-                    bibu_multiplier = 1.3   # +30% Bonus
+                    role_multiplier = 1.15  # +15% Bonus (war 1.3 → zu viele 100er Scores)
                 else:
-                    bibu_multiplier = 0.75  # -25% Penalty (fairer als -40%)
-                total *= bibu_multiplier
+                    role_multiplier = 0.6   # -40% Penalty (war 0.75 → zu mild, FiBu→BiBu war 78)
+                total *= role_multiplier
 
             elif job_requires_fibu:
-                # FiBu-Multiplikator: Kandidat mit FiBu-Erfahrung bekommt Bonus
+                # FiBu-Multiplikator: Symmetrisch — Bonus UND Penalty
                 candidate_has_fibu = False
                 # Check 1: Zertifizierungen
                 if cand.certifications:
@@ -1478,8 +1463,10 @@ class MatchingEngineV2:
                         for t in cand.job_titles
                     )
                 if candidate_has_fibu:
-                    bibu_multiplier = 1.2   # +20% Bonus fuer passende FiBu-Qualifikation
-                    total *= bibu_multiplier
+                    role_multiplier = 1.15  # +15% Bonus fuer passende FiBu-Qualifikation
+                else:
+                    role_multiplier = 0.7   # -30% Penalty fuer Nicht-FiBu auf FiBu-Job
+                total *= role_multiplier
 
             # ── Empty CV Penalty (dreistufig) ──
             empty_cv_penalty = None
@@ -1512,7 +1499,7 @@ class MatchingEngineV2:
                 "qualification_tag": qualification_tag,
                 "candidate_level": cand.seniority_level,
                 "job_level": job_level,
-                "bibu_multiplier": bibu_multiplier if bibu_multiplier != 1.0 else None,
+                "role_multiplier": role_multiplier if role_multiplier != 1.0 else None,
                 "empty_cv_penalty": empty_cv_penalty,
                 "job_role": job_role,
             }

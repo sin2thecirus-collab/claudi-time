@@ -101,11 +101,12 @@
                         {% if m.qualification_tag == 'passt' %}&#x1F7E2;{% elif 'leicht' in m.qualification_tag %}&#x1F7E1;{% elif 'unter' in m.qualification_tag %}&#x1F7E0;{% else %}&#x1F534;{% endif %}
                     </span>
                     {% endif %}
-                    {% if m.bibu_multiplier %}
+                    {% if m.role_multiplier %}
+                    {% set role_label = 'BiBu' if m.job_role == 'bilanzbuchhalter' else ('FiBu' if m.job_role == 'finanzbuchhalter' else 'Rolle') %}
                     <span class="flex-shrink-0 inline-flex items-center px-1 py-0.5 rounded text-[10px] font-semibold leading-tight
-                                 {% if m.bibu_multiplier > 1 %}bg-purple-50 text-purple-700{% else %}bg-gray-100 text-gray-500{% endif %}"
-                          title="BiBu {% if m.bibu_multiplier > 1 %}vorhanden{% else %}fehlt{% endif %}">
-                        {% if m.bibu_multiplier > 1 %}BiBu{% else %}!BiBu{% endif %}
+                                 {% if m.role_multiplier > 1 %}bg-purple-50 text-purple-700{% else %}bg-gray-100 text-gray-500{% endif %}"
+                          title="{{ role_label }} {% if m.role_multiplier > 1 %}vorhanden{% else %}fehlt{% endif %}">
+                        {% if m.role_multiplier > 1 %}{{ role_label }}{% else %}!{{ role_label }}{% endif %}
                     </span>
                     {% endif %}
 

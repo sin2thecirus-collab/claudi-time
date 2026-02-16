@@ -273,10 +273,11 @@
                     {{ bd.qualification_tag | capitalize }}
                 </span>
                 {% endif %}
-                {% if bd.bibu_multiplier %}
+                {% if bd.role_multiplier %}
+                {% set role_label = 'BiBu' if bd.job_role == 'bilanzbuchhalter' else ('FiBu' if bd.job_role == 'finanzbuchhalter' else 'Rolle') %}
                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold
-                             {% if bd.bibu_multiplier > 1 %}bg-purple-100 text-purple-700{% else %}bg-gray-100 text-gray-500{% endif %}">
-                    BiBu &times;{{ bd.bibu_multiplier }}
+                             {% if bd.role_multiplier > 1 %}bg-purple-100 text-purple-700{% else %}bg-gray-100 text-gray-500{% endif %}">
+                    {{ role_label }} &times;{{ bd.role_multiplier }}
                 </span>
                 {% endif %}
             </div>

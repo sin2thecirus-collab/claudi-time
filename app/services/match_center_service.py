@@ -736,7 +736,8 @@ class MatchCenterService:
                     "status": m.status.value if m.status else "new",
                     "user_feedback": m.user_feedback,
                     "qualification_tag": breakdown.get("qualification_tag"),
-                    "bibu_multiplier": breakdown.get("bibu_multiplier"),
+                    "role_multiplier": breakdown.get("role_multiplier"),
+                    "job_role": breakdown.get("job_role"),
                 })
 
             jobs_with_matches.append({
