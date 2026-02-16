@@ -1961,6 +1961,8 @@ async def _run_classification_background(force: bool = False) -> None:
     }
 
     try:
+        log.info(f"Klassifizierung Background-Task gestartet (force={force})")
+
         # 1. IDs laden (kurze DB-Session)
         async with async_session_maker() as db:
             from sqlalchemy import and_, select
@@ -1983,7 +1985,7 @@ async def _run_classification_background(force: bool = False) -> None:
 
         total = len(candidate_ids)
         _classification_progress["total"] = total
-        log.info(f"Klassifizierung: {total} Kandidaten (force={force})")
+        log.info(f"Klassifizierung: {total} IDs geladen (force={force})")
 
         if total == 0:
             _classification_progress["result"] = {"total": 0, "classified": 0, "message": "Keine Kandidaten"}
@@ -2059,6 +2061,14 @@ async def _run_classification_background(force: bool = False) -> None:
 
                 finally:
                     stats["processed"] += 1
+                    # Live-Progress nach JEDEM Kandidaten aktualisieren
+                    _classification_progress["processed"] = stats["processed"]
+                    _classification_progress["classified"] = stats["classified"]
+                    _classification_progress["errors"] = stats["errors"]
+                    input_cost = (stats["input_tokens"] / 1_000_000) * 0.15
+                    output_cost = (stats["output_tokens"] / 1_000_000) * 0.60
+                    _classification_progress["cost_usd"] = round(input_cost + output_cost, 4)
+                    _classification_progress["last_update"] = datetime.now(timezone.utc).isoformat()
 
         # In Chunks von 25 verarbeiten fuer regelmaessiges Logging
         chunk_size = 25
@@ -2067,24 +2077,16 @@ async def _run_classification_background(force: bool = False) -> None:
             tasks = [_classify_single(cid) for cid in chunk]
             await asyncio.gather(*tasks)
 
-            # Fortschritt aktualisieren
+            # Logging nach Chunk
             elapsed = (datetime.now(timezone.utc) - start_time).total_seconds()
             done = stats["processed"]
             rate = done / elapsed if elapsed > 0 else 0
             eta = (total - done) / rate if rate > 0 else 0
 
-            _classification_progress["processed"] = done
-            _classification_progress["classified"] = stats["classified"]
-            _classification_progress["errors"] = stats["errors"]
-            input_cost = (stats["input_tokens"] / 1_000_000) * 0.15
-            output_cost = (stats["output_tokens"] / 1_000_000) * 0.60
-            _classification_progress["cost_usd"] = round(input_cost + output_cost, 4)
-            _classification_progress["last_update"] = datetime.now(timezone.utc).isoformat()
-
             log.info(
                 f"Klassifizierung: {done}/{total} "
                 f"({stats['classified']} klass., {stats['errors']} err, "
-                f"${input_cost + output_cost:.3f}, "
+                f"${_classification_progress['cost_usd']:.3f}, "
                 f"{rate:.1f}/s, ETA {eta:.0f}s)"
             )
 
