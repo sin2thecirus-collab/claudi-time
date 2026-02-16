@@ -327,27 +327,36 @@ async def get_profile_stats(db: AsyncSession = Depends(get_db)):
 @router.get("/debug/embedding-readiness")
 async def debug_embedding_readiness(db: AsyncSession = Depends(get_db)):
     """Debug: Prüft warum Embedding-Generierung 0 Kandidaten findet."""
+    from sqlalchemy import text
     try:
-        profiled_finance = (await db.execute(
-            select(func.count(Candidate.id)).where(
-                Candidate.hotlist_category == "FINANCE",
-                Candidate.deleted_at.is_(None),
-                Candidate.v2_profile_created_at.isnot(None),
-            )
-        )).scalar() or 0
+        # Verwende raw SQL um SQLAlchemy ORM zu umgehen
+        profiled = (await db.execute(text(
+            "SELECT COUNT(*) FROM candidates WHERE hotlist_category='FINANCE' "
+            "AND deleted_at IS NULL AND v2_profile_created_at IS NOT NULL"
+        ))).scalar() or 0
 
-        ready_for_embedding = (await db.execute(
-            select(func.count(Candidate.id)).where(
-                Candidate.hotlist_category == "FINANCE",
-                Candidate.deleted_at.is_(None),
-                Candidate.v2_profile_created_at.isnot(None),
-                Candidate.v2_embedding_current.is_(None),
-            )
-        )).scalar() or 0
+        no_emb = (await db.execute(text(
+            "SELECT COUNT(*) FROM candidates WHERE hotlist_category='FINANCE' "
+            "AND deleted_at IS NULL AND v2_profile_created_at IS NOT NULL "
+            "AND v2_embedding_current IS NULL"
+        ))).scalar() or 0
+
+        # Sample: Erster Kandidat und seine v2_embedding_current Wert
+        sample = (await db.execute(text(
+            "SELECT id, full_name, v2_profile_created_at IS NOT NULL as has_profile, "
+            "v2_embedding_current IS NULL as emb_is_null, "
+            "pg_column_size(v2_embedding_current) as emb_bytes "
+            "FROM candidates WHERE hotlist_category='FINANCE' AND deleted_at IS NULL "
+            "AND v2_profile_created_at IS NOT NULL LIMIT 3"
+        ))).all()
+
+        samples = [{"id": str(s[0]), "name": s[1], "has_profile": s[2],
+                     "emb_is_null": s[3], "emb_bytes": s[4]} for s in sample]
 
         return {
-            "profiled_finance": profiled_finance,
-            "ready_for_embedding": ready_for_embedding,
+            "profiled_finance": profiled,
+            "ready_for_embedding_null": no_emb,
+            "samples": samples,
         }
     except Exception as e:
         return {"error": str(e), "type": type(e).__name__}
@@ -688,34 +697,35 @@ async def reset_embeddings(
 
     Noetig nach Re-Profiling (force_reprofile=true), weil die Embedding-Generierung
     nur Kandidaten/Jobs OHNE Embedding verarbeitet.
+    Verwendet raw SQL um JSONB-NULL-Probleme zu umgehen.
     """
-    from app.models.job import Job
+    from sqlalchemy import text
 
     results = {}
 
     if entity_type in ("candidates", "all"):
-        cand_result = await db.execute(
-            update(Candidate)
-            .where(
-                Candidate.hotlist_category == "FINANCE",
-                Candidate.v2_embedding_current.isnot(None),
-            )
-            .values(v2_embedding_current=None)
-        )
+        cand_result = await db.execute(text(
+            "UPDATE candidates SET v2_embedding_current = NULL "
+            "WHERE hotlist_category = 'FINANCE' AND v2_embedding_current IS NOT NULL"
+        ))
         results["candidates_reset"] = cand_result.rowcount
 
     if entity_type in ("jobs", "all"):
-        job_result = await db.execute(
-            update(Job)
-            .where(
-                Job.hotlist_category == "FINANCE",
-                Job.v2_embedding.isnot(None),
-            )
-            .values(v2_embedding=None)
-        )
+        job_result = await db.execute(text(
+            "UPDATE jobs SET v2_embedding = NULL "
+            "WHERE hotlist_category = 'FINANCE' AND v2_embedding IS NOT NULL"
+        ))
         results["jobs_reset"] = job_result.rowcount
 
     await db.commit()
+
+    # Verifiziere sofort
+    verify_c = (await db.execute(text(
+        "SELECT COUNT(*) FROM candidates WHERE hotlist_category='FINANCE' "
+        "AND v2_profile_created_at IS NOT NULL AND v2_embedding_current IS NULL"
+    ))).scalar() or 0
+    results["verify_candidates_ready"] = verify_c
+
     return results
 
 
