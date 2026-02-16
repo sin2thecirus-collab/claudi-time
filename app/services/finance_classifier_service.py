@@ -468,9 +468,16 @@ class FinanceClassifierService:
         self,
         system_prompt: str,
         user_prompt: str,
-        retry_count: int = 3,
+        retry_count: int = 5,
     ) -> dict[str, Any] | None:
-        """Sendet einen Prompt an OpenAI und gibt die JSON-Antwort zurück."""
+        """Sendet einen Prompt an OpenAI und gibt die JSON-Antwort zurück.
+
+        Bei 429 Rate-Limit: Wartet retry-after Header oder 30/60/90/120/150s
+        mit zufaelligem Jitter (±5s) damit parallele Tasks nicht gleichzeitig retrien.
+        """
+        import asyncio
+        import random
+
         if not self.api_key:
             logger.warning("OpenAI API-Key nicht konfiguriert")
             return None
@@ -509,7 +516,6 @@ class FinanceClassifierService:
                     logger.warning(
                         f"Finance-Classifier Timeout, Versuch {attempt + 2}/{retry_count + 1}"
                     )
-                    import asyncio
                     await asyncio.sleep(5 * (attempt + 1))
                     continue
                 self._last_error = "Timeout nach allen Versuchen"
@@ -518,11 +524,17 @@ class FinanceClassifierService:
 
             except httpx.HTTPStatusError as e:
                 if e.response.status_code == 429:
-                    # Rate-Limit: Warte und retry
+                    # Rate-Limit: Warte mit exponential Backoff + Jitter
                     if attempt < retry_count:
-                        wait = int(e.response.headers.get("retry-after", 10 * (attempt + 1)))
-                        logger.warning(f"OpenAI 429 Rate-Limit, warte {wait}s (Versuch {attempt + 2})")
-                        import asyncio
+                        retry_after = e.response.headers.get("retry-after")
+                        if retry_after:
+                            wait = int(retry_after) + random.uniform(1, 5)
+                        else:
+                            wait = 30 * (attempt + 1) + random.uniform(1, 10)
+                        logger.warning(
+                            f"OpenAI 429 Rate-Limit, warte {wait:.0f}s "
+                            f"(Versuch {attempt + 2}/{retry_count + 1})"
+                        )
                         await asyncio.sleep(wait)
                         continue
                     self._last_error = "429 Rate-Limit nach allen Retries"

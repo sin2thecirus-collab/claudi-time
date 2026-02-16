@@ -1992,7 +1992,7 @@ async def _run_classification_background(force: bool = False) -> None:
             return
 
         start_time = datetime.now(timezone.utc)
-        semaphore = asyncio.Semaphore(3)  # 3 parallel statt 5 (Connection Pool Schonung)
+        semaphore = asyncio.Semaphore(2)  # 2 parallel (RPM-Schonung bei 429s)
 
         # Zaehler (thread-safe via asyncio single-thread)
         stats = {
@@ -2070,8 +2070,8 @@ async def _run_classification_background(force: bool = False) -> None:
                     _classification_progress["cost_usd"] = round(input_cost + output_cost, 4)
                     _classification_progress["last_update"] = datetime.now(timezone.utc).isoformat()
 
-        # In Chunks von 25 verarbeiten fuer regelmaessiges Logging
-        chunk_size = 25
+        # In Chunks von 10 verarbeiten (kleiner = weniger RPM-Spitzen)
+        chunk_size = 10
         for chunk_start in range(0, total, chunk_size):
             chunk = candidate_ids[chunk_start:chunk_start + chunk_size]
             tasks = [_classify_single(cid) for cid in chunk]
@@ -2089,6 +2089,9 @@ async def _run_classification_background(force: bool = False) -> None:
                 f"${_classification_progress['cost_usd']:.3f}, "
                 f"{rate:.1f}/s, ETA {eta:.0f}s)"
             )
+
+            # 2s Pause zwischen Chunks um RPM-Limit nicht zu triggern
+            await asyncio.sleep(2)
 
         # Ergebnis
         duration = (datetime.now(timezone.utc) - start_time).total_seconds()

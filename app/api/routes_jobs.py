@@ -1810,7 +1810,7 @@ async def reclassify_finance_jobs(
                 return
 
             stats = {"classified": 0, "errors": 0}
-            semaphore = asyncio.Semaphore(3)
+            semaphore = asyncio.Semaphore(2)  # 2 parallel (RPM-Schonung)
 
             async def _classify_one(jid):
                 async with semaphore:
@@ -1827,17 +1827,21 @@ async def reclassify_finance_jobs(
                                 classifier.apply_to_job(job, classification)
                                 await db2.commit()
                                 stats["classified"] += 1
+                            else:
+                                stats["errors"] += 1
+                                logger.warning(f"Job {jid}: {classification.error}")
                             await classifier.close()
                     except Exception as e:
                         logger.error(f"Job {jid} Fehler: {e}")
                         stats["errors"] += 1
 
-            # In Chunks von 25
-            for i in range(0, total, 25):
-                chunk = job_ids[i:i + 25]
+            # In Chunks von 10 mit Pause
+            for i in range(0, total, 10):
+                chunk = job_ids[i:i + 10]
                 await asyncio.gather(*[_classify_one(jid) for jid in chunk])
-                done = min(i + 25, total)
+                done = min(i + 10, total)
                 logger.info(f"Job Classification: {done}/{total} ({stats['classified']} klass., {stats['errors']} err)")
+                await asyncio.sleep(2)  # RPM-Schonung
 
             logger.info(f"Job Background Classification fertig: {stats}")
         except Exception as e:
