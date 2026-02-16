@@ -1998,14 +1998,17 @@ async def _run_classification_background(force: bool = False) -> None:
             "no_role": 0, "errors": 0, "processed": 0,
             "input_tokens": 0, "output_tokens": 0,
             "roles": {},
+            "last_errors": [],  # Letzte 5 Fehlermeldungen fuer Debugging
         }
+
+        # EIN geteilter Classifier fuer den OpenAI-Client (httpx)
+        shared_classifier = FinanceClassifierService(db=None)
 
         async def _classify_single(cid) -> None:
             """Einen einzelnen Kandidaten klassifizieren (eigene DB-Session)."""
             async with semaphore:
                 try:
                     async with async_session_maker() as db:
-                        classifier = FinanceClassifierService(db)
                         from app.models.candidate import Candidate
 
                         # Kandidat laden
@@ -2017,8 +2020,8 @@ async def _run_classification_background(force: bool = False) -> None:
                             stats["errors"] += 1
                             return
 
-                        # Klassifizieren (OpenAI-Call)
-                        classification = await classifier.classify_candidate(candidate)
+                        # Klassifizieren (geteilter OpenAI-Client)
+                        classification = await shared_classifier.classify_candidate(candidate)
                         stats["input_tokens"] += classification.input_tokens
                         stats["output_tokens"] += classification.output_tokens
 
@@ -2027,25 +2030,31 @@ async def _run_classification_background(force: bool = False) -> None:
                                 stats["no_cv"] += 1
                             else:
                                 stats["errors"] += 1
-                                log.warning(f"Kandidat {cid}: {classification.error}")
+                                err_msg = f"{cid}: {classification.error}"
+                                log.warning(f"Kandidat {err_msg}")
+                                if len(stats["last_errors"]) < 5:
+                                    stats["last_errors"].append(err_msg)
                         elif classification.is_leadership:
                             stats["leadership"] += 1
-                            classifier.apply_to_candidate(candidate, classification)
+                            shared_classifier.apply_to_candidate(candidate, classification)
                             await db.commit()
                         elif not classification.roles:
                             stats["no_role"] += 1
-                            classifier.apply_to_candidate(candidate, classification)
+                            shared_classifier.apply_to_candidate(candidate, classification)
                             await db.commit()
                         else:
-                            classifier.apply_to_candidate(candidate, classification)
+                            shared_classifier.apply_to_candidate(candidate, classification)
                             await db.commit()
                             stats["classified"] += 1
                             for role in classification.roles:
                                 stats["roles"][role] = stats["roles"].get(role, 0) + 1
 
                 except Exception as e:
-                    log.error(f"Fehler Kandidat {cid}: {e}")
+                    err_msg = f"{cid}: {str(e)[:200]}"
+                    log.error(f"Fehler Kandidat {err_msg}")
                     stats["errors"] += 1
+                    if len(stats["last_errors"]) < 5:
+                        stats["last_errors"].append(err_msg)
 
                 finally:
                     stats["processed"] += 1
@@ -2091,6 +2100,7 @@ async def _run_classification_background(force: bool = False) -> None:
             "cost_usd": _classification_progress["cost_usd"],
             "duration_seconds": round(duration, 1),
             "roles_distribution": stats["roles"],
+            "last_errors": stats["last_errors"],
         }
         log.info(f"Klassifizierung fertig: {stats['classified']}/{total} in {duration:.0f}s")
 
