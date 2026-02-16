@@ -332,44 +332,6 @@ async def mark_as_placed(
 
 
 @router.delete(
-    "/{match_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    summary="Match löschen",
-)
-@rate_limit(RateLimitTier.WRITE)
-async def delete_match(
-    match_id: UUID,
-    db: AsyncSession = Depends(get_db),
-):
-    """Löscht einen Match."""
-    matching_service = MatchingService(db)
-    success = await matching_service.delete_match(match_id)
-
-    if not success:
-        raise NotFoundException(message="Match nicht gefunden")
-
-
-@router.delete(
-    "/batch",
-    summary="Mehrere Matches löschen",
-)
-@rate_limit(RateLimitTier.WRITE)
-async def batch_delete_matches(
-    request: BatchDeleteRequest,
-    db: AsyncSession = Depends(get_db),
-):
-    """
-    Löscht mehrere Matches auf einmal.
-
-    Maximal 100 Matches pro Anfrage.
-    """
-    matching_service = MatchingService(db)
-    deleted_count = await matching_service.batch_delete_matches(request.ids)
-
-    return {"deleted_count": deleted_count}
-
-
-@router.delete(
     "/all",
     summary="ALLE Matches löschen",
     description="Löscht ALLE Matches aus der Datenbank. Achtung: Nicht rückgängig machbar!",
@@ -409,6 +371,44 @@ async def delete_all_matches(
         "deleted": True,
         "message": f"Alle {deleted_count} Matches wurden gelöscht",
     }
+
+
+@router.delete(
+    "/batch",
+    summary="Mehrere Matches löschen",
+)
+@rate_limit(RateLimitTier.WRITE)
+async def batch_delete_matches(
+    request: BatchDeleteRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Löscht mehrere Matches auf einmal.
+
+    Maximal 100 Matches pro Anfrage.
+    """
+    matching_service = MatchingService(db)
+    deleted_count = await matching_service.batch_delete_matches(request.ids)
+
+    return {"deleted_count": deleted_count}
+
+
+@router.delete(
+    "/{match_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Match löschen",
+)
+@rate_limit(RateLimitTier.WRITE)
+async def delete_match(
+    match_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Löscht einen Match."""
+    matching_service = MatchingService(db)
+    success = await matching_service.delete_match(match_id)
+
+    if not success:
+        raise NotFoundException(message="Match nicht gefunden")
 
 
 # ==================== Statistiken ====================
