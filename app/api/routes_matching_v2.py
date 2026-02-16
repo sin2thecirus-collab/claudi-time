@@ -2201,6 +2201,8 @@ async def _run_drive_time_backfill(min_score: float = 70.0, force: bool = False)
 
     status = _drive_time_backfill_status
 
+    logger.info(f"Drive Time Backfill gestartet: has_api_key={distance_matrix_service.has_api_key}")
+
     if not distance_matrix_service.has_api_key:
         status.update({"running": False, "finished_at": datetime.now(timezone.utc).isoformat()})
         logger.error("Drive Time Backfill: Kein Google Maps API Key konfiguriert")
@@ -2208,6 +2210,7 @@ async def _run_drive_time_backfill(min_score: float = 70.0, force: bool = False)
 
     try:
         # ── Schritt 1: Matches laden (eigene Session, sofort schließen) ──
+        logger.info("Drive Time Backfill: Lade Matches aus DB...")
         matches_by_job: dict[str, list[dict]] = {}
         async with async_session_factory() as db:
             eff = func.coalesce(Match.v2_score, Match.ai_score * 100, 0)
@@ -2245,10 +2248,12 @@ async def _run_drive_time_backfill(min_score: float = 70.0, force: bool = False)
                 })
         # DB-Session hier geschlossen!
 
-        logger.info(f"Drive Time Backfill: {len(matches)} Matches in {len(matches_by_job)} Jobs")
+        logger.info(f"Drive Time Backfill: {len(matches)} Matches in {len(matches_by_job)} Jobs geladen")
 
         # ── Schritt 2: Pro Job eigene Session → API-Call → eigene Session ──
+        job_counter = 0
         for job_id_str, job_matches in matches_by_job.items():
+            job_counter += 1
             job_id = job_matches[0]["job_id"]
             try:
                 # 2a: Job- und Kandidaten-Koordinaten laden (eigene Session)
@@ -2306,6 +2311,8 @@ async def _run_drive_time_backfill(min_score: float = 70.0, force: bool = False)
                     continue
 
                 # 2b: Google Maps API aufrufen (KEINE DB-Session offen!)
+                logger.info(f"Drive Time Backfill Job {job_counter}/{len(matches_by_job)}: "
+                           f"{len(cands_with_coords)} Kandidaten, calling Google Maps...")
                 drive_times = await distance_matrix_service.batch_drive_times(
                     job_lat=job_lat,
                     job_lng=job_lng,
@@ -2357,3 +2364,59 @@ async def drive_time_backfill_status(request: Request):
     else:
         status["percent"] = 0
     return status
+
+
+@router.get("/drive-times/debug")
+async def drive_time_debug(request: Request, db: AsyncSession = Depends(get_db)):
+    """Debug-Endpoint für Drive Time Konfiguration."""
+    from app.services.distance_matrix_service import distance_matrix_service
+    from app.config import settings
+    from app.models.match import Match
+    from app.models.job import Job
+    from sqlalchemy import func as sa_func
+
+    # Teste eine einzelne Koordinaten-Abfrage
+    test_job_coords = None
+    try:
+        coord_result = await db.execute(
+            select(
+                Job.id,
+                Job.title,
+                Job.postal_code,
+                sa_func.ST_Y(sa_func.ST_GeomFromWKB(Job.location_coords)).label("lat"),
+                sa_func.ST_X(sa_func.ST_GeomFromWKB(Job.location_coords)).label("lng"),
+            )
+            .where(Job.location_coords.isnot(None))
+            .limit(1)
+        )
+        row = coord_result.first()
+        if row:
+            test_job_coords = {
+                "job_id": str(row.id),
+                "title": row.title,
+                "postal_code": row.postal_code,
+                "lat": row.lat,
+                "lng": row.lng,
+            }
+    except Exception as e:
+        test_job_coords = {"error": str(e)}
+
+    # Zähle Jobs mit Koordinaten
+    jobs_with_coords = 0
+    try:
+        result = await db.execute(
+            select(func.count(Job.id)).where(Job.location_coords.isnot(None))
+        )
+        jobs_with_coords = result.scalar() or 0
+    except Exception as e:
+        jobs_with_coords = f"error: {e}"
+
+    return {
+        "has_api_key": distance_matrix_service.has_api_key,
+        "api_key_preview": settings.google_maps_api_key[:10] + "..." if settings.google_maps_api_key else "(empty)",
+        "api_key_length": len(settings.google_maps_api_key),
+        "cache_stats": distance_matrix_service.get_cache_stats(),
+        "backfill_status": _drive_time_backfill_status,
+        "test_job_coords": test_job_coords,
+        "jobs_with_coords": jobs_with_coords,
+    }
