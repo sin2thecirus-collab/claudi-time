@@ -69,19 +69,27 @@
 
   "finanzbuchhalter": {
     "qualifikationen": {
-      "weight": 9,
+      "weight": 10,
       "skills": [
         "Steuerfachangestellte",
         "Steuerfachangestellter",
         "Finanzbuchhalter",
+        "Finanzbuchhalterin",
         "Geprüfter Finanzbuchhalter",
         "Finanzbuchhalter IHK",
+        "Buchhalter",
+        "Buchhalterin",
         "Bachelor Rechnungswesen",
         "Bachelor Accounting",
         "IHK Bilanzbuchhalter",
+        "Bilanzbuchhalter",
         "Industriekaufmann",
+        "Industriekauffrau",
         "Bürokaufmann",
-        "Kaufmann Büromanagement"
+        "Bürokauffrau",
+        "Kaufmann Büromanagement",
+        "Kauffrau Büromanagement",
+        "Steuerfachwirt"
       ]
     },
     "fachkenntnisse": {
@@ -91,23 +99,47 @@
         "Kreditoren",
         "Debitorenbuchhaltung",
         "Kreditorenbuchhaltung",
+        "Sachkontenbuchhaltung",
+        "Anlagenbuchhaltung",
+        "Hauptbuchhaltung",
         "Zahlungsverkehr",
         "Kontenabstimmung",
+        "Kontenklärung",
         "Buchführung",
+        "Buchhaltung",
+        "Finanzbuchhaltung",
         "HGB",
         "Umsatzsteuer",
-        "Rechnungswesen"
+        "Steuerrecht",
+        "Rechnungswesen",
+        "Rechnungslegung",
+        "Bilanzierung",
+        "Handelsrecht"
       ]
     },
     "taetigkeiten": {
       "weight": 7,
       "skills": [
         "Monatsabschluss",
+        "Quartalsabschluss",
+        "Jahresabschluss",
+        "Abschlussarbeiten",
         "Mahnwesen",
         "Rechnungsprüfung",
+        "Rechnungsbearbeitung",
         "Zahlungslauf",
+        "Zahlungsabwicklung",
         "OP-Verwaltung",
-        "Jahresabschluss"
+        "Kontierung",
+        "Verbuchung",
+        "Reisekostenabrechnung",
+        "Kreditkartenabrechnung",
+        "Umsatzsteuervoranmeldung",
+        "Intercompany",
+        "Stammdatenpflege",
+        "Rückstellungen",
+        "Abgrenzungen",
+        "Konsolidierung"
       ]
     },
     "software": {
@@ -115,10 +147,16 @@
       "skills": [
         "DATEV",
         "SAP",
+        "SAP FI",
         "Lexware",
         "Excel",
         "Navision",
-        "Oracle"
+        "Oracle",
+        "Dynamics",
+        "Microsoft Dynamics",
+        "Sage",
+        "Addison",
+        "Diamant"
       ]
     }
   },

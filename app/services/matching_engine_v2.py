@@ -1365,17 +1365,19 @@ class MatchingEngineV2:
             getattr(job, "classification_data", None),
         )
 
-        # BiBu-Check: Braucht der Job einen Bilanzbuchhalter?
-        # V2: NUR wenn classification_data.primary_role == "Bilanzbuchhalter/in"
-        # NICHT wenn nur irgendwo im Text "BiBu erwuenscht" steht
+        # Rollen-Check: Welche Qualifikation braucht der Job?
+        # V2: NUR wenn classification_data.primary_role die Rolle explizit nennt
         job_requires_bibu = False
-        # V2: BiBu-Penalty NUR wenn Deep Classification die Stelle als echte BiBu identifiziert hat
+        job_requires_fibu = False
         job_classification = getattr(job, "classification_data", None)
         if job_classification and isinstance(job_classification, dict):
-            if job_classification.get("primary_role") == "Bilanzbuchhalter/in":
+            primary_role = job_classification.get("primary_role", "")
+            if primary_role == "Bilanzbuchhalter/in":
                 job_requires_bibu = True
+            elif primary_role == "Finanzbuchhalter/in":
+                job_requires_fibu = True
         else:
-            # Fallback fuer Jobs ohne Deep Classification (altes Verhalten)
+            # Fallback fuer Jobs ohne Deep Classification
             title_text = ""
             if getattr(job, "hotlist_job_title", None):
                 title_text += job.hotlist_job_title.lower()
@@ -1383,6 +1385,8 @@ class MatchingEngineV2:
                 title_text += " " + job.position.lower()
             if "bilanzbuchhalter" in title_text:
                 job_requires_bibu = True
+            elif "finanzbuchhalter" in title_text:
+                job_requires_fibu = True
 
         # Gewichte normalisieren (Summe = 100)
         total_weight = sum(weights.values())
@@ -1421,16 +1425,16 @@ class MatchingEngineV2:
 
             # ── Gewichtete Summe (0-100) ──
             total = (
-                skill_score * weights.get("skill_overlap", 27) +
-                seniority_score * weights.get("seniority_fit", 20) +
-                job_title_score * weights.get("job_title_fit", 18) +
+                skill_score * weights.get("skill_overlap", 35) +
+                seniority_score * weights.get("seniority_fit", 30) +
+                job_title_score * weights.get("job_title_fit", 0) +
                 embedding_score * weights.get("embedding_sim", 15) +
                 industry_score * weights.get("industry_fit", 8) +
                 career_score * weights.get("career_fit", 7) +
                 software_score * weights.get("software_match", 5)
             ) / total_weight * 100
 
-            # ── BiBu-Multiplikator (NACH Gewichtung, VOR Speichern) ──
+            # ── Qualifikations-Multiplikator (NACH Gewichtung, VOR Speichern) ──
             bibu_multiplier = 1.0
             if job_requires_bibu:
                 # Check 1: v2_certifications (z.B. ["Bilanzbuchhalter"])
@@ -1450,6 +1454,32 @@ class MatchingEngineV2:
                 else:
                     bibu_multiplier = 0.75  # -25% Penalty (fairer als -40%)
                 total *= bibu_multiplier
+
+            elif job_requires_fibu:
+                # FiBu-Multiplikator: Kandidat mit FiBu-Erfahrung bekommt Bonus
+                candidate_has_fibu = False
+                # Check 1: Zertifizierungen
+                if cand.certifications:
+                    candidate_has_fibu = any(
+                        any(kw in c.lower() for kw in ["finanzbuchhalter", "buchhalter ihk", "steuerfachangestellte"])
+                        for c in cand.certifications
+                    )
+                # Check 2: structured_skills
+                if not candidate_has_fibu and cand.structured_skills:
+                    candidate_has_fibu = any(
+                        any(kw in s.get("skill", "").lower() for kw in ["finanzbuchhalter", "finanzbuchhaltung", "buchhalter"])
+                        and s.get("category", "") in ("zertifizierung", "qualifikation", "")
+                        for s in cand.structured_skills
+                    )
+                # Check 3: Job-Titel / Positionen
+                if not candidate_has_fibu and cand.job_titles:
+                    candidate_has_fibu = any(
+                        any(kw in t.lower() for kw in ["finanzbuchhalter", "finanzbuchhaltung", "buchhalter"])
+                        for t in cand.job_titles
+                    )
+                if candidate_has_fibu:
+                    bibu_multiplier = 1.2   # +20% Bonus fuer passende FiBu-Qualifikation
+                    total *= bibu_multiplier
 
             # ── Empty CV Penalty (dreistufig) ──
             empty_cv_penalty = None
