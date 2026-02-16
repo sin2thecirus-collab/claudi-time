@@ -371,14 +371,14 @@ class JobService:
                 )
             )
 
-        # Städte-Filter
+        # Städte-Filter (ILIKE fuer Freitext-Suche)
         if filters.cities:
-            query = query.where(
-                or_(
-                    Job.city.in_(filters.cities),
-                    Job.work_location_city.in_(filters.cities),
-                )
-            )
+            city_conditions = []
+            for city in filters.cities:
+                city_term = f"%{city}%"
+                city_conditions.append(Job.city.ilike(city_term))
+                city_conditions.append(Job.work_location_city.ilike(city_term))
+            query = query.where(or_(*city_conditions))
 
         # Branchen-Filter
         if filters.industries:
