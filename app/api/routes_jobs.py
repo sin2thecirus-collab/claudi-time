@@ -1900,6 +1900,7 @@ async def classify_single_job(
     return {
         "job_id": job_id,
         "success": classification.success,
+        "error": classification.error,
         "primary_role": classification.primary_role,
         "roles": classification.roles,
         "sub_level": classification.sub_level,
