@@ -1675,8 +1675,9 @@ class MatchingEngineV2:
         # ── Schicht 3: Pattern Boost ──
         scored = await self._apply_learned_rules(scored, job, cand_map)
 
-        # ── Phase 10: Google Maps Fahrzeit (NUR für Score ≥ 70) ──
-        DRIVE_TIME_SCORE_THRESHOLD = 70
+        # ── Phase 10: Google Maps Fahrzeit (NUR für Score ≥ Threshold) ──
+        from app.api.routes_settings import get_drive_time_threshold
+        DRIVE_TIME_SCORE_THRESHOLD = await get_drive_time_threshold(self.db)
         try:
             from app.services.distance_matrix_service import distance_matrix_service
 

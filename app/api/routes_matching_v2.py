@@ -2124,15 +2124,21 @@ async def drive_time_backfill(
     request: Request,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
-    min_score: float = Query(70.0, description="Minimum Score für Fahrzeit-Berechnung"),
+    min_score: float | None = Query(None, description="Minimum Score für Fahrzeit-Berechnung (Default: aus Einstellungen)"),
     force: bool = Query(False, description="Auch Matches mit bestehender Fahrzeit neu berechnen"),
 ):
     """Backfill: Google Maps Fahrzeit für bestehende Matches mit Score >= min_score.
 
     Läuft im Hintergrund. Status abfragbar über GET /drive-times/backfill/status.
+    Wenn min_score nicht angegeben, wird der Wert aus den System-Einstellungen gelesen.
     """
     from app.models.match import Match
     from app.models.job import Job
+    from app.api.routes_settings import get_drive_time_threshold
+
+    # Default aus DB lesen wenn nicht explizit angegeben
+    if min_score is None:
+        min_score = float(await get_drive_time_threshold(db))
 
     if _drive_time_backfill_status["running"]:
         return JSONResponse(

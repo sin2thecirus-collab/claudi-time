@@ -357,6 +357,140 @@
         </div>
     </div>
 
+    {# Google Maps Fahrzeit — Score-Schwellenwert #}
+    <div x-data="driveTimeThreshold()" class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg">
+        <div class="px-4 py-5 sm:px-6">
+            <h2 class="text-base font-semibold leading-6 text-gray-900">Google Maps Fahrzeit</h2>
+            <p class="mt-1 text-sm text-gray-500">
+                Ab welchem Match-Score soll die Fahrzeit (Auto + OEPNV) per Google Maps berechnet werden?
+            </p>
+        </div>
+        <div class="border-t border-gray-200 px-4 py-5 sm:px-6">
+            <div class="space-y-4">
+                {# Slider + Wert-Anzeige #}
+                <div class="flex items-center gap-4">
+                    <label for="threshold-slider" class="text-sm font-medium text-gray-700 whitespace-nowrap w-36">
+                        Minimum Score:
+                    </label>
+                    <input
+                        type="range"
+                        id="threshold-slider"
+                        min="0"
+                        max="100"
+                        step="5"
+                        x-model="threshold"
+                        @input="dirty = true"
+                        class="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary-600"
+                    >
+                    <span
+                        class="inline-flex items-center justify-center w-14 h-9 rounded-lg text-sm font-bold"
+                        :class="threshold >= 70 ? 'bg-green-100 text-green-700' : threshold >= 40 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'"
+                        x-text="threshold"
+                    ></span>
+                </div>
+
+                {# Erklaerung #}
+                <div class="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <svg class="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd" />
+                    </svg>
+                    <p class="text-xs text-blue-700 leading-relaxed">
+                        Nur <strong>zukuenftige</strong> Matches mit einem Score ab <span class="font-bold" x-text="threshold"></span>
+                        erhalten eine Google Maps Fahrzeit-Berechnung. Bestehende Matches mit bereits berechneter Fahrzeit
+                        werden <strong>nicht</strong> veraendert.
+                    </p>
+                </div>
+
+                {# Speichern Button #}
+                <div class="flex items-center gap-3">
+                    <button
+                        type="button"
+                        @click="save()"
+                        :disabled="saving || !dirty"
+                        class="inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        :class="saving ? 'bg-gray-400' : 'bg-primary-600 hover:bg-primary-500'"
+                    >
+                        <template x-if="saving">
+                            <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                            </svg>
+                        </template>
+                        <template x-if="!saving">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                            </svg>
+                        </template>
+                        <span x-text="saving ? 'Speichern...' : 'Speichern'"></span>
+                    </button>
+                    <span x-show="saved" x-transition class="text-sm text-green-600 font-medium">
+                        Gespeichert! Gilt fuer zukuenftige Matches.
+                    </span>
+                    <span x-show="error" x-transition class="text-sm text-red-600 font-medium" x-text="error"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    function driveTimeThreshold() {
+        return {
+            threshold: 70,
+            originalValue: 70,
+            saving: false,
+            saved: false,
+            dirty: false,
+            error: '',
+
+            init() {
+                this.loadThreshold();
+            },
+
+            async loadThreshold() {
+                try {
+                    const resp = await fetch('/api/settings/system/drive_time_score_threshold');
+                    if (resp.ok) {
+                        const data = await resp.json();
+                        this.threshold = parseInt(data.value) || 70;
+                        this.originalValue = this.threshold;
+                    }
+                } catch (e) {
+                    console.error('Threshold laden fehlgeschlagen:', e);
+                }
+            },
+
+            async save() {
+                this.saving = true;
+                this.saved = false;
+                this.error = '';
+                try {
+                    const resp = await fetch('/api/settings/system/drive_time_score_threshold', {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-csrf-token': document.cookie.match(/pp_csrf=([^;]+)/)?.[1] || '',
+                        },
+                        body: JSON.stringify({ value: String(this.threshold) }),
+                    });
+                    if (resp.ok) {
+                        this.saved = true;
+                        this.dirty = false;
+                        this.originalValue = this.threshold;
+                        setTimeout(() => { this.saved = false; }, 4000);
+                    } else {
+                        const data = await resp.json();
+                        this.error = data.detail || data.error || 'Fehler beim Speichern';
+                    }
+                } catch (e) {
+                    this.error = 'Netzwerkfehler';
+                    console.error('Threshold speichern fehlgeschlagen:', e);
+                }
+                this.saving = false;
+            },
+        };
+    }
+    </script>
+
     {# System-Limits #}
     <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg">
         <div class="px-4 py-5 sm:px-6">

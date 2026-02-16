@@ -5,12 +5,14 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, Field
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.exception_handlers import NotFoundException, ConflictException
 from app.api.rate_limiter import RateLimitTier, rate_limit
 from app.config import Limits
 from app.database import get_db
+from app.models.settings import SystemSetting
 from app.services.filter_service import FilterService
 
 logger = logging.getLogger(__name__)
@@ -174,3 +176,94 @@ async def get_system_limits():
         "default_radius_km": Limits.DEFAULT_RADIUS_KM,
         "active_candidate_days": Limits.ACTIVE_CANDIDATE_DAYS,
     }
+
+
+# ==================== System-Einstellungen (Key-Value) ====================
+
+
+class SystemSettingUpdate(BaseModel):
+    """Schema fuer System-Einstellungs-Update."""
+    value: str = Field(min_length=1, max_length=500)
+
+
+@router.get(
+    "/system/{key}",
+    summary="System-Einstellung lesen",
+)
+async def get_system_setting(
+    key: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Liest eine System-Einstellung nach Key."""
+    result = await db.execute(
+        select(SystemSetting).where(SystemSetting.key == key)
+    )
+    setting = result.scalar_one_or_none()
+    if not setting:
+        raise NotFoundException(message=f"Einstellung '{key}' nicht gefunden")
+    return {
+        "key": setting.key,
+        "value": setting.value,
+        "description": setting.description,
+        "updated_at": setting.updated_at.isoformat() if setting.updated_at else None,
+    }
+
+
+@router.put(
+    "/system/{key}",
+    summary="System-Einstellung aendern",
+)
+@rate_limit(RateLimitTier.WRITE)
+async def update_system_setting(
+    key: str,
+    data: SystemSettingUpdate,
+    db: AsyncSession = Depends(get_db),
+):
+    """Aendert eine System-Einstellung. Gilt NUR fuer zukuenftige Operationen."""
+    result = await db.execute(
+        select(SystemSetting).where(SystemSetting.key == key)
+    )
+    setting = result.scalar_one_or_none()
+    if not setting:
+        raise NotFoundException(message=f"Einstellung '{key}' nicht gefunden")
+
+    # Validierung fuer bekannte Keys
+    if key == "drive_time_score_threshold":
+        try:
+            val = int(data.value)
+            if not (0 <= val <= 100):
+                raise ValueError
+        except ValueError:
+            return {"error": "Wert muss eine Zahl zwischen 0 und 100 sein"}, 400
+
+    old_value = setting.value
+    setting.value = data.value
+    await db.commit()
+
+    logger.info(f"System-Einstellung '{key}' geaendert: {old_value} → {data.value}")
+
+    return {
+        "key": setting.key,
+        "value": setting.value,
+        "old_value": old_value,
+        "description": setting.description,
+        "message": f"Einstellung '{key}' auf {data.value} geaendert. Gilt fuer zukuenftige Matches.",
+    }
+
+
+# ── Helper: Threshold aus DB lesen (wird von matching_engine importiert) ──
+
+async def get_drive_time_threshold(db: AsyncSession) -> int:
+    """Liest den drive_time_score_threshold aus der DB. Fallback: 70."""
+    try:
+        result = await db.execute(
+            select(SystemSetting.value).where(
+                SystemSetting.key == "drive_time_score_threshold"
+            )
+        )
+        val = result.scalar_one_or_none()
+        if val is not None:
+            return int(val)
+    except Exception:
+        pass
+    return 70  # Fallback

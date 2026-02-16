@@ -52,3 +52,19 @@ class FilterPreset(Base):
         server_default=func.now(),
         onupdate=func.now(),
     )
+
+
+class SystemSetting(Base):
+    """Generische Key-Value Einstellungen (z.B. drive_time_score_threshold)."""
+
+    __tablename__ = "system_settings"
+
+    key: Mapped[str] = mapped_column(String(100), primary_key=True)
+    value: Mapped[str] = mapped_column(String(500), nullable=False)
+    description: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
