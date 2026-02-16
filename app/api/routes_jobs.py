@@ -1697,6 +1697,48 @@ async def cleanup_orphan_ats_jobs(
 # ══════════════════════════════════════════════════════════════════
 
 
+@router.get(
+    "/maintenance/classification-status",
+    summary="Status der Deep Classification anzeigen",
+    tags=["Maintenance"],
+)
+@rate_limit(RateLimitTier.STANDARD)
+async def classification_status(
+    db: AsyncSession = Depends(get_db),
+):
+    """Zeigt wie viele Finance-Jobs bereits klassifiziert sind."""
+    from sqlalchemy import text
+
+    result = await db.execute(text("""
+        SELECT
+            COUNT(*) FILTER (WHERE hotlist_category = 'FINANCE' AND deleted_at IS NULL) as total_finance,
+            COUNT(*) FILTER (WHERE hotlist_category = 'FINANCE' AND deleted_at IS NULL AND classification_data IS NOT NULL) as classified,
+            COUNT(*) FILTER (WHERE hotlist_category = 'FINANCE' AND deleted_at IS NULL AND classification_data IS NULL) as unclassified,
+            COUNT(*) FILTER (WHERE hotlist_category = 'FINANCE' AND deleted_at IS NULL AND quality_score = 'high') as high_quality,
+            COUNT(*) FILTER (WHERE hotlist_category = 'FINANCE' AND deleted_at IS NULL AND quality_score = 'medium') as medium_quality,
+            COUNT(*) FILTER (WHERE hotlist_category = 'FINANCE' AND deleted_at IS NULL AND quality_score = 'low') as low_quality
+        FROM jobs
+    """))
+    row = result.fetchone()
+
+    total = row[0] or 0
+    classified = row[1] or 0
+    progress_pct = round((classified / total * 100), 1) if total > 0 else 0
+
+    return {
+        "total_finance_jobs": total,
+        "classified": classified,
+        "unclassified": row[2] or 0,
+        "progress_percent": progress_pct,
+        "quality_breakdown": {
+            "high": row[3] or 0,
+            "medium": row[4] or 0,
+            "low": row[5] or 0,
+        },
+        "status": "running" if 0 < classified < total else ("complete" if classified == total else "not_started"),
+    }
+
+
 @router.post(
     "/maintenance/reclassify-finance",
     summary="Alle FINANCE-Jobs deep-klassifizieren (Backfill)",
