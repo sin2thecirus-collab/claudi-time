@@ -1926,19 +1926,20 @@ async def reclassify_finance_candidates(
 
 @router.get(
     "/maintenance/unprofiled-ids",
-    summary="IDs aller unprufilierten Kandidaten",
+    summary="IDs aller unprufilierten Finance-Kandidaten",
     tags=["Maintenance"],
 )
 @rate_limit(RateLimitTier.STANDARD)
 async def get_unprofiled_ids(
     db: AsyncSession = Depends(get_db),
 ):
-    """Gibt IDs aller Kandidaten ohne v2-Profil zurueck (fuer n8n Batch)."""
+    """Gibt IDs aller FINANCE-Kandidaten ohne v2-Profil zurueck (fuer n8n Batch)."""
     from sqlalchemy import text
 
     result = await db.execute(text(
         "SELECT id::text FROM candidates "
         "WHERE v2_seniority_level IS NULL AND is_active = true "
+        "AND hotlist_category = 'FINANCE' "
         "ORDER BY created_at DESC"
     ))
     ids = [row[0] for row in result.fetchall()]
