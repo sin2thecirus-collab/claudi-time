@@ -369,6 +369,48 @@ async def batch_delete_matches(
     return {"deleted_count": deleted_count}
 
 
+@router.delete(
+    "/all",
+    summary="ALLE Matches löschen",
+    description="Löscht ALLE Matches aus der Datenbank. Achtung: Nicht rückgängig machbar!",
+)
+@rate_limit(RateLimitTier.ADMIN)
+async def delete_all_matches(
+    confirm: bool = Query(default=False, description="Muss 'true' sein als Sicherheitsabfrage"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Löscht ALLE Matches. Erfordert ?confirm=true als Sicherheitsabfrage."""
+    if not confirm:
+        # Nur zählen, nicht löschen
+        from sqlalchemy import select, func
+        from app.models.match import Match
+
+        count_result = await db.execute(
+            select(func.count()).select_from(Match)
+        )
+        total = count_result.scalar() or 0
+        return {
+            "warning": "Sicherheitsabfrage: ?confirm=true setzen um alle Matches zu löschen",
+            "total_matches": total,
+            "deleted": False,
+        }
+
+    from sqlalchemy import delete
+    from app.models.match import Match
+
+    result = await db.execute(delete(Match))
+    await db.commit()
+    deleted_count = result.rowcount
+
+    logger.info(f"ALLE Matches gelöscht: {deleted_count} Einträge entfernt")
+
+    return {
+        "deleted_count": deleted_count,
+        "deleted": True,
+        "message": f"Alle {deleted_count} Matches wurden gelöscht",
+    }
+
+
 # ==================== Statistiken ====================
 
 @router.get(
