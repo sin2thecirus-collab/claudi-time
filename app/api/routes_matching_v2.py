@@ -327,99 +327,30 @@ async def get_profile_stats(db: AsyncSession = Depends(get_db)):
 @router.get("/debug/embedding-readiness")
 async def debug_embedding_readiness(db: AsyncSession = Depends(get_db)):
     """Debug: Prüft warum Embedding-Generierung 0 Kandidaten findet."""
-    from app.models.job import Job
+    try:
+        profiled_finance = (await db.execute(
+            select(func.count(Candidate.id)).where(
+                Candidate.hotlist_category == "FINANCE",
+                Candidate.deleted_at.is_(None),
+                Candidate.v2_profile_created_at.isnot(None),
+            )
+        )).scalar() or 0
 
-    # Alle Kombinationen zählen
-    total_finance = (await db.execute(
-        select(func.count(Candidate.id)).where(
-            Candidate.hotlist_category == "FINANCE",
-            Candidate.deleted_at.is_(None),
-        )
-    )).scalar() or 0
+        ready_for_embedding = (await db.execute(
+            select(func.count(Candidate.id)).where(
+                Candidate.hotlist_category == "FINANCE",
+                Candidate.deleted_at.is_(None),
+                Candidate.v2_profile_created_at.isnot(None),
+                Candidate.v2_embedding_current.is_(None),
+            )
+        )).scalar() or 0
 
-    profiled_finance = (await db.execute(
-        select(func.count(Candidate.id)).where(
-            Candidate.hotlist_category == "FINANCE",
-            Candidate.deleted_at.is_(None),
-            Candidate.v2_profile_created_at.isnot(None),
-        )
-    )).scalar() or 0
-
-    no_embedding = (await db.execute(
-        select(func.count(Candidate.id)).where(
-            Candidate.hotlist_category == "FINANCE",
-            Candidate.deleted_at.is_(None),
-            Candidate.v2_embedding_current.is_(None),
-        )
-    )).scalar() or 0
-
-    ready_for_embedding = (await db.execute(
-        select(func.count(Candidate.id)).where(
-            Candidate.hotlist_category == "FINANCE",
-            Candidate.deleted_at.is_(None),
-            Candidate.v2_profile_created_at.isnot(None),
-            Candidate.v2_embedding_current.is_(None),
-        )
-    )).scalar() or 0
-
-    has_summary = (await db.execute(
-        select(func.count(Candidate.id)).where(
-            Candidate.hotlist_category == "FINANCE",
-            Candidate.deleted_at.is_(None),
-            Candidate.v2_profile_created_at.isnot(None),
-            Candidate.v2_current_role_summary.isnot(None),
-        )
-    )).scalar() or 0
-
-    # Sample: 1 Kandidat der ready_for_embedding sein sollte
-    sample = (await db.execute(
-        select(
-            Candidate.id,
-            Candidate.full_name,
-            Candidate.v2_profile_created_at,
-            Candidate.v2_current_role_summary,
-            Candidate.v2_seniority_level,
-        ).where(
-            Candidate.hotlist_category == "FINANCE",
-            Candidate.deleted_at.is_(None),
-            Candidate.v2_profile_created_at.isnot(None),
-        ).limit(3)
-    )).all()
-
-    samples = []
-    for s in sample:
-        samples.append({
-            "id": str(s[0]),
-            "name": s[1],
-            "profile_created_at": str(s[2]) if s[2] else None,
-            "has_summary": s[3] is not None,
-            "summary_preview": str(s[3])[:100] if s[3] else None,
-            "seniority": s[4],
-        })
-
-    # Jobs
-    jobs_no_emb = (await db.execute(
-        select(func.count(Job.id)).where(
-            Job.hotlist_category == "FINANCE",
-            Job.deleted_at.is_(None),
-            Job.v2_profile_created_at.isnot(None),
-            Job.v2_embedding.is_(None),
-        )
-    )).scalar() or 0
-
-    return {
-        "candidates": {
-            "total_finance": total_finance,
-            "profiled": profiled_finance,
-            "no_embedding": no_embedding,
+        return {
+            "profiled_finance": profiled_finance,
             "ready_for_embedding": ready_for_embedding,
-            "has_summary": has_summary,
-        },
-        "jobs": {
-            "ready_for_embedding": jobs_no_emb,
-        },
-        "sample_candidates": samples,
-    }
+        }
+    except Exception as e:
+        return {"error": str(e), "type": type(e).__name__}
 
 
 # ══════════════════════════════════════════════════════════════════
