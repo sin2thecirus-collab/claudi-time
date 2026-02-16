@@ -1518,6 +1518,57 @@ async def clean_existing_job_texts(
 
 
 @router.post(
+    "/maintenance/ensure-columns",
+    summary="Fehlende Spalten aus Migrationen 019-021 direkt per SQL erstellen",
+    tags=["Maintenance"],
+)
+@rate_limit(RateLimitTier.ADMIN)
+async def ensure_migration_columns(
+    db: AsyncSession = Depends(get_db),
+):
+    """Erstellt fehlende Spalten falls Alembic-Migrationen nicht gelaufen sind."""
+    from sqlalchemy import text
+
+    created = []
+
+    columns_to_ensure = [
+        # Migration 019: Deep Classification
+        ("jobs", "classification_data", "JSONB"),
+        ("jobs", "quality_score", "VARCHAR(20)"),
+        # Migration 020: Drive Times
+        ("matches", "drive_time_car_min", "INTEGER"),
+        ("matches", "drive_time_transit_min", "INTEGER"),
+        ("matches", "distance_km", "FLOAT"),
+        # Migration 021: Outreach
+        ("matches", "outreach_status", "VARCHAR(50)"),
+        ("matches", "outreach_sent_at", "TIMESTAMPTZ"),
+        ("matches", "outreach_responded_at", "TIMESTAMPTZ"),
+        ("matches", "candidate_feedback", "TEXT"),
+        ("matches", "presentation_status", "VARCHAR(50)"),
+        ("matches", "presentation_sent_at", "TIMESTAMPTZ"),
+    ]
+
+    for table, col, col_type in columns_to_ensure:
+        check = await db.execute(text(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_name = :table AND column_name = :col"
+        ), {"table": table, "col": col})
+        if check.fetchone() is None:
+            await db.execute(text(
+                f'ALTER TABLE {table} ADD COLUMN {col} {col_type}'
+            ))
+            created.append(f"{table}.{col}")
+
+    await db.commit()
+
+    return {
+        "status": "completed",
+        "columns_created": created,
+        "total_created": len(created),
+    }
+
+
+@router.post(
     "/maintenance/run-pipeline",
     summary="Pipeline nachholen fuer Jobs ohne Geocoding/Profiling/Embedding/Matching",
     tags=["Maintenance"],
