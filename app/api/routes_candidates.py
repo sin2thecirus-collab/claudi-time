@@ -2020,12 +2020,12 @@ async def candidate_classification_status(
         classified = r2.scalar() or 0
 
         r3 = await db.execute(text(
-            "SELECT COUNT(*) FROM candidates WHERE is_active = true AND deleted_at IS NULL"
+            "SELECT COUNT(*) FROM candidates WHERE deleted_at IS NULL"
         ))
         total_all = r3.scalar() or 0
 
         r4 = await db.execute(text(
-            "SELECT COUNT(*) FROM candidates WHERE v2_seniority_level IS NOT NULL AND is_active = true AND deleted_at IS NULL AND hotlist_category = 'FINANCE'"
+            "SELECT COUNT(*) FROM candidates WHERE v2_seniority_level IS NOT NULL AND deleted_at IS NULL AND hotlist_category = 'FINANCE'"
         ))
         profiled = r4.scalar() or 0
 
@@ -2069,7 +2069,7 @@ async def get_unprofiled_ids(
 
     result = await db.execute(text(
         "SELECT id::text FROM candidates "
-        "WHERE v2_seniority_level IS NULL AND is_active = true "
+        "WHERE v2_seniority_level IS NULL AND deleted_at IS NULL "
         "AND hotlist_category = 'FINANCE' "
         "ORDER BY created_at DESC"
     ))
