@@ -1706,19 +1706,20 @@ async def cleanup_orphan_ats_jobs(
 async def reclassify_finance_jobs(
     request: Request,
     force: bool = False,
-    db: AsyncSession = Depends(get_db),
 ):
     """
     Deep Classification fuer alle FINANCE-Jobs ausfuehren.
-    Nutzt den V2-Prompt mit Quality Gate + Titel-Korrektur.
+    Nutzt eigene DB-Session (kein Depends, keine vergifteten Sessions).
 
     Args:
         force: Bereits klassifizierte Jobs nochmal klassifizieren?
     """
+    from app.database import async_session_maker
     from app.services.finance_classifier_service import FinanceClassifierService
 
-    classifier = FinanceClassifierService(db)
-    result = await classifier.deep_classify_finance_jobs(force=force)
+    async with async_session_maker() as db:
+        classifier = FinanceClassifierService(db)
+        result = await classifier.deep_classify_finance_jobs(force=force)
 
     return {
         "status": "completed",
