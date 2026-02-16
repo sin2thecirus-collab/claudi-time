@@ -1784,11 +1784,62 @@ async def reclassify_finance_jobs(
     async def _run_classification():
         from app.database import async_session_maker
         from app.services.finance_classifier_service import FinanceClassifierService
+        from sqlalchemy import and_, select
+        from app.models.job import Job
+
         try:
+            # 1. IDs laden (kurze Session)
             async with async_session_maker() as db:
-                classifier = FinanceClassifierService(db)
-                result = await classifier.deep_classify_finance_jobs(force=force)
-                logger.info(f"Background Classification fertig: {result}")
+                query = (
+                    select(Job.id)
+                    .where(and_(
+                        Job.hotlist_category == "FINANCE",
+                        Job.deleted_at.is_(None),
+                    ))
+                )
+                if not force:
+                    query = query.where(Job.classification_data.is_(None))
+                result = await db.execute(query)
+                job_ids = [row[0] for row in result.fetchall()]
+
+            total = len(job_ids)
+            logger.info(f"Job Background Classification: {total} Jobs (force={force})")
+
+            if total == 0:
+                logger.info("Keine Jobs zu klassifizieren")
+                return
+
+            stats = {"classified": 0, "errors": 0}
+            semaphore = asyncio.Semaphore(3)
+
+            async def _classify_one(jid):
+                async with semaphore:
+                    try:
+                        async with async_session_maker() as db2:
+                            classifier = FinanceClassifierService(db2)
+                            job = (await db2.execute(
+                                select(Job).where(Job.id == jid)
+                            )).scalar_one_or_none()
+                            if not job:
+                                return
+                            classification = await classifier.classify_job(job)
+                            if classification.success:
+                                classifier.apply_to_job(job, classification)
+                                await db2.commit()
+                                stats["classified"] += 1
+                            await classifier.close()
+                    except Exception as e:
+                        logger.error(f"Job {jid} Fehler: {e}")
+                        stats["errors"] += 1
+
+            # In Chunks von 25
+            for i in range(0, total, 25):
+                chunk = job_ids[i:i + 25]
+                await asyncio.gather(*[_classify_one(jid) for jid in chunk])
+                done = min(i + 25, total)
+                logger.info(f"Job Classification: {done}/{total} ({stats['classified']} klass., {stats['errors']} err)")
+
+            logger.info(f"Job Background Classification fertig: {stats}")
         except Exception as e:
             logger.error(f"Background Classification Fehler: {e}")
 
