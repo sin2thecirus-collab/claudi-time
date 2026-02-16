@@ -1706,14 +1706,37 @@ async def cleanup_orphan_ats_jobs(
 async def reclassify_finance_jobs(
     request: Request,
     force: bool = False,
+    background: bool = True,
 ):
     """
     Deep Classification fuer alle FINANCE-Jobs ausfuehren.
-    Nutzt eigene DB-Session (kein Depends, keine vergifteten Sessions).
 
     Args:
         force: Bereits klassifizierte Jobs nochmal klassifizieren?
+        background: Im Hintergrund ausfuehren? (Standard: true, verhindert Timeout)
     """
+    import asyncio
+
+    async def _run_classification():
+        from app.database import async_session_maker
+        from app.services.finance_classifier_service import FinanceClassifierService
+        try:
+            async with async_session_maker() as db:
+                classifier = FinanceClassifierService(db)
+                result = await classifier.deep_classify_finance_jobs(force=force)
+                logger.info(f"Background Classification fertig: {result}")
+        except Exception as e:
+            logger.error(f"Background Classification Fehler: {e}")
+
+    if background:
+        asyncio.create_task(_run_classification())
+        return {
+            "status": "started",
+            "message": "Deep Classification laeuft im Hintergrund. Ergebnisse in den Logs.",
+            "force": force,
+        }
+
+    # Synchron (fuer kleine Batches)
     from app.database import async_session_maker
     from app.services.finance_classifier_service import FinanceClassifierService
 
