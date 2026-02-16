@@ -2185,7 +2185,11 @@ async def drive_time_backfill(
 
 
 async def _run_drive_time_backfill(min_score: float = 70.0, force: bool = False):
-    """Hintergrund-Task: Berechnet Fahrzeit für Matches ohne drive_time."""
+    """Hintergrund-Task: Berechnet Fahrzeit für Matches ohne drive_time.
+
+    WICHTIG: Eigene DB-Session pro Job-Batch wegen Railway 30s idle-in-transaction Timeout.
+    Während Google Maps API-Calls laufen darf KEINE DB-Session offen sein!
+    """
     import asyncio
     from datetime import datetime, timezone
     from app.database import async_session_factory
@@ -2203,8 +2207,9 @@ async def _run_drive_time_backfill(min_score: float = 70.0, force: bool = False)
         return
 
     try:
+        # ── Schritt 1: Matches laden (eigene Session, sofort schließen) ──
+        matches_by_job: dict[str, list[dict]] = {}
         async with async_session_factory() as db:
-            # Alle Jobs mit Matches laden die Fahrzeit brauchen
             eff = func.coalesce(Match.v2_score, Match.ai_score * 100, 0)
             query = (
                 select(
@@ -2228,41 +2233,50 @@ async def _run_drive_time_backfill(min_score: float = 70.0, force: bool = False)
 
             status["total"] = len(matches)
 
-            # Gruppiere nach Job für Batch-API-Calls
-            from itertools import groupby
-            matches_by_job = {}
+            # Gruppiere nach Job — als reine Dicts (keine ORM-Objekte!)
             for m in matches:
-                if m.job_id not in matches_by_job:
-                    matches_by_job[m.job_id] = []
-                matches_by_job[m.job_id].append(m)
+                jid = str(m.job_id)
+                if jid not in matches_by_job:
+                    matches_by_job[jid] = []
+                matches_by_job[jid].append({
+                    "match_id": m.id,
+                    "job_id": m.job_id,
+                    "candidate_id": m.candidate_id,
+                })
+        # DB-Session hier geschlossen!
 
-            for job_id, job_matches in matches_by_job.items():
-                try:
-                    # Job-Koordinaten laden
-                    job = await db.get(Job, job_id)
-                    if not job or job.location_coords is None:
-                        status["skipped"] += len(job_matches)
-                        status["processed"] += len(job_matches)
-                        continue
+        logger.info(f"Drive Time Backfill: {len(matches)} Matches in {len(matches_by_job)} Jobs")
 
-                    # Job-Koordinaten extrahieren
-                    coord_result = await db.execute(
+        # ── Schritt 2: Pro Job eigene Session → API-Call → eigene Session ──
+        for job_id_str, job_matches in matches_by_job.items():
+            job_id = job_matches[0]["job_id"]
+            try:
+                # 2a: Job- und Kandidaten-Koordinaten laden (eigene Session)
+                job_lat = job_lng = job_plz = None
+                cands_with_coords = []
+
+                async with async_session_factory() as db2:
+                    # Job-Koordinaten via Column-Reference + ST_GeomFromWKB
+                    coord_result = await db2.execute(
                         select(
-                            sa_func.ST_Y(sa_func.ST_GeomFromWKB(job.location_coords)).label("lat"),
-                            sa_func.ST_X(sa_func.ST_GeomFromWKB(job.location_coords)).label("lng"),
+                            sa_func.ST_Y(sa_func.ST_GeomFromWKB(Job.location_coords)).label("lat"),
+                            sa_func.ST_X(sa_func.ST_GeomFromWKB(Job.location_coords)).label("lng"),
+                            Job.postal_code,
                         )
+                        .where(Job.id == job_id)
+                        .where(Job.location_coords.isnot(None))
                     )
                     coord_row = coord_result.first()
-                    if not coord_row or not coord_row[0] or not coord_row[1]:
+                    if not coord_row or not coord_row.lat or not coord_row.lng:
                         status["skipped"] += len(job_matches)
                         status["processed"] += len(job_matches)
                         continue
 
-                    job_lat, job_lng = coord_row[0], coord_row[1]
+                    job_lat, job_lng, job_plz = coord_row.lat, coord_row.lng, coord_row.postal_code
 
                     # Kandidaten-Koordinaten laden
-                    cand_ids = [m.candidate_id for m in job_matches]
-                    cand_result = await db.execute(
+                    cand_ids = [m["candidate_id"] for m in job_matches]
+                    cand_result = await db2.execute(
                         select(
                             Candidate.id,
                             Candidate.postal_code,
@@ -2284,43 +2298,43 @@ async def _run_drive_time_backfill(min_score: float = 70.0, force: bool = False)
                         for cr in cand_rows
                         if cr.lat is not None and cr.lng is not None
                     ]
+                # DB-Session geschlossen BEVOR Google Maps API-Call!
 
-                    if not cands_with_coords:
-                        status["skipped"] += len(job_matches)
-                        status["processed"] += len(job_matches)
-                        continue
+                if not cands_with_coords:
+                    status["skipped"] += len(job_matches)
+                    status["processed"] += len(job_matches)
+                    continue
 
-                    # Google Maps API aufrufen
-                    drive_times = await distance_matrix_service.batch_drive_times(
-                        job_lat=job_lat,
-                        job_lng=job_lng,
-                        job_plz=job.postal_code,
-                        candidates=cands_with_coords,
-                    )
+                # 2b: Google Maps API aufrufen (KEINE DB-Session offen!)
+                drive_times = await distance_matrix_service.batch_drive_times(
+                    job_lat=job_lat,
+                    job_lng=job_lng,
+                    job_plz=job_plz,
+                    candidates=cands_with_coords,
+                )
 
-                    # Matches updaten
+                # 2c: Ergebnisse in DB schreiben (eigene Session)
+                async with async_session_factory() as db3:
                     for m in job_matches:
-                        dt = drive_times.get(str(m.candidate_id))
+                        dt = drive_times.get(str(m["candidate_id"]))
                         if dt:
-                            match_obj = await db.get(Match, m.id)
+                            match_obj = await db3.get(Match, m["match_id"])
                             if match_obj:
                                 match_obj.drive_time_car_min = dt.car_min
                                 match_obj.drive_time_transit_min = dt.transit_min
                         else:
                             status["skipped"] += 1
-
                         status["processed"] += 1
+                    await db3.commit()
+                # DB-Session geschlossen!
 
-                    await db.commit()
+            except Exception as e:
+                status["errors"] += 1
+                logger.error(f"Drive Time Backfill Job {job_id}: {e}")
+                status["processed"] += len(job_matches)
 
-                except Exception as e:
-                    status["errors"] += 1
-                    logger.error(f"Drive Time Backfill Job {job_id}: {e}")
-                    await db.rollback()
-                    status["processed"] += len(job_matches)
-
-                # Rate-Limit: Kurze Pause zwischen Jobs
-                await asyncio.sleep(0.2)
+            # Rate-Limit: Kurze Pause zwischen Jobs
+            await asyncio.sleep(0.3)
 
     except Exception as e:
         logger.error(f"Drive Time Backfill Fehler: {e}")
