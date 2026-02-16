@@ -966,6 +966,8 @@ class MatchCenterService:
 
         if sort_by == "distance":
             query = query.order_by(Match.distance_km.asc().nullslast())
+        elif sort_by == "drive_time":
+            query = query.order_by(Match.drive_time_car_min.asc().nullslast())
         elif sort_by == "created_at":
             query = query.order_by(desc(Match.created_at))
         else:

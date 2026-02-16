@@ -7,7 +7,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sqlalchemy import select
+
 from app.database import get_db
+from app.models.match import Match
 from app.services.ats_pipeline_service import ATSPipelineService
 
 router = APIRouter(prefix="/ats/pipeline", tags=["ATS Pipeline"])
@@ -42,18 +45,40 @@ async def get_pipeline(job_id: UUID, db: AsyncSession = Depends(get_db)):
     service = ATSPipelineService(db)
     pipeline = await service.get_pipeline(job_id)
 
+    # Drive-Time Lookup: Lade Fahrzeit-Daten aus matches fuer alle Kandidaten dieses Jobs
+    drive_time_map: dict[str, dict] = {}
+    try:
+        dt_result = await db.execute(
+            select(
+                Match.candidate_id,
+                Match.drive_time_car_min,
+                Match.drive_time_transit_min,
+            ).where(Match.job_id == job_id)
+        )
+        for row in dt_result.all():
+            drive_time_map[str(row.candidate_id)] = {
+                "drive_time_car_min": row.drive_time_car_min,
+                "drive_time_transit_min": row.drive_time_transit_min,
+            }
+    except Exception:
+        pass  # Fahrzeit ist optional — Pipeline funktioniert auch ohne
+
     # Entries serialisieren
     result = {}
     for stage_key, stage_data in pipeline.items():
         entries = []
         for entry in stage_data["entries"]:
             candidate = entry.candidate
+            cand_id_str = str(entry.candidate_id) if entry.candidate_id else None
+            dt = drive_time_map.get(cand_id_str, {})
             entries.append({
                 "id": str(entry.id),
-                "candidate_id": str(entry.candidate_id) if entry.candidate_id else None,
+                "candidate_id": cand_id_str,
                 "candidate_name": f"{candidate.first_name or ''} {candidate.last_name or ''}".strip() if candidate else "Unbekannt",
                 "candidate_position": candidate.current_position if candidate else None,
                 "candidate_city": candidate.city if candidate else None,
+                "drive_time_car_min": dt.get("drive_time_car_min"),
+                "drive_time_transit_min": dt.get("drive_time_transit_min"),
                 "stage": entry.stage.value,
                 "stage_label": entry.stage_label,
                 "notes": entry.notes,

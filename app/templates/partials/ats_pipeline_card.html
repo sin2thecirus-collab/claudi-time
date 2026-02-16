@@ -53,6 +53,15 @@
                         <span class="truncate">{{ candidate.city }}</span>
                     </p>
                     {% endif %}
+                    {% if entry.drive_time_car_min is not none %}
+                    <p class="text-xs flex items-center gap-1 mt-0.5 {% if entry.drive_time_car_min <= 20 %}text-green-500{% elif entry.drive_time_car_min <= 40 %}text-amber-500{% else %}text-gray-400{% endif %}">
+                        <span>{{ entry.drive_time_car_min }} min</span>
+                        {% if entry.drive_time_transit_min is not none %}
+                        <span class="text-gray-300 mx-0.5">&middot;</span>
+                        <span class="text-gray-400">{{ entry.drive_time_transit_min }} min OEPNV</span>
+                        {% endif %}
+                    </p>
+                    {% endif %}
                 </div>
                 {% else %}
                 <p class="text-sm font-medium text-gray-400 italic">Kandidat entfernt</p>
