@@ -287,28 +287,28 @@ class MatchComparisonData:
     job_id: UUID | None = None
     job_position: str = ""
     job_company_name: str = ""
-    job_city: str
-    job_postal_code: str
-    job_street_address: str
-    job_text: str
+    job_city: str = ""
+    job_postal_code: str = ""
+    job_street_address: str = ""
+    job_text: str = ""
 
     # Score Breakdown (v2.5)
-    v2_score_breakdown: dict | None
+    v2_score_breakdown: dict | None = None
 
     # Kandidat
-    candidate_id: UUID | None
-    candidate_name: str
-    candidate_city: str
-    candidate_postal_code: str
-    candidate_street_address: str
-    candidate_current_position: str
-    candidate_current_company: str
-    work_history: list[dict] | None
-    education: list[dict] | None
-    further_education: list[dict] | None
-    languages: list[dict] | None
-    it_skills: list[str] | None
-    skills: list[str] | None
+    candidate_id: UUID | None = None
+    candidate_name: str = ""
+    candidate_city: str = ""
+    candidate_postal_code: str = ""
+    candidate_street_address: str = ""
+    candidate_current_position: str = ""
+    candidate_current_company: str = ""
+    work_history: list[dict] | None = None
+    education: list[dict] | None = None
+    further_education: list[dict] | None = None
+    languages: list[dict] | None = None
+    it_skills: list[str] | None = None
+    skills: list[str] | None = None
 
 
 # ═══════════════════════════════════════════════════════════════
