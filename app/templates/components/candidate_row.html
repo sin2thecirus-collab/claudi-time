@@ -120,10 +120,10 @@
 
             {# Aktionen #}
             <div class="flex items-center space-x-2 ml-4">
-                {# CV anzeigen (Sidebar) #}
+                {# CV anzeigen (Sidebar via Proxy-Endpoint) #}
                 {% if candidate.cv_url %}
                 <button type="button"
-                        onclick="openCvSidebar('{{ candidate.cv_url | e }}', '{{ (candidate.full_name or (candidate.first_name ~ ' ' ~ candidate.last_name)) | default('Kandidat') | e }}')"
+                        onclick="openCvSidebar('/api/candidates/{{ candidate.id }}/cv-preview', '{{ (candidate.full_name or (candidate.first_name ~ ' ' ~ candidate.last_name)) | default('Kandidat') | e }}')"
                         class="p-2 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100"
                         title="Lebenslauf ansehen">
                     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
