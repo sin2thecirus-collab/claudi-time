@@ -1935,12 +1935,17 @@ async def reclassify_finance_candidates(
 
 
 async def _run_classification_background(force: bool = False) -> None:
-    """Background-Task fuer Kandidaten-Klassifizierung."""
-    global _classification_progress
-    from app.database import async_session_maker
-    from app.services.finance_classifier_service import FinanceClassifierService
+    """Background-Task fuer Kandidaten-Klassifizierung.
 
-    logger = logging.getLogger(__name__)
+    Verwendet FRISCHE DB-Sessions pro Chunk um Connection-Timeouts bei
+    langen Laeufen (1.900+ Kandidaten, ~20-30min) zu vermeiden.
+    """
+    global _classification_progress
+    import asyncio
+    from app.database import async_session_maker
+    from app.services.finance_classifier_service import FinanceClassifierService, BatchClassificationResult
+
+    log = logging.getLogger(__name__)
 
     _classification_progress = {
         "running": True,
@@ -1955,37 +1960,139 @@ async def _run_classification_background(force: bool = False) -> None:
     }
 
     try:
+        # 1. IDs laden (kurze DB-Session)
         async with async_session_maker() as db:
-            classifier = FinanceClassifierService(db)
+            from sqlalchemy import text, and_, select
+            from app.models.candidate import Candidate
 
-            def progress_callback(processed: int, total: int, batch_result) -> None:
-                _classification_progress["total"] = total
-                _classification_progress["processed"] = processed
-                _classification_progress["classified"] = batch_result.classified
-                _classification_progress["errors"] = batch_result.skipped_error
-                _classification_progress["cost_usd"] = round(batch_result.cost_usd, 4)
-                _classification_progress["last_update"] = datetime.now(timezone.utc).isoformat()
+            query = (
+                select(Candidate.id)
+                .where(
+                    and_(
+                        Candidate.hotlist_category == "FINANCE",
+                        Candidate.deleted_at.is_(None),
+                    )
+                )
+            )
+            if not force:
+                query = query.where(Candidate.classification_data.is_(None))
 
-            result = await classifier.classify_all_finance_candidates(
-                force=force,
-                progress_callback=progress_callback,
+            result = await db.execute(query)
+            candidate_ids = [row[0] for row in result.fetchall()]
+
+        total = len(candidate_ids)
+        _classification_progress["total"] = total
+        log.info(f"Klassifizierung: {total} Kandidaten zu verarbeiten (force={force})")
+
+        if total == 0:
+            _classification_progress["result"] = {"total": 0, "classified": 0, "message": "Keine Kandidaten zu klassifizieren"}
+            return
+
+        batch_result = BatchClassificationResult(total=total)
+        start_time = datetime.now(timezone.utc)
+        semaphore = asyncio.Semaphore(5)
+        chunk_size = 50
+
+        # 2. In Chunks verarbeiten — jeder Chunk bekommt NEUE DB-Session
+        for chunk_start in range(0, total, chunk_size):
+            chunk_ids = candidate_ids[chunk_start:chunk_start + chunk_size]
+
+            try:
+                async with async_session_maker() as db:
+                    # Kandidaten fuer diesen Chunk laden
+                    from app.models.candidate import Candidate
+                    chunk_result = await db.execute(
+                        select(Candidate).where(Candidate.id.in_(chunk_ids))
+                    )
+                    chunk_candidates = list(chunk_result.scalars().all())
+
+                    classifier = FinanceClassifierService(db)
+
+                    async def _classify_one(candidate):
+                        async with semaphore:
+                            try:
+                                classification = await classifier.classify_candidate(candidate)
+                                batch_result.total_input_tokens += classification.input_tokens
+                                batch_result.total_output_tokens += classification.output_tokens
+
+                                if not classification.success:
+                                    if classification.error == "Kein Werdegang vorhanden":
+                                        batch_result.skipped_no_cv += 1
+                                    else:
+                                        batch_result.skipped_error += 1
+                                    return
+
+                                if classification.is_leadership:
+                                    batch_result.skipped_leadership += 1
+                                    classifier.apply_to_candidate(candidate, classification)
+                                    return
+
+                                if not classification.roles:
+                                    batch_result.skipped_no_role += 1
+                                    classifier.apply_to_candidate(candidate, classification)
+                                    return
+
+                                classifier.apply_to_candidate(candidate, classification)
+                                batch_result.classified += 1
+
+                                for role in classification.roles:
+                                    batch_result.roles_distribution[role] = (
+                                        batch_result.roles_distribution.get(role, 0) + 1
+                                    )
+
+                            except Exception as e:
+                                log.error(f"Fehler bei Kandidat {candidate.id}: {e}")
+                                batch_result.skipped_error += 1
+
+                    # Chunk parallel verarbeiten
+                    tasks = [_classify_one(c) for c in chunk_candidates]
+                    await asyncio.gather(*tasks)
+
+                    # Chunk committen + Session schliessen
+                    await db.commit()
+
+            except Exception as e:
+                log.error(f"Chunk-Fehler bei {chunk_start}-{chunk_start + chunk_size}: {e}")
+                batch_result.skipped_error += len(chunk_ids)
+
+            # Fortschritt aktualisieren
+            done = min(chunk_start + chunk_size, total)
+            elapsed = (datetime.now(timezone.utc) - start_time).total_seconds()
+            rate = done / elapsed if elapsed > 0 else 0
+            eta = (total - done) / rate if rate > 0 else 0
+
+            _classification_progress["processed"] = done
+            _classification_progress["classified"] = batch_result.classified
+            _classification_progress["errors"] = batch_result.skipped_error
+            _classification_progress["cost_usd"] = round(batch_result.cost_usd, 4)
+            _classification_progress["last_update"] = datetime.now(timezone.utc).isoformat()
+
+            log.info(
+                f"Klassifizierung: {done}/{total} "
+                f"({batch_result.classified} klassifiziert, "
+                f"${batch_result.cost_usd:.2f}, "
+                f"{rate:.1f}/s, ETA {eta:.0f}s)"
             )
 
-            _classification_progress["result"] = {
-                "total": result.total,
-                "classified": result.classified,
-                "leadership": result.skipped_leadership,
-                "no_cv": result.skipped_no_cv,
-                "no_role": result.skipped_no_role,
-                "errors": result.skipped_error,
-                "cost_usd": round(result.cost_usd, 4),
-                "duration_seconds": result.duration_seconds,
-                "roles_distribution": dict(result.roles_distribution),
-            }
-            logger.info(f"Klassifizierung abgeschlossen: {result.classified}/{result.total}")
+        # 3. Ergebnis speichern
+        duration = (datetime.now(timezone.utc) - start_time).total_seconds()
+        batch_result.duration_seconds = round(duration, 1)
+
+        _classification_progress["result"] = {
+            "total": batch_result.total,
+            "classified": batch_result.classified,
+            "leadership": batch_result.skipped_leadership,
+            "no_cv": batch_result.skipped_no_cv,
+            "no_role": batch_result.skipped_no_role,
+            "errors": batch_result.skipped_error,
+            "cost_usd": round(batch_result.cost_usd, 4),
+            "duration_seconds": batch_result.duration_seconds,
+            "roles_distribution": dict(batch_result.roles_distribution),
+        }
+        log.info(f"Klassifizierung abgeschlossen: {batch_result.classified}/{total} in {duration:.0f}s")
 
     except Exception as e:
-        logger.error(f"Klassifizierung fehlgeschlagen: {e}")
+        log.error(f"Klassifizierung fehlgeschlagen: {e}")
         _classification_progress["result"] = {"error": str(e)}
 
     finally:
