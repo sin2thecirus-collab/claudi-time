@@ -1819,7 +1819,7 @@ async def reclassify_finance_jobs(
     summary="Einzelnen Job deep-klassifizieren",
     tags=["Classification"],
 )
-@rate_limit(RateLimitTier.AI)
+@rate_limit(RateLimitTier.STANDARD)
 async def classify_single_job(
     request: Request,
     job_id: str,
