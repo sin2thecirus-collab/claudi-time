@@ -1739,6 +1739,28 @@ async def classification_status(
     }
 
 
+@router.get(
+    "/maintenance/unclassified-ids",
+    summary="IDs aller unklassifizierten Finance-Jobs",
+    tags=["Maintenance"],
+)
+@rate_limit(RateLimitTier.STANDARD)
+async def get_unclassified_ids(
+    db: AsyncSession = Depends(get_db),
+):
+    """Gibt die IDs aller Finance-Jobs ohne classification_data zurueck."""
+    from sqlalchemy import text
+
+    result = await db.execute(text(
+        "SELECT id::text FROM jobs "
+        "WHERE hotlist_category = 'FINANCE' AND deleted_at IS NULL "
+        "AND classification_data IS NULL "
+        "ORDER BY created_at DESC"
+    ))
+    ids = [row[0] for row in result.fetchall()]
+    return {"count": len(ids), "ids": ids}
+
+
 @router.post(
     "/maintenance/reclassify-finance",
     summary="Alle FINANCE-Jobs deep-klassifizieren (Backfill)",
