@@ -468,7 +468,7 @@ class FinanceClassifierService:
         self,
         system_prompt: str,
         user_prompt: str,
-        retry_count: int = 2,
+        retry_count: int = 3,
     ) -> dict[str, Any] | None:
         """Sendet einen Prompt an OpenAI und gibt die JSON-Antwort zurück."""
         if not self.api_key:
@@ -516,7 +516,23 @@ class FinanceClassifierService:
                 logger.error(f"Finance-Classifier {self._last_error}")
                 return None
 
-            except (httpx.HTTPStatusError, json.JSONDecodeError, KeyError) as e:
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code == 429:
+                    # Rate-Limit: Warte und retry
+                    if attempt < retry_count:
+                        wait = int(e.response.headers.get("retry-after", 10 * (attempt + 1)))
+                        logger.warning(f"OpenAI 429 Rate-Limit, warte {wait}s (Versuch {attempt + 2})")
+                        import asyncio
+                        await asyncio.sleep(wait)
+                        continue
+                    self._last_error = "429 Rate-Limit nach allen Retries"
+                    logger.error(f"Finance-Classifier {self._last_error}")
+                    return None
+                self._last_error = f"HTTPStatusError: {str(e)[:200]}"
+                logger.error(f"Finance-Classifier Fehler: {self._last_error}")
+                return None
+
+            except (json.JSONDecodeError, KeyError) as e:
                 self._last_error = f"{type(e).__name__}: {str(e)[:200]}"
                 logger.error(f"Finance-Classifier Fehler: {self._last_error}")
                 return None
