@@ -2192,7 +2192,7 @@ async def _run_drive_time_backfill(min_score: float = 70.0, force: bool = False)
     """
     import asyncio
     from datetime import datetime, timezone
-    from app.database import async_session_factory
+    from app.database import async_session_maker as async_session_factory
     from app.models.match import Match
     from app.models.job import Job
     from app.models.candidate import Candidate
