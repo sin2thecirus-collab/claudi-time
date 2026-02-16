@@ -650,6 +650,46 @@ async def get_embedding_status():
     }
 
 
+@router.post("/embeddings/reset")
+async def reset_embeddings(
+    entity_type: str = "all",
+    db: AsyncSession = Depends(get_db),
+):
+    """Setzt alle Embeddings auf NULL zurueck, damit sie neu generiert werden.
+
+    Noetig nach Re-Profiling (force_reprofile=true), weil die Embedding-Generierung
+    nur Kandidaten/Jobs OHNE Embedding verarbeitet.
+    """
+    from app.models.job import Job
+
+    results = {}
+
+    if entity_type in ("candidates", "all"):
+        cand_result = await db.execute(
+            update(Candidate)
+            .where(
+                Candidate.hotlist_category == "FINANCE",
+                Candidate.v2_embedding_current.isnot(None),
+            )
+            .values(v2_embedding_current=None)
+        )
+        results["candidates_reset"] = cand_result.rowcount
+
+    if entity_type in ("jobs", "all"):
+        job_result = await db.execute(
+            update(Job)
+            .where(
+                Job.hotlist_category == "FINANCE",
+                Job.v2_embedding.isnot(None),
+            )
+            .values(v2_embedding=None)
+        )
+        results["jobs_reset"] = job_result.rowcount
+
+    await db.commit()
+    return results
+
+
 # ══════════════════════════════════════════════════════════════════
 # Full Pipeline: Profile → Embedding → Match (Sprint 2)
 # ══════════════════════════════════════════════════════════════════
