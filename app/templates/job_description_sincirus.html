@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stellenbeschreibung – {{ job_position }}</title>
+  <style>
+    /* Fonts — lokal eingebettet für WeasyPrint */
+    @font-face {
+      font-family: 'DM Sans';
+      src: url('{{ font_dir }}/DMSans-Regular.ttf') format('truetype');
+      font-weight: 100 900;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: 'DM Sans';
+      src: url('{{ font_dir }}/DMSans-Italic.ttf') format('truetype');
+      font-weight: 100 900;
+      font-style: italic;
+    }
+    @font-face {
+      font-family: 'DM Serif Display';
+      src: url('{{ font_dir }}/DMSerifDisplay-Regular.ttf') format('truetype');
+      font-weight: 400;
+      font-style: normal;
+    }
+
+    @page {
+      size: A4;
+      margin: 14px 0 0 0;
+      background: #0E1B2E;
+    }
+    @page :first {
+      margin-top: 0;
+    }
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --navy: #0E1B2E;
+      --navy-mid: #162B47;
+      --navy-light: #1E3A5F;
+      --surface: #132239;
+      --border: #1E3A5F;
+      --border-light: #253D5C;
+      --text: #E8EDF3;
+      --text-body: #C8D3E0;
+      --text-muted: #7E93AD;
+      --text-subtle: #506882;
+      --green: #16825D;
+      --green-light: #1EAA79;
+      --green-bg: rgba(22, 130, 93, 0.12);
+      --green-glow: rgba(30, 170, 121, 0.3);
+      --accent-bg: rgba(22, 130, 93, 0.06);
+    }
+
+    html {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    body {
+      font-family: 'DM Sans', -apple-system, sans-serif;
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--text-body);
+      background: var(--navy);
+    }
+
+    /* ============================================= */
+    /*   SEITE — Feste A4-Höhe                       */
+    /* ============================================= */
+
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      background: var(--navy);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      page-break-after: always;
+    }
+    .page:last-child { page-break-after: auto; }
+
+    .top-accent {
+      height: 3px;
+      background: linear-gradient(90deg, var(--green), var(--green-light), transparent);
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 22px 44px 18px 44px;
+    }
+
+    .header img {
+      height: 44px;
+      width: auto;
+      filter: brightness(0) invert(1);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .header-date {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .header-badge {
+      font-size: 8px;
+      font-weight: 700;
+      color: var(--green);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      border: 1px solid var(--green);
+      border-radius: 4px;
+      padding: 3px 10px;
+    }
+
+    /* ============================================= */
+    /*   HERO-SECTION                                */
+    /* ============================================= */
+
+    .hero {
+      padding: 8px 44px 20px 44px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .hero-ref {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: var(--green);
+      margin-bottom: 6px;
+    }
+
+    .hero-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: 32px;
+      font-weight: 400;
+      color: var(--text);
+      line-height: 1.15;
+      margin-bottom: 8px;
+    }
+
+    .hero-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
+    }
+
+    .hero-meta span {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    /* ============================================= */
+    /*   MAIN CONTENT                                */
+    /* ============================================= */
+
+    .content {
+      padding: 24px 44px;
+      flex: 1;
+    }
+
+    /* Section Headings */
+    .sh {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: var(--green);
+      margin-bottom: 12px;
+      margin-top: 24px;
+    }
+    .sh:first-child { margin-top: 0; }
+
+    /* Begrüßungstext */
+    .greeting-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px 24px;
+      margin-bottom: 24px;
+      line-height: 1.7;
+    }
+
+    .greeting-box .salutation {
+      font-weight: 700;
+      color: var(--text);
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+
+    .greeting-box p {
+      color: var(--text-body);
+      font-size: 12.5px;
+      margin-bottom: 8px;
+    }
+
+    /* Fahrzeit-Cards */
+    .drive-time-grid {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .drive-card {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 20px;
+      text-align: center;
+    }
+
+    .drive-card .icon {
+      font-size: 22px;
+      margin-bottom: 6px;
+    }
+
+    .drive-card .label {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--text-subtle);
+      margin-bottom: 4px;
+    }
+
+    .drive-card .value {
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--green-light);
+      line-height: 1.2;
+    }
+
+    .drive-card .unit {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .drive-card .detail {
+      font-size: 10px;
+      color: var(--text-subtle);
+      margin-top: 4px;
+    }
+
+    /* Info-Grid (Unternehmen, Beschäftigung etc.) */
+    .info-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .info-card {
+      flex: 1 1 calc(33.33% - 8px);
+      min-width: 140px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+    }
+
+    .info-card .info-label {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--text-subtle);
+      margin-bottom: 4px;
+    }
+
+    .info-card .info-value {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    /* Aufgaben-Liste */
+    .task-list {
+      list-style: none;
+      padding: 0;
+      margin-bottom: 24px;
+    }
+
+    .task-list li {
+      padding: 8px 0 8px 20px;
+      position: relative;
+      font-size: 12.5px;
+      color: var(--text-body);
+      border-bottom: 1px solid var(--border);
+      line-height: 1.5;
+    }
+
+    .task-list li:last-child { border-bottom: none; }
+
+    .task-list li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 14px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+    }
+
+    /* Anforderungen */
+    .req-list {
+      list-style: none;
+      padding: 0;
+      margin-bottom: 24px;
+    }
+
+    .req-list li {
+      padding: 6px 0 6px 20px;
+      position: relative;
+      font-size: 12px;
+      color: var(--text-body);
+      line-height: 1.5;
+    }
+
+    .req-list li::before {
+      content: '✓';
+      position: absolute;
+      left: 0;
+      color: var(--green-light);
+      font-weight: 700;
+      font-size: 12px;
+    }
+
+    /* ============================================= */
+    /*   FOOTER                                      */
+    /* ============================================= */
+
+    .footer {
+      margin-top: auto;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 20px 44px;
+    }
+
+    .footer-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .footer-contact {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .footer-name {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .footer-title {
+      font-size: 10px;
+      color: var(--green);
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    .footer-details {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .footer-brand {
+      text-align: right;
+    }
+
+    .footer-brand .brand-text {
+      font-size: 9px;
+      color: var(--text-subtle);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .footer-brand .brand-url {
+      font-size: 11px;
+      color: var(--green-light);
+      font-weight: 600;
+      margin-top: 2px;
+    }
+
+    /* Disclaimer */
+    .disclaimer {
+      font-size: 8px;
+      color: var(--text-subtle);
+      text-align: center;
+      padding: 8px 44px 12px 44px;
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ════════════════════════════════════════════════ -->
+  <!--   SEITE 1                                       -->
+  <!-- ════════════════════════════════════════════════ -->
+
+  <div class="page">
+    <div class="top-accent"></div>
+
+    <!-- Header -->
+    <div class="header">
+      <img src="{{ logo_path }}" alt="sincirus">
+      <div class="header-right">
+        <span class="header-date">{{ today_date }}</span>
+        <span class="header-badge">Stellenangebot</span>
+      </div>
+    </div>
+
+    <!-- Hero -->
+    <div class="hero">
+      <div class="hero-ref">Vakanz</div>
+      <h1 class="hero-title">{{ job_position }}</h1>
+      <div class="hero-meta">
+        <span>{{ job_company }}</span>
+        {% if job_city %}<span>📍 {{ job_city }}</span>{% endif %}
+        {% if job_employment_type %}<span>{{ job_employment_type }}</span>{% endif %}
+        {% if job_work_arrangement %}<span>{{ job_work_arrangement }}</span>{% endif %}
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+
+      <!-- Begrüßung -->
+      <div class="greeting-box">
+        <div class="salutation">{{ salutation }},</div>
+        <p>
+          im Rahmen unserer Personalberatung haben wir eine interessante Vakanz identifiziert,
+          die hervorragend zu Ihrem Profil passt. Gerne stellen wir Ihnen die Position vor:
+        </p>
+      </div>
+
+      <!-- Fahrzeit -->
+      {% if drive_time_car_min or drive_time_transit_min %}
+      <div class="sh">Ihr Arbeitsweg</div>
+      <div class="drive-time-grid">
+        {% if drive_time_car_min %}
+        <div class="drive-card">
+          <div class="icon">🚗</div>
+          <div class="label">MIT DEM AUTO</div>
+          <div class="value">{{ drive_time_car_min }} <span class="unit">Min.</span></div>
+          {% if distance_km %}<div class="detail">ca. {{ distance_km }} km</div>{% endif %}
+        </div>
+        {% endif %}
+        {% if drive_time_transit_min %}
+        <div class="drive-card">
+          <div class="icon">🚆</div>
+          <div class="label">MIT DER BAHN</div>
+          <div class="value">{{ drive_time_transit_min }} <span class="unit">Min.</span></div>
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      <!-- Unternehmen / Quick-Info -->
+      <div class="sh">Unternehmen &amp; Rahmendaten</div>
+      <div class="info-grid">
+        <div class="info-card">
+          <div class="info-label">UNTERNEHMEN</div>
+          <div class="info-value">{{ job_company }}</div>
+        </div>
+        {% if job_industry %}
+        <div class="info-card">
+          <div class="info-label">BRANCHE</div>
+          <div class="info-value">{{ job_industry }}</div>
+        </div>
+        {% endif %}
+        <div class="info-card">
+          <div class="info-label">STANDORT</div>
+          <div class="info-value">{{ job_city or 'Wird noch bekannt gegeben' }}</div>
+        </div>
+        {% if job_employment_type %}
+        <div class="info-card">
+          <div class="info-label">BESCHÄFTIGUNG</div>
+          <div class="info-value">{{ job_employment_type }}</div>
+        </div>
+        {% endif %}
+        {% if job_work_arrangement %}
+        <div class="info-card">
+          <div class="info-label">ARBEITSWEISE</div>
+          <div class="info-value">{{ job_work_arrangement }}</div>
+        </div>
+        {% endif %}
+        {% if job_company_size %}
+        <div class="info-card">
+          <div class="info-label">UNTERNEHMENSGRÖSSE</div>
+          <div class="info-value">{{ job_company_size }}</div>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Aufgaben -->
+      {% if job_tasks %}
+      <div class="sh">Ihre Aufgaben</div>
+      <ul class="task-list">
+        {% for task in job_tasks %}
+        <li>{{ task }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+
+      <!-- Anforderungen -->
+      {% if job_requirements %}
+      <div class="sh">Anforderungsprofil</div>
+      <ul class="req-list">
+        {% for req in job_requirements %}
+        <li>{{ req }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <div class="footer-content">
+        <div class="footer-contact">
+          <span class="footer-name">{{ consultant.name }}</span>
+          <span class="footer-title">{{ consultant.title }}</span>
+          <span class="footer-details">
+            {{ consultant.phone }} · {{ consultant.email }}
+          </span>
+          <span class="footer-details">{{ consultant.address }}</span>
+        </div>
+        <div class="footer-brand">
+          <div class="brand-text">PERSONALBERATUNG</div>
+          <div class="brand-url">sincirus.com</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="disclaimer">
+      Dieses Dokument ist vertraulich und ausschließlich für den benannten Empfänger bestimmt.
+      Eine Weitergabe an Dritte ist nicht gestattet.
+    </div>
+  </div>
+
+</body>
+</html>

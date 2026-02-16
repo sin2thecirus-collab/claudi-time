@@ -109,6 +109,14 @@ class Match(Base):
     drive_time_car_min: Mapped[int | None] = mapped_column(Integer)  # Fahrzeit Auto in Minuten
     drive_time_transit_min: Mapped[int | None] = mapped_column(Integer)  # Fahrzeit ÖPNV in Minuten
 
+    # ── Outreach-Tracking (Phase 11-12) ──
+    outreach_status: Mapped[str | None] = mapped_column(String(50))  # pending/sent/responded/interested/declined/no_response
+    outreach_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    outreach_responded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    candidate_feedback: Mapped[str | None] = mapped_column(Text)  # Was hat der Kandidat gesagt?
+    presentation_status: Mapped[str | None] = mapped_column(String(50))  # not_sent/presented/interview/rejected/hired
+    presentation_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
     # Stale-Tracking (Match ist veraltet weil sich Kandidaten-Daten geaendert haben)
     stale: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     stale_reason: Mapped[str | None] = mapped_column(String(255))
@@ -146,6 +154,8 @@ class Match(Base):
         Index("ix_matches_stale", "stale"),
         Index("ix_matches_matching_method", "matching_method"),
         Index("ix_matches_drive_time_car_min", "drive_time_car_min"),
+        Index("ix_matches_outreach_status", "outreach_status"),
+        Index("ix_matches_presentation_status", "presentation_status"),
     )
 
     @property

@@ -416,6 +416,400 @@ async def get_excellent_matches(
     }
 
 
+# ==================== Outreach (Phase 11-12) ====================
+
+@router.get(
+    "/{match_id}/job-pdf",
+    summary="Job-Description-PDF generieren",
+    description="Generiert ein Sincirus Branded PDF mit Stellendetails für den Kandidaten",
+)
+async def get_job_pdf(
+    match_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Generiert ein Job-Description-PDF für einen Match."""
+    from fastapi.responses import StreamingResponse
+    from io import BytesIO
+    from app.services.job_description_pdf_service import JobDescriptionPdfService
+
+    pdf_service = JobDescriptionPdfService(db)
+
+    try:
+        pdf_bytes = await pdf_service.generate_job_pdf(match_id)
+    except ValueError as e:
+        raise NotFoundException(message=str(e))
+
+    return StreamingResponse(
+        BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'inline; filename="Stellenbeschreibung_{match_id}.pdf"',
+        },
+    )
+
+
+@router.post(
+    "/{match_id}/send-to-candidate",
+    summary="E-Mail + Job-PDF an Kandidat senden",
+    description="Generiert personalisierte E-Mail mit Job-PDF und sendet an den Kandidaten",
+)
+@rate_limit(RateLimitTier.WRITE)
+async def send_to_candidate(
+    match_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Sendet eine personalisierte E-Mail mit Job-Description-PDF an den Kandidaten."""
+    from app.services.outreach_service import OutreachService
+
+    outreach = OutreachService(db)
+    result = await outreach.send_to_candidate(match_id)
+
+    if not result.get("success"):
+        raise ConflictException(message=result.get("message", "Fehler beim Senden"))
+
+    return result
+
+
+@router.post(
+    "/batch-send",
+    summary="Mehrere Kandidaten anschreiben",
+    description="Sendet E-Mails an mehrere Kandidaten gleichzeitig",
+)
+@rate_limit(RateLimitTier.AI)
+async def batch_send(
+    request: dict,
+    db: AsyncSession = Depends(get_db),
+):
+    """Sendet E-Mails an mehrere Kandidaten (max 20 pro Batch)."""
+    from app.services.outreach_service import OutreachService
+
+    match_ids = request.get("match_ids", [])
+    if not match_ids:
+        raise ConflictException(message="Keine match_ids angegeben")
+    if len(match_ids) > 20:
+        raise ConflictException(message="Maximal 20 Matches pro Batch")
+
+    # Strings zu UUIDs konvertieren
+    uuids = [UUID(mid) if isinstance(mid, str) else mid for mid in match_ids]
+
+    outreach = OutreachService(db)
+    result = await outreach.batch_send(uuids)
+    return result
+
+
+@router.patch(
+    "/{match_id}/outreach-status",
+    summary="Outreach-Status updaten",
+    description="Aktualisiert den Outreach-Status eines Matches (responded/interested/declined etc.)",
+)
+@rate_limit(RateLimitTier.WRITE)
+async def update_outreach_status(
+    match_id: UUID,
+    request: dict,
+    db: AsyncSession = Depends(get_db),
+):
+    """Aktualisiert den Outreach-Status eines Matches.
+
+    Mögliche Status:
+    - pending: Noch nicht gesendet
+    - sent: E-Mail wurde gesendet
+    - responded: Kandidat hat geantwortet
+    - interested: Kandidat hat Interesse
+    - declined: Kandidat hat abgelehnt
+    - no_response: Keine Antwort nach X Tagen
+    """
+    from app.models.match import Match
+    from datetime import datetime, timezone
+
+    valid_outreach = {"pending", "sent", "responded", "interested", "declined", "no_response"}
+    valid_presentation = {"not_sent", "presented", "interview", "rejected", "hired"}
+
+    match = await db.get(Match, match_id)
+    if not match:
+        raise NotFoundException(message="Match nicht gefunden")
+
+    outreach_status = request.get("outreach_status")
+    presentation_status = request.get("presentation_status")
+    feedback = request.get("candidate_feedback")
+
+    if outreach_status:
+        if outreach_status not in valid_outreach:
+            raise ConflictException(message=f"Ungültiger outreach_status. Erlaubt: {valid_outreach}")
+        match.outreach_status = outreach_status
+        if outreach_status == "responded":
+            match.outreach_responded_at = datetime.now(timezone.utc)
+
+    if presentation_status:
+        if presentation_status not in valid_presentation:
+            raise ConflictException(message=f"Ungültiger presentation_status. Erlaubt: {valid_presentation}")
+        match.presentation_status = presentation_status
+        if presentation_status == "presented":
+            match.presentation_sent_at = datetime.now(timezone.utc)
+
+    if feedback is not None:
+        match.candidate_feedback = feedback
+
+    await db.commit()
+    await db.refresh(match)
+
+    return {
+        "match_id": str(match.id),
+        "outreach_status": match.outreach_status,
+        "outreach_sent_at": match.outreach_sent_at.isoformat() if match.outreach_sent_at else None,
+        "outreach_responded_at": match.outreach_responded_at.isoformat() if match.outreach_responded_at else None,
+        "candidate_feedback": match.candidate_feedback,
+        "presentation_status": match.presentation_status,
+        "presentation_sent_at": match.presentation_sent_at.isoformat() if match.presentation_sent_at else None,
+    }
+
+
+@router.get(
+    "/outreach/pipeline",
+    summary="Outreach-Pipeline Übersicht",
+    description="Zeigt den gesamten Outreach-Funnel: gesendet → geantwortet → interessiert → vorgestellt",
+)
+async def get_outreach_pipeline(
+    db: AsyncSession = Depends(get_db),
+):
+    """Outreach-Pipeline: Funnel-Übersicht aller Matches im Outreach-Prozess."""
+    from sqlalchemy import select, func, case
+    from app.models.match import Match
+
+    query = select(
+        func.count().label("total"),
+        func.count(Match.outreach_status).filter(Match.outreach_status == "sent").label("sent"),
+        func.count(Match.outreach_status).filter(Match.outreach_status == "responded").label("responded"),
+        func.count(Match.outreach_status).filter(Match.outreach_status == "interested").label("interested"),
+        func.count(Match.outreach_status).filter(Match.outreach_status == "declined").label("declined"),
+        func.count(Match.outreach_status).filter(Match.outreach_status == "no_response").label("no_response"),
+        func.count(Match.presentation_status).filter(Match.presentation_status == "presented").label("presented"),
+        func.count(Match.presentation_status).filter(Match.presentation_status == "interview").label("interview"),
+        func.count(Match.presentation_status).filter(Match.presentation_status == "hired").label("hired"),
+    ).where(Match.outreach_status.isnot(None))
+
+    result = await db.execute(query)
+    row = result.one()
+
+    return {
+        "funnel": {
+            "sent": row.sent,
+            "responded": row.responded,
+            "interested": row.interested,
+            "declined": row.declined,
+            "no_response": row.no_response,
+        },
+        "presentation": {
+            "presented": row.presented,
+            "interview": row.interview,
+            "hired": row.hired,
+        },
+        "total_outreach": row.total,
+    }
+
+
+@router.get(
+    "/outreach/awaiting-response",
+    summary="Wer hat nicht geantwortet?",
+    description="Matches wo E-Mail gesendet aber keine Antwort erhalten",
+)
+async def get_awaiting_response(
+    days: int = Query(default=3, ge=1, le=30, description="Seit wie vielen Tagen gesendet"),
+    limit: int = Query(default=20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+):
+    """Zeigt Matches die seit X Tagen auf Antwort warten."""
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+    from datetime import datetime, timezone, timedelta
+    from app.models.match import Match
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+
+    query = (
+        select(Match)
+        .options(selectinload(Match.job), selectinload(Match.candidate))
+        .where(
+            Match.outreach_status == "sent",
+            Match.outreach_sent_at <= cutoff,
+        )
+        .order_by(Match.outreach_sent_at.asc())
+        .limit(limit)
+    )
+
+    result = await db.execute(query)
+    matches = result.scalars().all()
+
+    return {
+        "items": [
+            {
+                "match_id": str(m.id),
+                "candidate_name": m.candidate.full_name if m.candidate else "Unbekannt",
+                "candidate_email": m.candidate.email if m.candidate else None,
+                "job_position": m.job.position if m.job else "Unbekannt",
+                "job_company": m.job.company_name if m.job else "Unbekannt",
+                "sent_at": m.outreach_sent_at.isoformat() if m.outreach_sent_at else None,
+                "days_waiting": (datetime.now(timezone.utc) - m.outreach_sent_at).days if m.outreach_sent_at else 0,
+            }
+            for m in matches
+        ],
+        "total": len(matches),
+        "filter_days": days,
+    }
+
+
+@router.get(
+    "/outreach/interested",
+    summary="Interessierte Kandidaten",
+    description="Alle Kandidaten die Interesse gezeigt haben und bereit für Vorstellung sind",
+)
+async def get_interested_candidates(
+    limit: int = Query(default=20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+):
+    """Zeigt alle Matches mit interessierten Kandidaten."""
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+    from app.models.match import Match
+
+    query = (
+        select(Match)
+        .options(selectinload(Match.job), selectinload(Match.candidate))
+        .where(Match.outreach_status == "interested")
+        .order_by(Match.outreach_responded_at.desc())
+        .limit(limit)
+    )
+
+    result = await db.execute(query)
+    matches = result.scalars().all()
+
+    return {
+        "items": [
+            {
+                "match_id": str(m.id),
+                "candidate_name": m.candidate.full_name if m.candidate else "Unbekannt",
+                "candidate_email": m.candidate.email if m.candidate else None,
+                "candidate_city": m.candidate.city if m.candidate else None,
+                "job_position": m.job.position if m.job else "Unbekannt",
+                "job_company": m.job.company_name if m.job else "Unbekannt",
+                "job_city": m.job.display_city if m.job else None,
+                "candidate_feedback": m.candidate_feedback,
+                "responded_at": m.outreach_responded_at.isoformat() if m.outreach_responded_at else None,
+                "drive_time_car_min": m.drive_time_car_min,
+                "presentation_status": m.presentation_status or "not_sent",
+            }
+            for m in matches
+        ],
+        "total": len(matches),
+    }
+
+
+@router.get(
+    "/filter",
+    summary="Flexibler Match-Filter",
+    description="Filter nach Fahrzeit, Quality, Rolle, Score, Outreach-Status etc.",
+)
+async def filter_matches(
+    max_drive_time: int | None = Query(default=None, ge=1, description="Max Fahrzeit Auto in Minuten"),
+    min_score: float | None = Query(default=None, ge=0, description="Min Matching-Score"),
+    role: str | None = Query(default=None, description="Job-Rolle (z.B. finanzbuchhalter)"),
+    city: str | None = Query(default=None, description="Job-Stadt"),
+    outreach_status: str | None = Query(default=None, description="Outreach-Status"),
+    min_quality: str | None = Query(default=None, description="Min Quality (high/medium)"),
+    no_response_days: int | None = Query(default=None, ge=1, description="Keine Antwort seit X Tagen"),
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    db: AsyncSession = Depends(get_db),
+):
+    """Flexibler Filter-Endpoint für Matches (für Claude Skill / Morning Briefing)."""
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+    from datetime import datetime, timezone, timedelta
+    from app.models.match import Match
+    from app.models.job import Job
+
+    query = (
+        select(Match)
+        .join(Match.job)
+        .options(selectinload(Match.job), selectinload(Match.candidate))
+    )
+
+    # Filter anwenden
+    conditions = []
+
+    if max_drive_time:
+        conditions.append(Match.drive_time_car_min <= max_drive_time)
+
+    if min_score:
+        conditions.append(Match.v2_score >= min_score)
+
+    if role:
+        # Case-insensitive Match auf classification_data.primary_role
+        conditions.append(
+            Job.classification_data["primary_role"].astext.ilike(f"%{role}%")
+        )
+
+    if city:
+        conditions.append(
+            Job.city.ilike(f"%{city}%") | Job.work_location_city.ilike(f"%{city}%")
+        )
+
+    if outreach_status:
+        conditions.append(Match.outreach_status == outreach_status)
+
+    if min_quality:
+        if min_quality == "high":
+            conditions.append(Job.quality_score == "high")
+        elif min_quality == "medium":
+            conditions.append(Job.quality_score.in_(["high", "medium"]))
+
+    if no_response_days:
+        cutoff = datetime.now(timezone.utc) - timedelta(days=no_response_days)
+        conditions.append(Match.outreach_status == "sent")
+        conditions.append(Match.outreach_sent_at <= cutoff)
+
+    if conditions:
+        query = query.where(*conditions)
+
+    # Sortierung: Score absteigend
+    query = query.order_by(Match.v2_score.desc().nullslast()).offset(offset).limit(limit)
+
+    result = await db.execute(query)
+    matches = result.scalars().all()
+
+    return {
+        "items": [
+            {
+                "match_id": str(m.id),
+                "candidate_name": m.candidate.full_name if m.candidate else "Unbekannt",
+                "candidate_email": m.candidate.email if m.candidate else None,
+                "candidate_city": m.candidate.city if m.candidate else None,
+                "job_position": m.job.position if m.job else "Unbekannt",
+                "job_company": m.job.company_name if m.job else "Unbekannt",
+                "job_city": m.job.display_city if m.job else None,
+                "score": round(m.v2_score, 1) if m.v2_score else None,
+                "drive_time_car_min": m.drive_time_car_min,
+                "drive_time_transit_min": m.drive_time_transit_min,
+                "distance_km": round(m.distance_km, 1) if m.distance_km else None,
+                "outreach_status": m.outreach_status,
+                "quality": m.job.quality_score if m.job else None,
+            }
+            for m in matches
+        ],
+        "total": len(matches),
+        "filters_applied": {
+            k: v for k, v in {
+                "max_drive_time": max_drive_time,
+                "min_score": min_score,
+                "role": role,
+                "city": city,
+                "outreach_status": outreach_status,
+                "min_quality": min_quality,
+                "no_response_days": no_response_days,
+            }.items() if v is not None
+        },
+    }
+
+
 # ==================== Hilfsfunktionen ====================
 
 def _match_to_response(match) -> MatchResponse:

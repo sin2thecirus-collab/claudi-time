@@ -353,6 +353,7 @@ from app.api.routes_ats_todos import router as ats_todos_router
 from app.api.routes_ats_pages import router as ats_pages_router
 from app.api.routes_n8n_webhooks import router as n8n_webhooks_router
 from app.api.routes_email import router as email_router
+from app.api.routes_briefing import router as briefing_router
 
 # Custom Exception Handlers registrieren
 register_exception_handlers(app)
@@ -383,6 +384,7 @@ app.include_router(ats_call_notes_router, prefix="/api")
 app.include_router(ats_todos_router, prefix="/api")
 app.include_router(n8n_webhooks_router, prefix="/api")  # n8n Webhooks (/api/n8n/...)
 app.include_router(email_router, prefix="/api")  # Email-Drafts (/api/email/...)
+app.include_router(briefing_router, prefix="/api")  # Morning Briefing (/api/briefing/...)
 
 # Matching Engine v2 (/api/v2/profiles/..., /api/v2/weights, /api/v2/rules)
 app.include_router(matching_v2_router, prefix="/api/v2")
