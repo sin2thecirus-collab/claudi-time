@@ -441,6 +441,7 @@ class FinanceClassifierService:
         self.db = db
         self.api_key = api_key or settings.openai_api_key
         self._client: httpx.AsyncClient | None = None
+        self._last_error: str | None = None  # Letzter Fehler fuer Debugging
 
     async def _get_client(self) -> httpx.AsyncClient:
         if self._client is None or self._client.is_closed:
@@ -511,15 +512,18 @@ class FinanceClassifierService:
                     import asyncio
                     await asyncio.sleep(5 * (attempt + 1))
                     continue
-                logger.error("Finance-Classifier Timeout nach allen Versuchen")
+                self._last_error = "Timeout nach allen Versuchen"
+                logger.error(f"Finance-Classifier {self._last_error}")
                 return None
 
             except (httpx.HTTPStatusError, json.JSONDecodeError, KeyError) as e:
-                logger.error(f"Finance-Classifier Fehler: {e}")
+                self._last_error = f"{type(e).__name__}: {str(e)[:200]}"
+                logger.error(f"Finance-Classifier Fehler: {self._last_error}")
                 return None
 
             except Exception as e:
-                logger.error(f"Finance-Classifier unerwarteter Fehler: {e}")
+                self._last_error = f"{type(e).__name__}: {str(e)[:200]}"
+                logger.error(f"Finance-Classifier unerwarteter Fehler: {self._last_error}")
                 return None
 
         return None
@@ -593,7 +597,7 @@ class FinanceClassifierService:
         if result is None:
             return ClassificationResult(
                 success=False,
-                error="OpenAI-Aufruf fehlgeschlagen",
+                error=f"OpenAI: {self._last_error or 'unbekannt'}",
             )
 
         # Usage extrahieren
@@ -656,7 +660,7 @@ class FinanceClassifierService:
         result = await self._call_openai(FINANCE_JOB_CLASSIFIER_PROMPT, user_prompt)
 
         if result is None:
-            return ClassificationResult(success=False, error="OpenAI-Aufruf fehlgeschlagen")
+            return ClassificationResult(success=False, error=f"OpenAI: {self._last_error or 'unbekannt'}")
 
         usage = result.pop("_usage", {})
         roles = [r for r in result.get("roles", []) if r in ALLOWED_ROLES]

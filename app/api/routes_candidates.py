@@ -1990,7 +1990,7 @@ async def _run_classification_background(force: bool = False) -> None:
             return
 
         start_time = datetime.now(timezone.utc)
-        semaphore = asyncio.Semaphore(5)
+        semaphore = asyncio.Semaphore(3)  # 3 parallel statt 5 (Connection Pool Schonung)
 
         # Zaehler (thread-safe via asyncio single-thread)
         stats = {
@@ -2001,14 +2001,13 @@ async def _run_classification_background(force: bool = False) -> None:
             "last_errors": [],  # Letzte 5 Fehlermeldungen fuer Debugging
         }
 
-        # EIN geteilter Classifier fuer den OpenAI-Client (httpx)
-        shared_classifier = FinanceClassifierService(db=None)
-
         async def _classify_single(cid) -> None:
-            """Einen einzelnen Kandidaten klassifizieren (eigene DB-Session)."""
+            """Einen einzelnen Kandidaten klassifizieren (eigene DB-Session + eigener Classifier)."""
             async with semaphore:
                 try:
                     async with async_session_maker() as db:
+                        # Jeder Task bekommt EIGENEN Classifier mit eigenem httpx-Client
+                        classifier = FinanceClassifierService(db)
                         from app.models.candidate import Candidate
 
                         # Kandidat laden
@@ -2020,8 +2019,8 @@ async def _run_classification_background(force: bool = False) -> None:
                             stats["errors"] += 1
                             return
 
-                        # Klassifizieren (geteilter OpenAI-Client)
-                        classification = await shared_classifier.classify_candidate(candidate)
+                        # Klassifizieren
+                        classification = await classifier.classify_candidate(candidate)
                         stats["input_tokens"] += classification.input_tokens
                         stats["output_tokens"] += classification.output_tokens
 
@@ -2036,18 +2035,20 @@ async def _run_classification_background(force: bool = False) -> None:
                                     stats["last_errors"].append(err_msg)
                         elif classification.is_leadership:
                             stats["leadership"] += 1
-                            shared_classifier.apply_to_candidate(candidate, classification)
+                            classifier.apply_to_candidate(candidate, classification)
                             await db.commit()
                         elif not classification.roles:
                             stats["no_role"] += 1
-                            shared_classifier.apply_to_candidate(candidate, classification)
+                            classifier.apply_to_candidate(candidate, classification)
                             await db.commit()
                         else:
-                            shared_classifier.apply_to_candidate(candidate, classification)
+                            classifier.apply_to_candidate(candidate, classification)
                             await db.commit()
                             stats["classified"] += 1
                             for role in classification.roles:
                                 stats["roles"][role] = stats["roles"].get(role, 0) + 1
+
+                        await classifier.close()
 
                 except Exception as e:
                     err_msg = f"{cid}: {str(e)[:200]}"
