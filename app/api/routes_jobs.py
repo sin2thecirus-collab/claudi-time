@@ -2004,6 +2004,49 @@ async def debug_classification_stats(
 
 
 @router.get(
+    "/debug/openai-test",
+    summary="Testet OpenAI API direkt mit minimalen Daten",
+    tags=["Debug"],
+)
+@rate_limit(RateLimitTier.ADMIN)
+async def debug_openai_test(request: Request):
+    """Raw-Test gegen OpenAI API — zeigt exakten Response inkl. Fehler."""
+    import httpx
+    from app.config import settings
+
+    api_key = settings.openai_api_key
+    key_preview = f"{api_key[:8]}...{api_key[-4:]}" if len(api_key) > 12 else "ZU_KURZ"
+
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": "gpt-4o-mini",
+                    "messages": [{"role": "user", "content": "Say OK"}],
+                    "max_tokens": 5,
+                },
+            )
+            return {
+                "api_key_preview": key_preview,
+                "api_key_length": len(api_key),
+                "status_code": resp.status_code,
+                "headers": dict(resp.headers),
+                "body": resp.json(),
+            }
+    except Exception as e:
+        return {
+            "api_key_preview": key_preview,
+            "api_key_length": len(api_key),
+            "error": f"{type(e).__name__}: {str(e)}",
+        }
+
+
+@router.get(
     "/debug/classification/sample",
     summary="10 zufaellige klassifizierte Jobs",
     tags=["Debug"],
