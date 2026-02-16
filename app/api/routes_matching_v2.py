@@ -118,7 +118,7 @@ async def _run_backfill(entity_type: str, max_total: int, batch_size: int, force
     _backfill_status["errors_list"] = []
 
     stats = {"profiled": 0, "skipped": 0, "failed": 0, "cost_usd": 0.0}
-    semaphore = asyncio.Semaphore(2)
+    semaphore = asyncio.Semaphore(3)
 
     async def _profile_one_candidate(cid):
         """Profil EINEN Kandidaten mit eigener DB-Session."""
@@ -229,12 +229,12 @@ async def _run_backfill(entity_type: str, max_total: int, batch_size: int, force
             if total == 0:
                 continue
 
-            # 2. Chunks von 10 parallel, 2s Pause zwischen Chunks
+            # 2. Chunks von 10 parallel, Semaphore(3), 1s Pause zwischen Chunks
             profile_fn = _profile_one_candidate if current_type == "candidates" else _profile_one_job
             for i in range(0, total, 10):
                 chunk = entity_ids[i:i + 10]
                 await asyncio.gather(*[profile_fn(eid) for eid in chunk])
-                await asyncio.sleep(2)
+                await asyncio.sleep(1)
 
             logger.info(
                 f"Backfill {current_type} fertig: {stats['profiled']} profiled, "
