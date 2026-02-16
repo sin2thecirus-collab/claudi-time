@@ -92,7 +92,7 @@
                    hx-get="/partials/jobs-list"
                    hx-trigger="keyup changed delay:300ms"
                    hx-target="#jobs-content"
-                   hx-include="[name='sort_by'],[name='imported_days'],[name='company'],[name='cities']"
+                   hx-include="[name='sort_by'],[name='imported_days'],[name='company'],[name='cities'],[name='postal_code_prefix']"
                    style="width:100%;padding:10px 14px 10px 36px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:10px;color:var(--pp-text);font-size:13px;font-family:var(--pp-ff);transition:border-color 0.2s;"
                    onfocus="this.style.borderColor='var(--pp-accent)';this.style.boxShadow='0 0 0 3px rgba(79,140,255,0.1)'"
                    onblur="this.style.borderColor='var(--pp-border)';this.style.boxShadow=''">
@@ -106,7 +106,7 @@
                    hx-get="/partials/jobs-list"
                    hx-trigger="keyup changed delay:400ms"
                    hx-target="#jobs-content"
-                   hx-include="[name='search'],[name='sort_by'],[name='imported_days'],[name='cities']"
+                   hx-include="[name='search'],[name='sort_by'],[name='imported_days'],[name='cities'],[name='postal_code_prefix']"
                    style="width:160px;padding:10px 14px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:10px;color:var(--pp-text);font-size:13px;font-family:var(--pp-ff);transition:border-color 0.2s;"
                    onfocus="this.style.borderColor='var(--pp-accent)'"
                    onblur="this.style.borderColor='var(--pp-border)'">
@@ -120,8 +120,23 @@
                    hx-get="/partials/jobs-list"
                    hx-trigger="keyup changed delay:400ms"
                    hx-target="#jobs-content"
-                   hx-include="[name='search'],[name='sort_by'],[name='imported_days'],[name='company']"
+                   hx-include="[name='search'],[name='sort_by'],[name='imported_days'],[name='company'],[name='postal_code_prefix']"
                    style="width:140px;padding:10px 14px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:10px;color:var(--pp-text);font-size:13px;font-family:var(--pp-ff);transition:border-color 0.2s;"
+                   onfocus="this.style.borderColor='var(--pp-accent)'"
+                   onblur="this.style.borderColor='var(--pp-border)'">
+        </div>
+
+        {# PLZ-Prefix-Filter #}
+        <div style="position:relative;">
+            <input type="text"
+                   name="postal_code_prefix"
+                   placeholder="PLZ..."
+                   maxlength="5"
+                   hx-get="/partials/jobs-list"
+                   hx-trigger="keyup changed delay:400ms"
+                   hx-target="#jobs-content"
+                   hx-include="[name='search'],[name='sort_by'],[name='imported_days'],[name='company'],[name='cities']"
+                   style="width:100px;padding:10px 14px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:10px;color:var(--pp-text);font-size:13px;font-family:var(--pp-ff);transition:border-color 0.2s;"
                    onfocus="this.style.borderColor='var(--pp-accent)'"
                    onblur="this.style.borderColor='var(--pp-border)'">
         </div>
@@ -134,7 +149,7 @@
                 hx-get="/partials/jobs-list"
                 hx-trigger="change"
                 hx-target="#jobs-content"
-                hx-include="[name='search'],[name='sort_by'],[name='company'],[name='cities']"
+                hx-include="[name='search'],[name='sort_by'],[name='company'],[name='cities'],[name='postal_code_prefix']"
                 style="padding:10px 32px 10px 14px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:10px;color:var(--pp-text);font-size:13px;font-family:var(--pp-ff);cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 12 12%22><path fill=%22%238B8FA3%22 d=%22M2.5 4.5L6 8l3.5-3.5%22 stroke=%22%238B8FA3%22 stroke-width=%221.5%22 fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/></svg>');background-repeat:no-repeat;background-position:right 10px center;">
             <option value="">Alle Zeitraeume</option>
             <option value="1">Heute importiert</option>
@@ -148,7 +163,7 @@
                 hx-get="/partials/jobs-list"
                 hx-trigger="change"
                 hx-target="#jobs-content"
-                hx-include="[name='search'],[name='imported_days'],[name='company'],[name='cities']"
+                hx-include="[name='search'],[name='imported_days'],[name='company'],[name='cities'],[name='postal_code_prefix']"
                 style="padding:10px 32px 10px 14px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:10px;color:var(--pp-text);font-size:13px;font-family:var(--pp-ff);cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 12 12%22><path fill=%22%238B8FA3%22 d=%22M2.5 4.5L6 8l3.5-3.5%22 stroke=%22%238B8FA3%22 stroke-width=%221.5%22 fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/></svg>');background-repeat:no-repeat;background-position:right 10px center;">
             <option value="imported_at">Neueste zuerst</option>
             <option value="created_at">Erstellungsdatum</option>

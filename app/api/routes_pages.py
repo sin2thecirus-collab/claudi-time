@@ -372,6 +372,7 @@ async def jobs_list_partial(
     company: Optional[str] = None,
     sort_by: str = "imported_at",
     sort_order: str = "desc",
+    postal_code_prefix: Optional[str] = None,
     imported_days: Optional[str] = None,
     updated_days: Optional[str] = None,
     view: str = "cards",
@@ -407,6 +408,13 @@ async def jobs_list_partial(
         city_parts = [c.strip() for c in cities.split(",") if c.strip() and len(c.strip()) >= 2]
         safe_cities = city_parts if city_parts else None
 
+    # PLZ-Prefix: Nur Ziffern erlauben, min 1 Zeichen
+    safe_postal_code_prefix = None
+    if postal_code_prefix and postal_code_prefix.strip():
+        plz_clean = postal_code_prefix.strip()
+        if plz_clean.isdigit() and 1 <= len(plz_clean) <= 5:
+            safe_postal_code_prefix = plz_clean
+
     # imported_days / updated_days: HTMX sendet "" (leerer String) bei "Alle Zeitraeume"
     # FastAPI kann "" nicht als int parsen -> daher als str empfangen und manuell parsen
     safe_imported_days = None
@@ -422,6 +430,7 @@ async def jobs_list_partial(
         cities=safe_cities,
         industries=[industry] if industry else None,
         company=safe_company,
+        postal_code_prefix=safe_postal_code_prefix,
         sort_by=sort_by_enum,
         sort_order=sort_order_enum,
         imported_days=safe_imported_days,

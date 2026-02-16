@@ -80,6 +80,11 @@ class JobFilterParams(BaseModel):
         default=None, description="Läuft ab vor Datum"
     )
 
+    # PLZ-Prefix-Filter (z.B. "8" fuer Muenchen 80xxx-89xxx)
+    postal_code_prefix: str | None = Field(
+        default=None, min_length=1, max_length=5, description="PLZ beginnt mit..."
+    )
+
     # Zeitraum-Filter
     imported_days: int | None = Field(
         default=None, ge=1, le=365, description="Importiert in den letzten X Tagen"

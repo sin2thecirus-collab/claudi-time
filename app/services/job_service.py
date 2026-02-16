@@ -405,6 +405,10 @@ class JobService:
         if filters.expires_before:
             query = query.where(Job.expires_at <= filters.expires_before)
 
+        # PLZ-Prefix-Filter (z.B. "8" fuer 80xxx-89xxx)
+        if filters.postal_code_prefix:
+            query = query.where(Job.postal_code.like(f"{filters.postal_code_prefix}%"))
+
         # Zeitraum-Filter: Importiert in den letzten X Tagen
         if filters.imported_days:
             cutoff = datetime.now(timezone.utc) - timedelta(days=filters.imported_days)

@@ -57,7 +57,7 @@
         <button hx-get="/partials/jobs-list?page={{ page - 1 }}&per_page={{ per_page }}"
                 hx-target="#jobs-content"
                 hx-swap="innerHTML"
-                hx-include="[name='search'],[name='sort_by'],[name='imported_days'],[name='company']"
+                hx-include="[name='search'],[name='sort_by'],[name='imported_days'],[name='company'],[name='cities'],[name='postal_code_prefix']"
                 style="padding:8px 14px;font-size:12px;font-weight:500;color:var(--pp-textMuted);background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:8px;cursor:pointer;transition:all 0.15s;"
                 onmouseover="this.style.borderColor='var(--pp-accent)';this.style.color='var(--pp-accent)'"
                 onmouseout="this.style.borderColor='var(--pp-border)';this.style.color='var(--pp-textMuted)'">
@@ -72,7 +72,7 @@
             <button hx-get="/partials/jobs-list?page={{ p }}&per_page={{ per_page }}"
                     hx-target="#jobs-content"
                     hx-swap="innerHTML"
-                    hx-include="[name='search'],[name='sort_by'],[name='imported_days'],[name='company']"
+                    hx-include="[name='search'],[name='sort_by'],[name='imported_days'],[name='company'],[name='cities'],[name='postal_code_prefix']"
                     style="padding:8px 14px;font-size:12px;font-weight:500;color:var(--pp-textMuted);background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:8px;cursor:pointer;transition:all 0.15s;"
                     onmouseover="this.style.borderColor='var(--pp-accent)';this.style.color='var(--pp-accent)'"
                     onmouseout="this.style.borderColor='var(--pp-border)';this.style.color='var(--pp-textMuted)'">
@@ -87,7 +87,7 @@
         <button hx-get="/partials/jobs-list?page={{ page + 1 }}&per_page={{ per_page }}"
                 hx-target="#jobs-content"
                 hx-swap="innerHTML"
-                hx-include="[name='search'],[name='sort_by'],[name='imported_days'],[name='company']"
+                hx-include="[name='search'],[name='sort_by'],[name='imported_days'],[name='company'],[name='cities'],[name='postal_code_prefix']"
                 style="padding:8px 14px;font-size:12px;font-weight:500;color:var(--pp-textMuted);background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:8px;cursor:pointer;transition:all 0.15s;"
                 onmouseover="this.style.borderColor='var(--pp-accent)';this.style.color='var(--pp-accent)'"
                 onmouseout="this.style.borderColor='var(--pp-border)';this.style.color='var(--pp-textMuted)'">
