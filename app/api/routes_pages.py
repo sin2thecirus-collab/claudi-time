@@ -401,11 +401,16 @@ async def jobs_list_partial(
     safe_company = company.strip() if company else None
     if safe_company and len(safe_company) < 2:
         safe_company = None
+    # Stadt-Filter: Zu kurze Eingaben ignorieren
+    safe_cities = None
+    if cities:
+        city_parts = [c.strip() for c in cities.split(",") if c.strip() and len(c.strip()) >= 2]
+        safe_cities = city_parts if city_parts else None
 
     # Filter aufbauen
     filters = JobFilterParams(
         search=safe_search,
-        cities=cities.split(",") if cities else None,
+        cities=safe_cities,
         industries=[industry] if industry else None,
         company=safe_company,
         sort_by=sort_by_enum,
