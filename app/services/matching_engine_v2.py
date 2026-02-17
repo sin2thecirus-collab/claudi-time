@@ -98,17 +98,17 @@ class BatchMatchResult:
 # ══════════════════════════════════════════════════════════════════
 
 DEFAULT_WEIGHTS = {
-    "skill_overlap": 35.0,   # Skills sind das Wichtigste (war 27)
-    "seniority_fit": 30.0,   # Level-Matching statt Titel-Matching (war 20)
-    "job_title_fit": 0.0,    # RAUS — Titel sind zu oft falsch (war 18)
-    "embedding_sim": 15.0,   # Semantische Aehnlichkeit (bleibt)
-    "industry_fit": 8.0,     # Branchenerfahrung (bleibt)
-    "career_fit": 7.0,       # Karriere-Richtung (bleibt)
-    "software_match": 5.0,   # DATEV/SAP-Ecosystem (bleibt)
-    # Summe: 35 + 30 + 0 + 15 + 8 + 7 + 5 = 100
-    # Location ist KEIN Score mehr — nur Hard Filter (30km)
-    # job_title_fit auf 0% weil Titel zu unzuverlaessig sind.
-    # Nur Level (seniority_fit) + Skills (skill_overlap) zaehlen.
+    "skill_overlap": 25.0,   # Skills (reduziert von 35 — skill_overlap ist oft zu niedrig)
+    "seniority_fit": 25.0,   # Level-Matching (reduziert von 30 — dominierte zu stark)
+    "job_title_fit": 0.0,    # RAUS — Titel sind zu oft falsch
+    "embedding_sim": 20.0,   # Semantische Aehnlichkeit (erhoeht von 15 — kompensiert schwache Skills)
+    "industry_fit": 10.0,    # Branchenerfahrung (erhoeht von 8)
+    "career_fit": 10.0,      # Karriere-Richtung (erhoeht von 7)
+    "software_match": 10.0,  # DATEV/SAP-Ecosystem (erhoeht von 5 — Software-Fit ist wichtig!)
+    # Summe: 25 + 25 + 0 + 20 + 10 + 10 + 10 = 100
+    # Begruendung: Analyse von 633 Matches zeigt skill_overlap avg nur 0.12-0.27
+    # Embedding (0.63-0.71) und Software-Match sind zuverlaessigere Signale
+    # Location ist KEIN Score — nur Hard Filter (30km)
 }
 
 # Entfernung ist ein HARD FILTER, kein Soft-Score!
@@ -1409,17 +1409,25 @@ class MatchingEngineV2:
 
             # ── Gewichtete Summe (0-100) ──
             total = (
-                skill_score * weights.get("skill_overlap", 35) +
-                seniority_score * weights.get("seniority_fit", 30) +
+                skill_score * weights.get("skill_overlap", 25) +
+                seniority_score * weights.get("seniority_fit", 25) +
                 job_title_score * weights.get("job_title_fit", 0) +
-                embedding_score * weights.get("embedding_sim", 15) +
-                industry_score * weights.get("industry_fit", 8) +
-                career_score * weights.get("career_fit", 7) +
-                software_score * weights.get("software_match", 5)
+                embedding_score * weights.get("embedding_sim", 20) +
+                industry_score * weights.get("industry_fit", 10) +
+                career_score * weights.get("career_fit", 10) +
+                software_score * weights.get("software_match", 10)
             ) / total_weight * 100
 
+            # ── Minimum Skill Threshold (Anti-False-Positive) ──
+            # Wenn Skill-Overlap < 0.15 → Score cap bei 60
+            # Verhindert dass Seniority+Embedding allein Score >70 treiben
+            skill_capped = False
+            if skill_score < 0.15:
+                total = min(total, 60)
+                skill_capped = True
+
             # ── Qualifikations-Multiplikator (NACH Gewichtung, VOR Speichern) ──
-            # v2.7: Symmetrische Multiplier fuer alle Rollen (Bonus + Penalty)
+            # v2.8: Symmetrische Multiplier fuer ALLE 6 Rollen (Bonus + Penalty)
             role_multiplier = 1.0
             if job_requires_bibu:
                 # Check 1: v2_certifications (z.B. ["Bilanzbuchhalter"])
@@ -1435,9 +1443,9 @@ class MatchingEngineV2:
                         for s in cand.structured_skills
                     )
                 if candidate_has_bibu:
-                    role_multiplier = 1.15  # +15% Bonus (war 1.3 → zu viele 100er Scores)
+                    role_multiplier = 1.15  # +15% Bonus
                 else:
-                    role_multiplier = 0.6   # -40% Penalty (war 0.75 → zu mild, FiBu→BiBu war 78)
+                    role_multiplier = 0.6   # -40% Penalty
                 total *= role_multiplier
 
             elif job_requires_fibu:
@@ -1466,6 +1474,53 @@ class MatchingEngineV2:
                     role_multiplier = 1.15  # +15% Bonus fuer passende FiBu-Qualifikation
                 else:
                     role_multiplier = 0.7   # -30% Penalty fuer Nicht-FiBu auf FiBu-Job
+                total *= role_multiplier
+
+            elif job_requires_stfa:
+                # StFA-Multiplikator: Prueft ob Kandidat StFA-Qualifikation hat
+                candidate_has_stfa = False
+                if cand.certifications:
+                    candidate_has_stfa = any(
+                        any(kw in c.lower() for kw in ["steuerfachangestellte", "steuerfachangestellter", "steuerfachwirt"])
+                        for c in cand.certifications
+                    )
+                if not candidate_has_stfa and cand.structured_skills:
+                    candidate_has_stfa = any(
+                        any(kw in s.get("skill", "").lower() for kw in ["steuerfachangestellte", "steuerfachangestellter", "steuerfachwirt"])
+                        and s.get("category", "") in ("zertifizierung", "qualifikation", "")
+                        for s in cand.structured_skills
+                    )
+                if candidate_has_stfa:
+                    role_multiplier = 1.15  # +15% Bonus
+                else:
+                    role_multiplier = 0.7   # -30% Penalty
+                total *= role_multiplier
+
+            elif job_requires_lohn:
+                # Lohn-Multiplikator: Prueft ob Kandidat Lohn-Erfahrung hat
+                candidate_has_lohn = False
+                if cand.certifications:
+                    candidate_has_lohn = any(
+                        any(kw in c.lower() for kw in ["lohnbuchhalter", "entgeltabrechner", "payroll"])
+                        for c in cand.certifications
+                    )
+                if not candidate_has_lohn and cand.structured_skills:
+                    candidate_has_lohn = any(
+                        any(kw in s.get("skill", "").lower() for kw in [
+                            "lohnbuchhaltung", "lohnabrechnung", "gehaltsabrechnung",
+                            "entgeltabrechnung", "payroll", "lohn- und gehaltsabrechnung"
+                        ])
+                        for s in cand.structured_skills
+                    )
+                if not candidate_has_lohn and cand.job_titles:
+                    candidate_has_lohn = any(
+                        any(kw in t.lower() for kw in ["lohnbuchhalter", "payroll", "entgelt", "gehaltsabrechnung"])
+                        for t in cand.job_titles
+                    )
+                if candidate_has_lohn:
+                    role_multiplier = 1.20  # +20% Bonus (Lohn ist spezialisiert)
+                else:
+                    role_multiplier = 0.65  # -35% Penalty
                 total *= role_multiplier
 
             # ── Empty CV Penalty (dreistufig) ──
@@ -1500,6 +1555,7 @@ class MatchingEngineV2:
                 "candidate_level": cand.seniority_level,
                 "job_level": job_level,
                 "role_multiplier": role_multiplier if role_multiplier != 1.0 else None,
+                "skill_capped": skill_capped or None,
                 "empty_cv_penalty": empty_cv_penalty,
                 "job_role": job_role,
             }
@@ -1698,7 +1754,7 @@ class MatchingEngineV2:
         try:
             from app.services.distance_matrix_service import distance_matrix_service
 
-            if distance_matrix_service.has_api_key and job.location_coords is not None:
+            if False and distance_matrix_service.has_api_key and job.location_coords is not None:  # TEMPORARILY DISABLED for batch re-matching
                 # Job-Koordinaten extrahieren
                 from sqlalchemy import func as sa_func
                 job_lat = None
