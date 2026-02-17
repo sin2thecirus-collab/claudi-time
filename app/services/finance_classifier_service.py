@@ -373,6 +373,113 @@ ERLAUBTE WERTE:
 
 
 # ═══════════════════════════════════════════════════════════════
+# POST-GPT REGELVALIDIERUNG (deterministisch, korrigiert GPT-Fehler)
+# ═══════════════════════════════════════════════════════════════
+
+# Phrasen die EINDEUTIG JA-Erstellung signalisieren (= BiBu)
+_JA_CREATION_PHRASES = [
+    "erstellung von jahresabschlüssen",
+    "erstellung der jahresabschlüsse",
+    "erstellst den jahresabschluss",
+    "erstellst du den jahresabschluss",
+    "erstellung des jahresabschlusses",
+    "eigenständige erstellung",
+    "eigenstaendige erstellung",
+    "jahresabschlüsse erstellen",
+    "jahresabschluss nach hgb erstellen",
+    "jahresabschlüsse nach hgb",
+    "erstellung von monats- und jahresabschlüssen",
+    "erstellung der monats- und jahresabschlüsse",
+    "erstellst den jahresabschluss nach hgb",
+    "erstellst monats- und jahresabschlüsse",
+    "selbstständige erstellung",
+    "selbststaendige erstellung",
+]
+
+# Phrasen die NUR Vorbereitung/Unterstuetzung signalisieren (= FiBu, NICHT BiBu)
+_JA_PREP_PHRASES = [
+    "vorbereitung des jahresabschlusses",
+    "vorbereitung von jahresabschlüssen",
+    "vorbereitung der jahresabschlüsse",
+    "unterstützung bei jahresabschlüssen",
+    "unterstuetzung bei jahresabschlüssen",
+    "mitwirkung bei jahresabschlüssen",
+    "zuarbeit für den jahresabschluss",
+    "zuarbeit fuer den jahresabschluss",
+    "mitarbeit bei monats- und jahresabschlüssen",
+    "unterstützung bei der erstellung",
+    "unterstuetzung bei der erstellung",
+    "mitwirkung an der erstellung",
+    "mitarbeit bei jahresabschlüssen",
+]
+
+
+def validate_job_classification(gpt_result: dict, job_text: str) -> dict:
+    """Deterministische Regelvalidierung nach GPT-Klassifizierung.
+
+    Korrigiert systematische GPT-Fehler bei:
+    1. JA-Erstellung = BiBu (nicht FiBu)
+    2. Nur Kreditoren = KrediBu (nicht FiBu)
+    3. Nur Debitoren = DebiBu (nicht FiBu)
+    """
+    if not job_text:
+        return gpt_result
+
+    text_lower = job_text.lower()
+    corrections = []
+
+    # REGEL 1: JA-Erstellung = BiBu
+    has_ja_creation = any(p in text_lower for p in _JA_CREATION_PHRASES)
+    has_ja_prep_only = any(p in text_lower for p in _JA_PREP_PHRASES) and not has_ja_creation
+
+    if has_ja_creation and gpt_result.get("primary_role") != "Bilanzbuchhalter/in":
+        gpt_result["primary_role"] = "Bilanzbuchhalter/in"
+        if "Bilanzbuchhalter/in" not in gpt_result.get("roles", []):
+            gpt_result.setdefault("roles", []).append("Bilanzbuchhalter/in")
+        corrections.append("JA-Erstellung erkannt → BiBu")
+
+    # REGEL 2: Nur Kreditoren (ohne Debitoren) = KrediBu
+    has_kredi = "kreditorenbuchhaltung" in text_lower or "accounts payable" in text_lower
+    has_debi = "debitorenbuchhaltung" in text_lower or "accounts receivable" in text_lower
+    # Pruefe ob BEIDES vorkommt (dann ist es FiBu, nicht KrediBu/DebiBu)
+    has_both = has_kredi and has_debi
+
+    if has_kredi and not has_debi and not has_both:
+        if gpt_result.get("primary_role") == "Finanzbuchhalter/in":
+            # Nur korrigieren wenn der Job wirklich NUR Kreditoren beschreibt
+            # und nicht auch "laufende Buchhaltung" o.ae.
+            laufende_bu = any(p in text_lower for p in [
+                "laufende buchhaltung", "laufende finanzbuchhaltung",
+                "finanzbuchhaltung", "general ledger", "hauptbuchhaltung"
+            ])
+            if not laufende_bu:
+                gpt_result["primary_role"] = "Kreditorenbuchhalter/in"
+                if "Kreditorenbuchhalter/in" not in gpt_result.get("roles", []):
+                    gpt_result.setdefault("roles", []).append("Kreditorenbuchhalter/in")
+                corrections.append("Nur Kreditoren → KrediBu")
+
+    # REGEL 3: Nur Debitoren (ohne Kreditoren) = DebiBu
+    if has_debi and not has_kredi and not has_both:
+        if gpt_result.get("primary_role") == "Finanzbuchhalter/in":
+            laufende_bu = any(p in text_lower for p in [
+                "laufende buchhaltung", "laufende finanzbuchhaltung",
+                "finanzbuchhaltung", "general ledger", "hauptbuchhaltung"
+            ])
+            if not laufende_bu:
+                gpt_result["primary_role"] = "Debitorenbuchhalter/in"
+                if "Debitorenbuchhalter/in" not in gpt_result.get("roles", []):
+                    gpt_result.setdefault("roles", []).append("Debitorenbuchhalter/in")
+                corrections.append("Nur Debitoren → DebiBu")
+
+    if corrections:
+        existing_reasoning = gpt_result.get("reasoning", "")
+        gpt_result["reasoning"] = f"{existing_reasoning} [REGELKORREKTUR: {', '.join(corrections)}]"
+        gpt_result["title_was_corrected"] = True
+
+    return gpt_result
+
+
+# ═══════════════════════════════════════════════════════════════
 # DATACLASSES
 # ═══════════════════════════════════════════════════════════════
 
@@ -694,6 +801,11 @@ class FinanceClassifierService:
             return ClassificationResult(success=False, error=f"OpenAI: {self._last_error or 'unbekannt'}")
 
         usage = result.pop("_usage", {})
+
+        # V3: Deterministische Regelvalidierung NACH GPT-Antwort
+        job_text_for_validation = job.job_text or job.position or ""
+        result = validate_job_classification(result, job_text_for_validation)
+
         roles = [r for r in result.get("roles", []) if r in ALLOWED_ROLES]
         primary_role = result.get("primary_role")
         if primary_role and primary_role not in ALLOWED_ROLES:

@@ -1,0 +1,29 @@
+{
+  "_comment": "Rollen-Kompatibilitaetsmatrix: Welche Kandidaten-Rollen duerfen auf welche Job-Rollen matchen?",
+  "_format": "candidate_role -> [erlaubte_job_roles]",
+
+  "bilanzbuchhalter": {
+    "allowed_job_roles": ["bilanzbuchhalter", "finanzbuchhalter", "kreditorenbuchhalter", "debitorenbuchhalter", "steuerfachangestellte"],
+    "reason": "BiBu ist hoechste FiBu-Qualifikation, kann alles ausser Lohn"
+  },
+  "finanzbuchhalter": {
+    "allowed_job_roles": ["finanzbuchhalter", "kreditorenbuchhalter", "debitorenbuchhalter"],
+    "reason": "FiBu kann FiBu + Spezialisierungen (KrediBu/DebiBu sind Teilbereiche)"
+  },
+  "kreditorenbuchhalter": {
+    "allowed_job_roles": ["kreditorenbuchhalter"],
+    "reason": "KrediBu ist Spezialisierung, kann nur KrediBu"
+  },
+  "debitorenbuchhalter": {
+    "allowed_job_roles": ["debitorenbuchhalter"],
+    "reason": "DebiBu ist Spezialisierung, kann nur DebiBu"
+  },
+  "lohnbuchhalter": {
+    "allowed_job_roles": ["lohnbuchhalter"],
+    "reason": "Lohn ist komplett isoliert (anderes Fachgebiet)"
+  },
+  "steuerfachangestellte": {
+    "allowed_job_roles": ["steuerfachangestellte", "finanzbuchhalter", "kreditorenbuchhalter", "debitorenbuchhalter"],
+    "reason": "StFA hat breite Ausbildung (Kreditoren, Debitoren, USt, JA-Vorbereitung)"
+  }
+}

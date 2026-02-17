@@ -56,6 +56,9 @@ class MatchCandidate:
     industries: list[str] = field(default_factory=list)  # z.B. ["Maschinenbau"]
     erp: list[str] = field(default_factory=list)  # z.B. ["SAP", "DATEV"]
     job_titles: list[str] = field(default_factory=list)  # hotlist_job_titles + manual_job_titles
+    # v3: Kandidaten-Rolle fuer Gate-Checks
+    primary_role: str | None = None  # z.B. "Finanzbuchhalter/in"
+    classification_data: dict = field(default_factory=dict)
     # Phase 10: Google Maps Fahrzeit
     drive_time_car_min: int | None = None
     drive_time_transit_min: int | None = None
@@ -526,6 +529,9 @@ class MatchingEngineV2:
                 Candidate.manual_job_titles,       # 15
                 # Phase 10: PLZ + Koordinaten für Google Maps Fahrzeit
                 Candidate.postal_code,             # 16
+                # v3: Kandidaten-Rolle fuer Gate-Checks (wird nur gelesen, nicht geaendert)
+                Candidate.hotlist_job_title,        # 19 (primary_role)
+                Candidate.classification_data,      # 20
                 func.ST_Y(func.ST_GeomFromWKB(Candidate.address_coords)).label("cand_lat"),  # 17
                 func.ST_X(func.ST_GeomFromWKB(Candidate.address_coords)).label("cand_lng"),  # 18
             )
@@ -568,6 +574,9 @@ class MatchingEngineV2:
                 postal_code=row[16],
                 _lat=row[17],
                 _lng=row[18],
+                # v3: Kandidaten-Rolle
+                primary_role=row[19],
+                classification_data=row[20] or {},
             ))
 
         logger.info(
@@ -1695,6 +1704,497 @@ class MatchingEngineV2:
 
         return scored[:self.TOP_N]
 
+    # ═══════════════════════════════════════════════════════════════
+    # V3 SCORING: Qualification-First Multi-Gate Scoring
+    # ═══════════════════════════════════════════════════════════════
+
+    # Rollen-Kompatibilitaets-Matrix (geladen aus Config oder inline)
+    _ROLE_COMPATIBILITY: dict[str, list[str]] = {
+        "bilanzbuchhalter": ["bilanzbuchhalter", "finanzbuchhalter", "kreditorenbuchhalter", "debitorenbuchhalter", "steuerfachangestellte"],
+        "finanzbuchhalter": ["finanzbuchhalter", "kreditorenbuchhalter", "debitorenbuchhalter"],
+        "kreditorenbuchhalter": ["kreditorenbuchhalter"],
+        "debitorenbuchhalter": ["debitorenbuchhalter"],
+        "lohnbuchhalter": ["lohnbuchhalter"],
+        "steuerfachangestellte": ["steuerfachangestellte", "finanzbuchhalter", "kreditorenbuchhalter", "debitorenbuchhalter"],
+    }
+
+    # Mapping: primary_role (GPT-Format) → interner Key
+    _ROLE_KEY_MAP: dict[str, str] = {
+        "Bilanzbuchhalter/in": "bilanzbuchhalter",
+        "Finanzbuchhalter/in": "finanzbuchhalter",
+        "Kreditorenbuchhalter/in": "kreditorenbuchhalter",
+        "Debitorenbuchhalter/in": "debitorenbuchhalter",
+        "Lohnbuchhalter/in": "lohnbuchhalter",
+        "Steuerfachangestellte/r": "steuerfachangestellte",
+    }
+
+    def _get_candidate_role_key(self, cand: MatchCandidate) -> str | None:
+        """Ermittelt die interne Rolle des Kandidaten (z.B. 'finanzbuchhalter')."""
+        # Primaer: classification_data.primary_role
+        cd = cand.classification_data or {}
+        pr = cd.get("primary_role") or cand.primary_role
+        if pr and pr in self._ROLE_KEY_MAP:
+            return self._ROLE_KEY_MAP[pr]
+        # Fallback: Erste Rolle aus classification_data.roles
+        for role in cd.get("roles", []):
+            if role in self._ROLE_KEY_MAP:
+                return self._ROLE_KEY_MAP[role]
+        # Fallback: hotlist_job_titles
+        for title in (cand.job_titles or []):
+            t = title.lower()
+            if "bilanzbuchhalter" in t:
+                return "bilanzbuchhalter"
+            if "lohnbuchhalter" in t or "payroll" in t:
+                return "lohnbuchhalter"
+            if "steuerfachangestellte" in t:
+                return "steuerfachangestellte"
+            if "kreditoren" in t and "debitoren" not in t:
+                return "kreditorenbuchhalter"
+            if "debitoren" in t and "kreditoren" not in t:
+                return "debitorenbuchhalter"
+            if "finanzbuchhalter" in t or "buchhalter" in t:
+                return "finanzbuchhalter"
+        return None
+
+    def _check_role_compatibility(self, candidate_role: str | None, job_role: str | None) -> bool:
+        """Prueft ob die Kandidaten-Rolle mit der Job-Rolle kompatibel ist."""
+        if not job_role or not candidate_role:
+            return True  # Wenn Rolle unbekannt, kein Gate (um Datenluecken nicht zu bestrafen)
+        allowed = self._ROLE_COMPATIBILITY.get(candidate_role, [])
+        return job_role in allowed
+
+    def _score_role_depth(self, candidate_role: str | None, job_role: str | None) -> int:
+        """Layer 1A: Wie tief passt die Rolle? (0-15 Punkte)"""
+        if not candidate_role or not job_role:
+            return 8  # Keine Daten → neutral
+        if candidate_role == job_role:
+            return 15  # Exakte Rolle
+        # BiBu auf alles andere (ueberqualifiziert aber passend)
+        if candidate_role == "bilanzbuchhalter":
+            return 12
+        # StFA auf FiBu/KrediBu/DebiBu (breite Ausbildung)
+        if candidate_role == "steuerfachangestellte" and job_role in ("finanzbuchhalter", "kreditorenbuchhalter", "debitorenbuchhalter"):
+            return 10
+        # FiBu auf KrediBu/DebiBu (Generalist auf Spezialisierung)
+        if candidate_role == "finanzbuchhalter" and job_role in ("kreditorenbuchhalter", "debitorenbuchhalter"):
+            return 8
+        return 5  # Sonstige erlaubte Kombination
+
+    def _score_skill_depth_v3(self, cand_skills: list[dict], job_skills: list[dict],
+                               job_role: str | None, cand_certifications: list[str]) -> tuple[int, int]:
+        """Layer 1B: Skill-Tiefe (0-20 Punkte) + Anzahl fachkenntnisse-Matches fuer Gate 2.
+
+        Returns:
+            (skill_points, fachkenntnisse_match_count)
+        """
+        if not job_skills:
+            return 10, 1  # Keine Job-Skills → neutral
+
+        # Kandidaten-Skills normalisieren
+        cand_skill_names = set()
+        for s in (cand_skills or []):
+            name = self._normalize_skill(s.get("skill", "").lower().strip())
+            if name and not self._is_irrelevant_skill(name, s.get("category", "")):
+                cand_skill_names.add(name)
+        # Zertifizierungen als Skills hinzufuegen
+        for cert in (cand_certifications or []):
+            cand_skill_names.add(cert.lower().strip())
+        # ERP-Skills aus structured_skills
+        for s in (cand_skills or []):
+            if s.get("category") in ("software", "erp", "tool"):
+                cand_skill_names.add(self._normalize_skill(s.get("skill", "").lower().strip()))
+
+        points = 0.0
+        fachkenntnisse_matches = 0
+
+        for js in job_skills:
+            js_name = self._normalize_skill(js.get("skill", "").lower().strip())
+            if not js_name or self._is_irrelevant_skill(js_name, js.get("category", "")):
+                continue
+
+            # Skill-Gewicht aus Config
+            weight = self._get_skill_weight(js_name, job_role) if job_role else 5
+            is_fachkenntnis = weight >= 9  # fachkenntnisse haben Gewicht 9-10
+            is_taetigkeit = 7 <= weight < 9
+            is_software = weight <= 4
+
+            if is_software:
+                continue  # Software wird in Layer 2 bewertet
+
+            # Match-Suche
+            match_score = 0.0
+            matched = False
+
+            # Exact match
+            if js_name in cand_skill_names:
+                match_score = 2.0 if is_fachkenntnis else 1.5
+                matched = True
+            else:
+                # Synonym match
+                for cs in cand_skill_names:
+                    core_js = self._extract_core_skill(js_name)
+                    core_cs = self._extract_core_skill(cs)
+                    if core_js and core_cs and core_js == core_cs:
+                        match_score = 1.5 if is_fachkenntnis else 1.0
+                        matched = True
+                        break
+                    # Contains match
+                    if len(js_name) > 3 and len(cs) > 3:
+                        if js_name in cs or cs in js_name:
+                            match_score = 0.8 if is_fachkenntnis else 0.5
+                            matched = True
+                            break
+
+            if matched:
+                points += match_score
+                if is_fachkenntnis:
+                    fachkenntnisse_matches += 1
+
+        return min(20, int(round(points))), fachkenntnisse_matches
+
+    def _score_certification_match_v3(self, cand: MatchCandidate, job_role: str | None) -> int:
+        """Layer 1C: Zertifizierungs-Match (0-10 Punkte)"""
+        if not job_role:
+            return 5  # Neutral
+
+        certs_lower = [c.lower() for c in (cand.certifications or [])]
+        skills_text = " ".join(s.get("skill", "").lower() for s in (cand.structured_skills or []))
+        titles_lower = [t.lower() for t in (cand.job_titles or [])]
+
+        def has_keyword(keywords: list[str], sources: list[str] = None) -> bool:
+            all_text = " ".join(certs_lower) + " " + skills_text + " " + " ".join(titles_lower)
+            if sources:
+                all_text = " ".join(sources)
+            return any(kw in all_text for kw in keywords)
+
+        if job_role == "bilanzbuchhalter":
+            if has_keyword(["bilanzbuchhalter", "bilanzbuchhalterin"], certs_lower):
+                return 10
+            if has_keyword(["steuerfachangestellte", "steuerfachwirt"]) and has_keyword(["jahresabschluss", "abschluss"]):
+                return 7
+            if has_keyword(["finanzbuchhalter", "buchhalterin"]):
+                return 3
+            return 0
+
+        if job_role == "finanzbuchhalter":
+            if has_keyword(["finanzbuchhalter", "finanzbuchhalterin", "bilanzbuchhalter"], certs_lower):
+                return 10
+            if has_keyword(["steuerfachangestellte", "steuerfachwirt"]):
+                return 8
+            if has_keyword(["buchhalter", "industriekaufmann", "industriekauffrau", "bürokaufmann", "bürokauffrau"]):
+                return 5
+            return 0
+
+        if job_role == "lohnbuchhalter":
+            if has_keyword(["lohnbuchhalter", "lohnbuchhalterin", "entgeltabrechner", "payroll"]):
+                return 10
+            if has_keyword(["steuerfachangestellte"]) and has_keyword(["lohn", "gehalt", "payroll"]):
+                return 6
+            return 0
+
+        if job_role == "steuerfachangestellte":
+            if has_keyword(["steuerfachangestellte", "steuerfachangestellter", "steuerfachwirt", "steuerberater"]):
+                return 10
+            if has_keyword(["finanzbuchhalter"]) and has_keyword(["steuer", "umsatzsteuer"]):
+                return 4
+            return 0
+
+        if job_role == "kreditorenbuchhalter":
+            if has_keyword(["finanzbuchhalter", "bilanzbuchhalter", "steuerfachangestellte"]):
+                return 8
+            if has_keyword(["buchhalter", "industriekaufmann"]):
+                return 5
+            if has_keyword(["kreditorenbuchhal", "accounts payable"]):
+                return 10
+            return 2
+
+        if job_role == "debitorenbuchhalter":
+            if has_keyword(["finanzbuchhalter", "bilanzbuchhalter", "steuerfachangestellte"]):
+                return 8
+            if has_keyword(["buchhalter", "industriekaufmann"]):
+                return 5
+            if has_keyword(["debitorenbuchhal", "accounts receivable"]):
+                return 10
+            return 2
+
+        return 5  # Unbekannte Rolle → neutral
+
+    # ── V3 Seniority Fit (0-12) ──
+
+    def _score_seniority_v3(self, cand_level: int, job_level: int) -> tuple[int, str]:
+        """Layer 2A: Seniority-Fit (0-12 Punkte)"""
+        gap = cand_level - job_level
+        if gap == 0:
+            return 12, "passt"
+        if gap == 1:
+            return 9, "leicht_ueberqualifiziert"
+        if gap == -1:
+            return 9, "leicht_unterqualifiziert"
+        if gap == 2:
+            return 3, "ueberqualifiziert"
+        if gap == -2:
+            return 3, "unterqualifiziert"
+        if gap >= 3:
+            return 0, "stark_ueberqualifiziert"
+        return 0, "stark_unterqualifiziert"
+
+    # ── V3 Software Match (0-10) ──
+
+    def _score_software_v3(self, cand_skills: list[dict], job_skills: list[dict], cand_erp: list[str]) -> int:
+        """Layer 2B: Software-Ecosystem (0-10 Punkte)"""
+        raw = self._score_software_match(cand_skills, job_skills, cand_erp)
+        # raw ist 0.0-1.0, skalieren auf 0-10
+        if raw >= 0.95:
+            return 10
+        if raw >= 0.45:
+            return 6  # Job hat kein Requirement oder Kandidat hat beides
+        if raw >= 0.25:
+            return 3  # Kandidat hat kein ERP
+        return 1  # Cross-Ecosystem
+
+    # ── V3 Main Scoring ──
+
+    async def _score_candidates_v3(
+        self,
+        job: Job,
+        candidates: list[MatchCandidate],
+    ) -> list[ScoredMatch]:
+        """V3 Scoring: Qualification-First Multi-Gate Scoring.
+
+        Layer 0: Hard Gates (Pass/Fail)
+        Layer 1: Qualifikations-Score (0-45)
+        Layer 2: Kompatibilitaets-Score (0-40)
+        Layer 3: Kontext-Score (0-15)
+        Total: 0-100, Minimum 35 fuer Speicherung
+        """
+        job_level = job.v2_seniority_level or 2
+        job_skills = job.v2_required_skills or []
+        job_embedding = job.v2_embedding
+        job_industry = job.industry
+
+        # Job-Rolle erkennen
+        self._load_skill_weights()
+        self._load_skill_hierarchy()
+        job_role = self._detect_job_role(
+            getattr(job, "hotlist_job_title", None),
+            job.position,
+            getattr(job, "classification_data", None),
+        )
+
+        # Quality Gate: Jobs mit quality_score="low" → REJECT
+        job_cd = getattr(job, "classification_data", None) or {}
+        quality_score = job_cd.get("quality_score")
+        quality_cap = 100
+        if quality_score == "low":
+            logger.info(f"V3 Gate: Job {job.id} quality_score=low → REJECTED")
+            return []
+        if quality_score == "medium":
+            quality_cap = 75
+
+        # Job is_leadership pruefen
+        job_is_leadership = job_cd.get("is_leadership", False)
+
+        # Expanded Job-Skills (Hierarchie)
+        expanded_job_skills = self._expand_job_skills_with_hierarchy(job_skills, job_role)
+
+        scored = []
+        gate_rejected = 0
+
+        for cand in candidates:
+            # ═══ LAYER 0: HARD GATES ═══
+            reject_reason = None
+
+            # Gate 1: Rollen-Kompatibilitaet
+            cand_role = self._get_candidate_role_key(cand)
+            if not self._check_role_compatibility(cand_role, job_role):
+                reject_reason = f"role_incompatible:{cand_role}→{job_role}"
+
+            # Gate 2: Minimum-Skill (mindestens 1 fachkenntnisse-Match)
+            if not reject_reason:
+                _, fk_matches = self._score_skill_depth_v3(
+                    cand.structured_skills, expanded_job_skills, job_role, cand.certifications
+                )
+                if fk_matches == 0:
+                    reject_reason = "zero_fachkenntnisse"
+
+            # Gate 5: Leadership-Filter
+            if not reject_reason:
+                if not job_is_leadership and cand.seniority_level >= 6:
+                    reject_reason = "executive_on_ic_job"
+                if job_is_leadership and cand.seniority_level <= 2:
+                    reject_reason = "junior_on_leadership_job"
+
+            if reject_reason:
+                gate_rejected += 1
+                continue
+
+            # ═══ LAYER 1: QUALIFIKATIONS-SCORE (0-45) ═══
+
+            # 1A: Rollen-Tiefe (0-15)
+            role_depth = self._score_role_depth(cand_role, job_role)
+
+            # 1B: Skill-Tiefe (0-20)
+            skill_depth, _ = self._score_skill_depth_v3(
+                cand.structured_skills, expanded_job_skills, job_role, cand.certifications
+            )
+
+            # 1C: Zertifizierungs-Match (0-10)
+            cert_match = self._score_certification_match_v3(cand, job_role)
+
+            layer1 = role_depth + skill_depth + cert_match  # 0-45
+
+            # Layer 1 Minimum: Wenn < 15 → REJECT
+            if layer1 < 15:
+                gate_rejected += 1
+                continue
+
+            # ═══ LAYER 2: KOMPATIBILITAETS-SCORE (0-40) ═══
+
+            # 2A: Seniority-Fit (0-12)
+            seniority_pts, qualification_tag = self._score_seniority_v3(
+                cand.seniority_level, job_level
+            )
+
+            # 2B: Software-Ecosystem (0-10)
+            software_pts = self._score_software_v3(
+                cand.structured_skills, job_skills, cand.erp
+            )
+
+            # 2C: Embedding-Similarity (0-8)
+            emb_raw = self._score_embedding_similarity(
+                cand.embedding_current, job_embedding
+            )
+            embedding_pts = min(8, int(round(emb_raw * 8)))
+
+            # 2D: Career-Fit (0-10)
+            career_raw, career_note = self._score_career_fit(
+                cand.career_trajectory, cand.seniority_level, job_level
+            )
+            career_pts = min(10, int(round(career_raw * 10)))
+
+            layer2 = seniority_pts + software_pts + embedding_pts + career_pts  # 0-40
+
+            # ═══ LAYER 3: KONTEXT-SCORE (0-15) ═══
+
+            # 3A: Branchen-Fit (0-5)
+            ind_raw = self._score_industry_fit(cand.industries, job_industry)
+            if ind_raw >= 0.9:
+                industry_pts = 5
+            elif ind_raw >= 0.5:
+                industry_pts = 3
+            elif ind_raw >= 0.25:
+                industry_pts = 2
+            else:
+                industry_pts = 1
+
+            # 3B: Recency (0-5) — basiert auf career_trajectory
+            trajectory = (cand.career_trajectory or "").lower()
+            if trajectory in ("aufsteigend", "lateral"):
+                recency_pts = 5  # Aktiv in Karriere
+            elif trajectory == "einstieg":
+                recency_pts = 4  # Neueinsteiger
+            elif trajectory == "absteigend":
+                recency_pts = 3  # Bewusster Downshift
+            else:
+                recency_pts = 3  # Unbekannt
+
+            # 3C: Standort-Qualitaet (0-5)
+            if cand.distance_km is not None:
+                if cand.distance_km <= 15:
+                    location_pts = 5
+                elif cand.distance_km <= 25:
+                    location_pts = 4
+                elif cand.distance_km <= 30:
+                    location_pts = 3
+                else:
+                    location_pts = 1
+            else:
+                location_pts = 2  # Remote oder keine Daten
+
+            layer3 = industry_pts + recency_pts + location_pts  # 0-15
+
+            # ═══ GESAMT ═══
+
+            total = float(layer1 + layer2 + layer3)
+
+            # Quality Cap (medium jobs → max 75)
+            total = min(total, quality_cap)
+
+            # Empty CV Penalty (behalten — schuetzt vor leeren Profilen)
+            empty_cv_penalty = None
+            role_summary = (cand.current_role_summary or "").lower()
+            if "keine berufserfahrung" in role_summary:
+                empty_cv_penalty = 0.1
+                total *= 0.1
+            elif "keine ausbildung" in role_summary:
+                empty_cv_penalty = 0.2
+                total *= 0.2
+            elif len(cand.structured_skills) < 3:
+                empty_cv_penalty = 0.3
+                total *= 0.3
+
+            total = min(100, max(0, total))
+
+            # Score-Breakdown (V3 Format)
+            breakdown = {
+                # V3 Layer Scores
+                "v3_layer1_qualification": layer1,
+                "v3_layer2_compatibility": layer2,
+                "v3_layer3_context": layer3,
+                # V3 Detail
+                "v3_role_depth": role_depth,
+                "v3_skill_depth": skill_depth,
+                "v3_cert_match": cert_match,
+                "v3_seniority_pts": seniority_pts,
+                "v3_software_pts": software_pts,
+                "v3_embedding_pts": embedding_pts,
+                "v3_career_pts": career_pts,
+                "v3_industry_pts": industry_pts,
+                "v3_recency_pts": recency_pts,
+                "v3_location_pts": location_pts,
+                # Kompatibilitaet mit altem Format
+                "skill_overlap": round(skill_depth / 20, 3),  # Normalisiert 0-1 fuer Templates
+                "seniority_fit": round(seniority_pts / 12, 3),
+                "embedding_sim": round(emb_raw, 3),
+                "industry_fit": round(ind_raw, 3),
+                "career_fit": round(career_raw, 3),
+                "software_match": round(software_pts / 10, 3),
+                "job_title_fit": 0.0,  # Deaktiviert
+                # Metadaten
+                "distance_km": cand.distance_km,
+                "drive_time_car_min": cand.drive_time_car_min,
+                "drive_time_transit_min": cand.drive_time_transit_min,
+                "qualification_tag": qualification_tag,
+                "candidate_level": cand.seniority_level,
+                "job_level": job_level,
+                "job_role": job_role,
+                "candidate_role": cand_role,
+                "empty_cv_penalty": empty_cv_penalty,
+                "scoring_version": "v3",
+            }
+            if career_note:
+                breakdown["career_note"] = career_note
+
+            scored.append(ScoredMatch(
+                candidate_id=cand.id,
+                total_score=round(total, 2),
+                breakdown=breakdown,
+            ))
+
+        logger.info(
+            f"V3 Scoring: {len(scored)} scored, {gate_rejected} gate-rejected "
+            f"(Rolle: {job_role}, Level: {job_level})"
+        )
+
+        # Sortieren + Minimum + Top-N
+        scored.sort(key=lambda x: x.total_score, reverse=True)
+        scored = [s for s in scored if s.total_score >= 35]  # V3 Minimum: 35
+
+        for i, m in enumerate(scored):
+            m.rank = i + 1
+
+        return scored[:self.TOP_N]
+
     # ── Schicht 3: Pattern Boost ────────────────────────────
 
     async def _apply_learned_rules(
@@ -1854,8 +2354,8 @@ class MatchingEngineV2:
                 scoring_weights=weights,
             )
 
-        # ── Schicht 2: Structured Scoring (OHNE Fahrzeit — wird danach geholt) ──
-        scored = await self._score_candidates(job, candidates, weights)
+        # ── Schicht 2: V3 Qualification-First Multi-Gate Scoring ──
+        scored = await self._score_candidates_v3(job, candidates)
 
         # Build Lookup fuer Schicht 3
         cand_map = {c.id: c for c in candidates}
