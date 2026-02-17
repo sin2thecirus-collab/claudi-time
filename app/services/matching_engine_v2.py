@@ -234,11 +234,13 @@ class MatchingEngineV2:
                 parent_lookup[normalized] = config
 
         # Sammle existierende Skill-Namen (lowercase) um Duplikate zu vermeiden
-        existing_skills = {js.get("skill", "").lower().strip() for js in job_skills}
+        existing_skills = {js.get("skill", "").lower().strip() for js in job_skills if isinstance(js, dict)}
 
         expanded = list(job_skills)  # Kopie — Original nicht veraendern
 
         for js in job_skills:
+            if not isinstance(js, dict):
+                continue
             skill_name = js.get("skill", "").lower().strip()
             if not skill_name:
                 continue
@@ -861,6 +863,8 @@ class MatchingEngineV2:
         # ── Kandidaten-Skills aufbauen (normalisiert) ──
         cand_skill_map: dict[str, dict] = {}
         for s in candidate_skills:
+            if not isinstance(s, dict):
+                continue
             name = s.get("skill", "").lower().strip()
             if name:
                 normalized = self._normalize_skill(name)
@@ -890,6 +894,8 @@ class MatchingEngineV2:
         # ── Job-Skills filtern: Sprachen & Soft Skills raus ──
         filtered_job_skills = []
         for js in job_skills:
+            if not isinstance(js, dict):
+                continue
             skill_name = js.get("skill", "")
             category = js.get("category", "")
             if not self._is_irrelevant_skill(skill_name, category):
@@ -1132,6 +1138,8 @@ class MatchingEngineV2:
         def detect_ecosystem(skills: list[dict], erp_list: list[str] | None = None) -> set[str]:
             ecosystems = set()
             for s in skills:
+                if not isinstance(s, dict):
+                    continue
                 name = s.get("skill", "").lower()
                 if any(kw in name for kw in datev_keywords):
                     ecosystems.add("datev")
@@ -1793,6 +1801,8 @@ class MatchingEngineV2:
         # Kandidaten-Skills normalisieren
         cand_skill_names = set()
         for s in (cand_skills or []):
+            if not isinstance(s, dict):
+                continue
             name = self._normalize_skill(s.get("skill", "").lower().strip())
             if name and not self._is_irrelevant_skill(name, s.get("category", "")):
                 cand_skill_names.add(name)
@@ -1801,6 +1811,8 @@ class MatchingEngineV2:
             cand_skill_names.add(cert.lower().strip())
         # ERP-Skills aus structured_skills
         for s in (cand_skills or []):
+            if not isinstance(s, dict):
+                continue
             if s.get("category") in ("software", "erp", "tool"):
                 cand_skill_names.add(self._normalize_skill(s.get("skill", "").lower().strip()))
 
@@ -1808,6 +1820,8 @@ class MatchingEngineV2:
         fachkenntnisse_matches = 0
 
         for js in job_skills:
+            if not isinstance(js, dict):
+                continue
             js_name = self._normalize_skill(js.get("skill", "").lower().strip())
             if not js_name or self._is_irrelevant_skill(js_name, js.get("category", "")):
                 continue
