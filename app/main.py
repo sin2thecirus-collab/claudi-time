@@ -377,6 +377,10 @@ app.include_router(alerts_router, prefix="/api")
 app.include_router(companies_router, prefix="/api")
 app.include_router(smart_match_router)  # Smart-Match API (/api/smart-match/...)
 
+# Pipeline V3: Classify First, Match Second
+from app.api.routes_pipeline_v3 import router as pipeline_v3_router
+app.include_router(pipeline_v3_router)  # Pipeline V3 API (/api/v3/...)
+
 # ATS API Router (alle mit /api Prefix)
 app.include_router(ats_jobs_router, prefix="/api")
 app.include_router(ats_pipeline_router, prefix="/api")

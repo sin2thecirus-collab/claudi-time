@@ -1076,31 +1076,31 @@ async def _run_geocoding(db_unused: AsyncSession, job_run_id: UUID):
 
 
 async def _run_matching(db_unused: AsyncSession, job_run_id: UUID):
-    """Führt Matching im Hintergrund aus.
+    """Führt Matching im Hintergrund aus — Pipeline V3.
 
     WICHTIG: db_unused wird nicht verwendet! Background Tasks müssen ihre eigene
     DB-Session erstellen, da die Request-Session bereits geschlossen sein könnte.
     """
     from app.database import async_session_maker
-    from app.services.matching_service import MatchingService
+    from app.services.matching_pipeline_v3 import MatchingPipelineV3
 
     # Eigene DB-Session für Background Task erstellen
     async with async_session_maker() as db:
         job_runner = JobRunnerService(db)
 
         try:
-            matching_service = MatchingService(db)
-            result = await matching_service.recalculate_all_matches()
+            async with MatchingPipelineV3(db) as pipeline:
+                result = await pipeline.run_all(skip_already_matched=False)
 
             await job_runner.complete_job(
                 job_run_id,
-                items_total=result.jobs_processed,
-                items_successful=result.total_matches_created + result.total_matches_updated,
-                items_failed=len(result.errors),
+                items_total=result.get("total_jobs", 0),
+                items_successful=result.get("total_matches_created", 0),
+                items_failed=result.get("jobs_failed", 0),
             )
             await db.commit()
         except Exception as e:
-            logger.error(f"Matching fehlgeschlagen: {e}", exc_info=True)
+            logger.error(f"V3-Matching fehlgeschlagen: {e}", exc_info=True)
             await job_runner.fail_job(job_run_id, str(e))
             await db.commit()
 
