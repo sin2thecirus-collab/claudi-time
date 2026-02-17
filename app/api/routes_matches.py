@@ -250,6 +250,172 @@ async def get_matches_for_job(
     )
 
 
+# ==================== Statische GET-Routen (MUESSEN VOR /{match_id} stehen!) ====================
+
+
+@router.get(
+    "/excellent",
+    summary="Exzellente Matches",
+)
+async def get_excellent_matches(
+    limit: int = Query(default=20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Gibt die besten Matches zurueck.
+
+    Kriterien fuer exzellente Matches:
+    - Distanz <= 5km
+    - Mindestens 3 gematchte Keywords
+    - Status: neu (noch nicht bearbeitet)
+    """
+    matching_service = MatchingService(db)
+    matches = await matching_service.get_excellent_matches()
+
+    return {
+        "items": [_match_to_detailed_response(m) for m in matches[:limit]],
+        "total": len(matches),
+    }
+
+
+@router.get(
+    "/filter",
+    summary="Flexibler Match-Filter",
+    description="Filter nach Fahrzeit, Quality, Rolle, Score, Outreach-Status etc.",
+)
+async def filter_matches(
+    max_drive_time: int | None = Query(default=None, ge=1, description="Max Fahrzeit Auto in Minuten"),
+    max_transit_time: int | None = Query(default=None, ge=1, description="Max Fahrzeit OEPNV in Minuten"),
+    has_drive_time: bool | None = Query(default=None, description="Nur Matches mit/ohne Fahrzeit-Daten"),
+    min_score: float | None = Query(default=None, ge=0, description="Min Matching-Score"),
+    max_score: float | None = Query(default=None, le=100, description="Max Matching-Score"),
+    role: str | None = Query(default=None, description="Job-Rolle (z.B. finanzbuchhalter)"),
+    city: str | None = Query(default=None, description="Job-Stadt"),
+    outreach_status: str | None = Query(default=None, description="Outreach-Status"),
+    min_quality: str | None = Query(default=None, description="Min Quality (high/medium)"),
+    no_response_days: int | None = Query(default=None, ge=1, description="Keine Antwort seit X Tagen"),
+    sort_by: str = Query(default="score_desc", description="Sortierung: score_desc, score_asc, random"),
+    limit: int = Query(default=20, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    db: AsyncSession = Depends(get_db),
+):
+    """Flexibler Filter-Endpoint fuer Matches (fuer Claude Skill / Morning Briefing / Analyse)."""
+    from sqlalchemy import select, func as sa_func
+    from sqlalchemy.orm import selectinload
+    from datetime import datetime, timezone, timedelta
+    from app.models.match import Match
+    from app.models.job import Job
+
+    query = (
+        select(Match)
+        .join(Match.job)
+        .options(selectinload(Match.job), selectinload(Match.candidate))
+    )
+
+    # Filter anwenden
+    conditions = []
+
+    if max_drive_time:
+        conditions.append(Match.drive_time_car_min <= max_drive_time)
+
+    if max_transit_time:
+        conditions.append(Match.drive_time_transit_min <= max_transit_time)
+
+    if has_drive_time is True:
+        conditions.append(Match.drive_time_car_min.isnot(None))
+    elif has_drive_time is False:
+        conditions.append(Match.drive_time_car_min.is_(None))
+
+    if min_score is not None:
+        conditions.append(Match.v2_score >= min_score)
+
+    if max_score is not None:
+        conditions.append(Match.v2_score <= max_score)
+
+    if role:
+        # Case-insensitive Match auf classification_data.primary_role
+        conditions.append(
+            Job.classification_data["primary_role"].astext.ilike(f"%{role}%")
+        )
+
+    if city:
+        conditions.append(
+            Job.city.ilike(f"%{city}%") | Job.work_location_city.ilike(f"%{city}%")
+        )
+
+    if outreach_status:
+        conditions.append(Match.outreach_status == outreach_status)
+
+    if min_quality:
+        if min_quality == "high":
+            conditions.append(Job.quality_score == "high")
+        elif min_quality == "medium":
+            conditions.append(Job.quality_score.in_(["high", "medium"]))
+
+    if no_response_days:
+        cutoff = datetime.now(timezone.utc) - timedelta(days=no_response_days)
+        conditions.append(Match.outreach_status == "sent")
+        conditions.append(Match.outreach_sent_at <= cutoff)
+
+    if conditions:
+        query = query.where(*conditions)
+
+    # Sortierung
+    if sort_by == "score_asc":
+        query = query.order_by(Match.v2_score.asc().nullslast())
+    elif sort_by == "random":
+        query = query.order_by(sa_func.random())
+    else:
+        query = query.order_by(Match.v2_score.desc().nullslast())
+
+    query = query.offset(offset).limit(limit)
+
+    result = await db.execute(query)
+    matches = result.scalars().all()
+
+    return {
+        "items": [
+            {
+                "match_id": str(m.id),
+                "candidate_id": str(m.candidate_id) if m.candidate_id else None,
+                "candidate_city": m.candidate.city if m.candidate else None,
+                "job_id": str(m.job_id) if m.job_id else None,
+                "job_position": m.job.position if m.job else "Unbekannt",
+                "job_company": m.job.company_name if m.job else "Unbekannt",
+                "job_city": m.job.display_city if m.job else None,
+                "job_role": m.job.classification_data.get("primary_role") if m.job and m.job.classification_data else None,
+                "score": round(m.v2_score, 1) if m.v2_score else None,
+                "v2_score_breakdown": m.v2_score_breakdown,
+                "drive_time_car_min": m.drive_time_car_min,
+                "drive_time_transit_min": m.drive_time_transit_min,
+                "distance_km": round(m.distance_km, 1) if m.distance_km else None,
+                "outreach_status": m.outreach_status,
+                "quality": m.job.quality_score if m.job else None,
+            }
+            for m in matches
+        ],
+        "total": len(matches),
+        "filters_applied": {
+            k: v for k, v in {
+                "max_drive_time": max_drive_time,
+                "max_transit_time": max_transit_time,
+                "has_drive_time": has_drive_time,
+                "min_score": min_score,
+                "max_score": max_score,
+                "role": role,
+                "city": city,
+                "outreach_status": outreach_status,
+                "min_quality": min_quality,
+                "no_response_days": no_response_days,
+                "sort_by": sort_by,
+            }.items() if v is not None
+        },
+    }
+
+
+# ==================== Match-Details (/{match_id} MUSS NACH statischen Routen stehen) ====================
+
+
 @router.get(
     "/{match_id}",
     response_model=MatchWithDetails,
@@ -431,31 +597,6 @@ async def get_match_statistics(
     stats = await matching_service.get_match_statistics(job_id)
 
     return stats
-
-
-@router.get(
-    "/excellent",
-    summary="Exzellente Matches",
-)
-async def get_excellent_matches(
-    limit: int = Query(default=20, ge=1, le=100),
-    db: AsyncSession = Depends(get_db),
-):
-    """
-    Gibt die besten Matches zurück.
-
-    Kriterien für exzellente Matches:
-    - Distanz ≤ 5km
-    - Mindestens 3 gematchte Keywords
-    - Status: neu (noch nicht bearbeitet)
-    """
-    matching_service = MatchingService(db)
-    matches = await matching_service.get_excellent_matches()
-
-    return {
-        "items": [_match_to_detailed_response(m) for m in matches[:limit]],
-        "total": len(matches),
-    }
 
 
 # ==================== Outreach (Phase 11-12) ====================
@@ -742,125 +883,6 @@ async def get_interested_candidates(
             for m in matches
         ],
         "total": len(matches),
-    }
-
-
-@router.get(
-    "/filter",
-    summary="Flexibler Match-Filter",
-    description="Filter nach Fahrzeit, Quality, Rolle, Score, Outreach-Status etc.",
-)
-async def filter_matches(
-    max_drive_time: int | None = Query(default=None, ge=1, description="Max Fahrzeit Auto in Minuten"),
-    max_transit_time: int | None = Query(default=None, ge=1, description="Max Fahrzeit ÖPNV in Minuten"),
-    has_drive_time: bool | None = Query(default=None, description="Nur Matches mit/ohne Fahrzeit-Daten"),
-    min_score: float | None = Query(default=None, ge=0, description="Min Matching-Score"),
-    role: str | None = Query(default=None, description="Job-Rolle (z.B. finanzbuchhalter)"),
-    city: str | None = Query(default=None, description="Job-Stadt"),
-    outreach_status: str | None = Query(default=None, description="Outreach-Status"),
-    min_quality: str | None = Query(default=None, description="Min Quality (high/medium)"),
-    no_response_days: int | None = Query(default=None, ge=1, description="Keine Antwort seit X Tagen"),
-    limit: int = Query(default=20, ge=1, le=100),
-    offset: int = Query(default=0, ge=0),
-    db: AsyncSession = Depends(get_db),
-):
-    """Flexibler Filter-Endpoint für Matches (für Claude Skill / Morning Briefing)."""
-    from sqlalchemy import select
-    from sqlalchemy.orm import selectinload
-    from datetime import datetime, timezone, timedelta
-    from app.models.match import Match
-    from app.models.job import Job
-
-    query = (
-        select(Match)
-        .join(Match.job)
-        .options(selectinload(Match.job), selectinload(Match.candidate))
-    )
-
-    # Filter anwenden
-    conditions = []
-
-    if max_drive_time:
-        conditions.append(Match.drive_time_car_min <= max_drive_time)
-
-    if max_transit_time:
-        conditions.append(Match.drive_time_transit_min <= max_transit_time)
-
-    if has_drive_time is True:
-        conditions.append(Match.drive_time_car_min.isnot(None))
-    elif has_drive_time is False:
-        conditions.append(Match.drive_time_car_min.is_(None))
-
-    if min_score:
-        conditions.append(Match.v2_score >= min_score)
-
-    if role:
-        # Case-insensitive Match auf classification_data.primary_role
-        conditions.append(
-            Job.classification_data["primary_role"].astext.ilike(f"%{role}%")
-        )
-
-    if city:
-        conditions.append(
-            Job.city.ilike(f"%{city}%") | Job.work_location_city.ilike(f"%{city}%")
-        )
-
-    if outreach_status:
-        conditions.append(Match.outreach_status == outreach_status)
-
-    if min_quality:
-        if min_quality == "high":
-            conditions.append(Job.quality_score == "high")
-        elif min_quality == "medium":
-            conditions.append(Job.quality_score.in_(["high", "medium"]))
-
-    if no_response_days:
-        cutoff = datetime.now(timezone.utc) - timedelta(days=no_response_days)
-        conditions.append(Match.outreach_status == "sent")
-        conditions.append(Match.outreach_sent_at <= cutoff)
-
-    if conditions:
-        query = query.where(*conditions)
-
-    # Sortierung: Score absteigend
-    query = query.order_by(Match.v2_score.desc().nullslast()).offset(offset).limit(limit)
-
-    result = await db.execute(query)
-    matches = result.scalars().all()
-
-    return {
-        "items": [
-            {
-                "match_id": str(m.id),
-                "candidate_name": m.candidate.full_name if m.candidate else "Unbekannt",
-                "candidate_email": m.candidate.email if m.candidate else None,
-                "candidate_city": m.candidate.city if m.candidate else None,
-                "job_position": m.job.position if m.job else "Unbekannt",
-                "job_company": m.job.company_name if m.job else "Unbekannt",
-                "job_city": m.job.display_city if m.job else None,
-                "score": round(m.v2_score, 1) if m.v2_score else None,
-                "drive_time_car_min": m.drive_time_car_min,
-                "drive_time_transit_min": m.drive_time_transit_min,
-                "distance_km": round(m.distance_km, 1) if m.distance_km else None,
-                "outreach_status": m.outreach_status,
-                "quality": m.job.quality_score if m.job else None,
-            }
-            for m in matches
-        ],
-        "total": len(matches),
-        "filters_applied": {
-            k: v for k, v in {
-                "max_drive_time": max_drive_time,
-                "max_transit_time": max_transit_time,
-                "has_drive_time": has_drive_time,
-                "min_score": min_score,
-                "role": role,
-                "city": city,
-                "outreach_status": outreach_status,
-                "min_quality": min_quality,
-                "no_response_days": no_response_days,
-            }.items() if v is not None
-        },
     }
 
 
