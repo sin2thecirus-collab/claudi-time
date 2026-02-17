@@ -201,7 +201,7 @@
                     {% if candidate.postal_code and candidate.postal_code not in ['Not Available', 'N/A', 'n/a', 'None', 'null', '', '-'] %}{% set _ = _addr_parts.append(candidate.postal_code) %}{% endif %}
                     {% if candidate.city and candidate.city not in ['Not Available', 'N/A', 'n/a', 'None', 'null', '', '-'] %}{% set _ = _addr_parts.append(candidate.city) %}{% endif %}
                     {% if _addr_parts %}
-                    <span class="kd-meta-badge">&#x1F4CD; {{ _addr_parts | join(', ') }}</span>
+                    <span class="kd-meta-badge" style="cursor:pointer;" onclick="navigator.clipboard.writeText(this.querySelector('.addr-text').textContent.trim()).then(function(){showToast('Adresse kopiert','success')})">&#x1F4CD; <span class="addr-text">{{ _addr_parts | join(', ') }}</span> <svg style="display:inline; vertical-align:middle; opacity:0.4; margin-left:2px;" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></span>
                     {% endif %}
                     <span class="kd-meta-badge">&#x1F382; {% if candidate.birth_date %}{{ candidate.birth_date.strftime('%d.%m.%Y') }} ({{ candidate.age }} J.){% else %}/{% endif %}</span>
                 </div>
