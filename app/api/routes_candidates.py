@@ -526,6 +526,7 @@ async def parse_cv_for_quickadd(
         "cv_key": cv_key,
         "cv_text": cv_text,
         "parsed": {
+            "gender": parsed.gender,
             "first_name": parsed.first_name,
             "last_name": parsed.last_name,
             "email": parsed.email,
@@ -603,7 +604,12 @@ async def create_candidate(
     from datetime import datetime as dt_cls, timezone as tz_cls
     now = dt_cls.now(tz_cls.utc)
 
+    # gender validieren: nur "Herr" oder "Frau" erlaubt
+    raw_gender = data.get("gender")
+    gender_val = raw_gender if raw_gender in ("Herr", "Frau") else None
+
     candidate = Candidate(
+        gender=gender_val,
         first_name=data.get("first_name"),
         last_name=data.get("last_name"),
         email=data.get("email"),

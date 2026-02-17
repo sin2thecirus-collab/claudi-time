@@ -196,8 +196,12 @@
                     {% if candidate.current_company and candidate.current_company not in ['Not Available', 'N/A', 'n/a', 'None', 'null', '', '-'] %}
                     <span class="kd-meta-badge">&#x1F3E2; {{ candidate.current_company }}</span>
                     {% endif %}
-                    {% if candidate.location and candidate.location not in ['Not Available', 'N/A', 'n/a', 'None', 'null', '', '-'] %}
-                    <span class="kd-meta-badge">&#x1F4CD; {{ candidate.location }}</span>
+                    {% set _addr_parts = [] %}
+                    {% if candidate.street_address and candidate.street_address not in ['Not Available', 'N/A', 'n/a', 'None', 'null', '', '-'] %}{% set _ = _addr_parts.append(candidate.street_address) %}{% endif %}
+                    {% if candidate.postal_code and candidate.postal_code not in ['Not Available', 'N/A', 'n/a', 'None', 'null', '', '-'] %}{% set _ = _addr_parts.append(candidate.postal_code) %}{% endif %}
+                    {% if candidate.city and candidate.city not in ['Not Available', 'N/A', 'n/a', 'None', 'null', '', '-'] %}{% set _ = _addr_parts.append(candidate.city) %}{% endif %}
+                    {% if _addr_parts %}
+                    <span class="kd-meta-badge">&#x1F4CD; {{ _addr_parts | join(', ') }}</span>
                     {% endif %}
                     <span class="kd-meta-badge">&#x1F382; {% if candidate.birth_date %}{{ candidate.birth_date.strftime('%d.%m.%Y') }} ({{ candidate.age }} J.){% else %}/{% endif %}</span>
                 </div>
@@ -346,15 +350,33 @@
                             </div>
                         </div>
                     </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
-                        {# Adresse #}
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 10px;">
+                        {# Strasse #}
                         <div>
-                            <div class="kd-field-label">Adresse</div>
-                            <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="location">
-                                <span class="detail-edit-display" onclick="startDetailEdit(this)" title="Adresse bearbeiten" style="font-size: 13.5px; font-weight: 600; color: {% if candidate.location %}var(--pp-text){% else %}var(--pp-textDim){% endif %}; {% if not candidate.location %}font-style: italic;{% endif %} cursor: pointer;">{{ candidate.location or 'Nicht angegeben' }}</span>
-                                <input type="text" class="detail-edit-input hidden" value="{{ candidate.location or '' }}" placeholder="z.B. M&uuml;nchen" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)" style="font-size: 13px; padding: 4px 8px; border-radius: 8px; border: 1.5px solid var(--pp-accent); width: 100%; font-family: inherit;">
+                            <div class="kd-field-label">Strasse</div>
+                            <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="street_address">
+                                <span class="detail-edit-display" onclick="startDetailEdit(this)" title="Strasse bearbeiten" style="font-size: 13.5px; font-weight: 600; color: {% if candidate.street_address %}var(--pp-text){% else %}var(--pp-textDim){% endif %}; {% if not candidate.street_address %}font-style: italic;{% endif %} cursor: pointer;">{{ candidate.street_address or 'Nicht angegeben' }}</span>
+                                <input type="text" class="detail-edit-input hidden" value="{{ candidate.street_address or '' }}" placeholder="z.B. Musterstr. 12" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)" style="font-size: 13px; padding: 4px 8px; border-radius: 8px; border: 1.5px solid var(--pp-accent); width: 100%; font-family: inherit;">
                             </div>
                         </div>
+                        {# PLZ #}
+                        <div>
+                            <div class="kd-field-label">PLZ</div>
+                            <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="postal_code">
+                                <span class="detail-edit-display" onclick="startDetailEdit(this)" title="PLZ bearbeiten" style="font-size: 13.5px; font-weight: 600; color: {% if candidate.postal_code %}var(--pp-text){% else %}var(--pp-textDim){% endif %}; {% if not candidate.postal_code %}font-style: italic;{% endif %} cursor: pointer;">{{ candidate.postal_code or 'Nicht angegeben' }}</span>
+                                <input type="text" class="detail-edit-input hidden" value="{{ candidate.postal_code or '' }}" placeholder="z.B. 60311" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)" style="font-size: 13px; padding: 4px 8px; border-radius: 8px; border: 1.5px solid var(--pp-accent); width: 100%; font-family: inherit;">
+                            </div>
+                        </div>
+                        {# Stadt #}
+                        <div>
+                            <div class="kd-field-label">Stadt</div>
+                            <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="city">
+                                <span class="detail-edit-display" onclick="startDetailEdit(this)" title="Stadt bearbeiten" style="font-size: 13.5px; font-weight: 600; color: {% if candidate.city %}var(--pp-text){% else %}var(--pp-textDim){% endif %}; {% if not candidate.city %}font-style: italic;{% endif %} cursor: pointer;">{{ candidate.city or 'Nicht angegeben' }}</span>
+                                <input type="text" class="detail-edit-input hidden" value="{{ candidate.city or '' }}" placeholder="z.B. Frankfurt am Main" onblur="saveDetailEdit(this)" onkeydown="handleDetailEditKey(event, this)" style="font-size: 13px; padding: 4px 8px; border-radius: 8px; border: 1.5px solid var(--pp-accent); width: 100%; font-family: inherit;">
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 10px;">
                         {# Geburtsdatum #}
                         <div>
                             <div class="kd-field-label">Geburtsdatum</div>
@@ -2353,7 +2375,7 @@ function saveDetailEdit(input) {
     .then(function(r) { return r.json(); })
     .then(function(data) {
         if (data.id) {
-            var fallbackTexts = { 'current_position': 'Keine Position angegeben', 'current_company': 'Kein Unternehmen', 'first_name': 'Vorname', 'last_name': 'Nachname', 'salary': 'Nicht angegeben', 'notice_period': 'Nicht angegeben', 'source': 'Nicht angegeben', 'candidate_notes': '' };
+            var fallbackTexts = { 'current_position': 'Keine Position angegeben', 'current_company': 'Kein Unternehmen', 'first_name': 'Vorname', 'last_name': 'Nachname', 'street_address': 'Nicht angegeben', 'postal_code': 'Nicht angegeben', 'city': 'Nicht angegeben', 'salary': 'Nicht angegeben', 'notice_period': 'Nicht angegeben', 'source': 'Nicht angegeben', 'candidate_notes': '' };
             display.textContent = newValue || fallbackTexts[field] || '\u2014';
             if (typeof showToast === 'function') showToast('Gespeichert', 'success');
         }
