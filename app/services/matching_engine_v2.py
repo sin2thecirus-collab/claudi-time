@@ -531,11 +531,11 @@ class MatchingEngineV2:
                 Candidate.manual_job_titles,       # 15
                 # Phase 10: PLZ + Koordinaten für Google Maps Fahrzeit
                 Candidate.postal_code,             # 16
-                # v3: Kandidaten-Rolle fuer Gate-Checks (wird nur gelesen, nicht geaendert)
-                Candidate.hotlist_job_title,        # 19 (primary_role)
-                Candidate.classification_data,      # 20
                 func.ST_Y(func.ST_GeomFromWKB(Candidate.address_coords)).label("cand_lat"),  # 17
                 func.ST_X(func.ST_GeomFromWKB(Candidate.address_coords)).label("cand_lng"),  # 18
+                # v3: Kandidaten-Rolle fuer Gate-Checks
+                Candidate.hotlist_job_title,        # 19 (primary_role)
+                Candidate.classification_data,      # 20
             )
             .where(and_(*conditions))
             .order_by(
