@@ -122,6 +122,7 @@ class MatchingService:
             and_(
                 Candidate.address_coords.is_not(None),
                 Candidate.hidden == False,  # noqa: E712
+                Candidate.deleted_at.is_(None),  # Soft-gelöschte ausschliessen
                 func.ST_DWithin(
                     Candidate.address_coords,
                     job.location_coords,
@@ -134,6 +135,13 @@ class MatchingService:
         result = await self.db.execute(candidates_query)
         candidates_with_distance = result.all()
 
+        # Bestehende Matches für diesen Job vorladen (N+1-Query vermeiden)
+        existing_matches_query = select(Match).where(Match.job_id == job_id)
+        existing_matches_result = await self.db.execute(existing_matches_query)
+        existing_matches_map = {
+            m.candidate_id: m for m in existing_matches_result.scalars().all()
+        }
+
         created_count = 0
         updated_count = 0
 
@@ -144,15 +152,8 @@ class MatchingService:
                 job_text=job.job_text,
             )
 
-            # Bestehenden Match prüfen
-            existing_match_query = select(Match).where(
-                and_(
-                    Match.job_id == job_id,
-                    Match.candidate_id == candidate.id,
-                )
-            )
-            existing_result = await self.db.execute(existing_match_query)
-            existing_match = existing_result.scalar_one_or_none()
+            # Bestehenden Match aus vorgeladenem Dict prüfen
+            existing_match = existing_matches_map.get(candidate.id)
 
             if existing_match:
                 # Match aktualisieren (nur wenn noch nicht KI-geprüft)
@@ -170,6 +171,7 @@ class MatchingService:
                     keyword_score=round(match_result.keyword_score, 3),
                     matched_keywords=match_result.matched_keywords,
                     status=MatchStatus.NEW,
+                    matching_method="pre_match",
                 )
                 self.db.add(new_match)
                 created_count += 1
@@ -244,6 +246,13 @@ class MatchingService:
         result = await self.db.execute(jobs_query)
         jobs_with_distance = result.all()
 
+        # Bestehende Matches für diesen Kandidaten vorladen (N+1-Query vermeiden)
+        existing_matches_query = select(Match).where(Match.candidate_id == candidate_id)
+        existing_matches_result = await self.db.execute(existing_matches_query)
+        existing_matches_map = {
+            m.job_id: m for m in existing_matches_result.scalars().all()
+        }
+
         match_count = 0
 
         for job, distance_km in jobs_with_distance:
@@ -253,15 +262,8 @@ class MatchingService:
                 job_text=job.job_text,
             )
 
-            # Bestehenden Match prüfen
-            existing_query = select(Match).where(
-                and_(
-                    Match.job_id == job.id,
-                    Match.candidate_id == candidate_id,
-                )
-            )
-            existing_result = await self.db.execute(existing_query)
-            existing_match = existing_result.scalar_one_or_none()
+            # Bestehenden Match aus vorgeladenem Dict prüfen
+            existing_match = existing_matches_map.get(job.id)
 
             if existing_match:
                 if not existing_match.ai_checked_at:
@@ -277,6 +279,7 @@ class MatchingService:
                     keyword_score=round(match_result.keyword_score, 3),
                     matched_keywords=match_result.matched_keywords,
                     status=MatchStatus.NEW,
+                    matching_method="pre_match",
                 )
                 self.db.add(new_match)
                 match_count += 1

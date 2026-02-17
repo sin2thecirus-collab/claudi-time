@@ -45,7 +45,7 @@ WEIGHT_CATEGORY: float = 15.0          # Kategorie-Gate
 WEIGHT_CITY: float = 10.0              # Stadt (abgestuft)
 
 # Wenn Kategorien nicht uebereinstimmen: Gesamt-Score gedeckelt
-CATEGORY_MISMATCH_CAP: float = 10.0
+CATEGORY_MISMATCH_CAP: float = 30.0
 
 # Abzug fuer Nebentitel (40% Penalty)
 SECONDARY_TITLE_PENALTY: float = 0.6
@@ -389,8 +389,8 @@ class PreScoringService:
         if km <= 5:
             return 1.0
         elif km <= 15:
-            # Linear: 5km=0.8, 15km=0.5
-            return 0.8 - (km - 5) * 0.03
+            # Kontinuierlich: 5km=1.0, 15km=0.5 (kein Sprung mehr)
+            return 1.0 - (km - 5) * 0.05
         elif km <= 30:
             # Linear: 15km=0.5, 30km=0.0
             return 0.5 - (km - 15) * (0.5 / 15)
@@ -406,20 +406,28 @@ class PreScoringService:
         candidate: Candidate, job: Job,
     ) -> float:
         """
-        Kategorie-Gate: Gleiche Kategorie = 1.0, sonst 0.0.
-        Bei 0.0 wird der Gesamt-Score auf max 10 gedeckelt.
+        Kategorie-Score: Gleiche Kategorie = 1.0, SONSTIGE = 0.5, Mismatch = 0.0.
+        Bei 0.0 wird der Gesamt-Score auf max 30 gedeckelt.
 
         Returns:
-            0.0 oder 1.0
+            0.0, 0.5, oder 1.0
         """
+        if not candidate.hotlist_category or not job.hotlist_category:
+            return 0.5  # Fehlende Kategorie = neutral, nicht bestrafen
+
+        if candidate.hotlist_category == job.hotlist_category:
+            if candidate.hotlist_category == HotlistCategory.SONSTIGE:
+                return 0.5  # SONSTIGE match = teilweise
+            return 1.0  # Exakter Match
+
+        # Einer ist SONSTIGE, anderer spezifisch = teilweise
         if (
-            candidate.hotlist_category
-            and job.hotlist_category
-            and candidate.hotlist_category == job.hotlist_category
-            and candidate.hotlist_category != HotlistCategory.SONSTIGE
+            candidate.hotlist_category == HotlistCategory.SONSTIGE
+            or job.hotlist_category == HotlistCategory.SONSTIGE
         ):
-            return 1.0
-        return 0.0
+            return 0.5
+
+        return 0.0  # Echter Mismatch
 
     # --------------------------------------------------
     # Komponente 5: Stadt (10 Punkte, abgestuft)

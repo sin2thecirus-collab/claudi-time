@@ -156,10 +156,10 @@ class KeywordMatcher:
         total_skills: int,
     ) -> float:
         """
-        Berechnet den Keyword-Score.
+        Berechnet den Keyword-Score basierend auf absoluter Anzahl Matches.
 
-        Score = Anzahl Matches / max(Anzahl Skills, 1)
-        Ergebnis zwischen 0.0 und 1.0
+        Skalierung: 0 Matches = 0.0, 3+ Matches = 1.0
+        Verhindert Bestrafung erfahrener Kandidaten mit vielen Skills.
 
         Args:
             matched_keywords: Liste der gematchten Keywords
@@ -168,14 +168,15 @@ class KeywordMatcher:
         Returns:
             Score zwischen 0.0 und 1.0
         """
-        if total_skills <= 0:
+        match_count = len(matched_keywords)
+
+        if match_count == 0:
             return 0.0
 
-        match_count = len(matched_keywords)
-        score = match_count / total_skills
+        # Absolute Skalierung: 1 Match = 0.33, 2 = 0.66, 3+ = 1.0
+        score = min(match_count / 3.0, 1.0)
 
-        # Score auf 1.0 begrenzen (falls mehr Matches als Skills)
-        return min(score, 1.0)
+        return round(score, 3)
 
     def match(
         self,
