@@ -332,14 +332,6 @@ async def get_pipeline_stats(
         )
     )
 
-    # Durchschnittliche Matches pro Job
-    avg_matches = await db.execute(
-        select(func.avg(func.count()))
-        .select_from(Match)
-        .where(Match.matching_method == "pipeline_v3")
-        .group_by(Match.job_id)
-    )
-
     # Rollen-Verteilung (Kandidaten)
     role_dist = await db.execute(
         select(Candidate.hotlist_job_title, func.count())
