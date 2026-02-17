@@ -1869,7 +1869,7 @@ class MatchingEngineV2:
         try:
             from app.services.distance_matrix_service import distance_matrix_service
 
-            if False and distance_matrix_service.has_api_key and job.location_coords is not None:  # TEMP: Google Maps deaktiviert fuer Rematching
+            if distance_matrix_service.has_api_key and job.location_coords is not None:
                 # Job-Koordinaten extrahieren
                 from sqlalchemy import func as sa_func
                 job_lat = None
