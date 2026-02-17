@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -237,11 +237,9 @@ async def cleanup_legacy_matches(
         }
 
     # Loeschen
-    from sqlalchemy import or_ as sql_or
-
     result = await db.execute(
         sql_delete(Match).where(
-            sql_or(
+            or_(
                 Match.matching_method != "pipeline_v3",
                 Match.matching_method.is_(None),
             )
