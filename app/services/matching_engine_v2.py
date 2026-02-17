@@ -98,16 +98,16 @@ class BatchMatchResult:
 # ══════════════════════════════════════════════════════════════════
 
 DEFAULT_WEIGHTS = {
-    "skill_overlap": 25.0,   # Skills (reduziert von 35 — skill_overlap ist oft zu niedrig)
-    "seniority_fit": 25.0,   # Level-Matching (reduziert von 30 — dominierte zu stark)
+    "skill_overlap": 15.0,   # Skills (reduziert von 25 — Simulation: Korrelation -41.1, optimal 3-15)
+    "seniority_fit": 25.0,   # Level-Matching (bewaehrt — Korrelation +9.8)
     "job_title_fit": 0.0,    # RAUS — Titel sind zu oft falsch
-    "embedding_sim": 20.0,   # Semantische Aehnlichkeit (erhoeht von 15 — kompensiert schwache Skills)
-    "industry_fit": 10.0,    # Branchenerfahrung (erhoeht von 8)
-    "career_fit": 10.0,      # Karriere-Richtung (erhoeht von 7)
-    "software_match": 10.0,  # DATEV/SAP-Ecosystem (erhoeht von 5 — Software-Fit ist wichtig!)
-    # Summe: 25 + 25 + 0 + 20 + 10 + 10 + 10 = 100
-    # Begruendung: Analyse von 633 Matches zeigt skill_overlap avg nur 0.12-0.27
-    # Embedding (0.63-0.71) und Software-Match sind zuverlaessigere Signale
+    "embedding_sim": 21.0,   # Semantische Aehnlichkeit (leicht erhoeht — zuverlaessigstes Signal, Korrelation +14.0)
+    "industry_fit": 12.0,    # Branchenerfahrung (erhoeht — Korrelation +3.4)
+    "career_fit": 12.0,      # Karriere-Richtung (erhoeht — Korrelation +7.4)
+    "software_match": 15.0,  # DATEV/SAP-Ecosystem (erhoeht — Korrelation +6.5, wichtig fuer Lohn/StFA)
+    # Summe: 15 + 25 + 0 + 21 + 12 + 12 + 15 = 100
+    # Begruendung: Erweiterte Simulation (11.200 Kombinationen) — Q-Score 1290 vs 1164 aktuell
+    # skill_overlap ist verrauschtes Signal (avg 0.12-0.27), Software/Embedding sind zuverlaessiger
     # Location ist KEIN Score — nur Hard Filter (30km)
 }
 
@@ -312,8 +312,8 @@ class MatchingEngineV2:
                 role_mapping = {
                     "Bilanzbuchhalter/in": "bilanzbuchhalter",
                     "Finanzbuchhalter/in": "finanzbuchhalter",
-                    "Kreditorenbuchhalter/in": "finanzbuchhalter",  # nutzt FiBu-Weights
-                    "Debitorenbuchhalter/in": "finanzbuchhalter",   # nutzt FiBu-Weights
+                    "Kreditorenbuchhalter/in": "kreditorenbuchhalter",
+                    "Debitorenbuchhalter/in": "debitorenbuchhalter",
                     "Lohnbuchhalter/in": "lohnbuchhalter",
                     "Steuerfachangestellte/r": "steuerfachangestellte",
                 }
@@ -336,17 +336,23 @@ class MatchingEngineV2:
             return "bilanzbuchhalter"
         if "steuerfachangestellte" in search_text or "steuerfachangestellter" in search_text:
             return "steuerfachangestellte"
+        if "kreditorenbuchhalter" in search_text or ("kreditoren" in search_text and "debitoren" not in search_text):
+            return "kreditorenbuchhalter"
+        if "debitorenbuchhalter" in search_text or ("debitoren" in search_text and "kreditoren" not in search_text):
+            return "debitorenbuchhalter"
         if "finanzbuchhalter" in search_text:
             return "finanzbuchhalter"
         if "lohnbuchhalter" in search_text:
             return "lohnbuchhalter"
 
         # Englische Jobtitel → deutsche Rollen-Keys
+        if "accounts payable" in search_text and "accounts receivable" not in search_text:
+            return "kreditorenbuchhalter"
+        if "accounts receivable" in search_text and "accounts payable" not in search_text:
+            return "debitorenbuchhalter"
         if "financial accountant" in search_text or "financial accounting" in search_text:
             return "finanzbuchhalter"
         if "accountant" in search_text and "tax" not in search_text:
-            return "finanzbuchhalter"
-        if "accounts payable" in search_text or "accounts receivable" in search_text:
             return "finanzbuchhalter"
         if "bookkeeper" in search_text or "book keeper" in search_text:
             return "finanzbuchhalter"
@@ -686,6 +692,65 @@ class MatchingEngineV2:
         "addison oneclick": "addison",
         "oracle": "oracle",
         "oracle financials": "oracle",
+        # ── Weitere Software ──
+        "sap hcm": "sap hr",
+        "sap hr": "sap hr",
+        "sap mm": "sap mm",
+        "sap sd": "sap sd",
+        "sage": "sage",
+        "sage 100": "sage",
+        "sage office line": "sage",
+        "diamant": "diamant",
+        "diamant/3": "diamant",
+        "loga": "loga",
+        "p&i loga": "loga",
+        "paisy": "paisy",
+        "adp": "adp",
+        "personio": "personio",
+        "lucanet": "lucanet",
+        "dynamics 365": "dynamics",
+        "microsoft dynamics 365": "dynamics",
+        "microsoft dynamics": "dynamics",
+        # ── Kreditoren/Debitoren-spezifisch ──
+        "vendor management": "lieferantenmanagement",
+        "lieferantenmanagement": "lieferantenmanagement",
+        "eingangsrechnungsprüfung": "rechnungspruefung",
+        "eingangsrechnungspruefung": "rechnungspruefung",
+        "invoice processing": "rechnungspruefung",
+        "collections": "mahnwesen",
+        "mahnwesen": "mahnwesen",
+        "credit management": "forderungsmanagement",
+        "forderungsmanagement": "forderungsmanagement",
+        "cash application": "zahlungsabgleich",
+        "zahlungsabgleich": "zahlungsabgleich",
+        "fakturierung": "fakturierung",
+        "invoicing": "fakturierung",
+        # ── Allgemeine Buchhaltungs-Synonyme ──
+        "sachkontenbuchhaltung": "hauptbuchhaltung",
+        "hauptbuchhaltung": "hauptbuchhaltung",
+        "general ledger": "hauptbuchhaltung",
+        "gl accounting": "hauptbuchhaltung",
+        "account reconciliation": "kontenabstimmung",
+        "kontenabstimmung": "kontenabstimmung",
+        "bank reconciliation": "kontenabstimmung",
+        "kontenklärung": "kontenabstimmung",
+        "kontenklaerung": "kontenabstimmung",
+        "payment processing": "zahlungsverkehr",
+        "zahlungsverkehr": "zahlungsverkehr",
+        "rechnungswesen": "finanzbuchhaltung",
+        "buchhaltung": "finanzbuchhaltung",
+        # ── Anlagenbuchhaltung ──
+        "fixed assets": "anlagenbuchhaltung",
+        "asset accounting": "anlagenbuchhaltung",
+        "fixed asset accounting": "anlagenbuchhaltung",
+        # ── Reporting ──
+        "reporting": "berichtswesen",
+        "financial reporting": "berichtswesen",
+        "berichtswesen": "berichtswesen",
+        # ── OP-Verwaltung ──
+        "op-verwaltung": "op-verwaltung",
+        "offene posten": "op-verwaltung",
+        "offene-posten-verwaltung": "op-verwaltung",
     }
 
     @classmethod
@@ -880,9 +945,9 @@ class MatchingEngineV2:
             # Recency-Abschlag
             recency = matched_skill.get("recency", "aktuell")
             if recency == "kuerzlich":
-                score *= 0.7
+                score *= 0.75  # gelockert von 0.7 — noch relativ aktuell
             elif recency == "veraltet":
-                score *= 0.3
+                score *= 0.4   # gelockert von 0.3 — alt aber nicht komplett irrelevant
 
             # Proficiency-Bonus
             prof = matched_skill.get("proficiency", "grundlagen")
@@ -977,9 +1042,9 @@ class MatchingEngineV2:
         if gap == 0:
             return 1.0, "passt"
         elif gap == 1:
-            return 0.7, "leicht_ueberqualifiziert"
+            return 0.80, "leicht_ueberqualifiziert"  # gelockert von 0.7 — leicht ueberqualifiziert ist gut matchbar
         elif gap == -1:
-            return 0.75, "leicht_unterqualifiziert"
+            return 0.80, "leicht_unterqualifiziert"  # gelockert von 0.75 — kann in Rolle reinwachsen
         elif gap == 2:
             return 0.3, "ueberqualifiziert"
         elif gap == -2:
@@ -1371,6 +1436,8 @@ class MatchingEngineV2:
         job_requires_fibu = job_role == "finanzbuchhalter"
         job_requires_lohn = job_role == "lohnbuchhalter"
         job_requires_stfa = job_role == "steuerfachangestellte"
+        job_requires_kredibu = job_role == "kreditorenbuchhalter"
+        job_requires_debibu = job_role == "debitorenbuchhalter"
 
         # Gewichte normalisieren (Summe = 100)
         total_weight = sum(weights.values())
@@ -1409,20 +1476,20 @@ class MatchingEngineV2:
 
             # ── Gewichtete Summe (0-100) ──
             total = (
-                skill_score * weights.get("skill_overlap", 25) +
+                skill_score * weights.get("skill_overlap", 15) +
                 seniority_score * weights.get("seniority_fit", 25) +
                 job_title_score * weights.get("job_title_fit", 0) +
-                embedding_score * weights.get("embedding_sim", 20) +
-                industry_score * weights.get("industry_fit", 10) +
-                career_score * weights.get("career_fit", 10) +
-                software_score * weights.get("software_match", 10)
+                embedding_score * weights.get("embedding_sim", 21) +
+                industry_score * weights.get("industry_fit", 12) +
+                career_score * weights.get("career_fit", 12) +
+                software_score * weights.get("software_match", 15)
             ) / total_weight * 100
 
             # ── Minimum Skill Threshold (Anti-False-Positive) ──
-            # Wenn Skill-Overlap < 0.15 → Score cap bei 60
-            # Verhindert dass Seniority+Embedding allein Score >70 treiben
+            # Wenn Skill-Overlap < 0.20 → Score cap bei 60
+            # Simulation: THRESHOLD_020_60 eliminiert alle False Positives (Q=933 vs 920)
             skill_capped = False
-            if skill_score < 0.15:
+            if skill_score < 0.20:
                 total = min(total, 60)
                 skill_capped = True
 
@@ -1443,7 +1510,7 @@ class MatchingEngineV2:
                         for s in cand.structured_skills
                     )
                 if candidate_has_bibu:
-                    role_multiplier = 1.15  # +15% Bonus
+                    role_multiplier = 1.20  # +20% Bonus (erhoeht von 1.15)
                 else:
                     role_multiplier = 0.6   # -40% Penalty
                 total *= role_multiplier
@@ -1471,7 +1538,7 @@ class MatchingEngineV2:
                         for t in cand.job_titles
                     )
                 if candidate_has_fibu:
-                    role_multiplier = 1.15  # +15% Bonus fuer passende FiBu-Qualifikation
+                    role_multiplier = 1.20  # +20% Bonus fuer passende FiBu-Qualifikation (erhoeht von 1.15)
                 else:
                     role_multiplier = 0.7   # -30% Penalty fuer Nicht-FiBu auf FiBu-Job
                 total *= role_multiplier
@@ -1528,6 +1595,48 @@ class MatchingEngineV2:
                     role_multiplier = 1.20  # +20% Bonus (Lohn ist spezialisiert)
                     total *= role_multiplier
                 # Kein else/penalty — zu wenig Lohn-Matches, Penalty wuerde alles zerstoeren
+
+            elif job_requires_kredibu:
+                # KrediBu-Multiplikator: NUR Bonus, KEIN Penalty
+                candidate_has_kredi = False
+                if cand.structured_skills:
+                    candidate_has_kredi = any(
+                        any(kw in s.get("skill", "").lower() for kw in [
+                            "kreditorenbuchhaltung", "kreditoren", "accounts payable",
+                            "eingangsrechnungen", "rechnungsprüfung", "rechnungspruefung"
+                        ])
+                        for s in cand.structured_skills
+                    )
+                if not candidate_has_kredi and cand.job_titles:
+                    candidate_has_kredi = any(
+                        any(kw in t.lower() for kw in ["kreditorenbuchhalter", "kreditoren", "accounts payable"])
+                        for t in cand.job_titles
+                    )
+                if candidate_has_kredi:
+                    role_multiplier = 1.15  # +15% Bonus fuer Kreditoren-Erfahrung
+                    total *= role_multiplier
+                # Kein else/penalty — Skill-Weights differenzieren bereits
+
+            elif job_requires_debibu:
+                # DebiBu-Multiplikator: NUR Bonus, KEIN Penalty
+                candidate_has_debi = False
+                if cand.structured_skills:
+                    candidate_has_debi = any(
+                        any(kw in s.get("skill", "").lower() for kw in [
+                            "debitorenbuchhaltung", "debitoren", "accounts receivable",
+                            "mahnwesen", "forderungsmanagement", "fakturierung"
+                        ])
+                        for s in cand.structured_skills
+                    )
+                if not candidate_has_debi and cand.job_titles:
+                    candidate_has_debi = any(
+                        any(kw in t.lower() for kw in ["debitorenbuchhalter", "debitoren", "accounts receivable"])
+                        for t in cand.job_titles
+                    )
+                if candidate_has_debi:
+                    role_multiplier = 1.15  # +15% Bonus fuer Debitoren-Erfahrung
+                    total *= role_multiplier
+                # Kein else/penalty — Skill-Weights differenzieren bereits
 
             # ── Empty CV Penalty (dreistufig) ──
             empty_cv_penalty = None
@@ -1760,7 +1869,7 @@ class MatchingEngineV2:
         try:
             from app.services.distance_matrix_service import distance_matrix_service
 
-            if distance_matrix_service.has_api_key and job.location_coords is not None:
+            if False and distance_matrix_service.has_api_key and job.location_coords is not None:  # TEMP: Google Maps deaktiviert fuer Rematching
                 # Job-Koordinaten extrahieren
                 from sqlalchemy import func as sa_func
                 job_lat = None

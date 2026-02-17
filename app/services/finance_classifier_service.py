@@ -97,7 +97,7 @@ Folgendes wird KOMPLETT IGNORIERT:
 - IT-Grundkenntnisse (MS Office, Excel — nur ERP-Systeme wie DATEV/SAP sind relevant)
 - Persoenliche Eigenschaften
 
-SCHRITT 1 – AUSSCHLUSS: LEITENDE POSITION
+SCHRITT 1 – LEITENDE POSITION ERKENNEN (ABER TROTZDEM KLASSIFIZIEREN)
 
 Als LEITUNG gilt, wenn mindestens eines zutrifft:
 
@@ -105,7 +105,8 @@ Jobtitel enthaelt: Leiter, Head of, Teamleiter, Abteilungsleiter, Director, CFO,
 
 ODER Taetigkeiten enthalten: disziplinarische Fuehrung, fachliche Fuehrung, Mitarbeiterverantwortung, Budgetverantwortung, Aufbau oder Leitung eines Teams
 
-Wenn Leitung = true: KEINE weitere Klassifizierung durchfuehren.
+Wenn Leitung = true: is_leadership = true setzen, ABER TROTZDEM die Rollen klassifizieren (Schritte 2-4 ausfuehren).
+Grund: Ein "Leiter Finanzbuchhaltung" muss trotzdem als Finanzbuchhalter/in klassifiziert werden, damit Matching und Profiling funktionieren.
 
 SCHRITT 2 – JAHRESABSCHLUSS-REGEL (KRITISCH)
 
@@ -259,7 +260,9 @@ ERLAUBTE WERTE:
 - sub_level: "senior", "normal" (nur bei Finanzbuchhalter/in relevant, bei anderen Rollen weglassen)
 
 Wenn is_leadership = true:
-roles = [], primary_role = null, sub_level = null, reasoning = "Leitende Position: [Titel/Taetigkeit]"
+is_leadership = true, ABER roles und primary_role TROTZDEM setzen basierend auf den Taetigkeiten.
+Beispiel: Leiter Finanzbuchhaltung -> is_leadership = true, primary_role = "Finanzbuchhalter/in", roles = ["Finanzbuchhalter/in"]
+Beispiel: Teamleiter Lohn -> is_leadership = true, primary_role = "Lohnbuchhalter/in", roles = ["Lohnbuchhalter/in"]
 """
 
 # ═══════════════════════════════════════════════════════════════
@@ -831,6 +834,14 @@ class FinanceClassifierService:
                             "reasoning": classification.reasoning,
                         })
                         self.apply_to_candidate(candidate, classification)
+                        # Leadership-Kandidaten werden jetzt TROTZDEM klassifiziert
+                        # (Prompt gibt roles + primary_role zurueck, auch bei is_leadership=true)
+                        if classification.roles:
+                            batch_result.classified += 1
+                            for role in classification.roles:
+                                batch_result.roles_distribution[role] = (
+                                    batch_result.roles_distribution.get(role, 0) + 1
+                                )
                         return
 
                     if not classification.roles:

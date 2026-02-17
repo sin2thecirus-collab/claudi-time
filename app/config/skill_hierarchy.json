@@ -299,6 +299,121 @@
     }
   },
 
+  "kreditorenbuchhalter": {
+    "Kreditorenbuchhaltung": {
+      "children": [
+        "Accounts Payable",
+        "Invoice Processing",
+        "Eingangsrechnungsprüfung",
+        "Rechnungsprüfung",
+        "Zahlungsfreigabe",
+        "Zahlungsverkehr",
+        "Lieferantenmanagement",
+        "Vendor Management",
+        "Payment Processing",
+        "Kontierung",
+        "Verbuchung"
+      ]
+    },
+    "Accounts Payable": {
+      "children": [
+        "Kreditorenbuchhaltung",
+        "Invoice Processing",
+        "Rechnungsprüfung",
+        "Zahlungsfreigabe",
+        "Lieferantenmanagement",
+        "Vendor Management",
+        "Payment Processing",
+        "Eingangsrechnungen"
+      ]
+    },
+    "Finanzbuchhaltung": {
+      "children": [
+        "Kreditorenbuchhaltung",
+        "Sachkontenbuchhaltung",
+        "Kontenabstimmung",
+        "Bankbuchungen",
+        "Zahlungsverkehr",
+        "OP-Verwaltung",
+        "Buchführung"
+      ]
+    },
+    "Zahlungsverkehr": {
+      "children": [
+        "Zahlungslauf",
+        "Zahlungsfreigabe",
+        "Zahlungsabwicklung",
+        "Payment Processing",
+        "Bankbuchungen"
+      ]
+    },
+    "Rechnungsprüfung": {
+      "children": [
+        "Eingangsrechnungsprüfung",
+        "Invoice Processing",
+        "Rechnungsbearbeitung",
+        "Eingangsrechnungen"
+      ]
+    }
+  },
+
+  "debitorenbuchhalter": {
+    "Debitorenbuchhaltung": {
+      "children": [
+        "Accounts Receivable",
+        "Forderungsmanagement",
+        "Mahnwesen",
+        "Fakturierung",
+        "Ausgangsrechnungen",
+        "Collections",
+        "Credit Management",
+        "Cash Application",
+        "Zahlungsabgleich"
+      ]
+    },
+    "Accounts Receivable": {
+      "children": [
+        "Debitorenbuchhaltung",
+        "Forderungsmanagement",
+        "Mahnwesen",
+        "Fakturierung",
+        "Collections",
+        "Credit Management",
+        "Cash Application",
+        "Zahlungsabgleich"
+      ]
+    },
+    "Finanzbuchhaltung": {
+      "children": [
+        "Debitorenbuchhaltung",
+        "Sachkontenbuchhaltung",
+        "Kontenabstimmung",
+        "Bankbuchungen",
+        "Zahlungsverkehr",
+        "OP-Verwaltung",
+        "Buchführung"
+      ]
+    },
+    "Mahnwesen": {
+      "children": [
+        "Forderungsmanagement",
+        "Collections",
+        "Inkasso",
+        "Kreditlimitüberwachung",
+        "Credit Management"
+      ]
+    },
+    "Forderungsmanagement": {
+      "children": [
+        "Mahnwesen",
+        "Collections",
+        "Credit Management",
+        "Kreditlimitüberwachung",
+        "Cash Application"
+      ]
+    }
+  },
+
   "bilanzbuchhalter": {
     "Abschlusserstellung": {
       "children": [

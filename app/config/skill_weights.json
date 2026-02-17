@@ -18,7 +18,9 @@
         "Bachelor Controlling",
         "Master Controlling",
         "Diplom Betriebswirt Rechnungswesen",
-        "Geprüfter Finanzbuchhalter"
+        "Geprüfter Finanzbuchhalter",
+        "Finanzbuchhalter IHK",
+        "Certified Public Accountant"
       ]
     },
     "fachkenntnisse": {
@@ -33,7 +35,21 @@
         "IFRS",
         "Rechnungslegung",
         "Bilanzanalyse",
-        "Konsolidierung"
+        "Konsolidierung",
+        "Abschlusserstellung",
+        "Konzernabschluss",
+        "Anlagenbuchhaltung",
+        "Rechnungswesen",
+        "Reporting",
+        "Berichtswesen",
+        "Financial Reporting",
+        "Rückstellungen",
+        "Abgrenzungen",
+        "Transfer Pricing",
+        "Intercompany",
+        "Hauptbuchhaltung",
+        "Sachkontenbuchhaltung",
+        "Finanzbuchhaltung"
       ]
     },
     "taetigkeiten": {
@@ -41,6 +57,7 @@
       "skills": [
         "Kontenabstimmung",
         "Monatsabschluss",
+        "Quartalsabschluss",
         "Betriebsprüfung",
         "Steuererklärung",
         "Buchführung",
@@ -49,7 +66,13 @@
         "Debitoren",
         "Kreditoren",
         "Debitorenbuchhaltung",
-        "Kreditorenbuchhaltung"
+        "Kreditorenbuchhaltung",
+        "HGB-Abschlusserstellung",
+        "IFRS-Abschlusserstellung",
+        "Intercompany-Abstimmung",
+        "Rückstellungen bilden",
+        "Abgrenzungen buchen",
+        "Konsolidierung"
       ]
     },
     "software": {
@@ -62,7 +85,13 @@
         "Lexware",
         "Excel",
         "Navision",
-        "Oracle"
+        "Oracle",
+        "Dynamics",
+        "Microsoft Dynamics",
+        "Sage",
+        "Diamant",
+        "Addison",
+        "LucaNet"
       ]
     }
   },
@@ -114,7 +143,11 @@
         "Rechnungswesen",
         "Rechnungslegung",
         "Bilanzierung",
-        "Handelsrecht"
+        "Handelsrecht",
+        "Bankbuchungen",
+        "Forderungsmanagement",
+        "OP-Verwaltung",
+        "Offene Posten"
       ]
     },
     "taetigkeiten": {
@@ -139,7 +172,13 @@
         "Stammdatenpflege",
         "Rückstellungen",
         "Abgrenzungen",
-        "Konsolidierung"
+        "Konsolidierung",
+        "Bankbuchungen",
+        "Kontenklärung",
+        "Lieferantenmanagement",
+        "Eingangsrechnungen",
+        "Ausgangsrechnungen",
+        "Fakturierung"
       ]
     },
     "software": {
@@ -177,7 +216,9 @@
         "Bürokaufmann",
         "Kaufmann Büromanagement",
         "Personalkaufmann",
-        "Fachassistent Lohn und Gehalt"
+        "Fachassistent Lohn und Gehalt",
+        "Personalreferent",
+        "Personalreferentin"
       ]
     },
     "fachkenntnisse": {
@@ -196,7 +237,14 @@
         "Pfändung",
         "Tarifrecht",
         "Arbeitsrecht",
-        "Reisekostenabrechnung"
+        "Reisekostenabrechnung",
+        "Betriebsrentenzusagen",
+        "Altersteilzeit",
+        "Kurzarbeitergeld",
+        "Pfändungsbearbeitung",
+        "Bescheinigungswesen",
+        "Lohnbuchhaltung",
+        "Payroll"
       ]
     },
     "taetigkeiten": {
@@ -213,7 +261,9 @@
         "Personaladministration",
         "Zeitwirtschaft",
         "Stammdatenpflege",
-        "Jahresabschlussarbeiten Lohn"
+        "Jahresabschlussarbeiten Lohn",
+        "Beitragsnachweise",
+        "Lohnsteueranmeldung"
       ]
     },
     "software": {
@@ -229,7 +279,9 @@
         "Loga",
         "Paisy",
         "ADP",
-        "Excel"
+        "Excel",
+        "P&I Loga",
+        "Personio"
       ]
     }
   },
@@ -267,7 +319,12 @@
         "Gewerbesteuer",
         "HGB",
         "Bilanzierung",
-        "Lohnsteuer"
+        "Lohnsteuer",
+        "Abgabenordnung",
+        "Erbschaftsteuer",
+        "Steuerberatung",
+        "Buchhaltung",
+        "Rechnungswesen"
       ]
     },
     "taetigkeiten": {
@@ -280,16 +337,191 @@
         "Beratung",
         "Finanzbuchhaltung",
         "Debitoren",
-        "Kreditoren"
+        "Kreditoren",
+        "Umsatzsteuervoranmeldung",
+        "Einkommensteuererklärung",
+        "Körperschaftsteuererklärung",
+        "Gewerbesteuererklärung",
+        "Buchführung",
+        "Kontierung",
+        "Verbuchung",
+        "Steuererklärungen"
       ]
     },
     "software": {
       "weight": 4,
       "skills": [
         "DATEV",
+        "DATEV Unternehmen Online",
+        "DATEV Kanzlei-Rechnungswesen",
         "Excel",
         "Addison",
-        "Lexware"
+        "Lexware",
+        "DATEV pro"
+      ]
+    }
+  },
+
+  "kreditorenbuchhalter": {
+    "qualifikationen": {
+      "weight": 9,
+      "skills": [
+        "Finanzbuchhalter",
+        "Finanzbuchhalterin",
+        "Geprüfter Finanzbuchhalter",
+        "Steuerfachangestellte",
+        "Steuerfachangestellter",
+        "Industriekaufmann",
+        "Industriekauffrau",
+        "Bürokaufmann",
+        "Bürokauffrau",
+        "Kaufmann Büromanagement",
+        "Kauffrau Büromanagement",
+        "Buchhalter",
+        "Buchhalterin"
+      ]
+    },
+    "fachkenntnisse": {
+      "weight": 10,
+      "skills": [
+        "Kreditorenbuchhaltung",
+        "Kreditoren",
+        "Accounts Payable",
+        "Eingangsrechnungsprüfung",
+        "Rechnungsprüfung",
+        "Zahlungsverkehr",
+        "Zahlungsfreigabe",
+        "Zahlungsabwicklung",
+        "Lieferantenmanagement",
+        "Kontierung",
+        "Verbuchung",
+        "Sachkontenbuchhaltung",
+        "Kontenabstimmung",
+        "Kontenklärung",
+        "Buchführung",
+        "Buchhaltung",
+        "Finanzbuchhaltung",
+        "OP-Verwaltung",
+        "Offene Posten",
+        "Rechnungswesen"
+      ]
+    },
+    "taetigkeiten": {
+      "weight": 8,
+      "skills": [
+        "Eingangsrechnungen",
+        "Rechnungsbearbeitung",
+        "Rechnungsprüfung",
+        "Zahlungslauf",
+        "Stammdatenpflege",
+        "Kontierung",
+        "Verbuchung",
+        "Mahnwesen",
+        "Abgrenzungen",
+        "Umsatzsteuervoranmeldung",
+        "Reisekostenabrechnung",
+        "Intercompany",
+        "Monatsabschluss",
+        "Lieferantenmanagement",
+        "Zahlungsfreigabe"
+      ]
+    },
+    "software": {
+      "weight": 3,
+      "skills": [
+        "DATEV",
+        "SAP",
+        "SAP FI",
+        "SAP MM",
+        "Lexware",
+        "Excel",
+        "Navision",
+        "Oracle",
+        "Dynamics",
+        "Microsoft Dynamics",
+        "Sage",
+        "Addison",
+        "Diamant"
+      ]
+    }
+  },
+
+  "debitorenbuchhalter": {
+    "qualifikationen": {
+      "weight": 9,
+      "skills": [
+        "Finanzbuchhalter",
+        "Finanzbuchhalterin",
+        "Geprüfter Finanzbuchhalter",
+        "Steuerfachangestellte",
+        "Steuerfachangestellter",
+        "Industriekaufmann",
+        "Industriekauffrau",
+        "Bürokaufmann",
+        "Bürokauffrau",
+        "Kaufmann Büromanagement",
+        "Kauffrau Büromanagement",
+        "Buchhalter",
+        "Buchhalterin"
+      ]
+    },
+    "fachkenntnisse": {
+      "weight": 10,
+      "skills": [
+        "Debitorenbuchhaltung",
+        "Debitoren",
+        "Accounts Receivable",
+        "Forderungsmanagement",
+        "Mahnwesen",
+        "Fakturierung",
+        "Ausgangsrechnungen",
+        "Zahlungsabgleich",
+        "Sachkontenbuchhaltung",
+        "Kontenabstimmung",
+        "Kontenklärung",
+        "Buchführung",
+        "Buchhaltung",
+        "Finanzbuchhaltung",
+        "OP-Verwaltung",
+        "Offene Posten",
+        "Credit Management",
+        "Rechnungswesen"
+      ]
+    },
+    "taetigkeiten": {
+      "weight": 8,
+      "skills": [
+        "Ausgangsrechnungen",
+        "Fakturierung",
+        "Mahnwesen",
+        "Forderungsmanagement",
+        "Zahlungsabgleich",
+        "Stammdatenpflege",
+        "Kontierung",
+        "Verbuchung",
+        "Abgrenzungen",
+        "Umsatzsteuervoranmeldung",
+        "Monatsabschluss",
+        "Intercompany",
+        "Kreditlimitüberwachung"
+      ]
+    },
+    "software": {
+      "weight": 3,
+      "skills": [
+        "DATEV",
+        "SAP",
+        "SAP FI",
+        "SAP SD",
+        "Lexware",
+        "Excel",
+        "Navision",
+        "Oracle",
+        "Dynamics",
+        "Microsoft Dynamics",
+        "Sage",
+        "Addison",
+        "Diamant"
       ]
     }
   }
