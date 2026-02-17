@@ -1826,8 +1826,8 @@ class MatchingEngineV2:
             if not js_name or self._is_irrelevant_skill(js_name, js.get("category", "")):
                 continue
 
-            # Skill-Gewicht aus Config
-            weight = self._get_skill_weight(js_name, job_role) if job_role else 5
+            # Skill-Gewicht aus Config (default 5 wenn nicht in Config)
+            weight = (self._get_skill_weight(job_role, js_name) if job_role else 5) or 5
             is_fachkenntnis = weight >= 9  # fachkenntnisse haben Gewicht 9-10
             is_taetigkeit = 7 <= weight < 9
             is_software = weight <= 4
