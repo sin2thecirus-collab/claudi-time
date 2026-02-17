@@ -1477,27 +1477,34 @@ class MatchingEngineV2:
                 total *= role_multiplier
 
             elif job_requires_stfa:
-                # StFA-Multiplikator: Prueft ob Kandidat StFA-Qualifikation hat
+                # StFA-Multiplikator: NUR Bonus, KEIN Penalty
+                # Grund: Qualifikations-Erkennung fuer StFA ist unzuverlaessig —
+                # 66% der Kandidaten bekamen Penalty, was StFA-Scores zerstoert hat
                 candidate_has_stfa = False
                 if cand.certifications:
                     candidate_has_stfa = any(
-                        any(kw in c.lower() for kw in ["steuerfachangestellte", "steuerfachangestellter", "steuerfachwirt"])
+                        any(kw in c.lower() for kw in [
+                            "steuerfachangestellte", "steuerfachangestellter", "steuerfachwirt",
+                            "steuerberater", "steuerlehre", "steuerfachschule"
+                        ])
                         for c in cand.certifications
                     )
                 if not candidate_has_stfa and cand.structured_skills:
                     candidate_has_stfa = any(
-                        any(kw in s.get("skill", "").lower() for kw in ["steuerfachangestellte", "steuerfachangestellter", "steuerfachwirt"])
-                        and s.get("category", "") in ("zertifizierung", "qualifikation", "")
+                        any(kw in s.get("skill", "").lower() for kw in [
+                            "steuerfachangestellte", "steuerfachangestellter", "steuerfachwirt",
+                            "steuerberater", "steuerrecht", "steuerkanzlei"
+                        ])
                         for s in cand.structured_skills
                     )
                 if candidate_has_stfa:
-                    role_multiplier = 1.15  # +15% Bonus
-                else:
-                    role_multiplier = 0.7   # -30% Penalty
-                total *= role_multiplier
+                    role_multiplier = 1.15  # +15% Bonus fuer StFA-Qualifikation
+                    total *= role_multiplier
+                # Kein else/penalty — zu viele False Negatives bei Qualifikations-Erkennung
 
             elif job_requires_lohn:
-                # Lohn-Multiplikator: Prueft ob Kandidat Lohn-Erfahrung hat
+                # Lohn-Multiplikator: NUR Bonus, KEIN Penalty
+                # Grund: Lohn-Keywords in Profildaten sind oft unvollstaendig
                 candidate_has_lohn = False
                 if cand.certifications:
                     candidate_has_lohn = any(
@@ -1519,9 +1526,8 @@ class MatchingEngineV2:
                     )
                 if candidate_has_lohn:
                     role_multiplier = 1.20  # +20% Bonus (Lohn ist spezialisiert)
-                else:
-                    role_multiplier = 0.65  # -35% Penalty
-                total *= role_multiplier
+                    total *= role_multiplier
+                # Kein else/penalty — zu wenig Lohn-Matches, Penalty wuerde alles zerstoeren
 
             # ── Empty CV Penalty (dreistufig) ──
             empty_cv_penalty = None
