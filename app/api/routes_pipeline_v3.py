@@ -209,23 +209,18 @@ async def cleanup_legacy_matches(
 
     Standardmaessig dry_run=true (nur zaehlen, nicht loeschen).
     """
-    from sqlalchemy import delete as sql_delete
+    from sqlalchemy import text
 
     # Zaehlen
-    count_query = select(func.count()).select_from(Match).where(
-        or_(
-            Match.matching_method != "pipeline_v3",
-            Match.matching_method.is_(None),
-        )
-    )
-    count_result = await db.execute(count_query)
-    legacy_count = count_result.scalar() or 0
-
-    v3_count_query = select(func.count()).select_from(Match).where(
-        Match.matching_method == "pipeline_v3"
-    )
-    v3_result = await db.execute(v3_count_query)
-    v3_count = v3_result.scalar() or 0
+    row = (await db.execute(text("""
+        SELECT
+            (SELECT COUNT(*) FROM matches
+             WHERE matching_method != 'pipeline_v3' OR matching_method IS NULL) as legacy,
+            (SELECT COUNT(*) FROM matches
+             WHERE matching_method = 'pipeline_v3') as v3
+    """))).fetchone()
+    legacy_count = row[0] or 0
+    v3_count = row[1] or 0
 
     if dry_run:
         return {
@@ -237,14 +232,9 @@ async def cleanup_legacy_matches(
         }
 
     # Loeschen
-    result = await db.execute(
-        sql_delete(Match).where(
-            or_(
-                Match.matching_method != "pipeline_v3",
-                Match.matching_method.is_(None),
-            )
-        )
-    )
+    result = await db.execute(text(
+        "DELETE FROM matches WHERE matching_method != 'pipeline_v3' OR matching_method IS NULL"
+    ))
     await db.commit()
     deleted = result.rowcount
 
@@ -266,102 +256,64 @@ async def get_pipeline_stats(
     db: AsyncSession = Depends(get_db),
 ):
     """Pipeline-V3-Statistiken: Klassifizierung, Matches, Verteilung."""
+    from sqlalchemy import text
 
-    # Klassifizierte Kandidaten
-    cand_classified = await db.execute(
-        select(func.count())
-        .select_from(Candidate)
-        .where(
-            and_(
-                Candidate.hotlist_category == "FINANCE",
-                Candidate.classification_data.isnot(None),
-                Candidate.deleted_at.is_(None),
-                Candidate.hidden == False,  # noqa: E712
-            )
-        )
-    )
-    cand_total = await db.execute(
-        select(func.count())
-        .select_from(Candidate)
-        .where(
-            and_(
-                Candidate.hotlist_category == "FINANCE",
-                Candidate.deleted_at.is_(None),
-                Candidate.hidden == False,  # noqa: E712
-            )
-        )
-    )
+    try:
+        # Alle Stats mit Raw SQL fuer maximale Zuverlaessigkeit
+        stats_query = text("""
+            SELECT
+                (SELECT COUNT(*) FROM candidates
+                 WHERE hotlist_category = 'FINANCE'
+                   AND classification_data IS NOT NULL
+                   AND deleted_at IS NULL AND hidden = false) as cand_classified,
+                (SELECT COUNT(*) FROM candidates
+                 WHERE hotlist_category = 'FINANCE'
+                   AND deleted_at IS NULL AND hidden = false) as cand_total,
+                (SELECT COUNT(*) FROM jobs
+                 WHERE hotlist_category = 'FINANCE'
+                   AND classification_data IS NOT NULL
+                   AND deleted_at IS NULL) as job_classified,
+                (SELECT COUNT(*) FROM jobs
+                 WHERE hotlist_category = 'FINANCE'
+                   AND deleted_at IS NULL) as job_total,
+                (SELECT COUNT(*) FROM matches
+                 WHERE matching_method = 'pipeline_v3') as v3_matches,
+                (SELECT COUNT(*) FROM matches
+                 WHERE matching_method != 'pipeline_v3'
+                    OR matching_method IS NULL) as legacy_matches
+        """)
+        row = (await db.execute(stats_query)).fetchone()
 
-    # Klassifizierte Jobs
-    job_classified = await db.execute(
-        select(func.count())
-        .select_from(Job)
-        .where(
-            and_(
-                Job.hotlist_category == "FINANCE",
-                Job.classification_data.isnot(None),
-                Job.deleted_at.is_(None),
-            )
-        )
-    )
-    job_total = await db.execute(
-        select(func.count())
-        .select_from(Job)
-        .where(
-            and_(
-                Job.hotlist_category == "FINANCE",
-                Job.deleted_at.is_(None),
-            )
-        )
-    )
+        # Rollen-Verteilung
+        role_query = text("""
+            SELECT COALESCE(hotlist_job_title, 'Nicht klassifiziert') as role,
+                   COUNT(*) as cnt
+            FROM candidates
+            WHERE hotlist_category = 'FINANCE'
+              AND classification_data IS NOT NULL
+              AND deleted_at IS NULL AND hidden = false
+            GROUP BY hotlist_job_title
+            ORDER BY cnt DESC
+        """)
+        role_rows = (await db.execute(role_query)).fetchall()
 
-    # V3 Matches
-    v3_matches = await db.execute(
-        select(func.count())
-        .select_from(Match)
-        .where(Match.matching_method == "pipeline_v3")
-    )
-    legacy_matches = await db.execute(
-        select(func.count())
-        .select_from(Match)
-        .where(
-            or_(
-                Match.matching_method != "pipeline_v3",
-                Match.matching_method.is_(None),
-            )
-        )
-    )
-
-    # Rollen-Verteilung (Kandidaten)
-    role_dist = await db.execute(
-        select(Candidate.hotlist_job_title, func.count())
-        .where(
-            and_(
-                Candidate.hotlist_category == "FINANCE",
-                Candidate.classification_data.isnot(None),
-                Candidate.deleted_at.is_(None),
-                Candidate.hidden == False,  # noqa: E712
-            )
-        )
-        .group_by(Candidate.hotlist_job_title)
-        .order_by(func.count().desc())
-    )
-
-    return {
-        "candidates": {
-            "classified": cand_classified.scalar() or 0,
-            "total_finance": cand_total.scalar() or 0,
-        },
-        "jobs": {
-            "classified": job_classified.scalar() or 0,
-            "total_finance": job_total.scalar() or 0,
-        },
-        "matches": {
-            "v3_total": v3_matches.scalar() or 0,
-            "legacy_total": legacy_matches.scalar() or 0,
-        },
-        "role_distribution": {
-            row[0] or "Nicht klassifiziert": row[1]
-            for row in role_dist.all()
-        },
-    }
+        return {
+            "candidates": {
+                "classified": row[0] or 0,
+                "total_finance": row[1] or 0,
+            },
+            "jobs": {
+                "classified": row[2] or 0,
+                "total_finance": row[3] or 0,
+            },
+            "matches": {
+                "v3_total": row[4] or 0,
+                "legacy_total": row[5] or 0,
+            },
+            "role_distribution": {
+                r[0]: r[1] for r in role_rows
+            },
+        }
+    except Exception as e:
+        logger.error(f"V3 Stats Fehler: {e}", exc_info=True)
+        return {"error": str(e)}
