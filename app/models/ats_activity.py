@@ -26,6 +26,8 @@ class ActivityType(str, enum.Enum):
     JOB_CREATED = "job_created"
     JOB_STATUS_CHANGED = "job_status_changed"
     CANDIDATE_RESPONSE = "candidate_response"
+    TODO_AUTO_COMPLETED = "todo_auto_completed"
+    TODO_CANCELLED = "todo_cancelled"
 
 
 # Deutsche Labels fuer UI
@@ -42,6 +44,8 @@ ACTIVITY_TYPE_LABELS = {
     ActivityType.JOB_CREATED: "Stelle erstellt",
     ActivityType.JOB_STATUS_CHANGED: "Status geaendert",
     ActivityType.CANDIDATE_RESPONSE: "Kandidaten-Antwort",
+    ActivityType.TODO_AUTO_COMPLETED: "Aufgabe auto-erledigt",
+    ActivityType.TODO_CANCELLED: "Aufgabe abgebrochen",
 }
 
 # Icons fuer UI (Heroicons Name)
@@ -58,6 +62,8 @@ ACTIVITY_TYPE_ICONS = {
     ActivityType.JOB_CREATED: "briefcase",
     ActivityType.JOB_STATUS_CHANGED: "arrow-path",
     ActivityType.CANDIDATE_RESPONSE: "chat-bubble-left-right",
+    ActivityType.TODO_AUTO_COMPLETED: "sparkles",
+    ActivityType.TODO_CANCELLED: "x-circle",
 }
 
 

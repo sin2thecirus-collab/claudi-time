@@ -1700,6 +1700,17 @@ async def _auto_assign_to_candidate(
         db, call_note, candidate_id=candidate.id,
     )
 
+    # Auto-Erledigung: GPT-erkannte erledigte Aufgaben abgleichen
+    completed_tasks_data = ext.get("completed_tasks") or []
+    auto_completed = 0
+    if completed_tasks_data:
+        auto_completed = await _auto_complete_todos_from_call(
+            db,
+            completed_tasks_data,
+            candidate_id=candidate.id,
+            call_note_id=call_note.id,
+        )
+
     # Automatisch Emails verarbeiten (email_actions aus GPT-Extrakt)
     email_result = {"emails_sent": 0, "drafts_created": 0, "errors": []}
     email_actions = ext.get("email_actions") or []
@@ -1723,6 +1734,7 @@ async def _auto_assign_to_candidate(
         "fields_updated": fields_updated,
         "call_note_id": str(call_note.id),
         "todos_created": todos_created,
+        "todos_auto_completed": auto_completed,
         "emails_sent": email_result.get("emails_sent", 0),
         "email_drafts_created": email_result.get("drafts_created", 0),
         "email_errors": email_result.get("errors", []),
@@ -1985,11 +1997,13 @@ async def _create_todos_from_action_items(
         # item kann ein Dict oder ein String sein
         if isinstance(item, dict):
             title = (item.get("title") or "").strip()
+            context = (item.get("context") or "").strip()
             due_date_str = item.get("due_date") or item.get("dueDate")
             priority_str = (item.get("priority") or "mittel").lower()
             due_time_str = item.get("due_time") or item.get("dueTime") or item.get("time")
         elif isinstance(item, str):
             title = item.strip()
+            context = ""
             due_date_str = None
             priority_str = "mittel"
             due_time_str = None
@@ -2021,6 +2035,7 @@ async def _create_todos_from_action_items(
 
         todo = ATSTodo(
             title=title[:500],
+            description=context[:2000] if context else None,
             priority=priority,
             due_date=parsed_due_date,
             due_time=parsed_due_time,
@@ -2045,6 +2060,114 @@ async def _create_todos_from_action_items(
         logger.info(f"Auto-Todos: {created} Aufgaben aus CallNote {call_note.id} erstellt")
 
     return created
+
+
+async def _auto_complete_todos_from_call(
+    db: AsyncSession,
+    completed_tasks: list,
+    candidate_id=None,
+    contact_id=None,
+    call_note_id=None,
+) -> int:
+    """Auto-erledigt offene Todos basierend auf completed_tasks aus GPT.
+
+    GPT liefert: [{reason: str, match_hint: str, person_name: str|null}]
+    Matcht gegen offene Todos des Kandidaten/Kontakts via Schlagwort-Vergleich.
+    Gibt Anzahl auto-erledigter Todos zurueck.
+    """
+    from app.models.ats_todo import ATSTodo, TodoStatus
+    from app.models.ats_activity import ATSActivity, ActivityType
+
+    if not completed_tasks or not isinstance(completed_tasks, list):
+        return 0
+
+    # Offene Todos fuer diesen Kandidaten/Kontakt laden
+    query = (
+        select(ATSTodo)
+        .where(ATSTodo.status.in_([TodoStatus.OPEN, TodoStatus.IN_PROGRESS]))
+    )
+    if candidate_id:
+        query = query.where(ATSTodo.candidate_id == candidate_id)
+    elif contact_id:
+        query = query.where(ATSTodo.contact_id == contact_id)
+    else:
+        return 0
+
+    result = await db.execute(query)
+    open_todos = list(result.scalars().all())
+    if not open_todos:
+        return 0
+
+    auto_completed = 0
+    now = datetime.now(timezone.utc)
+
+    for task in completed_tasks:
+        if not isinstance(task, dict):
+            continue
+
+        match_hint = (task.get("match_hint") or "").lower()
+        reason = (task.get("reason") or "").strip()
+
+        if not match_hint:
+            continue
+
+        # Schlagwoerter aus match_hint extrahieren
+        keywords = [kw.strip() for kw in match_hint.replace(",", " ").split() if len(kw.strip()) > 2]
+        if not keywords:
+            continue
+
+        # Fuzzy-Match gegen offene Todos
+        best_match = None
+        best_score = 0
+
+        for todo in open_todos:
+            title_lower = (todo.title or "").lower()
+            desc_lower = (todo.description or "").lower()
+            combined = f"{title_lower} {desc_lower}"
+
+            # Score = Anzahl der matchenden Keywords
+            score = sum(1 for kw in keywords if kw in combined)
+            if score > best_score:
+                best_score = score
+                best_match = todo
+
+        # Mindestens 1 Keyword muss matchen
+        if best_match and best_score >= 1:
+            best_match.status = TodoStatus.DONE
+            best_match.completed_at = now
+            # Description ergaenzen
+            auto_note = f"\n\n--- Automatisch erledigt durch Anruf ({now.strftime('%d.%m.%Y %H:%M')}) ---\n{reason}"
+            if best_match.description:
+                best_match.description += auto_note
+            else:
+                best_match.description = auto_note.strip()
+
+            # Activity loggen
+            activity = ATSActivity(
+                activity_type=ActivityType.TODO_AUTO_COMPLETED,
+                description=f"Auto-erledigt: {best_match.title[:80]}",
+                candidate_id=candidate_id,
+                metadata_json={
+                    "reason": reason,
+                    "match_hint": match_hint,
+                    "call_note_id": str(call_note_id) if call_note_id else None,
+                    "match_score": best_score,
+                },
+            )
+            db.add(activity)
+
+            # Aus der offenen Liste entfernen (nicht doppelt matchen)
+            open_todos.remove(best_match)
+            auto_completed += 1
+
+    if auto_completed > 0:
+        await db.flush()
+        logger.info(
+            f"Auto-Complete: {auto_completed} Todos durch Anruf erledigt "
+            f"(candidate_id={candidate_id}, call_note_id={call_note_id})"
+        )
+
+    return auto_completed
 
 
 async def _delete_webex_recording(recording_id: str, access_token: str) -> str:

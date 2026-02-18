@@ -67,6 +67,14 @@ def _serialize_todo(todo) -> dict:
         "ats_job_title": todo.ats_job.title if hasattr(todo, "ats_job") and todo.ats_job else None,
         "contact_id": str(todo.contact_id) if todo.contact_id else None,
         "contact_name": todo.contact.full_name if hasattr(todo, "contact") and todo.contact else None,
+        "contact_number_display": todo.contact.contact_number_display if hasattr(todo, "contact") and todo.contact else None,
+        "candidate_number": todo.candidate.candidate_number if hasattr(todo, "candidate") and todo.candidate else None,
+        "call_note_id": str(todo.call_note_id) if todo.call_note_id else None,
+        "call_note_summary": (
+            todo.call_note.summary[:200]
+            if hasattr(todo, "call_note") and todo.call_note and todo.call_note.summary
+            else None
+        ),
         "created_at": todo.created_at.isoformat() if todo.created_at else None,
     }
 
@@ -95,11 +103,12 @@ async def list_todos(
     candidate_id: Optional[UUID] = Query(None),
     ats_job_id: Optional[UUID] = Query(None),
     contact_id: Optional[UUID] = Query(None),
+    search: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
     per_page: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
 ):
-    """Listet Aufgaben mit Filter."""
+    """Listet Aufgaben mit Filter und Textsuche."""
     service = ATSTodoService(db)
     result = await service.list_todos(
         status=status,
@@ -109,6 +118,7 @@ async def list_todos(
         candidate_id=candidate_id,
         ats_job_id=ats_job_id,
         contact_id=contact_id,
+        search=search,
         page=page,
         per_page=per_page,
     )
@@ -138,6 +148,81 @@ async def get_overdue_todos(db: AsyncSession = Depends(get_db)):
     return {"items": [_serialize_todo(t) for t in todos], "count": len(todos)}
 
 
+@router.get("/stats")
+async def get_todo_stats(db: AsyncSession = Depends(get_db)):
+    """Gibt Todo-Statistiken zurueck."""
+    service = ATSTodoService(db)
+    stats = await service.get_stats()
+    return stats
+
+
+@router.get("/upcoming")
+async def get_upcoming_todos(
+    days: int = Query(7, ge=1, le=30),
+    db: AsyncSession = Depends(get_db),
+):
+    """Holt Aufgaben der naechsten N Tage."""
+    service = ATSTodoService(db)
+    todos = await service.get_upcoming_todos(days=days)
+    return {"items": [_serialize_todo(t) for t in todos], "count": len(todos)}
+
+
+@router.get("/daily-summary")
+async def get_daily_summary(db: AsyncSession = Depends(get_db)):
+    """Tages-Zusammenfassung: Heute + Ueberfaellig + Stats (fuer WhatsApp/Dashboard)."""
+    service = ATSTodoService(db)
+
+    today_todos = await service.get_today_todos()
+    overdue_todos = await service.get_overdue_todos()
+    stats = await service.get_stats()
+
+    return {
+        "today": {
+            "items": [_serialize_todo(t) for t in today_todos],
+            "count": len(today_todos),
+        },
+        "overdue": {
+            "items": [_serialize_todo(t) for t in overdue_todos],
+            "count": len(overdue_todos),
+        },
+        "stats": stats,
+    }
+
+
+class RescheduleData(BaseModel):
+    due_date: date
+    due_time: Optional[str] = None
+    note: Optional[str] = None
+
+
+@router.patch("/{todo_id}/reschedule")
+async def reschedule_todo(
+    todo_id: UUID, data: RescheduleData, db: AsyncSession = Depends(get_db)
+):
+    """Verschiebt eine Aufgabe auf ein neues Datum."""
+    service = ATSTodoService(db)
+    update_data = {"due_date": data.due_date}
+    if data.due_time is not None:
+        update_data["due_time"] = data.due_time
+
+    todo = await service.update_todo(todo_id, update_data)
+    if not todo:
+        raise HTTPException(status_code=404, detail="Aufgabe nicht gefunden")
+
+    # Optionale Notiz an description anhaengen
+    if data.note and data.note.strip():
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
+        reschedule_note = f"\n\n--- Verschoben am {now.strftime('%d.%m.%Y %H:%M')} ---\n{data.note.strip()}"
+        if todo.description:
+            todo.description += reschedule_note
+        else:
+            todo.description = reschedule_note.strip()
+
+    await db.commit()
+    return _serialize_todo(todo)
+
+
 @router.patch("/{todo_id}")
 async def update_todo(
     todo_id: UUID, data: TodoUpdate, db: AsyncSession = Depends(get_db)
@@ -159,6 +244,18 @@ async def complete_todo(todo_id: UUID, db: AsyncSession = Depends(get_db)):
     if not todo:
         raise HTTPException(status_code=404, detail="Aufgabe nicht gefunden")
     await db.commit()
+
+    # n8n-Notification feuern (fire-and-forget)
+    try:
+        from app.services.n8n_notify_service import N8nNotifyService
+        await N8nNotifyService.notify_todo_completed(
+            todo_id=todo.id,
+            todo_title=todo.title,
+            completed_by="manual",
+        )
+    except Exception:
+        pass  # Notification-Fehler sollen Endpunkt nicht blockieren
+
     return {"message": "Aufgabe erledigt", "id": str(todo.id)}
 
 
@@ -170,4 +267,4 @@ async def delete_todo(todo_id: UUID, db: AsyncSession = Depends(get_db)):
     if not deleted:
         raise HTTPException(status_code=404, detail="Aufgabe nicht gefunden")
     await db.commit()
-    return {"message": "Aufgabe geloescht"}
+    return {"message": "Aufgabe abgebrochen"}

@@ -4,7 +4,7 @@ import logging
 from datetime import date, datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -76,6 +76,7 @@ class ATSTodoService:
                 selectinload(ATSTodo.candidate),
                 selectinload(ATSTodo.ats_job),
                 selectinload(ATSTodo.contact),
+                selectinload(ATSTodo.call_note),
             )
             .where(ATSTodo.id == todo_id)
         )
@@ -125,13 +126,27 @@ class ATSTodoService:
         return todo
 
     async def delete_todo(self, todo_id: UUID) -> bool:
-        """Loescht eine Aufgabe."""
+        """Soft-Delete: Setzt Status auf CANCELLED statt zu loeschen."""
         todo = await self.db.get(ATSTodo, todo_id)
         if not todo:
             return False
-        await self.db.delete(todo)
+
+        todo.status = TodoStatus.CANCELLED
+        todo.completed_at = datetime.now(timezone.utc)
         await self.db.flush()
-        logger.info(f"Todo geloescht: {todo_id}")
+
+        # Activity loggen
+        activity = ATSActivity(
+            activity_type=ActivityType.TODO_CANCELLED,
+            description=f"Aufgabe abgebrochen: {todo.title[:80]}",
+            ats_job_id=todo.ats_job_id,
+            company_id=todo.company_id,
+            candidate_id=todo.candidate_id,
+        )
+        self.db.add(activity)
+        await self.db.flush()
+
+        logger.info(f"Todo soft-deleted (cancelled): {todo_id}")
         return True
 
     # ── Listen ───────────────────────────────────────
@@ -145,6 +160,7 @@ class ATSTodoService:
         candidate_id: UUID | None = None,
         ats_job_id: UUID | None = None,
         contact_id: UUID | None = None,
+        search: str | None = None,
         page: int = 1,
         per_page: int = 50,
     ) -> dict:
@@ -154,8 +170,19 @@ class ATSTodoService:
             selectinload(ATSTodo.candidate),
             selectinload(ATSTodo.ats_job),
             selectinload(ATSTodo.contact),
+            selectinload(ATSTodo.call_note),
         )
         count_query = select(func.count(ATSTodo.id))
+
+        # Textsuche
+        if search and search.strip():
+            search_term = f"%{search.strip()}%"
+            search_filter = or_(
+                ATSTodo.title.ilike(search_term),
+                ATSTodo.description.ilike(search_term),
+            )
+            query = query.where(search_filter)
+            count_query = count_query.where(search_filter)
 
         # Filter
         if status:
@@ -225,6 +252,7 @@ class ATSTodoService:
                 selectinload(ATSTodo.candidate),
                 selectinload(ATSTodo.ats_job),
                 selectinload(ATSTodo.contact),
+                selectinload(ATSTodo.call_note),
             )
             .where(
                 ATSTodo.due_date == today,
@@ -244,9 +272,33 @@ class ATSTodoService:
                 selectinload(ATSTodo.candidate),
                 selectinload(ATSTodo.ats_job),
                 selectinload(ATSTodo.contact),
+                selectinload(ATSTodo.call_note),
             )
             .where(
                 ATSTodo.due_date < today,
+                ATSTodo.status.in_([TodoStatus.OPEN, TodoStatus.IN_PROGRESS]),
+            )
+            .order_by(ATSTodo.due_date.asc(), ATSTodo.priority.desc())
+        )
+        return list(result.scalars().all())
+
+    async def get_upcoming_todos(self, days: int = 7) -> list[ATSTodo]:
+        """Holt offene Aufgaben der naechsten N Tage (ab morgen)."""
+        from datetime import timedelta
+        today = date.today()
+        end_date = today + timedelta(days=days)
+        result = await self.db.execute(
+            select(ATSTodo)
+            .options(
+                selectinload(ATSTodo.company),
+                selectinload(ATSTodo.candidate),
+                selectinload(ATSTodo.ats_job),
+                selectinload(ATSTodo.contact),
+                selectinload(ATSTodo.call_note),
+            )
+            .where(
+                ATSTodo.due_date > today,
+                ATSTodo.due_date <= end_date,
                 ATSTodo.status.in_([TodoStatus.OPEN, TodoStatus.IN_PROGRESS]),
             )
             .order_by(ATSTodo.due_date.asc(), ATSTodo.priority.desc())

@@ -128,6 +128,23 @@ class N8nNotifyService:
         })
 
     @staticmethod
+    async def notify_todo_completed(
+        todo_id: UUID,
+        todo_title: str,
+        completed_by: str = "manual",
+        candidate_name: str | None = None,
+        company_name: str | None = None,
+    ) -> bool:
+        """Benachrichtigt n8n wenn eine Aufgabe erledigt wurde."""
+        return await N8nNotifyService._send_webhook("todo-completed", {
+            "todo_id": str(todo_id),
+            "todo_title": todo_title,
+            "completed_by": completed_by,  # "manual" | "auto_call"
+            "candidate_name": candidate_name,
+            "company_name": company_name,
+        })
+
+    @staticmethod
     async def notify_candidate_placed(
         entry_id: UUID,
         candidate_name: str,

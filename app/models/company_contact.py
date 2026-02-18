@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, func, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -35,6 +35,9 @@ class CompanyContact(Base):
     email: Mapped[str | None] = mapped_column(String(500))
     phone: Mapped[str | None] = mapped_column(String(100))
     mobile: Mapped[str | None] = mapped_column(String(100))
+    contact_number: Mapped[int | None] = mapped_column(
+        Integer, server_default=text("nextval('company_contacts_contact_number_seq')")
+    )
     city: Mapped[str | None] = mapped_column(String(255))
 
     # Notizen
@@ -58,6 +61,13 @@ class CompanyContact(Base):
         Index("ix_company_contacts_company_id", "company_id"),
         Index("ix_company_contacts_last_name", "last_name"),
     )
+
+    @property
+    def contact_number_display(self) -> str | None:
+        """Gibt die formatierte Kontakt-Nummer zurueck (z.B. '001234')."""
+        if self.contact_number is not None:
+            return f"00{self.contact_number}"
+        return None
 
     @property
     def full_name(self) -> str:

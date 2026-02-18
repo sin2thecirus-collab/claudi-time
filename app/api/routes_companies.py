@@ -157,6 +157,8 @@ async def search_contacts_json(
             "position": c.position,
             "company_name": c.company.name if c.company else None,
             "company_id": str(c.company_id) if c.company_id else None,
+            "contact_number": c.contact_number,
+            "contact_number_display": c.contact_number_display,
         }
         for c in contacts
     ]
@@ -463,6 +465,8 @@ async def get_contact(contact_id: UUID, db: AsyncSession = Depends(get_db)):
         "email": contact.email,
         "phone": contact.phone,
         "mobile": contact.mobile,
+        "contact_number": contact.contact_number,
+        "contact_number_display": contact.contact_number_display,
         "city": contact.city,
         "notes": contact.notes,
         "created_at": contact.created_at.isoformat() if contact.created_at else None,
@@ -490,6 +494,8 @@ async def list_contacts(company_id: UUID, db: AsyncSession = Depends(get_db)):
             "email": c.email,
             "phone": c.phone,
             "mobile": c.mobile,
+            "contact_number": c.contact_number,
+            "contact_number_display": c.contact_number_display,
             "city": c.city,
             "notes": c.notes,
             "created_at": c.created_at.isoformat() if c.created_at else None,
@@ -508,7 +514,13 @@ async def add_contact(
         company_id, **data.model_dump(exclude_unset=True)
     )
     await db.commit()
-    return {"id": str(contact.id), "full_name": contact.full_name, "message": "Kontakt erstellt"}
+    return {
+        "id": str(contact.id),
+        "full_name": contact.full_name,
+        "contact_number": contact.contact_number,
+        "contact_number_display": contact.contact_number_display,
+        "message": "Kontakt erstellt",
+    }
 
 
 @router.patch("/contacts/{contact_id}")

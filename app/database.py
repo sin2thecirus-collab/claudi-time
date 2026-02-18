@@ -1006,6 +1006,8 @@ async def init_db() -> None:
         ("unassigned_calls", "contact_id", "UUID"),
         ("unassigned_calls", "company_id", "UUID"),
         ("unassigned_calls", "call_note_id", "UUID"),
+        # ── Phase 0: Kontakt-Nummer (lesbare ID fuer Ansprechpartner) ──
+        ("company_contacts", "contact_number", "INTEGER"),
     ]
     for table_name, col_name, col_type in migrations:
         try:
@@ -1170,6 +1172,21 @@ async def init_db() -> None:
     except Exception as e:
         logger.warning(f"ActivityType Enum Migration uebersprungen: {e}")
 
+    # ── ActivityType Enum: todo_auto_completed + todo_cancelled hinzufuegen ──
+    try:
+        async with engine.connect() as conn:
+            await conn.execution_options(isolation_level="AUTOCOMMIT")
+            for new_val in ["todo_auto_completed", "todo_cancelled"]:
+                try:
+                    await conn.execute(text(
+                        f"ALTER TYPE activitytype ADD VALUE IF NOT EXISTS '{new_val}'"
+                    ))
+                except Exception:
+                    pass  # Wert existiert bereits
+            logger.info("ActivityType Enum: todo_auto_completed + todo_cancelled sichergestellt")
+    except Exception as e:
+        logger.warning(f"ActivityType Enum Migration (Phase 2) uebersprungen: {e}")
+
     # ── Candidate Number: Sequence + Backfill + Unique Constraint ──
     try:
         async with engine.begin() as conn:
@@ -1204,6 +1221,41 @@ async def init_db() -> None:
             logger.info("Migration: candidates.candidate_number Sequence + Backfill erfolgreich.")
     except Exception as e:
         logger.warning(f"candidate_number Migration uebersprungen: {e}")
+
+    # ── Contact Number: Sequence + Backfill + Unique Constraint ──
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("SET lock_timeout = '5s'"))
+            # 1. Sequence erstellen (idempotent)
+            await conn.execute(text("""
+                DO $$ BEGIN
+                    CREATE SEQUENCE IF NOT EXISTS company_contacts_contact_number_seq;
+                EXCEPTION WHEN OTHERS THEN NULL;
+                END $$
+            """))
+            # 2. Default setzen (fuer neue Kontakte)
+            await conn.execute(text("""
+                DO $$ BEGIN
+                    ALTER TABLE company_contacts
+                        ALTER COLUMN contact_number
+                        SET DEFAULT nextval('company_contacts_contact_number_seq');
+                EXCEPTION WHEN OTHERS THEN NULL;
+                END $$
+            """))
+            # 3. Backfill: bestehende Kontakte ohne contact_number
+            await conn.execute(text("""
+                UPDATE company_contacts
+                SET contact_number = nextval('company_contacts_contact_number_seq')
+                WHERE contact_number IS NULL
+            """))
+            # 4. Unique Index (idempotent)
+            await conn.execute(text("""
+                CREATE UNIQUE INDEX IF NOT EXISTS ix_company_contacts_contact_number
+                ON company_contacts (contact_number)
+            """))
+            logger.info("Migration: company_contacts.contact_number Sequence + Backfill erfolgreich.")
+    except Exception as e:
+        logger.warning(f"contact_number Migration uebersprungen: {e}")
 
     # ── Email-Index fuer n8n by-email Lookup ──
     try:
