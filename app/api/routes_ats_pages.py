@@ -1,5 +1,6 @@
 """HTML-Seiten-Routen fuer ATS."""
 
+from datetime import date, timedelta
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -289,6 +290,56 @@ async def ats_todos_page(
             "status": status,
             "priority": priority,
         },
+    })
+
+
+@router.get("/ats/todos/dashboard", response_class=HTMLResponse)
+async def ats_todo_dashboard(
+    request: Request,
+    tab: str = Query("overdue", pattern="^(overdue|today|upcoming|open|done)$"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Aufgaben Reporting-Dashboard."""
+    service = ATSTodoService(db)
+    stats = await service.get_stats()
+
+    today_todos = await service.get_today_todos()
+    overdue_todos = await service.get_overdue_todos()
+    upcoming_todos = await service.get_upcoming_todos(days=7)
+
+    # Tab-basierte Daten
+    if tab == "overdue":
+        todos = overdue_todos
+    elif tab == "today":
+        todos = today_todos
+    elif tab == "upcoming":
+        todos = upcoming_todos
+    elif tab == "done":
+        result = await service.list_todos(status="done", per_page=50)
+        todos = result["items"]
+    else:  # open
+        result = await service.list_todos(per_page=100)
+        todos = [t for t in result["items"] if t.status.value in ("open", "in_progress")]
+
+    # Greeting basierend auf Uhrzeit
+    from datetime import datetime
+    hour = datetime.now().hour
+    if hour < 12:
+        greeting = "Guten Morgen"
+    elif hour < 17:
+        greeting = "Guten Nachmittag"
+    else:
+        greeting = "Guten Abend"
+
+    return templates.TemplateResponse("ats_todo_dashboard.html", {
+        "request": request,
+        "todos": todos,
+        "stats": stats,
+        "active_tab": tab,
+        "today_count": len(today_todos),
+        "upcoming_count": len(upcoming_todos),
+        "greeting": greeting,
+        "today_date": date.today(),
     })
 
 

@@ -651,6 +651,7 @@
                     </button>
                     <div x-show="atsOpen" @click.away="atsOpen = false" x-transition style="display:none;position:absolute;left:0;top:100%;margin-top:6px;width:200px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:12px;padding:5px;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,0.4);">
                         <a href="/ats" style="display:block;padding:10px 14px;border-radius:8px;color:var(--pp-text);text-decoration:none;font-size:14px;font-weight:500;transition:background .15s;" onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='transparent'">Pipeline</a>
+                        <a href="/ats/todos/dashboard" style="display:block;padding:10px 14px;border-radius:8px;color:var(--pp-text);text-decoration:none;font-size:14px;font-weight:500;transition:background .15s;" onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='transparent'">Aufgaben</a>
                     </div>
                 </div>
                 <a href="/hotlisten" class="pp-nav-item {% if request.url.path.startswith('/hotlisten') or request.url.path.startswith('/match-bereiche') or request.url.path.startswith('/deepmatch') %}active{% endif %}">Hotlisten</a>

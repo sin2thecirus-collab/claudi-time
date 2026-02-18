@@ -50,9 +50,12 @@ class TodoCreateRequest(BaseModel):
     description: Optional[str] = None
     priority: Optional[str] = "wichtig"
     due_date: Optional[str] = None  # ISO date, z.B. "2025-06-15"
+    due_time: Optional[str] = None  # z.B. "14:00"
     company_id: Optional[UUID] = None
     candidate_id: Optional[UUID] = None
     ats_job_id: Optional[UUID] = None
+    call_note_id: Optional[UUID] = None
+    contact_id: Optional[UUID] = None
 
 
 class ActivityLogRequest(BaseModel):
