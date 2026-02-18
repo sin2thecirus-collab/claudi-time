@@ -208,6 +208,10 @@ class ATSTodoService:
         if status:
             query = query.where(ATSTodo.status == TodoStatus(status))
             count_query = count_query.where(ATSTodo.status == TodoStatus(status))
+        else:
+            # Cancelled (soft-deleted) standardmaessig ausblenden
+            query = query.where(ATSTodo.status != TodoStatus.CANCELLED)
+            count_query = count_query.where(ATSTodo.status != TodoStatus.CANCELLED)
 
         if priority:
             query = query.where(ATSTodo.priority == TodoPriority(priority))
@@ -329,7 +333,9 @@ class ATSTodoService:
 
     async def get_stats(self) -> dict:
         """Gibt Todo-Statistiken zurueck."""
-        total = await self.db.execute(select(func.count(ATSTodo.id)))
+        total = await self.db.execute(
+            select(func.count(ATSTodo.id)).where(ATSTodo.status != TodoStatus.CANCELLED)
+        )
         open_count = await self.db.execute(
             select(func.count(ATSTodo.id)).where(ATSTodo.status == TodoStatus.OPEN)
         )
