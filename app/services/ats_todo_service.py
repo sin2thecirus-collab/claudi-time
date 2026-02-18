@@ -36,7 +36,27 @@ class ATSTodoService:
         pipeline_entry_id: UUID | None = None,
         contact_id: UUID | None = None,
     ) -> ATSTodo:
-        """Erstellt eine neue Aufgabe."""
+        """Erstellt eine neue Aufgabe (mit Duplikat-Schutz)."""
+        # ── Duplikat-Check: gleicher Titel + gleiche Zuordnung + noch offen ──
+        stripped_title = title.strip()
+        dup_query = select(ATSTodo).where(
+            ATSTodo.title == stripped_title,
+            ATSTodo.status.in_([TodoStatus.OPEN, TodoStatus.IN_PROGRESS]),
+        )
+        if candidate_id:
+            dup_query = dup_query.where(ATSTodo.candidate_id == candidate_id)
+        else:
+            dup_query = dup_query.where(ATSTodo.candidate_id.is_(None))
+        if company_id:
+            dup_query = dup_query.where(ATSTodo.company_id == company_id)
+        if due_date:
+            dup_query = dup_query.where(ATSTodo.due_date == due_date)
+
+        existing = (await self.db.execute(dup_query)).scalars().first()
+        if existing:
+            logger.info(f"Duplikat-Todo uebersprungen: '{stripped_title[:50]}' existiert bereits ({existing.id})")
+            return existing
+
         todo = ATSTodo(
             title=title.strip(),
             description=description,
