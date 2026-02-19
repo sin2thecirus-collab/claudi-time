@@ -14,6 +14,7 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy import func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -875,4 +876,166 @@ async def activity_log(candidate_id: UUID, db: AsyncSession = Depends(get_db)):
         "last_name": candidate.last_name,
         "total_entries": len(entries),
         "entries": entries,
+    }
+
+
+# ══════════════════════════════════════════════════════════════════
+# 8. Gender-Klassifizierung (fuer n8n / Scripts)
+# ══════════════════════════════════════════════════════════════════
+
+@router.get("/gender/status")
+async def gender_status(db: AsyncSession = Depends(get_db)):
+    """Status der Gender-Klassifizierung fuer Finance-Kandidaten."""
+    result = await db.execute(text("""
+        SELECT
+            COUNT(*) FILTER (WHERE classification_data IS NOT NULL
+                AND classification_data->>'primary_role' IS NOT NULL
+                AND classification_data->>'primary_role' != '') as total_finance,
+            COUNT(*) FILTER (WHERE classification_data IS NOT NULL
+                AND classification_data->>'primary_role' IS NOT NULL
+                AND classification_data->>'primary_role' != ''
+                AND gender IS NOT NULL AND gender != '') as with_gender,
+            COUNT(*) FILTER (WHERE classification_data IS NOT NULL
+                AND classification_data->>'primary_role' IS NOT NULL
+                AND classification_data->>'primary_role' != ''
+                AND (gender IS NULL OR gender = '')) as without_gender,
+            COUNT(*) FILTER (WHERE classification_data IS NOT NULL
+                AND classification_data->>'primary_role' IS NOT NULL
+                AND classification_data->>'primary_role' != ''
+                AND email IS NOT NULL AND email != ''
+                AND (gender IS NULL OR gender = '')) as without_gender_with_email
+        FROM candidates
+        WHERE deleted_at IS NULL AND (hidden = FALSE OR hidden IS NULL)
+    """))
+    row = result.fetchone()
+
+    total = row[0] if row else 0
+    with_gender = row[1] if row else 0
+    without_gender = row[2] if row else 0
+
+    return {
+        "total_finance_candidates": total,
+        "with_gender": with_gender,
+        "without_gender": without_gender,
+        "without_gender_with_email": row[3] if row else 0,
+        "progress_percent": round((with_gender / total * 100), 1) if total > 0 else 0,
+        "status": "complete" if without_gender == 0 else "pending",
+    }
+
+
+@router.get("/gender/candidates-without")
+async def candidates_without_gender(
+    db: AsyncSession = Depends(get_db),
+    limit: int = 100,
+    offset: int = 0,
+):
+    """Liste der Finance-Kandidaten ohne Gender — fuer n8n Batch-Verarbeitung."""
+    result = await db.execute(text("""
+        SELECT id, first_name, last_name, email
+        FROM candidates
+        WHERE classification_data IS NOT NULL
+          AND classification_data->>'primary_role' IS NOT NULL
+          AND classification_data->>'primary_role' != ''
+          AND (gender IS NULL OR gender = '')
+          AND deleted_at IS NULL
+          AND (hidden = FALSE OR hidden IS NULL)
+        ORDER BY created_at ASC
+        LIMIT :limit OFFSET :offset
+    """), {"limit": limit, "offset": offset})
+
+    candidates_list = []
+    for row in result.fetchall():
+        candidates_list.append({
+            "id": str(row[0]),
+            "first_name": row[1],
+            "last_name": row[2],
+            "email": row[3],
+        })
+
+    return {
+        "candidates": candidates_list,
+        "count": len(candidates_list),
+        "limit": limit,
+        "offset": offset,
+    }
+
+
+@router.patch("/gender/update/{candidate_id}")
+async def update_gender(
+    candidate_id: UUID,
+    data: dict,
+    db: AsyncSession = Depends(get_db),
+):
+    """Gender eines Kandidaten setzen — wird von n8n nach OpenAI-Klassifizierung aufgerufen.
+
+    Body: {"gender": "Herr"} oder {"gender": "Frau"} oder {"gender": null}
+    """
+    candidate = await db.get(Candidate, candidate_id)
+    if not candidate:
+        return JSONResponse(status_code=404, content={"error": "Kandidat nicht gefunden"})
+
+    new_gender = data.get("gender")
+
+    # Nur gueltige Werte erlauben
+    if new_gender is not None and new_gender not in ("Herr", "Frau"):
+        return JSONResponse(status_code=400, content={
+            "error": f"Ungueltiger Gender-Wert: '{new_gender}'. Erlaubt: 'Herr', 'Frau', null"
+        })
+
+    old_gender = candidate.gender
+    candidate.gender = new_gender
+    await db.flush()
+
+    logger.info(f"Gender aktualisiert: {candidate.first_name} {candidate.last_name}: {old_gender} -> {new_gender}")
+
+    return {
+        "candidate_id": str(candidate_id),
+        "first_name": candidate.first_name,
+        "last_name": candidate.last_name,
+        "old_gender": old_gender,
+        "new_gender": new_gender,
+    }
+
+
+@router.post("/gender/batch-update")
+async def batch_update_gender(
+    data: dict,
+    db: AsyncSession = Depends(get_db),
+):
+    """Batch-Update Gender fuer mehrere Kandidaten — n8n sendet Ergebnisse gesammelt.
+
+    Body: {"updates": [{"id": "uuid", "gender": "Herr"}, {"id": "uuid", "gender": "Frau"}, ...]}
+    """
+    updates = data.get("updates", [])
+    if not updates:
+        return {"error": "Keine Updates angegeben", "updated": 0}
+
+    updated = 0
+    errors = []
+
+    for item in updates:
+        cid = item.get("id")
+        gender = item.get("gender")
+
+        if gender is not None and gender not in ("Herr", "Frau"):
+            errors.append({"id": cid, "error": f"Ungueltiger Wert: '{gender}'"})
+            continue
+
+        try:
+            candidate = await db.get(Candidate, cid)
+            if candidate:
+                candidate.gender = gender
+                updated += 1
+            else:
+                errors.append({"id": cid, "error": "Nicht gefunden"})
+        except Exception as e:
+            errors.append({"id": cid, "error": str(e)})
+
+    await db.flush()
+    logger.info(f"Gender Batch-Update: {updated}/{len(updates)} erfolgreich")
+
+    return {
+        "updated": updated,
+        "total_requested": len(updates),
+        "errors": errors,
     }
