@@ -1,0 +1,44 @@
+{# Partial: Rundmail Gesamtfortschritt #}
+
+<div style="display: flex; align-items: baseline; gap: 16px; margin-bottom: 8px; flex-wrap: wrap;">
+    <span style="font-size: 22px; font-weight: 800; color: var(--pp-text);">
+        {{ progress.contacted }} <span style="font-size: 14px; font-weight: 500; color: var(--pp-textDim);">von</span> {{ progress.total }}
+    </span>
+    <span style="font-size: 13px; color: var(--pp-textMuted); font-weight: 600;">
+        Finance-Kandidaten kontaktiert
+    </span>
+    {% if progress.total > 0 %}
+    <span style="font-size: 13px; font-weight: 700; color: #34D399;">
+        {{ progress.percent }}%
+    </span>
+    {% endif %}
+</div>
+
+<div class="rm-progress">
+    <div class="rm-progress-bar" style="width: {{ progress.percent }}%"></div>
+</div>
+
+<div style="display: flex; gap: 24px; margin-top: 12px; flex-wrap: wrap;">
+    <div class="rm-settings-stat">
+        &#x2705; Gesendet: <strong>{{ progress.sent }}</strong>
+    </div>
+    <div class="rm-settings-stat">
+        &#x1F4E9; Geantwortet: <strong>{{ progress.replied }}</strong>
+    </div>
+    <div class="rm-settings-stat">
+        &#x274C; Kein Interesse: <strong>{{ progress.no_interest }}</strong>
+    </div>
+    <div class="rm-settings-stat">
+        &#x23F3; Offen: <strong>{{ progress.remaining }}</strong>
+    </div>
+</div>
+
+<script>
+// Rundmail-Stats im Hero aktualisieren
+(function() {
+    const el = (id) => document.getElementById(id);
+    if (el('stat-rm-sent')) el('stat-rm-sent').textContent = '{{ progress.sent }}';
+    if (el('stat-rm-total')) el('stat-rm-total').textContent = '{{ progress.total }}';
+    if (el('stat-rm-progress')) el('stat-rm-progress').textContent = '{{ progress.percent }}%';
+})();
+</script>

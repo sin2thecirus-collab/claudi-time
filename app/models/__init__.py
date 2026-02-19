@@ -10,6 +10,10 @@ from app.models.ats_todo import ATSTodo, TodoPriority, TodoStatus
 from app.models.candidate import Candidate
 from app.models.candidate_note import CandidateNote
 from app.models.email_draft import EmailDraft, EmailDraftStatus, EmailType
+from app.models.candidate_email import CandidateEmail
+from app.models.candidate_task import CandidateTask
+from app.models.outreach_batch import OutreachBatch
+from app.models.outreach_item import OutreachItem
 from app.models.company import Company, CompanyStatus
 from app.models.company_contact import CompanyContact
 from app.models.company_correspondence import CompanyCorrespondence, CorrespondenceDirection
@@ -67,4 +71,8 @@ __all__ = [
     "EmailDraft",
     "EmailDraftStatus",
     "EmailType",
+    "CandidateEmail",
+    "CandidateTask",
+    "OutreachBatch",
+    "OutreachItem",
 ]

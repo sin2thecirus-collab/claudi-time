@@ -767,6 +767,137 @@ async def _ensure_users_table() -> None:
         logger.error(f"Admin-User Setup FEHLGESCHLAGEN: {e}")
 
 
+async def _ensure_email_automation_tables() -> None:
+    """Erstellt Tabellen fuer E-Mail-Automatisierung (Sequenzen, Outreach, Logging)."""
+
+    async with engine.begin() as conn:
+        result = await conn.execute(
+            text(
+                "SELECT table_name FROM information_schema.tables "
+                "WHERE table_schema = 'public' AND table_name = 'candidate_emails'"
+            )
+        )
+        if result.fetchone() is not None:
+            logger.info("Email-Automatisierung Tabellen existieren bereits.")
+            return
+
+    logger.info("Email-Automatisierung Tabellen werden erstellt...")
+
+    async with engine.begin() as conn:
+        # ── candidate_emails: Jede E-Mail (gesendet + empfangen) wird geloggt ──
+        await conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS candidate_emails (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                candidate_id UUID NOT NULL REFERENCES candidates(id) ON DELETE CASCADE,
+                subject VARCHAR(500) NOT NULL,
+                body_text TEXT,
+                body_html TEXT,
+                direction VARCHAR(20) NOT NULL DEFAULT 'outbound',
+                channel VARCHAR(20) NOT NULL DEFAULT 'ionos',
+                sequence_type VARCHAR(50),
+                sequence_step INTEGER,
+                from_address VARCHAR(500),
+                to_address VARCHAR(500),
+                message_id VARCHAR(500),
+                in_reply_to VARCHAR(500),
+                instantly_lead_id VARCHAR(255),
+                instantly_campaign_id VARCHAR(255),
+                send_error TEXT,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        """))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_candidate_emails_candidate_id ON candidate_emails (candidate_id)"
+        ))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_candidate_emails_direction ON candidate_emails (direction)"
+        ))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_candidate_emails_created_at ON candidate_emails (created_at)"
+        ))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_candidate_emails_channel ON candidate_emails (channel)"
+        ))
+
+        # ── candidate_tasks: Aufgaben die aus E-Mail-Antworten entstehen ──
+        await conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS candidate_tasks (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                candidate_id UUID NOT NULL REFERENCES candidates(id) ON DELETE CASCADE,
+                title VARCHAR(500) NOT NULL,
+                description TEXT,
+                task_type VARCHAR(50) NOT NULL DEFAULT 'manual',
+                status VARCHAR(20) NOT NULL DEFAULT 'open',
+                priority VARCHAR(20) NOT NULL DEFAULT 'normal',
+                due_date DATE,
+                completed_at TIMESTAMPTZ,
+                source VARCHAR(50) DEFAULT 'system',
+                source_email_id UUID REFERENCES candidate_emails(id) ON DELETE SET NULL,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        """))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_candidate_tasks_candidate_id ON candidate_tasks (candidate_id)"
+        ))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_candidate_tasks_status ON candidate_tasks (status)"
+        ))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_candidate_tasks_due_date ON candidate_tasks (due_date)"
+        ))
+
+        # ── outreach_batches: Tages-Batches fuer Rundmail ──
+        await conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS outreach_batches (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                batch_date DATE NOT NULL,
+                total_candidates INTEGER NOT NULL DEFAULT 0,
+                approved_count INTEGER NOT NULL DEFAULT 0,
+                sent_count INTEGER NOT NULL DEFAULT 0,
+                skipped_count INTEGER NOT NULL DEFAULT 0,
+                status VARCHAR(20) NOT NULL DEFAULT 'prepared',
+                max_per_mailbox INTEGER NOT NULL DEFAULT 30,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        """))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_outreach_batches_batch_date ON outreach_batches (batch_date)"
+        ))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_outreach_batches_status ON outreach_batches (status)"
+        ))
+
+        # ── outreach_items: Einzelne Kandidaten pro Batch ──
+        await conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS outreach_items (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                batch_id UUID NOT NULL REFERENCES outreach_batches(id) ON DELETE CASCADE,
+                candidate_id UUID NOT NULL REFERENCES candidates(id) ON DELETE CASCADE,
+                campaign_type VARCHAR(20) NOT NULL DEFAULT 'erstkontakt',
+                source_override VARCHAR(50),
+                status VARCHAR(20) NOT NULL DEFAULT 'prepared',
+                instantly_lead_id VARCHAR(255),
+                sent_at TIMESTAMPTZ,
+                send_error TEXT,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                CONSTRAINT uq_outreach_items_batch_candidate UNIQUE (batch_id, candidate_id)
+            )
+        """))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_outreach_items_batch_id ON outreach_items (batch_id)"
+        ))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_outreach_items_candidate_id ON outreach_items (candidate_id)"
+        ))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_outreach_items_status ON outreach_items (status)"
+        ))
+
+        logger.info("Email-Automatisierung Tabellen erfolgreich erstellt.")
+
+
 async def _ensure_email_drafts_table() -> None:
     """Erstellt email_drafts Tabelle (automatische E-Mails nach Kandidatengespraechen)."""
 
@@ -846,6 +977,7 @@ async def init_db() -> None:
     await _ensure_unassigned_calls_table()
     await _ensure_candidate_notes_table()
     await _ensure_email_drafts_table()
+    await _ensure_email_automation_tables()
 
     # ── pgvector Extension NICHT noetig — Embeddings werden als JSONB gespeichert ──
     # Railway Standard-PostgreSQL hat kein pgvector vorinstalliert.
@@ -1008,6 +1140,8 @@ async def init_db() -> None:
         ("unassigned_calls", "call_note_id", "UUID"),
         # ── Phase 0: Kontakt-Nummer (lesbare ID fuer Ansprechpartner) ──
         ("company_contacts", "contact_number", "INTEGER"),
+        # ── E-Mail-Automatisierung: contact_status fuer Sequenz-Tracking ──
+        ("candidates", "contact_status", "VARCHAR(50)"),
     ]
     for table_name, col_name, col_type in migrations:
         try:

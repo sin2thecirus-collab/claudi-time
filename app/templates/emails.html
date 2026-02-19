@@ -194,6 +194,105 @@
     .em-chevron { width: 14px; height: 14px; transition: transform 0.25s ease; }
     .em-chevron--open { transform: rotate(180deg); }
 
+    /* ── Tab Navigation ── */
+    .em-tab-nav {
+        display: flex; gap: 6px; margin-top: 20px; margin-bottom: -6px;
+    }
+    .em-tab-btn {
+        padding: 10px 22px; border-radius: 10px 10px 0 0; font-size: 14px; font-weight: 700;
+        background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.55);
+        border: 1px solid rgba(255,255,255,0.08); border-bottom: none;
+        cursor: pointer; transition: all 0.2s; font-family: inherit;
+    }
+    .em-tab-btn:hover { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.8); }
+    .em-tab-btn--active {
+        background: var(--pp-bg); color: #fff;
+        border-color: rgba(255,255,255,0.12);
+    }
+
+    /* ── Rundmail Tab ── */
+    .rm-settings { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; margin-bottom: 14px; }
+    .rm-settings-label { font-size: 13px; font-weight: 600; color: var(--pp-textMuted); }
+    .rm-settings-select {
+        padding: 5px 10px; border-radius: 8px; font-size: 13px; font-weight: 600;
+        background: var(--pp-surface); color: var(--pp-text); border: 1px solid var(--pp-border);
+        cursor: pointer; font-family: inherit;
+    }
+    .rm-settings-stat {
+        font-size: 12.5px; color: var(--pp-textDim); font-weight: 500;
+    }
+    .rm-settings-stat strong { color: var(--pp-textMuted); }
+
+    .rm-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+    .rm-table th {
+        font-size: 11.5px; font-weight: 700; color: var(--pp-textDim);
+        text-transform: uppercase; letter-spacing: 0.06em; padding: 10px 12px;
+        text-align: left; border-bottom: 1px solid var(--pp-border);
+    }
+    .rm-table td {
+        padding: 10px 12px; font-size: 13.5px; border-bottom: 1px solid rgba(255,255,255,0.03);
+        vertical-align: middle;
+    }
+    .rm-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .rm-table td:first-child, .rm-table th:first-child { width: 40px; text-align: center; }
+
+    .rm-checkbox {
+        width: 16px; height: 16px; accent-color: var(--pp-accent); cursor: pointer;
+    }
+
+    .rm-source-select {
+        padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600;
+        background: var(--pp-bg); color: var(--pp-text); border: 1px solid var(--pp-border);
+        cursor: pointer; font-family: inherit; width: 120px;
+    }
+
+    .rm-badge-bekannt {
+        display: inline-flex; padding: 2px 8px; border-radius: 6px;
+        font-size: 11px; font-weight: 700; background: rgba(52,211,153,0.12); color: #34D399;
+    }
+    .rm-badge-erst {
+        display: inline-flex; padding: 2px 8px; border-radius: 6px;
+        font-size: 11px; font-weight: 700; background: rgba(167,139,250,0.12); color: #a78bfa;
+    }
+
+    .rm-footer {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 14px 0 0; border-top: 1px solid var(--pp-border); margin-top: 6px;
+        flex-wrap: wrap; gap: 10px;
+    }
+    .rm-footer-left { display: flex; align-items: center; gap: 12px; }
+    .rm-footer-right { display: flex; align-items: center; gap: 10px; }
+
+    .rm-btn-send {
+        padding: 9px 24px; border-radius: 10px; font-size: 13px; font-weight: 700;
+        background: linear-gradient(135deg, #34D399 0%, #10B981 100%); color: #000;
+        border: none; cursor: pointer; font-family: inherit; transition: all 0.2s;
+    }
+    .rm-btn-send:hover { box-shadow: 0 4px 16px rgba(52,211,153,0.3); transform: translateY(-1px); }
+    .rm-btn-send:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    .rm-btn-skip {
+        padding: 9px 20px; border-radius: 10px; font-size: 13px; font-weight: 600;
+        background: rgba(255,255,255,0.06); color: var(--pp-textMuted);
+        border: 1px solid var(--pp-border); cursor: pointer; font-family: inherit; transition: all 0.2s;
+    }
+    .rm-btn-skip:hover { background: rgba(255,255,255,0.1); }
+
+    .rm-progress {
+        width: 100%; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.06);
+        margin-top: 10px; overflow: hidden;
+    }
+    .rm-progress-bar {
+        height: 100%; border-radius: 3px;
+        background: linear-gradient(90deg, #34D399, #10B981); transition: width 0.5s ease;
+    }
+
+    .rm-legend {
+        display: flex; gap: 16px; font-size: 11.5px; color: var(--pp-textDim);
+        padding: 8px 0 0; flex-wrap: wrap;
+    }
+    .rm-legend-item { display: flex; align-items: center; gap: 5px; }
+
     /* Responsive */
     @media (max-width: 768px) {
         .em-hero { padding: 24px 20px 22px; }
@@ -202,12 +301,13 @@
         .em-section-body { padding: 4px 14px 14px; }
         .em-card-top { flex-direction: column; align-items: flex-start; }
         .em-card-actions { width: 100%; justify-content: flex-end; }
+        .rm-table th:nth-child(4), .rm-table td:nth-child(4) { display: none; }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="em-wrap">
+<div class="em-wrap" x-data="{ tab: 'emails', rmLoaded: false }">
 
     {# ═══════════════════════════════════════
        HERO HEADER
@@ -223,9 +323,16 @@
         </div>
 
         <h1 class="em-hero-title">Email-Dashboard</h1>
-        <p class="em-hero-subtitle">Entwuerfe pruefen, senden, nachverfolgen</p>
+        <p class="em-hero-subtitle" x-text="tab === 'emails' ? 'Entwuerfe pruefen, senden, nachverfolgen' : 'Finance-Kandidaten kontaktieren'"></p>
 
-        <div class="em-stats">
+        {# ── Tab Navigation ── #}
+        <div class="em-tab-nav">
+            <button class="em-tab-btn" :class="tab === 'emails' && 'em-tab-btn--active'" @click="tab = 'emails'">&#x1F4E7; E-Mails</button>
+            <button class="em-tab-btn" :class="tab === 'rundmail' && 'em-tab-btn--active'" @click="tab = 'rundmail'; if (!rmLoaded) { rmLoaded = true; $nextTick(() => htmx.trigger(document.getElementById('rundmail-content'), 'load-rundmail')); }">&#x1F4EE; Rundmail</button>
+        </div>
+
+        {# Stats nur im E-Mails Tab #}
+        <div class="em-stats" x-show="tab === 'emails'" x-transition>
             {% if stats.failed > 0 %}
             <div class="em-stat-card em-stat-card--error">
                 <div class="em-stat-value" id="stat-failed">{{ stats.failed }}</div>
@@ -245,12 +352,32 @@
                 <div class="em-stat-label">7 Tage</div>
             </div>
         </div>
+
+        {# Stats fuer Rundmail Tab #}
+        <div class="em-stats" x-show="tab === 'rundmail'" x-transition x-cloak>
+            <div class="em-stat-card">
+                <div class="em-stat-value" id="stat-rm-today">-</div>
+                <div class="em-stat-label">Heute</div>
+            </div>
+            <div class="em-stat-card em-stat-card--success">
+                <div class="em-stat-value" id="stat-rm-sent">-</div>
+                <div class="em-stat-label">Gesendet</div>
+            </div>
+            <div class="em-stat-card">
+                <div class="em-stat-value" id="stat-rm-total">-</div>
+                <div class="em-stat-label">Gesamt</div>
+            </div>
+            <div class="em-stat-card">
+                <div class="em-stat-value" id="stat-rm-progress">-</div>
+                <div class="em-stat-label">Fortschritt</div>
+            </div>
+        </div>
     </div>
 
     {# ═══════════════════════════════════════
-       CONTENT SECTIONS
+       TAB: E-MAILS (bestehende Sections)
     ═══════════════════════════════════════ #}
-    <div class="em-content">
+    <div class="em-content" x-show="tab === 'emails'" x-transition>
 
         {# ── SEKTION 1: Sofort erledigen (FAILED) ── #}
         {% if stats.failed > 0 %}
@@ -338,6 +465,69 @@
                          hx-trigger="load-history"
                          hx-swap="innerHTML">
                         <div class="em-skeleton"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    {# ═══════════════════════════════════════
+       TAB: RUNDMAIL (Finance-Kandidaten)
+    ═══════════════════════════════════════ #}
+    <div class="em-content" x-show="tab === 'rundmail'" x-transition x-cloak>
+
+        <div class="em-section em-anim">
+            <div class="em-section-head">
+                <div class="em-section-title">
+                    <span style="font-size: 16px;">&#x1F4EE;</span>
+                    Tages-Report
+                    <span class="em-section-count" style="background: rgba(79,140,255,0.1); color: var(--pp-accent);" id="rm-count-badge">-</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span class="rm-settings-label">Max/Postfach:</span>
+                    <select class="rm-settings-select" id="rm-max-per-mailbox" onchange="rmUpdateMax(this.value)">
+                        <option value="30" selected>30</option>
+                        <option value="40">40</option>
+                        <option value="50">50</option>
+                        <option value="60">60</option>
+                    </select>
+                    <span class="rm-settings-stat">= <strong id="rm-total-calc">120</strong> Kandidaten/Tag</span>
+                </div>
+            </div>
+            <div class="em-section-body">
+                {# Rundmail-Inhalt wird per HTMX geladen #}
+                <div id="rundmail-content"
+                     hx-get="/partials/rundmail-daily"
+                     hx-trigger="load-rundmail"
+                     hx-swap="innerHTML">
+                    <div class="em-empty">
+                        <div class="em-empty-icon">&#x1F4EE;</div>
+                        <div class="em-empty-text">Rundmail-Tab laden...</div>
+                        <div class="em-empty-sub">Klicke auf den Tab um den Tages-Report zu laden</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# ── Fortschritt: Gesamte Finance-Kandidaten ── #}
+        <div class="em-section em-anim">
+            <div class="em-section-head">
+                <div class="em-section-title">
+                    <span style="font-size: 16px;">&#x1F4CA;</span>
+                    Gesamtfortschritt
+                </div>
+            </div>
+            <div class="em-section-body">
+                <div id="rundmail-progress"
+                     hx-get="/partials/rundmail-progress"
+                     hx-trigger="load-rundmail"
+                     hx-swap="innerHTML">
+                    <div class="rm-progress">
+                        <div class="rm-progress-bar" style="width: 0%"></div>
+                    </div>
+                    <div class="rm-settings-stat" style="margin-top: 8px; text-align: center;">
+                        Lade Fortschrittsdaten...
                     </div>
                 </div>
             </div>
@@ -450,6 +640,118 @@ async function emRefreshStats() {
         if (el('stat-failed')) el('stat-failed').textContent = s.failed;
         if (el('stat-7d')) el('stat-7d').textContent = s.sent_7d;
     } catch (e) { /* silent */ }
+}
+
+/* ════════════════════════════════════
+   RUNDMAIL FUNKTIONEN
+════════════════════════════════════ */
+
+// Max pro Postfach aktualisieren
+function rmUpdateMax(val) {
+    const total = parseInt(val) * 4;
+    const el = document.getElementById('rm-total-calc');
+    if (el) el.textContent = total;
+}
+
+// Alle Checkboxen togglen
+function rmToggleAll(masterCb) {
+    document.querySelectorAll('.rm-item-cb').forEach(cb => {
+        cb.checked = masterCb.checked;
+    });
+    rmUpdateCount();
+}
+
+// Anzahl ausgewaehlter Kandidaten aktualisieren
+function rmUpdateCount() {
+    const checked = document.querySelectorAll('.rm-item-cb:checked').length;
+    const btn = document.getElementById('rm-send-btn');
+    if (btn) {
+        btn.textContent = checked > 0 ? 'Ausgewaehlte senden (' + checked + ')' : 'Keine ausgewaehlt';
+        btn.disabled = checked === 0;
+    }
+}
+
+// Quelle eines Items per HTMX PATCH speichern
+async function rmUpdateSource(itemId, source) {
+    try {
+        const csrf = await emGetCsrf();
+        const resp = await fetch('/api/email-automation/outreach/items/' + itemId + '/source', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+            body: JSON.stringify({ source: source })
+        });
+        if (resp.ok) {
+            const data = await resp.json();
+            // Kampagnen-Typ Badge aktualisieren
+            const badge = document.getElementById('rm-type-' + itemId);
+            if (badge) {
+                if (source === 'Bestand') {
+                    badge.className = 'rm-badge-bekannt';
+                    badge.textContent = 'Bekannt';
+                } else {
+                    badge.className = 'rm-badge-erst';
+                    badge.textContent = 'Erst.';
+                }
+            }
+        }
+    } catch (e) { /* silent */ }
+}
+
+// Ausgewaehlte Kandidaten senden
+async function rmSendSelected(btn) {
+    const checked = document.querySelectorAll('.rm-item-cb:checked');
+    if (checked.length === 0) return;
+
+    const itemIds = Array.from(checked).map(cb => cb.dataset.itemId);
+    const maxPerMailbox = parseInt(document.getElementById('rm-max-per-mailbox').value);
+
+    btn.disabled = true;
+    const orig = btn.textContent;
+    btn.textContent = 'Wird gesendet...';
+
+    try {
+        const csrf = await emGetCsrf();
+        const resp = await fetch('/api/email-automation/outreach/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+            body: JSON.stringify({ item_ids: itemIds, max_per_mailbox: maxPerMailbox })
+        });
+        const data = await resp.json();
+        if (resp.ok) {
+            showToast(data.sent_count + ' Kandidaten an Instantly uebergeben', 'success');
+            // Rundmail-Tab neu laden
+            htmx.trigger(document.getElementById('rundmail-content'), 'load-rundmail');
+            htmx.trigger(document.getElementById('rundmail-progress'), 'load-rundmail');
+        } else {
+            showToast(data.error || 'Senden fehlgeschlagen', 'error');
+            btn.disabled = false;
+            btn.textContent = orig;
+        }
+    } catch (e) {
+        showToast('Netzwerkfehler', 'error');
+        btn.disabled = false;
+        btn.textContent = orig;
+    }
+}
+
+// Alle ueberspringen
+async function rmSkipAll(btn) {
+    if (!confirm('Heutige Rundmail ueberspringen? (Kandidaten werden morgen erneut vorgeschlagen)')) return;
+    btn.disabled = true;
+    try {
+        const csrf = await emGetCsrf();
+        const resp = await fetch('/api/email-automation/outreach/skip-daily', {
+            method: 'POST',
+            headers: { 'X-CSRF-Token': csrf }
+        });
+        if (resp.ok) {
+            showToast('Tages-Rundmail uebersprungen', 'info');
+            htmx.trigger(document.getElementById('rundmail-content'), 'load-rundmail');
+        }
+    } catch (e) {
+        showToast('Fehler', 'error');
+        btn.disabled = false;
+    }
 }
 </script>
 {% endblock %}

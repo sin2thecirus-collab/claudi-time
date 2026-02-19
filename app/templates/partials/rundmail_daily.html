@@ -1,0 +1,137 @@
+{# Partial: Rundmail Tages-Report — Tabelle mit Kandidaten #}
+<div id="rundmail-loaded"></div>
+
+{% if items | length == 0 %}
+<div class="em-empty">
+    <div class="em-empty-icon">&#x1F4EE;</div>
+    <div class="em-empty-text">Keine Kandidaten fuer heute vorbereitet</div>
+    <div class="em-empty-sub">
+        {% if not batch %}
+            Der Tages-Batch wurde noch nicht erstellt. n8n erstellt ihn taeglich um 6:00 Uhr,
+            oder du kannst ihn manuell ueber die API triggern.
+        {% elif batch.status == 'sent' %}
+            Alle Kandidaten von heute wurden bereits versendet.
+        {% elif batch.status == 'cancelled' %}
+            Heutiger Batch wurde uebersprungen.
+        {% endif %}
+    </div>
+</div>
+{% else %}
+
+{# Legende #}
+<div class="rm-legend" style="margin-bottom: 10px;">
+    <div class="rm-legend-item">
+        <span class="rm-badge-bekannt">Bekannt</span>
+        <span>= Hallo Herr/Frau (Bestand)</span>
+    </div>
+    <div class="rm-legend-item">
+        <span class="rm-badge-erst">Erst.</span>
+        <span>= Sehr geehrte/r Herr/Frau (Erstkontakt)</span>
+    </div>
+</div>
+
+<table class="rm-table">
+    <thead>
+        <tr>
+            <th><input type="checkbox" class="rm-checkbox" onchange="rmToggleAll(this)" checked></th>
+            <th>Vorname</th>
+            <th>Nachname</th>
+            <th>Stadt</th>
+            <th>Quelle</th>
+            <th>Typ</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in items %}
+        <tr>
+            <td>
+                <input type="checkbox" class="rm-checkbox rm-item-cb"
+                       data-item-id="{{ item.id }}"
+                       onchange="rmUpdateCount()"
+                       {% if item.status == 'prepared' or item.status == 'approved' %}checked{% endif %}
+                       {% if item.status == 'sent' %}disabled{% endif %}>
+            </td>
+            <td>
+                {% if item.candidate %}
+                <a href="/kandidaten/{{ item.candidate_id }}" class="em-name" style="font-size: 13px;">
+                    {{ item.candidate.first_name or '-' }}
+                </a>
+                {% else %}
+                <span style="color: var(--pp-textDim);">-</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if item.candidate %}
+                <span style="font-size: 13px; color: var(--pp-text); font-weight: 500;">
+                    {{ item.candidate.last_name or '-' }}
+                </span>
+                {% else %}
+                <span style="color: var(--pp-textDim);">-</span>
+                {% endif %}
+            </td>
+            <td>
+                <span style="font-size: 12.5px; color: var(--pp-textMuted);">
+                    {{ item.candidate.city if item.candidate and item.candidate.city else '-' }}
+                </span>
+            </td>
+            <td>
+                <select class="rm-source-select"
+                        onchange="rmUpdateSource('{{ item.id }}', this.value)"
+                        {% if item.status == 'sent' %}disabled{% endif %}>
+                    {% set src = item.source_override or (item.candidate.source if item.candidate else '') or '' %}
+                    <option value="Bestand" {% if src == 'Bestand' %}selected{% endif %}>Bestand</option>
+                    <option value="StepStone" {% if src == 'StepStone' %}selected{% endif %}>StepStone</option>
+                    <option value="Indeed" {% if src == 'Indeed' %}selected{% endif %}>Indeed</option>
+                    <option value="XING" {% if src == 'XING' %}selected{% endif %}>XING</option>
+                    <option value="LinkedIn" {% if src == 'LinkedIn' %}selected{% endif %}>LinkedIn</option>
+                    <option value="Sonstige" {% if src not in ['Bestand', 'StepStone', 'Indeed', 'XING', 'LinkedIn'] and src %}selected{% endif %}>Sonstige</option>
+                </select>
+            </td>
+            <td>
+                {% set src = item.source_override or (item.candidate.source if item.candidate else '') or '' %}
+                <span id="rm-type-{{ item.id }}"
+                      class="{% if src == 'Bestand' %}rm-badge-bekannt{% else %}rm-badge-erst{% endif %}">
+                    {% if src == 'Bestand' %}Bekannt{% else %}Erst.{% endif %}
+                </span>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{# Footer mit Aktionen #}
+<div class="rm-footer">
+    <div class="rm-footer-left">
+        <label style="display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--pp-textMuted); cursor: pointer;">
+            <input type="checkbox" class="rm-checkbox" onchange="rmToggleAll(this)" checked>
+            Alle auswaehlen
+        </label>
+        <span class="rm-settings-stat">
+            <strong id="rm-selected-count">{{ items | length }}</strong> von {{ items | length }} ausgewaehlt
+        </span>
+    </div>
+    <div class="rm-footer-right">
+        <button class="rm-btn-skip" onclick="rmSkipAll(this)">Ueberspringen</button>
+        <button class="rm-btn-send" id="rm-send-btn" onclick="rmSendSelected(this)">
+            Ausgewaehlte senden ({{ items | length }})
+        </button>
+    </div>
+</div>
+
+{% endif %}
+
+<script>
+// Initiale Zaehlung nach Laden
+(function() {
+    const count = document.querySelectorAll('.rm-item-cb:checked').length;
+    const btn = document.getElementById('rm-send-btn');
+    if (btn) {
+        btn.textContent = count > 0 ? 'Ausgewaehlte senden (' + count + ')' : 'Keine ausgewaehlt';
+        btn.disabled = count === 0;
+    }
+    // Stats aktualisieren
+    const el = (id) => document.getElementById(id);
+    if (el('rm-count-badge')) el('rm-count-badge').textContent = '{{ items | length }}';
+    if (el('stat-rm-today')) el('stat-rm-today').textContent = '{{ items | length }}';
+})();
+</script>

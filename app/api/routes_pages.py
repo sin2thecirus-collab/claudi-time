@@ -2233,3 +2233,176 @@ async def emails_history_partial(
         "request": request,
         "emails": history,
     })
+
+
+# ── Rundmail Partials ──
+
+@router.get("/partials/rundmail-daily", response_class=HTMLResponse)
+async def rundmail_daily_partial(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Partial: Rundmail Tages-Report — Kandidaten-Tabelle mit Checkboxen."""
+    from datetime import date as dt_date
+    from sqlalchemy import text as sa_text
+
+    today = dt_date.today()
+    batch = None
+    items = []
+
+    try:
+        # Heutigen Batch laden
+        result = await db.execute(
+            sa_text("""
+                SELECT id, batch_date, total_candidates, approved_count, sent_count, skipped_count, status, max_per_mailbox
+                FROM outreach_batches
+                WHERE batch_date = :today
+                ORDER BY created_at DESC LIMIT 1
+            """),
+            {"today": today},
+        )
+        batch_row = result.fetchone()
+
+        if batch_row:
+            batch = {
+                "id": batch_row[0],
+                "batch_date": batch_row[1],
+                "total_candidates": batch_row[2],
+                "approved_count": batch_row[3],
+                "sent_count": batch_row[4],
+                "skipped_count": batch_row[5],
+                "status": batch_row[6],
+                "max_per_mailbox": batch_row[7],
+            }
+
+            # Items fuer diesen Batch laden (mit Kandidaten-Daten)
+            items_result = await db.execute(
+                sa_text("""
+                    SELECT oi.id, oi.candidate_id, oi.campaign_type, oi.source_override, oi.status,
+                           c.first_name, c.last_name, c.city, c.source, c.gender, c.email
+                    FROM outreach_items oi
+                    LEFT JOIN candidates c ON c.id = oi.candidate_id
+                    WHERE oi.batch_id = :batch_id
+                    ORDER BY c.last_name ASC, c.first_name ASC
+                """),
+                {"batch_id": batch_row[0]},
+            )
+            for row in items_result.fetchall():
+                items.append({
+                    "id": str(row[0]),
+                    "candidate_id": str(row[1]),
+                    "campaign_type": row[2],
+                    "source_override": row[3],
+                    "status": row[4],
+                    "candidate": {
+                        "first_name": row[5],
+                        "last_name": row[6],
+                        "city": row[7],
+                        "source": row[8],
+                        "gender": row[9],
+                        "email": row[10],
+                    } if row[5] or row[6] else None,
+                })
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Rundmail-Partial Fehler: {e}")
+
+    return templates.TemplateResponse("partials/rundmail_daily.html", {
+        "request": request,
+        "batch": batch,
+        "items": items,
+    })
+
+
+@router.get("/partials/rundmail-progress", response_class=HTMLResponse)
+async def rundmail_progress_partial(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Partial: Rundmail Gesamtfortschritt ueber alle Finance-Kandidaten."""
+    from sqlalchemy import text as sa_text
+
+    progress = {
+        "total": 0,
+        "contacted": 0,
+        "sent": 0,
+        "replied": 0,
+        "no_interest": 0,
+        "remaining": 0,
+        "percent": 0,
+    }
+
+    try:
+        # Gesamtzahl Finance-Kandidaten (haben classification_data mit primary_role)
+        total_result = await db.execute(
+            sa_text("""
+                SELECT COUNT(*) FROM candidates
+                WHERE classification_data IS NOT NULL
+                  AND classification_data->>'primary_role' IS NOT NULL
+                  AND classification_data->>'primary_role' != ''
+                  AND email IS NOT NULL
+                  AND email != ''
+                  AND (hidden = false OR hidden IS NULL)
+                  AND deleted_at IS NULL
+            """)
+        )
+        progress["total"] = total_result.scalar() or 0
+
+        # Bereits kontaktierte (contact_status gesetzt)
+        contacted_result = await db.execute(
+            sa_text("""
+                SELECT COUNT(*) FROM candidates
+                WHERE classification_data IS NOT NULL
+                  AND classification_data->>'primary_role' IS NOT NULL
+                  AND classification_data->>'primary_role' != ''
+                  AND email IS NOT NULL AND email != ''
+                  AND (hidden = false OR hidden IS NULL)
+                  AND deleted_at IS NULL
+                  AND contact_status IS NOT NULL
+                  AND contact_status != ''
+            """)
+        )
+        progress["contacted"] = contacted_result.scalar() or 0
+
+        # Gesendet
+        sent_result = await db.execute(
+            sa_text("""
+                SELECT COUNT(*) FROM candidates
+                WHERE contact_status IN ('rundmail_gesendet', 'email_sequenz_aktiv', 'sequenz_abgeschlossen')
+                  AND (hidden = false OR hidden IS NULL) AND deleted_at IS NULL
+            """)
+        )
+        progress["sent"] = sent_result.scalar() or 0
+
+        # Geantwortet
+        replied_result = await db.execute(
+            sa_text("""
+                SELECT COUNT(*) FROM candidates
+                WHERE contact_status = 'geantwortet'
+                  AND (hidden = false OR hidden IS NULL) AND deleted_at IS NULL
+            """)
+        )
+        progress["replied"] = replied_result.scalar() or 0
+
+        # Kein Interesse
+        no_interest_result = await db.execute(
+            sa_text("""
+                SELECT COUNT(*) FROM candidates
+                WHERE contact_status = 'kein_interesse'
+                  AND (hidden = false OR hidden IS NULL) AND deleted_at IS NULL
+            """)
+        )
+        progress["no_interest"] = no_interest_result.scalar() or 0
+
+        progress["remaining"] = progress["total"] - progress["contacted"]
+        if progress["total"] > 0:
+            progress["percent"] = round((progress["contacted"] / progress["total"]) * 100, 1)
+
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Rundmail-Progress Fehler: {e}")
+
+    return templates.TemplateResponse("partials/rundmail_progress.html", {
+        "request": request,
+        "progress": progress,
+    })
