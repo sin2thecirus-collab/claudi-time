@@ -982,6 +982,10 @@ async def update_gender(
             "error": f"Ungueltiger Gender-Wert: '{new_gender}'. Erlaubt: 'Herr', 'Frau', null"
         })
 
+    # Null -> "Unbekannt" um Endlosschleife zu vermeiden
+    if new_gender is None:
+        new_gender = "Unbekannt"
+
     old_gender = candidate.gender
     candidate.gender = new_gender
     await db.flush()
@@ -1020,6 +1024,11 @@ async def batch_update_gender(
         if gender is not None and gender not in ("Herr", "Frau"):
             errors.append({"id": cid, "error": f"Ungueltiger Wert: '{gender}'"})
             continue
+
+        # Null/None -> "Unbekannt" damit der Kandidat nicht erneut vom
+        # candidates-without Endpoint zurueckgegeben wird (Endlosschleife)
+        if gender is None:
+            gender = "Unbekannt"
 
         try:
             candidate = await db.get(Candidate, cid)
