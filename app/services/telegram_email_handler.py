@@ -28,14 +28,15 @@ Du schreibst professionelle, freundliche Emails auf Deutsch in Milads Namen. Der
 REGELN:
 1. Schreibe die Email so, als wuerde Milad sie selbst schreiben
 2. IMMER "Sie" verwenden — egal ob Kandidat oder Firmenkontakt
-3. Verwende KEINE Emojis in der Email
-4. Beende JEDE Email mit:
+3. Verwende die ANREDE aus den Empfaengerdaten: Wenn "Herr" -> "Sehr geehrter Herr [Nachname]", wenn "Frau" -> "Sehr geehrte Frau [Nachname]". Wenn keine Anrede vorhanden: "Guten Tag [Vorname] [Nachname]"
+4. Verwende KEINE Emojis in der Email
+5. Beende JEDE Email mit:
    Mit freundlichen Gruessen
    Milad Hamdard
    Sincirus GmbH
    Tel: +49 173 3665239
-5. Wenn der User eine bestimmte Information erwaehnt (Termin, Ort, Zeit), baue sie EXAKT ein
-6. Wenn der User keinen Betreff nennt, erstelle einen passenden kurzen Betreff
+6. Wenn der User eine bestimmte Information erwaehnt (Termin, Ort, Zeit), baue sie EXAKT ein
+7. Wenn der User keinen Betreff nennt, erstelle einen passenden kurzen Betreff
 
 Antworte IMMER als JSON:
 {
@@ -182,6 +183,7 @@ async def _find_recipient(name: str) -> dict | None:
                     "type": "candidate",
                     "id": str(c.id),
                     "first_name": c.first_name or "",
+                    "salutation": c.gender or "",  # "Herr" / "Frau"
                 }
 
         # 2. Kontakt suchen
@@ -201,6 +203,7 @@ async def _find_recipient(name: str) -> dict | None:
                     "type": "contact",
                     "id": str(ct.id),
                     "first_name": ct.name.split()[0] if ct.name else "",
+                    "salutation": ct.salutation or "",  # "Herr" / "Frau"
                 }
 
         return None
@@ -220,8 +223,15 @@ async def _generate_email(user_instruction: str, recipient: dict) -> dict | None
         return None
 
     today = datetime.now().strftime("%d.%m.%Y")
+    salutation = recipient.get("salutation", "")
+    # Nachname extrahieren (letztes Wort des Namens)
+    name_parts = recipient["name"].split()
+    last_name = name_parts[-1] if name_parts else recipient["name"]
+
     recipient_context = (
         f"Empfaenger: {recipient['name']} ({recipient['type']})\n"
+        f"Anrede: {salutation or 'keine Anrede hinterlegt'}\n"
+        f"Nachname: {last_name}\n"
         f"Vorname: {recipient.get('first_name', '')}\n"
         f"Email: {recipient['email']}\n"
         f"Heutiges Datum: {today}"
