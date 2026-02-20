@@ -73,6 +73,13 @@ async def lifespan(app: FastAPI):
     # Restliche Migrationen im Hintergrund starten
     _db_migration_task = asyncio.create_task(_run_migrations())
 
+    # Telegram Webhook registrieren (nicht-blockierend)
+    try:
+        from app.api.routes_telegram import register_webhook
+        asyncio.create_task(register_webhook())
+    except Exception as e:
+        logger.warning(f"Telegram Webhook Registrierung fehlgeschlagen: {e}")
+
     yield
 
     # Shutdown: Migration-Task abbrechen falls noch laeuft
@@ -405,6 +412,10 @@ app.include_router(n8n_webhooks_router, prefix="/api")  # n8n Webhooks (/api/n8n
 app.include_router(email_router, prefix="/api")  # Email-Drafts (/api/email/...)
 app.include_router(briefing_router, prefix="/api")  # Morning Briefing (/api/briefing/...)
 app.include_router(email_automation_router, prefix="/api")  # E-Mail-Automatisierung (/api/email-automation/...)
+
+# Telegram Bot Webhook (/api/telegram/...)
+from app.api.routes_telegram import router as telegram_router
+app.include_router(telegram_router, prefix="/api")
 
 # Matching Engine v2 (/api/v2/profiles/..., /api/v2/weights, /api/v2/rules)
 app.include_router(matching_v2_router, prefix="/api/v2")

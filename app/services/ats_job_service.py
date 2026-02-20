@@ -89,16 +89,77 @@ class ATSJobService:
         return result.scalar_one_or_none()
 
     async def update_job(self, job_id: UUID, data: dict) -> ATSJob | None:
-        """Aktualisiert eine ATS-Stelle."""
+        """Aktualisiert eine ATS-Stelle.
+
+        Felder die manuell geaendert werden, werden in manual_overrides
+        markiert, damit der Job-Stelle-Sync sie nicht ueberschreibt.
+        """
         job = await self.db.get(ATSJob, job_id)
         if not job:
             return None
+
+        # Felder die vom Sync kommen und als Override getrackt werden
+        syncable_fields = {"title", "description", "location_city", "employment_type"}
+        overrides = dict(job.manual_overrides) if job.manual_overrides else {}
+
         for key, value in data.items():
             if value is not None and hasattr(job, key):
                 setattr(job, key, value)
+                if key in syncable_fields:
+                    overrides[key] = True
+
+        if overrides != (job.manual_overrides or {}):
+            job.manual_overrides = overrides
+
         await self.db.flush()
         logger.info(f"ATSJob aktualisiert: {job.id} - {job.title}")
         return job
+
+    async def update_qualification_fields(
+        self, job_id: UUID, data: dict, overwrite: bool = False
+    ) -> dict:
+        """Aktualisiert Job-Qualifizierungsfelder auf einer ATSJob-Stelle.
+
+        Standardmaessig werden nur NULL-Felder ueberschrieben.
+        Mit overwrite=True werden auch bestehende Werte ersetzt.
+
+        Returns:
+            {"updated_fields": [...], "skipped_fields": [...]}
+        """
+        job = await self.db.get(ATSJob, job_id)
+        if not job:
+            return {"updated_fields": [], "skipped_fields": [], "error": "Job nicht gefunden"}
+
+        quali_fields = [
+            "team_size", "erp_system", "home_office_days", "flextime", "core_hours",
+            "vacation_days", "overtime_handling", "open_office", "english_requirements",
+            "hiring_process_steps", "feedback_timeline", "digitalization_level",
+            "older_candidates_ok", "desired_start_date", "interviews_started",
+            "ideal_candidate_description", "candidate_tasks", "multiple_entities",
+            "task_distribution", "salary_min", "salary_max", "employment_type",
+            "description", "requirements", "location_city",
+        ]
+
+        updated = []
+        skipped = []
+
+        for field in quali_fields:
+            value = data.get(field)
+            if value is None:
+                continue
+            if not hasattr(job, field):
+                continue
+
+            current = getattr(job, field)
+            if current is not None and not overwrite:
+                skipped.append(field)
+            else:
+                setattr(job, field, value)
+                updated.append(field)
+
+        await self.db.flush()
+        logger.info(f"ATSJob Quali-Felder aktualisiert: {job.id}, updated={updated}, skipped={skipped}")
+        return {"updated_fields": updated, "skipped_fields": skipped}
 
     async def delete_job(self, job_id: UUID) -> bool:
         """Loescht eine ATS-Stelle."""

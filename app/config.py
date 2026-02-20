@@ -135,13 +135,27 @@ class Settings(BaseSettings):
     )
     microsoft_sender_email: str = Field(
         default="",
-        description="Absender-Email fuer automatische Emails (z.B. milad@sincirus.de)",
+        description="Absender-Email fuer automatische Emails (z.B. hamdard@sincirus.com)",
     )
 
     # Google Maps
     google_maps_api_key: str = Field(
         default="",
         description="Google Maps API-Schlüssel für Distance Matrix API (Fahrzeit)",
+    )
+
+    # Telegram Bot
+    telegram_bot_token: str = Field(
+        default="",
+        description="Telegram Bot Token (@Sincirusbot)",
+    )
+    telegram_chat_id: str = Field(
+        default="",
+        description="Telegram Chat ID (Milad)",
+    )
+    telegram_webhook_secret: str = Field(
+        default="",
+        description="Secret fuer Telegram Webhook Verifizierung",
     )
 
     # Umgebung

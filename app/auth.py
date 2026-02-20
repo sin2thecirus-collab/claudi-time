@@ -4,6 +4,7 @@ Schuetzt ALLE Endpoints ausser:
 - /health (Railway Health Check)
 - /login (Login-Seite + Form-Submit)
 - /api/n8n/* (Bearer-Token Schutz via eigene Middleware)
+- /api/telegram/* (Telegram Webhook Secret-Token Auth)
 - /static/* (CSS, JS, Bilder)
 """
 
@@ -114,6 +115,7 @@ PUBLIC_PATHS = frozenset({
 PUBLIC_PREFIXES = (
     "/static/",
     "/api/n8n/",  # n8n Webhooks haben eigene Bearer-Token Auth
+    "/api/telegram/",  # Telegram Webhook hat eigene Secret-Token Auth
 )
 
 

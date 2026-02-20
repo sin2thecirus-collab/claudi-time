@@ -6,7 +6,7 @@ from datetime import datetime
 
 from geoalchemy2 import Geography
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Index, Integer, String, Text, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -111,6 +111,9 @@ class ATSJob(Base):
     candidate_tasks: Mapped[str | None] = mapped_column(Text)
     multiple_entities: Mapped[bool | None] = mapped_column(Boolean)
     task_distribution: Mapped[str | None] = mapped_column(String(500))
+
+    # Sync: Manuell ueberschriebene Felder (z.B. {"title": true, "salary_min": true})
+    manual_overrides: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     # FK zum Ursprungs-Call (Job-Quali)
     source_call_note_id: Mapped[uuid.UUID | None] = mapped_column(

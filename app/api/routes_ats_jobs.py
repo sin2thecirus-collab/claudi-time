@@ -4,6 +4,7 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -293,3 +294,28 @@ async def remove_job_from_pipeline(job_id: UUID, db: AsyncSession = Depends(get_
         "id": str(job.id),
         "in_pipeline": False,
     }
+
+
+@router.get("/{job_id}/pdf")
+async def generate_stelle_pdf(
+    job_id: UUID,
+    candidate_id: Optional[UUID] = Query(None, description="Optional: Kandidat fuer personalisierte Fahrzeit"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Generiert ein Sincirus-Branded PDF fuer eine qualifizierte Stelle.
+
+    Optional mit personalisierter Google Maps Fahrzeit wenn candidate_id angegeben.
+    """
+    from app.services.ats_job_pdf_service import ATSJobPdfService
+
+    service = ATSJobPdfService(db)
+    try:
+        pdf_bytes = await service.generate_stelle_pdf(job_id, candidate_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"inline; filename=Stelle_{job_id}.pdf"},
+    )

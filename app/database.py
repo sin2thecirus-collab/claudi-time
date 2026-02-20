@@ -1142,6 +1142,8 @@ async def init_db() -> None:
         ("company_contacts", "contact_number", "INTEGER"),
         # ── E-Mail-Automatisierung: contact_status fuer Sequenz-Tracking ──
         ("candidates", "contact_status", "VARCHAR(50)"),
+        # ── Job-Stelle Sync: Manual Overrides Tracking ──
+        ("ats_jobs", "manual_overrides", "JSONB"),
     ]
     for table_name, col_name, col_type in migrations:
         try:
