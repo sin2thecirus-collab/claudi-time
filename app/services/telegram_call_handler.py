@@ -1,28 +1,111 @@
 """Telegram Call Handler — Call-Logging via Telegram Voice/Text.
 
-Verarbeitet Anrufzusammenfassungen die per Telegram gesendet werden.
-Erkennt automatisch ob es ein Kandidaten- oder Kundengespräch war.
-Nutzt die bestehende CallTranscriptionService Pipeline.
+Verwendet den gleichen GPT-Prompt wie der Webex n8n Workflow
+und die gleiche store-or-assign Pipeline fuer einheitliche Verarbeitung.
 """
 
+import json
 import logging
-from datetime import date, datetime, timezone
-from uuid import UUID
+from datetime import datetime, timezone
+
+import httpx
 
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Felder die vom Job-Quali Ergebnis auf ATSJob gemappt werden
-QUALIFICATION_FIELDS = [
-    "team_size", "erp_system", "home_office_days", "flextime", "core_hours",
-    "vacation_days", "overtime_handling", "open_office", "english_requirements",
-    "hiring_process_steps", "feedback_timeline", "digitalization_level",
-    "older_candidates_ok", "desired_start_date", "interviews_started",
-    "ideal_candidate_description", "candidate_tasks", "multiple_entities",
-    "task_distribution", "salary_min", "salary_max", "employment_type",
-    "description", "requirements",
-]
+# ── GPT System-Prompt: Identisch mit dem Webex n8n Workflow ──
+CALL_EXTRACTION_SYSTEM_PROMPT = (
+    "Du bist ein Recruiting-Assistent fuer eine Personalberatung (Sincirus GmbH). "
+    "Du analysierst Transkripte von Telefongespraechen, klassifizierst sie und "
+    "extrahierst strukturierte Daten. Antworte IMMER als valides JSON-Objekt. "
+    "Wenn eine Information nicht im Gespraech erwaehnt wird, setze den Wert auf null.\n\n"
+    "=== KLASSIFIZIERUNG (call_type) - HARTE REGELN ===\n\n"
+    "Die 2 PFLICHT-Themen fuer ein Qualifizierungsgespraech sind:\n"
+    "(1) Gehaltsvorstellung\n"
+    "(2) Kuendigungsfrist\n\n"
+    "Klassifizierung:\n\n"
+    '1. "qualifizierung" - Sobald BEIDE Pflicht-Themen (Gehalt UND Kuendigungsfrist) '
+    "im Gespraech genannt werden, ist es IMMER ein Qualifizierungsgespraech. "
+    "Egal wie kurz das Gespraech ist. Egal ob andere Themen fehlen. "
+    "Diese 2 Themen sind der einzige Massstab.\n\n"
+    '2. "kurzer_call" - Kandidatengespraech bei dem NICHT beide Pflicht-Themen '
+    "besprochen wurden. Z.B. Terminvereinbarung, Status-Update, Erstansprache, "
+    "nur Gehalt ODER nur Kuendigungsfrist erwaehnt.\n\n"
+    '3. "akquise" - Gespraech mit Unternehmen/Kunden (NICHT mit Kandidaten): '
+    "Vorstellung, Auftragsannahme, Stellenbesprechung, Feedback\n\n"
+    '4. "sonstiges" - Alles andere: Interne Gespraeche, Testanrufe, nicht erkennbar\n\n'
+    "=== DATENEXTRAKTION ===\n"
+    "Extrahiere IMMER alle Felder. Bei kurzen Gespraechen sind die meisten null - das ist OK.\n\n"
+    "=== ZUSAMMENFASSUNG (call_summary) ===\n"
+    'SCHREIBE NIEMALS Dinge wie "KI-transkribiertes Gespraech" oder "automatisch erfasstes Telefonat". '
+    "Schreibe IMMER eine inhaltliche Zusammenfassung: Was wurde besprochen? "
+    "Was sind die Ergebnisse? Was sind die naechsten Schritte? 2-4 Saetze.\n\n"
+    "=== ACTION ITEMS / FOLLOW-UPS (WICHTIG!) ===\n"
+    "Analysiere das Gespraech GRUENDLICH auf ALLE Aufgaben, Zusagen und Vereinbarungen.\n\n"
+    "REGELN fuer Action Items:\n"
+    "1. PERSPEKTIVE: Schreibe IMMER aus Sicht des Recruiters (Sincirus). "
+    "Der Recruiter liest diese Aufgaben.\n"
+    "2. KANDIDATEN-NAME: Nenne IMMER den Namen des Kandidaten/Kontakts im Titel, "
+    "damit man nach 2 Wochen noch weiss worum es geht.\n"
+    "3. KONTEXT: Schreibe KONKRET was zu tun ist, nicht vage Saetze.\n"
+    "4. CONTEXT-FELD: Ergaenze zu jeder Aufgabe 2-3 Saetze Kontext: Was genau wurde "
+    "besprochen? Warum ist diese Aufgabe wichtig? Welche Details aus dem Gespraech sind relevant?\n"
+    '5. UHRZEIT: Wenn im Gespraech eine Uhrzeit genannt wird, extrahiere diese als due_time im Format "HH:MM".\n'
+    '6. IMPLIZITE AUFGABEN ERFASSEN: Wenn der Kandidat sagt "Ich spreche Montag mit meinem Chef" '
+    'oder "Ich klaere das naechste Woche", dann erstelle IMMER eine Follow-up-Aufgabe fuer den Recruiter.\n'
+    '7. GUTE Beispiele: "Max Mueller: CV-Eingang pruefen", "Anna Schmidt: Rueckruf um 14:00", '
+    '"Thomas Weber: Follow-up nach Chef-Gespraech"\n'
+    '8. SCHLECHTE Beispiele: "Lebenslauf erhalten", "Nach dem Gespraech fragen"\n\n'
+    "Jedes Action Item: {title, context (2-3 Saetze Kontext), due_date (ISO), "
+    'due_time ("HH:MM" oder null), priority (hoch/mittel/niedrig)}\n\n'
+    "=== ERLEDIGTE AUFGABEN (completed_tasks) ===\n"
+    "Analysiere ob in diesem Gespraech BESTEHENDE Aufgaben erledigt wurden.\n"
+    "Indikatoren: Versprochener Rueckruf durchgefuehrt, zugesagte Info geliefert, "
+    "vereinbarter Termin eingehalten, Kandidat hat etwas erledigt das er zuvor angekuendigt hatte, "
+    "Feedback gegeben das vorher ausstehend war.\n"
+    "Fuer jede Erledigung: {reason, match_hint (Schlagwoerter komma-separiert), person_name}\n"
+    "Wenn nichts erledigt: null oder leeres Array.\n\n"
+    "=== EMAIL-AKTIONEN (email_actions) ===\n"
+    "Wenn im Gespraech eine Email/WhatsApp versprochen wird:\n"
+    '1. "kontaktdaten" - Recruiter schickt Kontaktdaten (IMMER bei Qualifizierung)\n'
+    '2. "stellenausschreibung" - Konkrete Stelle per Email. Extrahiere job_keywords.\n'
+    '3. "individuell" - Andere Email-Zusagen.\n'
+    "Jede email_action: {type, description, job_keywords (nur bei stellenausschreibung), urgency}"
+)
+
+
+def _build_call_extraction_user_prompt(transcript: str) -> str:
+    """Baut den User-Prompt fuer die Call-Extraktion (identisch mit n8n Workflow)."""
+    today = datetime.now().strftime("%Y-%m-%d")
+    return (
+        f"Heutiges Datum: {today}\n\n"
+        "Analysiere das folgende Transkript und extrahiere als JSON:\n\n"
+        "Felder:\n"
+        '- call_type (string): "qualifizierung" / "kurzer_call" / "akquise" / "sonstiges"\n'
+        "- pflichtthemen_erkannt (object): {gehalt: true/false, kuendigungsfrist: true/false}\n"
+        "- desired_positions (string[]): Gesuchte Positionen/Rollen\n"
+        "- key_activities (string[]): Haupttaetigkeiten des Kandidaten\n"
+        "- home_office_days (number|null): Home-Office Tage/Woche\n"
+        "- commute_max (string|null): Max. Pendelzeit/-entfernung\n"
+        "- commute_transport (string|null): Auto/OePNV/beides\n"
+        "- erp_main (string|null): Hauptsaechliches ERP-System\n"
+        "- employment_type (string|null): Vollzeit/Teilzeit\n"
+        "- part_time_hours (number|null): Teilzeit-Stunden/Woche\n"
+        "- preferred_industries (string[]): Bevorzugte Branchen\n"
+        "- avoided_industries (string[]): Branchen vermeiden\n"
+        "- salary (string|null): Gehaltsvorstellung\n"
+        "- notice_period (string|null): Kuendigungsfrist\n"
+        "- willingness_to_change (string): ja/nein/unklar\n"
+        "- call_summary (string): Inhaltliche Zusammenfassung 2-4 Saetze\n"
+        "- action_items (array|null): [{title, context, due_date, due_time, priority}] "
+        "-- Kandidatenname in jeden Titel! context = 2-3 Saetze Kontext!\n"
+        "- completed_tasks (array|null): [{reason, match_hint, person_name}] "
+        "-- Aufgaben die in diesem Gespraech ERLEDIGT wurden.\n"
+        "- email_actions (array|null): [{type, description, job_keywords, urgency}] "
+        "-- Email/WhatsApp-Versprechen.\n\n"
+        f"TRANSKRIPT:\n{transcript}"
+    )
 
 
 async def handle_call_log(
@@ -32,34 +115,58 @@ async def handle_call_log(
 ) -> None:
     """Verarbeitet eine Call-Log Nachricht aus Telegram.
 
-    Flow:
-    1. GPT: Ist es ein Kandidaten- oder Kundengespräch?
-    2. Entity Resolution: Firma/Kandidat im System suchen
-    3. Daten extrahieren (CallTranscriptionService)
-    4. ATSCallNote erstellen
-    5. Bei Job-Quali: ATSJob-Felder updaten
-    6. Todos aus Action Items erstellen
-    7. Zusammenfassung an Telegram senden
+    Nutzt den gleichen GPT-Prompt wie der Webex n8n Workflow und
+    schickt das Ergebnis an die store-or-assign Pipeline.
     """
     try:
         from app.services.telegram_bot_service import send_message
 
-        # Schritt 1: Gesprächstyp klassifizieren
-        call_type, classification = await _classify_call_type(text)
+        await send_message("Analysiere Gespraech...", chat_id=chat_id)
 
-        if call_type == "candidate":
-            await _handle_candidate_call(chat_id, text, classification)
-        elif call_type == "customer":
-            await _handle_customer_call(chat_id, text, classification)
-        else:
+        # ── Schritt 1: GPT-Extraktion (gleicher Prompt wie Webex n8n) ──
+        extracted_data = await _extract_call_data(text)
+        if not extracted_data:
             await send_message(
-                "<b>Anruf protokolliert</b>\n\n"
-                f"<i>Typ: Sonstiges</i>\n\n"
-                f"{text[:300]}...\n\n"
-                "Konnte keinen Kandidaten oder Kunden zuordnen. "
-                "Bitte manuell im System erfassen.",
+                "Konnte das Gespraech nicht analysieren. Bitte erneut versuchen.",
                 chat_id=chat_id,
             )
+            return
+
+        call_type = extracted_data.get("call_type", "sonstiges")
+        summary = extracted_data.get("call_summary", text[:500])
+
+        # ── Schritt 2: An store-or-assign Pipeline senden ──
+        mt_payload = {
+            "call_desired_positions": extracted_data.get("desired_positions", []),
+            "call_key_activities": extracted_data.get("key_activities", []),
+            "call_home_office": extracted_data.get("home_office_days"),
+            "call_commute_willingness": extracted_data.get("commute_max"),
+            "call_transport": extracted_data.get("commute_transport"),
+            "call_erp_specialty": extracted_data.get("erp_main"),
+            "call_employment_type": extracted_data.get("employment_type"),
+            "call_part_time_hours": extracted_data.get("part_time_hours"),
+            "call_preferred_industries": extracted_data.get("preferred_industries", []),
+            "call_avoided_industries": extracted_data.get("avoided_industries", []),
+            "call_salary": extracted_data.get("salary"),
+            "call_notice_period": extracted_data.get("notice_period"),
+            "call_willingness_to_change": extracted_data.get("willingness_to_change"),
+            "call_summary": summary,
+            "last_call_date": datetime.now(timezone.utc).isoformat(),
+            "completed_tasks": extracted_data.get("completed_tasks", []),
+        }
+
+        # Intern die store-or-assign Logik aufrufen (direkt via Service, nicht HTTP)
+        assign_result = await _call_store_or_assign(
+            call_type=call_type,
+            transcript=text if call_type == "qualifizierung" else "",
+            call_summary=summary,
+            extracted_data=extracted_data,
+            mt_payload=mt_payload,
+        )
+
+        # ── Schritt 3: Telegram-Antwort formatieren ──
+        msg = _format_telegram_response(call_type, extracted_data, assign_result)
+        await send_message(msg, chat_id=chat_id)
 
     except Exception as e:
         logger.error(f"Call-Log Verarbeitung fehlgeschlagen: {e}", exc_info=True)
@@ -70,30 +177,17 @@ async def handle_call_log(
         )
 
 
-async def _classify_call_type(text: str) -> tuple[str, dict]:
-    """Klassifiziert ob es ein Kandidaten- oder Kundengespräch ist.
+async def _extract_call_data(transcript: str) -> dict | None:
+    """Extrahiert strukturierte Daten aus einem Gespraechstranskript via GPT-4o-mini.
 
-    Returns:
-        ("candidate" | "customer" | "unknown", classification_dict)
+    Verwendet den identischen Prompt wie der Webex n8n Workflow.
     """
-    import json
-    import httpx
-
-    prompt = """Analysiere diese Gesprächszusammenfassung und bestimme:
-1. Ist es ein Gespräch mit einem KANDIDATEN (Bewerber, Jobsuchender) oder einem KUNDEN (Firma, Ansprechpartner)?
-2. Extrahiere den Namen der Person/Firma.
-
-Antworte NUR als JSON:
-{
-  "type": "candidate" | "customer" | "unknown",
-  "person_name": "Name der Person" | null,
-  "company_name": "Name der Firma" | null,
-  "confidence": 0.0-1.0,
-  "reasoning": "Kurze Begruendung"
-}"""
+    if not settings.openai_api_key:
+        logger.warning("OpenAI API Key nicht konfiguriert")
+        return None
 
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
                 "https://api.openai.com/v1/chat/completions",
                 headers={
@@ -102,358 +196,155 @@ Antworte NUR als JSON:
                 },
                 json={
                     "model": "gpt-4o-mini",
+                    "temperature": 0.1,
+                    "response_format": {"type": "json_object"},
                     "messages": [
-                        {"role": "system", "content": prompt},
-                        {"role": "user", "content": text},
+                        {"role": "system", "content": CALL_EXTRACTION_SYSTEM_PROMPT},
+                        {"role": "user", "content": _build_call_extraction_user_prompt(transcript)},
                     ],
-                    "temperature": 0.0,
-                    "max_tokens": 200,
                 },
             )
             response.raise_for_status()
             data = response.json()
 
-        content = data["choices"][0]["message"]["content"].strip()
-        result = json.loads(content)
-        return result.get("type", "unknown"), result
+        content = data["choices"][0]["message"]["content"]
+        result = json.loads(content) if isinstance(content, str) else content
+        logger.info(f"Call-Extraktion erfolgreich: call_type={result.get('call_type')}")
+        return result
 
     except Exception as e:
-        logger.error(f"Call-Typ Klassifizierung fehlgeschlagen: {e}")
-        return "unknown", {}
+        logger.error(f"Call-Extraktion fehlgeschlagen: {e}")
+        return None
 
 
-async def _handle_candidate_call(chat_id: str, text: str, classification: dict) -> None:
-    """Verarbeitet ein Kandidatengespräch."""
-    from app.database import async_session_maker
-    from app.services.telegram_bot_service import send_message
+async def _call_store_or_assign(
+    call_type: str,
+    transcript: str,
+    call_summary: str,
+    extracted_data: dict,
+    mt_payload: dict,
+) -> dict:
+    """Ruft die store-or-assign Pipeline intern auf.
 
-    person_name = classification.get("person_name", "")
-
-    # Kandidat suchen
-    candidate_id = None
-    candidate_name = person_name
-
-    if person_name:
-        async with async_session_maker() as db:
-            from app.models.candidate import Candidate
-            from sqlalchemy import select, or_
-
-            search_term = f"%{person_name}%"
-            stmt = (
-                select(Candidate)
-                .where(
-                    or_(
-                        Candidate.first_name.ilike(search_term),
-                        Candidate.last_name.ilike(search_term),
-                        (Candidate.first_name + " " + Candidate.last_name).ilike(search_term),
-                    )
-                )
-                .limit(3)
-            )
-            result = await db.execute(stmt)
-            candidates = result.scalars().all()
-
-            if len(candidates) == 1:
-                candidate_id = candidates[0].id
-                candidate_name = f"{candidates[0].first_name or ''} {candidates[0].last_name or ''}".strip()
-
-    # Daten extrahieren via CallTranscriptionService
-    extracted_data = {}
-    summary = text[:500]
-
-    if candidate_id:
-        try:
-            async with async_session_maker() as db:
-                from app.services.call_transcription_service import CallTranscriptionService
-                service = CallTranscriptionService(db)
-                result = await service.process_call(
-                    candidate_id=candidate_id,
-                    transcript_text=text,
-                )
-                await db.commit()
-
-                if result.get("success"):
-                    extracted_data = result.get("extracted_data", {})
-                    summary = extracted_data.get("summary", text[:500])
-        except Exception as e:
-            logger.error(f"CallTranscriptionService fehlgeschlagen: {e}")
-
-    # CallNote erstellen
+    Nutzt die gleiche Logik wie der n8n Webhook-Endpoint, aber
+    direkt ueber die DB statt via HTTP.
+    """
     try:
-        async with async_session_maker() as db:
-            from app.models.ats_call_note import ATSCallNote, CallType, CallDirection
+        from app.database import async_session_maker
+        from app.models.unassigned_call import UnassignedCall
 
-            call_note = ATSCallNote(
-                candidate_id=candidate_id,
-                call_type=CallType.CANDIDATE_CALL,
-                direction=CallDirection.OUTBOUND,
-                summary=summary,
-                raw_notes=text,
-                action_items=extracted_data.get("action_items") if extracted_data else None,
-                called_at=datetime.now(timezone.utc),
+        async with async_session_maker() as db:
+            # Als unassigned_call speichern (wird im Dashboard zur manuellen Zuordnung angezeigt)
+            staged_call = UnassignedCall(
+                phone_number=None,  # Telegram hat keine Telefonnummer
+                direction="outbound",
+                call_date=datetime.now(timezone.utc),
+                transcript=transcript if transcript else None,
+                call_summary=call_summary,
+                extracted_data={**extracted_data, "source": "telegram"},
+                recording_topic="Telegram Call-Log",
+                mt_payload=mt_payload,
+                assigned=False,
             )
-            db.add(call_note)
+            db.add(staged_call)
             await db.commit()
+            await db.refresh(staged_call)
 
-            # Todos aus Action Items erstellen
-            if extracted_data and extracted_data.get("action_items"):
-                from app.services.ats_todo_service import ATSTodoService
-                todo_service = ATSTodoService(db)
-                for action in extracted_data["action_items"][:5]:
-                    if isinstance(action, str) and action.strip():
-                        await todo_service.create_todo(
-                            title=action.strip()[:200],
-                            priority="wichtig",
-                            due_date=date.today(),
-                            candidate_id=candidate_id,
-                        )
-                await db.commit()
+            logger.info(f"Telegram Call als unassigned_call gespeichert: {staged_call.id}")
+            return {
+                "status": "staged",
+                "unassigned_call_id": str(staged_call.id),
+                "call_type": call_type,
+            }
+
     except Exception as e:
-        logger.error(f"CallNote Erstellung fehlgeschlagen: {e}")
-
-    # Telegram-Antwort
-    msg_lines = [
-        "<b>Kandidaten-Anruf protokolliert</b>\n",
-        f"Kandidat: <b>{candidate_name}</b>",
-    ]
-
-    if extracted_data:
-        if extracted_data.get("desired_positions"):
-            msg_lines.append(f"Wunschposition: {extracted_data['desired_positions']}")
-        if extracted_data.get("salary"):
-            msg_lines.append(f"Gehalt: {extracted_data['salary']}")
-        if extracted_data.get("notice_period"):
-            msg_lines.append(f"Kuendigungsfrist: {extracted_data['notice_period']}")
-        if extracted_data.get("home_office_days"):
-            msg_lines.append(f"Home-Office: {extracted_data['home_office_days']}")
-
-    msg_lines.append(f"\n<i>{summary[:300]}</i>")
-
-    if extracted_data and extracted_data.get("action_items"):
-        msg_lines.append("\n<b>Action Items:</b>")
-        for a in extracted_data["action_items"][:5]:
-            if isinstance(a, str):
-                msg_lines.append(f"  - {a}")
-
-    await send_message("\n".join(msg_lines), chat_id=chat_id)
+        logger.error(f"store-or-assign fehlgeschlagen: {e}", exc_info=True)
+        return {"status": "error", "error": str(e)}
 
 
-async def _handle_customer_call(chat_id: str, text: str, classification: dict) -> None:
-    """Verarbeitet ein Kundengespräch (inkl. Job-Qualifizierung)."""
-    from app.database import async_session_maker
-    from app.services.telegram_bot_service import send_message
-
-    company_name = classification.get("company_name", "Unbekannt")
-    person_name = classification.get("person_name", "")
-
-    # Firma + Kontakt suchen
-    company_id = None
-    contact_id = None
-
-    if company_name and company_name != "Unbekannt":
-        try:
-            async with async_session_maker() as db:
-                from app.models.company import Company
-                from sqlalchemy import select
-
-                search_term = f"%{company_name}%"
-                stmt = select(Company).where(Company.name.ilike(search_term)).limit(3)
-                result = await db.execute(stmt)
-                companies = result.scalars().all()
-
-                if len(companies) == 1:
-                    company_id = companies[0].id
-                    company_name = companies[0].name
-        except Exception as e:
-            logger.error(f"Firmensuche fehlgeschlagen: {e}")
-
-    # Subtyp klassifizieren + Daten extrahieren via CallTranscriptionService
-    subtype_result = {}
-    job_data = {}
-
-    try:
-        async with async_session_maker() as db:
-            from app.services.call_transcription_service import CallTranscriptionService
-            service = CallTranscriptionService(db)
-            subtype_result = await service.process_contact_call(
-                transcript=text,
-                contact_name=person_name or "Unbekannt",
-                company_name=company_name,
-            )
-
-            if subtype_result.get("success") and subtype_result.get("subtype") == "job_quali":
-                job_data = subtype_result.get("job_data", {})
-    except Exception as e:
-        logger.error(f"Kontakt-Call Verarbeitung fehlgeschlagen: {e}")
-
-    subtype = subtype_result.get("subtype", "sonstiges")
-    summary = subtype_result.get("summary", text[:500])
-
-    # CallNote erstellen
-    ats_job_id = None
-    try:
-        async with async_session_maker() as db:
-            from app.models.ats_call_note import ATSCallNote, CallType, CallDirection
-
-            call_note = ATSCallNote(
-                company_id=company_id,
-                call_type=CallType.ACQUISITION if subtype == "job_quali" else CallType.FOLLOWUP,
-                direction=CallDirection.OUTBOUND,
-                summary=summary,
-                raw_notes=text,
-                action_items=subtype_result.get("action_items") if subtype_result else None,
-                called_at=datetime.now(timezone.utc),
-            )
-            db.add(call_note)
-            await db.flush()
-
-            # Bei Job-Quali: ATSJob erstellen/updaten
-            if subtype == "job_quali" and job_data:
-                ats_job_id = await _apply_job_qualification(db, company_id, contact_id, call_note.id, job_data)
-
-            await db.commit()
-
-            # Todos erstellen
-            action_items = subtype_result.get("action_items", [])
-            if not action_items and subtype == "follow_up" and subtype_result.get("follow_up_reason"):
-                action_items = [f"Follow-up: {subtype_result['follow_up_reason']}"]
-
-            if action_items:
-                from app.services.ats_todo_service import ATSTodoService
-                todo_service = ATSTodoService(db)
-                for action in (action_items[:5] if isinstance(action_items, list) else []):
-                    if isinstance(action, str) and action.strip():
-                        await todo_service.create_todo(
-                            title=action.strip()[:200],
-                            priority="wichtig",
-                            due_date=date.today(),
-                            company_id=company_id,
-                        )
-                await db.commit()
-    except Exception as e:
-        logger.error(f"CallNote/Job-Quali Erstellung fehlgeschlagen: {e}")
-
-    # Telegram-Antwort
-    subtype_labels = {
-        "kein_bedarf": "Kein Bedarf",
-        "follow_up": "Follow-up noetig",
-        "job_quali": "Job-Qualifizierung",
+def _format_telegram_response(call_type: str, data: dict, assign_result: dict) -> str:
+    """Formatiert die Telegram-Antwort nach der Call-Analyse."""
+    type_labels = {
+        "qualifizierung": "Qualifizierungsgespraech",
+        "kurzer_call": "Kurzer Call",
+        "akquise": "Akquise/Kundengespraech",
         "sonstiges": "Sonstiges",
     }
 
-    msg_lines = [
-        "<b>Kunden-Anruf protokolliert</b>\n",
-        f"Firma: <b>{company_name}</b>",
-        f"Ergebnis: <b>{subtype_labels.get(subtype, subtype)}</b>",
+    lines = [
+        f"<b>Anruf analysiert: {type_labels.get(call_type, call_type)}</b>\n",
     ]
 
-    if subtype == "job_quali" and job_data:
-        msg_lines.append("")
-        msg_lines.append("<b>Qualifizierte Stelle:</b>")
-        if job_data.get("title"):
-            msg_lines.append(f"  Position: {job_data['title']}")
-        if job_data.get("salary_min") or job_data.get("salary_max"):
-            sal_min = job_data.get("salary_min", "?")
-            sal_max = job_data.get("salary_max", "?")
-            msg_lines.append(f"  Gehalt: {sal_min} - {sal_max} EUR")
-        if job_data.get("team_size"):
-            msg_lines.append(f"  Team: {job_data['team_size']}")
-        if job_data.get("erp_system"):
-            msg_lines.append(f"  ERP: {job_data['erp_system']}")
-        if job_data.get("home_office_days"):
-            msg_lines.append(f"  Home-Office: {job_data['home_office_days']}")
-        if ats_job_id:
-            msg_lines.append(f"\n  Stelle im System gespeichert.")
+    # Pflichtthemen
+    pflicht = data.get("pflichtthemen_erkannt", {})
+    if pflicht:
+        gehalt = pflicht.get("gehalt", False)
+        kuendigung = pflicht.get("kuendigungsfrist", False)
+        lines.append(f"Gehalt: {'ja' if gehalt else 'nein'} | Kuendigungsfrist: {'ja' if kuendigung else 'nein'}")
 
-    elif subtype == "follow_up":
-        if subtype_result.get("follow_up_date"):
-            msg_lines.append(f"Follow-up am: {subtype_result['follow_up_date']}")
-        if subtype_result.get("follow_up_reason"):
-            msg_lines.append(f"Grund: {subtype_result['follow_up_reason']}")
+    # Zusammenfassung
+    summary = data.get("call_summary", "")
+    if summary:
+        lines.append(f"\n<i>{summary[:400]}</i>")
 
-    msg_lines.append(f"\n<i>{summary[:300]}</i>")
+    # Extrahierte Daten
+    details = []
+    if data.get("desired_positions"):
+        pos = ", ".join(data["desired_positions"][:3])
+        details.append(f"Position: {pos}")
+    if data.get("salary"):
+        details.append(f"Gehalt: {data['salary']}")
+    if data.get("notice_period"):
+        details.append(f"Kuendigungsfrist: {data['notice_period']}")
+    if data.get("erp_main"):
+        details.append(f"ERP: {data['erp_main']}")
+    if data.get("home_office_days") is not None:
+        details.append(f"Home-Office: {data['home_office_days']} Tage")
+    if data.get("employment_type"):
+        details.append(f"Anstellung: {data['employment_type']}")
+    if data.get("willingness_to_change") and data["willingness_to_change"] != "unklar":
+        details.append(f"Wechselbereitschaft: {data['willingness_to_change']}")
 
-    await send_message("\n".join(msg_lines), chat_id=chat_id)
+    if details:
+        lines.append("\n<b>Extrahierte Daten:</b>")
+        for d in details:
+            lines.append(f"  {d}")
 
+    # Action Items
+    action_items = data.get("action_items") or []
+    if action_items:
+        lines.append("\n<b>Action Items:</b>")
+        for item in action_items[:5]:
+            if isinstance(item, dict):
+                title = item.get("title", "")
+                prio = item.get("priority", "")
+                prio_icon = {"hoch": "!!", "mittel": "!", "niedrig": ""}.get(prio, "")
+                lines.append(f"  - {prio_icon} {title}")
+            elif isinstance(item, str):
+                lines.append(f"  - {item}")
 
-async def _apply_job_qualification(
-    db,
-    company_id: UUID | None,
-    contact_id: UUID | None,
-    call_note_id: UUID,
-    job_data: dict,
-) -> UUID | None:
-    """Speichert Job-Quali Daten auf einem ATSJob.
+    # Completed Tasks
+    completed = data.get("completed_tasks") or []
+    if completed:
+        lines.append("\n<b>Erledigte Aufgaben:</b>")
+        for task in completed[:3]:
+            if isinstance(task, dict):
+                lines.append(f"  - {task.get('reason', '')}")
 
-    Sucht zuerst nach einer bestehenden offenen Stelle fuer die Firma.
-    Wenn nicht vorhanden, erstellt eine neue.
-    Updatet nur NULL-Felder (ueberschreibt keine manuellen Eintraege).
+    # Email Actions
+    email_actions = data.get("email_actions") or []
+    if email_actions:
+        lines.append("\n<b>Email-Aktionen:</b>")
+        for ea in email_actions[:3]:
+            if isinstance(ea, dict):
+                lines.append(f"  - {ea.get('type', '')}: {ea.get('description', '')}")
 
-    Returns:
-        ATSJob ID oder None bei Fehler
-    """
-    try:
-        from app.models.ats_job import ATSJob, ATSJobStatus
-        from sqlalchemy import select
+    # Status
+    status = assign_result.get("status", "unknown")
+    if status == "staged":
+        lines.append("\nIm Zwischenspeicher abgelegt — bitte im Dashboard zuordnen.")
+    elif status == "auto_assigned":
+        entity = assign_result.get("entity_name", "")
+        lines.append(f"\nAutomatisch zugeordnet: <b>{entity}</b>")
 
-        ats_job = None
-
-        # Bestehende offene Stelle suchen
-        if company_id:
-            stmt = (
-                select(ATSJob)
-                .where(
-                    ATSJob.company_id == company_id,
-                    ATSJob.status == ATSJobStatus.OPEN,
-                    ATSJob.deleted_at.is_(None),
-                )
-                .order_by(ATSJob.created_at.desc())
-                .limit(1)
-            )
-            result = await db.execute(stmt)
-            ats_job = result.scalar_one_or_none()
-
-        if ats_job:
-            # Bestehende Stelle updaten (nur NULL-Felder)
-            for field in QUALIFICATION_FIELDS:
-                value = job_data.get(field)
-                if value is not None and getattr(ats_job, field, None) is None:
-                    setattr(ats_job, field, value)
-
-            # Title updaten wenn noch leer
-            if job_data.get("title") and not ats_job.title:
-                ats_job.title = job_data["title"]
-
-            if not ats_job.source_call_note_id:
-                ats_job.source_call_note_id = call_note_id
-
-        else:
-            # Neue Stelle erstellen
-            ats_job = ATSJob(
-                company_id=company_id,
-                contact_id=contact_id,
-                source_call_note_id=call_note_id,
-                title=job_data.get("title", "Neue Stelle"),
-                source="Telegram Call-Log",
-                status=ATSJobStatus.OPEN,
-            )
-
-            # Alle Quali-Felder setzen
-            for field in QUALIFICATION_FIELDS:
-                value = job_data.get(field)
-                if value is not None:
-                    setattr(ats_job, field, value)
-
-            # Location
-            if job_data.get("location"):
-                ats_job.location_city = job_data["location"]
-
-            db.add(ats_job)
-
-        await db.flush()
-        logger.info(f"ATSJob {'aktualisiert' if ats_job.id else 'erstellt'}: {ats_job.title}")
-        return ats_job.id
-
-    except Exception as e:
-        logger.error(f"Job-Quali Speicherung fehlgeschlagen: {e}", exc_info=True)
-        return None
+    return "\n".join(lines)
