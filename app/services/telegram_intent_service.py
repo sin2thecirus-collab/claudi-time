@@ -28,6 +28,7 @@ Klassifiziere die Nachricht des Users in GENAU EINEN der folgenden Intents:
 - briefing: User will ein Update/Briefing ("Was gibt es Neues?", "Ueberblick", "Status")
 - call_log: User berichtet von einem Telefonat ("Gerade mit Firma X telefoniert...", "Call mit...")
 - email_send: User will eine Email senden ("Schreibe Email an...", "Mail an...")
+- calendar_create: User will einen Termin erstellen ("Erstelle Termin mit...", "Terminiere...", "Meeting am...")
 - unknown: Keiner der obigen Intents passt
 
 Extrahiere zusaetzlich relevante Entitaeten:
@@ -37,6 +38,7 @@ Extrahiere zusaetzlich relevante Entitaeten:
 - title: Titel/Beschreibung einer Aufgabe (falls erwaehnt)
 - priority: Prioritaet (dringend/wichtig/normal, falls erwaehnt)
 - instruction: Bei email_send — der Inhalt/Anweisung fuer die Email (alles NACH dem Empfaengernamen)
+- duration: Bei calendar_create — Dauer des Termins in Minuten (Default: 30)
 
 Antworte NUR mit JSON:
 {{"intent": "...", "entities": {{...}}, "confidence": 0.0-1.0}}"""

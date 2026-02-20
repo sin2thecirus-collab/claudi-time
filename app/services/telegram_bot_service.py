@@ -645,6 +645,9 @@ async def _handle_free_text(chat_id: str, text: str) -> None:
         elif intent == "email_send":
             from app.services.telegram_email_handler import handle_email_send
             await handle_email_send(chat_id, text, entities)
+        elif intent == "calendar_create":
+            from app.services.telegram_calendar_handler import handle_calendar_create
+            await handle_calendar_create(chat_id, text, entities)
         else:
             await send_message(
                 "Das habe ich nicht verstanden. Tippe /help fuer verfuegbare Kommandos.",
@@ -725,6 +728,10 @@ async def _handle_callback_query(callback_query: dict) -> None:
         elif callback_data.startswith("email_send_") or callback_data.startswith("email_pick_"):
             from app.services.telegram_email_handler import handle_email_callback
             await handle_email_callback(chat_id, callback_data, callback_id)
+
+        elif callback_data.startswith("cal_"):
+            from app.services.telegram_calendar_handler import handle_calendar_callback
+            await handle_calendar_callback(chat_id, callback_data, callback_id)
 
         elif callback_data.startswith("call_pick_"):
             from app.services.telegram_call_handler import handle_call_pick_callback
