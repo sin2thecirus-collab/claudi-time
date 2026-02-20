@@ -1,6 +1,6 @@
 FROM python:3.11-slim AS base
 
-# Build: 2026-02-04-v1 - Word-CV async + UserInstallation fix
+# Build: 2026-02-20-v2 - Fix: pip install Layer von app/ Code getrennt (Railway Build-Fix)
 # Arbeitsverzeichnis setzen
 WORKDIR /app
 
@@ -20,10 +20,11 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/* \
     && fc-cache -f
 
-# Python Dependencies installieren
+# Python Dependencies installieren (eigener Layer — nur bei pyproject.toml Aenderung)
 COPY pyproject.toml README.md ./
-COPY app/ ./app/
-RUN pip install --no-cache-dir .
+RUN mkdir -p app && touch app/__init__.py && \
+    pip install --no-cache-dir . && \
+    rm -rf app
 
 # Anwendung kopieren
 COPY . .
