@@ -31,11 +31,12 @@ Klassifiziere die Nachricht des Users in GENAU EINEN der folgenden Intents:
 - unknown: Keiner der obigen Intents passt
 
 Extrahiere zusaetzlich relevante Entitaeten:
-- name: Name einer Person/Firma (falls erwaehnt)
+- name: Name einer Person/Firma (falls erwaehnt). Bei email_send ist der Name PFLICHT — extrahiere ihn aus "an [Name]", "fuer [Name]", "[Name] schreiben" etc.
 - date: Datum (MUSS im Format YYYY-MM-DD sein, berechne aus dem heutigen Datum)
 - time: Uhrzeit (falls erwaehnt, Format: HH:MM)
 - title: Titel/Beschreibung einer Aufgabe (falls erwaehnt)
 - priority: Prioritaet (dringend/wichtig/normal, falls erwaehnt)
+- instruction: Bei email_send — der Inhalt/Anweisung fuer die Email (alles NACH dem Empfaengernamen)
 
 Antworte NUR mit JSON:
 {{"intent": "...", "entities": {{...}}, "confidence": 0.0-1.0}}"""

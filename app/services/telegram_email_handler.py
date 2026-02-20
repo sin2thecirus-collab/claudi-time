@@ -21,13 +21,13 @@ EMAIL_WRITER_SYSTEM_PROMPT = """Du bist der persoenliche Email-Assistent von Mil
 
 Du schreibst professionelle, freundliche Emails auf Deutsch in Milads Namen. Der Ton ist:
 - Professionell aber persoenlich und warmherzig
-- Du/Sie je nach Kontext (Kandidaten: Du, Firmenkontakte: Sie)
+- IMMER Siezen ("Sie/Ihnen/Ihr") — ausser Milad sagt explizit "schreib in Du-Form"
 - Direkt und klar, keine Floskeln
 - Kurz und praegnant — keine unnoetig langen Emails
 
 REGELN:
 1. Schreibe die Email so, als wuerde Milad sie selbst schreiben
-2. Passe den Ton an den Empfaenger an (Kandidat = lockerer, Firmenkunde = formeller)
+2. IMMER "Sie" verwenden — egal ob Kandidat oder Firmenkontakt
 3. Verwende KEINE Emojis in der Email
 4. Beende JEDE Email mit:
    Mit freundlichen Gruessen
@@ -64,8 +64,10 @@ async def handle_email_send(chat_id: str, text: str, entities: dict) -> None:
         name = entities.get("name", "")
         if not name:
             await send_message(
-                "Ich brauche einen Namen, um die Email zu senden.\n"
-                "Beispiel: <i>Schreib eine Email an Max Mueller und sag ihm...</i>",
+                "Ich brauche den Empfaenger-Namen in der Nachricht.\n\n"
+                "Beispiel:\n"
+                "<i>Schreib eine Email an Max Mueller und sag ihm dass der Termin am Freitag ist</i>\n\n"
+                "Der Name muss immer dabei stehen — ich suche dann automatisch die Email-Adresse im System.",
                 chat_id=chat_id,
             )
             return
