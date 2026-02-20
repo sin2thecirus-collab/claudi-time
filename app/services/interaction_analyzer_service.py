@@ -57,9 +57,9 @@ Antworte IMMER als JSON mit genau diesem Schema:
 
 
 class InteractionAnalyzerService:
-    """Analysiert Kandidaten-Interaktionen mit GPT-4o-mini."""
+    """Analysiert Kandidaten-Interaktionen mit GPT-4o."""
 
-    MODEL = "gpt-4o-mini"
+    MODEL = "gpt-4o"
 
     def __init__(self, db: AsyncSession):
         self.db = db
