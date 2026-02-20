@@ -16,6 +16,7 @@ from datetime import date, datetime
 from typing import Optional
 from uuid import UUID
 
+import httpx
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -168,7 +169,11 @@ def _serialize_item(i: OutreachItem) -> dict:
 
 @router.post("/candidates/{candidate_id}/not-reached")
 async def mark_not_reached(candidate_id: UUID, db: AsyncSession = Depends(get_db)):
-    """Markiert Kandidat als 'nicht erreicht' und startet E-Mail-Sequenz."""
+    """Markiert Kandidat als 'nicht erreicht' und startet E-Mail-Sequenz.
+
+    Setzt Status auf 'email_sequenz_aktiv' und triggert den n8n Webhook
+    serverseitig (vermeidet CORS-Probleme im Browser).
+    """
     candidate = await db.get(Candidate, candidate_id)
     if not candidate:
         return {"error": "Kandidat nicht gefunden"}, 404
@@ -179,6 +184,26 @@ async def mark_not_reached(candidate_id: UUID, db: AsyncSession = Depends(get_db
 
     logger.info(f"Kandidat {candidate.first_name} {candidate.last_name} ({candidate_id}) als 'nicht erreicht' markiert")
 
+    # n8n Webhook serverseitig triggern (kein CORS-Problem)
+    n8n_webhook_url = "https://n8n-production-aa9c.up.railway.app/webhook/nicht-erreicht"
+    webhook_payload = {
+        "candidate_id": str(candidate_id),
+        "first_name": candidate.first_name,
+        "last_name": candidate.last_name,
+        "email": candidate.email,
+        "gender": candidate.gender or "",
+        "source": candidate.source or "einem Jobportal",
+    }
+    n8n_ok = False
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(n8n_webhook_url, json=webhook_payload)
+            n8n_ok = resp.status_code < 400
+            if not n8n_ok:
+                logger.error(f"n8n Webhook fehlgeschlagen: HTTP {resp.status_code} - {resp.text[:200]}")
+    except Exception as exc:
+        logger.error(f"n8n Webhook Fehler: {exc}")
+
     return {
         "candidate_id": str(candidate_id),
         "contact_status": "email_sequenz_aktiv",
@@ -187,6 +212,7 @@ async def mark_not_reached(candidate_id: UUID, db: AsyncSession = Depends(get_db
         "email": candidate.email,
         "gender": candidate.gender,
         "source": candidate.source,
+        "n8n_triggered": n8n_ok,
         "message": f"Sequenz gestartet fuer {candidate.first_name} {candidate.last_name}",
     }
 
