@@ -19,8 +19,9 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-# ── Zwischenspeicher fuer unbestaetigte Emails (In-Memory, Single-User) ──
+# ── Zwischenspeicher (In-Memory, Single-User) ──
 _pending_emails: dict[str, dict] = {}
+_pending_recipient_choice: dict[str, dict] = {}  # Empfaenger-Auswahl bei Mehrdeutigkeit
 
 # ── GPT System-Prompt fuer Email-Erstellung ──
 EMAIL_WRITER_SYSTEM_PROMPT = """Du bist der persoenliche Email-Assistent von Milad Hamdard, Geschaeftsfuehrer der Sincirus GmbH (Personalberatung im Finance-Bereich).
@@ -76,14 +77,42 @@ async def handle_email_send(chat_id: str, text: str, entities: dict) -> None:
             return
 
         # ── Schritt 1: Empfaenger suchen ──
-        recipient = await _find_recipient(name)
-        if not recipient:
+        matches = await _find_recipients(name)
+
+        if len(matches) == 0:
             await send_message(
                 f"Konnte <b>{name}</b> nicht im System finden.\n"
                 "Bitte den vollen Namen verwenden.",
                 chat_id=chat_id,
             )
             return
+
+        if len(matches) > 1:
+            # Mehrere Treffer — User muss waehlen
+            _pending_recipient_choice[chat_id] = {
+                "matches": matches,
+                "original_text": text,
+            }
+            buttons = []
+            for i, m in enumerate(matches[:5]):
+                typ = "Kandidat" if m["type"] == "candidate" else "Kontakt"
+                email_short = m.get("email", "keine Email") or "keine Email"
+                buttons.append([{
+                    "text": f"{m['name']} ({typ}) — {email_short}",
+                    "callback_data": f"email_pick_{i}",
+                }])
+            buttons.append([{"text": "Abbrechen", "callback_data": "email_pick_cancel"}])
+
+            await send_message(
+                f"Mehrere Treffer fuer <b>{name}</b>.\n"
+                "Wen meinst du?",
+                chat_id=chat_id,
+                reply_markup={"inline_keyboard": buttons},
+            )
+            return
+
+        # Genau 1 Treffer
+        recipient = matches[0]
 
         if not recipient.get("email"):
             await send_message(
@@ -93,54 +122,7 @@ async def handle_email_send(chat_id: str, text: str, entities: dict) -> None:
             )
             return
 
-        await send_message(
-            f"Schreibe Email an <b>{recipient['name']}</b> ({recipient['email']})...",
-            chat_id=chat_id,
-        )
-
-        # ── Schritt 2: GPT schreibt die Email ──
-        email_data = await _generate_email(text, recipient)
-        if not email_data:
-            await send_message(
-                "Konnte die Email nicht erstellen. Bitte erneut versuchen.",
-                chat_id=chat_id,
-            )
-            return
-
-        subject = email_data.get("subject", "Nachricht von Sincirus GmbH")
-        body_html = email_data.get("body_html", "")
-
-        # ── Schritt 3: Vorschau zwischenspeichern ──
-        _pending_emails[chat_id] = {
-            "recipient": recipient,
-            "subject": subject,
-            "body_html": body_html,
-            "original_text": text,
-            "created_at": datetime.now().isoformat(),
-        }
-
-        # ── Schritt 4: Vorschau mit Buttons anzeigen ──
-        preview_text = re.sub(r"<[^>]+>", "", body_html)
-        preview_text = preview_text.replace("&nbsp;", " ").strip()
-
-        await send_message(
-            f"<b>Email-Vorschau</b>\n"
-            f"━━━━━━━━━━━━━━━\n"
-            f"An: {recipient['name']} ({recipient['email']})\n"
-            f"Betreff: <b>{subject}</b>\n"
-            f"━━━━━━━━━━━━━━━\n\n"
-            f"<i>{preview_text[:800]}</i>",
-            chat_id=chat_id,
-            reply_markup={
-                "inline_keyboard": [
-                    [
-                        {"text": "Senden", "callback_data": "email_send_confirm"},
-                        {"text": "Neu schreiben", "callback_data": "email_send_rewrite"},
-                        {"text": "Abbrechen", "callback_data": "email_send_cancel"},
-                    ],
-                ],
-            },
-        )
+        await _generate_and_preview(chat_id, text, recipient)
 
     except Exception as e:
         logger.error(f"Email-Handler fehlgeschlagen: {e}", exc_info=True)
@@ -151,13 +133,98 @@ async def handle_email_send(chat_id: str, text: str, entities: dict) -> None:
         )
 
 
-async def handle_email_callback(chat_id: str, action: str, callback_id: str) -> None:
-    """Verarbeitet Button-Klicks fuer Email-Vorschau.
+async def _generate_and_preview(chat_id: str, text: str, recipient: dict) -> None:
+    """Generiert Email via GPT und zeigt Vorschau mit Buttons."""
+    from app.services.telegram_bot_service import send_message
 
-    Actions: email_send_confirm, email_send_rewrite, email_send_cancel
+    await send_message(
+        f"Schreibe Email an <b>{recipient['name']}</b> ({recipient['email']})...",
+        chat_id=chat_id,
+    )
+
+    email_data = await _generate_email(text, recipient)
+    if not email_data:
+        await send_message(
+            "Konnte die Email nicht erstellen. Bitte erneut versuchen.",
+            chat_id=chat_id,
+        )
+        return
+
+    subject = email_data.get("subject", "Nachricht von Sincirus GmbH")
+    body_html = email_data.get("body_html", "")
+
+    # Vorschau zwischenspeichern
+    _pending_emails[chat_id] = {
+        "recipient": recipient,
+        "subject": subject,
+        "body_html": body_html,
+        "original_text": text,
+        "created_at": datetime.now().isoformat(),
+    }
+
+    preview_text = re.sub(r"<[^>]+>", "", body_html)
+    preview_text = preview_text.replace("&nbsp;", " ").strip()
+
+    await send_message(
+        f"<b>Email-Vorschau</b>\n"
+        f"━━━━━━━━━━━━━━━\n"
+        f"An: {recipient['name']} ({recipient['email']})\n"
+        f"Betreff: <b>{subject}</b>\n"
+        f"━━━━━━━━━━━━━━━\n\n"
+        f"<i>{preview_text[:800]}</i>",
+        chat_id=chat_id,
+        reply_markup={
+            "inline_keyboard": [
+                [
+                    {"text": "Senden", "callback_data": "email_send_confirm"},
+                    {"text": "Neu schreiben", "callback_data": "email_send_rewrite"},
+                    {"text": "Abbrechen", "callback_data": "email_send_cancel"},
+                ],
+            ],
+        },
+    )
+
+
+async def handle_email_callback(chat_id: str, action: str, callback_id: str) -> None:
+    """Verarbeitet Button-Klicks fuer Email (Vorschau + Empfaenger-Auswahl).
+
+    Actions: email_send_confirm, email_send_rewrite, email_send_cancel,
+             email_pick_0..4, email_pick_cancel
     """
     from app.services.telegram_bot_service import answer_callback_query, send_message
 
+    # ── Empfaenger-Auswahl (email_pick_*) ──
+    if action.startswith("email_pick_"):
+        choice_data = _pending_recipient_choice.pop(chat_id, None)
+        if not choice_data:
+            await answer_callback_query(callback_id, "Auswahl abgelaufen.")
+            return
+
+        if action == "email_pick_cancel":
+            await answer_callback_query(callback_id, "Abgebrochen.")
+            await send_message("Email-Versand abgebrochen.", chat_id=chat_id)
+            return
+
+        try:
+            idx = int(action.replace("email_pick_", ""))
+            recipient = choice_data["matches"][idx]
+        except (ValueError, IndexError):
+            await answer_callback_query(callback_id, "Ungueltige Auswahl.")
+            return
+
+        if not recipient.get("email"):
+            await answer_callback_query(callback_id)
+            await send_message(
+                f"<b>{recipient['name']}</b> hat keine Email-Adresse hinterlegt.",
+                chat_id=chat_id,
+            )
+            return
+
+        await answer_callback_query(callback_id, f"{recipient['name']} ausgewaehlt")
+        await _generate_and_preview(chat_id, choice_data["original_text"], recipient)
+        return
+
+    # ── Email-Vorschau Aktionen (email_send_*) ──
     pending = _pending_emails.get(chat_id)
 
     if not pending:
@@ -267,11 +334,13 @@ async def handle_email_callback(chat_id: str, action: str, callback_id: str) -> 
         await send_message("Email wurde verworfen.", chat_id=chat_id)
 
 
-async def _find_recipient(name: str) -> dict | None:
-    """Sucht einen Empfaenger per Name in Kandidaten und Kontakten.
+async def _find_recipients(name: str) -> list[dict]:
+    """Sucht Empfaenger per Name in Kandidaten und Kontakten.
 
-    Returns: {"name": str, "email": str, "type": "candidate"|"contact", "id": UUID}
+    Returns: Liste von {"name": str, "email": str, "type": str, "id": str, ...}
+    Kann 0, 1 oder mehrere Treffer enthalten.
     """
+    results = []
     try:
         from app.database import async_session_maker
         from app.models.candidate import Candidate
@@ -279,7 +348,7 @@ async def _find_recipient(name: str) -> dict | None:
 
         search = f"%{name}%"
 
-        # 1. Kandidat suchen
+        # 1. Kandidaten suchen
         async with async_session_maker() as db:
             result = await db.execute(
                 select(Candidate)
@@ -290,47 +359,45 @@ async def _find_recipient(name: str) -> dict | None:
                         Candidate.first_name.ilike(search),
                     )
                 )
-                .limit(3)
+                .limit(5)
             )
             candidates = result.scalars().all()
 
-            if len(candidates) == 1:
-                c = candidates[0]
+            for c in candidates:
                 full_name = f"{c.first_name or ''} {c.last_name or ''}".strip()
-                return {
+                results.append({
                     "name": full_name,
                     "email": c.email,
                     "type": "candidate",
                     "id": str(c.id),
                     "first_name": c.first_name or "",
-                    "salutation": c.gender or "",  # "Herr" / "Frau"
-                }
+                    "salutation": c.gender or "",
+                })
 
-        # 2. Kontakt suchen
+        # 2. Kontakte suchen
         async with async_session_maker() as db:
             result = await db.execute(
                 select(CompanyContact)
                 .where(CompanyContact.name.ilike(search))
-                .limit(3)
+                .limit(5)
             )
             contacts = result.scalars().all()
 
-            if len(contacts) == 1:
-                ct = contacts[0]
-                return {
+            for ct in contacts:
+                results.append({
                     "name": ct.name,
                     "email": ct.email,
                     "type": "contact",
                     "id": str(ct.id),
                     "first_name": ct.name.split()[0] if ct.name else "",
-                    "salutation": ct.salutation or "",  # "Herr" / "Frau"
-                }
+                    "salutation": ct.salutation or "",
+                })
 
-        return None
+        return results
 
     except Exception as e:
         logger.error(f"Empfaengersuche fehlgeschlagen: {e}")
-        return None
+        return results
 
 
 async def _generate_email(user_instruction: str, recipient: dict) -> dict | None:
