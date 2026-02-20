@@ -155,6 +155,20 @@ async def health_check():
     }
 
 
+@app.get("/privacy", tags=["System"])
+async def privacy_policy():
+    """Datenschutzrichtlinie fuer Meta App Review."""
+    from fastapi.responses import HTMLResponse
+    return HTMLResponse("""<!DOCTYPE html>
+<html lang="de"><head><meta charset="utf-8"><title>Datenschutz - SinCirus Karriere</title>
+<style>body{font-family:Arial,sans-serif;max-width:800px;margin:40px auto;padding:0 20px;color:#333;line-height:1.6}h1{color:#1a1a1a}</style></head>
+<body><h1>Datenschutzrichtlinie</h1>
+<p><strong>SinCirus Karriere</strong><br>Milad Hamdard<br>Muenchen, Deutschland</p>
+<p>Diese Anwendung (PulsePoint) wird intern fuer Recruiting-Zwecke genutzt. Es werden keine personenbezogenen Daten an Dritte weitergegeben.</p>
+<p>WhatsApp Business API wird ausschliesslich fuer interne Benachrichtigungen an den Inhaber verwendet. Es werden keine Nachrichten an Kandidaten oder externe Personen ueber WhatsApp versendet.</p>
+<p>Kontakt: <a href="mailto:hamdard@sincirus.com">hamdard@sincirus.com</a></p>
+<p><em>Stand: Februar 2026</em></p></body></html>""")
+
 
 # ── Login-Seite ──
 @app.get("/login", tags=["Auth"])
