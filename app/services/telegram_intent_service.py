@@ -32,13 +32,19 @@ Klassifiziere die Nachricht des Users in GENAU EINEN der folgenden Intents:
 - unknown: Keiner der obigen Intents passt
 
 Extrahiere zusaetzlich relevante Entitaeten:
-- name: Name einer Person/Firma (falls erwaehnt). Bei email_send ist der Name PFLICHT — extrahiere ihn aus "an [Name]", "fuer [Name]", "[Name] schreiben" etc.
+- name: Name einer Person/Firma (falls erwaehnt). PFLICHT bei email_send, calendar_create und task_create — extrahiere ihn aus "an [Name]", "fuer [Name]", "bei [Name]", "mit [Name]" etc.
 - date: Datum (MUSS im Format YYYY-MM-DD sein, berechne aus dem heutigen Datum)
 - time: Uhrzeit (falls erwaehnt, Format: HH:MM)
-- title: Titel/Beschreibung einer Aufgabe (falls erwaehnt)
+- title: Titel/Beschreibung einer Aufgabe. WICHTIG: Der Name der Person ist NICHT der Titel! "Aufgabe fuer Max Mueller: anrufen" -> name="Max Mueller", title="anrufen". Wenn kein expliziter Titel genannt wird, erstelle einen kurzen aus dem Kontext.
 - priority: Prioritaet (dringend/wichtig/normal, falls erwaehnt)
 - instruction: Bei email_send — der Inhalt/Anweisung fuer die Email (alles NACH dem Empfaengernamen)
 - duration: Bei calendar_create — Dauer des Termins in Minuten (Default: 30)
+
+BEISPIELE fuer task_create Entity-Extraktion:
+- "Aufgabe fuer Testo Kandidat: 1,2,3 Telefongespraeche" -> name="Testo Kandidat", title="1,2,3 Telefongespraeche"
+- "Erstelle Aufgabe bei Max Mueller morgen anrufen" -> name="Max Mueller", title="Morgen anrufen"
+- "Erinnerung: Mueller Feedback geben am Freitag" -> name="Mueller", title="Feedback geben", date=Freitag
+- "Aufgabe: Bewerbungsunterlagen sichten" -> name="", title="Bewerbungsunterlagen sichten" (kein Name erwaehnt)
 
 Antworte NUR mit JSON:
 {{"intent": "...", "entities": {{...}}, "confidence": 0.0-1.0}}"""

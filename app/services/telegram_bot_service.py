@@ -368,14 +368,25 @@ async def _handle_task_create(chat_id: str, entities: dict) -> None:
         contact_id = None
         linked_name = None
 
-        if name:
-            from app.services.telegram_person_search import (
-                build_disambiguation_buttons,
-                build_disambiguation_text,
-                search_persons,
-            )
+        from app.services.telegram_person_search import (
+            build_disambiguation_buttons,
+            build_disambiguation_text,
+            search_persons,
+        )
 
-            matches = await search_persons(name)
+        # Fallback: Wenn GPT keinen Namen extrahiert hat, pruefen ob der
+        # Titel selbst ein Personenname sein koennte (haeufiger GPT-Fehler)
+        search_name = name
+        if not search_name and title and title != "Neue Aufgabe":
+            fallback_matches = await search_persons(title)
+            if fallback_matches:
+                search_name = title
+                # Titel durch generischen ersetzen, da er eigentlich der Name war
+                title = "Neue Aufgabe"
+                logger.info(f"Task-Create Fallback: Titel '{search_name}' als Name erkannt")
+
+        if search_name:
+            matches = await search_persons(search_name)
 
             if len(matches) == 1:
                 m = matches[0]
@@ -386,19 +397,22 @@ async def _handle_task_create(chat_id: str, entities: dict) -> None:
                     contact_id = m["id"]
                 elif m["type"] == "company":
                     company_id = m["id"]
+                # Wenn Titel der Name war, sinnvollen Titel generieren
+                if title == "Neue Aufgabe":
+                    title = f"Aufgabe fuer {linked_name}"
 
             elif len(matches) > 1:
                 # Mehrere Treffer — User muss waehlen
                 _pending_task_data[chat_id] = {
                     "matches": matches,
-                    "title": title,
+                    "title": title if title != "Neue Aufgabe" else f"Aufgabe",
                     "due_date": due_date.isoformat() if due_date else None,
                     "due_time": due_time,
                     "priority": mapped_priority,
                 }
                 await send_message(
                     f"<b>Aufgabe:</b> {title}\n\n"
-                    + build_disambiguation_text(matches, name),
+                    + build_disambiguation_text(matches, search_name),
                     chat_id=chat_id,
                     reply_markup={"inline_keyboard": build_disambiguation_buttons(matches, "task_pick_")},
                 )
