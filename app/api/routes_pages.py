@@ -27,6 +27,9 @@ from app.services.alert_service import AlertService
 from app.services.ats_call_note_service import ATSCallNoteService
 from app.services.ats_todo_service import ATSTodoService
 from app.services.email_service import EmailService
+from app.models.candidate_email import CandidateEmail
+from app.models.candidate_task import CandidateTask
+from sqlalchemy import func
 
 logger = logging.getLogger(__name__)
 
@@ -188,6 +191,56 @@ async def candidate_detail(
             "created_at": d.created_at.isoformat() if d.created_at else None,
         })
 
+    # E-Mail-Automatisierung: Sequenz-Emails laden (candidate_emails Tabelle)
+    seq_emails_query = (
+        select(CandidateEmail)
+        .where(CandidateEmail.candidate_id == candidate_id)
+        .order_by(CandidateEmail.created_at.desc())
+        .limit(50)
+    )
+    seq_emails_result = await db.execute(seq_emails_query)
+    seq_emails = seq_emails_result.scalars().all()
+    seq_emails_serialized = []
+    for e in seq_emails:
+        seq_emails_serialized.append({
+            "id": str(e.id),
+            "subject": e.subject,
+            "body_text": e.body_text,
+            "body_html": e.body_html,
+            "direction": e.direction,
+            "channel": e.channel,
+            "sequence_type": e.sequence_type,
+            "sequence_step": e.sequence_step,
+            "from_address": e.from_address,
+            "to_address": e.to_address,
+            "send_error": e.send_error,
+            "created_at": e.created_at.isoformat() if e.created_at else None,
+        })
+
+    # E-Mail-Automatisierung: Aufgaben laden (candidate_tasks Tabelle)
+    seq_tasks_query = (
+        select(CandidateTask)
+        .where(CandidateTask.candidate_id == candidate_id)
+        .order_by(CandidateTask.created_at.desc())
+        .limit(50)
+    )
+    seq_tasks_result = await db.execute(seq_tasks_query)
+    seq_tasks = seq_tasks_result.scalars().all()
+    seq_tasks_serialized = []
+    for t in seq_tasks:
+        seq_tasks_serialized.append({
+            "id": str(t.id),
+            "title": t.title,
+            "description": t.description,
+            "task_type": t.task_type,
+            "status": t.status,
+            "priority": t.priority,
+            "due_date": t.due_date.isoformat() if t.due_date else None,
+            "completed_at": t.completed_at.isoformat() if t.completed_at else None,
+            "source": t.source,
+            "created_at": t.created_at.isoformat() if t.created_at else None,
+        })
+
     return templates.TemplateResponse(
         "candidate_detail.html",
         {
@@ -197,6 +250,8 @@ async def candidate_detail(
             "todos": todos,
             "todos_json": todos_serialized,
             "email_drafts_json": drafts_serialized,
+            "seq_emails_json": seq_emails_serialized,
+            "seq_tasks_json": seq_tasks_serialized,
         }
     )
 
