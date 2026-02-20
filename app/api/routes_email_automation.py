@@ -1066,3 +1066,97 @@ async def batch_update_gender(
         "total_requested": len(updates),
         "errors": errors,
     }
+
+
+# ══════════════════════════════════════════════════════════════════
+# Instantly Webhook Events (email_sent, bounced)
+# ══════════════════════════════════════════════════════════════════
+
+
+class InstantlyEmailLog(BaseModel):
+    candidate_id: Optional[str] = None
+    subject: Optional[str] = None
+    body: Optional[str] = None
+    direction: str = "outbound"
+    from_address: Optional[str] = None
+    to_address: Optional[str] = None
+    source: str = "instantly"
+
+
+@router.post("/emails/log")
+async def log_instantly_email(
+    data: InstantlyEmailLog,
+    db: AsyncSession = Depends(get_db),
+):
+    """Loggt eine von Instantly gesendete E-Mail fuer einen Kandidaten.
+
+    Wird vom n8n-Workflow 'Instantly Events loggen' aufgerufen
+    wenn Instantly den email_sent Webhook feuert.
+    """
+    if not data.candidate_id:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "candidate_id fehlt"},
+        )
+
+    candidate = await db.get(Candidate, data.candidate_id)
+    if not candidate:
+        logger.warning(f"Instantly email_sent: Kandidat {data.candidate_id} nicht gefunden")
+        return JSONResponse(
+            status_code=404,
+            content={"error": "Kandidat nicht gefunden", "candidate_id": data.candidate_id},
+        )
+
+    email = CandidateEmail(
+        candidate_id=data.candidate_id,
+        subject=data.subject or "",
+        body_html=data.body,
+        direction=data.direction,
+        channel="instantly",
+        from_address=data.from_address,
+        to_address=data.to_address,
+    )
+    db.add(email)
+    await db.flush()
+
+    logger.info(f"Instantly E-Mail geloggt: {data.direction} fuer Kandidat {data.candidate_id}")
+
+    return {"status": "ok", "email_id": str(email.id), "candidate_id": data.candidate_id}
+
+
+class InstantlyBounceLog(BaseModel):
+    candidate_id: Optional[str] = None
+    email: Optional[str] = None
+    source: str = "instantly"
+
+
+@router.post("/emails/log-bounce")
+async def log_instantly_bounce(
+    data: InstantlyBounceLog,
+    db: AsyncSession = Depends(get_db),
+):
+    """Setzt den Kandidaten-Status auf 'bounce' wenn Instantly einen Bounce meldet.
+
+    Wird vom n8n-Workflow 'Instantly Events loggen' aufgerufen
+    wenn Instantly den email_bounced Webhook feuert.
+    """
+    if not data.candidate_id:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "candidate_id fehlt"},
+        )
+
+    candidate = await db.get(Candidate, data.candidate_id)
+    if not candidate:
+        logger.warning(f"Instantly bounce: Kandidat {data.candidate_id} nicht gefunden")
+        return JSONResponse(
+            status_code=404,
+            content={"error": "Kandidat nicht gefunden", "candidate_id": data.candidate_id},
+        )
+
+    candidate.contact_status = "bounce"
+    await db.flush()
+
+    logger.info(f"Instantly Bounce: Kandidat {data.candidate_id} ({data.email}) → Status 'bounce'")
+
+    return {"status": "ok", "candidate_id": data.candidate_id, "new_status": "bounce"}
