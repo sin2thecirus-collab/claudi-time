@@ -1,10 +1,13 @@
 """API-Endpoints fuer E-Mail-Automatisierung.
 
+Build: 2026-02-20-v1 - Instantly Webhook Endpoints (email_sent + bounce)
+
 Alle Endpoints fuer:
 - E-Mail-Logging (gesendet + empfangen)
 - Kandidaten-Aufgaben (aus GPT-Antwort-Analyse)
 - Outreach/Rundmail (Tages-Batches, Instantly)
 - Sequenz-Kontrolle (aktive, Status, Stop)
+- Instantly Events (email_sent → log, email_bounced → status update)
 - System-Health + Debug
 """
 
