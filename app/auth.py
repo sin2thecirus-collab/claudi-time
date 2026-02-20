@@ -107,6 +107,7 @@ def _get_client_ip(request: Request) -> str:
 PUBLIC_PATHS = frozenset({
     "/health",
     "/login",
+    "/privacy",
     "/favicon.ico",
 })
 
