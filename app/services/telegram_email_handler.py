@@ -30,22 +30,18 @@ REGELN:
 2. IMMER "Sie" verwenden — egal ob Kandidat oder Firmenkontakt
 3. Verwende die ANREDE aus den Empfaengerdaten: Wenn "Herr" -> "Sehr geehrter Herr [Nachname]", wenn "Frau" -> "Sehr geehrte Frau [Nachname]". Wenn keine Anrede vorhanden: "Guten Tag [Vorname] [Nachname]"
 4. Verwende KEINE Emojis in der Email
-5. Beende JEDE Email mit:
-   Mit freundlichen Gruessen
-   Milad Hamdard
-   Sincirus GmbH
-   Tel: +49 173 3665239
+5. Beende den Text mit "Mit freundlichen Gruessen" — KEINE Signatur danach (Name, Firma, Tel etc.), die wird automatisch angehaengt!
 6. Wenn der User eine bestimmte Information erwaehnt (Termin, Ort, Zeit), baue sie EXAKT ein
 7. Wenn der User keinen Betreff nennt, erstelle einen passenden kurzen Betreff
 
 Antworte IMMER als JSON:
 {
   "subject": "Betreff der Email",
-  "body_html": "<p>HTML-formatierter Email-Text</p>",
-  "tone": "formal" | "informal"
+  "body_html": "<p>HTML-formatierter Email-Text</p>"
 }
 
 WICHTIG: body_html muss valides HTML sein mit <p>, <br>, <strong> Tags.
+WICHTIG: body_html endet mit "Mit freundlichen Gruessen" — KEIN Name, KEINE Firma, KEINE Telefonnummer danach!
 Verwende <br><br> fuer Absaetze. Kein <style> oder CSS noetig."""
 
 
@@ -113,13 +109,22 @@ async def handle_email_send(chat_id: str, text: str, entities: dict) -> None:
         preview_text = re.sub(r"<[^>]+>", "", body_html)
         preview_text = preview_text.replace("&nbsp;", " ").strip()
 
-        # ── Schritt 3: Direkt senden (kein Confirm-Dialog noetig, Milad ist einziger User) ──
+        # ── Schritt 3: HTML-Signatur anhaengen (identisch mit email_service.py) ──
+        from app.services.email_service import EMAIL_SIGNATURE
+
+        full_html = f"""<div style="font-family: Arial, Helvetica, sans-serif;">
+    {body_html}
+    <br>
+    {EMAIL_SIGNATURE}
+</div>"""
+
+        # ── Schritt 4: Direkt senden (kein Confirm-Dialog noetig, Milad ist einziger User) ──
         from app.services.email_service import MicrosoftGraphClient
 
         result = await MicrosoftGraphClient.send_email(
             to_email=recipient["email"],
             subject=subject,
-            body_html=body_html,
+            body_html=full_html,
         )
 
         if result.get("success"):
