@@ -187,7 +187,7 @@ Antworte IMMER als JSON:
 class CallTranscriptionService:
     """Transkribiert Audio-Dateien und extrahiert strukturierte Daten."""
 
-    MODEL = "gpt-4o-mini"
+    MODEL = "gpt-4o"
 
     def __init__(self, db: AsyncSession):
         self.db = db

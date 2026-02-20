@@ -202,7 +202,7 @@ async def _extract_call_data(transcript: str) -> dict | None:
                     "Content-Type": "application/json",
                 },
                 json={
-                    "model": "gpt-4o-mini",
+                    "model": "gpt-4o",
                     "temperature": 0.1,
                     "response_format": {"type": "json_object"},
                     "messages": [

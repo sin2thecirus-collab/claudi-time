@@ -234,7 +234,7 @@ async def _generate_email(user_instruction: str, recipient: dict) -> dict | None
                     "Content-Type": "application/json",
                 },
                 json={
-                    "model": "gpt-4o-mini",
+                    "model": "gpt-4o",
                     "temperature": 0.3,
                     "response_format": {"type": "json_object"},
                     "messages": [
