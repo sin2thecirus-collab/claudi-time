@@ -8,7 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
     .kd-wrap, .kd-wrap * { font-family: 'DM Sans', -apple-system, sans-serif; }
-    .kd-wrap { background: #0c1021; color: #e8ecf4; font-size: 15px; }
+    .kd-wrap { background: #0c1021; color: #e8ecf4; font-size: 15px; overflow-x: hidden; max-width: 100vw; }
     .kd-wrap ::-webkit-scrollbar { width: 5px; }
     .kd-wrap ::-webkit-scrollbar-track { background: transparent; }
     .kd-wrap ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
@@ -50,6 +50,7 @@
         background: linear-gradient(135deg, #0f1628, #141e36 50%, #1a1640);
         border-bottom: 1px solid rgba(255,255,255,0.06);
         padding: 0 32px; position: sticky; top: 0; z-index: 100;
+        overflow-x: auto; overflow-y: hidden; max-width: 100vw;
     }
 
     .kd-tab-btn {
@@ -155,9 +156,9 @@
     {# ── Sticky Header ── #}
     <div class="kd-sticky-header">
         {# Row 1: Action buttons #}
-        <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 0 8px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 0 8px; flex-wrap:wrap; gap:8px;">
             <a href="/kandidaten" class="kd-quickbtn" style="text-decoration:none;">&#x2190; Zur&uuml;ck</a>
-            <div style="display:flex; gap:8px;">
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
                 {% if candidate.cv_url or candidate.cv_stored_path %}
                 <button type="button" onclick="openCvPreview()" class="kd-quickbtn kd-quickbtn-accent">&#x1F4C4; CV ansehen</button>
                 {% endif %}
@@ -212,8 +213,8 @@
         {# Row 3: Tabs #}
         
     {# ── Tab Navigation ── #}
-    <div style="display:flex; gap:0; border-top:1px solid rgba(255,255,255,0.04); margin-top:4px;">
-        <button type="button" @click="activeTab = 'uebersicht'" class="kd-tab-btn" :class="activeTab === 'uebersicht' ? 'active' : ''">
+    <div style="display:flex; gap:0; border-top:1px solid rgba(255,255,255,0.04); margin-top:4px; overflow-x:auto; -webkit-overflow-scrolling:touch;">
+        <button type="button" @click="activeTab = 'uebersicht'" class="kd-tab-btn" :class="activeTab === 'uebersicht' ? 'active' : ''" style="white-space:nowrap;">
             <span>&#x1F4CB;</span> &Uuml;bersicht
         </button>
         <button type="button" @click="activeTab = 'qualifizierung'" class="kd-tab-btn" :class="activeTab === 'qualifizierung' ? 'active' : ''">
@@ -280,10 +281,10 @@
     </template>
 
     {# ══════════════ CONTENT + SIDEBAR ══════════════ #}
-    <div style="display:flex; gap:24px; padding:24px 32px 32px; max-width:1600px; margin:0 auto;">
+    <div style="display:flex; gap:24px; padding:24px 32px 32px; max-width:1600px; margin:0 auto; overflow:hidden;">
 
         {# ── LEFT: Tab Content ── #}
-        <div style="flex:1; min-width:0;">
+        <div style="flex:1; min-width:0; overflow:hidden;">
 
             {# ═══ TAB: Übersicht ═══ #}
             <div x-show="activeTab === 'uebersicht'" x-cloak style="display:flex; flex-direction:column; gap:40px;">
@@ -1770,9 +1771,9 @@
                     <div class="kd-section-body" style="padding:12px 24px 16px;">
 
                         {# ── E-Mail-Liste ── #}
-                        <div style="display:flex; flex-direction:column; gap:8px;">
+                        <div style="display:flex; flex-direction:column; gap:8px; width:100%; overflow:hidden;">
                             <template x-for="email in emails" :key="email.id">
-                                <div style="border-radius:14px; border:1px solid rgba(255,255,255,0.08); transition:all .2s; background:rgba(15,20,35,0.5);"
+                                <div style="border-radius:14px; border:1px solid rgba(255,255,255,0.08); transition:all .2s; background:rgba(15,20,35,0.5); overflow:hidden;"
                                      :style="email.direction === 'inbound' ? 'border-color:rgba(46,213,115,0.2);' : email.send_error ? 'border-color:rgba(255,71,87,0.3); background:rgba(255,71,87,0.04);' : ''">
 
                                     {# ── Hauptzeile ── #}
