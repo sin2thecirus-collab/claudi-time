@@ -6,6 +6,7 @@ Verwendet OpenAI Whisper fuer Sprachnachricht -> Text.
 
 import json
 import logging
+from datetime import datetime, timedelta
 
 import httpx
 
@@ -14,7 +15,9 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 # ── Intent-Klassifikation Prompt ──────────────────────────────────
-INTENT_SYSTEM_PROMPT = """Du bist ein Intent-Klassifikator fuer einen Recruiting-Assistenten (Telegram Bot).
+INTENT_SYSTEM_PROMPT_TEMPLATE = """Du bist ein Intent-Klassifikator fuer einen Recruiting-Assistenten (Telegram Bot).
+
+HEUTE ist {today} ({weekday}). Verwende dieses Datum als Referenz fuer relative Angaben wie "morgen", "Samstag", "naechste Woche" etc.
 
 Klassifiziere die Nachricht des Users in GENAU EINEN der folgenden Intents:
 
@@ -29,13 +32,25 @@ Klassifiziere die Nachricht des Users in GENAU EINEN der folgenden Intents:
 
 Extrahiere zusaetzlich relevante Entitaeten:
 - name: Name einer Person/Firma (falls erwaehnt)
-- date: Datum (falls erwaehnt, Format: YYYY-MM-DD)
+- date: Datum (MUSS im Format YYYY-MM-DD sein, berechne aus dem heutigen Datum)
 - time: Uhrzeit (falls erwaehnt, Format: HH:MM)
 - title: Titel/Beschreibung einer Aufgabe (falls erwaehnt)
 - priority: Prioritaet (dringend/wichtig/normal, falls erwaehnt)
 
 Antworte NUR mit JSON:
-{"intent": "...", "entities": {...}, "confidence": 0.0-1.0}"""
+{{"intent": "...", "entities": {{...}}, "confidence": 0.0-1.0}}"""
+
+
+WEEKDAY_NAMES = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"]
+
+
+def _build_intent_prompt() -> str:
+    """Baut den Intent-Prompt mit aktuellem Datum."""
+    now = datetime.now()
+    return INTENT_SYSTEM_PROMPT_TEMPLATE.format(
+        today=now.strftime("%Y-%m-%d"),
+        weekday=WEEKDAY_NAMES[now.weekday()],
+    )
 
 
 async def classify_intent(text: str) -> dict:
@@ -59,7 +74,7 @@ async def classify_intent(text: str) -> dict:
                 json={
                     "model": "gpt-4o-mini",
                     "messages": [
-                        {"role": "system", "content": INTENT_SYSTEM_PROMPT},
+                        {"role": "system", "content": _build_intent_prompt()},
                         {"role": "user", "content": text},
                     ],
                     "temperature": 0.0,

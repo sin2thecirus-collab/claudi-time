@@ -323,15 +323,23 @@ async def _handle_task_complete(chat_id: str, task_id_str: str) -> None:
 
 
 async def _handle_task_create(chat_id: str, entities: dict) -> None:
-    """Erstellt eine neue Aufgabe basierend auf Intent-Entitaeten."""
+    """Erstellt eine neue Aufgabe basierend auf Intent-Entitaeten.
+
+    Versucht automatisch, die Aufgabe mit einem Kandidaten, Unternehmen
+    oder Kontakt zu verknuepfen, wenn ein Name in den Entities steht.
+    """
     try:
         from app.database import async_session_maker
+        from app.models.candidate import Candidate
+        from app.models.company import Company
+        from app.models.company_contact import CompanyContact
         from app.services.ats_todo_service import ATSTodoService
 
         title = entities.get("title", "Neue Aufgabe")
         due_date_str = entities.get("date")
         due_time = entities.get("time")
         priority = entities.get("priority", "wichtig")
+        name = entities.get("name")
 
         # Prioritaet mappen
         prio_map = {
@@ -354,6 +362,51 @@ async def _handle_task_create(chat_id: str, entities: dict) -> None:
             # Default: morgen
             due_date = date.today() + timedelta(days=1)
 
+        # ── Entity-Verknuepfung: Kandidat/Firma/Kontakt suchen ──
+        candidate_id = None
+        company_id = None
+        contact_id = None
+        linked_name = None
+
+        if name:
+            async with async_session_maker() as db:
+                # 1. Kandidat suchen
+                result = await db.execute(
+                    select(Candidate)
+                    .where(
+                        (Candidate.first_name + " " + Candidate.last_name).ilike(f"%{name}%")
+                    )
+                    .limit(1)
+                )
+                candidate = result.scalar_one_or_none()
+                if candidate:
+                    candidate_id = candidate.id
+                    linked_name = f"{candidate.first_name} {candidate.last_name}"
+                else:
+                    # 2. Kontakt suchen
+                    result = await db.execute(
+                        select(CompanyContact)
+                        .where(CompanyContact.name.ilike(f"%{name}%"))
+                        .limit(1)
+                    )
+                    contact = result.scalar_one_or_none()
+                    if contact:
+                        contact_id = contact.id
+                        company_id = contact.company_id
+                        linked_name = contact.name
+                    else:
+                        # 3. Firma suchen
+                        result = await db.execute(
+                            select(Company)
+                            .where(Company.name.ilike(f"%{name}%"))
+                            .limit(1)
+                        )
+                        company = result.scalar_one_or_none()
+                        if company:
+                            company_id = company.id
+                            linked_name = company.name
+
+        # ── Todo erstellen ──
         async with async_session_maker() as db:
             service = ATSTodoService(db)
             todo = await service.create_todo(
@@ -361,15 +414,19 @@ async def _handle_task_create(chat_id: str, entities: dict) -> None:
                 priority=mapped_priority,
                 due_date=due_date,
                 due_time=due_time,
+                candidate_id=candidate_id,
+                company_id=company_id,
+                contact_id=contact_id,
             )
             await db.commit()
 
         time_str = f" um {due_time}" if due_time else ""
+        link_str = f"\nVerknuepft mit: {linked_name}" if linked_name else ""
         await send_message(
             f"Aufgabe erstellt:\n"
             f"<b>{title}</b>\n"
             f"Faellig: {due_date.strftime('%d.%m.%Y')}{time_str}\n"
-            f"Prioritaet: {mapped_priority}",
+            f"Prioritaet: {mapped_priority}{link_str}",
             chat_id=chat_id,
         )
 
