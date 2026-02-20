@@ -1,7 +1,11 @@
 """Telegram Call Handler — Call-Logging via Telegram Voice/Text.
 
 Verwendet den gleichen GPT-Prompt wie der Webex n8n Workflow
-und die gleiche store-or-assign Pipeline fuer einheitliche Verarbeitung.
+und die gleiche _auto_assign_to_candidate / _auto_assign_to_contact_or_company
+Pipeline fuer einheitliche Verarbeitung.
+
+Telegram-Calls werden NICHT in unassigned_calls gestaged, sondern direkt
+dem erkannten Kandidaten/Kontakt zugeordnet — genau wie bei Webex.
 """
 
 import json
@@ -9,6 +13,7 @@ import logging
 from datetime import datetime, timezone
 
 import httpx
+from sqlalchemy import or_, select
 
 from app.config import settings
 
@@ -116,7 +121,12 @@ async def handle_call_log(
     """Verarbeitet eine Call-Log Nachricht aus Telegram.
 
     Nutzt den gleichen GPT-Prompt wie der Webex n8n Workflow und
-    schickt das Ergebnis an die store-or-assign Pipeline.
+    die gleiche _auto_assign_to_candidate Logik fuer volle Integration:
+    - Kandidat/Kontakt/Firma wird per Name gesucht
+    - CallNote + Activity + Todos werden verknuepft erstellt
+    - Qualifizierungsfelder werden auf dem Kandidaten gespeichert
+    - Erledigte Aufgaben werden automatisch abgehakt
+    - Email-Aktionen werden verarbeitet
     """
     try:
         from app.services.telegram_bot_service import send_message
@@ -135,7 +145,7 @@ async def handle_call_log(
         call_type = extracted_data.get("call_type", "sonstiges")
         summary = extracted_data.get("call_summary", text[:500])
 
-        # ── Schritt 2: An store-or-assign Pipeline senden ──
+        # ── Schritt 2: mt_payload aufbauen (gleich wie n8n Workflow) ──
         mt_payload = {
             "call_desired_positions": extracted_data.get("desired_positions", []),
             "call_key_activities": extracted_data.get("key_activities", []),
@@ -155,16 +165,16 @@ async def handle_call_log(
             "completed_tasks": extracted_data.get("completed_tasks", []),
         }
 
-        # Intern die store-or-assign Logik aufrufen (direkt via Service, nicht HTTP)
-        assign_result = await _call_store_or_assign(
+        # ── Schritt 3: Kandidat/Firma/Kontakt per Name suchen + zuordnen ──
+        assign_result = await _find_and_assign(
+            text=text,
             call_type=call_type,
-            transcript=text if call_type == "qualifizierung" else "",
             call_summary=summary,
             extracted_data=extracted_data,
             mt_payload=mt_payload,
         )
 
-        # ── Schritt 3: Telegram-Antwort formatieren ──
+        # ── Schritt 4: Telegram-Antwort formatieren ──
         msg = _format_telegram_response(call_type, extracted_data, assign_result)
         await send_message(msg, chat_id=chat_id)
 
@@ -178,10 +188,7 @@ async def handle_call_log(
 
 
 async def _extract_call_data(transcript: str) -> dict | None:
-    """Extrahiert strukturierte Daten aus einem Gespraechstranskript via GPT-4o-mini.
-
-    Verwendet den identischen Prompt wie der Webex n8n Workflow.
-    """
+    """Extrahiert strukturierte Daten aus einem Gespraechstranskript via GPT-4o-mini."""
     if not settings.openai_api_key:
         logger.warning("OpenAI API Key nicht konfiguriert")
         return None
@@ -217,29 +224,167 @@ async def _extract_call_data(transcript: str) -> dict | None:
         return None
 
 
-async def _call_store_or_assign(
+async def _find_and_assign(
+    text: str,
     call_type: str,
-    transcript: str,
     call_summary: str,
     extracted_data: dict,
     mt_payload: dict,
 ) -> dict:
-    """Ruft die store-or-assign Pipeline intern auf.
+    """Sucht Kandidat/Kontakt/Firma per Name und ruft die gleiche
+    _auto_assign_to_candidate / _auto_assign_to_contact_or_company
+    Logik auf wie der n8n store-or-assign Endpoint.
 
-    Nutzt die gleiche Logik wie der n8n Webhook-Endpoint, aber
-    direkt ueber die DB statt via HTTP.
+    Falls kein Name erkannt → staged in unassigned_calls.
     """
     try:
+        from app.api.routes_n8n_webhooks import (
+            CallStoreOrAssignRequest,
+            _auto_assign_to_candidate,
+            _auto_assign_to_contact_or_company,
+        )
         from app.database import async_session_maker
+        from app.models.candidate import Candidate
+        from app.models.company import Company
+        from app.models.company_contact import CompanyContact
+
+        # GPT-extrahierte Namen aus action_items oder call_summary ableiten
+        # Wir suchen in den action_items nach person_name Hinweisen
+        person_names = set()
+        for item in (extracted_data.get("action_items") or []):
+            if isinstance(item, dict):
+                title = item.get("title", "")
+                # Erster Teil vor ":" ist oft der Name
+                if ":" in title:
+                    person_names.add(title.split(":")[0].strip())
+        # completed_tasks
+        for task in (extracted_data.get("completed_tasks") or []):
+            if isinstance(task, dict) and task.get("person_name"):
+                person_names.add(task["person_name"])
+
+        # CallStoreOrAssignRequest aufbauen
+        store_request = CallStoreOrAssignRequest(
+            direction="outbound",
+            call_date=datetime.now(timezone.utc).isoformat(),
+            transcript=text if call_type == "qualifizierung" else "",
+            call_summary=call_summary,
+            call_type=call_type,
+            extracted_data=extracted_data,
+            mt_payload=mt_payload,
+        )
+
+        # ── Kandidat per Name suchen (bei kurzer_call / qualifizierung) ──
+        if call_type in ("qualifizierung", "kurzer_call"):
+            for name in person_names:
+                if not name or len(name) < 2:
+                    continue
+                async with async_session_maker() as db:
+                    search = f"%{name}%"
+                    result = await db.execute(
+                        select(Candidate)
+                        .where(
+                            or_(
+                                Candidate.last_name.ilike(search),
+                                (Candidate.first_name + " " + Candidate.last_name).ilike(search),
+                            )
+                        )
+                        .limit(3)
+                    )
+                    candidates = result.scalars().all()
+
+                    if len(candidates) == 1:
+                        # Eindeutiger Match — volle Pipeline ausfuehren
+                        candidate = candidates[0]
+                        store_request.candidate_id = str(candidate.id)
+
+                        assign_result = await _auto_assign_to_candidate(db, str(candidate.id), store_request)
+                        await db.commit()
+
+                        if assign_result.get("success"):
+                            logger.info(
+                                f"Telegram Call → Kandidat zugeordnet: "
+                                f"{assign_result.get('candidate_name')} "
+                                f"(Todos: {assign_result.get('todos_created')}, "
+                                f"Completed: {assign_result.get('todos_auto_completed')})"
+                            )
+                            return {
+                                "status": "auto_assigned",
+                                "entity_type": "candidate",
+                                "entity_name": assign_result.get("candidate_name", ""),
+                                "candidate_id": str(candidate.id),
+                                "fields_updated": assign_result.get("fields_updated", []),
+                                "todos_created": assign_result.get("todos_created", 0),
+                                "todos_auto_completed": assign_result.get("todos_auto_completed", 0),
+                                "emails_sent": assign_result.get("emails_sent", 0),
+                                "call_note_id": assign_result.get("call_note_id"),
+                            }
+
+        # ── Firma/Kontakt suchen (bei akquise) ──
+        if call_type == "akquise":
+            for name in person_names:
+                if not name or len(name) < 2:
+                    continue
+                async with async_session_maker() as db:
+                    search = f"%{name}%"
+                    # Kontakt suchen
+                    result = await db.execute(
+                        select(CompanyContact)
+                        .where(CompanyContact.name.ilike(search))
+                        .limit(3)
+                    )
+                    contacts = result.scalars().all()
+
+                    if len(contacts) == 1:
+                        contact = contacts[0]
+                        assign_result = await _auto_assign_to_contact_or_company(
+                            db, "contact", str(contact.id),
+                            str(contact.company_id) if contact.company_id else None,
+                            store_request,
+                        )
+                        await db.commit()
+                        if assign_result.get("success"):
+                            logger.info(f"Telegram Call → Kontakt zugeordnet: {contact.name}")
+                            return {
+                                "status": "auto_assigned",
+                                "entity_type": "contact",
+                                "entity_name": contact.name,
+                                "call_note_id": assign_result.get("call_note_id"),
+                            }
+
+                    # Firma suchen
+                    result = await db.execute(
+                        select(Company)
+                        .where(Company.name.ilike(search))
+                        .limit(3)
+                    )
+                    companies = result.scalars().all()
+
+                    if len(companies) == 1:
+                        company = companies[0]
+                        assign_result = await _auto_assign_to_contact_or_company(
+                            db, "company", str(company.id), str(company.id),
+                            store_request,
+                        )
+                        await db.commit()
+                        if assign_result.get("success"):
+                            logger.info(f"Telegram Call → Firma zugeordnet: {company.name}")
+                            return {
+                                "status": "auto_assigned",
+                                "entity_type": "company",
+                                "entity_name": company.name,
+                                "call_note_id": assign_result.get("call_note_id"),
+                            }
+
+        # ── Kein Match gefunden → unassigned_calls Staging ──
+        logger.info(f"Telegram Call: Kein eindeutiger Match fuer Namen {person_names} → Staging")
         from app.models.unassigned_call import UnassignedCall
 
         async with async_session_maker() as db:
-            # Als unassigned_call speichern (wird im Dashboard zur manuellen Zuordnung angezeigt)
             staged_call = UnassignedCall(
-                phone_number=None,  # Telegram hat keine Telefonnummer
+                phone_number=None,
                 direction="outbound",
                 call_date=datetime.now(timezone.utc),
-                transcript=transcript if transcript else None,
+                transcript=text if call_type == "qualifizierung" else None,
                 call_summary=call_summary,
                 extracted_data={**extracted_data, "source": "telegram"},
                 recording_topic="Telegram Call-Log",
@@ -250,15 +395,15 @@ async def _call_store_or_assign(
             await db.commit()
             await db.refresh(staged_call)
 
-            logger.info(f"Telegram Call als unassigned_call gespeichert: {staged_call.id}")
             return {
                 "status": "staged",
                 "unassigned_call_id": str(staged_call.id),
                 "call_type": call_type,
+                "searched_names": list(person_names),
             }
 
     except Exception as e:
-        logger.error(f"store-or-assign fehlgeschlagen: {e}", exc_info=True)
+        logger.error(f"find_and_assign fehlgeschlagen: {e}", exc_info=True)
         return {"status": "error", "error": str(e)}
 
 
@@ -339,12 +484,38 @@ def _format_telegram_response(call_type: str, data: dict, assign_result: dict) -
             if isinstance(ea, dict):
                 lines.append(f"  - {ea.get('type', '')}: {ea.get('description', '')}")
 
-    # Status
+    # Zuordnungs-Status
     status = assign_result.get("status", "unknown")
-    if status == "staged":
-        lines.append("\nIm Zwischenspeicher abgelegt — bitte im Dashboard zuordnen.")
-    elif status == "auto_assigned":
+    if status == "auto_assigned":
         entity = assign_result.get("entity_name", "")
-        lines.append(f"\nAutomatisch zugeordnet: <b>{entity}</b>")
+        entity_type = assign_result.get("entity_type", "")
+        type_label = {"candidate": "Kandidat", "contact": "Kontakt", "company": "Firma"}.get(entity_type, "")
+        lines.append(f"\nZugeordnet: <b>{type_label} {entity}</b>")
+
+        todos = assign_result.get("todos_created", 0)
+        completed_count = assign_result.get("todos_auto_completed", 0)
+        emails = assign_result.get("emails_sent", 0)
+        fields = assign_result.get("fields_updated", [])
+
+        details_parts = []
+        if todos:
+            details_parts.append(f"{todos} Aufgaben erstellt")
+        if completed_count:
+            details_parts.append(f"{completed_count} Aufgaben erledigt")
+        if emails:
+            details_parts.append(f"{emails} Emails gesendet")
+        if fields:
+            details_parts.append(f"{len(fields)} Felder aktualisiert")
+        if details_parts:
+            lines.append(" | ".join(details_parts))
+
+    elif status == "staged":
+        names = assign_result.get("searched_names", [])
+        if names:
+            lines.append(f"\nKein eindeutiger Match fuer: {', '.join(names)}")
+        lines.append("Im Zwischenspeicher abgelegt — bitte im Dashboard zuordnen.")
+
+    elif status == "error":
+        lines.append(f"\nFehler: {assign_result.get('error', 'Unbekannt')[:200]}")
 
     return "\n".join(lines)
