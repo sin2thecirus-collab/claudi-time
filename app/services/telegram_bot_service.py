@@ -645,10 +645,8 @@ async def _handle_free_text(chat_id: str, text: str) -> None:
             from app.services.telegram_call_handler import handle_call_log
             await handle_call_log(chat_id, text)
         elif intent == "email_send":
-            await send_message(
-                "Email-Versand erkannt. Dieses Feature wird bald aktiviert.",
-                chat_id=chat_id,
-            )
+            from app.services.telegram_email_handler import handle_email_send
+            await handle_email_send(chat_id, text, entities)
         else:
             await send_message(
                 "Das habe ich nicht verstanden. Tippe /help fuer verfuegbare Kommandos.",
