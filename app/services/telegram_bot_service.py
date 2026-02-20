@@ -724,6 +724,10 @@ async def _handle_callback_query(callback_query: dict) -> None:
             await answer_callback_query(callback_id, "Wird erledigt...")
             await _handle_task_complete(chat_id, task_id)
 
+        elif callback_data.startswith("email_send_"):
+            from app.services.telegram_email_handler import handle_email_callback
+            await handle_email_callback(chat_id, callback_data, callback_id)
+
         else:
             await answer_callback_query(callback_id, "Unbekannte Aktion")
 

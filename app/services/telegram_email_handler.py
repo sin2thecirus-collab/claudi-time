@@ -1,12 +1,15 @@
 """Telegram Email Handler — Email-Versand via Telegram Bot.
 
 Ermoeglicht das Senden beliebiger Emails per Telegram-Nachricht.
-GPT-4o-mini schreibt die Email basierend auf der Anweisung.
+GPT-4o schreibt die Email basierend auf der Anweisung.
 Versand ueber Microsoft Graph (hamdard@sincirus.com).
+
+Flow: Anweisung -> GPT generiert -> Vorschau -> Bestaetigung -> Versand
 """
 
 import json
 import logging
+import re
 from datetime import datetime
 
 import httpx
@@ -15,6 +18,9 @@ from sqlalchemy import or_, select
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+# ── Zwischenspeicher fuer unbestaetigte Emails (In-Memory, Single-User) ──
+_pending_emails: dict[str, dict] = {}
 
 # ── GPT System-Prompt fuer Email-Erstellung ──
 EMAIL_WRITER_SYSTEM_PROMPT = """Du bist der persoenliche Email-Assistent von Milad Hamdard, Geschaeftsfuehrer der Sincirus GmbH (Personalberatung im Finance-Bereich).
@@ -52,7 +58,7 @@ async def handle_email_send(chat_id: str, text: str, entities: dict) -> None:
     1. Empfaenger per Name im System suchen (Kandidat oder Kontakt)
     2. Email-Adresse pruefen
     3. GPT schreibt die Email basierend auf der Anweisung
-    4. Vorschau an Telegram senden (mit Senden/Abbrechen Buttons)
+    4. Vorschau an Telegram senden (mit Senden/Abbrechen/Neu Buttons)
     5. Bei Bestaetigung: Versand via Microsoft Graph
     """
     try:
@@ -104,52 +110,161 @@ async def handle_email_send(chat_id: str, text: str, entities: dict) -> None:
         subject = email_data.get("subject", "Nachricht von Sincirus GmbH")
         body_html = email_data.get("body_html", "")
 
-        # Plaintext-Vorschau fuer Telegram (HTML-Tags entfernen)
-        import re
+        # ── Schritt 3: Vorschau zwischenspeichern ──
+        _pending_emails[chat_id] = {
+            "recipient": recipient,
+            "subject": subject,
+            "body_html": body_html,
+            "original_text": text,
+            "created_at": datetime.now().isoformat(),
+        }
+
+        # ── Schritt 4: Vorschau mit Buttons anzeigen ──
         preview_text = re.sub(r"<[^>]+>", "", body_html)
         preview_text = preview_text.replace("&nbsp;", " ").strip()
 
-        # ── Schritt 3: HTML-Signatur anhaengen (identisch mit email_service.py) ──
-        from app.services.email_service import EMAIL_SIGNATURE
-
-        full_html = f"""<div style="font-family: Arial, Helvetica, sans-serif;">
-    {body_html}
-    <br>
-    {EMAIL_SIGNATURE}
-</div>"""
-
-        # ── Schritt 4: Direkt senden (kein Confirm-Dialog noetig, Milad ist einziger User) ──
-        from app.services.email_service import MicrosoftGraphClient
-
-        result = await MicrosoftGraphClient.send_email(
-            to_email=recipient["email"],
-            subject=subject,
-            body_html=full_html,
+        await send_message(
+            f"<b>Email-Vorschau</b>\n"
+            f"━━━━━━━━━━━━━━━\n"
+            f"An: {recipient['name']} ({recipient['email']})\n"
+            f"Betreff: <b>{subject}</b>\n"
+            f"━━━━━━━━━━━━━━━\n\n"
+            f"<i>{preview_text[:800]}</i>",
+            chat_id=chat_id,
+            reply_markup={
+                "inline_keyboard": [
+                    [
+                        {"text": "Senden", "callback_data": "email_send_confirm"},
+                        {"text": "Neu schreiben", "callback_data": "email_send_rewrite"},
+                        {"text": "Abbrechen", "callback_data": "email_send_cancel"},
+                    ],
+                ],
+            },
         )
-
-        if result.get("success"):
-            await send_message(
-                f"<b>Email gesendet!</b>\n\n"
-                f"An: {recipient['name']} ({recipient['email']})\n"
-                f"Betreff: <b>{subject}</b>\n\n"
-                f"<i>{preview_text[:500]}</i>",
-                chat_id=chat_id,
-            )
-            logger.info(f"Email gesendet: {recipient['email']} — {subject}")
-        else:
-            error = result.get("error", "Unbekannter Fehler")
-            await send_message(
-                f"Email-Versand fehlgeschlagen:\n{error[:300]}",
-                chat_id=chat_id,
-            )
 
     except Exception as e:
         logger.error(f"Email-Handler fehlgeschlagen: {e}", exc_info=True)
         from app.services.telegram_bot_service import send_message
         await send_message(
-            f"Fehler beim Email-Versand: {str(e)[:200]}",
+            f"Fehler beim Email-Erstellen: {str(e)[:200]}",
             chat_id=chat_id,
         )
+
+
+async def handle_email_callback(chat_id: str, action: str, callback_id: str) -> None:
+    """Verarbeitet Button-Klicks fuer Email-Vorschau.
+
+    Actions: email_send_confirm, email_send_rewrite, email_send_cancel
+    """
+    from app.services.telegram_bot_service import answer_callback_query, send_message
+
+    pending = _pending_emails.get(chat_id)
+
+    if not pending:
+        await answer_callback_query(callback_id, "Keine Email-Vorschau vorhanden.")
+        return
+
+    if action == "email_send_confirm":
+        # ── Email absenden ──
+        await answer_callback_query(callback_id, "Email wird gesendet...")
+
+        try:
+            from app.services.email_service import EMAIL_SIGNATURE, MicrosoftGraphClient
+
+            full_html = f"""<div style="font-family: Arial, Helvetica, sans-serif;">
+    {pending['body_html']}
+    <br>
+    {EMAIL_SIGNATURE}
+</div>"""
+
+            result = await MicrosoftGraphClient.send_email(
+                to_email=pending["recipient"]["email"],
+                subject=pending["subject"],
+                body_html=full_html,
+            )
+
+            if result.get("success"):
+                await send_message(
+                    f"<b>Email gesendet!</b>\n\n"
+                    f"An: {pending['recipient']['name']} ({pending['recipient']['email']})\n"
+                    f"Betreff: <b>{pending['subject']}</b>",
+                    chat_id=chat_id,
+                )
+                logger.info(f"Email gesendet: {pending['recipient']['email']} — {pending['subject']}")
+            else:
+                error = result.get("error", "Unbekannter Fehler")
+                await send_message(
+                    f"Email-Versand fehlgeschlagen:\n{error[:300]}",
+                    chat_id=chat_id,
+                )
+        except Exception as e:
+            logger.error(f"Email-Versand fehlgeschlagen: {e}", exc_info=True)
+            await send_message(
+                f"Fehler beim Versand: {str(e)[:200]}",
+                chat_id=chat_id,
+            )
+        finally:
+            _pending_emails.pop(chat_id, None)
+
+    elif action == "email_send_rewrite":
+        # ── Email neu generieren ──
+        await answer_callback_query(callback_id, "Schreibe Email neu...")
+        recipient = pending["recipient"]
+        original_text = pending["original_text"]
+        _pending_emails.pop(chat_id, None)
+
+        await send_message(
+            f"Generiere neue Version fuer <b>{recipient['name']}</b>...",
+            chat_id=chat_id,
+        )
+
+        email_data = await _generate_email(original_text, recipient)
+        if not email_data:
+            await send_message(
+                "Konnte die Email nicht neu erstellen. Bitte erneut versuchen.",
+                chat_id=chat_id,
+            )
+            return
+
+        subject = email_data.get("subject", "Nachricht von Sincirus GmbH")
+        body_html = email_data.get("body_html", "")
+
+        # Neue Vorschau speichern
+        _pending_emails[chat_id] = {
+            "recipient": recipient,
+            "subject": subject,
+            "body_html": body_html,
+            "original_text": original_text,
+            "created_at": datetime.now().isoformat(),
+        }
+
+        preview_text = re.sub(r"<[^>]+>", "", body_html)
+        preview_text = preview_text.replace("&nbsp;", " ").strip()
+
+        await send_message(
+            f"<b>Neue Email-Vorschau</b>\n"
+            f"━━━━━━━━━━━━━━━\n"
+            f"An: {recipient['name']} ({recipient['email']})\n"
+            f"Betreff: <b>{subject}</b>\n"
+            f"━━━━━━━━━━━━━━━\n\n"
+            f"<i>{preview_text[:800]}</i>",
+            chat_id=chat_id,
+            reply_markup={
+                "inline_keyboard": [
+                    [
+                        {"text": "Senden", "callback_data": "email_send_confirm"},
+                        {"text": "Neu schreiben", "callback_data": "email_send_rewrite"},
+                        {"text": "Abbrechen", "callback_data": "email_send_cancel"},
+                    ],
+                ],
+            },
+        )
+
+    elif action == "email_send_cancel":
+        # ── Abbrechen ──
+        _pending_emails.pop(chat_id, None)
+        await answer_callback_query(callback_id, "Email verworfen.")
+        await send_message("Email wurde verworfen.", chat_id=chat_id)
 
 
 async def _find_recipient(name: str) -> dict | None:
@@ -219,7 +334,7 @@ async def _find_recipient(name: str) -> dict | None:
 
 
 async def _generate_email(user_instruction: str, recipient: dict) -> dict | None:
-    """Generiert eine Email via GPT-4o-mini basierend auf der Anweisung.
+    """Generiert eine Email via GPT-4o basierend auf der Anweisung.
 
     Returns: {"subject": str, "body_html": str}
     """
