@@ -3,11 +3,16 @@
 Erstellt Termine im Outlook-Kalender von hamdard@sincirus.com
 via Microsoft Graph Calendar API.
 
+GPT-4o schreibt den Einladungstext basierend auf der Anweisung.
 Betreff-Format: "Telefonischer Austausch | [Vorname Nachname] & Milad Hamdard"
+
+Flow: Anweisung -> GPT generiert Einladungstext -> Vorschau -> Bestaetigung -> Erstellung + Activity-Log
 """
 
+import json
 import logging
-from datetime import datetime
+import re
+from datetime import datetime, timedelta
 
 import httpx
 
@@ -19,6 +24,33 @@ logger = logging.getLogger(__name__)
 _pending_calendar: dict[str, dict] = {}
 _pending_calendar_pick: dict[str, dict] = {}
 
+# ── GPT System-Prompt fuer Kalendereinladungs-Text ──
+CALENDAR_INVITE_SYSTEM_PROMPT = """Du bist der persoenliche Kalender-Assistent von Milad Hamdard, Geschaeftsfuehrer der Sincirus GmbH (Personalberatung im Finance-Bereich).
+
+Du schreibst professionelle Einladungstexte fuer Kalendertermine auf Deutsch in Milads Namen. Der Ton ist:
+- Professionell aber persoenlich und warmherzig
+- IMMER Siezen ("Sie/Ihnen/Ihr") — ausser Milad sagt explizit "schreib in Du-Form"
+- Kurz und praegnant — kein Roman, aber alle relevanten Infos
+
+REGELN:
+1. Schreibe den Text so, als wuerde Milad ihn selbst schreiben
+2. IMMER "Sie" verwenden
+3. Verwende die ANREDE aus den Empfaengerdaten: Wenn "Herr" -> "Sehr geehrter Herr [Nachname]", wenn "Frau" -> "Sehr geehrte Frau [Nachname]". Wenn keine Anrede vorhanden: "Guten Tag [Vorname] [Nachname]"
+4. Verwende KEINE Emojis
+5. Der Text soll den ZWECK des Termins erwaehnen (worauf sich der Einladungstext bezieht)
+6. Wenn Milad bestimmte Details erwaehnt (Thema, Stelle, Position), baue sie ein
+7. Beende den Text mit "Mit freundlichen Gruessen" — KEINE Signatur (wird automatisch angehaengt)
+8. Der Text soll kurz sein: 3-6 Saetze maximal
+9. Wenn nichts Spezifisches genannt wird, schreibe einen allgemeinen Text fuer ein telefonisches Austauschgespraech
+
+Antworte IMMER als JSON:
+{
+  "body_html": "<p>HTML-formatierter Einladungstext</p>"
+}
+
+WICHTIG: body_html muss valides HTML sein mit <p>, <br> Tags.
+WICHTIG: body_html endet mit "Mit freundlichen Gruessen" — KEIN Name, KEINE Firma danach!"""
+
 
 async def handle_calendar_create(chat_id: str, text: str, entities: dict) -> None:
     """Erstellt einen Kalender-Termin basierend auf Intent-Entities.
@@ -26,8 +58,9 @@ async def handle_calendar_create(chat_id: str, text: str, entities: dict) -> Non
     Flow:
     1. Empfaenger per Name suchen (optional)
     2. Termin-Details aus Entities extrahieren
-    3. Vorschau zeigen mit Buttons (Erstellen / Abbrechen)
-    4. Bei Bestaetigung: Termin via Microsoft Graph erstellen
+    3. GPT generiert Einladungstext
+    4. Vorschau zeigen mit Buttons (Erstellen / Abbrechen)
+    5. Bei Bestaetigung: Termin via Microsoft Graph erstellen + Activity loggen
     """
     try:
         from app.services.telegram_bot_service import send_message
@@ -88,8 +121,8 @@ async def handle_calendar_create(chat_id: str, text: str, entities: dict) -> Non
             if len(matches) == 1:
                 recipient = matches[0]
 
-        # Vorschau generieren und anzeigen
-        await _preview_calendar_event(chat_id, start_dt, duration, recipient)
+        # GPT-Einladungstext generieren + Vorschau anzeigen
+        await _generate_and_preview(chat_id, start_dt, duration, recipient, text)
 
     except Exception as e:
         logger.error(f"Calendar-Handler fehlgeschlagen: {e}", exc_info=True)
@@ -100,13 +133,14 @@ async def handle_calendar_create(chat_id: str, text: str, entities: dict) -> Non
         )
 
 
-async def _preview_calendar_event(
+async def _generate_and_preview(
     chat_id: str,
     start_dt: datetime,
     duration: int,
     recipient: dict | None,
+    original_text: str,
 ) -> None:
-    """Zeigt eine Termin-Vorschau mit Bestaetigung-Buttons."""
+    """Generiert Einladungstext via GPT und zeigt Vorschau mit Buttons."""
     from app.services.telegram_bot_service import send_message
 
     # Betreff erstellen
@@ -116,23 +150,40 @@ async def _preview_calendar_event(
         subject = "Telefonischer Austausch | Milad Hamdard"
 
     # Ende berechnen
-    from datetime import timedelta
     end_dt = start_dt + timedelta(minutes=duration)
 
     # Attendee Email (falls vorhanden)
     attendee_email = recipient.get("email") if recipient else None
+
+    # GPT-Einladungstext generieren
+    await send_message(
+        f"Erstelle Kalendereinladung{' fuer ' + recipient['name'] if recipient else ''}...",
+        chat_id=chat_id,
+    )
+
+    body_html = await _generate_invite_body(original_text, recipient, start_dt, duration)
+    if not body_html:
+        body_html = _fallback_invite_body(recipient, start_dt)
+
+    # Vorschau-Text (HTML -> Plaintext fuer Telegram)
+    preview_text = re.sub(r"<[^>]+>", "", body_html)
+    preview_text = preview_text.replace("&nbsp;", " ").strip()
 
     # Zwischenspeichern
     _pending_calendar[chat_id] = {
         "subject": subject,
         "start": start_dt.isoformat(),
         "end": end_dt.isoformat(),
+        "duration": duration,
+        "body_html": body_html,
         "attendee_email": attendee_email,
         "attendee_name": recipient["name"] if recipient else None,
+        "recipient": recipient,
+        "original_text": original_text,
         "created_at": datetime.now().isoformat(),
     }
 
-    # Vorschau-Text
+    # Vorschau-Nachricht
     date_display = start_dt.strftime("%d.%m.%Y")
     time_display = f"{start_dt.strftime('%H:%M')} — {end_dt.strftime('%H:%M')}"
     attendee_display = f"\nTeilnehmer: {recipient['name']}" if recipient else ""
@@ -147,12 +198,14 @@ async def _preview_calendar_event(
         f"Zeit: {time_display}\n"
         f"Dauer: {duration} Minuten"
         f"{attendee_display}\n"
-        f"━━━━━━━━━━━━━━━",
+        f"━━━━━━━━━━━━━━━\n\n"
+        f"<i>{preview_text[:600]}</i>",
         chat_id=chat_id,
         reply_markup={
             "inline_keyboard": [
                 [
                     {"text": "Termin erstellen", "callback_data": "cal_confirm"},
+                    {"text": "Neu schreiben", "callback_data": "cal_rewrite"},
                     {"text": "Abbrechen", "callback_data": "cal_cancel"},
                 ],
             ],
@@ -163,7 +216,7 @@ async def _preview_calendar_event(
 async def handle_calendar_callback(chat_id: str, action: str, callback_id: str) -> None:
     """Verarbeitet Button-Klicks fuer Kalender (Vorschau + Empfaenger-Auswahl).
 
-    Actions: cal_confirm, cal_cancel, cal_pick_0..4, cal_pick_cancel
+    Actions: cal_confirm, cal_rewrite, cal_cancel, cal_pick_0..4, cal_pick_cancel
     """
     from app.services.telegram_bot_service import answer_callback_query, send_message
 
@@ -195,10 +248,12 @@ async def handle_calendar_callback(chat_id: str, action: str, callback_id: str) 
             await send_message("Fehler beim Parsen des Datums.", chat_id=chat_id)
             return
 
-        await _preview_calendar_event(chat_id, start_dt, choice_data["duration"], recipient)
+        await _generate_and_preview(
+            chat_id, start_dt, choice_data["duration"], recipient, choice_data["original_text"],
+        )
         return
 
-    # ── Termin-Vorschau Aktionen (cal_confirm / cal_cancel) ──
+    # ── Termin-Vorschau Aktionen (cal_confirm / cal_rewrite / cal_cancel) ──
     pending = _pending_calendar.get(chat_id)
 
     if not pending:
@@ -213,11 +268,15 @@ async def handle_calendar_callback(chat_id: str, action: str, callback_id: str) 
                 subject=pending["subject"],
                 start_iso=pending["start"],
                 end_iso=pending["end"],
+                body_html=pending["body_html"],
                 attendee_email=pending.get("attendee_email"),
                 attendee_name=pending.get("attendee_name"),
             )
 
             if result.get("success"):
+                # ── Activity im CRM loggen ──
+                await _log_calendar_activity(pending)
+
                 attendee_info = ""
                 if pending.get("attendee_name"):
                     attendee_info = f"\nTeilnehmer: {pending['attendee_name']}"
@@ -249,16 +308,127 @@ async def handle_calendar_callback(chat_id: str, action: str, callback_id: str) 
         finally:
             _pending_calendar.pop(chat_id, None)
 
+    elif action == "cal_rewrite":
+        # ── Einladungstext neu generieren ──
+        await answer_callback_query(callback_id, "Schreibe Einladung neu...")
+        recipient = pending.get("recipient")
+        original_text = pending.get("original_text", "")
+        start_dt = datetime.fromisoformat(pending["start"])
+        duration = pending.get("duration", 30)
+        _pending_calendar.pop(chat_id, None)
+
+        await _generate_and_preview(chat_id, start_dt, duration, recipient, original_text)
+
     elif action == "cal_cancel":
         _pending_calendar.pop(chat_id, None)
         await answer_callback_query(callback_id, "Termin verworfen.")
         await send_message("Termin wurde verworfen.", chat_id=chat_id)
 
 
+# ── GPT Einladungstext-Generierung ──────────────────────────────
+
+async def _generate_invite_body(
+    user_instruction: str,
+    recipient: dict | None,
+    start_dt: datetime,
+    duration: int,
+) -> str | None:
+    """Generiert Einladungstext via GPT-4o."""
+    if not settings.openai_api_key:
+        logger.warning("OpenAI API Key nicht konfiguriert")
+        return None
+
+    today = datetime.now().strftime("%d.%m.%Y")
+    termin_date = start_dt.strftime("%d.%m.%Y")
+    termin_time = start_dt.strftime("%H:%M")
+
+    # Empfaenger-Kontext
+    if recipient:
+        salutation = recipient.get("salutation", "")
+        name_parts = recipient["name"].split()
+        last_name = name_parts[-1] if name_parts else recipient["name"]
+        recipient_context = (
+            f"Empfaenger: {recipient['name']} ({recipient['type']})\n"
+            f"Anrede: {salutation or 'keine Anrede hinterlegt'}\n"
+            f"Nachname: {last_name}\n"
+            f"Vorname: {recipient.get('first_name', '')}\n"
+            f"Email: {recipient.get('email', 'nicht vorhanden')}"
+        )
+    else:
+        recipient_context = "Kein bestimmter Empfaenger — allgemeiner Termin"
+
+    user_prompt = (
+        f"{recipient_context}\n\n"
+        f"Heutiges Datum: {today}\n"
+        f"Termin-Datum: {termin_date}\n"
+        f"Termin-Uhrzeit: {termin_time} Uhr\n"
+        f"Dauer: {duration} Minuten\n\n"
+        f"Anweisung von Milad:\n{user_instruction}"
+    )
+
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            response = await client.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {settings.openai_api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": "gpt-4o",
+                    "temperature": 0.3,
+                    "response_format": {"type": "json_object"},
+                    "messages": [
+                        {"role": "system", "content": CALENDAR_INVITE_SYSTEM_PROMPT},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                },
+            )
+            response.raise_for_status()
+            data = response.json()
+
+        content = data["choices"][0]["message"]["content"]
+        result = json.loads(content) if isinstance(content, str) else content
+        body_html = result.get("body_html", "")
+        logger.info(f"Kalender-Einladungstext generiert ({len(body_html)} Zeichen)")
+        return body_html
+
+    except Exception as e:
+        logger.error(f"Einladungstext-Generierung fehlgeschlagen: {e}")
+        return None
+
+
+def _fallback_invite_body(recipient: dict | None, start_dt: datetime) -> str:
+    """Fallback-Einladungstext wenn GPT fehlschlaegt."""
+    if recipient:
+        salutation = recipient.get("salutation", "")
+        name_parts = recipient["name"].split()
+        last_name = name_parts[-1] if name_parts else recipient["name"]
+        if salutation == "Herr":
+            greeting = f"Sehr geehrter Herr {last_name}"
+        elif salutation == "Frau":
+            greeting = f"Sehr geehrte Frau {last_name}"
+        else:
+            greeting = f"Guten Tag {recipient['name']}"
+    else:
+        greeting = "Guten Tag"
+
+    return (
+        f"<p>{greeting},</p>"
+        f"<p>hiermit lade ich Sie herzlich zu einem telefonischen Austausch "
+        f"am {start_dt.strftime('%d.%m.%Y')} um {start_dt.strftime('%H:%M')} Uhr ein.</p>"
+        f"<p>Ich freue mich auf unser Gespraech.</p>"
+        f"<p>Mit freundlichen Gruessen</p>"
+    )
+
+
+# ── Microsoft Graph Calendar API ────────────────────────────────
+
 async def _create_calendar_event(
     subject: str,
     start_iso: str,
     end_iso: str,
+    body_html: str,
     attendee_email: str | None = None,
     attendee_name: str | None = None,
 ) -> dict:
@@ -266,7 +436,7 @@ async def _create_calendar_event(
 
     Returns: {"success": True, "event_id": "..."} oder {"success": False, "error": "..."}
     """
-    from app.services.email_service import MicrosoftGraphClient
+    from app.services.email_service import EMAIL_SIGNATURE, MicrosoftGraphClient
 
     sender = settings.microsoft_sender_email
     if not sender:
@@ -280,8 +450,19 @@ async def _create_calendar_event(
 
     graph_url = f"https://graph.microsoft.com/v1.0/users/{sender}/calendar/events"
 
-    event_body = {
+    # Vollstaendigen Body mit Signatur bauen
+    full_body_html = f"""<div style="font-family: Arial, Helvetica, sans-serif;">
+    {body_html}
+    <br>
+    {EMAIL_SIGNATURE}
+</div>"""
+
+    event_payload = {
         "subject": subject,
+        "body": {
+            "contentType": "HTML",
+            "content": full_body_html,
+        },
         "start": {
             "dateTime": start_iso,
             "timeZone": "Europe/Berlin",
@@ -296,7 +477,7 @@ async def _create_calendar_event(
 
     # Teilnehmer hinzufuegen (falls vorhanden)
     if attendee_email:
-        event_body["attendees"] = [
+        event_payload["attendees"] = [
             {
                 "emailAddress": {
                     "address": attendee_email,
@@ -310,7 +491,7 @@ async def _create_calendar_event(
         async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.post(
                 graph_url,
-                json=event_body,
+                json=event_payload,
                 headers={
                     "Authorization": f"Bearer {token}",
                     "Content-Type": "application/json",
@@ -330,3 +511,51 @@ async def _create_calendar_event(
     except Exception as e:
         logger.error(f"Graph Calendar-Exception: {e}")
         return {"success": False, "error": str(e)}
+
+
+# ── Activity-Tracking ───────────────────────────────────────────
+
+async def _log_calendar_activity(pending: dict) -> None:
+    """Loggt den erstellten Termin als ATSActivity im CRM."""
+    try:
+        from app.database import async_session_maker
+        from app.models.ats_activity import ATSActivity, ActivityType
+
+        recipient = pending.get("recipient")
+        if not recipient:
+            return
+
+        candidate_id = None
+        company_id = None
+
+        if recipient["type"] == "candidate":
+            candidate_id = recipient["id"]
+        elif recipient["type"] == "contact":
+            # Kontakt → company_id falls vorhanden
+            company_id = recipient.get("company_id")
+
+        start_dt = datetime.fromisoformat(pending["start"])
+
+        async with async_session_maker() as db:
+            activity = ATSActivity(
+                activity_type=ActivityType.NOTE_ADDED,
+                description=f"Termin erstellt: {pending['subject']} am {start_dt.strftime('%d.%m.%Y %H:%M')}",
+                candidate_id=candidate_id,
+                company_id=company_id,
+                metadata_json={
+                    "source": "telegram_bot",
+                    "action": "calendar_created",
+                    "subject": pending["subject"],
+                    "start": pending["start"],
+                    "end": pending["end"],
+                    "attendee_name": pending.get("attendee_name"),
+                    "attendee_email": pending.get("attendee_email"),
+                },
+            )
+            db.add(activity)
+            await db.commit()
+
+        logger.info(f"Calendar-Activity geloggt fuer {recipient['name']}")
+
+    except Exception as e:
+        logger.error(f"Calendar-Activity Logging fehlgeschlagen: {e}")

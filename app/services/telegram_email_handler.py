@@ -246,6 +246,9 @@ async def handle_email_callback(chat_id: str, action: str, callback_id: str) -> 
             )
 
             if result.get("success"):
+                # ── Activity im CRM loggen ──
+                await _log_email_activity(pending)
+
                 await send_message(
                     f"<b>Email gesendet!</b>\n\n"
                     f"An: {pending['recipient']['name']} ({pending['recipient']['email']})\n"
@@ -389,3 +392,44 @@ async def _generate_email(user_instruction: str, recipient: dict) -> dict | None
     except Exception as e:
         logger.error(f"Email-Generierung fehlgeschlagen: {e}")
         return None
+
+
+async def _log_email_activity(pending: dict) -> None:
+    """Loggt die gesendete Email als ATSActivity im CRM."""
+    try:
+        from app.database import async_session_maker
+        from app.models.ats_activity import ATSActivity, ActivityType
+
+        recipient = pending.get("recipient")
+        if not recipient:
+            return
+
+        candidate_id = None
+        company_id = None
+
+        if recipient["type"] == "candidate":
+            candidate_id = recipient["id"]
+        elif recipient["type"] == "contact":
+            company_id = recipient.get("company_id")
+
+        async with async_session_maker() as db:
+            activity = ATSActivity(
+                activity_type=ActivityType.EMAIL_SENT,
+                description=f"Email via Telegram Bot: {pending['subject'][:80]}",
+                candidate_id=candidate_id,
+                company_id=company_id,
+                metadata_json={
+                    "source": "telegram_bot",
+                    "to_email": recipient.get("email"),
+                    "to_name": recipient["name"],
+                    "subject": pending["subject"],
+                    "recipient_type": recipient["type"],
+                },
+            )
+            db.add(activity)
+            await db.commit()
+
+        logger.info(f"Email-Activity geloggt fuer {recipient['name']}")
+
+    except Exception as e:
+        logger.error(f"Email-Activity Logging fehlgeschlagen: {e}")
