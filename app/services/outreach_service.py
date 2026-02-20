@@ -262,7 +262,7 @@ class OutreachService:
                         "Content-Type": "application/json",
                     },
                     json={
-                        "model": "gpt-4o-mini",
+                        "model": "gpt-4o",
                         "messages": [
                             {"role": "system", "content": prompt},
                         ],
