@@ -287,6 +287,24 @@ async def list_emails(
     }
 
 
+@router.get("/candidates/{candidate_id}/has-reply")
+async def has_reply(
+    candidate_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Prueft ob ein Kandidat eine eingehende E-Mail (Antwort) gesendet hat."""
+    count_q = (
+        select(func.count())
+        .select_from(CandidateEmail)
+        .where(
+            CandidateEmail.candidate_id == candidate_id,
+            CandidateEmail.direction == "inbound",
+        )
+    )
+    count = (await db.execute(count_q)).scalar() or 0
+    return {"has_reply": count > 0, "reply_count": count}
+
+
 # ══════════════════════════════════════════════════════════════════
 # 3. Aufgaben
 # ══════════════════════════════════════════════════════════════════
