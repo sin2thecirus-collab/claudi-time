@@ -76,6 +76,23 @@ async def telegram_status():
         }
 
 
+@router.post("/calendar/send-reminders")
+async def send_calendar_reminders():
+    """Sendet Erinnerungs-Emails fuer morgige Kalender-Termine.
+
+    Wird taeglich um 18:00 via n8n aufgerufen.
+    Sucht alle Termine von morgen im Outlook-Kalender,
+    generiert GPT-Erinnerungs-Emails und sendet sie an Teilnehmer.
+    """
+    try:
+        from app.services.telegram_calendar_handler import send_tomorrow_reminders
+        result = await send_tomorrow_reminders()
+        return result
+    except Exception as e:
+        logger.error(f"Calendar Reminders fehlgeschlagen: {e}", exc_info=True)
+        return {"reminders_sent": 0, "events_total": 0, "errors": [str(e)]}
+
+
 async def _process_update(update: dict) -> None:
     """Verarbeitet ein Telegram Update (laeuft als Background-Task)."""
     try:
