@@ -13,7 +13,6 @@ import re
 from datetime import datetime
 
 import httpx
-from sqlalchemy import or_, select
 
 from app.config import settings
 
@@ -77,7 +76,15 @@ async def handle_email_send(chat_id: str, text: str, entities: dict) -> None:
             return
 
         # ── Schritt 1: Empfaenger suchen ──
-        matches = await _find_recipients(name)
+        from app.services.telegram_person_search import (
+            build_disambiguation_buttons,
+            build_disambiguation_text,
+            search_persons,
+        )
+
+        matches = await search_persons(name)
+        # Fuer Email: nur Kandidaten + Kontakte (keine Unternehmen)
+        matches = [m for m in matches if m["type"] in ("candidate", "contact")]
 
         if len(matches) == 0:
             await send_message(
@@ -88,26 +95,14 @@ async def handle_email_send(chat_id: str, text: str, entities: dict) -> None:
             return
 
         if len(matches) > 1:
-            # Mehrere Treffer — User muss waehlen
             _pending_recipient_choice[chat_id] = {
                 "matches": matches,
                 "original_text": text,
             }
-            buttons = []
-            for i, m in enumerate(matches[:5]):
-                typ = "Kandidat" if m["type"] == "candidate" else "Kontakt"
-                email_short = m.get("email", "keine Email") or "keine Email"
-                buttons.append([{
-                    "text": f"{m['name']} ({typ}) — {email_short}",
-                    "callback_data": f"email_pick_{i}",
-                }])
-            buttons.append([{"text": "Abbrechen", "callback_data": "email_pick_cancel"}])
-
             await send_message(
-                f"Mehrere Treffer fuer <b>{name}</b>.\n"
-                "Wen meinst du?",
+                build_disambiguation_text(matches, name),
                 chat_id=chat_id,
-                reply_markup={"inline_keyboard": buttons},
+                reply_markup={"inline_keyboard": build_disambiguation_buttons(matches, "email_pick_")},
             )
             return
 
@@ -333,71 +328,6 @@ async def handle_email_callback(chat_id: str, action: str, callback_id: str) -> 
         await answer_callback_query(callback_id, "Email verworfen.")
         await send_message("Email wurde verworfen.", chat_id=chat_id)
 
-
-async def _find_recipients(name: str) -> list[dict]:
-    """Sucht Empfaenger per Name in Kandidaten und Kontakten.
-
-    Returns: Liste von {"name": str, "email": str, "type": str, "id": str, ...}
-    Kann 0, 1 oder mehrere Treffer enthalten.
-    """
-    results = []
-    try:
-        from app.database import async_session_maker
-        from app.models.candidate import Candidate
-        from app.models.company_contact import CompanyContact
-
-        search = f"%{name}%"
-
-        # 1. Kandidaten suchen
-        async with async_session_maker() as db:
-            result = await db.execute(
-                select(Candidate)
-                .where(
-                    or_(
-                        Candidate.last_name.ilike(search),
-                        (Candidate.first_name + " " + Candidate.last_name).ilike(search),
-                        Candidate.first_name.ilike(search),
-                    )
-                )
-                .limit(5)
-            )
-            candidates = result.scalars().all()
-
-            for c in candidates:
-                full_name = f"{c.first_name or ''} {c.last_name or ''}".strip()
-                results.append({
-                    "name": full_name,
-                    "email": c.email,
-                    "type": "candidate",
-                    "id": str(c.id),
-                    "first_name": c.first_name or "",
-                    "salutation": c.gender or "",
-                })
-
-        # 2. Kontakte suchen
-        async with async_session_maker() as db:
-            result = await db.execute(
-                select(CompanyContact)
-                .where(CompanyContact.name.ilike(search))
-                .limit(5)
-            )
-            contacts = result.scalars().all()
-
-            for ct in contacts:
-                results.append({
-                    "name": ct.name,
-                    "email": ct.email,
-                    "type": "contact",
-                    "id": str(ct.id),
-                    "first_name": ct.name.split()[0] if ct.name else "",
-                    "salutation": ct.salutation or "",
-                })
-
-        return results
-
-    except Exception as e:
-        logger.error(f"Empfaengersuche fehlgeschlagen: {e}")
-        return results
 
 
 async def _generate_email(user_instruction: str, recipient: dict) -> dict | None:

@@ -13,11 +13,13 @@ import logging
 from datetime import datetime, timezone
 
 import httpx
-from sqlalchemy import or_, select
 
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+# ── Zwischenspeicher fuer mehrdeutige Call-Zuordnungen ──
+_pending_call_assignments: dict[str, dict] = {}
 
 # ── GPT System-Prompt: Identisch mit dem Webex n8n Workflow ──
 CALL_EXTRACTION_SYSTEM_PROMPT = (
@@ -113,6 +115,78 @@ def _build_call_extraction_user_prompt(transcript: str) -> str:
     )
 
 
+async def handle_call_pick_callback(chat_id: str, action: str, callback_id: str) -> None:
+    """Verarbeitet Empfaenger-Auswahl bei mehrdeutigem Call-Log."""
+    from app.services.telegram_bot_service import answer_callback_query, send_message
+
+    pending = _pending_call_assignments.pop(chat_id, None)
+    if not pending:
+        await answer_callback_query(callback_id, "Auswahl abgelaufen.")
+        return
+
+    if action == "call_pick_cancel":
+        await answer_callback_query(callback_id, "Abgebrochen.")
+        await send_message("Call-Zuordnung abgebrochen. Daten wurden im Staging gespeichert.", chat_id=chat_id)
+        return
+
+    try:
+        idx = int(action.replace("call_pick_", ""))
+        match = pending["matches"][idx]
+    except (ValueError, IndexError):
+        await answer_callback_query(callback_id, "Ungueltige Auswahl.")
+        return
+
+    await answer_callback_query(callback_id, f"{match['name']} ausgewaehlt")
+    await send_message(f"Ordne Call zu: <b>{match['name']}</b>...", chat_id=chat_id)
+
+    try:
+        from app.database import async_session_maker
+        from app.api.routes_n8n_webhooks import (
+            CallStoreOrAssignRequest,
+            _auto_assign_to_candidate,
+            _auto_assign_to_contact_or_company,
+        )
+
+        store_request = CallStoreOrAssignRequest(**pending["store_request_data"])
+
+        if match["type"] == "candidate":
+            async with async_session_maker() as db:
+                store_request.candidate_id = match["id"]
+                assign_result = await _auto_assign_to_candidate(db, match["id"], store_request)
+                await db.commit()
+                if assign_result.get("success"):
+                    msg = _format_telegram_response(
+                        pending["call_type"], pending["extracted_data"],
+                        {"status": "auto_assigned", "entity_type": "candidate",
+                         "entity_name": match["name"], **assign_result},
+                    )
+                    await send_message(msg, chat_id=chat_id)
+                    return
+
+        elif match["type"] in ("contact", "company"):
+            async with async_session_maker() as db:
+                assign_result = await _auto_assign_to_contact_or_company(
+                    db, match["type"], match["id"],
+                    match.get("company_id") or match["id"],
+                    store_request,
+                )
+                await db.commit()
+                if assign_result.get("success"):
+                    msg = _format_telegram_response(
+                        pending["call_type"], pending["extracted_data"],
+                        {"status": "auto_assigned", "entity_type": match["type"],
+                         "entity_name": match["name"], **assign_result},
+                    )
+                    await send_message(msg, chat_id=chat_id)
+                    return
+
+        await send_message("Zuordnung fehlgeschlagen. Bitte manuell pruefen.", chat_id=chat_id)
+
+    except Exception as e:
+        logger.error(f"Call-Pick Zuordnung fehlgeschlagen: {e}", exc_info=True)
+        await send_message(f"Fehler bei Zuordnung: {str(e)[:200]}", chat_id=chat_id)
+
+
 async def handle_call_log(
     chat_id: str,
     text: str,
@@ -174,7 +248,30 @@ async def handle_call_log(
             mt_payload=mt_payload,
         )
 
-        # ── Schritt 4: Telegram-Antwort formatieren ──
+        # ── Schritt 4: Mehrdeutig? → Auswahl-Buttons ──
+        if assign_result.get("status") == "ambiguous":
+            from app.services.telegram_person_search import (
+                build_disambiguation_buttons,
+                build_disambiguation_text,
+            )
+            matches = assign_result["matches"]
+            # Pending Call-Daten speichern fuer spaetere Zuordnung
+            _pending_call_assignments[chat_id] = {
+                "matches": matches,
+                "store_request_data": assign_result["store_request_data"],
+                "call_type": call_type,
+                "extracted_data": extracted_data,
+            }
+            searched_name = list(person_names)[0] if person_names else "Unbekannt"
+            await send_message(
+                f"<b>Call analysiert:</b> {call_type}\n\n"
+                + build_disambiguation_text(matches, searched_name),
+                chat_id=chat_id,
+                reply_markup={"inline_keyboard": build_disambiguation_buttons(matches, "call_pick_")},
+            )
+            return
+
+        # ── Schritt 5: Telegram-Antwort formatieren ──
         msg = _format_telegram_response(call_type, extracted_data, assign_result)
         await send_message(msg, chat_id=chat_id)
 
@@ -273,107 +370,79 @@ async def _find_and_assign(
             mt_payload=mt_payload,
         )
 
-        # ── Kandidat per Name suchen (bei kurzer_call / qualifizierung) ──
-        if call_type in ("qualifizierung", "kurzer_call"):
-            for name in person_names:
-                if not name or len(name) < 2:
-                    continue
+        # ── Personen per zentralem Such-Service finden ──
+        from app.services.telegram_person_search import search_persons
+
+        all_matches = []
+        for name in person_names:
+            if not name or len(name) < 2:
+                continue
+            matches = await search_persons(name, limit=5)
+
+            # Filtern je nach Call-Typ
+            if call_type in ("qualifizierung", "kurzer_call"):
+                matches = [m for m in matches if m["type"] == "candidate"]
+            elif call_type == "akquise":
+                matches = [m for m in matches if m["type"] in ("contact", "company")]
+
+            all_matches.extend(matches)
+
+        # Deduplizieren nach ID
+        seen_ids = set()
+        unique_matches = []
+        for m in all_matches:
+            if m["id"] not in seen_ids:
+                seen_ids.add(m["id"])
+                unique_matches.append(m)
+
+        # ── Eindeutiger Treffer → volle Pipeline ──
+        if len(unique_matches) == 1:
+            match = unique_matches[0]
+
+            if match["type"] == "candidate":
                 async with async_session_maker() as db:
-                    search = f"%{name}%"
-                    result = await db.execute(
-                        select(Candidate)
-                        .where(
-                            or_(
-                                Candidate.last_name.ilike(search),
-                                (Candidate.first_name + " " + Candidate.last_name).ilike(search),
-                            )
-                        )
-                        .limit(3)
-                    )
-                    candidates = result.scalars().all()
+                    store_request.candidate_id = match["id"]
+                    assign_result = await _auto_assign_to_candidate(db, match["id"], store_request)
+                    await db.commit()
+                    if assign_result.get("success"):
+                        logger.info(f"Telegram Call → Kandidat zugeordnet: {match['name']}")
+                        return {
+                            "status": "auto_assigned",
+                            "entity_type": "candidate",
+                            "entity_name": match["name"],
+                            "candidate_id": match["id"],
+                            "fields_updated": assign_result.get("fields_updated", []),
+                            "todos_created": assign_result.get("todos_created", 0),
+                            "todos_auto_completed": assign_result.get("todos_auto_completed", 0),
+                            "emails_sent": assign_result.get("emails_sent", 0),
+                            "call_note_id": assign_result.get("call_note_id"),
+                        }
 
-                    if len(candidates) == 1:
-                        # Eindeutiger Match — volle Pipeline ausfuehren
-                        candidate = candidates[0]
-                        store_request.candidate_id = str(candidate.id)
-
-                        assign_result = await _auto_assign_to_candidate(db, str(candidate.id), store_request)
-                        await db.commit()
-
-                        if assign_result.get("success"):
-                            logger.info(
-                                f"Telegram Call → Kandidat zugeordnet: "
-                                f"{assign_result.get('candidate_name')} "
-                                f"(Todos: {assign_result.get('todos_created')}, "
-                                f"Completed: {assign_result.get('todos_auto_completed')})"
-                            )
-                            return {
-                                "status": "auto_assigned",
-                                "entity_type": "candidate",
-                                "entity_name": assign_result.get("candidate_name", ""),
-                                "candidate_id": str(candidate.id),
-                                "fields_updated": assign_result.get("fields_updated", []),
-                                "todos_created": assign_result.get("todos_created", 0),
-                                "todos_auto_completed": assign_result.get("todos_auto_completed", 0),
-                                "emails_sent": assign_result.get("emails_sent", 0),
-                                "call_note_id": assign_result.get("call_note_id"),
-                            }
-
-        # ── Firma/Kontakt suchen (bei akquise) ──
-        if call_type == "akquise":
-            for name in person_names:
-                if not name or len(name) < 2:
-                    continue
+            elif match["type"] in ("contact", "company"):
                 async with async_session_maker() as db:
-                    search = f"%{name}%"
-                    # Kontakt suchen
-                    result = await db.execute(
-                        select(CompanyContact)
-                        .where(CompanyContact.name.ilike(search))
-                        .limit(3)
+                    entity_type = match["type"]
+                    entity_id = match["id"]
+                    company_id = match.get("company_id") or match["id"]
+                    assign_result = await _auto_assign_to_contact_or_company(
+                        db, entity_type, entity_id, company_id, store_request,
                     )
-                    contacts = result.scalars().all()
+                    await db.commit()
+                    if assign_result.get("success"):
+                        logger.info(f"Telegram Call → {entity_type} zugeordnet: {match['name']}")
+                        return {
+                            "status": "auto_assigned",
+                            "entity_type": entity_type,
+                            "entity_name": match["name"],
+                            "call_note_id": assign_result.get("call_note_id"),
+                        }
 
-                    if len(contacts) == 1:
-                        contact = contacts[0]
-                        assign_result = await _auto_assign_to_contact_or_company(
-                            db, "contact", str(contact.id),
-                            str(contact.company_id) if contact.company_id else None,
-                            store_request,
-                        )
-                        await db.commit()
-                        if assign_result.get("success"):
-                            logger.info(f"Telegram Call → Kontakt zugeordnet: {contact.name}")
-                            return {
-                                "status": "auto_assigned",
-                                "entity_type": "contact",
-                                "entity_name": contact.name,
-                                "call_note_id": assign_result.get("call_note_id"),
-                            }
-
-                    # Firma suchen
-                    result = await db.execute(
-                        select(Company)
-                        .where(Company.name.ilike(search))
-                        .limit(3)
-                    )
-                    companies = result.scalars().all()
-
-                    if len(companies) == 1:
-                        company = companies[0]
-                        assign_result = await _auto_assign_to_contact_or_company(
-                            db, "company", str(company.id), str(company.id),
-                            store_request,
-                        )
-                        await db.commit()
-                        if assign_result.get("success"):
-                            logger.info(f"Telegram Call → Firma zugeordnet: {company.name}")
-                            return {
-                                "status": "auto_assigned",
-                                "entity_type": "company",
-                                "entity_name": company.name,
-                                "call_note_id": assign_result.get("call_note_id"),
-                            }
+        # ── Mehrere Treffer → Auswahl zurueckgeben (Bot zeigt Buttons) ──
+        if len(unique_matches) > 1:
+            return {
+                "status": "ambiguous",
+                "matches": unique_matches,
+                "store_request_data": store_request.model_dump(mode="json"),
+            }
 
         # ── Kein Match gefunden → unassigned_calls Staging ──
         logger.info(f"Telegram Call: Kein eindeutiger Match fuer Namen {person_names} → Staging")

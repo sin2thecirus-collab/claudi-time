@@ -17,6 +17,9 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+# ── Zwischenspeicher fuer mehrdeutige Task-Zuordnungen ──
+_pending_task_data: dict[str, dict] = {}
+
 # Telegram Bot API Base URL
 TELEGRAM_API = "https://api.telegram.org/bot{token}"
 
@@ -330,9 +333,6 @@ async def _handle_task_create(chat_id: str, entities: dict) -> None:
     """
     try:
         from app.database import async_session_maker
-        from app.models.candidate import Candidate
-        from app.models.company import Company
-        from app.models.company_contact import CompanyContact
         from app.services.ats_todo_service import ATSTodoService
 
         title = entities.get("title", "Neue Aufgabe")
@@ -369,42 +369,40 @@ async def _handle_task_create(chat_id: str, entities: dict) -> None:
         linked_name = None
 
         if name:
-            async with async_session_maker() as db:
-                # 1. Kandidat suchen
-                result = await db.execute(
-                    select(Candidate)
-                    .where(
-                        (Candidate.first_name + " " + Candidate.last_name).ilike(f"%{name}%")
-                    )
-                    .limit(1)
+            from app.services.telegram_person_search import (
+                build_disambiguation_buttons,
+                build_disambiguation_text,
+                search_persons,
+            )
+
+            matches = await search_persons(name)
+
+            if len(matches) == 1:
+                m = matches[0]
+                linked_name = m["name"]
+                if m["type"] == "candidate":
+                    candidate_id = m["id"]
+                elif m["type"] == "contact":
+                    contact_id = m["id"]
+                elif m["type"] == "company":
+                    company_id = m["id"]
+
+            elif len(matches) > 1:
+                # Mehrere Treffer — User muss waehlen
+                _pending_task_data[chat_id] = {
+                    "matches": matches,
+                    "title": title,
+                    "due_date": due_date.isoformat() if due_date else None,
+                    "due_time": due_time,
+                    "priority": mapped_priority,
+                }
+                await send_message(
+                    f"<b>Aufgabe:</b> {title}\n\n"
+                    + build_disambiguation_text(matches, name),
+                    chat_id=chat_id,
+                    reply_markup={"inline_keyboard": build_disambiguation_buttons(matches, "task_pick_")},
                 )
-                candidate = result.scalar_one_or_none()
-                if candidate:
-                    candidate_id = candidate.id
-                    linked_name = f"{candidate.first_name} {candidate.last_name}"
-                else:
-                    # 2. Kontakt suchen
-                    result = await db.execute(
-                        select(CompanyContact)
-                        .where(CompanyContact.name.ilike(f"%{name}%"))
-                        .limit(1)
-                    )
-                    contact = result.scalar_one_or_none()
-                    if contact:
-                        contact_id = contact.id
-                        company_id = contact.company_id
-                        linked_name = contact.name
-                    else:
-                        # 3. Firma suchen
-                        result = await db.execute(
-                            select(Company)
-                            .where(Company.name.ilike(f"%{name}%"))
-                            .limit(1)
-                        )
-                        company = result.scalar_one_or_none()
-                        if company:
-                            company_id = company.id
-                            linked_name = company.name
+                return
 
         # ── Todo erstellen ──
         async with async_session_maker() as db:
@@ -728,11 +726,79 @@ async def _handle_callback_query(callback_query: dict) -> None:
             from app.services.telegram_email_handler import handle_email_callback
             await handle_email_callback(chat_id, callback_data, callback_id)
 
+        elif callback_data.startswith("call_pick_"):
+            from app.services.telegram_call_handler import handle_call_pick_callback
+            await handle_call_pick_callback(chat_id, callback_data, callback_id)
+
+        elif callback_data.startswith("task_pick_"):
+            await _handle_task_pick_callback(chat_id, callback_data, callback_id)
+
         else:
             await answer_callback_query(callback_id, "Unbekannte Aktion")
 
     except Exception as e:
         logger.error(f"Callback Query fehlgeschlagen: {e}", exc_info=True)
+
+
+async def _handle_task_pick_callback(chat_id: str, action: str, callback_id: str) -> None:
+    """Verarbeitet Empfaenger-Auswahl bei mehrdeutiger Task-Zuordnung."""
+    pending = _pending_task_data.pop(chat_id, None)
+    if not pending:
+        await answer_callback_query(callback_id, "Auswahl abgelaufen.")
+        return
+
+    if action == "task_pick_cancel":
+        await answer_callback_query(callback_id, "Abgebrochen.")
+        await send_message("Aufgaben-Erstellung abgebrochen.", chat_id=chat_id)
+        return
+
+    try:
+        idx = int(action.replace("task_pick_", ""))
+        match = pending["matches"][idx]
+    except (ValueError, IndexError):
+        await answer_callback_query(callback_id, "Ungueltige Auswahl.")
+        return
+
+    await answer_callback_query(callback_id, f"{match['name']} ausgewaehlt")
+
+    try:
+        from app.database import async_session_maker
+        from app.services.ats_todo_service import ATSTodoService
+
+        candidate_id = match["id"] if match["type"] == "candidate" else None
+        contact_id = match["id"] if match["type"] == "contact" else None
+        company_id = match["id"] if match["type"] == "company" else None
+
+        due_date = None
+        if pending.get("due_date"):
+            due_date = date.fromisoformat(pending["due_date"])
+
+        async with async_session_maker() as db:
+            service = ATSTodoService(db)
+            await service.create_todo(
+                title=pending["title"],
+                priority=pending.get("priority", "wichtig"),
+                due_date=due_date,
+                due_time=pending.get("due_time"),
+                candidate_id=candidate_id,
+                company_id=company_id,
+                contact_id=contact_id,
+            )
+            await db.commit()
+
+        time_str = f" um {pending.get('due_time')}" if pending.get("due_time") else ""
+        date_str = due_date.strftime("%d.%m.%Y") if due_date else ""
+        await send_message(
+            f"Aufgabe erstellt:\n"
+            f"<b>{pending['title']}</b>\n"
+            f"Faellig: {date_str}{time_str}\n"
+            f"Verknuepft mit: {match['name']}",
+            chat_id=chat_id,
+        )
+
+    except Exception as e:
+        logger.error(f"Task-Pick Erstellung fehlgeschlagen: {e}", exc_info=True)
+        await send_message(f"Fehler: {str(e)[:200]}", chat_id=chat_id)
 
 
 async def _handle_upcoming_tasks(chat_id: str) -> None:
