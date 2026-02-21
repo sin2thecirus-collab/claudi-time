@@ -424,5 +424,9 @@ app.include_router(search_router, prefix="/api")
 # Matching Engine v2 (/api/v2/profiles/..., /api/v2/weights, /api/v2/rules)
 app.include_router(matching_v2_router, prefix="/api/v2")
 
+# Claude Matching v4 (/api/v4/claude-match/..., /api/v4/debug/...)
+from app.api.routes_claude_matching import router as claude_matching_router
+app.include_router(claude_matching_router, prefix="/api/v4")
+
 # Status & Query API (/api/status/overview, /api/status/geodaten, /api/status/profiling, ...)
 app.include_router(status_router, prefix="/api")

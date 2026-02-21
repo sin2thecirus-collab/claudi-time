@@ -138,6 +138,12 @@ class Settings(BaseSettings):
         description="Absender-Email fuer automatische Emails (z.B. hamdard@sincirus.com)",
     )
 
+    # Anthropic (Claude Matching v4)
+    anthropic_api_key: str = Field(
+        default="",
+        description="Anthropic API Key fuer Claude Matching v4",
+    )
+
     # Google Maps
     google_maps_api_key: str = Field(
         default="",

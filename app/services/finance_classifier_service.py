@@ -479,6 +479,77 @@ def validate_job_classification(gpt_result: dict, job_text: str) -> dict:
     return gpt_result
 
 
+def validate_candidate_classification(gpt_result: dict, candidate_text: str) -> dict:
+    """Deterministische Regelvalidierung nach GPT-Klassifizierung fuer Kandidaten.
+
+    Korrigiert systematische GPT-Fehler bei:
+    1. JA-Erstellung im Werdegang = BiBu (nicht FiBu)
+    2. Nur Kreditoren-Taetigkeit = KrediBu (nicht FiBu)
+    3. Nur Debitoren-Taetigkeit = DebiBu (nicht FiBu)
+    """
+    if not candidate_text:
+        return gpt_result
+
+    text_lower = candidate_text.lower()
+    corrections = []
+
+    # REGEL 1: JA-Erstellung im Werdegang = BiBu
+    has_ja_creation = any(p in text_lower for p in _JA_CREATION_PHRASES)
+    has_ja_prep_only = any(p in text_lower for p in _JA_PREP_PHRASES) and not has_ja_creation
+
+    if has_ja_creation and gpt_result.get("primary_role") != "Bilanzbuchhalter/in":
+        # Pruefe ob Kandidat BiBu-Zertifizierung hat (IHK Bilanzbuchhalter)
+        has_bibu_cert = any(kw in text_lower for kw in [
+            "bilanzbuchhalter ihk", "bilanzbuchhalter (ihk)",
+            "geprüfter bilanzbuchhalter", "gepruefter bilanzbuchhalter",
+            "bilanzbuchhalter/in",
+        ])
+        # Auch ohne Zertifizierung: JA-Erstellung in aktueller/letzter Position = BiBu-Erfahrung
+        gpt_result["primary_role"] = "Bilanzbuchhalter/in"
+        if "Bilanzbuchhalter/in" not in gpt_result.get("roles", []):
+            gpt_result.setdefault("roles", []).append("Bilanzbuchhalter/in")
+        corrections.append("JA-Erstellung im Werdegang → BiBu")
+
+    # REGEL 2: Nur Kreditoren (ohne Debitoren) = KrediBu
+    has_kredi = any(kw in text_lower for kw in [
+        "kreditorenbuchhaltung", "accounts payable", "kreditoren",
+        "eingangsrechnungen", "rechnungsprüfung", "rechnungspruefung",
+    ])
+    has_debi = any(kw in text_lower for kw in [
+        "debitorenbuchhaltung", "accounts receivable", "debitoren",
+        "mahnwesen", "forderungsmanagement",
+    ])
+    has_both = has_kredi and has_debi
+    # Breite FiBu-Taetigkeiten: Wenn der Kandidat AUCH FiBu macht, nicht korrigieren
+    has_fibu_breadth = any(p in text_lower for p in [
+        "laufende buchhaltung", "laufende finanzbuchhaltung",
+        "finanzbuchhaltung", "hauptbuchhaltung", "sachkontenbuchhaltung",
+        "monatsabschluss", "jahresabschluss", "anlagenbuchhaltung",
+    ])
+
+    if has_kredi and not has_debi and not has_both and not has_fibu_breadth:
+        if gpt_result.get("primary_role") == "Finanzbuchhalter/in":
+            gpt_result["primary_role"] = "Kreditorenbuchhalter/in"
+            if "Kreditorenbuchhalter/in" not in gpt_result.get("roles", []):
+                gpt_result.setdefault("roles", []).append("Kreditorenbuchhalter/in")
+            corrections.append("Nur Kreditoren → KrediBu")
+
+    # REGEL 3: Nur Debitoren (ohne Kreditoren) = DebiBu
+    if has_debi and not has_kredi and not has_both and not has_fibu_breadth:
+        if gpt_result.get("primary_role") == "Finanzbuchhalter/in":
+            gpt_result["primary_role"] = "Debitorenbuchhalter/in"
+            if "Debitorenbuchhalter/in" not in gpt_result.get("roles", []):
+                gpt_result.setdefault("roles", []).append("Debitorenbuchhalter/in")
+            corrections.append("Nur Debitoren → DebiBu")
+
+    if corrections:
+        existing_reasoning = gpt_result.get("reasoning", "")
+        gpt_result["reasoning"] = f"{existing_reasoning} [REGELKORREKTUR: {', '.join(corrections)}]"
+        gpt_result["title_was_corrected"] = True
+
+    return gpt_result
+
+
 # ═══════════════════════════════════════════════════════════════
 # DATACLASSES
 # ═══════════════════════════════════════════════════════════════
@@ -742,6 +813,10 @@ class FinanceClassifierService:
         usage = result.pop("_usage", {})
         input_tokens = usage.get("input_tokens", 0)
         output_tokens = usage.get("output_tokens", 0)
+
+        # V3: Deterministische Regelvalidierung NACH GPT-Antwort
+        candidate_text = user_prompt  # Vollstaendiger Werdegang-Text
+        result = validate_candidate_classification(result, candidate_text)
 
         # Ergebnis parsen
         is_leadership = result.get("is_leadership", False)

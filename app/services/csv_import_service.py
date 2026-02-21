@@ -4,7 +4,7 @@ import csv
 import io
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import BinaryIO
 from uuid import UUID
 
@@ -517,13 +517,16 @@ class CSVImportService:
             if batch:
                 self.db.add_all(batch)
 
-            # Duplikate: last_updated_at aktualisieren (Batch-Update)
+            # Duplikate: last_updated_at + expires_at auffrischen (Batch-Update)
             if duplicate_ids:
                 now = datetime.now(timezone.utc)
                 await self.db.execute(
                     update(Job)
                     .where(Job.id.in_(duplicate_ids))
-                    .values(last_updated_at=now)
+                    .values(
+                        last_updated_at=now,
+                        expires_at=now + timedelta(days=30),
+                    )
                 )
 
             import_job.processed_rows = processed
@@ -729,6 +732,7 @@ class CSVImportService:
             ),
             content_hash=content_hash,
             imported_at=datetime.now(timezone.utc),
+            expires_at=datetime.now(timezone.utc) + timedelta(days=30),
         )
 
 

@@ -525,7 +525,7 @@ async def _run_batch_matching(max_jobs: int, unmatched_only: bool):
         _batch_match_status["running"] = False
 
 
-@router.post("/match/batch")
+@router.post("/match/batch")  # deprecated by v4 — Matching jetzt ueber /api/v4/claude-match/run
 async def start_batch_matching(
     background_tasks: BackgroundTasks,
     max_jobs: int = 0,
@@ -638,7 +638,7 @@ async def _run_embedding_generation(entity_type: str, max_total: int):
         _embedding_status["running"] = False
 
 
-@router.post("/embeddings/generate")
+@router.post("/embeddings/generate")  # deprecated by v4 — Claude Matching braucht keine Embeddings
 async def start_embedding_generation(
     background_tasks: BackgroundTasks,
     entity_type: str = "all",
@@ -688,7 +688,7 @@ async def get_embedding_status():
     }
 
 
-@router.post("/embeddings/reset")
+@router.post("/embeddings/reset")  # deprecated by v4 — Claude Matching braucht keine Embeddings
 async def reset_embeddings(
     entity_type: str = "all",
     db: AsyncSession = Depends(get_db),

@@ -163,6 +163,7 @@
                 <a href="/api/candidates/{{ candidate.id }}/profile-pdf?regenerate=true" target="_blank" class="kd-quickbtn" style="text-decoration:none; font-size:12px;" title="PDF neu generieren (Cache ignorieren)">&#x1F504;</a>
                 <button type="button" onclick="triggerNichtErreicht('{{ candidate.id }}')" class="kd-quickbtn" style="background:var(--pp-orangeSoft); color:var(--pp-orange); border:1px solid rgba(234,179,8,0.25);" id="btn-nicht-erreicht" title="E-Mail-Sequenz starten (3 Emails &uuml;ber 5 Tage)">&#x1F4E7; Nicht erreicht</button>
                 <button type="button" @click="showPipelineModal = true" class="kd-quickbtn kd-quickbtn-primary">&#x1F680; Pipeline</button>
+                <button type="button" onclick="findJobsForCandidate('{{ candidate.id }}')" class="kd-quickbtn" style="background:var(--pp-accentSoft); color:var(--pp-accent); border:1px solid rgba(99,102,241,0.25);" id="btn-jobs-finden" title="Claude Matching: Passende Jobs fuer diesen Kandidaten finden">&#x1F50D; Jobs finden</button>
                 <button type="button" onclick="deleteCandidate('{{ candidate.id }}', '{{ display_name }}')" class="kd-quickbtn kd-quickbtn-danger">&#x1F5D1;</button>
             </div>
         </div>
@@ -2573,6 +2574,46 @@ function saveGenderField(select, candidateId) {
     .then(function(r) { return r.json(); })
     .then(function(data) { if (data.id && typeof showToast === 'function') showToast('Anrede gespeichert', 'success'); })
     .catch(function() { if (typeof showToast === 'function') showToast('Fehler beim Speichern', 'error'); });
+}
+
+// ==================== "Jobs finden" Button (Claude Matching v4) ====================
+function findJobsForCandidate(candidateId) {
+    var btn = document.getElementById('btn-jobs-finden');
+    btn.disabled = true;
+    btn.innerHTML = '&#x23F3; Suche l&auml;uft...';
+    btn.style.opacity = '0.6';
+    btn.style.cursor = 'not-allowed';
+
+    fetch('/api/v4/claude-match/candidate/' + candidateId, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.error) { throw new Error(data.error); }
+        btn.innerHTML = '&#x2705; Matching gestartet';
+        btn.style.background = 'var(--pp-greenSoft)';
+        btn.style.color = 'var(--pp-green)';
+        btn.style.borderColor = 'rgba(34,197,94,0.25)';
+        if (typeof showToast === 'function') showToast('Matching gestartet! Ergebnisse auf dem Action Board.', 'success');
+        // Nach 3 Sekunden Button zuruecksetzen
+        setTimeout(function() {
+            btn.disabled = false;
+            btn.innerHTML = '&#x1F50D; Jobs finden';
+            btn.style.opacity = '1';
+            btn.style.cursor = 'pointer';
+            btn.style.background = 'var(--pp-accentSoft)';
+            btn.style.color = 'var(--pp-accent)';
+            btn.style.borderColor = 'rgba(99,102,241,0.25)';
+        }, 3000);
+    })
+    .catch(function(err) {
+        btn.disabled = false;
+        btn.innerHTML = '&#x1F50D; Jobs finden';
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+        if (typeof showToast === 'function') showToast('Fehler: ' + err.message, 'error');
+    });
 }
 
 // ==================== "Nicht erreicht" Button ====================

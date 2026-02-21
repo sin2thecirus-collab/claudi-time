@@ -49,7 +49,7 @@ async def _run_pipeline_background(import_job_id):
     from app.state import set_progress, cleanup_progress, is_cancelled
 
     job_id_str = str(import_job_id)
-    step_names = ["categorization", "classification", "geocoding", "profiling", "embedding", "matching"]
+    step_names = ["categorization", "classification", "geocoding"]
     pipeline = {name: {"status": "pending"} for name in step_names}
     cancelled = False
 
@@ -147,88 +147,9 @@ async def _run_pipeline_background(import_job_id):
         set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
         logger.info(f"Pipeline: geocoding -> {pipeline['geocoding']['status']}")
 
-        # --- Schritt 3: Profiling (GPT-4o-mini) — mit Live-%-Anzeige ---
-        check_cancel()
-        pipeline["profiling"] = {"status": "running", "progress": 0}
-        set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
-
-        def profiling_progress(processed, total):
-            """Callback: wird nach JEDEM profilierten Job aufgerufen."""
-            # Cancel-Check innerhalb des Profilings (bricht mitten im Step ab)
-            if is_cancelled(job_id_str):
-                raise PipelineCancelled("Pipeline abgebrochen")
-            pct = round(processed / total * 100) if total > 0 else 0
-            pipeline["profiling"]["progress"] = pct
-            pipeline["profiling"]["processed"] = processed
-            pipeline["profiling"]["total"] = total
-            set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
-
-        try:
-            async with async_session_maker() as step_db:
-                from app.services.profile_engine_service import ProfileEngineService
-                profile_service = ProfileEngineService(step_db)
-                profile_result = await profile_service.backfill_jobs(
-                    progress_callback=profiling_progress
-                )
-                await step_db.commit()
-                pipeline["profiling"] = {
-                    "status": "ok",
-                    "profiled": getattr(profile_result, "profiled", 0),
-                    "skipped": getattr(profile_result, "skipped", 0),
-                    "failed": getattr(profile_result, "failed", 0),
-                    "cost_usd": round(getattr(profile_result, "total_cost_usd", 0), 4),
-                }
-        except PipelineCancelled:
-            raise
-        except Exception as e:
-            pipeline["profiling"] = {"status": "failed", "error": str(e)[:200]}
-            logger.warning(f"Pipeline: profiling fehlgeschlagen: {e}", exc_info=True)
-        set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
-        logger.info(f"Pipeline: profiling -> {pipeline['profiling']['status']}")
-
-        # --- Schritt 4: Embedding (OpenAI) ---
-        check_cancel()
-        pipeline["embedding"]["status"] = "running"
-        set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
-        try:
-            async with async_session_maker() as step_db:
-                from app.services.embedding_service import EmbeddingService
-                emb_service = EmbeddingService(step_db)
-                emb_result = await emb_service.embed_all_finance_jobs()
-                pipeline["embedding"] = {
-                    "status": "ok",
-                    "generated": emb_result.get("embedded", 0),
-                    "failed": emb_result.get("errors", 0),
-                }
-        except PipelineCancelled:
-            raise
-        except Exception as e:
-            pipeline["embedding"] = {"status": "failed", "error": str(e)[:200]}
-            logger.warning(f"Pipeline: embedding fehlgeschlagen: {e}", exc_info=True)
-        set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
-        logger.info(f"Pipeline: embedding -> {pipeline['embedding']['status']}")
-
-        # --- Schritt 5: Matching ---
-        check_cancel()
-        pipeline["matching"]["status"] = "running"
-        set_progress(job_id_str, {"pipeline": dict(pipeline), "pipeline_status": "running"})
-        try:
-            async with async_session_maker() as step_db:
-                from app.services.matching_engine_v2 import MatchingEngineV2
-                matcher = MatchingEngineV2(step_db)
-                match_result = await matcher.match_batch(unmatched_only=True, max_jobs=0)
-                await step_db.commit()
-                pipeline["matching"] = {
-                    "status": "ok",
-                    "jobs_matched": getattr(match_result, "jobs_matched", 0),
-                    "matches_created": getattr(match_result, "total_matches_created", 0),
-                    "duration_ms": round(getattr(match_result, "total_duration_ms", 0)),
-                }
-        except PipelineCancelled:
-            raise
-        except Exception as e:
-            pipeline["matching"] = {"status": "failed", "error": str(e)[:200]}
-            logger.warning(f"Pipeline: matching fehlgeschlagen: {e}", exc_info=True)
+        # v4: Pipeline stoppt hier nach Geocoding.
+        # Profiling, Embedding, Matching werden NICHT mehr automatisch ausgefuehrt.
+        # Matching wird separat ueber das Action Board (Claude Matching v4) ausgeloest.
 
     except PipelineCancelled:
         cancelled = True
@@ -326,52 +247,8 @@ async def _execute_pipeline_steps() -> dict:
     except Exception as e:
         pipeline["geocoding"] = {"status": "failed", "error": str(e)[:200]}
 
-    # --- Profiling ---
-    try:
-        async with async_session_maker() as step_db:
-            from app.services.profile_engine_service import ProfileEngineService
-            profile_service = ProfileEngineService(step_db)
-            profile_result = await profile_service.backfill_jobs()
-            await step_db.commit()
-            pipeline["profiling"] = {
-                "status": "ok",
-                "profiled": getattr(profile_result, "profiled", 0),
-                "skipped": getattr(profile_result, "skipped", 0),
-                "failed": getattr(profile_result, "failed", 0),
-                "cost_usd": round(getattr(profile_result, "total_cost_usd", 0), 4),
-            }
-    except Exception as e:
-        pipeline["profiling"] = {"status": "failed", "error": str(e)[:200]}
-
-    # --- Embedding ---
-    try:
-        async with async_session_maker() as step_db:
-            from app.services.embedding_service import EmbeddingService
-            emb_service = EmbeddingService(step_db)
-            emb_result = await emb_service.embed_all_finance_jobs()
-            pipeline["embedding"] = {
-                "status": "ok",
-                "generated": emb_result.get("embedded", 0),
-                "failed": emb_result.get("errors", 0),
-            }
-    except Exception as e:
-        pipeline["embedding"] = {"status": "failed", "error": str(e)[:200]}
-
-    # --- Matching ---
-    try:
-        async with async_session_maker() as step_db:
-            from app.services.matching_engine_v2 import MatchingEngineV2
-            matcher = MatchingEngineV2(step_db)
-            match_result = await matcher.match_batch(unmatched_only=True, max_jobs=0)
-            await step_db.commit()
-            pipeline["matching"] = {
-                "status": "ok",
-                "jobs_matched": getattr(match_result, "jobs_matched", 0),
-                "matches_created": getattr(match_result, "total_matches_created", 0),
-                "duration_ms": round(getattr(match_result, "total_duration_ms", 0)),
-            }
-    except Exception as e:
-        pipeline["matching"] = {"status": "failed", "error": str(e)[:200]}
+    # v4: Pipeline stoppt nach Geocoding.
+    # Matching wird separat ueber das Action Board (Claude Matching v4) ausgeloest.
 
     return pipeline
 
@@ -393,8 +270,9 @@ async def import_jobs(
     Die Datei muss Tab-getrennt sein und die Pflicht-Spalte 'Unternehmen' haben.
     Bei HTMX-Requests wird HTML (import_progress.html) zurueckgegeben.
 
-    Die Post-Import Pipeline (Kategorisierung, Geocoding, Profiling, Embedding,
-    Matching) laeuft automatisch im Hintergrund NACH der Response.
+    Die Post-Import Pipeline (Kategorisierung, Classification, Geocoding)
+    laeuft automatisch im Hintergrund NACH der Response.
+    Matching wird separat ueber das Action Board (Claude Matching v4) ausgeloest.
     """
     import asyncio
     from app.database import async_session_maker
@@ -1581,7 +1459,7 @@ async def run_pipeline_backfill(
     die noch nicht verarbeitet wurden (Backfill).
     Nutzt eigene DB-Session (kein Depends, keine vergifteten Sessions).
 
-    Pipeline: Kategorisierung → Geocoding → Profiling → Embedding → Matching
+    Pipeline: Kategorisierung → Classification → Geocoding (v4: stoppt hier)
     """
     import time
 

@@ -1175,68 +1175,6 @@ class MatchingEngineV2:
 
         return 0.5
 
-    def _score_city_metro(
-        self,
-        candidate_city: str | None,
-        job_city: str | None,
-    ) -> float:
-        """Berechnet Stadt/Metro-Match Score (0.0 - 1.0).
-
-        Gleiche Stadt = 1.0
-        Metro-Area = 0.5
-        Andere = 0.0
-        """
-        if not candidate_city or not job_city:
-            return 0.3  # Keine Daten → neutral
-
-        c_city = candidate_city.lower().strip()
-        j_city = job_city.lower().strip()
-
-        if c_city == j_city:
-            return 1.0
-
-        # Metro-Areas (haeufige Agglomerationen in Deutschland)
-        metro_areas = {
-            "muenchen": {"muenchen", "münchen", "munich", "garching", "unterfoeehring",
-                         "unterfoehring", "ismaning", "ottobrunn", "haar", "gruenwald",
-                         "grünwald", "pullach", "taufkirchen", "unterschleissheim",
-                         "unterschleißheim", "oberschleissheim", "oberschleißheim",
-                         "neubiberg", "aschheim", "kirchheim", "heimstetten",
-                         "dachau", "freising", "erding", "starnberg", "germering",
-                         "fuerstenfeldbruck", "fürstenfeldbruck", "pasing"},
-            "frankfurt": {"frankfurt", "frankfurt am main", "offenbach", "eschborn",
-                          "bad homburg", "oberursel", "kronberg", "friedberg",
-                          "bad vilbel", "dreieich", "neu-isenburg", "langen",
-                          "darmstadt", "wiesbaden", "mainz", "hanau"},
-            "hamburg": {"hamburg", "norderstedt", "ahrensburg", "pinneberg",
-                        "wedel", "schenefeld", "quickborn", "elmshorn"},
-            "berlin": {"berlin", "potsdam", "berlin-mitte", "charlottenburg",
-                       "schoeneberg", "schöneberg"},
-            "koeln": {"koeln", "köln", "cologne", "leverkusen", "bonn",
-                      "bergisch gladbach", "troisdorf", "bruehl", "brühl"},
-            "duesseldorf": {"duesseldorf", "düsseldorf", "neuss", "meerbusch",
-                            "ratingen", "erkrath", "hilden", "dormagen"},
-            "stuttgart": {"stuttgart", "esslingen", "ludwigsburg", "sindelfingen",
-                          "boeblingen", "böblingen", "leonberg", "waiblingen",
-                          "fellbach", "filderstadt"},
-            "nuernberg": {"nuernberg", "nürnberg", "fuerth", "fürth",
-                          "erlangen", "schwabach"},
-        }
-
-        # Finde Metro fuer beide Staedte
-        c_metro = None
-        j_metro = None
-        for metro_name, cities in metro_areas.items():
-            if c_city in cities or any(c_city.startswith(c) for c in cities):
-                c_metro = metro_name
-            if j_city in cities or any(j_city.startswith(c) for c in cities):
-                j_metro = metro_name
-
-        if c_metro and j_metro and c_metro == j_metro:
-            return 0.5  # Gleiche Metro-Area
-
-        return 0.0
-
     def _score_embedding_similarity(
         self,
         candidate_embedding: list[float] | None,
@@ -1414,304 +1352,6 @@ class MatchingEngineV2:
 
         return 0.3  # Keine Branchenerfahrung
 
-    async def _score_candidates(
-        self,
-        job: Job,
-        candidates: list[MatchCandidate],
-        weights: dict[str, float],
-    ) -> list[ScoredMatch]:
-        """Schicht 2: Berechnet gewichteten Score fuer alle Kandidaten.
-
-        v2.5: 7 Dimensionen + BiBu-Multiplikator + Qualification-Tag + Career-Note.
-        Location ist NUR Hard Filter (30km) — kein Soft-Score mehr.
-
-        Args:
-            job: Der Job gegen den gematcht wird
-            candidates: Vorgefliterte Kandidaten
-            weights: Scoring-Gewichte
-
-        Returns:
-            Liste von ScoredMatch, sortiert nach Score
-        """
-        job_level = job.v2_seniority_level or 2
-        job_skills = job.v2_required_skills or []
-        job_embedding = job.v2_embedding
-        job_industry = job.industry
-
-        # Skill-Weights + Skill-Hierarchie laden (einmalig) + Job-Rolle erkennen
-        self._load_skill_weights()
-        self._load_skill_hierarchy()
-        job_role = self._detect_job_role(
-            getattr(job, "hotlist_job_title", None),
-            job.position,
-            getattr(job, "classification_data", None),
-        )
-
-        # Rollen-Check: Welche Qualifikation braucht der Job?
-        # V2.7: Nutzt job_role von _detect_job_role (gleiche Logik, keine Doppelpflege)
-        job_requires_bibu = job_role == "bilanzbuchhalter"
-        job_requires_fibu = job_role == "finanzbuchhalter"
-        job_requires_lohn = job_role == "lohnbuchhalter"
-        job_requires_stfa = job_role == "steuerfachangestellte"
-        job_requires_kredibu = job_role == "kreditorenbuchhalter"
-        job_requires_debibu = job_role == "debitorenbuchhalter"
-
-        # Gewichte normalisieren (Summe = 100)
-        total_weight = sum(weights.values())
-        if total_weight == 0:
-            total_weight = 100
-
-        scored = []
-        for cand in candidates:
-            # ── 7 Score-Dimensionen (alle 0.0 - 1.0) ──
-
-            skill_score = self._score_skill_overlap(
-                cand.structured_skills, job_skills, job_role=job_role,
-                candidate_certifications=cand.certifications,
-            )
-            seniority_score, qualification_tag = self._score_seniority_fit(
-                cand.seniority_level, job_level
-            )
-            job_title_score = self._score_job_title_fit(
-                cand.job_titles,
-                job.position,
-                getattr(job, "manual_job_title", None),
-                job.hotlist_job_title,
-            )
-            embedding_score = self._score_embedding_similarity(
-                cand.embedding_current, job_embedding
-            )
-            industry_score = self._score_industry_fit(
-                cand.industries, job_industry
-            )
-            career_score, career_note = self._score_career_fit(
-                cand.career_trajectory, cand.seniority_level, job_level
-            )
-            software_score = self._score_software_match(
-                cand.structured_skills, job_skills, cand.erp
-            )
-
-            # ── Gewichtete Summe (0-100) ──
-            total = (
-                skill_score * weights.get("skill_overlap", 15) +
-                seniority_score * weights.get("seniority_fit", 25) +
-                job_title_score * weights.get("job_title_fit", 0) +
-                embedding_score * weights.get("embedding_sim", 21) +
-                industry_score * weights.get("industry_fit", 12) +
-                career_score * weights.get("career_fit", 12) +
-                software_score * weights.get("software_match", 15)
-            ) / total_weight * 100
-
-            # ── Minimum Skill Threshold (Anti-False-Positive) ──
-            # Wenn Skill-Overlap < 0.20 → Score cap bei 60
-            # Simulation: THRESHOLD_020_60 eliminiert alle False Positives (Q=933 vs 920)
-            skill_capped = False
-            if skill_score < 0.20:
-                total = min(total, 60)
-                skill_capped = True
-
-            # ── Qualifikations-Multiplikator (NACH Gewichtung, VOR Speichern) ──
-            # v2.8: Symmetrische Multiplier fuer ALLE 6 Rollen (Bonus + Penalty)
-            role_multiplier = 1.0
-            if job_requires_bibu:
-                # Check 1: v2_certifications (z.B. ["Bilanzbuchhalter"])
-                candidate_has_bibu = any(
-                    "bilanzbuchhalter" in c.lower()
-                    for c in cand.certifications
-                ) if cand.certifications else False
-                # Check 2: structured_skills mit category=zertifizierung
-                if not candidate_has_bibu and cand.structured_skills:
-                    candidate_has_bibu = any(
-                        "bilanzbuchhalter" in s.get("skill", "").lower()
-                        and s.get("category", "") == "zertifizierung"
-                        for s in cand.structured_skills
-                    )
-                if candidate_has_bibu:
-                    role_multiplier = 1.20  # +20% Bonus (erhoeht von 1.15)
-                else:
-                    role_multiplier = 0.6   # -40% Penalty
-                total *= role_multiplier
-
-            elif job_requires_fibu:
-                # FiBu-Multiplikator: Symmetrisch — Bonus UND Penalty
-                candidate_has_fibu = False
-                # Check 1: Zertifizierungen
-                if cand.certifications:
-                    candidate_has_fibu = any(
-                        any(kw in c.lower() for kw in ["finanzbuchhalter", "buchhalter ihk", "steuerfachangestellte"])
-                        for c in cand.certifications
-                    )
-                # Check 2: structured_skills
-                if not candidate_has_fibu and cand.structured_skills:
-                    candidate_has_fibu = any(
-                        any(kw in s.get("skill", "").lower() for kw in ["finanzbuchhalter", "finanzbuchhaltung", "buchhalter"])
-                        and s.get("category", "") in ("zertifizierung", "qualifikation", "")
-                        for s in cand.structured_skills
-                    )
-                # Check 3: Job-Titel / Positionen
-                if not candidate_has_fibu and cand.job_titles:
-                    candidate_has_fibu = any(
-                        any(kw in t.lower() for kw in ["finanzbuchhalter", "finanzbuchhaltung", "buchhalter"])
-                        for t in cand.job_titles
-                    )
-                if candidate_has_fibu:
-                    role_multiplier = 1.20  # +20% Bonus fuer passende FiBu-Qualifikation (erhoeht von 1.15)
-                else:
-                    role_multiplier = 0.7   # -30% Penalty fuer Nicht-FiBu auf FiBu-Job
-                total *= role_multiplier
-
-            elif job_requires_stfa:
-                # StFA-Multiplikator: NUR Bonus, KEIN Penalty
-                # Grund: Qualifikations-Erkennung fuer StFA ist unzuverlaessig —
-                # 66% der Kandidaten bekamen Penalty, was StFA-Scores zerstoert hat
-                candidate_has_stfa = False
-                if cand.certifications:
-                    candidate_has_stfa = any(
-                        any(kw in c.lower() for kw in [
-                            "steuerfachangestellte", "steuerfachangestellter", "steuerfachwirt",
-                            "steuerberater", "steuerlehre", "steuerfachschule"
-                        ])
-                        for c in cand.certifications
-                    )
-                if not candidate_has_stfa and cand.structured_skills:
-                    candidate_has_stfa = any(
-                        any(kw in s.get("skill", "").lower() for kw in [
-                            "steuerfachangestellte", "steuerfachangestellter", "steuerfachwirt",
-                            "steuerberater", "steuerrecht", "steuerkanzlei"
-                        ])
-                        for s in cand.structured_skills
-                    )
-                if candidate_has_stfa:
-                    role_multiplier = 1.15  # +15% Bonus fuer StFA-Qualifikation
-                    total *= role_multiplier
-                # Kein else/penalty — zu viele False Negatives bei Qualifikations-Erkennung
-
-            elif job_requires_lohn:
-                # Lohn-Multiplikator: NUR Bonus, KEIN Penalty
-                # Grund: Lohn-Keywords in Profildaten sind oft unvollstaendig
-                candidate_has_lohn = False
-                if cand.certifications:
-                    candidate_has_lohn = any(
-                        any(kw in c.lower() for kw in ["lohnbuchhalter", "entgeltabrechner", "payroll"])
-                        for c in cand.certifications
-                    )
-                if not candidate_has_lohn and cand.structured_skills:
-                    candidate_has_lohn = any(
-                        any(kw in s.get("skill", "").lower() for kw in [
-                            "lohnbuchhaltung", "lohnabrechnung", "gehaltsabrechnung",
-                            "entgeltabrechnung", "payroll", "lohn- und gehaltsabrechnung"
-                        ])
-                        for s in cand.structured_skills
-                    )
-                if not candidate_has_lohn and cand.job_titles:
-                    candidate_has_lohn = any(
-                        any(kw in t.lower() for kw in ["lohnbuchhalter", "payroll", "entgelt", "gehaltsabrechnung"])
-                        for t in cand.job_titles
-                    )
-                if candidate_has_lohn:
-                    role_multiplier = 1.20  # +20% Bonus (Lohn ist spezialisiert)
-                    total *= role_multiplier
-                # Kein else/penalty — zu wenig Lohn-Matches, Penalty wuerde alles zerstoeren
-
-            elif job_requires_kredibu:
-                # KrediBu-Multiplikator: NUR Bonus, KEIN Penalty
-                candidate_has_kredi = False
-                if cand.structured_skills:
-                    candidate_has_kredi = any(
-                        any(kw in s.get("skill", "").lower() for kw in [
-                            "kreditorenbuchhaltung", "kreditoren", "accounts payable",
-                            "eingangsrechnungen", "rechnungsprüfung", "rechnungspruefung"
-                        ])
-                        for s in cand.structured_skills
-                    )
-                if not candidate_has_kredi and cand.job_titles:
-                    candidate_has_kredi = any(
-                        any(kw in t.lower() for kw in ["kreditorenbuchhalter", "kreditoren", "accounts payable"])
-                        for t in cand.job_titles
-                    )
-                if candidate_has_kredi:
-                    role_multiplier = 1.15  # +15% Bonus fuer Kreditoren-Erfahrung
-                    total *= role_multiplier
-                # Kein else/penalty — Skill-Weights differenzieren bereits
-
-            elif job_requires_debibu:
-                # DebiBu-Multiplikator: NUR Bonus, KEIN Penalty
-                candidate_has_debi = False
-                if cand.structured_skills:
-                    candidate_has_debi = any(
-                        any(kw in s.get("skill", "").lower() for kw in [
-                            "debitorenbuchhaltung", "debitoren", "accounts receivable",
-                            "mahnwesen", "forderungsmanagement", "fakturierung"
-                        ])
-                        for s in cand.structured_skills
-                    )
-                if not candidate_has_debi and cand.job_titles:
-                    candidate_has_debi = any(
-                        any(kw in t.lower() for kw in ["debitorenbuchhalter", "debitoren", "accounts receivable"])
-                        for t in cand.job_titles
-                    )
-                if candidate_has_debi:
-                    role_multiplier = 1.15  # +15% Bonus fuer Debitoren-Erfahrung
-                    total *= role_multiplier
-                # Kein else/penalty — Skill-Weights differenzieren bereits
-
-            # ── Empty CV Penalty (dreistufig) ──
-            empty_cv_penalty = None
-            role_summary = (cand.current_role_summary or "").lower()
-            if "keine berufserfahrung" in role_summary:
-                empty_cv_penalty = 0.1
-                total *= 0.1  # 90% Penalty
-            elif "keine ausbildung" in role_summary:
-                empty_cv_penalty = 0.2
-                total *= 0.2  # 80% Penalty
-            elif len(cand.structured_skills) < 3:
-                empty_cv_penalty = 0.3
-                total *= 0.3  # 70% Penalty
-
-            total = min(100, max(0, total))  # Cap 0-100
-
-            breakdown = {
-                "skill_overlap": round(skill_score, 3),
-                "seniority_fit": round(seniority_score, 3),
-                "job_title_fit": round(job_title_score, 3),
-                "embedding_sim": round(embedding_score, 3),
-                "industry_fit": round(industry_score, 3),
-                "career_fit": round(career_score, 3),
-                "software_match": round(software_score, 3),
-                "distance_km": cand.distance_km,
-                # Phase 10: Google Maps Fahrzeit
-                "drive_time_car_min": cand.drive_time_car_min,
-                "drive_time_transit_min": cand.drive_time_transit_min,
-                # v2.5 Tags
-                "qualification_tag": qualification_tag,
-                "candidate_level": cand.seniority_level,
-                "job_level": job_level,
-                "role_multiplier": role_multiplier if role_multiplier != 1.0 else None,
-                "skill_capped": skill_capped or None,
-                "empty_cv_penalty": empty_cv_penalty,
-                "job_role": job_role,
-            }
-            if career_note:
-                breakdown["career_note"] = career_note
-
-            scored.append(ScoredMatch(
-                candidate_id=cand.id,
-                total_score=round(total, 2),
-                breakdown=breakdown,
-            ))
-
-        # Sortieren nach Score (hoechster zuerst)
-        scored.sort(key=lambda x: x.total_score, reverse=True)
-
-        # Score-Minimum: Matches unter MIN_SCORE nicht speichern
-        scored = [s for s in scored if s.total_score >= self.MIN_SCORE]
-
-        # Rang zuweisen
-        for i, m in enumerate(scored):
-            m.rank = i + 1
-
-        return scored[:self.TOP_N]
-
     # ═══════════════════════════════════════════════════════════════
     # V3 SCORING: Qualification-First Multi-Gate Scoring
     # ═══════════════════════════════════════════════════════════════
@@ -1788,9 +1428,14 @@ class MatchingEngineV2:
             return 8
         return 5  # Sonstige erlaubte Kombination
 
+    # Recency-Modifier: aktuell=1.0, kuerzlich=0.75, veraltet=0.4
+    _RECENCY_MODIFIERS = {"aktuell": 1.0, "kuerzlich": 0.75, "veraltet": 0.4}
+
     def _score_skill_depth_v3(self, cand_skills: list[dict], job_skills: list[dict],
                                job_role: str | None, cand_certifications: list[str]) -> tuple[int, int]:
         """Layer 1B: Skill-Tiefe (0-20 Punkte) + Anzahl fachkenntnisse-Matches fuer Gate 2.
+
+        Recency-Modifier: aktuell × 1.0, kuerzlich × 0.75, veraltet × 0.4
 
         Returns:
             (skill_points, fachkenntnisse_match_count)
@@ -1798,23 +1443,33 @@ class MatchingEngineV2:
         if not job_skills:
             return 10, 1  # Keine Job-Skills → neutral
 
-        # Kandidaten-Skills normalisieren
-        cand_skill_names = set()
+        # Kandidaten-Skills normalisieren: name → recency
+        cand_skill_recency: dict[str, str] = {}
         for s in (cand_skills or []):
             if not isinstance(s, dict):
                 continue
             name = self._normalize_skill(s.get("skill", "").lower().strip())
             if name and not self._is_irrelevant_skill(name, s.get("category", "")):
-                cand_skill_names.add(name)
-        # Zertifizierungen als Skills hinzufuegen
+                recency = s.get("recency", "aktuell")
+                # Behalte den besten (aktuellsten) Wert
+                existing = cand_skill_recency.get(name)
+                if existing is None or self._RECENCY_MODIFIERS.get(recency, 1.0) > self._RECENCY_MODIFIERS.get(existing, 1.0):
+                    cand_skill_recency[name] = recency
+        # Zertifizierungen als Skills hinzufuegen (immer aktuell)
         for cert in (cand_certifications or []):
-            cand_skill_names.add(cert.lower().strip())
+            cn = cert.lower().strip()
+            if cn:
+                cand_skill_recency[cn] = "aktuell"
         # ERP-Skills aus structured_skills
         for s in (cand_skills or []):
             if not isinstance(s, dict):
                 continue
             if s.get("category") in ("software", "erp", "tool"):
-                cand_skill_names.add(self._normalize_skill(s.get("skill", "").lower().strip()))
+                name = self._normalize_skill(s.get("skill", "").lower().strip())
+                if name:
+                    cand_skill_recency.setdefault(name, s.get("recency", "aktuell"))
+
+        cand_skill_names = set(cand_skill_recency.keys())
 
         points = 0.0
         fachkenntnisse_matches = 0
@@ -1838,11 +1493,13 @@ class MatchingEngineV2:
             # Match-Suche
             match_score = 0.0
             matched = False
+            matched_cand_skill = None
 
             # Exact match
             if js_name in cand_skill_names:
                 match_score = 2.0 if is_fachkenntnis else 1.5
                 matched = True
+                matched_cand_skill = js_name
             else:
                 # Synonym match
                 for cs in cand_skill_names:
@@ -1851,16 +1508,21 @@ class MatchingEngineV2:
                     if core_js and core_cs and core_js == core_cs:
                         match_score = 1.5 if is_fachkenntnis else 1.0
                         matched = True
+                        matched_cand_skill = cs
                         break
                     # Contains match
                     if len(js_name) > 3 and len(cs) > 3:
                         if js_name in cs or cs in js_name:
                             match_score = 0.8 if is_fachkenntnis else 0.5
                             matched = True
+                            matched_cand_skill = cs
                             break
 
             if matched:
-                points += match_score
+                # Recency-Modifier anwenden
+                recency = cand_skill_recency.get(matched_cand_skill, "aktuell")
+                recency_mod = self._RECENCY_MODIFIERS.get(recency, 1.0)
+                points += match_score * recency_mod
                 if is_fachkenntnis:
                     fachkenntnisse_matches += 1
 
@@ -2101,22 +1763,55 @@ class MatchingEngineV2:
             else:
                 industry_pts = 1
 
-            # 3B: Recency (0-5) — basiert auf career_trajectory
-            trajectory = (cand.career_trajectory or "").lower()
-            if trajectory in ("aufsteigend", "lateral"):
-                recency_pts = 5  # Aktiv in Karriere
-            elif trajectory == "einstieg":
-                recency_pts = 4  # Neueinsteiger
-            elif trajectory == "absteigend":
-                recency_pts = 3  # Bewusster Downshift
-            else:
-                recency_pts = 3  # Unbekannt
+            # 3B: Recency (0-5) — basiert auf Skill-Recency der Fachkenntnisse
+            # Primaer: Pruefe ob Fachkenntnisse "aktuell" / "kuerzlich" / "veraltet" sind
+            best_recency = None
+            for s in (cand.structured_skills or []):
+                if not isinstance(s, dict):
+                    continue
+                cat = s.get("category", "")
+                if cat in ("fachlich", "taetigkeitsfeld", "fachkenntnisse", "qualifikation", "zertifizierung"):
+                    r = s.get("recency", "")
+                    if r == "aktuell":
+                        best_recency = "aktuell"
+                        break  # Bestes Ergebnis
+                    elif r == "kuerzlich" and best_recency != "aktuell":
+                        best_recency = "kuerzlich"
+                    elif r == "veraltet" and best_recency is None:
+                        best_recency = "veraltet"
 
-            # 3C: Standort-Qualitaet (0-5)
-            if cand.distance_km is not None:
-                if cand.distance_km <= 15:
+            if best_recency == "aktuell":
+                recency_pts = 5  # Letzte relevante Position: aktuell
+            elif best_recency == "kuerzlich":
+                recency_pts = 3  # 2-5 Jahre her
+            elif best_recency == "veraltet":
+                recency_pts = 1  # >5 Jahre her
+            else:
+                # Fallback: career_trajectory als Proxy
+                trajectory = (cand.career_trajectory or "").lower()
+                if trajectory in ("aufsteigend", "lateral"):
+                    recency_pts = 4  # Aktiv in Karriere
+                elif trajectory == "einstieg":
+                    recency_pts = 4  # Neueinsteiger
+                else:
+                    recency_pts = 3  # Unbekannt
+
+            # 3C: Standort-Qualitaet (0-5) — Fahrzeit bevorzugt, Fallback Luftlinie
+            if cand.drive_time_car_min is not None:
+                # Fahrzeit Auto (NEUKONZEPT: primaere Metrik)
+                if cand.drive_time_car_min <= 15:
                     location_pts = 5
-                elif cand.distance_km <= 25:
+                elif cand.drive_time_car_min <= 30:
+                    location_pts = 4
+                elif cand.drive_time_car_min <= 45:
+                    location_pts = 3
+                else:
+                    location_pts = 1
+            elif cand.distance_km is not None:
+                # Fallback: Luftlinie (wenn keine Fahrzeit verfuegbar)
+                if cand.distance_km <= 10:
+                    location_pts = 5
+                elif cand.distance_km <= 20:
                     location_pts = 4
                 elif cand.distance_km <= 30:
                     location_pts = 3

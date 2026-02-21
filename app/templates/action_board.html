@@ -1,0 +1,364 @@
+{% extends "base.html" %}
+
+{% block title %}Action Board — PulsePoint{% endblock %}
+
+{% block content %}
+<div x-data="actionBoard()" x-init="init()" style="max-width:900px;margin:0 auto;padding:24px 16px 100px;">
+
+    <!-- Header -->
+    <div style="margin-bottom:32px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">
+            <div>
+                <h1 style="font-size:20px;font-weight:700;color:var(--pp-text);letter-spacing:-0.03em;">Action Board</h1>
+                <p style="font-size:13px;color:var(--pp-textMuted);margin-top:4px;" x-text="lastRunText"></p>
+            </div>
+            <button @click="startMatching()"
+                    :disabled="matchingRunning"
+                    style="padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;border:none;cursor:pointer;transition:all .15s;"
+                    :style="matchingRunning
+                        ? 'background:var(--pp-surface3);color:var(--pp-textDim);cursor:not-allowed;'
+                        : 'background:var(--pp-accent);color:#fff;'"
+                    x-text="matchingRunning ? 'Laeuft...' : 'Matching starten'">
+            </button>
+        </div>
+
+        <!-- Summary Cards -->
+        <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:10px;">
+            <div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:10px;padding:14px;">
+                <div style="font-size:22px;font-weight:700;color:var(--pp-text);" x-text="summary.total_top || 0"></div>
+                <div style="font-size:11px;color:var(--pp-textMuted);font-weight:500;">Top Matches</div>
+            </div>
+            <div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:10px;padding:14px;">
+                <div style="font-size:22px;font-weight:700;color:var(--pp-orange);" x-text="summary.total_wow || 0"></div>
+                <div style="font-size:11px;color:var(--pp-textMuted);font-weight:500;">Goldene Chancen</div>
+            </div>
+            <div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:10px;padding:14px;">
+                <div style="font-size:22px;font-weight:700;color:var(--pp-textMuted);" x-text="summary.total_followups || 0"></div>
+                <div style="font-size:11px;color:var(--pp-textMuted);font-weight:500;">Follow-ups</div>
+            </div>
+            <div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:10px;padding:14px;">
+                <div style="font-size:22px;font-weight:700;color:var(--pp-textDim);" x-text="summary.total_proximity || 0"></div>
+                <div style="font-size:11px;color:var(--pp-textMuted);font-weight:500;">Naehe-Matches</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress Bar (nur sichtbar wenn Matching laeuft) -->
+    <div x-show="matchingRunning" x-transition style="margin-bottom:24px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:10px;padding:16px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+            <span style="font-size:12px;font-weight:600;color:var(--pp-text);" x-text="'Stufe: ' + (progress.stufe || '...')"></span>
+            <span style="font-size:12px;color:var(--pp-textMuted);" x-text="progressText"></span>
+        </div>
+        <div style="height:6px;background:var(--pp-surface3);border-radius:3px;overflow:hidden;">
+            <div style="height:100%;background:var(--pp-accent);border-radius:3px;transition:width .3s;"
+                 :style="'width:' + progressPercent + '%'"></div>
+        </div>
+        <div style="display:flex;gap:16px;margin-top:8px;">
+            <span style="font-size:11px;color:var(--pp-textDim);" x-text="'Stufe 1: ' + (progress.processed_stufe_1 || 0) + '/' + (progress.total_pairs || 0)"></span>
+            <span style="font-size:11px;color:var(--pp-green);" x-text="'Bestanden: ' + (progress.passed_stufe_1 || 0)"></span>
+            <span style="font-size:11px;color:var(--pp-accent);" x-text="'Stufe 2: ' + (progress.processed_stufe_2 || 0)"></span>
+            <span style="font-size:11px;color:var(--pp-textDim);" x-text="'Kosten: $' + (progress.cost_estimate_usd || 0).toFixed(2)"></span>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    <div x-show="loading" style="text-align:center;padding:40px;color:var(--pp-textMuted);font-size:13px;">
+        Lade Matches...
+    </div>
+
+    <!-- Empty State -->
+    <div x-show="!loading && topMatches.length === 0 && wowMatches.length === 0 && followUps.length === 0 && !matchingRunning"
+         style="text-align:center;padding:60px 20px;color:var(--pp-textMuted);">
+        <div style="font-size:32px;margin-bottom:12px;">&#128640;</div>
+        <p style="font-size:15px;font-weight:600;color:var(--pp-text);margin-bottom:6px;">Keine neuen Matches</p>
+        <p style="font-size:13px;">Klicke "Matching starten" um neue Paare zu pruefen.</p>
+    </div>
+
+    <!-- TOP MATCHES -->
+    <div x-show="!loading && topMatches.length > 0" style="margin-bottom:32px;">
+        <h2 style="font-size:14px;font-weight:700;color:var(--pp-text);margin-bottom:12px;letter-spacing:-0.02em;">
+            Top Matches
+            <span style="font-size:12px;font-weight:500;color:var(--pp-textMuted);margin-left:6px;" x-text="'(' + topMatches.length + ')'"></span>
+        </h2>
+
+        <template x-for="match in topMatches" :key="match.match_id">
+            <div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:12px;padding:18px;margin-bottom:10px;">
+                <!-- Header: Kandidat → Job -->
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                    <div style="flex:1;">
+                        <span style="font-size:13px;font-weight:600;color:var(--pp-text);" x-text="match.candidate_role || 'Kandidat'"></span>
+                        <span style="color:var(--pp-textDim);font-size:12px;"> &rarr; </span>
+                        <span style="font-size:13px;color:var(--pp-text);" x-text="match.job_position"></span>
+                        <span style="font-size:12px;color:var(--pp-textMuted);" x-text="' bei ' + match.job_company + ', ' + match.job_city"></span>
+                    </div>
+                    <div style="border-radius:50px;padding:4px 12px;font-weight:700;font-size:14px;color:#fff;flex-shrink:0;margin-left:12px;"
+                         :style="'background:' + (match.ai_score >= 85 ? 'var(--pp-green)' : match.ai_score >= 70 ? 'var(--pp-accent)' : 'var(--pp-orange)')">
+                        <span x-text="Math.round(match.ai_score)"></span>
+                    </div>
+                </div>
+
+                <!-- Meta -->
+                <div style="display:flex;gap:12px;margin-top:6px;font-size:11px;color:var(--pp-textMuted);">
+                    <span x-show="match.drive_time_car_min" x-text="match.drive_time_car_min + ' Min Auto'"
+                          :style="'color:' + (match.drive_time_car_min <= 20 ? 'var(--pp-green)' : match.drive_time_car_min <= 40 ? 'var(--pp-orange)' : 'var(--pp-textDim)')"></span>
+                    <span x-show="!match.drive_time_car_min && match.distance_km" x-text="match.distance_km + ' km'"></span>
+                    <span x-show="match.candidate_salary" x-text="match.candidate_salary"></span>
+                    <span x-text="match.candidate_city"></span>
+                </div>
+
+                <!-- Claude Begruendung -->
+                <p style="margin-top:10px;font-size:13px;color:var(--pp-text);line-height:1.5;" x-text="match.ai_explanation"></p>
+
+                <!-- Staerken + Luecken Tags -->
+                <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:10px;">
+                    <template x-for="s in (match.ai_strengths || [])">
+                        <span style="font-size:11px;padding:2px 8px;border-radius:50px;background:var(--pp-greenSoft);color:var(--pp-green);font-weight:500;" x-text="'+ ' + s"></span>
+                    </template>
+                    <template x-for="w in (match.ai_weaknesses || [])">
+                        <span style="font-size:11px;padding:2px 8px;border-radius:50px;background:var(--pp-redSoft);color:var(--pp-red);font-weight:500;" x-text="'- ' + w"></span>
+                    </template>
+                </div>
+
+                <!-- Action Buttons -->
+                <div style="display:flex;gap:8px;margin-top:14px;">
+                    <button @click="doAction(match.match_id, 'vorstellen')"
+                            style="padding:6px 16px;border-radius:8px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:var(--pp-accent);color:#fff;">Vorstellen</button>
+                    <a :href="'/kandidaten/' + match.candidate_id"
+                       style="padding:6px 16px;border-radius:8px;font-size:12px;font-weight:600;border:1px solid var(--pp-border);cursor:pointer;background:var(--pp-surfaceHover);color:var(--pp-text);text-decoration:none;">Kandidat</a>
+                    <button @click="doAction(match.match_id, 'spaeter')"
+                            style="padding:6px 16px;border-radius:8px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:var(--pp-surfaceHover);color:var(--pp-textMuted);">Spaeter</button>
+                    <button @click="doAction(match.match_id, 'ablehnen')"
+                            style="padding:6px 16px;border-radius:8px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:transparent;color:var(--pp-textDim);">Ablehnen</button>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    <!-- GOLDENE CHANCEN (wow_faktor) -->
+    <div x-show="!loading && wowMatches.length > 0" style="margin-bottom:32px;">
+        <h2 style="font-size:14px;font-weight:700;color:var(--pp-orange);margin-bottom:12px;letter-spacing:-0.02em;">
+            Goldene Chancen
+            <span style="font-size:12px;font-weight:500;color:var(--pp-textMuted);margin-left:6px;" x-text="'(' + wowMatches.length + ')'"></span>
+        </h2>
+
+        <template x-for="match in wowMatches" :key="match.match_id">
+            <div style="background:var(--pp-surface);border:1px solid var(--pp-orange);border-radius:12px;padding:18px;margin-bottom:10px;position:relative;">
+                <!-- Wow Badge -->
+                <div style="position:absolute;top:-8px;right:16px;background:var(--pp-orange);color:#000;font-size:10px;font-weight:700;padding:2px 10px;border-radius:50px;">WOW</div>
+
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                    <div style="flex:1;">
+                        <span style="font-size:13px;font-weight:600;color:var(--pp-text);" x-text="match.candidate_role || 'Kandidat'"></span>
+                        <span style="font-size:12px;color:var(--pp-textDim);" x-show="match.willingness_to_change === 'nein'"> — NICHT aktiv suchend</span>
+                        <div style="font-size:12px;color:var(--pp-textMuted);margin-top:2px;" x-text="match.job_position + ' bei ' + match.job_company + ', ' + match.job_city"></div>
+                    </div>
+                    <div style="border-radius:50px;padding:4px 12px;font-weight:700;font-size:14px;color:#fff;background:var(--pp-orange);flex-shrink:0;margin-left:12px;">
+                        <span x-text="Math.round(match.ai_score)"></span>
+                    </div>
+                </div>
+
+                <!-- Wow Grund -->
+                <p style="margin-top:8px;font-size:13px;color:var(--pp-orange);font-weight:500;" x-text="match.wow_grund"></p>
+                <p style="margin-top:6px;font-size:13px;color:var(--pp-text);line-height:1.5;" x-text="match.ai_explanation"></p>
+
+                <!-- Meta -->
+                <div style="display:flex;gap:12px;margin-top:8px;font-size:11px;color:var(--pp-textMuted);">
+                    <span x-show="match.drive_time_car_min" x-text="match.drive_time_car_min + ' Min Fahrzeit'"></span>
+                    <span x-show="match.distance_km" x-text="match.distance_km + ' km'"></span>
+                </div>
+
+                <!-- Actions -->
+                <div style="display:flex;gap:8px;margin-top:14px;">
+                    <button @click="doAction(match.match_id, 'vorstellen')"
+                            style="padding:6px 16px;border-radius:8px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:var(--pp-orange);color:#000;">Anrufen &amp; vorschlagen</button>
+                    <button @click="doAction(match.match_id, 'spaeter')"
+                            style="padding:6px 16px;border-radius:8px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:var(--pp-surfaceHover);color:var(--pp-textMuted);">Merken</button>
+                    <button @click="doAction(match.match_id, 'ablehnen')"
+                            style="padding:6px 16px;border-radius:8px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:transparent;color:var(--pp-textDim);">Ignorieren</button>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    <!-- FOLLOW-UPS -->
+    <div x-show="!loading && followUps.length > 0" style="margin-bottom:32px;">
+        <h2 style="font-size:14px;font-weight:700;color:var(--pp-textMuted);margin-bottom:12px;">
+            Follow-ups
+            <span style="font-size:12px;font-weight:500;margin-left:6px;" x-text="'(' + followUps.length + ')'"></span>
+        </h2>
+
+        <template x-for="match in followUps" :key="match.match_id">
+            <div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:10px;padding:14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
+                <div style="flex:1;">
+                    <span style="font-size:13px;font-weight:600;color:var(--pp-text);" x-text="match.candidate_role || 'Kandidat'"></span>
+                    <span style="font-size:12px;color:var(--pp-textDim);"> &rarr; </span>
+                    <span style="font-size:12px;color:var(--pp-text);" x-text="match.job_position + ' bei ' + match.job_company"></span>
+                    <div style="font-size:11px;color:var(--pp-textMuted);margin-top:2px;" x-text="match.ai_explanation"></div>
+                </div>
+                <div style="display:flex;gap:6px;flex-shrink:0;margin-left:12px;">
+                    <div style="border-radius:50px;padding:3px 10px;font-weight:700;font-size:12px;color:#fff;background:var(--pp-accent);" x-text="Math.round(match.ai_score)"></div>
+                    <button @click="doAction(match.match_id, 'vorstellen')"
+                            style="padding:4px 12px;border-radius:6px;font-size:11px;font-weight:600;border:none;cursor:pointer;background:var(--pp-accent);color:#fff;">Vorstellen</button>
+                    <button @click="doAction(match.match_id, 'ablehnen')"
+                            style="padding:4px 12px;border-radius:6px;font-size:11px;font-weight:600;border:none;cursor:pointer;background:var(--pp-surfaceHover);color:var(--pp-textDim);">X</button>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    <!-- NAEHE-MATCHES -->
+    <div x-show="!loading && proximityMatches.length > 0" style="margin-bottom:32px;">
+        <h2 style="font-size:14px;font-weight:700;color:var(--pp-textDim);margin-bottom:12px;">
+            Naehe-Matches (ohne Bewertung)
+            <span style="font-size:12px;font-weight:500;margin-left:6px;" x-text="'(' + proximityMatches.length + ')'"></span>
+        </h2>
+        <p style="font-size:11px;color:var(--pp-textDim);margin-bottom:10px;">Kandidaten/Jobs ohne vollstaendige Daten, aber unter 10 km Entfernung.</p>
+
+        <template x-for="match in proximityMatches" :key="match.match_id">
+            <div style="background:var(--pp-surface);border:1px solid var(--pp-borderLight);border-radius:8px;padding:12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                    <span style="font-size:12px;font-weight:600;color:var(--pp-textMuted);" x-text="match.candidate_role || '?'"></span>
+                    <span style="font-size:11px;color:var(--pp-textDim);"> &rarr; </span>
+                    <span style="font-size:12px;color:var(--pp-textMuted);" x-text="match.job_position + ' (' + match.job_company + ')'"></span>
+                </div>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <span style="font-size:11px;color:var(--pp-green);font-weight:600;" x-text="(match.distance_km || '?') + ' km'"></span>
+                    <a :href="'/kandidaten/' + match.candidate_id"
+                       style="font-size:11px;color:var(--pp-accent);text-decoration:none;font-weight:500;">Ansehen</a>
+                </div>
+            </div>
+        </template>
+    </div>
+</div>
+
+<script>
+function actionBoard() {
+    return {
+        topMatches: [],
+        wowMatches: [],
+        followUps: [],
+        proximityMatches: [],
+        summary: {},
+        loading: true,
+        matchingRunning: false,
+        progress: {},
+        lastRun: null,
+        pollInterval: null,
+
+        get lastRunText() {
+            if (this.lastRun) {
+                try {
+                    const d = new Date(this.lastRun);
+                    const mins = Math.round((Date.now() - d.getTime()) / 60000);
+                    if (mins < 1) return 'Letzter Lauf: gerade eben';
+                    if (mins < 60) return 'Letzter Lauf: vor ' + mins + ' Min';
+                    const hrs = Math.round(mins / 60);
+                    return 'Letzter Lauf: vor ' + hrs + ' Std';
+                } catch(e) {}
+            }
+            return 'Noch kein Lauf';
+        },
+
+        get progressPercent() {
+            const total = this.progress.total_pairs || 1;
+            const s1 = this.progress.processed_stufe_1 || 0;
+            const s2 = this.progress.processed_stufe_2 || 0;
+            const passed = this.progress.passed_stufe_1 || 0;
+            // Stufe 1 = 60%, Stufe 2 = 40%
+            const p1 = Math.min(100, (s1 / total) * 60);
+            const p2 = passed > 0 ? Math.min(100, (s2 / passed) * 40) : 0;
+            return Math.min(100, Math.round(p1 + p2));
+        },
+
+        get progressText() {
+            if (this.progress.stufe === 'stufe_0') return 'Lade Paare aus DB...';
+            if (this.progress.stufe === 'stufe_1') return 'Quick-Check: ' + (this.progress.processed_stufe_1 || 0) + '/' + (this.progress.total_pairs || '?');
+            if (this.progress.stufe === 'stufe_2') return 'Deep Assessment: ' + (this.progress.processed_stufe_2 || 0) + '/' + (this.progress.passed_stufe_1 || '?');
+            if (this.progress.stufe === 'speichern') return 'Speichere Matches...';
+            if (this.progress.stufe === 'fahrzeit') return 'Berechne Fahrzeiten...';
+            if (this.progress.stufe === 'fertig') return 'Fertig!';
+            return 'Initialisierung...';
+        },
+
+        async init() {
+            await this.loadStatus();
+            await this.loadMatches();
+            this.loading = false;
+        },
+
+        async loadMatches() {
+            try {
+                const res = await fetch('/api/v4/claude-match/daily?limit=20&include_wow=true&include_followups=true');
+                const data = await res.json();
+                this.topMatches = data.top_matches || [];
+                this.wowMatches = data.wow_matches || [];
+                this.followUps = data.follow_ups || [];
+                this.proximityMatches = data.proximity_matches || [];
+                this.summary = data.summary || {};
+            } catch(e) {
+                console.error('Fehler beim Laden:', e);
+            }
+        },
+
+        async loadStatus() {
+            try {
+                const res = await fetch('/api/v4/claude-match/status');
+                const data = await res.json();
+                this.matchingRunning = data.running || false;
+                this.progress = data.progress || {};
+                this.lastRun = data.last_run;
+                if (this.matchingRunning && !this.pollInterval) {
+                    this.startPolling();
+                }
+            } catch(e) {}
+        },
+
+        async startMatching() {
+            if (this.matchingRunning) return;
+            this.matchingRunning = true;
+            try {
+                await fetch('/api/v4/claude-match/run', {method: 'POST'});
+                this.startPolling();
+            } catch(e) {
+                this.matchingRunning = false;
+                console.error('Start fehlgeschlagen:', e);
+            }
+        },
+
+        startPolling() {
+            if (this.pollInterval) clearInterval(this.pollInterval);
+            this.pollInterval = setInterval(async () => {
+                await this.loadStatus();
+                if (!this.matchingRunning) {
+                    clearInterval(this.pollInterval);
+                    this.pollInterval = null;
+                    await this.loadMatches();
+                }
+            }, 2000);
+        },
+
+        async doAction(matchId, action) {
+            try {
+                await fetch('/api/v4/claude-match/' + matchId + '/action', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({action: action}),
+                });
+                // Karte sofort aus der Liste entfernen
+                this.topMatches = this.topMatches.filter(m => m.match_id !== matchId);
+                this.wowMatches = this.wowMatches.filter(m => m.match_id !== matchId);
+                this.followUps = this.followUps.filter(m => m.match_id !== matchId);
+                this.proximityMatches = this.proximityMatches.filter(m => m.match_id !== matchId);
+                // Summary aktualisieren
+                this.summary.total_top = this.topMatches.length;
+                this.summary.total_wow = this.wowMatches.length;
+                this.summary.total_followups = this.followUps.length;
+                this.summary.total_proximity = this.proximityMatches.length;
+            } catch(e) {
+                console.error('Aktion fehlgeschlagen:', e);
+            }
+        }
+    };
+}
+</script>
+{% endblock %}

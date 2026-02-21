@@ -117,6 +117,11 @@ class Match(Base):
     presentation_status: Mapped[str | None] = mapped_column(String(50))  # not_sent/presented/interview/rejected/hired
     presentation_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
+    # ── Claude Matching v4 ──
+    empfehlung: Mapped[str | None] = mapped_column(String(20))  # vorstellen/beobachten/nicht_passend
+    wow_faktor: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    wow_grund: Mapped[str | None] = mapped_column(Text)
+
     # Stale-Tracking (Match ist veraltet weil sich Kandidaten-Daten geaendert haben)
     stale: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     stale_reason: Mapped[str | None] = mapped_column(String(255))

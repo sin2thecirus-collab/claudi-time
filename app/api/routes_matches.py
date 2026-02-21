@@ -34,10 +34,10 @@ router = APIRouter(prefix="/matches", tags=["Matches"])
 # ==================== KI-Check ====================
 
 @router.post(
-    "/ai-check",
+    "/ai-check",  # deprecated by v4 — KI-Check jetzt ueber Claude Matching
     response_model=AICheckResponse,
-    summary="KI-Check für Kandidaten",
-    description="Bewertet ausgewählte Kandidaten mit KI für einen Job",
+    summary="KI-Check für Kandidaten (deprecated by v4)",
+    description="Bewertet ausgewählte Kandidaten mit KI für einen Job. Deprecated: Nutze /api/v4/claude-match/run",
 )
 @rate_limit(RateLimitTier.AI)
 async def ai_check_candidates(

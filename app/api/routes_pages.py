@@ -90,6 +90,15 @@ async def dashboard(request: Request):
     )
 
 
+@router.get("/action-board", response_class=HTMLResponse)
+async def action_board(request: Request):
+    """Action Board — Claude Matching v4 Dashboard."""
+    return templates.TemplateResponse(
+        "action_board.html",
+        {"request": request}
+    )
+
+
 @router.get("/jobs/{job_id}", response_class=HTMLResponse)
 async def job_detail(
     request: Request,

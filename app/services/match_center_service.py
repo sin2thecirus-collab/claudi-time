@@ -166,12 +166,14 @@ def _normalize_city(city: str) -> str:
 def _effective_score():
     """SQL-Expression: Effektiver Score auf 0-100 Skala.
 
+    Claude v4 Matches: v2_score direkt (0-100)
     Pipeline V3 Matches: ai_score * 100 (immer vorhanden)
     Legacy Matches: COALESCE(v2_score, ai_score * 100)
     """
     from sqlalchemy import case, literal_column
 
     return case(
+        (Match.matching_method == "claude_match", Match.v2_score),
         (Match.matching_method == "pipeline_v3", Match.ai_score * 100),
         else_=func.coalesce(Match.v2_score, Match.ai_score * 100),
     )
