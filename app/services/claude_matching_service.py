@@ -173,7 +173,7 @@ def _extract_candidate_data(row: dict) -> dict:
     # Aktuelle Taetigkeiten (fuer Stufe 1: nur die letzte Position)
     activities = ""
     if work_history and isinstance(work_history[0], dict):
-        activities = work_history[0].get("description", "")[:300]
+        activities = (work_history[0].get("description") or "")[:300]
 
     # Education
     education = row.get("education") or []
