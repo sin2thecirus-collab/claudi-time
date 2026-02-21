@@ -3,7 +3,6 @@
 
 {% block head %}
 <style>
-    .gc-wrap, .gc-wrap * { font-family: 'DM Sans', -apple-system, sans-serif; }
     .gc-wrap { background: var(--pp-bg); color: var(--pp-text); min-height: 100vh; font-size: 15px; }
 
     @keyframes gcFadeUp {
@@ -13,15 +12,15 @@
     .gc-anim { opacity: 0; animation: gcFadeUp 0.5s cubic-bezier(0.4,0,0.2,1) forwards; }
 
     .gc-stat-card {
-        background: rgba(255,255,255,0.15); backdrop-filter: blur(10px);
-        border: 1px solid rgba(255,255,255,0.2); border-radius: 14px;
+        background: var(--pp-surface);
+        border: 1px solid var(--pp-border); border-radius: 12px;
         padding: 16px 24px; min-width: 140px; text-align: center;
     }
-    .gc-stat-value { font-size: 26px; font-weight: 800; color: #fff; }
-    .gc-stat-label { font-size: 12.5px; font-weight: 500; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 3px; }
+    .gc-stat-value { font-size: 26px; font-weight: 800; color: var(--pp-text); }
+    .gc-stat-label { font-size: 12.5px; font-weight: 500; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 3px; }
 
     .gc-search {
-        width: 100%; padding: 13px 18px 13px 44px; border-radius: 12px;
+        width: 100%; padding: 13px 18px 13px 44px; border-radius: 10px;
         border: 1.5px solid var(--pp-border); background: var(--pp-surface); font-size: 15px;
         color: var(--pp-text); font-family: inherit; transition: all 0.2s;
         outline: none; min-height: 48px;
@@ -32,7 +31,7 @@
     .gc-search::placeholder { color: var(--pp-textDim); }
 
     .gc-call-card {
-        background: var(--pp-surface); border-radius: 14px; border: 1px solid var(--pp-border);
+        background: var(--pp-surface); border-radius: 12px; border: 1px solid var(--pp-border);
         padding: 20px 24px; margin-bottom: 12px; transition: all 0.2s;
     }
     .gc-call-card:hover { border-color: var(--pp-borderLight); box-shadow: 0 2px 12px rgba(0,0,0,0.2); }
@@ -77,24 +76,20 @@
     {# ════════════════════════════════════════════════════
        HERO HEADER
     ════════════════════════════════════════════════════ #}
-    <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%); padding: 32px 40px 28px; position: relative; overflow: hidden;">
-        {# Decorative circles #}
-        <div style="position: absolute; top: -80px; right: -40px; width: 220px; height: 220px; border-radius: 50%; background: radial-gradient(circle, rgba(79,140,255,0.1) 0%, transparent 70%);"></div>
-        <div style="position: absolute; bottom: -50px; left: 20%; width: 160px; height: 160px; border-radius: 50%; background: radial-gradient(circle, rgba(52,211,153,0.06) 0%, transparent 70%);"></div>
-
+    <div style="background: var(--pp-surface); padding: 32px 40px 28px; border-bottom: 1px solid var(--pp-border);">
         {# Breadcrumb #}
-        <div style="display: flex; align-items: center; gap: 8px; font-size: 14px; color: rgba(255,255,255,0.5); margin-bottom: 20px; font-weight: 500;">
-            <a href="/" style="color: rgba(255,255,255,0.6); text-decoration: none; font-size: 16px;">&#x1F3E0;</a>
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--pp-textDim); margin-bottom: 20px; font-weight: 500;">
+            <a href="/" style="color: var(--pp-textMuted); text-decoration: none; font-size: 16px;">&#x1F3E0;</a>
             <span>&#x203A;</span>
-            <span style="color: rgba(255,255,255,0.85);">Gespräche</span>
+            <span style="color: var(--pp-text);">Gespräche</span>
         </div>
 
         {# Title + Subtitle #}
         <div>
-            <h1 style="font-size: 32px; font-weight: 800; color: #fff; letter-spacing: -0.03em; margin: 0;">
+            <h1 style="font-size: 32px; font-weight: 800; color: var(--pp-text); letter-spacing: -0.03em; margin: 0;">
                 Unzugeordnete Gespräche
             </h1>
-            <p style="font-size: 16px; color: rgba(255,255,255,0.5); margin-top: 6px; font-weight: 400;">
+            <p style="font-size: 16px; color: var(--pp-textMuted); margin-top: 6px; font-weight: 400;">
                 Transkribierte Anrufe, die keinem Kandidaten/Kontakt zugeordnet werden konnten
             </p>
         </div>

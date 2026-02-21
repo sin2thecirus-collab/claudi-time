@@ -92,7 +92,7 @@
             <p class="text-xs text-gray-400">{{ categorized_candidates }} von {{ total_candidates }} Kandidaten kategorisiert</p>
         </div>
         <div class="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
-            <div class="h-2.5 rounded-full bg-gradient-to-r from-primary-500 to-primary-600 transition-all duration-500"
+            <div class="h-2.5 rounded-full bg-primary-600 transition-all duration-500"
                  style="width: {{ cat_pct }}%"></div>
         </div>
     </div>
@@ -104,7 +104,7 @@
            class="group relative bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg hover:border-{{ cat.color }}-200 transition-all duration-300">
 
             {# Farbiger Top-Accent #}
-            <div class="h-1 bg-gradient-to-r {% if cat.color == 'blue' %}from-blue-400 to-blue-600{% else %}from-green-400 to-green-600{% endif %}"></div>
+            <div class="h-1 {% if cat.color == 'blue' %}bg-blue-600{% else %}bg-green-600{% endif %}"></div>
 
             <div class="p-6">
                 {# Kategorie-Header #}

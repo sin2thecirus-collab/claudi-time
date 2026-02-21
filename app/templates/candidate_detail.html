@@ -4,14 +4,11 @@
 {%- endblock -%}
 
 {% block head %}
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-    .kd-wrap, .kd-wrap * { font-family: 'DM Sans', -apple-system, sans-serif; }
-    .kd-wrap { background: #0c1021; color: #e8ecf4; font-size: 15px; overflow-x: hidden; max-width: 100vw; }
+    .kd-wrap { background: var(--pp-bg); color: var(--pp-text); font-size: 15px; overflow-x: hidden; max-width: 100vw; }
     .kd-wrap ::-webkit-scrollbar { width: 5px; }
     .kd-wrap ::-webkit-scrollbar-track { background: transparent; }
-    .kd-wrap ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+    .kd-wrap ::-webkit-scrollbar-thumb { background: var(--pp-border); border-radius: 3px; }
 
     @keyframes kdFadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
     @keyframes kdSlideIn { from { opacity:0; transform:translateX(12px); } to { opacity:1; transform:translateX(0); } }
@@ -19,112 +16,112 @@
     .kd-anim-side { opacity:0; animation: kdSlideIn 0.5s cubic-bezier(0.16,1,0.3,1) forwards; }
 
     .kd-section {
-        background: rgba(22,28,45,0.85); border-radius: 18px;
-        border: 1px solid rgba(255,255,255,0.10); overflow: hidden;
-        backdrop-filter: blur(12px); transition: border-color 0.3s, box-shadow 0.3s;
+        background: var(--pp-surface); border-radius: 12px;
+        border: 1px solid var(--pp-border); overflow: hidden;
+        transition: border-color 0.3s, box-shadow 0.3s;
         box-shadow: 0 2px 8px rgba(0,0,0,0.25);
     }
-    .kd-section:hover { border-color: rgba(54,154,255,0.20); box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+    .kd-section:hover { border-color: var(--pp-accentGlow); box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
     .kd-section-header {
         display:flex; align-items:center; justify-content:space-between;
-        padding: 16px 24px 12px; border-bottom: 1px solid rgba(255,255,255,0.05);
+        padding: 16px 24px 12px; border-bottom: 1px solid var(--pp-borderLight);
     }
-    .kd-section-title { display:flex; align-items:center; gap:10px; font-size:15px; font-weight:700; color:#e8ecf4; }
+    .kd-section-title { display:flex; align-items:center; gap:10px; font-size:15px; font-weight:700; color:var(--pp-text); }
     .kd-section-title span { font-size:17px; }
     .kd-section-body { padding: 16px 24px; }
 
     .kd-sidebar-card {
-        background: rgba(22,28,45,0.85); border-radius: 18px;
-        border: 1px solid rgba(255,255,255,0.06); overflow: hidden;
+        background: var(--pp-surface); border-radius: 12px;
+        border: 1px solid var(--pp-border); overflow: hidden;
         transition: border-color 0.3s;
     }
-    .kd-sidebar-card:hover { border-color: rgba(54,154,255,0.12); }
+    .kd-sidebar-card:hover { border-color: var(--pp-accentSoft); }
     .kd-sidebar-header {
-        padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.05);
+        padding: 12px 16px; border-bottom: 1px solid var(--pp-borderLight);
         display:flex; align-items:center; justify-content:space-between;
-        font-size:14px; font-weight:700; color:#e8ecf4;
+        font-size:14px; font-weight:700; color:var(--pp-text);
     }
     .kd-sidebar-body { padding: 14px 16px; }
 
     .kd-sticky-header {
-        background: linear-gradient(135deg, #0f1628, #141e36 50%, #1a1640);
-        border-bottom: 1px solid rgba(255,255,255,0.06);
+        background: var(--pp-surface);
+        border-bottom: 1px solid var(--pp-border);
         padding: 0 32px; position: sticky; top: 0; z-index: 100;
         overflow-x: auto; overflow-y: hidden; max-width: 100vw;
     }
 
     .kd-tab-btn {
-        padding: 14px 24px; background:none; border:none;
-        font-size:14px; font-weight:500; cursor:pointer;
+        padding: 8px 14px; background:none; border:none;
+        font-size:13px; font-weight:500; cursor:pointer;
         display:flex; align-items:center; gap:8px;
         border-bottom: 2px solid transparent;
-        transition: all 0.2s ease; color: #5a6a8a; font-family:inherit;
+        transition: all 0.1s ease; color: var(--pp-textDim); font-family: var(--pp-ff);
     }
-    .kd-tab-btn:hover { color: #7c8db5; }
-    .kd-tab-btn.active { color: #369aff; font-weight:700; border-bottom-color: #369aff; }
+    .kd-tab-btn:hover { color: var(--pp-textMuted); background: var(--pp-surfaceHover); border-radius: 6px 6px 0 0; }
+    .kd-tab-btn.active { color: var(--pp-text); font-weight:600; border-bottom-color: var(--pp-accent); }
 
     .kd-quickbtn {
         display:inline-flex; align-items:center; gap:5px;
-        padding: 7px 16px; border-radius:10px; font-size:12.5px; font-weight:600;
+        padding: 7px 16px; border-radius:8px; font-size:12.5px; font-weight:600;
         cursor:pointer; font-family:inherit; transition: all 0.2s ease;
-        border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.06); color:#c5cee0;
+        border: 1px solid var(--pp-border); background: var(--pp-surfaceHover); color:var(--pp-textMuted);
     }
-    .kd-quickbtn:hover { background:rgba(255,255,255,0.1); transform:translateY(-1px); }
-    .kd-quickbtn-primary { background:linear-gradient(135deg,#2ed573,#1fb85b); color:#fff; border:none; box-shadow:0 2px 12px rgba(46,213,115,0.25); font-weight:700; }
-    .kd-quickbtn-primary:hover { box-shadow:0 4px 20px rgba(46,213,115,0.35); }
-    .kd-quickbtn-accent { background:rgba(54,154,255,0.08); color:#369aff; border:1px solid rgba(54,154,255,0.2); }
-    .kd-quickbtn-accent:hover { background:rgba(54,154,255,0.15); }
-    .kd-quickbtn-danger { background:rgba(255,71,87,0.08); color:#ff4757; border:1px solid rgba(255,71,87,0.2); }
-    .kd-quickbtn-danger:hover { background:rgba(255,71,87,0.12); }
+    .kd-quickbtn:hover { background:var(--pp-surface3); transform:translateY(-1px); }
+    .kd-quickbtn-primary { background:var(--pp-green); color:#fff; border:none; font-weight:700; }
+    .kd-quickbtn-primary:hover { opacity:0.9; }
+    .kd-quickbtn-accent { background:var(--pp-accentSoft); color:var(--pp-accent); border:1px solid var(--pp-accentGlow); }
+    .kd-quickbtn-accent:hover { background:rgba(59,130,246,0.15); }
+    .kd-quickbtn-danger { background:var(--pp-redSoft); color:var(--pp-red); border:1px solid rgba(239,68,68,0.2); }
+    .kd-quickbtn-danger:hover { background:rgba(239,68,68,0.12); }
 
     .kd-quickglance {
-        background: linear-gradient(135deg, rgba(54,154,255,0.08), rgba(165,94,234,0.06));
-        border-radius:18px; padding:6px; border:1px solid rgba(54,154,255,0.12);
+        background: var(--pp-surface);
+        border-radius:12px; padding:6px; border:1px solid var(--pp-border);
         display:grid; grid-template-columns:1fr 1fr; gap:6px;
     }
-    .kd-quickglance-item { display:flex; align-items:center; gap:14px; padding:16px 20px; border-radius:14px; background:rgba(15,20,35,0.5); }
+    .kd-quickglance-item { display:flex; align-items:center; gap:14px; padding:16px 20px; border-radius:10px; background:var(--pp-bg); }
     .kd-quickglance-icon { font-size:26px; flex-shrink:0; }
-    .kd-quickglance-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#7c8db5; margin-bottom:3px; }
+    .kd-quickglance-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--pp-textMuted); margin-bottom:3px; }
     .kd-quickglance-value { font-size:16px; font-weight:700; white-space:nowrap; }
 
-    .kd-exp-dot-current { width:12px; height:12px; border-radius:50%; flex-shrink:0; background:#369aff; border:2px solid rgba(54,154,255,0.4); }
-    .kd-exp-dot-past { width:12px; height:12px; border-radius:50%; flex-shrink:0; background:#2d3654; border:2px solid #3d4a6e; }
-    .kd-exp-line { width:2px; flex:1; margin-top:6px; background:linear-gradient(to bottom, rgba(54,154,255,0.3), #2d3654, transparent); }
-    .kd-lang-bar { height:8px; border-radius:4px; overflow:hidden; background:rgba(255,255,255,0.06); }
+    .kd-exp-dot-current { width:12px; height:12px; border-radius:50%; flex-shrink:0; background:var(--pp-accent); border:2px solid var(--pp-accentGlow); }
+    .kd-exp-dot-past { width:12px; height:12px; border-radius:50%; flex-shrink:0; background:var(--pp-border); border:2px solid var(--pp-text4); }
+    .kd-exp-line { width:2px; flex:1; margin-top:6px; background:linear-gradient(to bottom, var(--pp-accentGlow), var(--pp-border), transparent); }
+    .kd-lang-bar { height:8px; border-radius:4px; overflow:hidden; background:var(--pp-surfaceHover); }
     .kd-lang-fill { height:100%; border-radius:4px; transition: width 0.6s ease; }
 
-    .skill-fach { background:rgba(165,94,234,0.12); color:#a55eea; border:1px solid rgba(165,94,234,0.3); }
-    .skill-tech { background:rgba(46,213,115,0.12); color:#2ed573; border:1px solid rgba(46,213,115,0.3); }
-    .skill-soft { background:rgba(255,165,2,0.12); color:#ffa502; border:1px solid rgba(255,165,2,0.3); }
+    .skill-fach { background:var(--pp-purpleSoft); color:var(--pp-purple); border:1px solid rgba(167,139,250,0.3); }
+    .skill-tech { background:var(--pp-greenSoft); color:var(--pp-green); border:1px solid rgba(34,197,94,0.3); }
+    .skill-soft { background:var(--pp-orangeSoft); color:var(--pp-orange); border:1px solid rgba(234,179,8,0.3); }
 
-    .kd-meta-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:6px; font-size:13px; font-weight:500; color:#7c8db5; }
-    .kd-field-label { font-size:11px !important; font-weight:700 !important; text-transform:uppercase; letter-spacing:1.2px; color:#7c8db5 !important; margin-bottom:8px; display:flex; align-items:center; gap:6px; }
+    .kd-meta-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:6px; font-size:13px; font-weight:500; color:var(--pp-textMuted); }
+    .kd-field-label { font-size:11px !important; font-weight:700 !important; text-transform:uppercase; letter-spacing:1.2px; color:var(--pp-textMuted) !important; margin-bottom:8px; display:flex; align-items:center; gap:6px; }
 
-    .kd-badge { display:inline-flex; align-items:center; padding:4px 12px; border-radius:20px; font-size:13px; font-weight:600; letter-spacing:0.2px; white-space:nowrap; }
-    .kd-badge-green { background:rgba(46,213,115,0.12); border:1px solid rgba(46,213,115,0.3); color:#2ed573; }
-    .kd-badge-cyan { background:rgba(0,210,211,0.12); border:1px solid rgba(0,210,211,0.3); color:#00d2d3; }
-    .kd-badge-orange { background:rgba(255,165,2,0.12); border:1px solid rgba(255,165,2,0.3); color:#ffa502; }
-    .kd-badge-purple { background:rgba(165,94,234,0.12); border:1px solid rgba(165,94,234,0.3); color:#a55eea; }
-    .kd-badge-blue { background:rgba(54,154,255,0.12); border:1px solid rgba(54,154,255,0.3); color:#369aff; }
-    .kd-badge-gray { background:rgba(160,174,192,0.10); border:1px solid rgba(160,174,192,0.25); color:#a0aec0; }
+    .kd-badge { display:inline-flex; align-items:center; padding:4px 12px; border-radius:12px; font-size:13px; font-weight:600; letter-spacing:0.2px; white-space:nowrap; }
+    .kd-badge-green { background:var(--pp-greenSoft); border:1px solid rgba(34,197,94,0.3); color:var(--pp-green); }
+    .kd-badge-cyan { background:var(--pp-accentSoft); border:1px solid var(--pp-accentGlow); color:var(--pp-accent); }
+    .kd-badge-orange { background:var(--pp-orangeSoft); border:1px solid rgba(234,179,8,0.25); color:var(--pp-orange); }
+    .kd-badge-purple { background:var(--pp-purpleSoft); border:1px solid rgba(167,139,250,0.3); color:var(--pp-purple); }
+    .kd-badge-blue { background:var(--pp-accentSoft); border:1px solid var(--pp-accentGlow); color:var(--pp-accent); }
+    .kd-badge-gray { background:rgba(113,113,122,0.10); border:1px solid rgba(113,113,122,0.25); color:var(--pp-textMuted); }
 
     .kd-wrap .detail-edit-display { cursor:pointer; border-radius:6px; padding:2px 6px; transition:all 0.2s; }
-    .kd-wrap .detail-edit-display:hover { background:rgba(54,154,255,0.08); }
-    .kd-wrap .detail-edit-input { font-family:inherit; border-radius:10px; }
+    .kd-wrap .detail-edit-display:hover { background:var(--pp-accentSoft); }
+    .kd-wrap .detail-edit-input { font-family:inherit; border-radius:8px; }
     .kd-wrap input:focus, .kd-wrap textarea:focus, .kd-wrap select:focus {
-        border-color:rgba(54,154,255,0.5) !important; box-shadow:0 0 0 3px rgba(54,154,255,0.08) !important; outline:none !important;
+        border-color:var(--pp-accent) !important; box-shadow:0 0 0 3px var(--pp-accentSoft) !important; outline:none !important;
     }
     .kd-wrap { animation: kdFadeUp 0.4s cubic-bezier(0.16,1,0.3,1) forwards; }
 
     .kd-copy-btn {
         display: inline-flex; align-items: center; justify-content: center;
         width: 26px; height: 26px; flex-shrink: 0; border-radius: 6px;
-        border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04);
-        cursor: pointer; transition: all 0.2s ease; padding: 0; color: #7c8db5;
+        border: 1px solid var(--pp-border); background: var(--pp-surfaceHover);
+        cursor: pointer; transition: all 0.2s ease; padding: 0; color: var(--pp-textMuted);
     }
     .kd-copy-btn svg { width: 14px; height: 14px; }
-    .kd-copy-btn:hover { background: rgba(54,154,255,0.12); border-color: rgba(54,154,255,0.3); color: #369aff; }
-    .kd-copy-btn.copied { background: rgba(46,213,115,0.12); border-color: rgba(46,213,115,0.3); color: #2ed573; }
+    .kd-copy-btn:hover { background: var(--pp-accentSoft); border-color: var(--pp-accentGlow); color: var(--pp-accent); }
+    .kd-copy-btn.copied { background: var(--pp-greenSoft); border-color: rgba(34,197,94,0.3); color: var(--pp-green); }
 </style>
 {% endblock %}
 
@@ -164,7 +161,7 @@
                 {% endif %}
                 <a href="/api/candidates/{{ candidate.id }}/profile-pdf" target="_blank" class="kd-quickbtn kd-quickbtn-accent" style="text-decoration:none;" title="{% if candidate.profile_pdf_generated_at %}Zuletzt: {{ candidate.profile_pdf_generated_at.strftime('%d.%m.%Y %H:%M') }}{% else %}Wird beim Klick generiert{% endif %}">&#x1F4CA; Profil-PDF{% if candidate.profile_pdf_r2_key %} &#x2713;{% endif %}</a>
                 <a href="/api/candidates/{{ candidate.id }}/profile-pdf?regenerate=true" target="_blank" class="kd-quickbtn" style="text-decoration:none; font-size:12px;" title="PDF neu generieren (Cache ignorieren)">&#x1F504;</a>
-                <button type="button" onclick="triggerNichtErreicht('{{ candidate.id }}')" class="kd-quickbtn" style="background:rgba(255,165,2,0.10); color:#ffa502; border:1px solid rgba(255,165,2,0.25);" id="btn-nicht-erreicht" title="E-Mail-Sequenz starten (3 Emails &uuml;ber 5 Tage)">&#x1F4E7; Nicht erreicht</button>
+                <button type="button" onclick="triggerNichtErreicht('{{ candidate.id }}')" class="kd-quickbtn" style="background:var(--pp-orangeSoft); color:var(--pp-orange); border:1px solid rgba(234,179,8,0.25);" id="btn-nicht-erreicht" title="E-Mail-Sequenz starten (3 Emails &uuml;ber 5 Tage)">&#x1F4E7; Nicht erreicht</button>
                 <button type="button" @click="showPipelineModal = true" class="kd-quickbtn kd-quickbtn-primary">&#x1F680; Pipeline</button>
                 <button type="button" onclick="deleteCandidate('{{ candidate.id }}', '{{ display_name }}')" class="kd-quickbtn kd-quickbtn-danger">&#x1F5D1;</button>
             </div>
@@ -173,12 +170,12 @@
         {# Row 2: Name + Badges #}
         <div style="display:flex; align-items:center; gap:16px; padding-bottom:8px;">
             {# Avatar #}
-            <div style="width:56px; height:56px; border-radius:50%; background:linear-gradient(135deg, #369aff, #a55eea); display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:700; color:#fff; flex-shrink:0;">
+            <div style="width:56px; height:56px; border-radius:50%; background:var(--pp-accent); display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:700; color:#fff; flex-shrink:0;">
                 {{ display_name[0]|upper if display_name else '?' }}
             </div>
             <div style="flex:1; min-width:0;">
                 <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-                    <h1 style="font-size:24px; font-weight:800; color:#e8ecf4; margin:0; letter-spacing:-0.02em;">{{ display_name }}</h1>
+                    <h1 style="font-size:24px; font-weight:800; color:var(--pp-text); margin:0; letter-spacing:-0.02em;">{{ display_name }}</h1>
                     {% if candidate.willingness_to_change == 'ja' %}
                     <span class="kd-badge kd-badge-green">&#x2705; Wechselbereit</span>
                     {% elif candidate.willingness_to_change == 'nein' %}
@@ -213,7 +210,7 @@
         {# Row 3: Tabs #}
         
     {# ── Tab Navigation ── #}
-    <div style="display:flex; gap:0; border-top:1px solid rgba(255,255,255,0.04); margin-top:4px; overflow-x:auto; -webkit-overflow-scrolling:touch;">
+    <div style="display:flex; gap:0; border-top:1px solid var(--pp-borderLight); margin-top:4px; overflow-x:auto; -webkit-overflow-scrolling:touch;">
         <button type="button" @click="activeTab = 'uebersicht'" class="kd-tab-btn" :class="activeTab === 'uebersicht' ? 'active' : ''" style="white-space:nowrap;">
             <span>&#x1F4CB;</span> &Uuml;bersicht
         </button>
@@ -233,13 +230,13 @@
             {% endif %}
             {% set pending_drafts = (email_drafts_json or []) | selectattr('status', 'equalto', 'draft') | list %}
             {% if pending_drafts | length > 0 %}
-            <span style="font-size:11px;font-weight:700;background:#f59e0b;color:#000;padding:1px 7px;border-radius:99px;margin-left:2px;" title="Offene Email-Entw&uuml;rfe">&#x2709; {{ pending_drafts | length }}</span>
+            <span style="font-size:11px;font-weight:700;background:var(--pp-orange);color:#000;padding:1px 7px;border-radius:99px;margin-left:2px;" title="Offene Email-Entw&uuml;rfe">&#x2709; {{ pending_drafts | length }}</span>
             {% endif %}
         </button>
         <button type="button" @click="activeTab = 'emails'" class="kd-tab-btn" :class="activeTab === 'emails' ? 'active' : ''">
             <span>&#x1F4E8;</span> E-Mails
             {% if seq_emails_json and seq_emails_json | length > 0 %}
-            <span style="font-size:11px;font-weight:700;background:rgba(54,154,255,0.2);color:#369aff;padding:1px 7px;border-radius:99px;margin-left:4px;">{{ seq_emails_json | length }}</span>
+            <span style="font-size:11px;font-weight:700;background:var(--pp-accentSoft);color:var(--pp-accent);padding:1px 7px;border-radius:99px;margin-left:4px;">{{ seq_emails_json | length }}</span>
             {% endif %}
         </button>
     </div>
@@ -248,8 +245,8 @@
     {# ── Pipeline Modal ── #}
     <template x-if="showPipelineModal">
         <div style="position:fixed; inset:0; z-index:200; display:flex; align-items:center; justify-content:center;" @click.self="showPipelineModal = false">
-            <div style="position:fixed; inset:0; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px);"></div>
-            <div style="position:relative; z-index:10; background:var(--pp-surface); border-radius:16px; border:1px solid var(--pp-border); padding:28px; width:420px; max-width:90vw; box-shadow:0 24px 48px rgba(0,0,0,0.4);">
+            <div style="position:fixed; inset:0; background:rgba(0,0,0,0.7);"></div>
+            <div style="position:relative; z-index:10; background:var(--pp-surface); border-radius:12px; border:1px solid var(--pp-border); padding:28px; width:420px; max-width:90vw; box-shadow:0 24px 48px rgba(0,0,0,0.4);">
                 <h3 style="font-size:17px; font-weight:700; color:var(--pp-text); margin:0 0 20px;">Pipeline-Status &auml;ndern</h3>
                 {% set pipeline_options = [
                     {"value": "new", "label": "Neu", "color": "#6366f1"},
@@ -464,12 +461,12 @@
                         </div>
                     </div>
                     {# Notizen (einzelne Eintraege mit Datum) #}
-                    <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(99,102,241,0.08);">
+                    <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--pp-borderLight);">
                         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
                             <div style="font-size: 10px; color: var(--pp-textDim); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;">Notizen</div>
                             <button type="button" @click="showNewNote = !showNewNote"
                                 class="py-1 px-3 rounded-lg cursor-pointer text-xs font-semibold"
-                                style="background: rgba(79,140,255,0.12); color: var(--pp-accent); border: 1px solid rgba(79,140,255,0.25);">
+                                style="background: var(--pp-accentSoft); color: var(--pp-accent); border: 1px solid var(--pp-accentGlow);">
                                 <span x-text="showNewNote ? 'Abbrechen' : '+ Neue Notiz'"></span>
                             </button>
                         </div>
@@ -545,7 +542,7 @@
                                 <div style="display: flex; gap: 3px;">
                                     {% for i in range(1, 6) %}
                                     <button type="button" @click="setRating({{ i }})" style="background: none; border: none; cursor: pointer; padding: 0; font-size: 18px; transition: transform 0.15s;" onmouseenter="this.style.transform='scale(1.2)'" onmouseleave="this.style.transform='scale(1)'">
-                                        <span id="star-{{ i }}" style="color: {% if candidate.rating and i <= candidate.rating %}#f59e0b{% else %}var(--pp-border){% endif %};">&#9733;</span>
+                                        <span id="star-{{ i }}" style="color: {% if candidate.rating and i <= candidate.rating %}var(--pp-orange){% else %}var(--pp-border){% endif %};">&#9733;</span>
                                     </button>
                                     {% endfor %}
                                 </div>
@@ -555,14 +552,14 @@
                         </div>
                     </div>
                     {# ERP #}
-                    <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(99,102,241,0.08);">
+                    <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--pp-borderLight);">
                         <div style="font-size: 11px; color: var(--pp-textDim); font-weight: 600; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.06em;">ERP-Kenntnisse</div>
                         {% if candidate.erp and candidate.erp | length > 0 %}
                         <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;">
                             {% for erp_item in candidate.erp %}
                             <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 8px; background: var(--pp-surfaceHover); color: var(--pp-accent); border: 1px solid var(--pp-border);">
                                 {{ erp_item }}
-                                <button type="button" onclick="removeErp('{{ erp_item }}')" style="background: none; border: none; cursor: pointer; color: #a5b4fc; font-size: 14px; padding: 0; margin-left: 2px; line-height: 1;" onmouseenter="this.style.color='#ef4444'" onmouseleave="this.style.color='#a5b4fc'">&times;</button>
+                                <button type="button" onclick="removeErp('{{ erp_item }}')" style="background: none; border: none; cursor: pointer; color: var(--pp-purple); font-size: 14px; padding: 0; margin-left: 2px; line-height: 1;" onmouseenter="this.style.color='var(--pp-red)'" onmouseleave="this.style.color='var(--pp-purple)'">&times;</button>
                             </span>
                             {% endfor %}
                         </div>
@@ -591,28 +588,28 @@
                     <div class="kd-quickglance-icon">&#x1F4B0;</div>
                     <div>
                         <div class="kd-quickglance-label">Gehalt</div>
-                        <div class="kd-quickglance-value" style="color:#10b981;">{{ candidate.salary or '–' }}</div>
+                        <div class="kd-quickglance-value" style="color:var(--pp-green);">{{ candidate.salary or '–' }}</div>
                     </div>
                 </div>
                 <div class="kd-quickglance-item">
                     <div class="kd-quickglance-icon">&#x23F3;</div>
                     <div>
                         <div class="kd-quickglance-label">K&uuml;ndigungsfrist</div>
-                        <div class="kd-quickglance-value" style="color:#f59e0b;">{{ candidate.notice_period or '–' }}</div>
+                        <div class="kd-quickglance-value" style="color:var(--pp-orange);">{{ candidate.notice_period or '–' }}</div>
                     </div>
                 </div>
                 <div class="kd-quickglance-item">
                     <div class="kd-quickglance-icon">&#x1F3E0;</div>
                     <div>
                         <div class="kd-quickglance-label">Home-Office</div>
-                        <div class="kd-quickglance-value" style="color:#3b82f6;">{{ candidate.home_office_days or '–' }}</div>
+                        <div class="kd-quickglance-value" style="color:var(--pp-accent);">{{ candidate.home_office_days or '–' }}</div>
                     </div>
                 </div>
                 <div class="kd-quickglance-item">
                     <div class="kd-quickglance-icon">&#x1F6E3;</div>
                     <div>
                         <div class="kd-quickglance-label">Pendelweg</div>
-                        <div class="kd-quickglance-value" style="color:#8b5cf6;">{{ candidate.commute_max or '–' }}</div>
+                        <div class="kd-quickglance-value" style="color:var(--pp-purple);">{{ candidate.commute_max or '–' }}</div>
                     </div>
                 </div>
             </div>
@@ -752,7 +749,7 @@
                     </div>
 
                     {# Row 4: Branchen #}
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(99,102,241,0.08);">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--pp-borderLight);">
                         <div>
                             <div class="kd-field-label">Bevorzugte Branchen</div>
                             <textarea x-model="qf.preferred_industries" @blur="saveQField('preferred_industries')" placeholder="Freitext: Bevorzugte Branchen..."
@@ -770,7 +767,7 @@
                     </div>
 
                     {# Row 5: WhatsApp + Exklusivität + Andere Recruiter #}
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(99,102,241,0.08);">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--pp-borderLight);">
                         <div>
                             <div class="kd-field-label">WhatsApp OK?</div>
                             <div class="flex gap-2">
@@ -811,7 +808,7 @@
                     </div>
 
                     {# Row 6: Bereits beworben bei (Freitext) #}
-                    <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(99,102,241,0.08);">
+                    <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--pp-borderLight);">
                         <div class="kd-field-label">Bereits beworben bei (aus Gespr&auml;ch)</div>
                         <textarea x-model="qf.applied_at_companies_text" @blur="saveQField('applied_at_companies_text')" placeholder="Freitext aus Transkription: Wo hat sich der Kandidat bereits beworben?"
                             class="w-full rounded-lg text-sm font-medium resize-vertical"
@@ -820,7 +817,7 @@
                     </div>
 
                     {# Row 7: Call-Daten #}
-                    <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(99,102,241,0.08);">
+                    <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--pp-borderLight);">
                         <div style="font-size: 12px; font-weight: 700; color: var(--pp-textMuted); margin-bottom: 8px;">Gespr&auml;chsdaten</div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                             <div>
@@ -984,7 +981,7 @@
                                 <div class="kd-field-label">Datum</div>
                                 <input type="date" x-model="newDate" style="padding: 7px 10px; border-radius: 8px; border: 1.5px solid var(--pp-border); font-size: 13px; color: var(--pp-text); background: var(--pp-surface); font-family: inherit; outline: none; color-scheme: dark;">
                             </div>
-                            <button type="button" @click="addEntry()" style="padding: 8px 16px; border-radius: 8px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; font-size: 13px; font-weight: 650; cursor: pointer; font-family: inherit; border: none;">Speichern</button>
+                            <button type="button" @click="addEntry()" style="padding: 8px 16px; border-radius: 8px; background: var(--pp-accent); color: #fff; font-size: 13px; font-weight: 650; cursor: pointer; font-family: inherit; border: none;">Speichern</button>
                         </div>
                     </div>
                     {# Entries list #}
@@ -993,12 +990,12 @@
                             <template x-for="(entry, idx) in entries" :key="idx">
                                 <div style="display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; border-radius: 8px; background: var(--pp-surfaceHover); border: 1px solid var(--pp-border);">
                                     <div style="display: flex; align-items: center; gap: 10px;">
-                                        <span :style="entry.type === 'applied' ? 'background: rgba(245,158,11,0.15); color: #fbbf24;' : entry.type === 'pdl' ? 'background: rgba(16,185,129,0.15); color: #34d399;' : 'background: rgba(99,102,241,0.15); color: #a5b4fc;'" style="font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.05em;" x-text="entry.type === 'applied' ? 'Beworben' : entry.type === 'pdl' ? 'PDL' : 'Vorgestellt'"></span>
+                                        <span :style="entry.type === 'applied' ? 'background: var(--pp-orangeSoft); color: var(--pp-orange);' : entry.type === 'pdl' ? 'background: var(--pp-greenSoft); color: var(--pp-green);' : 'background: var(--pp-purpleSoft); color: var(--pp-purple);'" style="font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.05em;" x-text="entry.type === 'applied' ? 'Beworben' : entry.type === 'pdl' ? 'PDL' : 'Vorgestellt'"></span>
                                         <span style="font-size: 13.5px; font-weight: 650; color: var(--pp-text);" x-text="entry.company"></span>
                                     </div>
                                     <div style="display: flex; align-items: center; gap: 8px;">
                                         <span style="font-size: 12px; color: var(--pp-textDim); font-weight: 500;" x-text="entry.date ? new Date(entry.date).toLocaleDateString('de-DE') : ''"></span>
-                                        <button type="button" @click="removeEntry(idx)" style="background: none; border: none; cursor: pointer; color: var(--pp-textDim); font-size: 16px; padding: 0 4px; line-height: 1;" onmouseenter="this.style.color='#ef4444'" onmouseleave="this.style.color='var(--pp-textDim)'">&times;</button>
+                                        <button type="button" @click="removeEntry(idx)" style="background: none; border: none; cursor: pointer; color: var(--pp-textDim); font-size: 16px; padding: 0 4px; line-height: 1;" onmouseenter="this.style.color='var(--pp-red)'" onmouseleave="this.style.color='var(--pp-textDim)'">&times;</button>
                                     </div>
                                 </div>
                             </template>
@@ -1033,7 +1030,7 @@
                     <div class="kd-section-body" style="padding:12px 24px 16px;">
 
                         {# ── Neue Aufgabe inline ── #}
-                        <div x-show="showAddForm" x-cloak style="margin-bottom:12px; padding:12px 14px; border-radius:12px; background:rgba(54,154,255,0.04); border:1.5px solid rgba(54,154,255,0.15);">
+                        <div x-show="showAddForm" x-cloak style="margin-bottom:12px; padding:12px 14px; border-radius:12px; background:var(--pp-accentSoft); border:1.5px solid var(--pp-accentGlow);">
                             <input type="text" x-model="newTodo.title" placeholder="Was muss erledigt werden?" @keydown.enter="addTodo()"
                                 class="w-full rounded-lg text-sm font-semibold"
                                 style="padding:7px 10px; border:1.5px solid var(--pp-border); color:var(--pp-text); background:var(--pp-surface); font-family:inherit; outline:none; margin-bottom:8px;">
@@ -1053,7 +1050,7 @@
                                 <div style="flex:1;"></div>
                                 <button type="button" @click="addTodo()"
                                     class="px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer"
-                                    style="background:linear-gradient(135deg,#2ed573,#1fb85b); color:#fff; border:none; font-family:inherit; box-shadow:0 2px 8px rgba(46,213,115,0.25);">
+                                    style="background:var(--pp-green); color:#fff; border:none; font-family:inherit;">
                                     Erstellen
                                 </button>
                             </div>
@@ -1062,28 +1059,28 @@
                         {# ── Filter-Leiste ── #}
                         <div x-show="todos.length > 0" style="display:flex; gap:6px; margin-bottom:10px;">
                             <button type="button" @click="filter = 'all'" class="px-3 py-1 rounded-lg text-xs font-bold cursor-pointer"
-                                :style="filter === 'all' ? 'background:rgba(54,154,255,0.15);color:#369aff;border:1px solid rgba(54,154,255,0.3);' : 'background:transparent;color:#5a6a8a;border:1px solid transparent;'"
+                                :style="filter === 'all' ? 'background:var(--pp-accentSoft);color:var(--pp-accent);border:1px solid var(--pp-accentGlow);' : 'background:transparent;color:var(--pp-textDim);border:1px solid transparent;'"
                                 style="font-family:inherit;">Alle</button>
                             <button type="button" @click="filter = 'open'" class="px-3 py-1 rounded-lg text-xs font-bold cursor-pointer"
-                                :style="filter === 'open' ? 'background:rgba(54,154,255,0.15);color:#369aff;border:1px solid rgba(54,154,255,0.3);' : 'background:transparent;color:#5a6a8a;border:1px solid transparent;'"
+                                :style="filter === 'open' ? 'background:var(--pp-accentSoft);color:var(--pp-accent);border:1px solid var(--pp-accentGlow);' : 'background:transparent;color:var(--pp-textDim);border:1px solid transparent;'"
                                 style="font-family:inherit;">Offen</button>
                             <button type="button" @click="filter = 'done'" class="px-3 py-1 rounded-lg text-xs font-bold cursor-pointer"
-                                :style="filter === 'done' ? 'background:rgba(46,213,115,0.15);color:#2ed573;border:1px solid rgba(46,213,115,0.3);' : 'background:transparent;color:#5a6a8a;border:1px solid transparent;'"
+                                :style="filter === 'done' ? 'background:var(--pp-greenSoft);color:var(--pp-green);border:1px solid rgba(34,197,94,0.3);' : 'background:transparent;color:var(--pp-textDim);border:1px solid transparent;'"
                                 style="font-family:inherit;">Erledigt</button>
                         </div>
 
                         {# ── Todo-Liste (kompakt wie Anrufprotokoll) ── #}
                         <div style="display:flex; flex-direction:column; gap:6px;">
                             <template x-for="todo in filteredTodos" :key="todo.id">
-                                <div style="border-radius:14px; border:1px solid rgba(255,255,255,0.08); transition:all .2s; background:rgba(15,20,35,0.5);"
-                                     :style="todo.status === 'done' ? 'border-color:rgba(46,213,115,0.2); opacity:0.6;' : todo.is_overdue ? 'border-color:rgba(255,71,87,0.3); background:rgba(255,71,87,0.04);' : ''">
+                                <div style="border-radius:12px; border:1px solid var(--pp-border); transition:all .2s; background:var(--pp-surface);"
+                                     :style="todo.status === 'done' ? 'border-color:rgba(34,197,94,0.2); opacity:0.6;' : todo.is_overdue ? 'border-color:rgba(239,68,68,0.3); background:rgba(239,68,68,0.04);' : ''">
 
                                     {# ── Hauptzeile ── #}
                                     <div style="padding:12px 16px; display:flex; align-items:center; gap:10px;">
                                         {# Checkbox #}
                                         <button type="button" @click="toggleStatus(todo)"
                                             style="flex-shrink:0; width:20px; height:20px; border-radius:6px; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all .15s; padding:0;"
-                                            :style="todo.status === 'done' ? 'border:2px solid #2ed573; background:#2ed573;' : 'border:2px solid #3d4a6e; background:transparent;'">
+                                            :style="todo.status === 'done' ? 'border:2px solid var(--pp-green); background:var(--pp-green);' : 'border:2px solid var(--pp-text4); background:transparent;'">
                                             <svg x-show="todo.status === 'done'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
                                         </button>
 
@@ -1091,7 +1088,7 @@
                                         <div style="flex:1; min-width:0; cursor:pointer;" @click="todo._open = !todo._open">
                                             <div style="display:flex; align-items:center; gap:8px;">
                                                 <span style="font-size:13.5px; font-weight:600; line-height:1.3; font-family:inherit;"
-                                                      :style="todo.status === 'done' ? 'color:#5a6a8a; text-decoration:line-through;' : 'color:#e8ecf4;'"
+                                                      :style="todo.status === 'done' ? 'color:var(--pp-textDim); text-decoration:line-through;' : 'color:var(--pp-text);'"
                                                       x-text="todo.title"></span>
                                                 <span style="font-size:10px; font-weight:700; padding:2px 7px; border-radius:6px; white-space:nowrap; font-family:inherit;"
                                                       :style="'color:' + todo.priority_color + '; background:' + todo.priority_color + '18;'"
@@ -1102,7 +1099,7 @@
                                         {# Datum + Uhrzeit rechts #}
                                         <template x-if="todo.due_date || todo.due_time">
                                             <span style="font-size:12px; font-weight:600; white-space:nowrap; font-family:inherit; display:inline-flex; align-items:center; gap:4px;"
-                                                  :style="todo.is_overdue ? 'color:#ff4757;' : 'color:#5a6a8a;'">
+                                                  :style="todo.is_overdue ? 'color:var(--pp-red);' : 'color:var(--pp-textDim);'">
                                                 <span x-show="todo.due_date" x-text="todo.due_date_formatted"></span>
                                                 <span x-show="todo.due_time" x-text="todo.due_time" style="font-size:11px;"></span>
                                             </span>
@@ -1110,32 +1107,32 @@
 
                                         {# Loeschen #}
                                         <button type="button" @click="if(confirm('Aufgabe l\u00f6schen?')) deleteTodo(todo.id)"
-                                            style="flex-shrink:0; width:20px; height:20px; border-radius:6px; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; border:none; background:transparent; color:#3d4a6e; transition:all .15s;"
-                                            onmouseenter="this.style.color='#ff4757';this.style.background='rgba(255,71,87,0.1)'" onmouseleave="this.style.color='#3d4a6e';this.style.background='transparent'"
+                                            style="flex-shrink:0; width:20px; height:20px; border-radius:6px; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; border:none; background:transparent; color:var(--pp-text4); transition:all .15s;"
+                                            onmouseenter="this.style.color='var(--pp-red)';this.style.background='var(--pp-redSoft)'" onmouseleave="this.style.color='var(--pp-text4)';this.style.background='transparent'"
                                             title="L&ouml;schen">
                                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                                         </button>
                                         {# Pfeil #}
-                                        <svg @click="todo._open = !todo._open" :style="todo._open ? 'transform:rotate(180deg)' : ''" width="14" height="14" style="color:#5a6a8a; flex-shrink:0; cursor:pointer; transition:transform .2s;" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+                                        <svg @click="todo._open = !todo._open" :style="todo._open ? 'transform:rotate(180deg)' : ''" width="14" height="14" style="color:var(--pp-textDim); flex-shrink:0; cursor:pointer; transition:transform .2s;" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
                                     </div>
 
                                     {# ── Aufklapp-Detail ── #}
-                                    <div x-show="todo._open" x-transition.duration.150ms style="border-top:1px solid rgba(255,255,255,0.06); padding:12px 16px; background:rgba(22,28,45,0.6);">
+                                    <div x-show="todo._open" x-transition.duration.150ms style="border-top:1px solid var(--pp-borderLight); padding:12px 16px; background:var(--pp-surfaceHover);">
                                         <div style="display:flex; gap:8px; align-items:end; flex-wrap:wrap; margin-bottom:8px;">
                                             <div style="flex:1; min-width:120px;">
-                                                <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#5a6a8a; margin-bottom:4px;">F&auml;llig</div>
+                                                <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--pp-textDim); margin-bottom:4px;">F&auml;llig</div>
                                                 <input type="date" :value="todo.due_date || ''" @change="updateTodo(todo.id, {due_date: $event.target.value || null})"
-                                                    style="width:100%; padding:5px 8px; border-radius:8px; border:1.5px solid rgba(255,255,255,0.08); font-size:12px; color:#e8ecf4; background:rgba(15,20,35,0.5); font-family:inherit; outline:none; color-scheme:dark;">
+                                                    style="width:100%; padding:5px 8px; border-radius:8px; border:1.5px solid var(--pp-border); font-size:12px; color:var(--pp-text); background:var(--pp-surface); font-family:inherit; outline:none; color-scheme:dark;">
                                             </div>
                                             <div style="min-width:85px;">
-                                                <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#5a6a8a; margin-bottom:4px;">Uhrzeit</div>
+                                                <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--pp-textDim); margin-bottom:4px;">Uhrzeit</div>
                                                 <input type="time" :value="todo.due_time || ''" @change="updateTodo(todo.id, {due_time: $event.target.value || null})"
-                                                    style="width:100%; padding:5px 8px; border-radius:8px; border:1.5px solid rgba(255,255,255,0.08); font-size:12px; color:#e8ecf4; background:rgba(15,20,35,0.5); font-family:inherit; outline:none; color-scheme:dark;">
+                                                    style="width:100%; padding:5px 8px; border-radius:8px; border:1.5px solid var(--pp-border); font-size:12px; color:var(--pp-text); background:var(--pp-surface); font-family:inherit; outline:none; color-scheme:dark;">
                                             </div>
                                             <div style="min-width:100px;">
-                                                <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#5a6a8a; margin-bottom:4px;">Priorit&auml;t</div>
+                                                <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--pp-textDim); margin-bottom:4px;">Priorit&auml;t</div>
                                                 <select :value="todo.priority" @change="updateTodo(todo.id, {priority: $event.target.value})"
-                                                    style="width:100%; padding:5px 8px; border-radius:8px; border:1.5px solid rgba(255,255,255,0.08); font-size:12px; color:#e8ecf4; background:rgba(15,20,35,0.5); font-family:inherit; outline:none; cursor:pointer;">
+                                                    style="width:100%; padding:5px 8px; border-radius:8px; border:1.5px solid var(--pp-border); font-size:12px; color:var(--pp-text); background:var(--pp-bg); font-family:inherit; outline:none; cursor:pointer;">
                                                     <option value="unwichtig">Unwichtig</option>
                                                     <option value="mittelmaessig">Mittel</option>
                                                     <option value="wichtig">Wichtig</option>
@@ -1144,9 +1141,9 @@
                                                 </select>
                                             </div>
                                             <div style="min-width:110px;">
-                                                <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#5a6a8a; margin-bottom:4px;">Status</div>
+                                                <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--pp-textDim); margin-bottom:4px;">Status</div>
                                                 <select :value="todo.status" @change="updateTodo(todo.id, {status: $event.target.value})"
-                                                    style="width:100%; padding:5px 8px; border-radius:8px; border:1.5px solid rgba(255,255,255,0.08); font-size:12px; color:#e8ecf4; background:rgba(15,20,35,0.5); font-family:inherit; outline:none; cursor:pointer;">
+                                                    style="width:100%; padding:5px 8px; border-radius:8px; border:1.5px solid var(--pp-border); font-size:12px; color:var(--pp-text); background:var(--pp-bg); font-family:inherit; outline:none; cursor:pointer;">
                                                     <option value="open">Offen</option>
                                                     <option value="in_progress">In Bearbeitung</option>
                                                     <option value="done">Erledigt</option>
@@ -1154,10 +1151,10 @@
                                                 </select>
                                             </div>
                                             <button type="button" @click="if(confirm('L\u00f6schen?')) deleteTodo(todo.id)"
-                                                style="padding:5px 10px; border-radius:8px; border:1px solid rgba(255,71,87,0.2); background:rgba(255,71,87,0.08); color:#ff4757; font-size:11px; font-weight:600; cursor:pointer; font-family:inherit; white-space:nowrap;">&#x1F5D1;</button>
+                                                style="padding:5px 10px; border-radius:8px; border:1px solid rgba(239,68,68,0.2); background:var(--pp-redSoft); color:var(--pp-red); font-size:11px; font-weight:600; cursor:pointer; font-family:inherit; white-space:nowrap;">&#x1F5D1;</button>
                                         </div>
                                         <template x-if="todo.description">
-                                            <div style="font-size:12px; color:#7c8db5; line-height:1.5; padding:6px 0;" x-text="todo.description"></div>
+                                            <div style="font-size:12px; color:var(--pp-textMuted); line-height:1.5; padding:6px 0;" x-text="todo.description"></div>
                                         </template>
                                     </div>
                                 </div>
@@ -1168,8 +1165,8 @@
                         <template x-if="todos.length === 0 && !showAddForm">
                             <div style="display:flex; flex-direction:column; align-items:center; padding:28px 0;">
                                 <div style="font-size:28px; margin-bottom:6px; opacity:0.25;">&#x1F4CB;</div>
-                                <div style="font-size:13px; font-weight:600; color:#5a6a8a;">Keine Aufgaben</div>
-                                <div style="font-size:11px; color:#3d4a6e; margin-top:3px;">Werden automatisch aus Anrufen erstellt</div>
+                                <div style="font-size:13px; font-weight:600; color:var(--pp-textDim);">Keine Aufgaben</div>
+                                <div style="font-size:11px; color:var(--pp-text4); margin-top:3px;">Werden automatisch aus Anrufen erstellt</div>
                             </div>
                         </template>
                     </div>
@@ -1182,7 +1179,7 @@
                         <div style="display:flex; align-items:center; gap:10px;">
                             <span style="font-size:12px; font-weight:600; color:var(--pp-textDim);" x-text="drafts.length + ' Entw\u00fcrfe'"></span>
                             <template x-if="pendingCount > 0">
-                                <span style="font-size:11px;font-weight:700;background:#f59e0b;color:#000;padding:1px 7px;border-radius:99px;" x-text="pendingCount + ' offen'"></span>
+                                <span style="font-size:11px;font-weight:700;background:var(--pp-orange);color:#000;padding:1px 7px;border-radius:99px;" x-text="pendingCount + ' offen'"></span>
                             </template>
                         </div>
                     </div>
@@ -1191,14 +1188,14 @@
                         {# ── Draft-Liste ── #}
                         <div style="display:flex; flex-direction:column; gap:8px;">
                             <template x-for="draft in drafts" :key="draft.id">
-                                <div style="border-radius:14px; border:1px solid rgba(255,255,255,0.08); transition:all .2s; background:rgba(15,20,35,0.5);"
-                                     :style="draft.status === 'sent' ? 'border-color:rgba(46,213,115,0.2); opacity:0.65;' : draft.status === 'failed' ? 'border-color:rgba(255,71,87,0.3); background:rgba(255,71,87,0.04);' : ''">
+                                <div style="border-radius:12px; border:1px solid var(--pp-border); transition:all .2s; background:var(--pp-surface);"
+                                     :style="draft.status === 'sent' ? 'border-color:rgba(34,197,94,0.2); opacity:0.65;' : draft.status === 'failed' ? 'border-color:rgba(239,68,68,0.3); background:rgba(239,68,68,0.04);' : ''">
 
                                     {# ── Hauptzeile ── #}
                                     <div style="padding:12px 16px; display:flex; align-items:center; gap:10px;">
                                         {# Status-Icon #}
                                         <div style="flex-shrink:0; width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:14px;"
-                                             :style="draft.status === 'sent' ? 'background:rgba(46,213,115,0.12);' : draft.status === 'failed' ? 'background:rgba(255,71,87,0.12);' : 'background:rgba(54,154,255,0.12);'">
+                                             :style="draft.status === 'sent' ? 'background:var(--pp-greenSoft);' : draft.status === 'failed' ? 'background:var(--pp-redSoft);' : 'background:var(--pp-accentSoft);'">
                                             <span x-show="draft.status === 'draft'">&#x1F4E7;</span>
                                             <span x-show="draft.status === 'sent'">&#x2705;</span>
                                             <span x-show="draft.status === 'failed'">&#x26A0;</span>
@@ -1209,13 +1206,13 @@
                                         <div style="flex:1; min-width:0; cursor:pointer;" @click="draft._open = !draft._open">
                                             <div style="display:flex; align-items:center; gap:8px;">
                                                 <span style="font-size:13.5px; font-weight:600; line-height:1.3; font-family:inherit; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"
-                                                      :style="draft.status === 'sent' ? 'color:#5a6a8a;' : draft.status === 'failed' ? 'color:#ff6b6b;' : 'color:#e8ecf4;'"
+                                                      :style="draft.status === 'sent' ? 'color:var(--pp-textDim);' : draft.status === 'failed' ? 'color:var(--pp-red);' : 'color:var(--pp-text);'"
                                                       x-text="draft.subject"></span>
                                                 <span style="font-size:10px; font-weight:700; padding:2px 7px; border-radius:6px; white-space:nowrap; font-family:inherit;"
                                                       :style="draft.type_color"
                                                       x-text="draft.type_label"></span>
                                             </div>
-                                            <div style="font-size:11px; color:#5a6a8a; margin-top:2px; font-family:inherit;">
+                                            <div style="font-size:11px; color:var(--pp-textDim); margin-top:2px; font-family:inherit;">
                                                 <span x-text="'An: ' + draft.to_email"></span>
                                                 <span x-show="draft.created_formatted" x-text="' \u2022 ' + draft.created_formatted"></span>
                                             </div>
@@ -1227,29 +1224,29 @@
                                               x-text="draft.status_label"></span>
 
                                         {# Pfeil #}
-                                        <svg @click="draft._open = !draft._open" :style="draft._open ? 'transform:rotate(180deg)' : ''" width="14" height="14" style="color:#5a6a8a; flex-shrink:0; cursor:pointer; transition:transform .2s;" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+                                        <svg @click="draft._open = !draft._open" :style="draft._open ? 'transform:rotate(180deg)' : ''" width="14" height="14" style="color:var(--pp-textDim); flex-shrink:0; cursor:pointer; transition:transform .2s;" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
                                     </div>
 
                                     {# ── Aufklapp-Detail (Email-Vorschau + Aktionen) ── #}
-                                    <div x-show="draft._open" x-transition.duration.150ms style="border-top:1px solid rgba(255,255,255,0.06); padding:14px 16px; background:rgba(22,28,45,0.6);">
+                                    <div x-show="draft._open" x-transition.duration.150ms style="border-top:1px solid var(--pp-borderLight); padding:14px 16px; background:var(--pp-surfaceHover);">
                                         {# Betreff editierbar bei draft-Status #}
                                         <template x-if="draft.status === 'draft'">
                                             <div style="margin-bottom:10px;">
-                                                <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#5a6a8a; margin-bottom:4px;">Betreff</div>
+                                                <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--pp-textDim); margin-bottom:4px;">Betreff</div>
                                                 <input type="text" :value="draft.subject" @change="updateDraft(draft.id, {subject: $event.target.value})"
-                                                    style="width:100%; padding:6px 10px; border-radius:8px; border:1.5px solid rgba(255,255,255,0.08); font-size:13px; color:#e8ecf4; background:rgba(15,20,35,0.5); font-family:inherit; outline:none;">
+                                                    style="width:100%; padding:6px 10px; border-radius:8px; border:1.5px solid var(--pp-border); font-size:13px; color:var(--pp-text); background:var(--pp-bg); font-family:inherit; outline:none;">
                                             </div>
                                         </template>
 
                                         {# Email-Body Vorschau #}
-                                        <div style="margin-bottom:12px; padding:14px; border-radius:12px; background:#0c1021; border:1px solid rgba(255,255,255,0.06); max-height:300px; overflow-y:auto;">
-                                            <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#5a6a8a; margin-bottom:8px;">Vorschau</div>
-                                            <div x-html="draft.body_html" style="font-size:13px; line-height:1.6; color:#c5cdd8;"></div>
+                                        <div style="margin-bottom:12px; padding:14px; border-radius:12px; background:var(--pp-bg); border:1px solid var(--pp-border); max-height:300px; overflow-y:auto;">
+                                            <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--pp-textDim); margin-bottom:8px;">Vorschau</div>
+                                            <div x-html="draft.body_html" style="font-size:13px; line-height:1.6; color:var(--pp-textMuted);"></div>
                                         </div>
 
                                         {# Fehler anzeigen #}
                                         <template x-if="draft.send_error">
-                                            <div style="margin-bottom:10px; padding:8px 12px; border-radius:8px; background:rgba(255,71,87,0.08); border:1px solid rgba(255,71,87,0.2); font-size:12px; color:#ff6b6b;">
+                                            <div style="margin-bottom:10px; padding:8px 12px; border-radius:8px; background:var(--pp-redSoft); border:1px solid rgba(239,68,68,0.2); font-size:12px; color:var(--pp-red);">
                                                 <strong>Fehler:</strong> <span x-text="draft.send_error"></span>
                                             </div>
                                         </template>
@@ -1259,7 +1256,7 @@
                                             <template x-if="draft.status === 'draft'">
                                                 <button type="button" @click="sendDraft(draft.id)"
                                                     class="px-4 py-1.5 rounded-lg text-xs font-bold cursor-pointer"
-                                                    style="background:linear-gradient(135deg,#2ed573,#1fb85b); color:#fff; border:none; font-family:inherit; box-shadow:0 2px 8px rgba(46,213,115,0.25);"
+                                                    style="background:var(--pp-green); color:#fff; border:none; font-family:inherit;"
                                                     :disabled="draft._sending">
                                                     <span x-show="!draft._sending">&#x2709; Jetzt senden</span>
                                                     <span x-show="draft._sending">Wird gesendet...</span>
@@ -1268,19 +1265,19 @@
                                             <template x-if="draft.status === 'draft'">
                                                 <button type="button" @click="if(confirm('Entwurf verwerfen?')) cancelDraft(draft.id)"
                                                     class="px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer"
-                                                    style="background:transparent; border:1px solid rgba(255,71,87,0.2); color:#ff6b6b; font-family:inherit;">
+                                                    style="background:transparent; border:1px solid rgba(239,68,68,0.2); color:var(--pp-red); font-family:inherit;">
                                                     Verwerfen
                                                 </button>
                                             </template>
                                             <template x-if="draft.status === 'failed'">
                                                 <button type="button" @click="sendDraft(draft.id)"
                                                     class="px-4 py-1.5 rounded-lg text-xs font-bold cursor-pointer"
-                                                    style="background:rgba(54,154,255,0.15); color:#369aff; border:1px solid rgba(54,154,255,0.3); font-family:inherit;">
+                                                    style="background:var(--pp-accentSoft); color:var(--pp-accent); border:1px solid var(--pp-accentGlow); font-family:inherit;">
                                                     &#x1F504; Erneut versuchen
                                                 </button>
                                             </template>
                                             <template x-if="draft.status === 'sent' && draft.sent_at">
-                                                <span style="font-size:11px; color:#2ed573; font-weight:600;">
+                                                <span style="font-size:11px; color:var(--pp-green); font-weight:600;">
                                                     Gesendet <span x-text="draft.sent_formatted"></span>
                                                 </span>
                                             </template>
@@ -1294,8 +1291,8 @@
                         <template x-if="drafts.length === 0">
                             <div style="display:flex; flex-direction:column; align-items:center; padding:28px 0;">
                                 <div style="font-size:28px; margin-bottom:6px; opacity:0.25;">&#x2709;</div>
-                                <div style="font-size:13px; font-weight:600; color:#5a6a8a;">Keine Email-Entw&uuml;rfe</div>
-                                <div style="font-size:11px; color:#3d4a6e; margin-top:3px;">Werden automatisch nach Gespr&auml;chen erstellt</div>
+                                <div style="font-size:13px; font-weight:600; color:var(--pp-textDim);">Keine Email-Entw&uuml;rfe</div>
+                                <div style="font-size:11px; color:var(--pp-text4); margin-top:3px;">Werden automatisch nach Gespr&auml;chen erstellt</div>
                             </div>
                         </template>
                     </div>
@@ -1358,7 +1355,7 @@
                             <div style="display:flex; justify-content:flex-end;">
                                 <button type="button" @click="saveNewCall()" :disabled="!newCall.summary.trim() || saving"
                                     class="px-4 py-2 rounded-lg text-sm font-bold cursor-pointer"
-                                    style="background:linear-gradient(135deg, #6366f1, #8b5cf6); color:#fff; border:none; font-family:inherit;"
+                                    style="background:var(--pp-accent); color:#fff; border:none; font-family:inherit;"
                                     :style="(!newCall.summary.trim() || saving) ? 'opacity:0.5; cursor:not-allowed;' : ''">
                                     <span x-text="saving ? 'Speichert...' : 'Anruf speichern'"></span>
                                 </button>
@@ -1374,15 +1371,15 @@
                                     <div style="display:flex; gap:16px; position:relative; padding:12px 0;">
                                         {# Timeline-Dot #}
                                         <div style="flex-shrink:0; width:32px; display:flex; justify-content:center; z-index:1;">
-                                            <div :style="call.call_type === 'qualification' ? 'background:rgba(99,102,241,0.3); border-color:#6366f1;' : call.call_type === 'acquisition' ? 'background:rgba(245,158,11,0.3); border-color:#f59e0b;' : call.call_type === 'followup' ? 'background:rgba(16,185,129,0.3); border-color:#10b981;' : 'background:rgba(148,163,184,0.3); border-color:#94a3b8;'"
+                                            <div :style="call.call_type === 'qualification' ? 'background:var(--pp-purpleSoft); border-color:var(--pp-purple);' : call.call_type === 'acquisition' ? 'background:var(--pp-orangeSoft); border-color:var(--pp-orange);' : call.call_type === 'followup' ? 'background:var(--pp-greenSoft); border-color:var(--pp-green);' : 'background:var(--pp-surfaceHover); border-color:var(--pp-textMuted);'"
                                                 style="width:12px; height:12px; border-radius:50%; border:2px solid; margin-top:4px;"></div>
                                         </div>
                                         {# Call Card #}
                                         <div style="flex:1; padding:12px 16px; border-radius:12px; background:var(--pp-surfaceHover); border:1px solid var(--pp-border); transition:border-color 0.2s;"
-                                             @mouseenter="$el.style.borderColor='rgba(99,102,241,0.3)'" @mouseleave="$el.style.borderColor='var(--pp-border)'">
+                                             @mouseenter="$el.style.borderColor='var(--pp-accentGlow)'" @mouseleave="$el.style.borderColor='var(--pp-border)'">
                                             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
                                                 <div style="display:flex; align-items:center; gap:8px;">
-                                                    <span :style="call.call_type === 'qualification' ? 'background:rgba(99,102,241,0.15); color:#a5b4fc;' : call.call_type === 'acquisition' ? 'background:rgba(245,158,11,0.15); color:#fbbf24;' : call.call_type === 'followup' ? 'background:rgba(16,185,129,0.15); color:#34d399;' : 'background:rgba(148,163,184,0.15); color:#94a3b8;'"
+                                                    <span :style="call.call_type === 'qualification' ? 'background:var(--pp-purpleSoft); color:var(--pp-purple);' : call.call_type === 'acquisition' ? 'background:var(--pp-orangeSoft); color:var(--pp-orange);' : call.call_type === 'followup' ? 'background:var(--pp-greenSoft); color:var(--pp-green);' : 'background:var(--pp-surfaceHover); color:var(--pp-textMuted);'"
                                                         style="font-size:10px; font-weight:700; padding:3px 8px; border-radius:6px; text-transform:uppercase; letter-spacing:0.05em;"
                                                         x-text="call.call_type_label"></span>
                                                     <span x-show="call.direction" style="font-size:10px; font-weight:600; color:var(--pp-textDim);"
@@ -1396,7 +1393,7 @@
                                                     <button type="button" @click="deleteCall(call.id, idx)"
                                                         class="px-1 py-0.5 rounded text-xs cursor-pointer"
                                                         style="background:none; border:none; color:var(--pp-textDim); font-size:14px; line-height:1;"
-                                                        @mouseenter="$el.style.color='#ef4444'" @mouseleave="$el.style.color='var(--pp-textDim)'">&times;</button>
+                                                        @mouseenter="$el.style.color='var(--pp-red)'" @mouseleave="$el.style.color='var(--pp-textDim)'">&times;</button>
                                                 </div>
                                             </div>
                                             <div style="font-size:13px; font-weight:500; color:var(--pp-text); line-height:1.6; white-space:pre-wrap;" x-text="call.summary"></div>
@@ -1570,7 +1567,7 @@
                             <div style="width: 80px; font-size: 13px; font-weight: 650; color: var(--pp-text);">{{ lang_name }}</div>
                             <div style="flex: 1;">
                                 <div class="kd-lang-bar">
-                                    <div class="kd-lang-fill" style="width: {{ pct }}%; background: linear-gradient(90deg, {% if is_native %}#10b981, #34d399{% else %}#6366f1, #a78bfa{% endif %});"></div>
+                                    <div class="kd-lang-fill" style="width: {{ pct }}%; background: {% if is_native %}var(--pp-green){% else %}var(--pp-accent){% endif %};"></div>
                                 </div>
                             </div>
                             {% if lang_level and lang_level != 'None' and lang_level != 'null' %}
@@ -1597,13 +1594,13 @@
                     {# Legend #}
                     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
                         <span style="display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--pp-textDim); font-weight: 500;">
-                            <span style="width: 8px; height: 8px; border-radius: 3px; background: #4f46e5;"></span> Fachlich
+                            <span style="width: 8px; height: 8px; border-radius: 3px; background: var(--pp-purple);"></span> Fachlich
                         </span>
                         <span style="display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--pp-textDim); font-weight: 500;">
-                            <span style="width: 8px; height: 8px; border-radius: 3px; background: #059669;"></span> Technisch
+                            <span style="width: 8px; height: 8px; border-radius: 3px; background: var(--pp-green);"></span> Technisch
                         </span>
                         <span style="display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--pp-textDim); font-weight: 500;">
-                            <span style="width: 8px; height: 8px; border-radius: 3px; background: #a16207;"></span> Sonstige
+                            <span style="width: 8px; height: 8px; border-radius: 3px; background: var(--pp-orange);"></span> Sonstige
                         </span>
                     </div>
                     <div style="display: flex; flex-wrap: wrap; gap: 5px;">
@@ -1738,25 +1735,25 @@
                     <div style="padding:16px 24px; display:flex; align-items:center; justify-content:space-between; gap:12px;">
                         <div style="display:flex; align-items:center; gap:12px;">
                             <div style="width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:20px;"
-                                 :style="contactStatus === 'email_sequenz_aktiv' ? 'background:rgba(255,165,2,0.12);' : contactStatus === 'sequenz_abgeschlossen' ? 'background:rgba(46,213,115,0.12);' : contactStatus === 'kein_interesse' ? 'background:rgba(255,71,87,0.12);' : 'background:rgba(54,154,255,0.12);'">
+                                 :style="contactStatus === 'email_sequenz_aktiv' ? 'background:var(--pp-orangeSoft);' : contactStatus === 'sequenz_abgeschlossen' ? 'background:var(--pp-greenSoft);' : contactStatus === 'kein_interesse' ? 'background:var(--pp-redSoft);' : 'background:var(--pp-accentSoft);'">
                                 <span x-show="contactStatus === 'email_sequenz_aktiv'">&#x23F3;</span>
                                 <span x-show="contactStatus === 'sequenz_abgeschlossen'">&#x2705;</span>
                                 <span x-show="contactStatus === 'kein_interesse'">&#x1F6AB;</span>
                                 <span x-show="!contactStatus || (contactStatus !== 'email_sequenz_aktiv' && contactStatus !== 'sequenz_abgeschlossen' && contactStatus !== 'kein_interesse')">&#x1F4E7;</span>
                             </div>
                             <div>
-                                <div style="font-size:14px; font-weight:700; color:#e8ecf4;" x-text="statusLabel"></div>
-                                <div style="font-size:12px; color:#7c8db5; margin-top:2px;" x-text="statusDescription"></div>
+                                <div style="font-size:14px; font-weight:700; color:var(--pp-text);" x-text="statusLabel"></div>
+                                <div style="font-size:12px; color:var(--pp-textMuted); margin-top:2px;" x-text="statusDescription"></div>
                             </div>
                         </div>
                         <div style="display:flex; gap:8px;">
                             <template x-if="!contactStatus || contactStatus === 'neu' || contactStatus === 'sequenz_abgeschlossen'">
-                                <button type="button" @click="startSequenz()" class="kd-quickbtn" style="background:rgba(255,165,2,0.10); color:#ffa502; border:1px solid rgba(255,165,2,0.25); font-size:12px;">
+                                <button type="button" @click="startSequenz()" class="kd-quickbtn" style="background:var(--pp-orangeSoft); color:var(--pp-orange); border:1px solid rgba(234,179,8,0.25); font-size:12px;">
                                     &#x1F4E7; Sequenz starten
                                 </button>
                             </template>
                             <template x-if="contactStatus === 'email_sequenz_aktiv'">
-                                <span style="font-size:11px; font-weight:700; padding:5px 12px; border-radius:8px; background:rgba(255,165,2,0.12); color:#ffa502;">Sequenz l&auml;uft...</span>
+                                <span style="font-size:11px; font-weight:700; padding:5px 12px; border-radius:8px; background:var(--pp-orangeSoft); color:var(--pp-orange);">Sequenz l&auml;uft...</span>
                             </template>
                         </div>
                     </div>
@@ -1773,14 +1770,14 @@
                         {# ── E-Mail-Liste ── #}
                         <div style="display:flex; flex-direction:column; gap:8px; width:100%; overflow:hidden;">
                             <template x-for="email in emails" :key="email.id">
-                                <div style="border-radius:14px; border:1px solid rgba(255,255,255,0.08); transition:all .2s; background:rgba(15,20,35,0.5); overflow:hidden;"
-                                     :style="email.direction === 'inbound' ? 'border-color:rgba(46,213,115,0.2);' : email.send_error ? 'border-color:rgba(255,71,87,0.3); background:rgba(255,71,87,0.04);' : ''">
+                                <div style="border-radius:12px; border:1px solid var(--pp-border); transition:all .2s; background:var(--pp-surface); overflow:hidden;"
+                                     :style="email.direction === 'inbound' ? 'border-color:rgba(34,197,94,0.2);' : email.send_error ? 'border-color:rgba(239,68,68,0.3); background:rgba(239,68,68,0.04);' : ''">
 
                                     {# ── Hauptzeile ── #}
                                     <div style="padding:12px 16px; display:flex; align-items:center; gap:10px; cursor:pointer;" @click="email._open = !email._open">
                                         {# Richtungs-Icon #}
                                         <div style="flex-shrink:0; width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:13px;"
-                                             :style="email.direction === 'inbound' ? 'background:rgba(46,213,115,0.12);' : email.send_error ? 'background:rgba(255,71,87,0.12);' : 'background:rgba(54,154,255,0.12);'">
+                                             :style="email.direction === 'inbound' ? 'background:var(--pp-greenSoft);' : email.send_error ? 'background:var(--pp-redSoft);' : 'background:var(--pp-accentSoft);'">
                                             <span x-show="email.direction === 'outbound' && !email.send_error">&#x2197;</span>
                                             <span x-show="email.direction === 'inbound'">&#x2199;</span>
                                             <span x-show="email.send_error">&#x26A0;</span>
@@ -1789,34 +1786,34 @@
                                         {# Betreff + Meta #}
                                         <div style="flex:1; min-width:0;">
                                             <div style="display:flex; align-items:center; gap:8px;">
-                                                <span style="font-size:13.5px; font-weight:600; color:#e8ecf4; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" x-text="email.subject || '(Kein Betreff)'"></span>
+                                                <span style="font-size:13.5px; font-weight:600; color:var(--pp-text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" x-text="email.subject || '(Kein Betreff)'"></span>
                                                 <template x-if="email.sequence_step">
-                                                    <span style="font-size:10px; font-weight:700; padding:2px 7px; border-radius:6px; background:rgba(54,154,255,0.12); color:#369aff; white-space:nowrap;" x-text="'Schritt ' + email.sequence_step"></span>
+                                                    <span style="font-size:10px; font-weight:700; padding:2px 7px; border-radius:6px; background:var(--pp-accentSoft); color:var(--pp-accent); white-space:nowrap;" x-text="'Schritt ' + email.sequence_step"></span>
                                                 </template>
                                                 <template x-if="email.channel">
-                                                    <span style="font-size:10px; font-weight:600; padding:2px 6px; border-radius:5px; background:rgba(255,255,255,0.05); color:#5a6a8a; text-transform:uppercase;" x-text="email.channel"></span>
+                                                    <span style="font-size:10px; font-weight:600; padding:2px 6px; border-radius:5px; background:var(--pp-surfaceHover); color:var(--pp-textDim); text-transform:uppercase;" x-text="email.channel"></span>
                                                 </template>
                                             </div>
-                                            <div style="font-size:11px; color:#5a6a8a; margin-top:2px; display:flex; gap:8px;">
+                                            <div style="font-size:11px; color:var(--pp-textDim); margin-top:2px; display:flex; gap:8px;">
                                                 <span x-text="email.direction === 'outbound' ? 'An: ' + (email.to_address || '–') : 'Von: ' + (email.from_address || '–')"></span>
                                             </div>
                                         </div>
 
                                         {# Datum #}
-                                        <span style="font-size:11px; font-weight:600; color:#5a6a8a; white-space:nowrap;" x-text="email.created_formatted"></span>
+                                        <span style="font-size:11px; font-weight:600; color:var(--pp-textDim); white-space:nowrap;" x-text="email.created_formatted"></span>
 
                                         {# Pfeil #}
-                                        <svg :style="email._open ? 'transform:rotate(180deg)' : ''" width="14" height="14" style="color:#5a6a8a; flex-shrink:0; transition:transform .2s;" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+                                        <svg :style="email._open ? 'transform:rotate(180deg)' : ''" width="14" height="14" style="color:var(--pp-textDim); flex-shrink:0; transition:transform .2s;" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
                                     </div>
 
                                     {# ── Aufklapp-Detail (E-Mail-Body) ── #}
-                                    <div x-show="email._open" x-transition.duration.150ms style="border-top:1px solid rgba(255,255,255,0.06); padding:16px; background:rgba(22,28,45,0.6);">
+                                    <div x-show="email._open" x-transition.duration.150ms style="border-top:1px solid var(--pp-borderLight); padding:16px; background:var(--pp-surfaceHover);">
                                         <template x-if="email.send_error">
-                                            <div style="margin-bottom:10px; padding:8px 12px; border-radius:8px; background:rgba(255,71,87,0.08); border:1px solid rgba(255,71,87,0.2); font-size:12px; color:#ff4757;">
+                                            <div style="margin-bottom:10px; padding:8px 12px; border-radius:8px; background:var(--pp-redSoft); border:1px solid rgba(239,68,68,0.2); font-size:12px; color:var(--pp-red);">
                                                 <strong>Fehler:</strong> <span x-text="email.send_error"></span>
                                             </div>
                                         </template>
-                                        <div style="font-size:13px; color:#c5cee0; line-height:1.65; max-height:400px; overflow-y:auto;" x-html="email.body_html || email.body_text || '<em style=\'color:#5a6a8a;\'>Kein Inhalt</em>'"></div>
+                                        <div style="font-size:13px; color:var(--pp-textMuted); line-height:1.65; max-height:400px; overflow-y:auto;" x-html="email.body_html || email.body_text || '<em style=\'color:var(--pp-textDim);\'>Kein Inhalt</em>'"></div>
                                     </div>
                                 </div>
                             </template>
@@ -1826,8 +1823,8 @@
                         <template x-if="emails.length === 0">
                             <div style="display:flex; flex-direction:column; align-items:center; padding:28px 0;">
                                 <div style="font-size:28px; margin-bottom:6px; opacity:0.25;">&#x1F4E8;</div>
-                                <div style="font-size:13px; font-weight:600; color:#5a6a8a;">Noch keine E-Mails</div>
-                                <div style="font-size:11px; color:#3d4a6e; margin-top:3px;">Klicke &quot;Nicht erreicht&quot; um die E-Mail-Sequenz zu starten</div>
+                                <div style="font-size:13px; font-weight:600; color:var(--pp-textDim);">Noch keine E-Mails</div>
+                                <div style="font-size:11px; color:var(--pp-text4); margin-top:3px;">Klicke &quot;Nicht erreicht&quot; um die E-Mail-Sequenz zu starten</div>
                             </div>
                         </template>
                     </div>
@@ -1843,27 +1840,27 @@
                         <div class="kd-section-body" style="padding:12px 24px 16px;">
                             <div style="display:flex; flex-direction:column; gap:6px;">
                                 <template x-for="task in tasks" :key="task.id">
-                                    <div style="padding:10px 14px; border-radius:12px; border:1px solid rgba(255,255,255,0.08); background:rgba(15,20,35,0.5); display:flex; align-items:center; gap:10px;"
+                                    <div style="padding:10px 14px; border-radius:12px; border:1px solid var(--pp-border); background:var(--pp-bg); display:flex; align-items:center; gap:10px;"
                                          :style="task.status === 'done' ? 'opacity:0.5;' : ''">
                                         {# Status-Icon #}
                                         <button type="button" @click="toggleTask(task)"
                                             style="flex-shrink:0; width:20px; height:20px; border-radius:6px; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0;"
-                                            :style="task.status === 'done' ? 'border:2px solid #2ed573; background:#2ed573;' : 'border:2px solid #3d4a6e; background:transparent;'">
+                                            :style="task.status === 'done' ? 'border:2px solid var(--pp-green); background:var(--pp-green);' : 'border:2px solid var(--pp-text4); background:transparent;'">
                                             <svg x-show="task.status === 'done'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
                                         </button>
                                         <div style="flex:1; min-width:0;">
                                             <div style="font-size:13px; font-weight:600;"
-                                                 :style="task.status === 'done' ? 'color:#5a6a8a; text-decoration:line-through;' : 'color:#e8ecf4;'"
+                                                 :style="task.status === 'done' ? 'color:var(--pp-textDim); text-decoration:line-through;' : 'color:var(--pp-text);'"
                                                  x-text="task.title"></div>
                                             <template x-if="task.description">
-                                                <div style="font-size:11px; color:#5a6a8a; margin-top:2px; line-height:1.4;" x-text="task.description"></div>
+                                                <div style="font-size:11px; color:var(--pp-textDim); margin-top:2px; line-height:1.4;" x-text="task.description"></div>
                                             </template>
                                         </div>
                                         <template x-if="task.due_date">
-                                            <span style="font-size:11px; font-weight:600; color:#5a6a8a; white-space:nowrap;" x-text="task.due_date_formatted"></span>
+                                            <span style="font-size:11px; font-weight:600; color:var(--pp-textDim); white-space:nowrap;" x-text="task.due_date_formatted"></span>
                                         </template>
                                         <span style="font-size:9px; font-weight:700; padding:2px 6px; border-radius:5px; text-transform:uppercase; letter-spacing:0.5px;"
-                                              :style="task.source === 'gpt' ? 'background:rgba(165,94,234,0.12); color:#a55eea;' : task.source === 'system' ? 'background:rgba(54,154,255,0.12); color:#369aff;' : 'background:rgba(255,255,255,0.05); color:#5a6a8a;'"
+                                              :style="task.source === 'gpt' ? 'background:var(--pp-purpleSoft); color:var(--pp-purple);' : task.source === 'system' ? 'background:var(--pp-accentSoft); color:var(--pp-accent);' : 'background:var(--pp-surfaceHover); color:var(--pp-textDim);'"
                                               x-text="task.source"></span>
                                     </div>
                                 </template>
@@ -1884,10 +1881,10 @@
                 <div class="kd-sidebar-header">
                     E-Mail-Status
                     <span style="font-size:10px; font-weight:700; padding:2px 8px; border-radius:6px;
-                        {% if candidate.contact_status == 'email_sequenz_aktiv' %}background:rgba(255,165,2,0.12); color:#ffa502;
-                        {% elif candidate.contact_status == 'sequenz_abgeschlossen' %}background:rgba(46,213,115,0.12); color:#2ed573;
-                        {% elif candidate.contact_status == 'kein_interesse' %}background:rgba(255,71,87,0.12); color:#ff4757;
-                        {% else %}background:rgba(54,154,255,0.12); color:#369aff;{% endif %}">
+                        {% if candidate.contact_status == 'email_sequenz_aktiv' %}background:var(--pp-orangeSoft); color:var(--pp-orange);
+                        {% elif candidate.contact_status == 'sequenz_abgeschlossen' %}background:var(--pp-greenSoft); color:var(--pp-green);
+                        {% elif candidate.contact_status == 'kein_interesse' %}background:var(--pp-redSoft); color:var(--pp-red);
+                        {% else %}background:var(--pp-accentSoft); color:var(--pp-accent);{% endif %}">
                         {% if candidate.contact_status == 'email_sequenz_aktiv' %}Aktiv
                         {% elif candidate.contact_status == 'sequenz_abgeschlossen' %}Fertig
                         {% elif candidate.contact_status == 'kein_interesse' %}Kein Int.
@@ -1946,18 +1943,18 @@
                     {# Header Row: Icon + Title + Badge #}
                     <div class="flex items-center justify-between mb-3">
                         <div class="flex items-center gap-2">
-                            <div class="flex items-center justify-center rounded-lg" style="width: 32px; height: 32px; background: rgba(99,102,241,0.12);">
+                            <div class="flex items-center justify-center rounded-lg" style="width: 32px; height: 32px; background: var(--pp-accentSoft);">
                                 <svg class="w-4 h-4" style="color: var(--pp-accent);" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
                             </div>
                             <span style="font-size: 13px; font-weight: 700; color: var(--pp-text);">Lebenslauf</span>
                         </div>
                         {% if candidate.cv_url or candidate.cv_stored_path %}
-                        <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide" style="background: rgba(5,150,105,0.15); color: #34d399;">
+                        <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide" style="background: var(--pp-greenSoft); color: var(--pp-green);">
                             <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
                             Vorhanden
                         </span>
                         {% else %}
-                        <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide" style="background: rgba(220,38,38,0.12); color: #fca5a5;">Fehlt</span>
+                        <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide" style="background: var(--pp-redSoft); color: var(--pp-red);">Fehlt</span>
                         {% endif %}
                     </div>
 
@@ -1972,7 +1969,7 @@
                     {# Upload Zone - kompakt #}
                     <div class="rounded-lg transition-all duration-200 cursor-pointer"
                          style="border: 1.5px dashed var(--pp-border); padding: 14px; text-align: center; background: var(--pp-bg);"
-                         :style="cvUploading ? 'opacity: 0.5; pointer-events: none;' : cvDragging ? 'border-color: var(--pp-accent); background: rgba(99,102,241,0.06);' : ''"
+                         :style="cvUploading ? 'opacity: 0.5; pointer-events: none;' : cvDragging ? 'border-color: var(--pp-accent); background: var(--pp-accentSoft);' : ''"
                          @dragover.prevent="cvDragging = true"
                          @dragenter.prevent="cvDragging = true"
                          @dragleave.prevent="cvDragging = false"
@@ -2011,7 +2008,7 @@
 {# CV-Vorschau Slide-Over Panel #}
 {% if candidate.cv_url or candidate.cv_stored_path %}
 <div id="cv-preview-overlay" class="hidden" style="z-index: 9999; position: fixed; top: 0; left: 0; right: 0; bottom: 0; zoom: calc(1 / 1.15);">
-    <div class="cv-overlay-bg transition-opacity duration-300 ease-in-out opacity-0" style="position: absolute; inset: 0; background: rgba(17,24,39,0.6); backdrop-filter: blur(4px); cursor: pointer;" onclick="closeCvPreview()"></div>
+    <div class="cv-overlay-bg transition-opacity duration-300 ease-in-out opacity-0" style="position: absolute; inset: 0; background: rgba(0,0,0,0.7); cursor: pointer;" onclick="closeCvPreview()"></div>
     <div style="position: absolute; top: 0; right: 0; bottom: 0; width: 100%; max-width: 42rem; pointer-events: none;">
         <div id="cv-preview-panel" style="pointer-events: auto; height: 100%; transform: translateX(100%); transition: transform 300ms ease-in-out;">
             <div style="display: flex; flex-direction: column; height: 100%; box-shadow: -4px 0 24px rgba(0,0,0,0.4); font-family: 'Outfit', sans-serif; background: var(--pp-surface);">
@@ -2203,7 +2200,7 @@ function pipelineFields() {
                     this.currentRating = value;
                     for (var i = 1; i <= 5; i++) {
                         var star = document.getElementById('star-' + i);
-                        if (star) { star.style.color = i <= value ? '#f59e0b' : '#2A2D3A'; }
+                        if (star) { star.style.color = i <= value ? 'var(--pp-orange)' : 'var(--pp-border)'; }
                     }
                     if (typeof showToast === 'function') showToast('Bewertung gespeichert', 'success');
                 }
@@ -2222,7 +2219,7 @@ function pipelineFields() {
                     this.currentRating = 0;
                     for (var i = 1; i <= 5; i++) {
                         var star = document.getElementById('star-' + i);
-                        if (star) { star.style.color = '#2A2D3A'; }
+                        if (star) { star.style.color = 'var(--pp-border)'; }
                     }
                     if (typeof showToast === 'function') showToast('Bewertung entfernt', 'success');
                 }
@@ -2597,9 +2594,9 @@ function triggerNichtErreicht(candidateId) {
     .then(function(data) {
         if (data.error) { throw new Error(data.error); }
         btn.innerHTML = '&#x2705; Sequenz gestartet';
-        btn.style.background = 'rgba(46,213,115,0.10)';
-        btn.style.color = '#2ed573';
-        btn.style.borderColor = 'rgba(46,213,115,0.25)';
+        btn.style.background = 'var(--pp-greenSoft)';
+        btn.style.color = 'var(--pp-green)';
+        btn.style.borderColor = 'rgba(34,197,94,0.25)';
         if (typeof showToast === 'function') showToast('E-Mail-Sequenz gestartet! Erste E-Mail wird jetzt versendet.', 'success');
 
         // Tab wechseln zu E-Mails nach 1.5 Sekunden
@@ -2615,9 +2612,9 @@ function triggerNichtErreicht(candidateId) {
         btn.innerHTML = '&#x1F4E7; Nicht erreicht';
         btn.style.opacity = '1';
         btn.style.cursor = 'pointer';
-        btn.style.background = 'rgba(255,165,2,0.10)';
-        btn.style.color = '#ffa502';
-        btn.style.borderColor = 'rgba(255,165,2,0.25)';
+        btn.style.background = 'var(--pp-orangeSoft)';
+        btn.style.color = 'var(--pp-orange)';
+        btn.style.borderColor = 'rgba(234,179,8,0.25)';
         if (typeof showToast === 'function') showToast('Fehler: ' + err.message, 'error');
         console.error('Nicht-erreicht Fehler:', err);
     });
@@ -2828,24 +2825,24 @@ function aufgabenManager() {
 function emailDraftsManager() {
     var typeLabels = {kontaktdaten:'Kontaktdaten',stellenausschreibung:'Stellenausschreibung',individuell:'Individuell'};
     var typeColors = {
-        kontaktdaten:'color:#2ed573; background:rgba(46,213,115,0.12);',
-        stellenausschreibung:'color:#369aff; background:rgba(54,154,255,0.12);',
-        individuell:'color:#f59e0b; background:rgba(245,158,11,0.12);'
+        kontaktdaten:'color:var(--pp-green); background:var(--pp-greenSoft);',
+        stellenausschreibung:'color:var(--pp-accent); background:var(--pp-accentSoft);',
+        individuell:'color:var(--pp-orange); background:var(--pp-orangeSoft);'
     };
     var statusLabels = {draft:'Entwurf',sent:'Gesendet',failed:'Fehler',cancelled:'Verworfen',approved:'Genehmigt'};
     var statusStyles = {
-        draft:'color:#f59e0b; background:rgba(245,158,11,0.12);',
-        sent:'color:#2ed573; background:rgba(46,213,115,0.12);',
-        failed:'color:#ff4757; background:rgba(255,71,87,0.12);',
-        cancelled:'color:#5a6a8a; background:rgba(90,106,138,0.12);',
-        approved:'color:#369aff; background:rgba(54,154,255,0.12);'
+        draft:'color:var(--pp-orange); background:var(--pp-orangeSoft);',
+        sent:'color:var(--pp-green); background:var(--pp-greenSoft);',
+        failed:'color:var(--pp-red); background:var(--pp-redSoft);',
+        cancelled:'color:var(--pp-textDim); background:var(--pp-surfaceHover);',
+        approved:'color:var(--pp-accent); background:var(--pp-accentSoft);'
     };
 
     function enrichDraft(d) {
         d._open = false;
         d._sending = false;
         d.type_label = typeLabels[d.email_type] || d.email_type;
-        d.type_color = typeColors[d.email_type] || 'color:#5a6a8a; background:rgba(90,106,138,0.12);';
+        d.type_color = typeColors[d.email_type] || 'color:var(--pp-textDim); background:var(--pp-surfaceHover);';
         d.status_label = statusLabels[d.status] || d.status;
         d.status_style = statusStyles[d.status] || '';
         if (d.created_at) {

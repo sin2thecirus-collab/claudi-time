@@ -16,7 +16,7 @@
     .cd-header {
         padding: 24px 32px 0;
         border-bottom: 1px solid var(--pp-border);
-        background: linear-gradient(180deg, rgba(24,26,35,0.53), transparent);
+        background: var(--pp-surface);
     }
     .cd-breadcrumb {
         font-size: 14px; color: var(--pp-textDim); margin-bottom: 16px;
@@ -32,9 +32,9 @@
     .cd-info-left { display: flex; align-items: center; gap: 16px; min-width: 0; flex: 1; }
 
     .cd-avatar {
-        width: 56px; height: 56px; border-radius: 14px; flex-shrink: 0;
-        background: linear-gradient(135deg, #2563EB22, #2563EB44);
-        border: 1px solid #2563EB44;
+        width: 56px; height: 56px; border-radius: 12px; flex-shrink: 0;
+        background: var(--pp-accentSoft);
+        border: 1px solid rgba(59,130,246,0.20);
         display: flex; align-items: center; justify-content: center;
         font-size: 20px; font-weight: 700; color: var(--pp-accent);
     }
@@ -79,12 +79,12 @@
     /* Status Menu */
     .cd-status-menu {
         position: absolute; right: 0; top: 100%; margin-top: 8px;
-        width: 240px; background: var(--pp-surface); border-radius: 14px;
+        width: 240px; background: var(--pp-surface); border-radius: 12px;
         box-shadow: 0 8px 30px rgba(0,0,0,0.35); border: 1px solid var(--pp-border);
         padding: 6px; z-index: 50;
     }
     .cd-status-item {
-        width: 100%; text-align: left; padding: 12px 16px; border-radius: 10px;
+        width: 100%; text-align: left; padding: 12px 16px; border-radius: 8px;
         font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 10px;
         border: none; background: transparent; color: var(--pp-text);
         transition: background 0.15s; font-family: var(--pp-ff);
@@ -107,27 +107,11 @@
     .cd-tab.active {
         position: relative;
         border-bottom-color: var(--pp-accent);
-        background: linear-gradient(90deg, #4F8CFF, #B8D4FF);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-    }
-    .cd-tab.active::before {
-        content: '';
-        position: absolute;
-        inset: 0;
+        color: var(--pp-accent);
         background: var(--pp-accentSoft);
         border-radius: 10px 10px 0 0;
-        border-bottom: 2px solid var(--pp-accent);
-        z-index: -1;
     }
     .cd-tab .icon { font-size: 16px; }
-    .cd-tab.active .icon {
-        -webkit-text-fill-color: initial;
-        -webkit-background-clip: initial;
-        background-clip: initial;
-        background: none;
-    }
 
     /* Main Grid */
     .cd-grid {
@@ -136,7 +120,7 @@
     }
     .cd-main { padding: 24px 28px; border-right: 1px solid var(--pp-border); }
     .cd-sidebar {
-        padding: 28px 24px; background: rgba(24,26,35,0.4);
+        padding: 28px 24px; background: var(--pp-bg);
         display: flex; flex-direction: column;
     }
 
@@ -144,7 +128,7 @@
     .cd-overview-card {
         background: var(--pp-surface);
         border: 1px solid var(--pp-border);
-        border-radius: 14px;
+        border-radius: 12px;
         padding: 20px;
         overflow: hidden;
     }
@@ -158,9 +142,7 @@
     .cd-sec-hdr-left .icon { font-size: 22px; }
     .cd-sec-hdr-left .title {
         font-size: 18px; font-weight: 750; letter-spacing: 0.01em;
-        background: linear-gradient(90deg, #4F8CFF, #B8D4FF);
-        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-        background-clip: text;
+        color: var(--pp-text);
     }
     .cd-sec-hdr-left .count {
         font-size: 13px; font-weight: 600; color: var(--pp-textDim);
@@ -177,7 +159,7 @@
     /* Card */
     .cd-card {
         background: var(--pp-surface); border: 1px solid var(--pp-border);
-        border-radius: 14px; padding: 20px; transition: all 0.2s ease;
+        border-radius: 12px; padding: 20px; transition: all 0.2s ease;
     }
 
     /* Sidebar Sections */
@@ -263,11 +245,10 @@
     .cd-btn-accent { color: var(--pp-accent); border-color: rgba(79,140,255,0.27); }
     .cd-btn-accent:hover { background: var(--pp-accentSoft); }
     .cd-btn-primary {
-        background: linear-gradient(135deg, var(--pp-accent), #6C63FF);
+        background: var(--pp-accent);
         color: #fff; border: none;
-        box-shadow: 0 4px 16px rgba(79,140,255,0.25);
     }
-    .cd-btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+    .cd-btn-primary:hover { opacity: 0.9; }
 
     /* Dropzone Dark */
     .cd-dz {
@@ -280,11 +261,11 @@
     /* Call Modal */
     .cd-modal-overlay {
         position: fixed; inset: 0; z-index: 1000;
-        background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+        background: rgba(0,0,0,0.6);
         display: flex; align-items: center; justify-content: center;
     }
     .cd-modal {
-        background: var(--pp-surface); border-radius: 20px; padding: 40px;
+        background: var(--pp-surface); border-radius: 12px; padding: 40px;
         width: 620px; border: 1px solid var(--pp-border);
         box-shadow: 0 24px 80px rgba(0,0,0,0.5);
     }
@@ -314,14 +295,13 @@
         font-family: var(--pp-ff);
     }
     .cd-modal-submit {
-        width: 100%; padding: 16px 0; border-radius: 14px; border: none;
-        background: linear-gradient(135deg, var(--pp-accent), #6C63FF);
+        width: 100%; padding: 16px 0; border-radius: 12px; border: none;
+        background: var(--pp-accent);
         color: #fff; font-size: 17px; font-weight: 700; cursor: pointer;
-        box-shadow: 0 4px 16px rgba(79,140,255,0.25);
         transition: all 0.2s; font-family: var(--pp-ff);
         margin-top: 8px;
     }
-    .cd-modal-submit:hover { transform: translateY(-1px); }
+    .cd-modal-submit:hover { opacity: 0.9; }
 
     /* Modal-specific input overrides for larger sizing */
     .cd-modal .cd-inp,
@@ -335,7 +315,7 @@
 
     /* Tab Content Sections */
     .cd-tab-sec {
-        background: var(--pp-surface); border-radius: 14px;
+        background: var(--pp-surface); border-radius: 12px;
         border: 1px solid var(--pp-border); overflow: hidden;
     }
     .cd-tab-sec-h {

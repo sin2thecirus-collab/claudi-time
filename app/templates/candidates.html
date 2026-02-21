@@ -2,24 +2,9 @@
 {% block title %}Kandidaten - Pulspoint{% endblock %}
 
 {% block head %}
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-    .kl-wrap, .kl-wrap * { font-family: 'Outfit', 'DM Sans', -apple-system, sans-serif; }
     .kl-wrap { background: var(--pp-bg); color: var(--pp-text); min-height: 100vh; font-size: 15px; }
 
-    /* Globale Skalierung aller inline font-sizes innerhalb kl-wrap */
-    .kl-wrap [style*="font-size: 9px"]   { font-size: 11px !important; }
-    .kl-wrap [style*="font-size: 10px"]  { font-size: 12px !important; }
-    .kl-wrap [style*="font-size: 11px"]  { font-size: 13px !important; }
-    .kl-wrap [style*="font-size: 11.5px"]{ font-size: 13.5px !important; }
-    .kl-wrap [style*="font-size: 12px"]  { font-size: 14px !important; }
-    .kl-wrap [style*="font-size: 12.5px"]{ font-size: 14.5px !important; }
-    .kl-wrap [style*="font-size: 13px"]  { font-size: 15px !important; }
-    .kl-wrap [style*="font-size: 13.5px"]{ font-size: 15.5px !important; }
-    .kl-wrap [style*="font-size: 14px"]  { font-size: 16px !important; }
-    .kl-wrap [style*="font-size: 22px"]  { font-size: 26px !important; }
-    .kl-wrap [style*="font-size: 28px"]  { font-size: 32px !important; }
     .kl-wrap ::-webkit-scrollbar { width: 5px; }
     .kl-wrap ::-webkit-scrollbar-track { background: transparent; }
     .kl-wrap ::-webkit-scrollbar-thumb { background: var(--pp-border); border-radius: 3px; }
@@ -37,12 +22,11 @@
 
     /* ── Stat Cards ── */
     .kl-stat-card {
-        background: rgba(255,255,255,0.15); backdrop-filter: blur(10px);
-        border: 1px solid rgba(255,255,255,0.2); border-radius: 14px;
-        padding: 16px 24px; min-width: 160px; text-align: center;
+        background: var(--pp-surface); border: 1px solid var(--pp-borderLight);
+        border-radius: 12px; padding: 16px 24px; min-width: 160px; text-align: center;
     }
-    .kl-stat-value { font-size: 26px; font-weight: 800; color: #fff; }
-    .kl-stat-label { font-size: 12.5px; font-weight: 500; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 3px; }
+    .kl-stat-value { font-size: 26px; font-weight: 800; color: var(--pp-text); }
+    .kl-stat-label { font-size: 12.5px; font-weight: 500; color: var(--pp-textDim); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 3px; }
 
     /* ── Category Chips ── */
     .kl-chip {
@@ -54,9 +38,8 @@
     }
     .kl-chip:hover { background: var(--pp-surfaceHover); color: var(--pp-text); }
     .kl-chip-active {
-        background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
-        color: #fff !important; border-color: transparent !important;
-        box-shadow: 0 2px 8px rgba(99,102,241,0.3);
+        background: var(--pp-accent) !important;
+        color: #fff !important; border-color: var(--pp-accent) !important;
     }
 
     /* ── Search Input ── */
@@ -67,14 +50,14 @@
         outline: none; min-height: 48px;
     }
     .kl-search:focus {
-        border-color: var(--pp-accent); box-shadow: 0 0 0 3px rgba(79,140,255,0.15);
+        border-color: var(--pp-accent); box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
     }
     .kl-search::placeholder { color: var(--pp-textDim); }
 
     /* ── Table Card ── */
     .kl-table-card {
-        background: var(--pp-surface); border-radius: 16px; border: 1px solid var(--pp-border);
-        overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        background: var(--pp-surface); border-radius: 12px; border: 1px solid var(--pp-border);
+        overflow: hidden;
     }
     .kl-table-card table {
         table-layout: fixed; width: 100%;
@@ -100,10 +83,10 @@
 
     /* ── Avatar ── */
     .kl-avatar {
-        width: 44px; height: 44px; border-radius: 13px;
+        width: 44px; height: 44px; border-radius: 12px;
         display: flex; align-items: center; justify-content: center;
         font-weight: 700; font-size: 15px; flex-shrink: 0;
-        border: 2px solid rgba(255,255,255,0.8);
+        border: 2px solid var(--pp-border);
     }
 
     /* ── Skill Tags ── */
@@ -137,52 +120,50 @@
 
     /* ── Batch Bar ── */
     .kl-batch-bar {
-        background: linear-gradient(135deg, #4338ca 0%, #6366f1 100%);
-        border-radius: 14px; padding: 16px 26px;
+        background: var(--pp-surface); border: 1px solid var(--pp-border);
+        border-radius: 12px; padding: 16px 26px;
         display: flex; align-items: center; justify-content: space-between;
-        box-shadow: 0 4px 20px rgba(67,56,202,0.25);
         position: sticky; bottom: 20px; z-index: 40;
         margin: 16px 0;
     }
     .kl-batch-bar-btn {
         display: inline-flex; align-items: center; gap: 8px;
-        padding: 10px 20px; border-radius: 10px;
+        padding: 10px 20px; border-radius: 8px;
         font-size: 14px; font-weight: 630; cursor: pointer;
         font-family: inherit; transition: all 0.2s; border: none;
     }
-    .kl-batch-bar-btn-primary { background: rgba(255,255,255,0.2); color: #fff; }
-    .kl-batch-bar-btn-primary:hover { background: rgba(255,255,255,0.3); }
-    .kl-batch-bar-btn-danger { background: rgba(239,68,68,0.2); color: #fecaca; }
-    .kl-batch-bar-btn-danger:hover { background: rgba(239,68,68,0.3); }
+    .kl-batch-bar-btn-primary { background: var(--pp-accent); color: #fff; }
+    .kl-batch-bar-btn-primary:hover { background: #2563EB; }
+    .kl-batch-bar-btn-danger { background: var(--pp-redSoft); color: var(--pp-red); }
+    .kl-batch-bar-btn-danger:hover { background: rgba(239,68,68,0.15); }
 
     /* ── Pagination ── */
     .kl-page-btn {
         display: inline-flex; align-items: center; justify-content: center;
-        min-width: 42px; height: 42px; border-radius: 10px;
+        min-width: 42px; height: 42px; border-radius: 8px;
         font-size: 15px; font-weight: 600; cursor: pointer;
         background: var(--pp-surface); color: var(--pp-textMuted); border: 1.5px solid var(--pp-border);
         transition: all 0.2s; font-family: inherit;
     }
     .kl-page-btn:hover { background: var(--pp-surfaceHover); color: var(--pp-text); }
     .kl-page-btn-active {
-        background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
-        color: #fff !important; border-color: transparent !important;
-        box-shadow: 0 2px 8px rgba(99,102,241,0.25);
+        background: var(--pp-accent) !important;
+        color: #fff !important; border-color: var(--pp-accent) !important;
     }
     .kl-page-btn-disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
 
     /* ── Filter Panel ── */
     .kl-filter-panel {
-        background: var(--pp-surface); border-radius: 14px; border: 1px solid var(--pp-border);
+        background: var(--pp-surface); border-radius: 12px; border: 1px solid var(--pp-border);
         overflow: hidden; transition: all 0.3s;
     }
     .kl-filter-input {
-        width: 100%; padding: 12px 16px; border-radius: 10px;
+        width: 100%; padding: 12px 16px; border-radius: 8px;
         border: 1.5px solid var(--pp-border); background: var(--pp-bg); font-size: 15px;
         color: var(--pp-text); font-family: inherit; transition: all 0.2s; outline: none;
     }
     .kl-filter-input:focus {
-        border-color: var(--pp-accent); box-shadow: 0 0 0 3px rgba(79,140,255,0.15);
+        border-color: var(--pp-accent); box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
         background: var(--pp-bg);
     }
     .kl-filter-input::placeholder { color: var(--pp-textDim); }
@@ -198,37 +179,37 @@
         border: 1.5px solid var(--pp-accent); font-size: 15px;
         color: var(--pp-text); font-family: inherit; outline: none;
         background: var(--pp-bg);
-        box-shadow: 0 0 0 3px rgba(79,140,255,0.15);
+        box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
     }
 
     /* ── Select Toggle Button ── */
     .kl-select-btn {
         display: inline-flex; align-items: center; gap: 8px;
-        padding: 10px 20px; border-radius: 10px;
+        padding: 10px 20px; border-radius: 8px;
         font-size: 14px; font-weight: 630; cursor: pointer;
         font-family: inherit; transition: all 0.2s;
         border: 1.5px solid var(--pp-border); background: var(--pp-surface); color: var(--pp-textMuted);
     }
     .kl-select-btn:hover { background: var(--pp-surfaceHover); color: var(--pp-text); }
     .kl-select-btn-active {
-        background: var(--pp-accentSoft); color: var(--pp-accent); border-color: rgba(79,140,255,0.3);
+        background: var(--pp-accentSoft); color: var(--pp-accent); border-color: rgba(59,130,246,0.3);
     }
 
     /* ── Per-Page Select ── */
     .kl-per-page {
-        padding: 10px 36px 10px 16px; border-radius: 10px;
+        padding: 10px 36px 10px 16px; border-radius: 8px;
         border: 1.5px solid var(--pp-border); background: var(--pp-surface); font-size: 15px;
         color: var(--pp-text); font-family: inherit; cursor: pointer; outline: none;
         appearance: none; -webkit-appearance: none; min-height: 44px;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%235C6078' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2371717A' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
         background-position: right 8px center; background-repeat: no-repeat; background-size: 16px;
     }
-    .kl-per-page:focus { border-color: var(--pp-accent); box-shadow: 0 0 0 3px rgba(79,140,255,0.15); }
+    .kl-per-page:focus { border-color: var(--pp-accent); box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
 
     /* ── Action Buttons in rows ── */
     .kl-action-btn {
         display: inline-flex; align-items: center; justify-content: center;
-        width: 38px; height: 38px; border-radius: 9px;
+        width: 38px; height: 38px; border-radius: 8px;
         background: transparent; border: none; cursor: pointer;
         color: var(--pp-textDim); transition: all 0.15s; font-size: 16px;
     }
@@ -242,25 +223,22 @@
 <div class="kl-wrap">
 
     {# ════════════════════════════════════════════════════
-       VIOLET HERO HEADER
+       PAGE HEADER
     ════════════════════════════════════════════════════ #}
-    <div style="background: linear-gradient(135deg, #1e1b4b 0%, #312e81 40%, #4338ca 100%); padding: 32px 40px 28px; position: relative; overflow: hidden;">
-        {# Decorative circles #}
-        <div style="position: absolute; top: -80px; right: -40px; width: 220px; height: 220px; border-radius: 50%; background: radial-gradient(circle, rgba(129,140,248,0.12) 0%, transparent 70%);"></div>
-        <div style="position: absolute; bottom: -50px; left: 20%; width: 160px; height: 160px; border-radius: 50%; background: radial-gradient(circle, rgba(167,139,250,0.08) 0%, transparent 70%);"></div>
+    <div style="background: var(--pp-surface); padding: 32px 40px 28px; border-bottom: 1px solid var(--pp-border);">
 
         {# Breadcrumb #}
-        <div style="display: flex; align-items: center; gap: 8px; font-size: 14px; color: rgba(255,255,255,0.5); margin-bottom: 20px; font-weight: 500;">
-            <a href="/" style="color: rgba(255,255,255,0.6); text-decoration: none; font-size: 16px;">&#x1F3E0;</a>
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--pp-textDim); margin-bottom: 20px; font-weight: 500;">
+            <a href="/" style="color: var(--pp-textMuted); text-decoration: none; font-size: 16px;">&#x1F3E0;</a>
             <span>&#x203A;</span>
-            <span style="color: rgba(255,255,255,0.85);">Kandidaten</span>
+            <span style="color: var(--pp-text);">Kandidaten</span>
         </div>
 
         {# Title + Subtitle #}
         <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; flex-wrap: wrap;">
             <div>
-                <h1 style="font-size: 32px; font-weight: 800; color: #fff; letter-spacing: -0.03em; margin: 0;">Kandidaten</h1>
-                <p style="font-size: 16px; color: rgba(255,255,255,0.5); margin-top: 6px; font-weight: 400;">Alle Kandidaten im System</p>
+                <h1 style="font-size: 32px; font-weight: 800; color: var(--pp-text); letter-spacing: -0.03em; margin: 0;">Kandidaten</h1>
+                <p style="font-size: 16px; color: var(--pp-textMuted); margin-top: 6px; font-weight: 400;">Alle Kandidaten im System</p>
             </div>
         </div>
 
@@ -315,7 +293,7 @@
 
             {# Search #}
             <div style="position: relative; flex: 1; min-width: 200px; max-width: 360px;">
-                <svg style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: #94a3b8; pointer-events: none;" viewBox="0 0 20 20" fill="currentColor">
+                <svg style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--pp-textDim); pointer-events: none;" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd" />
                 </svg>
                 <input type="text"
@@ -350,7 +328,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" />
                 </svg>
                 Filter
-                <span id="filter-active-badge" class="hidden" style="position: absolute; top: -4px; right: -4px; width: 8px; height: 8px; border-radius: 50%; background: #6366f1;"></span>
+                <span id="filter-active-badge" class="hidden" style="position: absolute; top: -4px; right: -4px; width: 8px; height: 8px; border-radius: 50%; background: var(--pp-accent);"></span>
             </button>
 
             {# Per-Page #}
@@ -410,8 +388,8 @@
                 </div>
                 <div style="display: flex; justify-content: flex-end; margin-top: 12px;">
                     <button type="button" onclick="resetCandidateFilters()"
-                            style="font-size: 12px; font-weight: 600; color: #94a3b8; cursor: pointer; background: none; border: none; font-family: inherit; transition: color 0.15s;"
-                            onmouseover="this.style.color='#6366f1'" onmouseout="this.style.color='#94a3b8'">
+                            style="font-size: 12px; font-weight: 600; color: var(--pp-textDim); cursor: pointer; background: none; border: none; font-family: inherit; transition: color 0.15s;"
+                            onmouseover="this.style.color='#3B82F6'" onmouseout="this.style.color='#71717A'">
                         Filter zurücksetzen
                     </button>
                 </div>
@@ -427,7 +405,7 @@
             <div id="candidates-list" hx-swap="innerHTML">
                 {# Loading State #}
                 <div style="padding: 60px 20px; text-align: center;">
-                    <svg style="width: 32px; height: 32px; color: #818cf8; margin: 0 auto 12px; animation: spin 1s linear infinite;" viewBox="0 0 24 24" fill="none">
+                    <svg style="width: 32px; height: 32px; color: var(--pp-accent); margin: 0 auto 12px; animation: spin 1s linear infinite;" viewBox="0 0 24 24" fill="none">
                         <circle style="opacity: 0.25;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path style="opacity: 0.75;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>

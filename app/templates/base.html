@@ -50,33 +50,35 @@
     <!-- Alpine.js -->
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
-    <!-- DM Sans Font -->
+    <!-- Inter Font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
         :root {
-            --pp-bg: #0F1117;
-            --pp-surface: #181A23;
-            --pp-surfaceHover: #1E2130;
-            --pp-border: #2A2D3A;
-            --pp-borderLight: #353848;
-            --pp-text: #E8E9ED;
-            --pp-textMuted: #8B8FA3;
-            --pp-textDim: #5C6078;
-            --pp-accent: #4F8CFF;
-            --pp-accentSoft: rgba(79,140,255,0.12);
-            --pp-accentGlow: rgba(79,140,255,0.25);
-            --pp-green: #34D399;
-            --pp-greenSoft: rgba(52,211,153,0.12);
-            --pp-orange: #F59E0B;
-            --pp-orangeSoft: rgba(245,158,11,0.12);
+            --pp-bg: #09090B;
+            --pp-surface: #131316;
+            --pp-surfaceHover: #1A1A1F;
+            --pp-surface3: #222228;
+            --pp-border: #27272A;
+            --pp-borderLight: #1F1F23;
+            --pp-text: #FAFAFA;
+            --pp-textMuted: #A1A1AA;
+            --pp-textDim: #71717A;
+            --pp-text4: #52525B;
+            --pp-accent: #3B82F6;
+            --pp-accentSoft: rgba(59,130,246,0.10);
+            --pp-accentGlow: rgba(59,130,246,0.25);
+            --pp-green: #22C55E;
+            --pp-greenSoft: rgba(34,197,94,0.08);
+            --pp-orange: #EAB308;
+            --pp-orangeSoft: rgba(234,179,8,0.08);
             --pp-red: #EF4444;
-            --pp-redSoft: rgba(239,68,68,0.12);
+            --pp-redSoft: rgba(239,68,68,0.08);
             --pp-purple: #A78BFA;
             --pp-purpleSoft: rgba(167,139,250,0.12);
-            --pp-ff: 'DM Sans', 'SF Pro Display', -apple-system, sans-serif;
+            --pp-ff: 'Inter', -apple-system, system-ui, sans-serif;
         }
 
         * { box-sizing: border-box; }
@@ -140,9 +142,9 @@
         select option { background: var(--pp-surface); color: var(--pp-text); }
 
         /* Nav link active */
-        .pp-nav-item { padding: 8px 12px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; color: var(--pp-textMuted); background: transparent; text-decoration: none; display: inline-flex; align-items: center; transition: all 0.15s; border: none; white-space: nowrap; font-family: var(--pp-ff); }
-        .pp-nav-item:hover { color: var(--pp-text); background: var(--pp-surfaceHover); }
-        .pp-nav-item.active { color: var(--pp-accent); background: var(--pp-accentSoft); }
+        .pp-nav-item { padding: 5px 10px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--pp-textDim); background: transparent; text-decoration: none; display: inline-flex; align-items: center; transition: all 0.1s; border: none; white-space: nowrap; font-family: var(--pp-ff); }
+        .pp-nav-item:hover { color: var(--pp-textMuted); background: var(--pp-surfaceHover); }
+        .pp-nav-item.active { color: var(--pp-text); }
 
         /* ═══════════════════════════════════════════════════ */
         /* ═══ GLOBAL DARK THEME — Tailwind Overrides ═══ */
@@ -215,7 +217,7 @@
         /* Primary button overrides */
         .bg-primary-600 { background: var(--pp-accent) !important; }
         .bg-primary-600:hover, .hover\:bg-primary-500:hover, .hover\:bg-primary-700:hover {
-            background: #3B7AE8 !important;
+            background: #2563EB !important;
         }
         .bg-primary-50 { background: var(--pp-accentSoft) !important; }
         .bg-primary-100 { background: var(--pp-accentSoft) !important; }
@@ -522,22 +524,22 @@
 
         /* Primary buttons */
         #quickadd-content .bg-primary-600 {
-            background: linear-gradient(135deg, #4F8CFF, #6C63FF) !important;
+            background: var(--pp-accent) !important;
             border: none !important;
         }
         #quickadd-content .bg-primary-600:hover,
         #quickadd-content .hover\:bg-primary-700:hover {
-            background: linear-gradient(135deg, #6C9FFF, #7D75FF) !important;
+            background: #2563EB !important;
         }
 
         /* Blue buttons (merge) */
         #quickadd-content .bg-blue-600 {
-            background: linear-gradient(135deg, #4F8CFF, #6C63FF) !important;
+            background: var(--pp-accent) !important;
             border: none !important;
         }
         #quickadd-content .bg-blue-600:hover,
         #quickadd-content .hover\:bg-blue-700:hover {
-            background: linear-gradient(135deg, #6C9FFF, #7D75FF) !important;
+            background: #2563EB !important;
         }
 
         /* Cancel/secondary buttons */
@@ -630,92 +632,172 @@
 </head>
 <body x-data="{ sidebarOpen: false }">
     <!-- ═══ TOP NAVIGATION BAR ═══ -->
-    <nav style="display:flex;align-items:center;justify-content:space-between;padding:0 28px;height:60px;border-bottom:1px solid var(--pp-border);background:rgba(24,26,35,0.8);backdrop-filter:blur(12px);position:sticky;top:0;z-index:100;">
-        <!-- Left: Logo + Nav Items -->
-        <div style="display:flex;align-items:center;gap:28px;">
-            <!-- Logo -->
-            <a href="/" style="display:flex;align-items:center;gap:10px;text-decoration:none;">
-                <div style="width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,#4F8CFF,#6C63FF);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#fff;">P</div>
-                <span style="font-size:18px;font-weight:700;color:var(--pp-text);letter-spacing:-0.02em;">Pulspoint</span>
-            </a>
-            <!-- Desktop Nav Items -->
-            <div class="hidden sm:flex" style="gap:4px;">
-                <a href="/" class="pp-nav-item {% if request.url.path == '/' %}active{% endif %}">Dashboard</a>
-                <a href="/jobs" class="pp-nav-item {% if request.url.path == '/jobs' %}active{% endif %}">Jobs</a>
-                <a href="/kandidaten" class="pp-nav-item {% if request.url.path.startswith('/kandidaten') %}active{% endif %}">Kandidaten</a>
-                <a href="/unternehmen" class="pp-nav-item {% if request.url.path.startswith('/unternehmen') %}active{% endif %}">Unternehmen</a>
-                <div class="relative" x-data="{ atsOpen: false }">
-                    <button @click="atsOpen = !atsOpen" class="pp-nav-item {% if request.url.path.startswith('/ats') %}active{% endif %}" style="gap:4px;">
-                        ATS
-                        <svg style="width:12px;height:12px;transition:transform .15s;" :style="atsOpen ? 'transform:rotate(180deg)' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
-                    </button>
-                    <div x-show="atsOpen" @click.away="atsOpen = false" x-transition style="display:none;position:absolute;left:0;top:100%;margin-top:6px;width:200px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:12px;padding:5px;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,0.4);">
-                        <a href="/ats" style="display:block;padding:10px 14px;border-radius:8px;color:var(--pp-text);text-decoration:none;font-size:14px;font-weight:500;transition:background .15s;" onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='transparent'">Pipeline</a>
-                        <a href="/ats/todos/dashboard" style="display:block;padding:10px 14px;border-radius:8px;color:var(--pp-text);text-decoration:none;font-size:14px;font-weight:500;transition:background .15s;" onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='transparent'">Aufgaben</a>
-                    </div>
+    <nav style="display:flex;align-items:center;padding:0 16px;height:48px;border-bottom:1px solid var(--pp-border);background:var(--pp-bg);position:sticky;top:0;z-index:100;">
+        <!-- Logo -->
+        <a href="/" style="font-size:14px;font-weight:700;letter-spacing:-0.04em;text-decoration:none;color:var(--pp-text);margin-right:16px;white-space:nowrap;">Pulse<span style="color:var(--pp-accent);">Point</span></a>
+        <div style="width:1px;height:20px;background:var(--pp-border);margin-right:12px;"></div>
+        <!-- Desktop Nav Items -->
+        <div class="hidden sm:flex" style="gap:1px;flex:1;">
+            <a href="/" class="pp-nav-item {% if request.url.path == '/' %}active{% endif %}">Dashboard</a>
+            <a href="/jobs" class="pp-nav-item {% if request.url.path == '/jobs' %}active{% endif %}">Jobs</a>
+            <a href="/kandidaten" class="pp-nav-item {% if request.url.path.startswith('/kandidaten') %}active{% endif %}">Kandidaten</a>
+            <a href="/unternehmen" class="pp-nav-item {% if request.url.path.startswith('/unternehmen') %}active{% endif %}">Unternehmen</a>
+            <div class="relative" x-data="{ atsOpen: false }">
+                <button @click="atsOpen = !atsOpen" class="pp-nav-item {% if request.url.path.startswith('/ats') %}active{% endif %}" style="gap:4px;">
+                    ATS
+                    <svg style="width:10px;height:10px;transition:transform .15s;" :style="atsOpen ? 'transform:rotate(180deg)' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+                </button>
+                <div x-show="atsOpen" @click.away="atsOpen = false" x-transition style="display:none;position:absolute;left:0;top:100%;margin-top:4px;width:160px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:8px;padding:4px;z-index:50;box-shadow:0 12px 40px rgba(0,0,0,0.6);">
+                    <a href="/ats" style="display:block;padding:6px 10px;border-radius:5px;color:var(--pp-textMuted);text-decoration:none;font-size:13px;font-weight:500;transition:all .08s;" onmouseover="this.style.background='var(--pp-surfaceHover)';this.style.color='var(--pp-text)'" onmouseout="this.style.background='transparent';this.style.color='var(--pp-textMuted)'">Pipeline</a>
+                    <a href="/ats/todos/dashboard" style="display:block;padding:6px 10px;border-radius:5px;color:var(--pp-textMuted);text-decoration:none;font-size:13px;font-weight:500;transition:all .08s;" onmouseover="this.style.background='var(--pp-surfaceHover)';this.style.color='var(--pp-text)'" onmouseout="this.style.background='transparent';this.style.color='var(--pp-textMuted)'">Aufgaben</a>
                 </div>
-                <a href="/hotlisten" class="pp-nav-item {% if request.url.path.startswith('/hotlisten') or request.url.path.startswith('/match-bereiche') or request.url.path.startswith('/deepmatch') %}active{% endif %}">Hotlisten</a>
-                <a href="/match-center" class="pp-nav-item {% if request.url.path.startswith('/match-center') %}active{% endif %}">Match Center</a>
-                <a href="/titel-zuweisung" class="pp-nav-item {% if request.url.path.startswith('/titel-zuweisung') %}active{% endif %}">Titel</a>
-                <a href="/gespraeche" class="pp-nav-item {% if request.url.path == '/gespraeche' %}active{% endif %}">Gespräche</a>
-                <a href="/emails" class="pp-nav-item {% if request.url.path == '/emails' %}active{% endif %}">Emails</a>
-                <a href="/statistiken" class="pp-nav-item {% if request.url.path == '/statistiken' %}active{% endif %}">Statistiken</a>
-                <a href="/einstellungen" class="pp-nav-item {% if request.url.path == '/einstellungen' %}active{% endif %}">Einstellungen</a>
             </div>
+            <a href="/hotlisten" class="pp-nav-item {% if request.url.path.startswith('/hotlisten') or request.url.path.startswith('/match-bereiche') or request.url.path.startswith('/deepmatch') %}active{% endif %}">Hotlisten</a>
+            <a href="/match-center" class="pp-nav-item {% if request.url.path.startswith('/match-center') %}active{% endif %}">Match Center</a>
+            <a href="/titel-zuweisung" class="pp-nav-item {% if request.url.path.startswith('/titel-zuweisung') %}active{% endif %}">Titel</a>
+            <a href="/gespraeche" class="pp-nav-item {% if request.url.path == '/gespraeche' %}active{% endif %}">Gespräche</a>
+            <a href="/emails" class="pp-nav-item {% if request.url.path == '/emails' %}active{% endif %}">Emails</a>
+            <a href="/statistiken" class="pp-nav-item {% if request.url.path == '/statistiken' %}active{% endif %}">Statistiken</a>
+            <a href="/einstellungen" class="pp-nav-item {% if request.url.path == '/einstellungen' %}active{% endif %}">Einstellungen</a>
         </div>
 
-        <!-- Right: Quick-Add + System Status -->
-        <div class="hidden sm:flex" style="align-items:center;gap:14px;">
+        <!-- Right: Search + Quick-Add + Status -->
+        <div class="hidden sm:flex" style="align-items:center;gap:6px;margin-left:auto;">
+            <!-- Global Search -->
+            <div x-data="globalSearch()" @keydown.window.meta.k.prevent="$refs.searchInput.focus()" @keydown.window.ctrl.k.prevent="$refs.searchInput.focus()" style="position:relative;">
+                <div @click="$refs.searchInput.focus()" style="display:flex;align-items:center;gap:6px;background:var(--pp-surfaceHover);border:1px solid var(--pp-border);border-radius:6px;padding:5px 10px;color:var(--pp-textDim);font-size:12px;cursor:text;transition:border-color .1s;min-width:200px;" :style="focused && 'border-color:var(--pp-accent);'">
+                    <span style="font-size:13px;">&#128269;</span>
+                    <input x-ref="searchInput" type="text" x-model="q" @focus="focused=true" @blur="setTimeout(()=>{focused=false;open=false},200)" @input.debounce.300ms="search()" placeholder="Suchen..." style="background:transparent!important;border:none!important;outline:none!important;color:var(--pp-text)!important;font-size:12px;width:100%;padding:0!important;box-shadow:none!important;font-family:var(--pp-ff);">
+                    <span style="background:var(--pp-surface3);border:1px solid var(--pp-border);border-radius:4px;padding:0 5px;font-size:11px;font-family:var(--pp-ff);line-height:1.6;color:var(--pp-text4);white-space:nowrap;">&#8984;K</span>
+                </div>
+                <!-- Search Results Dropdown -->
+                <div x-show="open && results" x-cloak x-transition style="position:absolute;right:0;top:100%;margin-top:6px;width:380px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:8px;padding:6px;z-index:200;box-shadow:0 12px 40px rgba(0,0,0,0.6);max-height:420px;overflow-y:auto;">
+                    <template x-if="loading">
+                        <div style="padding:16px;text-align:center;color:var(--pp-textDim);font-size:12px;">Suche...</div>
+                    </template>
+                    <template x-if="!loading && noResults">
+                        <div style="padding:16px;text-align:center;color:var(--pp-textDim);font-size:12px;">Keine Ergebnisse</div>
+                    </template>
+                    <template x-if="!loading && results && results.candidates && results.candidates.length > 0">
+                        <div>
+                            <div style="padding:4px 8px;font-size:10px;font-weight:600;color:var(--pp-text4);text-transform:uppercase;letter-spacing:0.05em;">Kandidaten</div>
+                            <template x-for="r in results.candidates" :key="r.id">
+                                <a :href="'/kandidaten/'+r.id" style="display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:5px;text-decoration:none;color:var(--pp-text);font-size:13px;transition:background .08s;" onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='transparent'">
+                                    <span style="width:24px;height:24px;border-radius:6px;background:var(--pp-accentSoft);color:var(--pp-accent);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;" x-text="r.name ? r.name.split(' ').map(n=>n[0]).join('').substring(0,2) : '?'"></span>
+                                    <div style="flex:1;min-width:0;">
+                                        <div style="font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" x-text="r.name"></div>
+                                        <div style="font-size:11px;color:var(--pp-textDim);" x-text="[r.position, r.city].filter(Boolean).join(' · ')"></div>
+                                    </div>
+                                </a>
+                            </template>
+                        </div>
+                    </template>
+                    <template x-if="!loading && results && results.companies && results.companies.length > 0">
+                        <div>
+                            <div style="padding:4px 8px;font-size:10px;font-weight:600;color:var(--pp-text4);text-transform:uppercase;letter-spacing:0.05em;margin-top:4px;">Unternehmen</div>
+                            <template x-for="r in results.companies" :key="r.id">
+                                <a :href="'/unternehmen/'+r.id" style="display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:5px;text-decoration:none;color:var(--pp-text);font-size:13px;transition:background .08s;" onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='transparent'">
+                                    <span style="width:24px;height:24px;border-radius:6px;background:var(--pp-greenSoft);color:var(--pp-green);display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;">&#127970;</span>
+                                    <div style="flex:1;min-width:0;">
+                                        <div style="font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" x-text="r.name"></div>
+                                        <div style="font-size:11px;color:var(--pp-textDim);" x-text="r.city || ''"></div>
+                                    </div>
+                                </a>
+                            </template>
+                        </div>
+                    </template>
+                    <template x-if="!loading && results && results.contacts && results.contacts.length > 0">
+                        <div>
+                            <div style="padding:4px 8px;font-size:10px;font-weight:600;color:var(--pp-text4);text-transform:uppercase;letter-spacing:0.05em;margin-top:4px;">Kontakte</div>
+                            <template x-for="r in results.contacts" :key="r.id">
+                                <a :href="'/unternehmen/'+r.company_id" style="display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:5px;text-decoration:none;color:var(--pp-text);font-size:13px;transition:background .08s;" onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='transparent'">
+                                    <span style="width:24px;height:24px;border-radius:6px;background:var(--pp-purpleSoft);color:var(--pp-purple);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;" x-text="r.name ? r.name.split(' ').map(n=>n[0]).join('').substring(0,2) : '?'"></span>
+                                    <div style="flex:1;min-width:0;">
+                                        <div style="font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" x-text="r.name"></div>
+                                        <div style="font-size:11px;color:var(--pp-textDim);" x-text="[r.position, r.company].filter(Boolean).join(' · ')"></div>
+                                    </div>
+                                </a>
+                            </template>
+                        </div>
+                    </template>
+                    <template x-if="!loading && results && results.jobs && results.jobs.length > 0">
+                        <div>
+                            <div style="padding:4px 8px;font-size:10px;font-weight:600;color:var(--pp-text4);text-transform:uppercase;letter-spacing:0.05em;margin-top:4px;">Jobs</div>
+                            <template x-for="r in results.jobs" :key="r.id">
+                                <a :href="'/jobs/'+r.id" style="display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:5px;text-decoration:none;color:var(--pp-text);font-size:13px;transition:background .08s;" onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='transparent'">
+                                    <span style="width:24px;height:24px;border-radius:6px;background:var(--pp-orangeSoft);color:var(--pp-orange);display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;">&#128188;</span>
+                                    <div style="flex:1;min-width:0;">
+                                        <div style="font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" x-text="r.position"></div>
+                                        <div style="font-size:11px;color:var(--pp-textDim);" x-text="[r.company, r.city].filter(Boolean).join(' · ')"></div>
+                                    </div>
+                                </a>
+                            </template>
+                        </div>
+                    </template>
+                    <template x-if="!loading && results && results.stellen && results.stellen.length > 0">
+                        <div>
+                            <div style="padding:4px 8px;font-size:10px;font-weight:600;color:var(--pp-text4);text-transform:uppercase;letter-spacing:0.05em;margin-top:4px;">Stellen</div>
+                            <template x-for="r in results.stellen" :key="r.id">
+                                <a :href="'/ats'" style="display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:5px;text-decoration:none;color:var(--pp-text);font-size:13px;transition:background .08s;" onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='transparent'">
+                                    <span style="width:24px;height:24px;border-radius:6px;background:var(--pp-redSoft);color:var(--pp-red);display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;">&#127919;</span>
+                                    <div style="flex:1;min-width:0;">
+                                        <div style="font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" x-text="r.title"></div>
+                                        <div style="font-size:11px;color:var(--pp-textDim);" x-text="r.city || ''"></div>
+                                    </div>
+                                </a>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
             <!-- Quick-Add Button -->
             <div class="relative" x-data="{ quickAdd: false }">
-                <button @click="quickAdd = !quickAdd" style="width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#4F8CFF,#6C63FF);border:none;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;transition:all .15s;" title="Neu erstellen">
-                    <svg style="width:17px;height:17px;transition:transform .2s;" :style="quickAdd ? 'transform:rotate(45deg)' : ''" fill="currentColor" viewBox="0 0 20 20"><path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z"/></svg>
+                <button @click="quickAdd = !quickAdd" style="height:30px;padding:0 12px;border-radius:6px;background:var(--pp-accent);border:none;color:#fff;cursor:pointer;display:flex;align-items:center;gap:4px;font-size:13px;font-weight:500;font-family:var(--pp-ff);transition:filter .1s;" title="Neu erstellen">
+                    <svg style="width:14px;height:14px;" fill="currentColor" viewBox="0 0 20 20"><path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z"/></svg>
+                    Neu
                 </button>
-                <div x-show="quickAdd" @click.away="quickAdd = false" x-transition style="display:none;position:absolute;right:0;top:100%;margin-top:8px;width:240px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:14px;padding:6px;z-index:50;box-shadow:0 12px 40px rgba(0,0,0,0.5);">
-                    <div style="padding:8px 12px;font-size:11px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.05em;">Neu erstellen</div>
-                    <button @click="quickAdd=false;openQuickAdd('kandidat')" style="width:100%;display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;border:none;background:transparent;color:var(--pp-text);font-size:14px;font-weight:500;cursor:pointer;font-family:var(--pp-ff);transition:background .15s;text-align:left;" onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='transparent'">
-                        <span style="width:32px;height:32px;border-radius:9px;background:var(--pp-accentSoft);display:flex;align-items:center;justify-content:center;font-size:14px;">👤</span>
-                        Kandidat
+                <div x-show="quickAdd" @click.away="quickAdd = false" x-transition style="display:none;position:absolute;right:0;top:100%;margin-top:6px;width:200px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:8px;padding:4px;z-index:50;box-shadow:0 12px 40px rgba(0,0,0,0.6);">
+                    <div style="padding:4px 8px;font-size:10px;font-weight:600;color:var(--pp-text4);text-transform:uppercase;letter-spacing:0.05em;">Neu erstellen</div>
+                    <button @click="quickAdd=false;openQuickAdd('kandidat')" style="width:100%;display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:5px;border:none;background:transparent;color:var(--pp-text);font-size:13px;font-weight:500;cursor:pointer;font-family:var(--pp-ff);transition:background .08s;text-align:left;" onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='transparent'">
+                        <span style="font-size:12px;">&#128100;</span> Kandidat
                     </button>
-                    <button @click="quickAdd=false;openQuickAdd('unternehmen')" style="width:100%;display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;border:none;background:transparent;color:var(--pp-text);font-size:14px;font-weight:500;cursor:pointer;font-family:var(--pp-ff);transition:background .15s;text-align:left;" onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='transparent'">
-                        <span style="width:32px;height:32px;border-radius:9px;background:var(--pp-greenSoft);display:flex;align-items:center;justify-content:center;font-size:14px;">🏢</span>
-                        Unternehmen
+                    <button @click="quickAdd=false;openQuickAdd('unternehmen')" style="width:100%;display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:5px;border:none;background:transparent;color:var(--pp-text);font-size:13px;font-weight:500;cursor:pointer;font-family:var(--pp-ff);transition:background .08s;text-align:left;" onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='transparent'">
+                        <span style="font-size:12px;">&#127970;</span> Unternehmen
                     </button>
-                    <div style="height:1px;background:var(--pp-border);margin:4px 6px;"></div>
-                    <button @click="quickAdd=false;openQuickAdd('job')" style="width:100%;display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;border:none;background:transparent;color:var(--pp-text);font-size:14px;font-weight:500;cursor:pointer;font-family:var(--pp-ff);transition:background .15s;text-align:left;" onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='transparent'">
-                        <span style="width:32px;height:32px;border-radius:9px;background:var(--pp-purpleSoft);display:flex;align-items:center;justify-content:center;font-size:14px;">💼</span>
-                        Job
+                    <div style="height:1px;background:var(--pp-border);margin:2px 6px;"></div>
+                    <button @click="quickAdd=false;openQuickAdd('job')" style="width:100%;display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:5px;border:none;background:transparent;color:var(--pp-text);font-size:13px;font-weight:500;cursor:pointer;font-family:var(--pp-ff);transition:background .08s;text-align:left;" onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='transparent'">
+                        <span style="font-size:12px;">&#128188;</span> Job
                     </button>
-                    <button @click="quickAdd=false;openQuickAdd('stelle')" style="width:100%;display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;border:none;background:transparent;color:var(--pp-text);font-size:14px;font-weight:500;cursor:pointer;font-family:var(--pp-ff);transition:background .15s;text-align:left;" onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='transparent'">
-                        <span style="width:32px;height:32px;border-radius:9px;background:var(--pp-redSoft);display:flex;align-items:center;justify-content:center;font-size:14px;">🎯</span>
-                        Stelle
+                    <button @click="quickAdd=false;openQuickAdd('stelle')" style="width:100%;display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:5px;border:none;background:transparent;color:var(--pp-text);font-size:13px;font-weight:500;cursor:pointer;font-family:var(--pp-ff);transition:background .08s;text-align:left;" onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='transparent'">
+                        <span style="font-size:12px;">&#127919;</span> Stelle
                     </button>
                 </div>
             </div>
 
-            <!-- System Status Badge -->
+            <!-- System Status -->
             <div id="health-indicator"
                  hx-get="/api/health"
                  hx-trigger="load, every 30s"
                  hx-swap="innerHTML"
-                 style="display:flex;align-items:center;gap:7px;padding:6px 12px;border-radius:22px;background:var(--pp-greenSoft);font-size:13px;font-weight:600;color:var(--pp-green);">
-                <div style="width:8px;height:8px;border-radius:50%;background:var(--pp-green);"></div>
-                <span>Laden...</span>
+                 style="display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;background:var(--pp-greenSoft);font-size:12px;font-weight:600;color:var(--pp-green);">
+                <div style="width:6px;height:6px;border-radius:50%;background:var(--pp-green);"></div>
+                <span>OK</span>
             </div>
 
-            <!-- Logout Button -->
+            <!-- Logout -->
             <form method="POST" action="/logout" style="margin:0;">
-                <button type="submit" title="Abmelden" style="width:34px;height:34px;border-radius:9px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);color:#F87171;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;" onmouseover="this.style.background='rgba(239,68,68,0.2)'" onmouseout="this.style.background='rgba(239,68,68,0.1)'">
-                    <svg style="width:16px;height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                <button type="submit" title="Abmelden" style="width:30px;height:30px;border-radius:6px;background:transparent;border:none;color:var(--pp-text4);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .1s;" onmouseover="this.style.color='var(--pp-red)';this.style.background='var(--pp-redSoft)'" onmouseout="this.style.color='var(--pp-text4)';this.style.background='transparent'">
+                    <svg style="width:15px;height:15px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
                 </button>
             </form>
         </div>
 
         <!-- Mobile Menu Button -->
-        <div class="flex items-center sm:hidden">
-            <button @click="sidebarOpen = !sidebarOpen" type="button" style="padding:10px;border-radius:10px;border:1px solid var(--pp-border);background:transparent;color:var(--pp-textMuted);cursor:pointer;">
-                <svg x-show="!sidebarOpen" style="width:22px;height:22px;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/></svg>
-                <svg x-show="sidebarOpen" style="width:22px;height:22px;display:none;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        <div class="flex items-center sm:hidden" style="margin-left:auto;">
+            <button @click="sidebarOpen = !sidebarOpen" type="button" style="padding:6px;border-radius:6px;border:1px solid var(--pp-border);background:transparent;color:var(--pp-textMuted);cursor:pointer;">
+                <svg x-show="!sidebarOpen" style="width:20px;height:20px;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/></svg>
+                <svg x-show="sidebarOpen" style="width:20px;height:20px;display:none;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
         </div>
     </nav>
@@ -737,7 +819,7 @@
     </div>
 
     <!-- Toast Container -->
-    <div id="toast-container" style="position:fixed;top:68px;right:18px;z-index:200;display:flex;flex-direction:column;gap:10px;pointer-events:none;"></div>
+    <div id="toast-container" style="position:fixed;top:56px;right:16px;z-index:200;display:flex;flex-direction:column;gap:8px;pointer-events:none;"></div>
 
     <!-- Alert Banner Container -->
     <div id="alert-banner-container" hx-get="/api/alerts/active" hx-trigger="load, alertsChanged from:body" hx-swap="innerHTML"></div>
@@ -758,7 +840,7 @@
         <div style="position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);"></div>
         <div style="position:fixed;inset:0;z-index:10;overflow-y:auto;" @click.self="open = false">
             <div style="display:flex;min-height:100%;align-items:center;justify-content:center;padding:20px;" @click.self="open = false">
-                <div id="modal-content" @click.stop style="position:relative;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,0.5);width:100%;max-width:540px;overflow:hidden;">
+                <div id="modal-content" @click.stop style="position:relative;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,0.5);width:100%;max-width:540px;overflow:hidden;">
                 </div>
             </div>
         </div>
@@ -810,7 +892,7 @@
                 success: { bg: 'rgba(52,211,153,0.12)', text: '#34D399', border: 'rgba(52,211,153,0.27)', icon: '✓' },
                 error:   { bg: 'rgba(239,68,68,0.12)', text: '#EF4444', border: 'rgba(239,68,68,0.27)', icon: '✕' },
                 warning: { bg: 'rgba(245,158,11,0.12)', text: '#F59E0B', border: 'rgba(245,158,11,0.27)', icon: '⚠' },
-                info:    { bg: 'rgba(79,140,255,0.12)', text: '#4F8CFF', border: 'rgba(79,140,255,0.27)', icon: 'ℹ' }
+                info:    { bg: 'rgba(59,130,246,0.12)', text: '#3B82F6', border: 'rgba(59,130,246,0.27)', icon: 'ℹ' }
             };
             var c = colors[type] || colors.info;
 
@@ -917,7 +999,37 @@
         document.body.addEventListener('htmx:afterSwap', function(evt) {
             if (evt.detail.target.id === 'health-indicator') { /* handled by partial */ }
         });
+
+        // Global Search
+        function globalSearch() {
+            return {
+                q: '', focused: false, open: false, loading: false, results: null, noResults: false,
+                async search() {
+                    if (this.q.length < 2) { this.open = false; this.results = null; return; }
+                    this.loading = true; this.open = true; this.noResults = false;
+                    try {
+                        var resp = await fetch('/api/search/global?q=' + encodeURIComponent(this.q));
+                        if (resp.ok) {
+                            this.results = await resp.json();
+                            var total = 0;
+                            for (var k in this.results) { if (Array.isArray(this.results[k])) total += this.results[k].length; }
+                            this.noResults = total === 0;
+                        }
+                    } catch(e) { this.noResults = true; }
+                    this.loading = false;
+                }
+            };
+        }
     </script>
+
+    <!-- Bottom Page Switcher -->
+    <div class="hidden sm:flex" style="position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:50px;padding:3px;display:flex;gap:2px;box-shadow:0 4px 16px rgba(0,0,0,0.5);z-index:500;">
+        <a href="/" style="padding:6px 14px;border-radius:50px;border:none;background:{% if request.url.path == '/' %}var(--pp-accent){% else %}transparent{% endif %};color:{% if request.url.path == '/' %}#fff{% else %}var(--pp-text4){% endif %};font-size:12px;font-weight:600;font-family:var(--pp-ff);text-decoration:none;transition:all .1s;display:inline-block;" onmouseover="{% if request.url.path != '/' %}this.style.color='var(--pp-textMuted)'{% endif %}" onmouseout="{% if request.url.path != '/' %}this.style.color='var(--pp-text4)'{% endif %}">Dashboard</a>
+        <a href="/ats/todos/dashboard" style="padding:6px 14px;border-radius:50px;border:none;background:{% if request.url.path.startswith('/ats/todos') %}var(--pp-accent){% else %}transparent{% endif %};color:{% if request.url.path.startswith('/ats/todos') %}#fff{% else %}var(--pp-text4){% endif %};font-size:12px;font-weight:600;font-family:var(--pp-ff);text-decoration:none;transition:all .1s;display:inline-block;" onmouseover="{% if not request.url.path.startswith('/ats/todos') %}this.style.color='var(--pp-textMuted)'{% endif %}" onmouseout="{% if not request.url.path.startswith('/ats/todos') %}this.style.color='var(--pp-text4)'{% endif %}">Aufgaben</a>
+        <a href="/ats" style="padding:6px 14px;border-radius:50px;border:none;background:{% if request.url.path == '/ats' %}var(--pp-accent){% else %}transparent{% endif %};color:{% if request.url.path == '/ats' %}#fff{% else %}var(--pp-text4){% endif %};font-size:12px;font-weight:600;font-family:var(--pp-ff);text-decoration:none;transition:all .1s;display:inline-block;" onmouseover="{% if request.url.path != '/ats' %}this.style.color='var(--pp-textMuted)'{% endif %}" onmouseout="{% if request.url.path != '/ats' %}this.style.color='var(--pp-text4)'{% endif %}">Pipeline</a>
+        <a href="/match-center" style="padding:6px 14px;border-radius:50px;border:none;background:{% if request.url.path.startswith('/match-center') %}var(--pp-accent){% else %}transparent{% endif %};color:{% if request.url.path.startswith('/match-center') %}#fff{% else %}var(--pp-text4){% endif %};font-size:12px;font-weight:600;font-family:var(--pp-ff);text-decoration:none;transition:all .1s;display:inline-block;" onmouseover="{% if not request.url.path.startswith('/match-center') %}this.style.color='var(--pp-textMuted)'{% endif %}" onmouseout="{% if not request.url.path.startswith('/match-center') %}this.style.color='var(--pp-text4)'{% endif %}">Match Center</a>
+        <a href="/kandidaten" style="padding:6px 14px;border-radius:50px;border:none;background:{% if request.url.path.startswith('/kandidaten') %}var(--pp-accent){% else %}transparent{% endif %};color:{% if request.url.path.startswith('/kandidaten') %}#fff{% else %}var(--pp-text4){% endif %};font-size:12px;font-weight:600;font-family:var(--pp-ff);text-decoration:none;transition:all .1s;display:inline-block;" onmouseover="{% if not request.url.path.startswith('/kandidaten') %}this.style.color='var(--pp-textMuted)'{% endif %}" onmouseout="{% if not request.url.path.startswith('/kandidaten') %}this.style.color='var(--pp-text4)'{% endif %}">Kandidaten</a>
+    </div>
 
     {% block scripts %}{% endblock %}
 </body>

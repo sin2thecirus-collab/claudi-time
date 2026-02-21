@@ -7,42 +7,45 @@
     {# ═══════ TOP BAR ═══════ #}
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5">
         <div>
-            <h1 class="text-2xl font-bold text-gray-900">Match Center</h1>
-            <p class="text-sm text-gray-500 mt-0.5">Sidebar + Tabellen-Ansicht</p>
+            <h1 class="text-2xl font-bold" style="color: var(--pp-text);">Match Center</h1>
+            <p class="text-sm mt-0.5" style="color: var(--pp-textMuted);">Sidebar + Tabellen-Ansicht</p>
         </div>
         <div class="flex items-center gap-2 flex-wrap">
             {# KPI-Pillen #}
-            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full text-xs font-medium text-gray-700">
-                <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium" style="background: var(--pp-surface); border: 1px solid var(--pp-border); color: var(--pp-text);">
+                <svg class="w-3.5 h-3.5" style="color: var(--pp-textDim);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
                 {{ stats.total_jobs }} Jobs
             </span>
-            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full text-xs font-medium text-gray-700">
-                <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium" style="background: var(--pp-surface); border: 1px solid var(--pp-border); color: var(--pp-text);">
+                <svg class="w-3.5 h-3.5" style="color: var(--pp-textDim);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                 {{ stats.total_matches }} Matches
             </span>
-            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full text-xs font-medium text-primary-600">
+            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium" style="background: var(--pp-surface); border: 1px solid var(--pp-border); color: var(--pp-accent);">
                 Ø {{ stats.avg_score }}%
             </span>
-            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-full text-xs font-medium text-blue-700">
+            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium" style="background: var(--pp-accentSoft); border: 1px solid rgba(59,130,246,0.2); color: var(--pp-accent);">
                 {{ stats.new_count }} Neu
             </span>
         </div>
     </div>
 
     {# ═══════ STAGE TABS ═══════ #}
-    <div class="border-b border-gray-200 mb-5">
+    <div class="mb-5" style="border-bottom: 1px solid var(--pp-border);">
         <nav class="flex space-x-8">
             <a href="/match-center?stage=new"
-               class="{% if current_stage == 'new' %}border-primary-500 text-primary-600{% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %} whitespace-nowrap border-b-2 pb-3 px-1 text-sm font-medium transition-colors">
-                Neu <span class="{% if current_stage == 'new' %}bg-primary-100 text-primary-700{% else %}bg-gray-100 text-gray-600{% endif %} rounded-full px-2 py-0.5 text-xs ml-1.5">{{ stage_counts.new }}</span>
+               class="whitespace-nowrap border-b-2 pb-3 px-1 text-sm font-medium transition-colors"
+               style="{% if current_stage == 'new' %}border-color: var(--pp-accent); color: var(--pp-accent);{% else %}border-color: transparent; color: var(--pp-textMuted);{% endif %}">
+                Neu <span class="rounded-full px-2 py-0.5 text-xs ml-1.5" style="{% if current_stage == 'new' %}background: var(--pp-accentSoft); color: var(--pp-accent);{% else %}background: var(--pp-surfaceHover); color: var(--pp-textMuted);{% endif %}">{{ stage_counts.new }}</span>
             </a>
             <a href="/match-center?stage=in_progress"
-               class="{% if current_stage == 'in_progress' %}border-primary-500 text-primary-600{% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %} whitespace-nowrap border-b-2 pb-3 px-1 text-sm font-medium transition-colors">
-                In Bearbeitung <span class="{% if current_stage == 'in_progress' %}bg-primary-100 text-primary-700{% else %}bg-gray-100 text-gray-600{% endif %} rounded-full px-2 py-0.5 text-xs ml-1.5">{{ stage_counts.in_progress }}</span>
+               class="whitespace-nowrap border-b-2 pb-3 px-1 text-sm font-medium transition-colors"
+               style="{% if current_stage == 'in_progress' %}border-color: var(--pp-accent); color: var(--pp-accent);{% else %}border-color: transparent; color: var(--pp-textMuted);{% endif %}">
+                In Bearbeitung <span class="rounded-full px-2 py-0.5 text-xs ml-1.5" style="{% if current_stage == 'in_progress' %}background: var(--pp-accentSoft); color: var(--pp-accent);{% else %}background: var(--pp-surfaceHover); color: var(--pp-textMuted);{% endif %}">{{ stage_counts.in_progress }}</span>
             </a>
             <a href="/match-center?stage=archive"
-               class="{% if current_stage == 'archive' %}border-primary-500 text-primary-600{% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %} whitespace-nowrap border-b-2 pb-3 px-1 text-sm font-medium transition-colors">
-                Archiv <span class="{% if current_stage == 'archive' %}bg-primary-100 text-primary-700{% else %}bg-gray-100 text-gray-600{% endif %} rounded-full px-2 py-0.5 text-xs ml-1.5">{{ stage_counts.archive }}</span>
+               class="whitespace-nowrap border-b-2 pb-3 px-1 text-sm font-medium transition-colors"
+               style="{% if current_stage == 'archive' %}border-color: var(--pp-accent); color: var(--pp-accent);{% else %}border-color: transparent; color: var(--pp-textMuted);{% endif %}">
+                Archiv <span class="rounded-full px-2 py-0.5 text-xs ml-1.5" style="{% if current_stage == 'archive' %}background: var(--pp-accentSoft); color: var(--pp-accent);{% else %}background: var(--pp-surfaceHover); color: var(--pp-textMuted);{% endif %}">{{ stage_counts.archive }}</span>
             </a>
         </nav>
     </div>
@@ -52,13 +55,16 @@
 
         {# ── SIDEBAR (Fix 3: Jobtitel oben, Standorte unten) ── #}
         <div :class="sidebarCollapsed ? 'w-[52px]' : 'w-[260px]'"
-             class="flex-shrink-0 transition-all duration-300 bg-white rounded-xl border border-gray-200 overflow-hidden flex flex-col">
+             class="flex-shrink-0 transition-all duration-300 overflow-hidden flex flex-col"
+             style="background: var(--pp-surface); border-radius: 12px; border: 1px solid var(--pp-border);">
 
             {# Sidebar Header + Toggle #}
-            <div class="flex items-center justify-between px-3 py-3 border-b border-gray-100">
-                <span x-show="!sidebarCollapsed" class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Jobtitel</span>
+            <div class="flex items-center justify-between px-3 py-3" style="border-bottom: 1px solid var(--pp-border);">
+                <span x-show="!sidebarCollapsed" class="text-xs font-semibold uppercase tracking-wider" style="color: var(--pp-textMuted);">Jobtitel</span>
                 <button @click="sidebarCollapsed = !sidebarCollapsed"
-                        class="p-1 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-50 transition-colors">
+                        class="p-1 rounded transition-colors" style="color: var(--pp-textDim);"
+                        onmouseenter="this.style.color='var(--pp-text)';this.style.background='var(--pp-surfaceHover)'"
+                        onmouseleave="this.style.color='var(--pp-textDim)';this.style.background='transparent'">
                     <svg :class="sidebarCollapsed ? 'rotate-180' : ''" class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/>
                     </svg>
@@ -66,7 +72,7 @@
             </div>
 
             {# Sidebar Loading #}
-            <div x-show="sidebarLoading && !sidebarCollapsed" class="flex items-center justify-center py-8 text-gray-400">
+            <div x-show="sidebarLoading && !sidebarCollapsed" class="flex items-center justify-center py-8" style="color: var(--pp-textDim);">
                 <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
             </div>
 
@@ -77,51 +83,56 @@
                 <div class="py-1">
                     <template x-for="(item, idx) in sidebarData" :key="idx">
                         <button @click="selectTitle(item)"
-                                :class="selectedTitle === item.title ? 'bg-primary-50 text-primary-700 border-l-2 border-primary-500' : 'text-gray-700 hover:bg-gray-50 border-l-2 border-transparent'"
-                                class="w-full text-left px-3 py-2 text-sm font-medium transition-colors flex items-center justify-between">
+                                :style="selectedTitle === item.title ? 'background: var(--pp-accentSoft); color: var(--pp-accent); border-left: 2px solid var(--pp-accent);' : 'color: var(--pp-text); border-left: 2px solid transparent;'"
+                                class="w-full text-left px-3 py-2 text-sm font-medium transition-colors flex items-center justify-between"
+                                onmouseenter="if(!this.style.background.includes('accentSoft')) this.style.background='var(--pp-surfaceHover)'"
+                                onmouseleave="if(!this.style.background.includes('accentSoft')) this.style.background='transparent'">
                             <span class="truncate" x-text="item.title"></span>
-                            <span class="flex-shrink-0 text-xs text-gray-400 ml-1" x-text="item.total_matches"></span>
+                            <span class="flex-shrink-0 text-xs ml-1" style="color: var(--pp-textDim);" x-text="item.total_matches"></span>
                         </button>
                     </template>
                 </div>
 
                 {# TRENNLINIE #}
-                <div x-show="selectedTitle" class="border-t border-gray-200 mx-3"></div>
+                <div x-show="selectedTitle" class="mx-3" style="border-top: 1px solid var(--pp-border);"></div>
 
                 {# SEKTION 2: Standorte (nur wenn Jobtitel ausgewaehlt) #}
                 <div x-show="selectedTitle" class="flex-1 flex flex-col py-1">
                     {# Standorte-Header #}
                     <div class="px-3 py-2">
-                        <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Standorte</span>
+                        <span class="text-xs font-semibold uppercase tracking-wider" style="color: var(--pp-textMuted);">Standorte</span>
                     </div>
 
                     {# Stadt-Suche #}
                     <div class="px-3 pb-2">
                         <input x-model="citySearch" type="text" placeholder="Stadt suchen..."
-                               class="w-full text-xs border border-gray-200 rounded-md px-2.5 py-1.5 focus:ring-1 focus:ring-primary-400 focus:border-primary-400 bg-white">
+                               class="w-full text-xs rounded-lg px-2.5 py-1.5"
+                               style="background: var(--pp-bg); border: 1px solid var(--pp-border); color: var(--pp-text);">
                     </div>
 
                     {# Stadt-Eintraege (Fix 2: Quadratische Farbpunkte nach Score) #}
                     <div class="flex-1 overflow-y-auto">
                         <template x-for="(city, cidx) in selectedTitleCities" :key="cidx">
                             <button @click="selectCity(selectedTitle, city)"
-                                    :class="selectedCity === city.city ? 'bg-primary-100 text-primary-800' : 'text-gray-600 hover:bg-gray-100'"
-                                    class="w-full text-left px-3 py-2 text-xs transition-colors flex items-center gap-2">
+                                    :style="selectedCity === city.city ? 'background: var(--pp-accentSoft); color: var(--pp-accent);' : 'color: var(--pp-textMuted);'"
+                                    class="w-full text-left px-3 py-2 text-xs transition-colors flex items-center gap-2"
+                                    onmouseenter="if(!this.style.background.includes('accentSoft')) this.style.background='var(--pp-surfaceHover)'"
+                                    onmouseleave="if(!this.style.background.includes('accentSoft')) this.style.background='transparent'">
                                 {# Score-Indikator: Quadrat 8x8 mit exakten Hex-Farben #}
                                 <span class="w-2 h-2 rounded-sm flex-shrink-0"
                                       :style="'background-color: ' + (city.avg_score >= 80 ? '#22c55e' : city.avg_score >= 70 ? '#4ade80' : city.avg_score >= 60 ? '#eab308' : '#f97316')"></span>
                                 <span class="truncate flex-1" x-text="city.city"></span>
                                 <template x-if="city.new_count > 0">
-                                    <span class="text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full font-medium" x-text="'+' + city.new_count + ' neu'"></span>
+                                    <span class="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style="background: var(--pp-accentSoft); color: var(--pp-accent);" x-text="'+' + city.new_count + ' neu'"></span>
                                 </template>
-                                <span class="text-gray-400 text-[10px]" x-text="city.match_count"></span>
+                                <span class="text-[10px]" style="color: var(--pp-textDim);" x-text="city.match_count"></span>
                             </button>
                         </template>
                     </div>
                 </div>
 
                 {# Keine Daten #}
-                <div x-show="sidebarData.length === 0 && !sidebarLoading" class="px-4 py-8 text-center text-xs text-gray-400">
+                <div x-show="sidebarData.length === 0 && !sidebarLoading" class="px-4 py-8 text-center text-xs" style="color: var(--pp-textDim);">
                     Keine Jobtitel gefunden
                 </div>
             </div>
@@ -130,7 +141,7 @@
             <div x-show="sidebarCollapsed" class="flex-1 flex flex-col items-center py-3 gap-2 overflow-y-auto">
                 <template x-for="(item, idx) in sidebarData" :key="idx">
                     <button @click="sidebarCollapsed = false; $nextTick(() => selectTitle(item))"
-                            :class="selectedTitle === item.title ? 'bg-primary-100 text-primary-600' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'"
+                            :style="selectedTitle === item.title ? 'background: var(--pp-accentSoft); color: var(--pp-accent);' : 'background: var(--pp-surfaceHover); color: var(--pp-textMuted);'"
                             class="w-9 h-9 rounded-lg flex items-center justify-center text-[10px] font-bold transition-colors"
                             :title="item.title"
                             x-text="item.title.charAt(0)">
@@ -143,47 +154,47 @@
         <div class="flex-1 min-w-0">
 
             {# Willkommen-Screen: TABELLE statt Karten (Fix 4) #}
-            <div x-show="!selectedCity" class="rounded-xl border p-6" style="background: var(--pp-surface, #181A23); border-color: var(--pp-border, #2A2D3A);">
+            <div x-show="!selectedCity" class="p-6" style="background: var(--pp-surface); border-radius: 12px; border: 1px solid var(--pp-border);">
                 <div class="flex items-center justify-between mb-5">
                     <div>
-                        <h2 class="text-lg font-semibold" style="color: var(--pp-text, #E8E9ED);">Standort-Uebersicht</h2>
-                        <p class="text-xs mt-0.5" style="color: var(--pp-muted, #6B7280);" x-show="selectedTitle" x-text="selectedTitle + ' — Top Standorte nach Score'"></p>
-                        <p class="text-xs mt-0.5" style="color: var(--pp-muted, #6B7280);" x-show="!selectedTitle">Waehle links einen Jobtitel, um die besten Standorte zu sehen.</p>
+                        <h2 class="text-lg font-semibold" style="color: var(--pp-text);">Standort-Uebersicht</h2>
+                        <p class="text-xs mt-0.5" style="color: var(--pp-textMuted);" x-show="selectedTitle" x-text="selectedTitle + ' — Top Standorte nach Score'"></p>
+                        <p class="text-xs mt-0.5" style="color: var(--pp-textMuted);" x-show="!selectedTitle">Waehle links einen Jobtitel, um die besten Standorte zu sehen.</p>
                     </div>
-                    <span class="text-xs" style="color: var(--pp-muted, #6B7280);">Top 8 nach Score</span>
+                    <span class="text-xs" style="color: var(--pp-textDim);">Top 8 nach Score</span>
                 </div>
 
                 {# Top-Staedte Tabelle #}
                 <div x-show="topCities.length > 0">
                     <table class="w-full">
                         <thead>
-                            <tr style="border-bottom: 1px solid var(--pp-border, #2A2D3A);">
-                                <th class="text-left text-xs font-medium uppercase pb-3 w-8" style="color: var(--pp-muted, #6B7280);">#</th>
-                                <th class="text-left text-xs font-medium uppercase pb-3" style="color: var(--pp-muted, #6B7280);">Stadt</th>
-                                <th class="text-right text-xs font-medium uppercase pb-3 w-20" style="color: var(--pp-muted, #6B7280);">Matches</th>
-                                <th class="text-right text-xs font-medium uppercase pb-3 w-16" style="color: var(--pp-muted, #6B7280);">Neu</th>
-                                <th class="text-left text-xs font-medium uppercase pb-3 pl-4 w-40" style="color: var(--pp-muted, #6B7280);">Ø Score</th>
+                            <tr style="border-bottom: 1px solid var(--pp-border);">
+                                <th class="text-left text-xs font-medium uppercase pb-3 w-8" style="color: var(--pp-textDim);">#</th>
+                                <th class="text-left text-xs font-medium uppercase pb-3" style="color: var(--pp-textDim);">Stadt</th>
+                                <th class="text-right text-xs font-medium uppercase pb-3 w-20" style="color: var(--pp-textDim);">Matches</th>
+                                <th class="text-right text-xs font-medium uppercase pb-3 w-16" style="color: var(--pp-textDim);">Neu</th>
+                                <th class="text-left text-xs font-medium uppercase pb-3 pl-4 w-40" style="color: var(--pp-textDim);">Ø Score</th>
                                 <th class="text-right text-xs font-medium uppercase pb-3 w-24"></th>
                             </tr>
                         </thead>
                         <tbody>
                             <template x-for="(tc, tcidx) in topCities" :key="tcidx">
                                 <tr class="transition-colors cursor-pointer"
-                                    style="border-bottom: 1px solid rgba(255,255,255,0.05);"
-                                    onmouseenter="this.style.background='rgba(255,255,255,0.03)'"
+                                    style="border-bottom: 1px solid var(--pp-borderLight);"
+                                    onmouseenter="this.style.background='var(--pp-surfaceHover)'"
                                     onmouseleave="this.style.background='transparent'"
                                     @click="quickSelectCity(tc)">
-                                    <td class="py-3 text-xs font-medium" style="color: var(--pp-muted, #6B7280);" x-text="tcidx + 1"></td>
-                                    <td class="py-3 text-sm font-semibold" style="color: var(--pp-text, #E8E9ED);" x-text="tc.city"></td>
-                                    <td class="py-3 text-xs text-right" style="color: var(--pp-text-secondary, #A0A3B1);" x-text="tc.match_count"></td>
+                                    <td class="py-3 text-xs font-medium" style="color: var(--pp-textDim);" x-text="tcidx + 1"></td>
+                                    <td class="py-3 text-sm font-semibold" style="color: var(--pp-text);" x-text="tc.city"></td>
+                                    <td class="py-3 text-xs text-right" style="color: var(--pp-textMuted);" x-text="tc.match_count"></td>
                                     <td class="py-3 text-right">
                                         <template x-if="tc.new_count > 0">
-                                            <span class="text-[10px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded-full font-medium" x-text="'+' + tc.new_count"></span>
+                                            <span class="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style="background: var(--pp-accentSoft); color: var(--pp-accent);" x-text="'+' + tc.new_count"></span>
                                         </template>
                                     </td>
                                     <td class="py-3 pl-4">
                                         <div class="flex items-center gap-2">
-                                            <div class="w-20 rounded-full h-1.5" style="background: rgba(255,255,255,0.1);">
+                                            <div class="w-20 rounded-full h-1.5" style="background: var(--pp-surface3);">
                                                 <div class="h-1.5 rounded-full"
                                                      :style="'width: ' + Math.min(tc.avg_score, 100) + '%; background-color: ' + (tc.avg_score >= 85 ? '#22c55e' : tc.avg_score >= 75 ? '#4ade80' : tc.avg_score >= 65 ? '#eab308' : tc.avg_score >= 55 ? '#f97316' : '#ef4444')"></div>
                                             </div>
@@ -193,7 +204,7 @@
                                         </div>
                                     </td>
                                     <td class="py-3 text-right">
-                                        <span class="text-xs font-medium" style="color: var(--pp-green, #34D399);">Oeffnen →</span>
+                                        <span class="text-xs font-medium" style="color: var(--pp-green);">Oeffnen &rarr;</span>
                                     </td>
                                 </tr>
                             </template>
@@ -203,10 +214,10 @@
 
                 {# Keine Daten — kein Jobtitel gewaehlt #}
                 <div x-show="topCities.length === 0 && !selectedTitle" class="text-center py-8">
-                    <svg class="mx-auto h-12 w-12 mb-3" style="color: var(--pp-muted, #6B7280);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="mx-auto h-12 w-12 mb-3" style="color: var(--pp-textDim);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                     </svg>
-                    <p class="text-sm" style="color: var(--pp-muted, #6B7280);">Waehle links einen Jobtitel, um die besten Standorte zu sehen.</p>
+                    <p class="text-sm" style="color: var(--pp-textMuted);">Waehle links einen Jobtitel, um die besten Standorte zu sehen.</p>
                 </div>
             </div>
 
@@ -215,14 +226,16 @@
                 {# Header mit Jobtitel + Stadt #}
                 <div class="flex items-center justify-between mb-4">
                     <div>
-                        <h2 class="text-lg font-bold text-gray-900">
+                        <h2 class="text-lg font-bold" style="color: var(--pp-text);">
                             <span x-text="selectedTitle"></span>
-                            <span class="text-gray-400 font-normal mx-1">—</span>
+                            <span class="font-normal mx-1" style="color: var(--pp-textDim);">—</span>
                             <span x-text="selectedCity"></span>
                         </h2>
                     </div>
                     <button @click="selectedCity = null"
-                            class="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1">
+                            class="text-xs flex items-center gap-1 transition-colors" style="color: var(--pp-textMuted);"
+                            onmouseenter="this.style.color='var(--pp-text)'"
+                            onmouseleave="this.style.color='var(--pp-textMuted)'">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                         Zurueck
                     </button>
@@ -230,7 +243,7 @@
 
                 {# Tabellen-Content (HTMX-Target) #}
                 <div id="matches-table-content">
-                    <div class="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-400">
+                    <div class="p-8 text-center" style="background: var(--pp-surface); border-radius: 12px; border: 1px solid var(--pp-border); color: var(--pp-textDim);">
                         <svg class="animate-spin h-6 w-6 mx-auto mb-2" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
                         Lade Kandidaten...
                     </div>
@@ -251,7 +264,7 @@
      x-cloak
      class="relative z-50">
 
-    <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+    <div class="fixed inset-0 transition-opacity" style="background: rgba(0,0,0,0.6);"
          x-show="open"
          x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
          x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
@@ -259,12 +272,13 @@
     <div class="fixed inset-0 z-10 overflow-y-auto" @click.self="open = false">
         <div class="flex min-h-full items-center justify-center p-4" @click.self="open = false">
             <div @click.stop
-                 class="relative transform overflow-hidden rounded-xl bg-white text-left shadow-xl w-full max-w-6xl max-h-[90vh] flex flex-col"
+                 class="relative transform overflow-hidden text-left w-full max-w-6xl max-h-[90vh] flex flex-col"
+                 style="background: var(--pp-surface); border-radius: 12px; border: 1px solid var(--pp-border); box-shadow: 0 12px 40px rgba(0,0,0,0.4);"
                  x-show="open"
                  x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
                  x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95">
                 <div id="compare-modal-content" class="flex flex-col h-full max-h-[90vh]">
-                    <div class="p-8 text-center text-gray-400">
+                    <div class="p-8 text-center" style="color: var(--pp-textDim);">
                         <svg class="animate-spin h-6 w-6 mx-auto" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
                     </div>
                 </div>

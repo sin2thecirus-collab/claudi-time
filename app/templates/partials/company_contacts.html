@@ -1,6 +1,6 @@
 {# Partial: Kontakte eines Unternehmens — Dark Theme Grid-Karten #}
 
-{% set contact_colors = ['#4F8CFF', '#A78BFA', '#34D399', '#F59E0B', '#EF4444'] %}
+{% set contact_colors = ['#3B82F6', '#A78BFA', '#22C55E', '#EAB308', '#EF4444'] %}
 
 {% if contacts and contacts | length > 0 %}
 <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(250px, 1fr)); gap:14px;">
@@ -20,7 +20,7 @@
         {# Header: Avatar + Name #}
         <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
             <div style="width:42px; height:42px; border-radius:12px; flex-shrink:0;
-                        background:linear-gradient(135deg, {{ ccolor }}22, {{ ccolor }}44);
+                        background: {{ ccolor }}18;
                         border:1px solid {{ ccolor }}44;
                         display:flex; align-items:center; justify-content:center;
                         font-size:14px; font-weight:600; color:{{ ccolor }}; letter-spacing:0.02em;">

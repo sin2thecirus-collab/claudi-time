@@ -3,10 +3,7 @@
 {% block title %}Pipeline - Pulspoint{% endblock %}
 
 {% block head %}
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;0,9..40,800;1,9..40,400&display=swap" rel="stylesheet">
 <style>
-    .pipeline-wrap { font-family: 'DM Sans', 'Segoe UI', -apple-system, sans-serif; }
     .pipeline-wrap ::-webkit-scrollbar { width: 6px; height: 6px; }
     .pipeline-wrap ::-webkit-scrollbar-track { background: transparent; }
     .pipeline-wrap ::-webkit-scrollbar-thumb { background: var(--pp-border); border-radius: 3px; }
@@ -24,8 +21,8 @@
 
     .card-hover { transition: all 0.2s cubic-bezier(0.4,0,0.2,1); }
     .card-hover:hover {
-        border-color: var(--pp-borderLight);
-        box-shadow: 0 4px 16px rgba(79,140,255,0.15);
+        border-color: var(--pp-border);
+        box-shadow: 0 4px 16px rgba(0,0,0,0.25);
         transform: translateY(-2px);
     }
 
@@ -34,7 +31,7 @@
 {% endblock %}
 
 {% block content %}
-{# ── Pipeline Data als JSON fuer Alpine.js ── #}
+{# -- Pipeline Data als JSON fuer Alpine.js -- #}
 {% set phases_config = [
     {"id": "sent",        "label": "Vorgestellt",  "color": "#6366f1", "bg": "rgba(99,102,241,0.12)"},
     {"id": "interview_1", "label": "Interview 1",  "color": "#0ea5e9", "bg": "rgba(14,165,233,0.12)"},
@@ -58,7 +55,7 @@
     <div class="px-7 pt-6 pb-0">
         <div class="flex items-center justify-between mb-6">
             <div>
-                <h1 class="text-[26px] font-[800] text-[var(--pp-text)] tracking-tight leading-tight">Pipeline</h1>
+                <h1 class="text-[26px] font-bold text-[var(--pp-text)] tracking-tight leading-tight">Pipeline</h1>
                 <p class="text-[13px] text-[var(--pp-textMuted)] mt-1 font-medium"
                    x-text="activePos ? activePos.company : '{{ total_jobs }} aktive Stelle{{ 'n' if total_jobs != 1 else '' }}'">
                 </p>
@@ -70,19 +67,19 @@
                     <input type="text"
                            x-model="searchQuery"
                            placeholder="Kandidat suchen..."
-                           class="pl-9 pr-4 py-2.5 rounded-xl border border-[var(--pp-border)] text-[13px] w-[220px] outline-none bg-white text-[var(--pp-text)] font-medium"
-                           style="font-family: inherit;">
+                           class="pl-9 pr-4 py-2.5 rounded-[10px] border border-[var(--pp-border)] text-[13px] w-[220px] outline-none text-[var(--pp-text)] font-medium placeholder:text-[var(--pp-text4)]"
+                           style="background: var(--pp-surface);">
                 </div>
                 {# Board / Tabelle Toggle #}
-                <div class="flex bg-[var(--pp-surface)] rounded-[10px] p-[3px]">
+                <div class="flex rounded-[10px] p-[3px]" style="background: var(--pp-surface);">
                     <button @click="view = 'board'"
-                            :class="view === 'board' ? 'bg-white text-[var(--pp-text)] shadow-sm' : 'bg-transparent text-[var(--pp-textMuted)]'"
-                            class="px-4 py-2 rounded-lg text-[12px] font-semibold cursor-pointer transition-all"
-                            style="font-family: inherit;">Board</button>
+                            :class="view === 'board' ? 'text-[var(--pp-text)]' : 'text-[var(--pp-textMuted)]'"
+                            :style="view === 'board' ? 'background: var(--pp-surfaceHover);' : 'background: transparent;'"
+                            class="px-4 py-2 rounded-lg text-[12px] font-semibold cursor-pointer transition-all">Board</button>
                     <button @click="view = 'table'"
-                            :class="view === 'table' ? 'bg-white text-[var(--pp-text)] shadow-sm' : 'bg-transparent text-[var(--pp-textMuted)]'"
-                            class="px-4 py-2 rounded-lg text-[12px] font-semibold cursor-pointer transition-all"
-                            style="font-family: inherit;">Tabelle</button>
+                            :class="view === 'table' ? 'text-[var(--pp-text)]' : 'text-[var(--pp-textMuted)]'"
+                            :style="view === 'table' ? 'background: var(--pp-surfaceHover);' : 'background: transparent;'"
+                            class="px-4 py-2 rounded-lg text-[12px] font-semibold cursor-pointer transition-all">Tabelle</button>
                 </div>
             </div>
         </div>
@@ -95,14 +92,15 @@
             {% for pos in positions %}
             <button @click="setActivePosition('{{ pos.id }}')"
                     :class="activePosition === '{{ pos.id }}'
-                        ? 'border-2 border-indigo-500 bg-indigo-50 text-indigo-700'
-                        : 'border border-[var(--pp-border)] bg-white text-[var(--pp-textMuted)] hover:border-[#c7d2fe]'"
-                    class="px-4 py-2 rounded-[10px] text-[13px] font-semibold cursor-pointer flex items-center gap-2 transition-all"
-                    style="font-family: inherit;">
+                        ? 'border border-[var(--pp-accent)] text-[var(--pp-text)]'
+                        : 'border border-[var(--pp-border)] text-[var(--pp-textMuted)] hover:border-[var(--pp-text4)]'"
+                    :style="activePosition === '{{ pos.id }}' ? 'background: var(--pp-accentSoft);' : 'background: var(--pp-surface);'"
+                    class="px-4 py-2 rounded-[10px] text-[13px] font-semibold cursor-pointer flex items-center gap-2 transition-all">
                 {{ pos.name }}
                 <span :class="activePosition === '{{ pos.id }}'
-                           ? 'bg-indigo-500 text-white'
-                           : 'bg-[#e2e8f0] text-[var(--pp-textMuted)]'"
+                           ? 'text-[var(--pp-text)]'
+                           : 'text-[var(--pp-textMuted)]'"
+                      :style="activePosition === '{{ pos.id }}' ? 'background: var(--pp-accent);' : 'background: var(--pp-surface3);'"
                       class="text-[11px] font-bold px-[7px] py-[1px] rounded-md">
                     {{ pos.candidates }}
                 </span>
@@ -119,42 +117,42 @@
         ════════════════════════════════════════════════════ #}
         <div class="flex gap-3 mb-6">
             {# In Pipeline #}
-            <div class="flex-1 min-w-[150px] bg-white rounded-[14px] p-[18px_20px] border border-[var(--pp-border)] anim-fade-up">
+            <div class="flex-1 min-w-[150px] rounded-[12px] p-[18px_20px] border border-[var(--pp-border)] anim-fade-up" style="background: var(--pp-surface);">
                 <div class="flex items-center justify-between mb-2">
                     <span class="text-[11.5px] text-[var(--pp-textMuted)] font-medium">In Pipeline</span>
                     <span class="text-[18px]">&#x1F465;</span>
                 </div>
-                <div class="text-[28px] font-[800] text-[var(--pp-text)] tracking-tight leading-none" x-text="metrics.inPipeline"></div>
-                <div class="text-[11px] text-indigo-500 font-semibold mt-1.5">aktive Kandidaten</div>
+                <div class="text-[28px] font-bold text-[var(--pp-text)] tracking-tight leading-none" x-text="metrics.inPipeline"></div>
+                <div class="text-[11px] text-[var(--pp-accent)] font-semibold mt-1.5">aktive Kandidaten</div>
             </div>
             {# Platziert #}
-            <div class="flex-1 min-w-[150px] bg-white rounded-[14px] p-[18px_20px] border border-[var(--pp-border)] anim-fade-up" style="animation-delay: 100ms;">
+            <div class="flex-1 min-w-[150px] rounded-[12px] p-[18px_20px] border border-[var(--pp-border)] anim-fade-up" style="background: var(--pp-surface); animation-delay: 100ms;">
                 <div class="flex items-center justify-between mb-2">
                     <span class="text-[11.5px] text-[var(--pp-textMuted)] font-medium">Platziert</span>
                     <span class="text-[18px]">&#x1F3AF;</span>
                 </div>
-                <div class="text-[28px] font-[800] text-[var(--pp-text)] tracking-tight leading-none" x-text="metrics.placed"></div>
-                <div class="text-[11px] text-emerald-500 font-semibold mt-1.5">erfolgreich</div>
+                <div class="text-[28px] font-bold text-[var(--pp-text)] tracking-tight leading-none" x-text="metrics.placed"></div>
+                <div class="text-[11px] text-[var(--pp-green)] font-semibold mt-1.5">erfolgreich</div>
             </div>
             {# Durchschn. Tage #}
-            <div class="flex-1 min-w-[150px] bg-white rounded-[14px] p-[18px_20px] border border-[var(--pp-border)] anim-fade-up" style="animation-delay: 200ms;">
+            <div class="flex-1 min-w-[150px] rounded-[12px] p-[18px_20px] border border-[var(--pp-border)] anim-fade-up" style="background: var(--pp-surface); animation-delay: 200ms;">
                 <div class="flex items-center justify-between mb-2">
                     <span class="text-[11.5px] text-[var(--pp-textMuted)] font-medium">&empty; Tage / Phase</span>
                     <span class="text-[18px]">&#x23F1;</span>
                 </div>
-                <div class="text-[28px] font-[800] text-[var(--pp-text)] tracking-tight leading-none" x-text="metrics.avgDays"></div>
+                <div class="text-[28px] font-bold text-[var(--pp-text)] tracking-tight leading-none" x-text="metrics.avgDays"></div>
                 <div class="text-[11px] font-semibold mt-1.5"
-                     :class="metrics.avgDays <= 5 ? 'text-emerald-500' : 'text-amber-500'"
+                     :style="metrics.avgDays <= 5 ? 'color: var(--pp-green)' : 'color: var(--pp-orange)'"
                      x-text="metrics.avgDays <= 5 ? 'Guter Durchlauf' : 'Achtung: Stau m\u00f6glich'"></div>
             </div>
             {# Conversion #}
-            <div class="flex-1 min-w-[150px] bg-white rounded-[14px] p-[18px_20px] border border-[var(--pp-border)] anim-fade-up" style="animation-delay: 300ms;">
+            <div class="flex-1 min-w-[150px] rounded-[12px] p-[18px_20px] border border-[var(--pp-border)] anim-fade-up" style="background: var(--pp-surface); animation-delay: 300ms;">
                 <div class="flex items-center justify-between mb-2">
                     <span class="text-[11.5px] text-[var(--pp-textMuted)] font-medium">Conversion</span>
                     <span class="text-[18px]">&#x1F4C8;</span>
                 </div>
-                <div class="text-[28px] font-[800] text-[var(--pp-text)] tracking-tight leading-none" x-text="metrics.conversion + '%'"></div>
-                <div class="text-[11px] text-violet-500 font-semibold mt-1.5">Vorgestellt &rarr; IV1</div>
+                <div class="text-[28px] font-bold text-[var(--pp-text)] tracking-tight leading-none" x-text="metrics.conversion + '%'"></div>
+                <div class="text-[11px] text-[var(--pp-purple)] font-semibold mt-1.5">Vorgestellt &rarr; IV1</div>
             </div>
         </div>
     </div>
@@ -183,8 +181,8 @@
                 </div>
 
                 {# Column Body (Drop Zone) #}
-                <div class="rounded-[14px] p-2 min-h-[120px] flex flex-col gap-2"
-                     style="background: {{ phase.bg }}80; border: 1px dashed {{ phase.color }}30;"
+                <div class="rounded-[12px] p-2 min-h-[120px] flex flex-col gap-2"
+                     style="background: var(--pp-surface); border: 1px dashed {{ phase.color }}30;"
                      @dragover.prevent="$el.style.borderColor = '{{ phase.color }}'"
                      @dragleave="$el.style.borderColor = '{{ phase.color }}30'"
                      @drop="handleDrop($event, '{{ phase.id }}')">
@@ -195,12 +193,13 @@
                              draggable="true"
                              @dragstart="handleDragStart($event, card)"
                              @dragend="handleDragEnd($event)"
-                             class="bg-white rounded-xl p-[14px_16px] cursor-pointer border border-[var(--pp-border)] card-hover">
+                             class="rounded-[10px] p-[14px_16px] cursor-pointer border border-[var(--pp-border)] card-hover"
+                             style="background: var(--pp-surfaceHover);">
 
                             {# Avatar + Name #}
                             <div class="flex items-center gap-2.5 mb-2.5">
                                 <div class="w-9 h-9 rounded-[10px] flex items-center justify-center text-white text-[13px] font-bold tracking-wide flex-shrink-0"
-                                     :style="'background: linear-gradient(135deg, ' + getAvatarColor(card.id) + ', ' + getAvatarColor(card.id) + 'cc)'">
+                                     :style="'background:' + getAvatarColor(card.id)">
                                     <span x-text="card.avatar"></span>
                                 </div>
                                 <div class="min-w-0 flex-1">
@@ -214,7 +213,7 @@
                                 {# Star Rating #}
                                 <div class="flex gap-[2px]">
                                     <template x-for="i in 5" :key="i">
-                                        <span class="text-[11px]" :style="'color:' + (i <= card.rating ? '#f59e0b' : '#2A2D3A')">&#9733;</span>
+                                        <span class="text-[11px]" :style="'color:' + (i <= card.rating ? '#f59e0b' : 'var(--pp-text4)')">&#9733;</span>
                                     </template>
                                 </div>
                                 {# Days Indicator #}
@@ -230,11 +229,13 @@
                             {# Tags (ERP + Salary) #}
                             <div class="flex gap-1.5 mt-2.5 flex-wrap">
                                 <template x-if="card.erp">
-                                    <span class="text-[10.5px] px-2 py-[2px] rounded-md bg-[var(--pp-surfaceHover)] text-[var(--pp-textMuted)] font-medium"
+                                    <span class="text-[10.5px] px-2 py-[2px] rounded-md text-[var(--pp-textMuted)] font-medium"
+                                          style="background: var(--pp-surface3);"
                                           x-text="card.erp"></span>
                                 </template>
                                 <template x-if="card.salary">
-                                    <span class="text-[10.5px] px-2 py-[2px] rounded-md bg-[var(--pp-surfaceHover)] text-[var(--pp-textMuted)] font-medium"
+                                    <span class="text-[10.5px] px-2 py-[2px] rounded-md text-[var(--pp-textMuted)] font-medium"
+                                          style="background: var(--pp-surface3);"
                                           x-text="card.salary"></span>
                                 </template>
                             </div>
@@ -253,9 +254,9 @@
             {% endfor %}
         </div>
 
-        {# ── Conversion Funnel ── #}
+        {# -- Conversion Funnel -- #}
         <div class="mt-4 max-w-[600px]">
-            <div class="bg-white rounded-2xl p-[20px_24px] border border-[var(--pp-border)]">
+            <div class="rounded-[12px] p-[20px_24px] border border-[var(--pp-border)]" style="background: var(--pp-surface);">
                 <div class="text-[13px] font-bold text-[var(--pp-text)] mb-4 tracking-tight">Conversion Funnel</div>
                 <div class="flex flex-col gap-2">
                     {% for phase in phases_config %}
@@ -264,13 +265,13 @@
                         <div class="w-[90px] text-[11px] text-[var(--pp-textMuted)] font-medium text-right flex-shrink-0">{{ phase.label }}</div>
                         <div class="flex-1 relative h-[28px]">
                             <div class="h-full rounded-lg flex items-center pl-2.5 funnel-bar"
-                                 :style="'width:' + funnelWidth('{{ phase.id }}') + '%; background: linear-gradient(90deg, {{ phase.color }}, {{ phase.color }}bb);'">
+                                 :style="'width:' + funnelWidth('{{ phase.id }}') + '%; background: {{ phase.color }};'">
                                 <span class="text-white text-[12px] font-bold" x-text="funnelCount('{{ phase.id }}')"></span>
                             </div>
                         </div>
                         {% if phase.id != 'placed' %}
                         <div class="w-[40px] text-right flex-shrink-0 text-[11px] font-semibold"
-                             :class="funnelConvRate('{{ phase.id }}') >= 50 ? 'text-emerald-500' : 'text-amber-500'"
+                             :style="funnelConvRate('{{ phase.id }}') >= 50 ? 'color: var(--pp-green)' : 'color: var(--pp-orange)'"
                              x-text="funnelConvRateStr('{{ phase.id }}')">
                         </div>
                         {% endif %}
@@ -286,10 +287,10 @@
        TABLE VIEW
     ════════════════════════════════════════════════════ #}
     <div x-show="view === 'table'" class="px-7 pb-6">
-        <div class="bg-white rounded-2xl border border-[var(--pp-border)] overflow-hidden">
+        <div class="rounded-[12px] border border-[var(--pp-border)] overflow-hidden" style="background: var(--pp-surface);">
             <table class="w-full text-[13px]" style="border-collapse: collapse;">
                 <thead>
-                    <tr class="bg-[var(--pp-bg)]">
+                    <tr style="background: var(--pp-bg);">
                         <th class="px-4 py-3 text-left font-semibold text-[var(--pp-textMuted)] text-[11.5px] uppercase tracking-wider border-b border-[var(--pp-border)]">Kandidat</th>
                         <th class="px-4 py-3 text-left font-semibold text-[var(--pp-textMuted)] text-[11.5px] uppercase tracking-wider border-b border-[var(--pp-border)]">Rolle</th>
                         <th class="px-4 py-3 text-left font-semibold text-[var(--pp-textMuted)] text-[11.5px] uppercase tracking-wider border-b border-[var(--pp-border)]">Phase</th>
@@ -303,14 +304,17 @@
                 <tbody>
                     <template x-for="c in filteredCandidates" :key="c.entry_id">
                         <tr @click="selectCandidate(c)"
-                            class="cursor-pointer hover:bg-[var(--pp-bg)] transition-colors">
+                            class="cursor-pointer transition-colors"
+                            style="color: var(--pp-text);"
+                            onmouseover="this.style.background='var(--pp-surfaceHover)'"
+                            onmouseout="this.style.background='transparent'">
                             <td class="px-4 py-3 border-b border-[var(--pp-border)]">
                                 <div class="flex items-center gap-2.5">
                                     <div class="w-8 h-8 rounded-lg flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0"
-                                         :style="'background: linear-gradient(135deg, ' + getAvatarColor(c.id) + ', ' + getAvatarColor(c.id) + 'cc)'">
+                                         :style="'background:' + getAvatarColor(c.id)">
                                         <span x-text="c.avatar"></span>
                                     </div>
-                                    <span class="font-semibold" x-text="c.name"></span>
+                                    <span class="font-semibold text-[var(--pp-text)]" x-text="c.name"></span>
                                 </div>
                             </td>
                             <td class="px-4 py-3 border-b border-[var(--pp-border)] text-[var(--pp-textMuted)]" x-text="c.role"></td>
@@ -321,11 +325,12 @@
                                     <span x-text="getPhaseConfig(c.phase).label"></span>
                                 </span>
                             </td>
-                            <td class="px-4 py-3 border-b border-[var(--pp-border)] font-semibold" x-text="c.salary || '-'"></td>
+                            <td class="px-4 py-3 border-b border-[var(--pp-border)] font-semibold text-[var(--pp-text)]" x-text="c.salary || '-'"></td>
                             <td class="px-4 py-3 border-b border-[var(--pp-border)] text-[var(--pp-textMuted)]" x-text="c.notice || '-'"></td>
                             <td class="px-4 py-3 border-b border-[var(--pp-border)]">
                                 <span x-show="c.erp"
-                                      class="bg-[var(--pp-surfaceHover)] px-2 py-[2px] rounded-md text-[11.5px] font-medium"
+                                      class="px-2 py-[2px] rounded-md text-[11.5px] font-medium text-[var(--pp-textMuted)]"
+                                      style="background: var(--pp-surface3);"
                                       x-text="c.erp"></span>
                                 <span x-show="!c.erp" class="text-[var(--pp-textDim)]">-</span>
                             </td>
@@ -341,7 +346,7 @@
                             <td class="px-4 py-3 border-b border-[var(--pp-border)]">
                                 <div class="flex gap-[2px]">
                                     <template x-for="i in 5" :key="i">
-                                        <span class="text-[11px]" :style="'color:' + (i <= c.rating ? '#f59e0b' : '#2A2D3A')">&#9733;</span>
+                                        <span class="text-[11px]" :style="'color:' + (i <= c.rating ? '#f59e0b' : 'var(--pp-text4)')">&#9733;</span>
                                     </template>
                                 </div>
                             </td>
@@ -372,29 +377,32 @@
             {# Backdrop #}
             <div @click="selectedCard = null"
                  class="fixed inset-0 z-[999]"
-                 style="background: rgba(15,23,42,0.3); backdrop-filter: blur(4px);">
+                 style="background: rgba(0,0,0,0.5);">
             </div>
             {# Panel #}
             <div class="fixed top-0 right-0 bottom-0 w-[400px] z-[1000] overflow-y-auto anim-slide-in"
-                 style="background: var(--pp-surface); box-shadow: -8px 0 40px rgba(0,0,0,0.4); padding: 32px 28px;">
+                 style="background: var(--pp-surface); box-shadow: -8px 0 40px rgba(0,0,0,0.5); padding: 32px 28px;">
 
                 {# Close + Header #}
                 <div class="flex justify-between items-center mb-7">
                     <span class="text-[12px] font-semibold text-[var(--pp-textMuted)] uppercase tracking-[0.08em]">Kandidaten-Detail</span>
                     <button @click="selectedCard = null"
-                            class="bg-[var(--pp-surfaceHover)] border-none rounded-lg w-8 h-8 cursor-pointer text-[16px] text-[var(--pp-textMuted)] flex items-center justify-center hover:bg-[var(--pp-borderLight)]">
+                            class="border-none rounded-lg w-8 h-8 cursor-pointer text-[16px] text-[var(--pp-textMuted)] flex items-center justify-center"
+                            style="background: var(--pp-surfaceHover);"
+                            onmouseover="this.style.background='var(--pp-surface3)'"
+                            onmouseout="this.style.background='var(--pp-surfaceHover)'">
                         &#x2715;
                     </button>
                 </div>
 
                 {# Avatar + Name #}
                 <div class="flex items-center gap-4 mb-6">
-                    <div class="w-14 h-14 rounded-[14px] flex items-center justify-center text-white text-[20px] font-bold"
-                         :style="'background: linear-gradient(135deg, ' + getAvatarColor(selectedCard.id) + ', ' + getAvatarColor(selectedCard.id) + 'aa)'">
+                    <div class="w-14 h-14 rounded-[12px] flex items-center justify-center text-white text-[20px] font-bold"
+                         :style="'background:' + getAvatarColor(selectedCard.id)">
                         <span x-text="selectedCard.avatar"></span>
                     </div>
                     <div>
-                        <div class="text-[20px] font-[800] text-[var(--pp-text)] tracking-tight" x-text="selectedCard.name"></div>
+                        <div class="text-[20px] font-bold text-[var(--pp-text)] tracking-tight" x-text="selectedCard.name"></div>
                         <div class="text-[14px] text-[var(--pp-textMuted)] mt-0.5" x-text="selectedCard.role"></div>
                     </div>
                 </div>
@@ -415,7 +423,7 @@
                             <template x-if="item.type === 'stars'">
                                 <div class="flex gap-[2px]">
                                     <template x-for="i in 5" :key="i">
-                                        <span class="text-[11px]" :style="'color:' + (i <= selectedCard.rating ? '#f59e0b' : '#2A2D3A')">&#9733;</span>
+                                        <span class="text-[11px]" :style="'color:' + (i <= selectedCard.rating ? '#f59e0b' : 'var(--pp-text4)')">&#9733;</span>
                                     </template>
                                 </div>
                             </template>
@@ -429,7 +437,8 @@
                 {# Notizen #}
                 <div class="mt-6">
                     <div class="text-[12px] font-semibold text-[var(--pp-textMuted)] mb-2 uppercase tracking-[0.06em]">Notizen</div>
-                    <div class="bg-[var(--pp-bg)] rounded-xl p-4 text-[13px] text-[var(--pp-textMuted)] leading-relaxed border border-[var(--pp-border)]"
+                    <div class="rounded-[10px] p-4 text-[13px] text-[var(--pp-textMuted)] leading-relaxed border border-[var(--pp-border)]"
+                         style="background: var(--pp-bg);"
                          x-text="selectedCard.notes || 'Keine Notizen'"></div>
                 </div>
 
@@ -437,11 +446,14 @@
                 <div class="flex gap-2.5 mt-7">
                     <a :href="'/kandidaten/' + selectedCard.id"
                        class="flex-1 py-3 rounded-[10px] text-white text-[13px] font-semibold text-center no-underline"
-                       style="background: linear-gradient(135deg, var(--pp-accent), #6C63FF); letter-spacing: -0.01em;">
+                       style="background: var(--pp-accent); letter-spacing: -0.01em;">
                         Profil &ouml;ffnen &rarr;
                     </a>
                     <button @click="selectedCard = null"
-                            class="px-4 py-3 rounded-[10px] bg-[var(--pp-surfaceHover)] text-[var(--pp-textMuted)] border-none text-[13px] font-semibold cursor-pointer hover:bg-[var(--pp-borderLight)]">
+                            class="px-4 py-3 rounded-[10px] text-[var(--pp-textMuted)] border-none text-[13px] font-semibold cursor-pointer"
+                            style="background: var(--pp-surfaceHover);"
+                            onmouseover="this.style.background='var(--pp-surface3)'"
+                            onmouseout="this.style.background='var(--pp-surfaceHover)'">
                         Schlie&szlig;en
                     </button>
                 </div>
@@ -454,15 +466,18 @@
     ════════════════════════════════════════════════════ #}
     {% if positions|length == 0 %}
     <div class="px-7 py-16 text-center">
-        <div class="w-14 h-14 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-4">
-            <svg class="w-7 h-7 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <div class="w-14 h-14 mx-auto rounded-full flex items-center justify-center mb-4" style="background: var(--pp-surfaceHover);">
+            <svg class="w-7 h-7" style="color: var(--pp-textDim);" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0M12 12.75h.008v.008H12v-.008z" />
             </svg>
         </div>
-        <p class="text-base font-medium text-gray-900">Keine Jobs in der Pipeline</p>
-        <p class="mt-1 text-sm text-gray-500">F&uuml;ge Stellen zur Pipeline hinzu, um Kandidaten zu tracken</p>
+        <p class="text-base font-medium text-[var(--pp-text)]">Keine Jobs in der Pipeline</p>
+        <p class="mt-1 text-sm text-[var(--pp-textMuted)]">F&uuml;ge Stellen zur Pipeline hinzu, um Kandidaten zu tracken</p>
         <a href="/ats/stellen"
-           class="mt-5 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
+           class="mt-5 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors"
+           style="background: var(--pp-accent);"
+           onmouseover="this.style.background='#2563EB'"
+           onmouseout="this.style.background='var(--pp-accent)'">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
@@ -609,7 +624,7 @@ function pipelineApp() {
         },
 
         getPhaseConfig(phaseId) {
-            return PHASES.find(p => p.id === phaseId) || { id: phaseId, label: phaseId, color: '#94a3b8', bg: '#f1f5f9' };
+            return PHASES.find(p => p.id === phaseId) || { id: phaseId, label: phaseId, color: '#94a3b8', bg: 'rgba(148,163,184,0.08)' };
         },
 
         daysColor(days) {

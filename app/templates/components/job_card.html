@@ -13,11 +13,11 @@
 
 <div id="job-{{ job.id }}"
      style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:14px;padding:0;transition:all 0.25s cubic-bezier(0.4,0,0.2,1);position:relative;overflow:hidden;"
-     onmouseover="this.style.borderColor='rgba(79,140,255,0.25)';this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 32px rgba(0,0,0,0.2), 0 0 0 1px rgba(79,140,255,0.1)'"
+     onmouseover="this.style.borderColor='var(--pp-accent)';this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 32px rgba(0,0,0,0.2), 0 0 0 1px var(--pp-accentSoft)'"
      onmouseout="this.style.borderColor='var(--pp-border)';this.style.transform='';this.style.boxShadow=''">
 
     {# Top accent line #}
-    <div style="height:2px;background:linear-gradient(90deg,var(--pp-accent),#7C5CFC,var(--pp-green));opacity:0.4;"></div>
+    <div style="height:2px;background:var(--pp-accent);opacity:0.4;"></div>
 
     <div style="padding:18px 20px 16px;">
 
@@ -115,7 +115,7 @@
         </div>
 
         {# ═══ Info Grid — 2 Spalten mit Icons ═══ #}
-        <div style="margin-top:14px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px 20px;padding:12px 14px;background:var(--pp-bg);border-radius:10px;border:1px solid rgba(42,45,58,0.5);">
+        <div style="margin-top:14px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px 20px;padding:12px 14px;background:var(--pp-bg);border-radius:10px;border:1px solid var(--pp-border);">
 
             {# Adresse #}
             {% if full_address %}

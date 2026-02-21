@@ -417,6 +417,10 @@ app.include_router(email_automation_router, prefix="/api")  # E-Mail-Automatisie
 from app.api.routes_telegram import router as telegram_router
 app.include_router(telegram_router, prefix="/api")
 
+# Globale CRM-Suche (/api/search/...)
+from app.api.routes_search import router as search_router
+app.include_router(search_router, prefix="/api")
+
 # Matching Engine v2 (/api/v2/profiles/..., /api/v2/weights, /api/v2/rules)
 app.include_router(matching_v2_router, prefix="/api/v2")
 

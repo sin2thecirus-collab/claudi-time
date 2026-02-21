@@ -5,14 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Pulspoint</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --pp-bg: #09090B;
+            --pp-surface: #131316;
+            --pp-surfaceHover: #1A1A1F;
+            --pp-border: #27272A;
+            --pp-text: #FAFAFA;
+            --pp-textMuted: #A1A1AA;
+            --pp-textDim: #71717A;
+            --pp-accent: #3B82F6;
+            --pp-accentSoft: rgba(59,130,246,0.10);
+            --pp-red: #EF4444;
+        }
+
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            font-family: 'DM Sans', -apple-system, sans-serif;
-            background: #0F1117;
-            color: #E8E9ED;
+            font-family: 'Inter', -apple-system, system-ui, sans-serif;
+            background: var(--pp-bg);
+            color: var(--pp-text);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -26,11 +40,10 @@
         }
 
         .login-card {
-            background: #181A23;
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 20px;
+            background: var(--pp-surface);
+            border: 1px solid var(--pp-border);
+            border-radius: 12px;
             padding: 40px 36px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
         }
 
         .login-logo {
@@ -42,15 +55,12 @@
             font-size: 28px;
             font-weight: 800;
             letter-spacing: -0.03em;
-            background: linear-gradient(135deg, #4F8CFF 0%, #34D399 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            color: var(--pp-accent);
         }
 
         .login-logo p {
             font-size: 14px;
-            color: #6B7280;
+            color: var(--pp-textDim);
             margin-top: 6px;
             font-weight: 500;
         }
@@ -63,7 +73,7 @@
             display: block;
             font-size: 13px;
             font-weight: 600;
-            color: #9CA3AF;
+            color: var(--pp-textMuted);
             margin-bottom: 8px;
             text-transform: uppercase;
             letter-spacing: 0.05em;
@@ -72,10 +82,10 @@
         .form-input {
             width: 100%;
             padding: 14px 16px;
-            border-radius: 12px;
-            border: 1.5px solid rgba(255,255,255,0.1);
-            background: #0F1117;
-            color: #E8E9ED;
+            border-radius: 10px;
+            border: 1.5px solid var(--pp-border);
+            background: var(--pp-bg);
+            color: var(--pp-text);
             font-size: 15px;
             font-family: inherit;
             transition: all 0.2s;
@@ -83,20 +93,20 @@
         }
 
         .form-input:focus {
-            border-color: #4F8CFF;
-            box-shadow: 0 0 0 3px rgba(79,140,255,0.15);
+            border-color: var(--pp-accent);
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
         }
 
         .form-input::placeholder {
-            color: #4B5563;
+            color: var(--pp-textDim);
         }
 
         .login-btn {
             width: 100%;
             padding: 14px;
-            border-radius: 12px;
+            border-radius: 10px;
             border: none;
-            background: linear-gradient(135deg, #4F8CFF 0%, #3B7AE8 100%);
+            background: var(--pp-accent);
             color: #fff;
             font-size: 15px;
             font-weight: 700;
@@ -107,22 +117,21 @@
         }
 
         .login-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 16px rgba(79,140,255,0.3);
+            opacity: 0.9;
         }
 
         .login-btn:active {
-            transform: translateY(0);
+            opacity: 0.85;
         }
 
         .error-msg {
             background: rgba(239,68,68,0.1);
             border: 1px solid rgba(239,68,68,0.3);
-            border-radius: 10px;
+            border-radius: 8px;
             padding: 12px 16px;
             margin-bottom: 20px;
             font-size: 13.5px;
-            color: #F87171;
+            color: var(--pp-red);
             font-weight: 500;
         }
 
@@ -130,7 +139,7 @@
             text-align: center;
             margin-top: 24px;
             font-size: 12px;
-            color: #4B5563;
+            color: var(--pp-textDim);
         }
 
         .security-note svg {

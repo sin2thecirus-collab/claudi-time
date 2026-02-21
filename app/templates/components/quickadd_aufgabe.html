@@ -11,7 +11,7 @@
 }
 .qa-aufgabe input:focus, .qa-aufgabe select:focus, .qa-aufgabe textarea:focus {
     border-color: var(--pp-accent, #4F8CFF) !important;
-    box-shadow: 0 0 0 3px rgba(79,140,255,0.1) !important;
+    box-shadow: 0 0 0 3px var(--pp-accentSoft) !important;
 }
 .qa-aufgabe .qa-dd {
     background: var(--pp-surface, #181A23) !important;
@@ -31,9 +31,9 @@
     color: var(--pp-text, #E8E9ED);
 }
 .qa-aufgabe .qa-btn-save {
-    background: linear-gradient(135deg, var(--pp-accent, #4F8CFF), #6C63FF) !important;
+    background: var(--pp-accent) !important;
     color: #fff !important; border: none !important;
-    box-shadow: 0 4px 16px rgba(79,140,255,0.25);
+    box-shadow: 0 4px 16px var(--pp-accentGlow);
 }
 .qa-aufgabe .qa-btn-cancel {
     background: var(--pp-surface, #181A23) !important;
