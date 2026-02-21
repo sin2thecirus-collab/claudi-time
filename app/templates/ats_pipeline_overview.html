@@ -254,25 +254,36 @@
             {% endfor %}
         </div>
 
-        {# -- Conversion Funnel -- #}
-        <div class="mt-4 max-w-[600px]">
-            <div class="rounded-[12px] p-[20px_24px] border border-[var(--pp-border)]" style="background: var(--pp-surface);">
-                <div class="text-[13px] font-bold text-[var(--pp-text)] mb-4 tracking-tight">Conversion Funnel</div>
-                <div class="flex flex-col gap-2">
+        {# -- Conversion Funnel (Chevron Flow) -- #}
+        <div class="mt-4">
+            <div class="rounded-[12px] border border-[var(--pp-border)]" style="background: var(--pp-surface); padding:20px 24px 28px;">
+                <div class="text-[13px] font-bold text-[var(--pp-text)] mb-5 tracking-tight">Conversion Funnel</div>
+                <div style="display:flex; align-items:stretch; position:relative;">
                     {% for phase in phases_config %}
                     {% if phase.id != 'rejected' %}
-                    <div class="flex items-center gap-2.5">
-                        <div class="w-[90px] text-[11px] text-[var(--pp-textMuted)] font-medium text-right flex-shrink-0">{{ phase.label }}</div>
-                        <div class="flex-1 relative h-[28px]">
-                            <div class="h-full rounded-lg flex items-center pl-2.5 funnel-bar"
-                                 :style="'width:' + funnelWidth('{{ phase.id }}') + '%; background: {{ phase.color }};'">
-                                <span class="text-white text-[12px] font-bold" x-text="funnelCount('{{ phase.id }}')"></span>
-                            </div>
+                    <div style="flex:1; position:relative; z-index:{{ 10 - loop.index0 }};">
+                        <div style="
+                            background: {{ phase.color }};
+                            height:54px;
+                            display:flex; flex-direction:column; align-items:center; justify-content:center;
+                            {% if loop.index0 == 0 %}clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%);
+                            padding: 8px 20px 8px 14px;
+                            border-radius: 8px 0 0 8px;
+                            {% elif phase.id == 'placed' %}clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 12px 50%);
+                            padding: 8px 14px 8px 22px;
+                            border-radius: 0 8px 8px 0;
+                            {% else %}clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%, 12px 50%);
+                            padding: 8px 20px 8px 22px;
+                            {% endif %}
+                        ">
+                            <span style="color:#fff; font-size:16px; font-weight:700; line-height:1;" x-text="funnelCount('{{ phase.id }}')"></span>
+                            <span style="color:rgba(255,255,255,0.72); font-size:9.5px; font-weight:600; margin-top:3px; letter-spacing:0.02em;">{{ phase.label }}</span>
                         </div>
                         {% if phase.id != 'placed' %}
-                        <div class="w-[40px] text-right flex-shrink-0 text-[11px] font-semibold"
-                             :style="funnelConvRate('{{ phase.id }}') >= 50 ? 'color: var(--pp-green)' : 'color: var(--pp-orange)'"
-                             x-text="funnelConvRateStr('{{ phase.id }}')">
+                        <div style="position:absolute; bottom:-20px; right:-4px; z-index:20;">
+                            <span style="font-size:10px; font-weight:700;"
+                                  :style="funnelConvRate('{{ phase.id }}') >= 50 ? 'color: var(--pp-green)' : 'color: var(--pp-orange)'"
+                                  x-text="funnelConvRateStr('{{ phase.id }}')"></span>
                         </div>
                         {% endif %}
                     </div>
