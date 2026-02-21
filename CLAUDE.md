@@ -1,6 +1,6 @@
 # Pulspoint CRM — Matching Tool
 
-> **Stand: 20.02.2026, 15:00 Uhr — v4.0 Claude Matching IMPLEMENTIERT (noch nicht deployed) + v3.0 legacy weiterhin aktiv**
+> **Stand: 20.02.2026, 18:00 Uhr — v4.0 Claude Matching DEPLOYED + Phase 6 Features KOMPLETT**
 
 ---
 
@@ -25,26 +25,32 @@ Diese Datei enthaelt:
 ### Was ist das Matching Tool?
 Das MT matcht Finance-Kandidaten (FiBu, BiBu, KrediBu, DebiBu, LohnBu, StFA) automatisch mit Jobangeboten.
 
-### Aktueller Stand — v4.0 Claude Matching IMPLEMENTIERT
-- **v4.0 Claude Matching** implementiert am 20.02.2026:
+### Aktueller Stand — v4.0 Claude Matching DEPLOYED
+- **v4.0 Claude Matching** deployed am 20.02.2026:
   - Ersetzt den 7-Komponenten-Algorithmus durch Claude-basiertes Matching
   - 3-Stufen-System: DB-Filter (Stufe 0) → Quick-Check (Stufe 1) → Deep Assessment (Stufe 2)
   - Action Board Dashboard unter `/action-board`
   - Naehe-Matches: Jobs/Kandidaten ohne vollstaendige Daten, <10km, kein Claude-Call
-  - CSV-Pipeline gestrafft: stoppt nach Geocoding, kein Profiling/Embedding/Matching mehr
+  - CSV-Pipeline gestrafft: stoppt nach Geocoding, Auto-Trigger fuer Claude Matching
   - `expires_at` wird beim Import gesetzt (30 Tage), Duplikate frischen auf
-- **NOCH NICHT DEPLOYED** — Milad muss:
-  1. `ANTHROPIC_API_KEY` in Railway Environment Variables setzen
-  2. Migration 023 ausfuehren (`alembic upgrade head`)
-  3. Testen auf Production
+- **Phase 6 Features KOMPLETT:**
+  - Regional Insights Endpoint (Kandidaten vs. Jobs pro Stadt)
+  - CSV-Import Vorschau mit Stadt-Analyse
+  - Auto-Matching nach CSV-Import
+  - ATS-Pipeline Integration bei "Vorstellen"
+  - Detailliertes Feedback mit Ablehnungsgruenden
+  - Action Board mit Regional Insights Section
+- **Bugs gefixt:**
+  - cv_text Fallback: Kandidaten ohne work_history nutzen jetzt cv_text
+  - ai_score * 100 Skala in 5 Templates korrigiert
+  - 8 v2 Endpoints als DEPRECATED markiert
 
-### v3.0 Legacy (weiterhin aktiv)
-- v3.0 Endpoints unter `/api/v2/...` bleiben bestehen
+### v3.0 Legacy (weiterhin verfuegbar)
+- v3.0 Endpoints unter `/api/v2/...` bleiben bestehen (DEPRECATED markiert)
 - Match Center zeigt sowohl v3 als auch v4 Matches korrekt an
 - Google Maps Fahrzeit weiterhin aktiv
 
 ### Was noch offen ist
-- **Deploy v4:** ANTHROPIC_API_KEY + Migration 023 + Test
 - Outreach testen (E-Mail + Job-PDF an Test-Kandidaten)
 - Morning Briefing mit echten Daten validieren
 
@@ -62,6 +68,12 @@ Das MT matcht Finance-Kandidaten (FiBu, BiBu, KrediBu, DebiBu, LohnBu, StFA) aut
 8. **NIEMALS eine DB-Session offen halten waehrend eines API-Calls** (Railway killt nach 30s).
 9. **NIEMALS `async_session_factory` schreiben** — der korrekte Name ist `async_session_maker` (aus `app/database.py`).
 10. **NIEMALS Background-Task Imports AUSSERHALB von try/except** — Imports muessen innerhalb des try-Blocks liegen, damit Fehler im finally-Block sauber aufgeraeumt werden.
+11. **NIEMALS persoenliche Daten an Claude senden** — Nur candidate_id + Berufsdaten. Name, Email, Telefon, Adresse, Geburtsdatum sind TABU.
+12. **NIEMALS ORM-Objekte ueber Claude-API-Calls hinweg halten** — Vor dem Claude-Call als Dict extrahieren, DB-Session schliessen.
+13. **IMMER ai_score UND v2_score setzen** (Dual-Write) — `v2_score = float(score)`, `ai_score = float(score) / 100.0`
+14. **IMMER Claude-JSON validieren** — json.loads in try/except, Score clampen 0-100, Empfehlung validieren.
+15. **NIEMALS zweiten Matching-Lauf starten wenn einer laeuft** — `get_status()["running"]` pruefen vor Start.
+16. **IMMER prompt_version in v2_score_breakdown speichern** — Fuer Nachvollziehbarkeit welcher Prompt welches Ergebnis erzeugt hat.
 
 ---
 
@@ -187,6 +199,8 @@ Action Board zeigt Ergebnisse → Recruiter klickt Aktionen
 | GET | `/claude-match/daily` | Heutige Ergebnisse (Top, WOW, Follow-ups, Naehe) |
 | POST | `/claude-match/{id}/action` | Aktion: vorstellen/spaeter/ablehnen |
 | POST | `/claude-match/candidate/{id}` | Ad-hoc Matching fuer einzelnen Kandidaten |
+| GET | `/claude-match/regional-insights` | Kandidaten vs. Jobs pro Stadt (Top 20) |
+| POST | `/claude-match/{id}/detailed-feedback` | Detailliertes Feedback mit Ablehnungsgrund |
 | GET | `/debug/match-count` | Statistiken |
 | GET | `/debug/stufe-0-preview` | Dry-Run: wieviele Paare wuerden gematcht? |
 | GET | `/debug/job-health` | Job-Datenqualitaet |
@@ -218,13 +232,15 @@ Action Board zeigt Ergebnisse → Recruiter klickt Aktionen
 | `app/templates/action_board.html` | Action Board Frontend |
 | `migrations/versions/023_add_claude_matching_fields.py` | DB-Migration |
 
-### CSV-Pipeline (v4 — GEKUERZT)
+### CSV-Pipeline (v4 — GEKUERZT + AUTO-MATCHING)
 ```
 VORHER: Kategorisierung → Klassifizierung → Geocoding → Profiling → Embedding → Matching
-JETZT:  Kategorisierung → Klassifizierung → Geocoding → STOP
+JETZT:  Kategorisierung → Klassifizierung → Geocoding → Auto-Trigger Claude Matching
 ```
-- Profiling, Embedding, Matching werden NICHT mehr automatisch ausgefuehrt
-- Matching wird separat ueber Action Board (Claude v4) ausgeloest
+- Profiling, Embedding werden NICHT mehr ausgefuehrt
+- Claude Matching wird automatisch nach Geocoding getriggert (wenn kein Lauf aktiv)
+- Kann auch manuell ueber Action Board gestartet werden
+- Vorschau-Endpoint: `POST /api/jobs/import-preview` (Stadt-Analyse vor Import)
 - `expires_at` wird beim Import gesetzt: `now + 30 Tage`
 - Bei Duplikat-Import: `expires_at` + `last_updated_at` werden aufgefrischt
 
