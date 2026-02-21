@@ -83,11 +83,11 @@
                            class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 flex-shrink-0">
 
                     <div class="flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold
-                                {% if m.ai_score and m.ai_score >= 70 %}bg-green-100 text-green-700
-                                {% elif m.ai_score and m.ai_score >= 40 %}bg-yellow-100 text-yellow-700
+                                {% if m.ai_score and m.ai_score * 100 >= 70 %}bg-green-100 text-green-700
+                                {% elif m.ai_score and m.ai_score * 100 >= 40 %}bg-yellow-100 text-yellow-700
                                 {% elif m.ai_score %}bg-gray-100 text-gray-600
                                 {% else %}bg-gray-50 text-gray-400{% endif %}">
-                        {% if m.ai_score %}{{ m.ai_score|int }}{% else %}&mdash;{% endif %}
+                        {% if m.ai_score %}{{ (m.ai_score * 100)|int }}{% else %}&mdash;{% endif %}
                     </div>
 
                     {# Qualification Tag (v2.5) #}

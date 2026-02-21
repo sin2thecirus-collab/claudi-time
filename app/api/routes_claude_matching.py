@@ -297,8 +297,39 @@ async def match_action(
         match.user_feedback = "vorstellen"
         match.feedback_at = now
         match.status = MatchStatus.PRESENTED
+        match.presentation_status = "prepared"
         if body.note:
             match.feedback_note = body.note
+
+        # ATS Integration: Kandidat in Pipeline einfuegen
+        try:
+            from app.models.ats_job import ATSJob
+            from app.models.ats_pipeline import ATSPipelineEntry, PipelineStage
+
+            # ATSJob fuer diesen Job suchen
+            ats_job_result = await db.execute(
+                select(ATSJob).where(ATSJob.source_job_id == match.job_id)
+            )
+            ats_job = ats_job_result.scalar_one_or_none()
+
+            if ats_job:
+                # Pruefen ob Kandidat schon in Pipeline
+                existing = await db.execute(
+                    select(ATSPipelineEntry).where(
+                        ATSPipelineEntry.ats_job_id == ats_job.id,
+                        ATSPipelineEntry.candidate_id == match.candidate_id,
+                    )
+                )
+                if not existing.scalar_one_or_none():
+                    entry = ATSPipelineEntry(
+                        ats_job_id=ats_job.id,
+                        candidate_id=match.candidate_id,
+                        stage=PipelineStage.MATCHED,
+                    )
+                    db.add(entry)
+                    logger.info("ATS Pipeline Entry erstellt fuer Match %s", match_id)
+        except Exception as e:
+            logger.warning("ATS Integration fuer Match %s: %s", match_id, e)
 
     elif body.action == "spaeter":
         match.user_feedback = "spaeter"
@@ -762,3 +793,104 @@ async def debug_cost_report(db: AsyncSession = Depends(get_db)):
         "last_run": status.get("last_run"),
         "last_run_result": status.get("last_run_result"),
     }
+
+
+# ══════════════════════════════════════════════════════════════
+# Regional Insights (Phase 6)
+# ══════════════════════════════════════════════════════════════
+
+@router.get("/claude-match/regional-insights")
+async def get_regional_insights(db: AsyncSession = Depends(get_db)):
+    """Regionale Uebersicht: Kandidaten vs. Jobs pro Stadt."""
+    # Kandidaten pro Stadt
+    cand_query = (
+        select(Candidate.city, func.count(Candidate.id))
+        .where(
+            Candidate.deleted_at.is_(None),
+            Candidate.hidden == False,
+            Candidate.city.isnot(None),
+            Candidate.city != "",
+        )
+        .group_by(Candidate.city)
+    )
+
+    # Aktive Jobs pro Stadt
+    job_query = (
+        select(Job.city, func.count(Job.id))
+        .where(
+            Job.deleted_at.is_(None),
+            (Job.expires_at.is_(None)) | (Job.expires_at > func.now()),
+            Job.city.isnot(None),
+            Job.city != "",
+        )
+        .group_by(Job.city)
+    )
+
+    cand_result = await db.execute(cand_query)
+    job_result = await db.execute(job_query)
+
+    cand_by_city = {row[0]: row[1] for row in cand_result}
+    jobs_by_city = {row[0]: row[1] for row in job_result}
+
+    all_cities = set(cand_by_city.keys()) | set(jobs_by_city.keys())
+    regions = []
+    for city in sorted(
+        all_cities,
+        key=lambda c: cand_by_city.get(c, 0) + jobs_by_city.get(c, 0),
+        reverse=True,
+    ):
+        c = cand_by_city.get(city, 0)
+        j = jobs_by_city.get(city, 0)
+        if c > 5 and j > 3:
+            status = "gut_abgedeckt"
+        elif c > 0 and j > 0:
+            status = "ausbaufaehig"
+        elif j > 3 and c == 0:
+            status = "sourcing_chance"
+        else:
+            status = "keine_abdeckung"
+        regions.append({
+            "city": city,
+            "candidate_count": c,
+            "job_count": j,
+            "status": status,
+        })
+
+    return {"regions": regions[:20]}
+
+
+# ══════════════════════════════════════════════════════════════
+# Detailliertes Feedback (Phase 6)
+# ══════════════════════════════════════════════════════════════
+
+@router.post("/claude-match/{match_id}/detailed-feedback")
+async def submit_detailed_feedback(
+    match_id: UUID,
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+):
+    """Detailliertes Feedback fuer Matching-Verbesserung."""
+    match = await db.get(Match, match_id)
+    if not match:
+        raise HTTPException(status_code=404, detail="Match nicht gefunden")
+
+    match.user_feedback = body.get("feedback", "neutral")
+    match.feedback_note = body.get("note", "")
+    match.rejection_reason = body.get("rejection_reason")
+    match.feedback_at = datetime.now(timezone.utc)
+
+    await db.commit()
+
+    # Feedback-Statistiken aggregieren
+    stats_query = (
+        select(Match.user_feedback, func.count(Match.id))
+        .where(
+            Match.matching_method == "claude_match",
+            Match.user_feedback.isnot(None),
+        )
+        .group_by(Match.user_feedback)
+    )
+    stats = await db.execute(stats_query)
+    feedback_stats = {row[0]: row[1] for row in stats}
+
+    return {"success": True, "feedback_stats": feedback_stats}

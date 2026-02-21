@@ -130,11 +130,11 @@
                             <!-- Score -->
                             <div class="flex-shrink-0 w-14 h-14 flex items-center justify-center text-lg font-bold"
                                  style="border-radius: 12px;
-                                        {% if m.ai_score and m.ai_score >= 70 %}background: var(--pp-greenSoft); color: var(--pp-green);
-                                        {% elif m.ai_score and m.ai_score >= 40 %}background: var(--pp-orangeSoft); color: var(--pp-orange);
+                                        {% if m.ai_score and m.ai_score * 100 >= 70 %}background: var(--pp-greenSoft); color: var(--pp-green);
+                                        {% elif m.ai_score and m.ai_score * 100 >= 40 %}background: var(--pp-orangeSoft); color: var(--pp-orange);
                                         {% elif m.ai_score %}background: var(--pp-surfaceHover); color: var(--pp-textMuted);
                                         {% else %}background: var(--pp-bg); color: var(--pp-textDim);{% endif %}">
-                                {% if m.ai_score %}{{ m.ai_score|int }}{% else %}—{% endif %}
+                                {% if m.ai_score %}{{ (m.ai_score * 100)|int }}{% else %}—{% endif %}
                             </div>
 
                             <div>

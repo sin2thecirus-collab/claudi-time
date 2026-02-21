@@ -4,7 +4,7 @@
    Variablen: match (Match), candidate (Candidate), job (Job)
 ═══════════════════════════════════════════════════════════ #}
 
-{% set score = match.ai_score if match.ai_score is not none else match.pre_score %}
+{% set score = (match.ai_score * 100) if match.ai_score is not none else match.pre_score %}
 {% set score_val = score | default(0, true) | round | int %}
 
 <div class="grid grid-cols-12 gap-2 items-center px-6 py-3 hover:bg-gray-50/80 transition-colors group"
@@ -90,10 +90,10 @@
             {# KI wurde schon gemacht → Score + aufklappbar #}
             <button @click="showDetails = !showDetails"
                     class="inline-flex items-center justify-center w-8 h-8 rounded-lg transition-colors
-                    {% if match.ai_score >= 70 %}bg-green-100 text-green-600 hover:bg-green-200
-                    {% elif match.ai_score >= 40 %}bg-amber-100 text-amber-600 hover:bg-amber-200
+                    {% if match.ai_score * 100 >= 70 %}bg-green-100 text-green-600 hover:bg-green-200
+                    {% elif match.ai_score * 100 >= 40 %}bg-amber-100 text-amber-600 hover:bg-amber-200
                     {% else %}bg-gray-100 text-gray-500 hover:bg-gray-200{% endif %}"
-                    title="KI-Score: {{ match.ai_score | round | int }} — Klicken fuer Details">
+                    title="KI-Score: {{ (match.ai_score * 100) | round | int }} — Klicken fuer Details">
                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
                 </svg>
@@ -150,8 +150,8 @@
                 </svg>
                 <div class="text-center">
                     <p class="text-[10px] text-primary-500 uppercase tracking-wide font-semibold">KI</p>
-                    <p class="text-lg font-bold {% if match.ai_score >= 70 %}text-green-600{% elif match.ai_score >= 40 %}text-amber-600{% else %}text-gray-500{% endif %}">
-                        {{ match.ai_score | round | int }}
+                    <p class="text-lg font-bold {% if match.ai_score * 100 >= 70 %}text-green-600{% elif match.ai_score * 100 >= 40 %}text-amber-600{% else %}text-gray-500{% endif %}">
+                        {{ (match.ai_score * 100) | round | int }}
                     </p>
                 </div>
             </div>

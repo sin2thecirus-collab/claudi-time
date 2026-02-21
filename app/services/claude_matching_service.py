@@ -205,6 +205,12 @@ def _extract_candidate_data(row: dict) -> dict:
     it_skills = row.get("it_skills") or []
     erp = row.get("erp") or []
 
+    # cv_text Fallback: Wenn work_history leer, aber cv_text vorhanden
+    if not work_history_str:
+        cv_text = row.get("cv_text")
+        if cv_text:
+            work_history_str = cv_text[:2000]
+
     return {
         "candidate_id": str(row["candidate_id"]),
         "work_history": work_history_str or "Nicht verfuegbar",

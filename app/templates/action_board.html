@@ -229,6 +229,37 @@
             </div>
         </template>
     </div>
+
+    <!-- REGIONALE INSIGHTS -->
+    <div x-show="!loading && regions.length > 0" style="margin-bottom:32px;">
+        <h2 style="font-size:14px;font-weight:700;color:var(--pp-text);margin-bottom:12px;">
+            Regionale Uebersicht
+            <span style="font-size:12px;font-weight:500;color:var(--pp-textMuted);margin-left:6px;" x-text="'(' + regions.length + ' Staedte)'"></span>
+        </h2>
+
+        <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:8px;">
+            <template x-for="region in regions" :key="region.city">
+                <div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:10px;padding:12px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                        <span style="font-size:13px;font-weight:600;color:var(--pp-text);" x-text="region.city"></span>
+                        <span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:50px;"
+                              :style="region.status === 'gut_abgedeckt' ? 'background:var(--pp-greenSoft);color:var(--pp-green);'
+                                    : region.status === 'ausbaufaehig' ? 'background:var(--pp-orangeSoft);color:var(--pp-orange);'
+                                    : region.status === 'sourcing_chance' ? 'background:#e0e7ff;color:#4338ca;'
+                                    : 'background:var(--pp-surface3);color:var(--pp-textDim);'"
+                              x-text="region.status === 'gut_abgedeckt' ? 'Gut abgedeckt'
+                                    : region.status === 'ausbaufaehig' ? 'Ausbaufaehig'
+                                    : region.status === 'sourcing_chance' ? 'Sourcing-Chance'
+                                    : 'Keine Abdeckung'"></span>
+                    </div>
+                    <div style="display:flex;gap:16px;font-size:11px;color:var(--pp-textMuted);">
+                        <span x-text="region.candidate_count + ' Kandidaten'"></span>
+                        <span x-text="region.job_count + ' Jobs'"></span>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -238,6 +269,7 @@ function actionBoard() {
         wowMatches: [],
         followUps: [],
         proximityMatches: [],
+        regions: [],
         summary: {},
         loading: true,
         matchingRunning: false,
@@ -283,6 +315,7 @@ function actionBoard() {
         async init() {
             await this.loadStatus();
             await this.loadMatches();
+            await this.loadRegionalInsights();
             this.loading = false;
         },
 
@@ -297,6 +330,16 @@ function actionBoard() {
                 this.summary = data.summary || {};
             } catch(e) {
                 console.error('Fehler beim Laden:', e);
+            }
+        },
+
+        async loadRegionalInsights() {
+            try {
+                const res = await fetch('/api/v4/claude-match/regional-insights');
+                const data = await res.json();
+                this.regions = data.regions || [];
+            } catch(e) {
+                console.error('Regional Insights Fehler:', e);
             }
         },
 
@@ -339,10 +382,15 @@ function actionBoard() {
 
         async doAction(matchId, action) {
             try {
+                let note = '';
+                if (action === 'ablehnen') {
+                    const reason = prompt('Ablehnungsgrund (optional):');
+                    if (reason) note = reason;
+                }
                 await fetch('/api/v4/claude-match/' + matchId + '/action', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({action: action}),
+                    body: JSON.stringify({action: action, note: note || undefined}),
                 });
                 // Karte sofort aus der Liste entfernen
                 this.topMatches = this.topMatches.filter(m => m.match_id !== matchId);

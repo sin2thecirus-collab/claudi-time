@@ -34,10 +34,10 @@
                     {% endif %}
                     {% if job.ai_score is not none %}
                     <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium
-                        {% if job.ai_score >= 80 %}bg-green-100 text-green-700
-                        {% elif job.ai_score >= 60 %}bg-yellow-100 text-yellow-700
+                        {% if job.ai_score * 100 >= 80 %}bg-green-100 text-green-700
+                        {% elif job.ai_score * 100 >= 60 %}bg-yellow-100 text-yellow-700
                         {% else %}bg-gray-100 text-gray-600{% endif %}">
-                        AI: {{ job.ai_score|round(0)|int }}%
+                        AI: {{ (job.ai_score * 100)|round(0)|int }}%
                     </span>
                     {% endif %}
                 </div>

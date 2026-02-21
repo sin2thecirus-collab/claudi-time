@@ -428,6 +428,7 @@ async def get_learned_rules(
 # Matching (Sprint 2)
 # ══════════════════════════════════════════════════════════════════
 
+# DEPRECATED by v4 — Ersetzt durch /api/v4/claude-match/run
 @router.post("/match/job/{job_id}")
 async def match_single_job(
     job_id: UUID,
@@ -1087,6 +1088,7 @@ async def debug_v2_skills(
 # Feedback & Learning (Sprint 3)
 # ══════════════════════════════════════════════════════════════════
 
+# DEPRECATED by v4 — Ersetzt durch /api/v4/claude-match/{match_id}/action
 @router.post("/feedback/{match_id}")
 async def submit_feedback(
     match_id: UUID,
@@ -1126,6 +1128,7 @@ async def submit_feedback(
         raise HTTPException(status_code=400, detail=str(e))
 
 
+# DEPRECATED by v4 — Ersetzt durch /api/v4/claude-match/{match_id}/action (action=vorstellen)
 @router.post("/feedback/{match_id}/placed")
 async def record_placement(
     match_id: UUID,
@@ -1148,6 +1151,7 @@ async def record_placement(
         raise HTTPException(status_code=400, detail=str(e))
 
 
+# DEPRECATED by v4 — Ersetzt durch /api/v4/claude-match/status
 @router.get("/learn/stats")
 async def get_learning_stats(db: AsyncSession = Depends(get_db)):
     """Gibt umfassende Lern-Statistiken zurueck.
@@ -1176,6 +1180,7 @@ async def get_learning_stats(db: AsyncSession = Depends(get_db)):
     }
 
 
+# DEPRECATED by v4 — Ersetzt durch /api/v4/claude-match/status
 @router.get("/learn/stats/extended")
 async def get_extended_learning_stats(db: AsyncSession = Depends(get_db)):
     """Erweiterte Lern-Statistiken mit Details.
@@ -1193,6 +1198,7 @@ async def get_extended_learning_stats(db: AsyncSession = Depends(get_db)):
     return await service.get_extended_stats()
 
 
+# DEPRECATED by v4 — v4 nutzt Claude direkt, keine manuellen Gewichte
 @router.get("/learn/weights")
 async def get_current_weights_detailed(db: AsyncSession = Depends(get_db)):
     """Gibt die aktuellen Gewichte mit Aenderungshistorie zurueck."""
@@ -1202,6 +1208,7 @@ async def get_current_weights_detailed(db: AsyncSession = Depends(get_db)):
     return await service.get_current_weights()
 
 
+# DEPRECATED by v4 — v4 nutzt Claude direkt, keine manuellen Gewichte
 @router.post("/learn/reset-weights")
 async def reset_weights(db: AsyncSession = Depends(get_db)):
     """Setzt alle Gewichte auf die Default-Werte zurueck.
@@ -1215,6 +1222,7 @@ async def reset_weights(db: AsyncSession = Depends(get_db)):
     return await service.reset_weights()
 
 
+# DEPRECATED by v4 — Ersetzt durch /api/v4/claude-match/{match_id}/detailed-feedback
 @router.get("/learn/history")
 async def get_feedback_history(
     limit: int = 50,

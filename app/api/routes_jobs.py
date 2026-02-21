@@ -149,7 +149,17 @@ async def _run_pipeline_background(import_job_id):
 
         # v4: Pipeline stoppt hier nach Geocoding.
         # Profiling, Embedding, Matching werden NICHT mehr automatisch ausgefuehrt.
-        # Matching wird separat ueber das Action Board (Claude Matching v4) ausgeloest.
+        # Auto-Trigger: Claude Matching im Hintergrund starten
+        try:
+            import asyncio
+            from app.services.claude_matching_service import run_matching, get_status
+            if not get_status()["running"]:
+                asyncio.create_task(run_matching())
+                logger.info("Claude Matching automatisch gestartet nach CSV-Import")
+            else:
+                logger.info("Claude Matching laeuft bereits, kein Auto-Trigger")
+        except Exception as e:
+            logger.warning(f"Claude Matching Auto-Trigger: {e}")
 
     except PipelineCancelled:
         cancelled = True
@@ -251,6 +261,57 @@ async def _execute_pipeline_steps() -> dict:
     # Matching wird separat ueber das Action Board (Claude Matching v4) ausgeloest.
 
     return pipeline
+
+
+@router.post("/import-preview")
+async def preview_csv_import(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+):
+    """CSV-Vorschau: Zeigt Staedte + verfuegbare Kandidaten vor dem Import."""
+    import csv
+    import io
+    from app.models.candidate import Candidate
+
+    content = await file.read()
+    text = content.decode("utf-8", errors="replace")
+    reader = csv.DictReader(io.StringIO(text), delimiter=";")
+
+    city_jobs: dict[str, int] = {}
+    total = 0
+    for row in reader:
+        city = (row.get("city") or row.get("Stadt") or row.get("Ort") or "").strip()
+        if city:
+            city_jobs[city] = city_jobs.get(city, 0) + 1
+        total += 1
+
+    result = []
+    for city, job_count in sorted(city_jobs.items(), key=lambda x: x[1], reverse=True):
+        cand_count_q = select(func.count(Candidate.id)).where(
+            Candidate.deleted_at.is_(None),
+            Candidate.hidden == False,
+            Candidate.city == city,
+        )
+        cand_result = await db.execute(cand_count_q)
+        cand_count = cand_result.scalar() or 0
+
+        empfehlung = "importieren" if cand_count > 0 else "ueberspringen"
+        result.append({
+            "city": city,
+            "job_count": job_count,
+            "candidate_count": cand_count,
+            "empfehlung": empfehlung,
+        })
+
+    relevant = sum(1 for r in result if r["empfehlung"] == "importieren")
+
+    return {
+        "total_jobs": total,
+        "cities": result[:30],
+        "relevant_count": sum(r["job_count"] for r in result if r["empfehlung"] == "importieren"),
+        "skip_count": sum(r["job_count"] for r in result if r["empfehlung"] == "ueberspringen"),
+        "recommendation": f"{relevant} Staedte mit Kandidaten, Rest kann uebersprungen werden",
+    }
 
 
 @router.post(
