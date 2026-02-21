@@ -343,9 +343,8 @@ POST /api/v2/embeddings/reset?entity_type=all
 - 1786 Kandidaten profilen: ~80 Min mit Semaphore(3)
 
 ### 9. Google Maps API Key — Achtung bei Zeichen
-- **KORREKTER Key:** `AIzaSyD7XoDjvHPwlAojwr9o5HUFslS-Wfn-cN0` (mit kleinem L: `slS`)
-- **FALSCHER Key (aus alten Notizen):** `...HUFsIS...` (mit grossem I) -> `REQUEST_DENIED`
-- **Tipp:** Immer per Copy-Paste aus Google Cloud Console, NIE abtippen!
+- **Key liegt in Railway Environment Variables** (`GOOGLE_MAPS_API_KEY`) — NIEMALS in Code/Docs!
+- Achtung: kleines `l` vs grosses `I` — immer per Copy-Paste aus Google Cloud Console
 - Der Key wird beim App-Start einmalig gelesen (Singleton `DistanceMatrixService`)
 - Wenn der Key in Railway geaendert wird, MUSS ein Redeploy getriggert werden!
 - Railway redeployed NICHT immer automatisch bei Variable-Aenderung -> leeren Commit pushen:
@@ -466,11 +465,13 @@ DEFAULT_WEIGHTS = {
 
 ### Zugangsdaten
 - **App URL:** `https://claudi-time-production-46a5.up.railway.app`
-- **API-Key Header:** `X-API-Key: PuLi-go50-ZklF-S3903-aog-esfgiwlgkuer9ls-glau-2026`
+- **API-Key Header:** Liegt in Railway Environment Variables (`API_KEY`) — NIEMALS in Code/Docs!
 - **n8n URL:** `https://n8n-production-aa9c.up.railway.app`
 - **n8n Workflow ID:** `MefdpqcLUZadNJ0Y`
-- **Google Maps API Key:** `AIzaSyD7XoDjvHPwlAojwr9o5HUFslS-Wfn-cN0` (ACHTUNG: kleines L nicht grosses I!)
+- **Google Maps API Key:** Liegt in Railway Environment Variables (`GOOGLE_MAPS_API_KEY`)
+- **Anthropic API Key:** Liegt in Railway Environment Variables (`ANTHROPIC_API_KEY`)
 - **GitHub:** `sin2thecirus-collab/claudi-time`, Branch: main
+- **WICHTIG:** Alle API-Keys/Secrets gehoeren NUR in Railway ENV oder lokale `.env` — NIEMALS in committed Files!
 
 ### Codebase-Pfad
 - **Lokal:** `/Users/miladhamdard/Desktop/Claudi Time/matching-tool/`
