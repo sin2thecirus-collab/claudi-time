@@ -541,13 +541,17 @@ class FinanceClassifierService:
     # ──────────────────────────────────────────────────
 
     def _build_job_prompt(self, job: Job) -> str:
-        """Baut den User-Prompt für einen Job."""
+        """Baut den User-Prompt für einen Job — nur Stellentitel + Taetigkeiten."""
         parts = []
         parts.append(f"STELLENTITEL: {job.position or 'Unbekannt'}")
         if job.company_name:
             parts.append(f"UNTERNEHMEN: {job.company_name}")
-        if job.job_text:
-            parts.append(f"\nSTELLENBESCHREIBUNG:\n{job.job_text[:8000]}")
+        if job.job_tasks:
+            # Bereits extrahierte Taetigkeiten aus vorheriger Klassifizierung nutzen
+            parts.append(f"\nTAETIGKEITEN:\n{job.job_tasks}")
+        elif job.job_text:
+            # Fallback fuer Jobs ohne job_tasks (Erst-Klassifizierung)
+            parts.append(f"\nSTELLENBESCHREIBUNG:\n{job.job_text[:4000]}")
         return "\n".join(parts)
 
     async def classify_job(self, job: Job) -> ClassificationResult:
