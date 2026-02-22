@@ -44,10 +44,11 @@ Waehle die am besten passende Rolle:
 - Kreditorenbuchhalter/in (bucht hauptsaechlich nur Kreditoren / Eingangsrechnungen)
 - Debitorenbuchhalter/in (bucht hauptsaechlich nur Debitoren / Mahnwesen / Forderungen)
 - Lohnbuchhalter/in (Lohn- und Gehaltsabrechnung, Payroll)
-- Steuerfachangestellte/r / Finanzbuchhalter/in (hat eine StFA-Ausbildung — StFA koennen alles was ein Finanzbuchhalter kann: Kreditoren, Debitoren, Anlagenbuchhaltung, Monatsabschluesse, JA-Vorbereitung)
+- Steuerfachangestellte/r / Finanzbuchhalter/in (NUR wenn im Profil eine abgeschlossene Ausbildung oder Lehre zum/zur Steuerfachangestellten steht. Ohne diese Ausbildung ist es KEIN StFA, auch wenn die Person in einer Kanzlei arbeitet oder steuerliche Aufgaben macht)
 - Teamleiter Finanzbuchhaltung
 - Teamleiter Kreditorenbuchhaltung
 - Teamleiter Debitorenbuchhaltung
+- Teamleiter Lohnbuchhaltung
 - Financial Controller
 - Leiter Buchhaltung
 - Head of Finance
@@ -80,10 +81,11 @@ Waehle die am besten passende Rolle:
 - Kreditorenbuchhalter/in (hauptsaechlich Kreditoren / Eingangsrechnungen)
 - Debitorenbuchhalter/in (hauptsaechlich Debitoren / Mahnwesen)
 - Lohnbuchhalter/in (Payroll, Entgeltabrechnung)
-- Steuerfachangestellte/r / Finanzbuchhalter/in (hat eine StFA-Ausbildung — StFA koennen alles was ein Finanzbuchhalter kann: Kreditoren, Debitoren, Anlagenbuchhaltung, Monatsabschluesse, JA-Vorbereitung)
+- Steuerfachangestellte/r / Finanzbuchhalter/in (NUR wenn die Stelle explizit eine abgeschlossene Ausbildung zum/zur Steuerfachangestellten verlangt)
 - Teamleiter Finanzbuchhaltung
 - Teamleiter Kreditorenbuchhaltung
 - Teamleiter Debitorenbuchhaltung
+- Teamleiter Lohnbuchhaltung
 - Financial Controller
 - Leiter Buchhaltung
 - Head of Finance
@@ -220,16 +222,11 @@ def validate_candidate_classification(gpt_result: dict, candidate_text: str) -> 
     ]
     has_bibu_cert = any(kw in text_lower for kw in _bibu_cert_phrases)
 
-    # Zusaetzlich: Wenn "bilanzbuchhalter" im Bereich Ausbildung/Weiterbildung/Zertifikate steht
-    # (nicht nur als Jobtitel), gilt es auch als Zertifikat
-    if not has_bibu_cert and "bilanzbuchhalter" in text_lower:
-        # Pruefe ob es im Kontext von Ausbildung/Zertifikaten vorkommt
-        for context_kw in ["ausbildung", "weiterbildung", "zertifikat", "fortbildung",
-                           "qualifikation", "abschluss", "prüfung", "pruefung",
-                           "schulung", "lehrgang"]:
-            if context_kw in text_lower:
-                has_bibu_cert = True
-                break
+    # HINWEIS: Keine fuzzy Kontext-Pruefung mehr!
+    # Der alte Code pruefte ob "bilanzbuchhalter" + "ausbildung" irgendwo im Text stehen,
+    # aber "AUSBILDUNG:" ist ein fester Section-Header der IMMER im Text steht.
+    # Dadurch wurde has_bibu_cert faelschlich auf True gesetzt.
+    # Jetzt nur noch explizite Phrasen aus _bibu_cert_phrases.
 
     if gpt_result.get("primary_role") == "Bilanzbuchhalter/in":
         if has_ja_prep and not has_bibu_cert:
