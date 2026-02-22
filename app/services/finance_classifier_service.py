@@ -53,8 +53,11 @@ Waehle die am besten passende Rolle:
 - Debitorenbuchhalter/in (bucht hauptsaechlich nur Debitoren / Mahnwesen / Forderungen)
 - Lohnbuchhalter/in (Lohn- und Gehaltsabrechnung, Payroll)
 - Steuerfachangestellte/r (StFA-Ausbildung, Kanzlei, Steuererklaerungen)
+- Teamleiter Finanzbuchhaltung (fuehrt ein FiBu-Team und bucht ggf. auch selbst)
+- Teamleiter Kreditorenbuchhaltung (fuehrt ein Kreditoren-Team)
+- Teamleiter Debitorenbuchhaltung (fuehrt ein Debitoren-Team)
 - Financial Controller (Controlling, Reporting, Analyse, Budgetplanung, Forecasting)
-- Leiter Buchhaltung (fuehrt ein Buchhaltungsteam operativ)
+- Leiter Buchhaltung (fuehrt die gesamte Buchhaltungsabteilung)
 - Head of Finance (Leitung Finanzen, CFO, VP Finance, kaufmaennischer Leiter)
 
 Waehle einfach die Rolle die am besten passt. Vertraue deinem Urteil.
@@ -84,8 +87,11 @@ Waehle die am besten passende Rolle:
 - Debitorenbuchhalter/in (hauptsaechlich Debitoren / Mahnwesen)
 - Lohnbuchhalter/in (Payroll, Entgeltabrechnung)
 - Steuerfachangestellte/r (Kanzlei, Steuererklaerungen)
+- Teamleiter Finanzbuchhaltung (fuehrt ein FiBu-Team)
+- Teamleiter Kreditorenbuchhaltung (fuehrt ein Kreditoren-Team)
+- Teamleiter Debitorenbuchhaltung (fuehrt ein Debitoren-Team)
 - Financial Controller (Controlling, Reporting, Analyse, Budgetplanung)
-- Leiter Buchhaltung (Leitung eines Buchhaltungsteams)
+- Leiter Buchhaltung (Leitung der gesamten Buchhaltungsabteilung)
 - Head of Finance (CFO, VP Finance, Leitung Finanzen)
 
 Waehle einfach die Rolle die am besten passt. Vertraue deinem Urteil.
