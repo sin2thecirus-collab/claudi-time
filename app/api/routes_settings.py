@@ -254,7 +254,7 @@ async def update_system_setting(
 # ── Helper: Threshold aus DB lesen (wird von matching_engine importiert) ──
 
 async def get_drive_time_threshold(db: AsyncSession) -> int:
-    """Liest den drive_time_score_threshold aus der DB. Fallback: 70."""
+    """Liest den drive_time_score_threshold aus der DB. Fallback: 80."""
     try:
         result = await db.execute(
             select(SystemSetting.value).where(
@@ -266,4 +266,4 @@ async def get_drive_time_threshold(db: AsyncSession) -> int:
             return int(val)
     except Exception:
         pass
-    return 70  # Fallback
+    return 80  # Fallback

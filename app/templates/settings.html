@@ -435,8 +435,8 @@
     <script>
     function driveTimeThreshold() {
         return {
-            threshold: 70,
-            originalValue: 70,
+            threshold: 80,
+            originalValue: 80,
             saving: false,
             saved: false,
             dirty: false,
@@ -451,7 +451,7 @@
                     const resp = await fetch('/api/settings/system/drive_time_score_threshold');
                     if (resp.ok) {
                         const data = await resp.json();
-                        this.threshold = parseInt(data.value) || 70;
+                        this.threshold = parseInt(data.value) || 80;
                         this.originalValue = this.threshold;
                     }
                 } catch (e) {

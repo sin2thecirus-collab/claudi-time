@@ -616,7 +616,7 @@ class BatchClassificationResult:
 class FinanceClassifierService:
     """Klassifiziert FINANCE-Kandidaten/Jobs via OpenAI anhand des Werdegangs."""
 
-    MODEL = "gpt-4o-mini"
+    MODEL = "gpt-4o"
 
     def __init__(self, db: AsyncSession, api_key: str | None = None):
         self.db = db
