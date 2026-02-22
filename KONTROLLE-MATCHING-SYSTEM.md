@@ -416,18 +416,29 @@ Der "Vorstellen"-Button im Action Board macht EINE Sache:
 #### Aktion A: "Job an Kandidat senden"
 > Milad schickt dem Kandidaten den Job-Vorschlag per E-Mail
 
-1. Job-PDF wird generiert (bestehender `JobDescriptionPdfService`)
+1. **NEUES** Job-Vorstellungs-PDF wird generiert (NEUER `JobVorstellungPdfService`)
+   - Im gleichen Sincirus-Design wie das Kandidaten-Profil-PDF
+   - Schoen gestaltet, professionell, NICHT die alte Job-Description
+   - Personalisiert fuer den Kandidaten (Anrede, Fahrzeit, fachliche Passung)
 2. E-Mail wird vorbereitet mit Job-Details + PDF-Anhang
 3. E-Mail-Variante wird automatisch gewaehlt (siehe Feature 4)
 4. Milad prueft die E-Mail und klickt "Senden"
 
+**WICHTIG:** Die Job-Detailseite bekommt ebenfalls einen "Job-PDF erstellen"-Button
+(analog zum "Profil-PDF erstellen"-Button auf der Kandidaten-Detailseite).
+Wenn "Job an Kandidat senden" geklickt wird, wird automatisch das gleiche PDF generiert.
+
 #### Aktion B: "Kandidat beim Kunden vorstellen"
 > Milad schickt dem Kunden das Kandidaten-Profil per E-Mail
 
-1. Kandidaten-Profil-PDF wird generiert (bestehender `ProfilePdfService`)
-2. E-Mail wird vorbereitet mit Kandidaten-Highlights + PDF-Anhang
-3. E-Mail-Variante wird automatisch gewaehlt (siehe Feature 4)
-4. Milad prueft die E-Mail und klickt "Senden"
+1. Kandidaten-Profil-PDF wird generiert (bestehender `ProfilePdfService` — GLEICHER Code wie der "Profil-PDF"-Button auf der Kandidaten-Detailseite)
+2. Milad waehlt den **Empfaenger** aus:
+   - Einen bestehenden **Kontakt** im Unternehmen (aus der Kontakte-Tabelle)
+   - Oder ein **Bewerber-Postfach** (allgemeine E-Mail des Unternehmens)
+   - Oder eine manuelle E-Mail-Adresse
+3. E-Mail wird vorbereitet mit Kandidaten-Highlights + PDF-Anhang
+4. E-Mail-Variante wird automatisch gewaehlt (siehe Feature 4)
+5. Milad prueft die E-Mail und klickt "Senden"
 
 ### UI-Aenderung im Action Board
 
@@ -435,22 +446,48 @@ Statt einem "Vorstellen"-Button gibt es jetzt ein Dropdown oder zwei separate Bu
 
 ```
 ┌──────────────────────────────┐
-│  [Job an Kandidat senden]    │  ← Schickt Job-Vorschlag an Kandidat
-│  [Profil an Kunden senden]   │  ← Schickt Kandidaten-Profil an Kunde
+│  [Job an Kandidat senden]    │  ← Generiert Job-PDF + E-Mail an Kandidat
+│  [Profil an Kunden senden]   │  ← Nutzt bestehendes Profil-PDF + E-Mail an Kontakt/Postfach
 │  [Spaeter]                   │
 │  [Ablehnen]                  │
 └──────────────────────────────┘
 ```
 
-### Bestehender Code der wiederverwendet wird
+### Empfaenger-Auswahl bei "Profil an Kunden senden"
 
-| Was | Datei | Methode |
-|-----|-------|---------|
-| Kandidaten-Profil-PDF | `app/services/profile_pdf_service.py` | `generate_profile_pdf(candidate_id)` |
-| Job-PDF fuer Kandidat | `app/services/job_description_pdf_service.py` | `generate_job_pdf(match_id)` |
-| E-Mail senden | `app/services/outreach_service.py` | `send_to_candidate(match_id)` |
-| Profil-PDF Endpoint | `app/api/routes_candidates.py` Z.1419 | `GET /{candidate_id}/profile-pdf` |
-| Job-PDF Endpoint | `app/api/routes_matches.py` Z.600 | `GET /matches/{match_id}/job-pdf` |
+Wenn Milad "Profil an Kunden senden" klickt, oeffnet sich ein Dialog:
+
+```
+┌─────────────────────────────────────────┐
+│  Kandidat vorstellen bei:               │
+│  {Firma XYZ} — {Job Position}           │
+│                                         │
+│  An wen senden?                         │
+│  ┌─────────────────────────────────┐    │
+│  │ ○ Max Mueller (HR Manager)      │    │
+│  │   max.mueller@firma.de          │    │
+│  │ ○ Lisa Schmidt (Abteilungsltr.) │    │
+│  │   l.schmidt@firma.de            │    │
+│  │ ○ bewerbungen@firma.de          │    │
+│  │ ○ Andere E-Mail eingeben...     │    │
+│  └─────────────────────────────────┘    │
+│                                         │
+│  [E-Mail vorbereiten]  [Abbrechen]      │
+└─────────────────────────────────────────┘
+```
+
+Die Kontakte kommen aus der bestehenden Kontakte-Tabelle des Unternehmens.
+
+### Code-Uebersicht
+
+| Was | Datei | Methode | Neu/Bestehend |
+|-----|-------|---------|---------------|
+| Kandidaten-Profil-PDF | `app/services/profile_pdf_service.py` | `generate_profile_pdf(candidate_id)` | BESTEHEND (wird wiederverwendet) |
+| Job-Vorstellungs-PDF | `app/services/job_vorstellung_pdf_service.py` | `generate_job_vorstellung_pdf(match_id)` | **NEU** (gleiches Design wie Profil-PDF) |
+| Job-PDF Button (Job-Detailseite) | `app/api/routes_jobs.py` | `GET /jobs/{id}/vorstellung-pdf` | **NEU** |
+| E-Mail an Kandidat | `app/services/outreach_service.py` | `send_to_candidate(match_id)` | BESTEHEND (wird erweitert) |
+| E-Mail an Kunden | `app/services/outreach_service.py` | `send_to_customer(match_id, contact_id)` | **NEU** |
+| Profil-PDF Endpoint | `app/api/routes_candidates.py` Z.1419 | `GET /{candidate_id}/profile-pdf` | BESTEHEND |
 
 ---
 
@@ -660,12 +697,59 @@ Die Erkennung basiert auf harten Daten (Hat der Kandidat eine E-Mail bekommen? J
 
 ### Was wann generiert wird
 
-| Aktion | PDF | Service | Template |
-|--------|-----|---------|----------|
-| Job an Kandidat senden | Job-Beschreibung (personalisiert) | `JobDescriptionPdfService` | `job_description_sincirus.html` |
-| Profil an Kunden senden | Kandidaten-Profil | `ProfilePdfService` | `profile_sincirus_branded.html` |
+| Aktion | PDF | Service | Template | Neu? |
+|--------|-----|---------|----------|------|
+| Job an Kandidat senden | **Job-Vorstellungs-PDF** (schoen designt) | `JobVorstellungPdfService` **NEU** | `job_vorstellung_sincirus.html` **NEU** | JA |
+| Profil an Kunden senden | Kandidaten-Profil (bestehendes Design) | `ProfilePdfService` BESTEHEND | `profile_sincirus_branded.html` | NEIN |
+| Button auf Job-Detailseite | **Job-Vorstellungs-PDF** (ohne Kandidat) | `JobVorstellungPdfService` **NEU** | `job_vorstellung_sincirus.html` **NEU** | JA |
 
-### WICHTIG: Bestehender Code wird WIEDERVERWENDET
+### NEUES Job-Vorstellungs-PDF
+
+Das bestehende `JobDescriptionPdfService` erstellt ein einfaches Job-PDF. Das reicht nicht.
+Milad will ein **richtig schoen designtes PDF** — im gleichen Sincirus-Stil wie das Kandidaten-Profil.
+
+**Was das neue Job-Vorstellungs-PDF enthaelt:**
+- Sincirus-Header mit Logo (gleich wie Profil-PDF)
+- Hero-Section: Job-Titel, Firma, Stadt
+- Quick Facts: Gehalt, Arbeitszeit, Arbeitsmodell, Branche, Team-Groesse
+- Aufgaben-Liste (aus job_text extrahiert)
+- Anforderungen-Liste (aus job_text extrahiert)
+- Wenn personalisiert fuer einen Kandidaten:
+  - Fahrzeit (Auto + OEPNV)
+  - Kurze fachliche Einschaetzung warum der Job passt
+- Consultant-Info (Milad Hamdard)
+
+**Design-Vorlage:** EXAKT gleiches Layout wie `profile_sincirus_branded.html`:
+- Gleiche Farben, Schriften, Abstande
+- Gleicher Header/Footer
+- Gleiche Section-Struktur (Hero → Quick Facts → Details → Kontakt)
+
+**Technisch:**
+```python
+# NEUER Service: app/services/job_vorstellung_pdf_service.py
+class JobVorstellungPdfService:
+    async def generate_job_vorstellung_pdf(
+        self,
+        job_id: UUID,
+        candidate_id: UUID | None = None,  # Optional: fuer personalisierte Version
+        match_id: UUID | None = None,       # Optional: fuer Fahrzeit + Score
+    ) -> bytes:
+        # 1. Job laden
+        # 2. Optional: Kandidat + Match laden (fuer Personalisierung)
+        # 3. Aufgaben + Anforderungen aus job_text extrahieren
+        # 4. Template rendern (job_vorstellung_sincirus.html)
+        # 5. WeasyPrint → PDF
+        pass
+```
+
+**NEUER Endpoint auf Job-Detailseite:**
+```
+GET /api/jobs/{job_id}/vorstellung-pdf?candidate_id=...&match_id=...
+```
+- Ohne candidate_id: Generisches Job-PDF (fuer manuelle Weiterleitung)
+- Mit candidate_id: Personalisiertes Job-PDF (mit Fahrzeit + Einschaetzung)
+
+### Kandidaten-Profil-PDF (BESTEHEND — wird wiederverwendet)
 
 Fuer "Profil an Kunden senden" wird EXAKT der gleiche Code verwendet wie der bestehende "Profil-PDF"-Button auf der Kandidaten-Detailseite:
 
@@ -676,16 +760,7 @@ pdf_service = ProfilePdfService(db)
 pdf_bytes = await pdf_service.generate_profile_pdf(candidate_id)
 ```
 
-Es wird KEIN neuer PDF-Service erstellt. Der bestehende wird wiederverwendet.
-
-### Zukuenftig moeglich: Match-spezifisches PDF
-
-Spaeter koennte ein neues PDF erstellt werden, das BEIDES zeigt:
-- Links: Kandidaten-Profil (Kurzversion)
-- Rechts: Job-Anforderungen
-- Unten: Gegenuberstellungstabelle
-
-Das ist aber eine Erweiterung und wird NICHT im ersten Schritt umgesetzt.
+Es wird KEIN neuer Profil-PDF-Service erstellt. Der bestehende wird wiederverwendet.
 
 ---
 
@@ -800,28 +875,37 @@ Das ist aber eine Erweiterung und wird NICHT im ersten Schritt umgesetzt.
 2. Compare-Template fuer Paare OHNE Match anpassen
 3. Vergleichs-Button in Stufe-0 und Stufe-1 Ansichten einbauen
 
-### Phase 3: Vorstellen aufteilen (Prio 3)
+### Phase 3: Vorstellen aufteilen + Job-PDF (Prio 3)
 
-1. Action-Endpoint erweitern: `action = "job_an_kandidat"` und `action = "profil_an_kunden"`
-2. UI: Dropdown oder zwei Buttons statt einem
-3. PDF-Generierung integrieren (bestehende Services)
-4. E-Mail-Vorbereitungs-Dialog bauen
+1. **NEUEN** `JobVorstellungPdfService` bauen (gleiches Design wie Profil-PDF)
+2. **NEUES** Template `job_vorstellung_sincirus.html` erstellen
+3. **NEUER** Endpoint: `GET /api/jobs/{id}/vorstellung-pdf` auf Job-Detailseite
+4. **NEUER** Button auf Job-Detailseite: "Job-PDF erstellen" (analog zum Profil-PDF Button)
+5. Action-Endpoint erweitern: `action = "job_an_kandidat"` und `action = "profil_an_kunden"`
+6. UI: Dropdown oder zwei Buttons statt einem "Vorstellen"
+7. Empfaenger-Auswahl-Dialog bauen (Kontakte im Unternehmen, Postfach, manuell)
+8. "Job an Kandidat senden" → Job-Vorstellungs-PDF automatisch generieren
+9. "Profil an Kunden senden" → Bestehenden Profil-PDF-Code aufrufen
 
 ### Phase 4: E-Mail-Automatisierung (Prio 4)
 
 1. Varianten-Erkennung implementieren (Erst/Folgekontakt)
 2. 4 E-Mail-Templates als Jinja2-Templates
 3. GPT-4o fachliche Einschaetzung generieren
-4. E-Mail-Vorschau-Dialog im Frontend
-5. Senden-Button (Microsoft Graph API)
-6. Outreach-Status tracking erweitern
+4. E-Mail-Vorschau-Dialog im Frontend (mit editierbarem Text)
+5. Varianten-Wechsel im Dialog (falls falsch erkannt)
+6. Senden-Button (Microsoft Graph API)
+7. Outreach-Status tracking erweitern
 
 ### Phase 5: Testing + Feinschliff (Prio 5)
 
-1. Kompletten Flow testen: Stufe 0 → 1 → 2 → Vorstellen → E-Mail
-2. Edge Cases pruefen (leere Ergebnisse, Fehler in einzelnen Stufen)
-3. Kosten tracken und validieren
-4. UI polieren
+1. Milad legt Test-Unternehmen mit Kontakten an (fuer Kunden-E-Mail-Test)
+2. Kompletten Flow testen: Stufe 0 → 1 → 2 → Vorstellen → E-Mail
+3. Test "Job an Kandidat senden" (Job-PDF + E-Mail an Kandidat)
+4. Test "Profil an Kunden senden" (Profil-PDF + Kontakt-Auswahl + E-Mail an Kontakt/Postfach)
+5. Edge Cases pruefen (leere Ergebnisse, Fehler in einzelnen Stufen, kein Kontakt vorhanden)
+6. Kosten tracken und validieren
+7. UI polieren
 
 ---
 
@@ -841,6 +925,9 @@ Das ist aber eine Erweiterung und wird NICHT im ersten Schritt umgesetzt.
 | H8 | Google Maps Fahrzeit kostet $5/1000 Elements | PLZ-Cache spart ~70-80% der Calls. Threshold jetzt bei 80 (vorher 70). | 22.02.2026 |
 | H9 | Klassifizierung jetzt GPT-4o (vorher mini) | ~10x teurer pro Call aber genauer. Wichtig fuer korrekte Rollen-Zuweisung. | 22.02.2026 |
 | H10 | `candidate.city` Label im Query ist `"candidate_city"` | In der Stufe-0-Query wird `Candidate.city.label("candidate_city")` verwendet, aber `_extract_candidate_data()` sucht `row.get("city")`. Ergebnis: city ist immer "Unbekannt". Muss gefixt werden. | 22.02.2026 |
+| H11 | Job-Vorstellungs-PDF ist NEU, nicht der alte JobDescriptionPdfService | Milad will ein richtig schoen designtes PDF im gleichen Stil wie das Kandidaten-Profil. Der alte Service reicht dafuer nicht. | 22.02.2026 |
+| H12 | E-Mails an Kunden gehen an KONTAKTE, nicht an Firmen | Milad waehlt aus den bestehenden Kontakten im Unternehmen oder gibt ein Bewerber-Postfach ein. Die Kontakte-Tabelle muss existieren. | 22.02.2026 |
+| H13 | Stufe-0 und Stufe-1 haben BEIDE: Vergleichs-Button + Ausschliessen-Button | Milad will in JEDER Stufe Paare pruefen (Vergleich) und ausschliessen koennen. Nicht nur in Stufe 0. | 22.02.2026 |
 
 ### Offene Fragen
 
@@ -851,6 +938,7 @@ Das ist aber eine Erweiterung und wird NICHT im ersten Schritt umgesetzt.
 | F3 | Soll das "alte" `run_matching()` als Fallback erhalten bleiben (fuer den n8n Morgen-Cron)? | EMPFEHLUNG: Ja, als `/api/v4/claude-match/run-auto` (ohne manuelle Kontrolle) |
 | F4 | Braucht der Kunden-E-Mail-Versand einen eigenen Microsoft Graph Zugang oder geht er ueber den gleichen? | PRUEFEN — Aktuell geht alles ueber Milads Graph Account |
 | F5 | Soll die Kosten-Anzeige auch historische Kosten zeigen (alle bisherigen Laeufe)? | OFFEN |
+| F6 | Gibt es bereits eine Kontakte-Tabelle im System (fuer Unternehmens-Kontakte)? | PRUEFEN — Wird gebraucht fuer Empfaenger-Auswahl bei "Profil an Kunden senden" |
 
 ### Aenderungsprotokoll
 
@@ -859,3 +947,6 @@ Das ist aber eine Erweiterung und wird NICHT im ersten Schritt umgesetzt.
 | 22.02.2026 | Datei erstellt | Milad will kontrolliertes Matching + E-Mail-Automatisierung |
 | 22.02.2026 | GPT-4o statt gpt-4o-mini | Milad wuenscht genauere Klassifizierung |
 | 22.02.2026 | Fahrzeit-Threshold 70 → 80 | Milad will Kosten sparen, nur Top-Matches bekommen Fahrzeit |
+| 22.02.2026 | Job-PDF korrigiert | Milad will NEUES Job-Vorstellungs-PDF im Profil-Design, nicht den alten JobDescriptionPdfService |
+| 22.02.2026 | Empfaenger-Auswahl ergaenzt | Profil an Kunden geht an bestehende Kontakte/Postfaecher, nicht an "die Firma" |
+| 22.02.2026 | Phase 1+2 bestaetigt | Vergleichs-Button + Ausschliessen-Button sind in JEDER Stufe (0+1) vorhanden |

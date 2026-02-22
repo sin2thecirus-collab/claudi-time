@@ -12,14 +12,22 @@
                 <h1 style="font-size:20px;font-weight:700;color:var(--pp-text);letter-spacing:-0.03em;">Action Board</h1>
                 <p style="font-size:13px;color:var(--pp-textMuted);margin-top:4px;" x-text="lastRunText"></p>
             </div>
-            <button @click="startMatching()"
-                    :disabled="matchingRunning"
-                    style="padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;border:none;cursor:pointer;transition:all .15s;"
-                    :style="matchingRunning
-                        ? 'background:var(--pp-surface3);color:var(--pp-textDim);cursor:not-allowed;'
-                        : 'background:var(--pp-accent);color:#fff;'"
-                    x-text="matchingRunning ? 'Laeuft...' : 'Matching starten'">
-            </button>
+            <div style="display:flex;gap:8px;">
+                <button @click="startKontrolliertesMatching()"
+                        :disabled="matchingRunning"
+                        style="padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;border:none;cursor:pointer;transition:all .15s;"
+                        :style="matchingRunning
+                            ? 'background:var(--pp-surface3);color:var(--pp-textDim);cursor:not-allowed;'
+                            : 'background:var(--pp-accent);color:#fff;'"
+                        x-text="matchingRunning ? 'Laeuft...' : 'Kontrolliertes Matching'">
+                </button>
+                <button @click="startMatching()"
+                        :disabled="matchingRunning"
+                        style="padding:8px 14px;border-radius:8px;font-size:12px;font-weight:500;border:1px solid var(--pp-border);cursor:pointer;transition:all .15s;background:var(--pp-surface);color:var(--pp-textMuted);"
+                        :style="matchingRunning ? 'cursor:not-allowed;opacity:0.5;' : ''"
+                        title="Alle 3 Stufen automatisch ohne Kontrolle">Auto
+                </button>
+            </div>
         </div>
 
         <!-- Summary Cards -->
@@ -61,6 +69,156 @@
         </div>
     </div>
 
+    <!-- ══════════════════════════════════════════════ -->
+    <!-- KONTROLLIERTES MATCHING — Stufen-Ansicht      -->
+    <!-- ══════════════════════════════════════════════ -->
+
+    <!-- STUFE 0: Paare-Uebersicht -->
+    <div x-show="stufenView === 'stufe_0'" x-transition style="margin-bottom:32px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <div>
+                <h2 style="font-size:16px;font-weight:700;color:var(--pp-text);">Stufe 0 — Gefundene Paare</h2>
+                <p style="font-size:12px;color:var(--pp-textMuted);margin-top:2px;"
+                   x-text="stufenData.total_claude_pairs + ' Claude-Paare, ' + stufenData.total_proximity_pairs + ' Naehe-Paare'"></p>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <span style="font-size:11px;color:var(--pp-textDim);"
+                      x-text="'Geschaetzte Kosten Stufe 1: $' + (stufenData.cost_stufe_1?.cost_estimate_usd || 0).toFixed(2)"></span>
+                <button @click="startStufe1()"
+                        :disabled="matchingRunning"
+                        style="padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;border:none;cursor:pointer;background:var(--pp-accent);color:#fff;">
+                    Stufe 1 starten
+                </button>
+            </div>
+        </div>
+
+        <!-- Paare-Tabelle -->
+        <div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:10px;overflow:hidden;">
+            <template x-for="(pair, idx) in stufenData.claude_pairs || []" :key="pair.candidate_id + pair.job_id">
+                <div style="padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--pp-borderLight);"
+                     :style="pair.excluded ? 'opacity:0.35;text-decoration:line-through;' : ''">
+                    <div style="flex:1;">
+                        <span style="font-size:13px;font-weight:600;color:var(--pp-text);" x-text="pair.candidate_role"></span>
+                        <span style="font-size:12px;color:var(--pp-textDim);"> aus </span>
+                        <span style="font-size:12px;color:var(--pp-text);" x-text="pair.candidate_city"></span>
+                        <span style="font-size:12px;color:var(--pp-textDim);"> &rarr; </span>
+                        <span style="font-size:13px;color:var(--pp-text);" x-text="pair.job_position"></span>
+                        <span style="font-size:12px;color:var(--pp-textMuted);" x-text="' bei ' + pair.job_company + ', ' + pair.job_city"></span>
+                    </div>
+                    <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;margin-left:12px;">
+                        <span style="font-size:11px;color:var(--pp-green);font-weight:600;" x-text="pair.distance_km ? pair.distance_km + ' km' : '?'"></span>
+                        <button @click="openCompare(pair.candidate_id, pair.job_id)"
+                                style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:500;border:1px solid var(--pp-border);cursor:pointer;background:var(--pp-surface);color:var(--pp-accent);">Vergleich</button>
+                        <button @click="toggleExclude(pair)"
+                                style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:500;border:none;cursor:pointer;"
+                                :style="pair.excluded ? 'background:var(--pp-greenSoft);color:var(--pp-green);' : 'background:var(--pp-redSoft);color:var(--pp-red);'"
+                                x-text="pair.excluded ? 'Zurueck' : 'Ausschliessen'">
+                        </button>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- STUFE 1: Quick-Check Ergebnisse -->
+    <div x-show="stufenView === 'stufe_1'" x-transition style="margin-bottom:32px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <div>
+                <h2 style="font-size:16px;font-weight:700;color:var(--pp-text);">Stufe 1 — Quick-Check Ergebnisse</h2>
+                <p style="font-size:12px;color:var(--pp-textMuted);margin-top:2px;"
+                   x-text="stufe1Data.passed_count + ' bestanden, ' + stufe1Data.failed_count + ' durchgefallen, $' + (stufe1Data.cost_usd || 0).toFixed(2)"></p>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <span style="font-size:11px;color:var(--pp-textDim);"
+                      x-text="'Geschaetzte Kosten Stufe 2: $' + (stufe1Data.cost_stufe_2?.cost_estimate_usd || 0).toFixed(2)"></span>
+                <button @click="startStufe2()"
+                        :disabled="matchingRunning"
+                        style="padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;border:none;cursor:pointer;background:var(--pp-accent);color:#fff;">
+                    Stufe 2 starten
+                </button>
+            </div>
+        </div>
+
+        <!-- Bestanden -->
+        <h3 style="font-size:13px;font-weight:600;color:var(--pp-green);margin-bottom:8px;">Bestanden</h3>
+        <div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:10px;overflow:hidden;margin-bottom:16px;">
+            <template x-for="pair in stufe1Data.passed || []" :key="pair.candidate_id + pair.job_id">
+                <div style="padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--pp-borderLight);">
+                    <div style="flex:1;">
+                        <span style="font-size:13px;font-weight:600;color:var(--pp-text);" x-text="pair.candidate_role"></span>
+                        <span style="font-size:12px;color:var(--pp-textDim);"> &rarr; </span>
+                        <span style="font-size:13px;color:var(--pp-text);" x-text="pair.job_position"></span>
+                        <span style="font-size:12px;color:var(--pp-textMuted);" x-text="' bei ' + pair.job_company"></span>
+                        <div style="font-size:11px;color:var(--pp-green);margin-top:2px;" x-text="pair.quick_reason"></div>
+                    </div>
+                    <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;margin-left:12px;">
+                        <span style="font-size:11px;color:var(--pp-green);font-weight:600;" x-text="pair.distance_km ? pair.distance_km + ' km' : '?'"></span>
+                        <button @click="openCompare(pair.candidate_id, pair.job_id)"
+                                style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:500;border:1px solid var(--pp-border);cursor:pointer;background:var(--pp-surface);color:var(--pp-accent);">Vergleich</button>
+                        <button @click="excludeFromStufe1(pair)"
+                                style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:500;border:none;cursor:pointer;background:var(--pp-redSoft);color:var(--pp-red);">Ausschliessen</button>
+                    </div>
+                </div>
+            </template>
+            <div x-show="!stufe1Data.passed || stufe1Data.passed.length === 0" style="padding:20px;text-align:center;color:var(--pp-textMuted);font-size:13px;">
+                Keine Paare bestanden
+            </div>
+        </div>
+
+        <!-- Durchgefallen (eingeklappt) -->
+        <details style="margin-bottom:16px;">
+            <summary style="font-size:13px;font-weight:600;color:var(--pp-textDim);cursor:pointer;margin-bottom:8px;"
+                     x-text="'Durchgefallen (' + (stufe1Data.failed?.length || 0) + ')'"></summary>
+            <div style="background:var(--pp-surface);border:1px solid var(--pp-borderLight);border-radius:10px;overflow:hidden;">
+                <template x-for="pair in stufe1Data.failed || []" :key="pair.candidate_id + pair.job_id">
+                    <div style="padding:10px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--pp-borderLight);opacity:0.6;">
+                        <div>
+                            <span style="font-size:12px;color:var(--pp-textMuted);" x-text="pair.candidate_role + ' → ' + pair.job_position"></span>
+                            <span style="font-size:11px;color:var(--pp-red);margin-left:8px;" x-text="pair.quick_reason"></span>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </details>
+    </div>
+
+    <!-- STUFE 2: Ergebnisse (nach Abschluss) -->
+    <div x-show="stufenView === 'stufe_2_done'" x-transition style="margin-bottom:32px;">
+        <div style="margin-bottom:16px;">
+            <h2 style="font-size:16px;font-weight:700;color:var(--pp-text);">Stufe 2 — Ergebnisse</h2>
+            <p style="font-size:12px;color:var(--pp-textMuted);margin-top:2px;"
+               x-text="(stufe2Data.matches_saved_count || 0) + ' Matches gespeichert, ' + (stufe2Data.top_matches || 0) + ' Top, ' + (stufe2Data.wow_matches || 0) + ' Wow, $' + (stufe2Data.total_session_cost_usd || 0).toFixed(2) + ' gesamt'"></p>
+        </div>
+
+        <div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:10px;overflow:hidden;">
+            <template x-for="m in stufe2Data.matches_saved || []" :key="m.match_id">
+                <div style="padding:14px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--pp-borderLight);">
+                    <div style="flex:1;">
+                        <span style="font-size:13px;font-weight:600;color:var(--pp-text);" x-text="m.empfehlung === 'vorstellen' ? 'VORSTELLEN' : m.empfehlung"></span>
+                        <span style="font-size:12px;color:var(--pp-textMuted);margin-left:8px;" x-text="m.zusammenfassung"></span>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <span x-show="m.wow_faktor" style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:50px;background:var(--pp-orange);color:#000;">WOW</span>
+                        <div style="border-radius:50px;padding:3px 10px;font-weight:700;font-size:13px;color:#fff;"
+                             :style="'background:' + (m.score >= 85 ? 'var(--pp-green)' : m.score >= 70 ? 'var(--pp-accent)' : 'var(--pp-orange)')"
+                             x-text="m.score"></div>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <button @click="stufenView = ''; loadMatches();"
+                style="margin-top:16px;padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;border:1px solid var(--pp-border);cursor:pointer;background:var(--pp-surface);color:var(--pp-text);">
+            Zum Action Board
+        </button>
+    </div>
+
+    <!-- ══════════════════════════════════════════════ -->
+    <!-- NORMALES ACTION BOARD (Matches-Ansicht)        -->
+    <!-- ══════════════════════════════════════════════ -->
+
+    <div x-show="!stufenView">
+
     <!-- Loading -->
     <div x-show="loading" style="text-align:center;padding:40px;color:var(--pp-textMuted);font-size:13px;">
         Lade Matches...
@@ -71,7 +229,7 @@
          style="text-align:center;padding:60px 20px;color:var(--pp-textMuted);">
         <div style="font-size:32px;margin-bottom:12px;">&#128640;</div>
         <p style="font-size:15px;font-weight:600;color:var(--pp-text);margin-bottom:6px;">Keine neuen Matches</p>
-        <p style="font-size:13px;">Klicke "Matching starten" um neue Paare zu pruefen.</p>
+        <p style="font-size:13px;">Klicke "Kontrolliertes Matching" um neue Paare zu pruefen.</p>
     </div>
 
     <!-- TOP MATCHES -->
@@ -260,11 +418,29 @@
             </template>
         </div>
     </div>
+
+    </div><!-- Ende normales Action Board -->
+
+    <!-- Compare Modal -->
+    <div x-show="compareOpen" x-transition
+         style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:50;display:flex;align-items:center;justify-content:center;"
+         @click.self="compareOpen = false">
+        <div style="background:var(--pp-surface);border-radius:16px;width:90%;max-width:800px;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--pp-border);">
+                <h3 style="font-size:15px;font-weight:700;color:var(--pp-text);">Vergleich</h3>
+                <button @click="compareOpen = false" style="border:none;background:none;cursor:pointer;font-size:18px;color:var(--pp-textDim);">✕</button>
+            </div>
+            <div id="compare-content" style="padding:20px;" x-html="compareHtml">
+                <div style="text-align:center;color:var(--pp-textMuted);padding:40px;">Lade Vergleich...</div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
 function actionBoard() {
     return {
+        // Normales Action Board
         topMatches: [],
         wowMatches: [],
         followUps: [],
@@ -276,6 +452,17 @@ function actionBoard() {
         progress: {},
         lastRun: null,
         pollInterval: null,
+
+        // Kontrolliertes Matching
+        stufenView: '',  // '', 'stufe_0', 'stufe_1', 'stufe_2_done'
+        sessionId: null,
+        stufenData: {},   // Stufe 0 Daten
+        stufe1Data: {},   // Stufe 1 Ergebnisse
+        stufe2Data: {},   // Stufe 2 Ergebnisse
+
+        // Compare Modal
+        compareOpen: false,
+        compareHtml: '',
 
         get lastRunText() {
             if (this.lastRun) {
@@ -296,7 +483,6 @@ function actionBoard() {
             const s1 = this.progress.processed_stufe_1 || 0;
             const s2 = this.progress.processed_stufe_2 || 0;
             const passed = this.progress.passed_stufe_1 || 0;
-            // Stufe 1 = 60%, Stufe 2 = 40%
             const p1 = Math.min(100, (s1 / total) * 60);
             const p2 = passed > 0 ? Math.min(100, (s2 / passed) * 40) : 0;
             return Math.min(100, Math.round(p1 + p2));
@@ -305,10 +491,10 @@ function actionBoard() {
         get progressText() {
             if (this.progress.stufe === 'stufe_0') return 'Lade Paare aus DB...';
             if (this.progress.stufe === 'stufe_1') return 'Quick-Check: ' + (this.progress.processed_stufe_1 || 0) + '/' + (this.progress.total_pairs || '?');
-            if (this.progress.stufe === 'stufe_2') return 'Deep Assessment: ' + (this.progress.processed_stufe_2 || 0) + '/' + (this.progress.passed_stufe_1 || '?');
+            if (this.progress.stufe === 'stufe_2') return 'Deep Assessment: ' + (this.progress.processed_stufe_2 || 0) + '/' + (this.progress.total_pairs || '?');
             if (this.progress.stufe === 'speichern') return 'Speichere Matches...';
             if (this.progress.stufe === 'fahrzeit') return 'Berechne Fahrzeiten...';
-            if (this.progress.stufe === 'fertig') return 'Fertig!';
+            if (this.progress.stufe === 'fertig' || this.progress.stufe === 'stufe_1_fertig') return 'Fertig!';
             return 'Initialisierung...';
         },
 
@@ -356,6 +542,7 @@ function actionBoard() {
             } catch(e) {}
         },
 
+        // ── Automatisches Matching (alle Stufen) ──
         async startMatching() {
             if (this.matchingRunning) return;
             this.matchingRunning = true;
@@ -366,6 +553,252 @@ function actionBoard() {
                 this.matchingRunning = false;
                 console.error('Start fehlgeschlagen:', e);
             }
+        },
+
+        // ── Kontrolliertes Matching ──
+        async startKontrolliertesMatching() {
+            if (this.matchingRunning) return;
+            try {
+                const res = await fetch('/api/v4/claude-match/run-stufe-0', {method: 'POST'});
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    this.sessionId = data.session_id;
+                    this.stufenData = data;
+                    this.stufenView = 'stufe_0';
+                } else {
+                    alert('Stufe 0 Fehler: ' + (data.message || 'Unbekannt'));
+                }
+            } catch(e) {
+                console.error('Stufe 0 fehlgeschlagen:', e);
+                alert('Stufe 0 fehlgeschlagen: ' + e.message);
+            }
+        },
+
+        async startStufe1() {
+            if (this.matchingRunning || !this.sessionId) return;
+            try {
+                // Zuerst ausgeschlossene Paare senden
+                const excludedPairs = (this.stufenData.claude_pairs || [])
+                    .filter(p => p.excluded)
+                    .map(p => ({candidate_id: p.candidate_id, job_id: p.job_id}));
+
+                if (excludedPairs.length > 0) {
+                    await fetch('/api/v4/claude-match/exclude-pairs', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({session_id: this.sessionId, pairs: excludedPairs}),
+                    });
+                }
+
+                // Stufe 1 starten
+                const res = await fetch('/api/v4/claude-match/run-stufe-1?session_id=' + this.sessionId, {method: 'POST'});
+                const data = await res.json();
+                if (data.status === 'started') {
+                    this.matchingRunning = true;
+                    this.startPollingStufe1();
+                } else {
+                    alert('Stufe 1 Fehler: ' + (data.message || data.detail || 'Unbekannt'));
+                }
+            } catch(e) {
+                console.error('Stufe 1 fehlgeschlagen:', e);
+            }
+        },
+
+        startPollingStufe1() {
+            if (this.pollInterval) clearInterval(this.pollInterval);
+            this.pollInterval = setInterval(async () => {
+                await this.loadStatus();
+                if (!this.matchingRunning) {
+                    clearInterval(this.pollInterval);
+                    this.pollInterval = null;
+                    // Session-Daten laden fuer Stufe 1 Ergebnisse
+                    await this.loadSessionData();
+                }
+            }, 2000);
+        },
+
+        async loadSessionData() {
+            if (!this.sessionId) return;
+            try {
+                const res = await fetch('/api/v4/claude-match/session/' + this.sessionId);
+                const data = await res.json();
+                if (data.current_stufe >= 1 && data.current_stufe < 2) {
+                    this.stufe1Data = {
+                        passed: data.passed_pairs.filter(p => !p.excluded),
+                        failed: data.failed_pairs,
+                        passed_count: data.passed_pairs.filter(p => !p.excluded).length,
+                        failed_count: data.failed_pairs.length,
+                        cost_usd: 0, // wird aus progress geladen
+                        cost_stufe_2: {},
+                    };
+                    // Kosten aus letztem progress
+                    if (this.progress.cost_estimate_usd) {
+                        this.stufe1Data.cost_usd = this.progress.cost_estimate_usd;
+                    }
+                    // Stufe 2 Kosten schaetzen (~$0.002 pro Paar)
+                    const passedCount = this.stufe1Data.passed_count;
+                    this.stufe1Data.cost_stufe_2 = {
+                        cost_estimate_usd: Math.round(passedCount * 0.002 * 10000) / 10000,
+                    };
+                    this.stufenView = 'stufe_1';
+                } else if (data.current_stufe >= 2) {
+                    this.stufe2Data = {
+                        matches_saved: data.deep_results,
+                        matches_saved_count: data.matches_saved,
+                        top_matches: data.deep_results.filter(m => m.empfehlung === 'vorstellen').length,
+                        wow_matches: data.deep_results.filter(m => m.wow_faktor).length,
+                        total_session_cost_usd: 0,
+                    };
+                    this.stufenView = 'stufe_2_done';
+                }
+            } catch(e) {
+                console.error('Session laden fehlgeschlagen:', e);
+            }
+        },
+
+        async startStufe2() {
+            if (this.matchingRunning || !this.sessionId) return;
+            try {
+                // Ausgeschlossene Paare von Stufe 1 senden
+                const excludedPairs = (this.stufe1Data.passed || [])
+                    .filter(p => p._excluded)
+                    .map(p => ({candidate_id: p.candidate_id, job_id: p.job_id}));
+
+                if (excludedPairs.length > 0) {
+                    await fetch('/api/v4/claude-match/exclude-pairs', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({session_id: this.sessionId, pairs: excludedPairs}),
+                    });
+                }
+
+                const res = await fetch('/api/v4/claude-match/run-stufe-2?session_id=' + this.sessionId, {method: 'POST'});
+                const data = await res.json();
+                if (data.status === 'started') {
+                    this.matchingRunning = true;
+                    this.startPollingStufe2();
+                } else {
+                    alert('Stufe 2 Fehler: ' + (data.message || data.detail || 'Unbekannt'));
+                }
+            } catch(e) {
+                console.error('Stufe 2 fehlgeschlagen:', e);
+            }
+        },
+
+        startPollingStufe2() {
+            if (this.pollInterval) clearInterval(this.pollInterval);
+            this.pollInterval = setInterval(async () => {
+                await this.loadStatus();
+                if (!this.matchingRunning) {
+                    clearInterval(this.pollInterval);
+                    this.pollInterval = null;
+                    await this.loadSessionData();
+                }
+            }, 2000);
+        },
+
+        // ── Paare ausschliessen ──
+        toggleExclude(pair) {
+            pair.excluded = !pair.excluded;
+        },
+
+        excludeFromStufe1(pair) {
+            pair._excluded = true;
+            this.stufe1Data.passed = this.stufe1Data.passed.filter(p =>
+                p.candidate_id !== pair.candidate_id || p.job_id !== pair.job_id
+            );
+            this.stufe1Data.passed_count = this.stufe1Data.passed.length;
+            // Kosten-Schaetzung aktualisieren
+            this.stufe1Data.cost_stufe_2 = {
+                cost_estimate_usd: Math.round(this.stufe1Data.passed_count * 0.002 * 10000) / 10000,
+            };
+        },
+
+        // ── Vergleich oeffnen ──
+        async openCompare(candidateId, jobId) {
+            this.compareOpen = true;
+            this.compareHtml = '<div style="text-align:center;color:var(--pp-textMuted);padding:40px;">Lade Vergleich...</div>';
+            try {
+                const res = await fetch('/api/v4/claude-match/compare-pair?candidate_id=' + candidateId + '&job_id=' + jobId);
+                const data = await res.json();
+                if (data.data) {
+                    const d = data.data;
+                    this.compareHtml = this.buildCompareHtml(d);
+                } else {
+                    this.compareHtml = '<div style="text-align:center;color:var(--pp-red);padding:40px;">Keine Daten gefunden</div>';
+                }
+            } catch(e) {
+                this.compareHtml = '<div style="text-align:center;color:var(--pp-red);padding:40px;">Fehler: ' + e.message + '</div>';
+            }
+        },
+
+        buildCompareHtml(d) {
+            let html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">';
+
+            // Kandidat
+            html += '<div>';
+            html += '<h4 style="font-size:14px;font-weight:700;color:var(--pp-accent);margin-bottom:12px;">Kandidat</h4>';
+            html += '<div style="font-size:13px;color:var(--pp-text);margin-bottom:4px;"><b>' + (d.candidate_name || 'Unbekannt') + '</b></div>';
+            html += '<div style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;">' + (d.candidate_current_position || '') + '</div>';
+            html += '<div style="font-size:12px;color:var(--pp-textMuted);margin-bottom:12px;">' + (d.candidate_city || '') + ' ' + (d.candidate_postal_code || '') + '</div>';
+
+            // Skills
+            if (d.skills && d.skills.length > 0) {
+                html += '<div style="margin-bottom:8px;"><span style="font-size:11px;font-weight:600;color:var(--pp-textDim);">Skills:</span>';
+                html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">';
+                const skills = Array.isArray(d.skills) ? d.skills.slice(0, 10) : [];
+                skills.forEach(s => {
+                    html += '<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:var(--pp-surface3);color:var(--pp-text);">' + s + '</span>';
+                });
+                html += '</div></div>';
+            }
+
+            // Berufserfahrung
+            if (d.work_history && d.work_history.length > 0) {
+                html += '<div style="margin-top:12px;"><span style="font-size:11px;font-weight:600;color:var(--pp-textDim);">Berufserfahrung:</span>';
+                const wh = Array.isArray(d.work_history) ? d.work_history.slice(0, 3) : [];
+                wh.forEach(w => {
+                    if (typeof w === 'object') {
+                        html += '<div style="margin-top:6px;font-size:12px;color:var(--pp-text);">';
+                        html += '<b>' + (w.position || '') + '</b>';
+                        if (w.company) html += ' bei ' + w.company;
+                        if (w.start_date) html += ' (' + w.start_date + ' - ' + (w.end_date || 'heute') + ')';
+                        html += '</div>';
+                        if (w.description) {
+                            html += '<div style="font-size:11px;color:var(--pp-textMuted);margin-top:2px;">' + w.description.substring(0, 200) + '</div>';
+                        }
+                    }
+                });
+                html += '</div>';
+            }
+            html += '</div>';
+
+            // Job
+            html += '<div>';
+            html += '<h4 style="font-size:14px;font-weight:700;color:var(--pp-green);margin-bottom:12px;">Stelle</h4>';
+            html += '<div style="font-size:13px;color:var(--pp-text);margin-bottom:4px;"><b>' + (d.job_position || '') + '</b></div>';
+            html += '<div style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;">' + (d.job_company_name || '') + '</div>';
+            html += '<div style="font-size:12px;color:var(--pp-textMuted);margin-bottom:12px;">' + (d.job_city || '') + ' ' + (d.job_postal_code || '') + '</div>';
+
+            // Job Text
+            if (d.job_text) {
+                html += '<div style="margin-top:8px;"><span style="font-size:11px;font-weight:600;color:var(--pp-textDim);">Stellenbeschreibung:</span>';
+                html += '<div style="font-size:12px;color:var(--pp-text);margin-top:4px;line-height:1.5;max-height:300px;overflow-y:auto;">' + d.job_text.substring(0, 1000).replace(/\n/g, '<br>') + '</div>';
+                html += '</div>';
+            }
+            html += '</div>';
+
+            html += '</div>';
+
+            // Score wenn vorhanden
+            if (d.ai_score) {
+                html += '<div style="margin-top:16px;padding:12px;background:var(--pp-surface3);border-radius:8px;">';
+                html += '<span style="font-size:13px;font-weight:700;">Score: ' + Math.round(d.ai_score * 100) + '</span>';
+                if (d.ai_explanation) html += '<p style="font-size:12px;color:var(--pp-text);margin-top:4px;">' + d.ai_explanation + '</p>';
+                html += '</div>';
+            }
+
+            return html;
         },
 
         startPolling() {

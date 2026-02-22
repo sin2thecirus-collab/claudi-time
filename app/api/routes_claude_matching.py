@@ -1,11 +1,20 @@
 """Claude Matching v4 — API Routes.
 
-Endpoints:
-  POST /claude-match/run               — Matching starten (Background-Task)
+Endpoints (Automatisch):
+  POST /claude-match/run               — Matching starten (alle Stufen, Background-Task)
+  POST /claude-match/run-auto          — Alias fuer /run (n8n Cron)
   GET  /claude-match/status             — Live-Fortschritt
   GET  /claude-match/daily              — Heutige Top-Matches fuer Action Board
   POST /claude-match/{match_id}/action  — Vorstellen/Spaeter/Ablehnen
   POST /claude-match/candidate/{id}     — Ad-hoc: Jobs fuer einen Kandidaten finden
+
+Endpoints (Kontrolliert — Stufe fuer Stufe):
+  POST /claude-match/run-stufe-0       — Stufe 0: Paare laden + Session erstellen
+  POST /claude-match/run-stufe-1       — Stufe 1: Quick-Check (Claude)
+  POST /claude-match/run-stufe-2       — Stufe 2: Deep Assessment + Speichern
+  POST /claude-match/exclude-pairs     — Paare aus Session ausschliessen
+  GET  /claude-match/session/{id}      — Session-Daten abfragen
+  GET  /claude-match/sessions          — Alle Sessions auflisten
 
 Debug:
   GET  /debug/match-count               — Match-Statistiken
@@ -44,6 +53,12 @@ class ActionRequest(BaseModel):
     """Request Body fuer Match-Aktionen."""
     action: str  # vorstellen, spaeter, ablehnen
     note: str | None = None
+
+
+class ExcludePairsRequest(BaseModel):
+    """Request Body fuer Paare ausschliessen."""
+    session_id: str
+    pairs: list[dict]  # [{"candidate_id": "...", "job_id": "..."}]
 
 
 # ══════════════════════════════════════════════════════════════
@@ -376,6 +391,316 @@ async def match_for_candidate(
     return {
         "status": "started",
         "message": f"Suche Jobs fuer Kandidat {candidate_id}...",
+    }
+
+
+# Alias fuer n8n Cron
+@router.post("/claude-match/run-auto")
+async def start_matching_auto(
+    background_tasks: BackgroundTasks,
+):
+    """Alias fuer /run — fuer n8n Morgen-Cron (automatisch, ohne Kontrolle)."""
+    from app.services.claude_matching_service import get_status, run_matching
+
+    status = get_status()
+    if status["running"]:
+        return {"status": "already_running", "message": "Matching laeuft bereits."}
+
+    async def _background():
+        await run_matching()
+
+    background_tasks.add_task(_background)
+    return {"status": "started", "message": "Automatisches Matching gestartet."}
+
+
+# ══════════════════════════════════════════════════════════════
+# Kontrolliertes Matching — Stufe fuer Stufe
+# ══════════════════════════════════════════════════════════════
+
+@router.post("/claude-match/run-stufe-0")
+async def start_stufe_0():
+    """Stufe 0: Paare aus DB laden + Session erstellen. KEIN Claude-Call."""
+    from app.services.claude_matching_service import run_stufe_0
+    result = await run_stufe_0()
+    return result
+
+
+@router.post("/claude-match/run-stufe-1")
+async def start_stufe_1(
+    background_tasks: BackgroundTasks,
+    session_id: str = Query(..., description="Session-ID von Stufe 0"),
+    model_quick: str = Query(default="claude-haiku-4-5-20251001"),
+):
+    """Stufe 1: Quick-Check per Claude. Laeuft als Background-Task."""
+    from app.services.claude_matching_service import get_status, get_session, run_stufe_1
+
+    status = get_status()
+    if status["running"]:
+        return {"status": "already_running", "message": "Matching laeuft bereits."}
+
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session nicht gefunden")
+
+    if session["current_stufe"] >= 1:
+        raise HTTPException(status_code=400, detail="Stufe 1 wurde bereits ausgefuehrt")
+
+    # Stufe 1 als Background-Task starten
+    _stufe_1_result: dict = {}
+
+    async def _background():
+        nonlocal _stufe_1_result
+        _stufe_1_result = await run_stufe_1(session_id=session_id, model_quick=model_quick)
+
+    background_tasks.add_task(_background)
+
+    return {
+        "status": "started",
+        "session_id": session_id,
+        "message": "Stufe 1 (Quick-Check) gestartet. Fortschritt unter /api/v4/claude-match/status.",
+    }
+
+
+@router.post("/claude-match/run-stufe-2")
+async def start_stufe_2(
+    background_tasks: BackgroundTasks,
+    session_id: str = Query(..., description="Session-ID"),
+    model_deep: str = Query(default="claude-haiku-4-5-20251001"),
+):
+    """Stufe 2: Deep Assessment + Matches speichern. Laeuft als Background-Task."""
+    from app.services.claude_matching_service import get_status, get_session, run_stufe_2
+
+    status = get_status()
+    if status["running"]:
+        return {"status": "already_running", "message": "Matching laeuft bereits."}
+
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session nicht gefunden")
+
+    if session["current_stufe"] < 1:
+        raise HTTPException(status_code=400, detail="Stufe 1 muss zuerst ausgefuehrt werden")
+
+    if session["current_stufe"] >= 2:
+        raise HTTPException(status_code=400, detail="Stufe 2 wurde bereits ausgefuehrt")
+
+    async def _background():
+        await run_stufe_2(session_id=session_id, model_deep=model_deep)
+
+    background_tasks.add_task(_background)
+
+    return {
+        "status": "started",
+        "session_id": session_id,
+        "message": "Stufe 2 (Deep Assessment) gestartet. Fortschritt unter /api/v4/claude-match/status.",
+    }
+
+
+@router.post("/claude-match/exclude-pairs")
+async def exclude_pairs(body: ExcludePairsRequest):
+    """Paare aus einer Session ausschliessen (vor Stufe 1 oder vor Stufe 2)."""
+    from app.services.claude_matching_service import exclude_pairs_from_session
+
+    result = exclude_pairs_from_session(body.session_id, body.pairs)
+    if "error" in result:
+        raise HTTPException(status_code=404, detail=result["error"])
+    return result
+
+
+@router.get("/claude-match/session/{session_id}")
+async def get_session_data(session_id: str):
+    """Session-Daten abfragen (Paare, Ergebnisse, Status)."""
+    from app.services.claude_matching_service import get_session
+
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session nicht gefunden")
+
+    # Aufbereitete Daten zurueckgeben (keine vollen Paare mit Rohdaten)
+    excluded_count = len(session.get("excluded_pairs", set()))
+
+    # Display-Paare aus claude_pairs erstellen
+    display_pairs = []
+    excluded = session.get("excluded_pairs", set())
+    for p in session.get("claude_pairs", []):
+        cid = str(p["candidate_id"])
+        jid = str(p["job_id"])
+        is_excluded = (cid, jid) in excluded
+        distance_m = p.get("distance_m")
+        display_pairs.append({
+            "candidate_id": cid,
+            "job_id": jid,
+            "candidate_role": p.get("candidate_role") or "Unbekannt",
+            "candidate_position": p.get("candidate_position") or "",
+            "candidate_city": p.get("candidate_city") or "Unbekannt",
+            "job_position": p.get("position") or "Unbekannt",
+            "job_company": p.get("company_name") or "Unbekannt",
+            "job_city": p.get("job_city") or "Unbekannt",
+            "distance_km": round(distance_m / 1000, 1) if distance_m else None,
+            "excluded": is_excluded,
+        })
+
+    return {
+        "session_id": session_id,
+        "created_at": session.get("created_at"),
+        "current_stufe": session.get("current_stufe"),
+        "total_claude_pairs": len(session.get("claude_pairs", [])),
+        "excluded_count": excluded_count,
+        "active_pairs": len(session.get("claude_pairs", [])) - excluded_count,
+        "claude_pairs": display_pairs,
+        "passed_pairs": [
+            {
+                "candidate_id": str(p.get("candidate_id")),
+                "job_id": str(p.get("job_id")),
+                "candidate_role": p.get("candidate_role") or "Unbekannt",
+                "candidate_city": p.get("candidate_city") or "Unbekannt",
+                "job_position": p.get("position") or "Unbekannt",
+                "job_company": p.get("company_name") or "Unbekannt",
+                "job_city": p.get("job_city") or "Unbekannt",
+                "distance_km": round(p.get("distance_m", 0) / 1000, 1) if p.get("distance_m") else None,
+                "quick_reason": p.get("quick_reason", ""),
+                "excluded": (str(p.get("candidate_id")), str(p.get("job_id"))) in excluded,
+            }
+            for p in session.get("passed_pairs", [])
+        ],
+        "failed_pairs": session.get("failed_pairs", []),
+        "deep_results": [
+            {
+                "candidate_id": str(dr.get("candidate_id")),
+                "job_id": str(dr.get("job_id")),
+                "score": dr.get("score"),
+                "empfehlung": dr.get("empfehlung"),
+                "wow_faktor": dr.get("wow_faktor"),
+                "zusammenfassung": dr.get("zusammenfassung"),
+                "distance_km": dr.get("distance_km"),
+            }
+            for dr in session.get("deep_results", [])
+        ],
+        "matches_saved": session.get("matches_saved", 0),
+    }
+
+
+@router.get("/claude-match/sessions")
+async def list_sessions():
+    """Alle aktiven Sessions auflisten."""
+    from app.services.claude_matching_service import get_all_sessions
+    return get_all_sessions()
+
+
+# ══════════════════════════════════════════════════════════════
+# Vergleichs-Endpoint fuer Paare OHNE Match
+# ══════════════════════════════════════════════════════════════
+
+@router.get("/claude-match/compare-pair")
+async def compare_pair(
+    candidate_id: UUID = Query(...),
+    job_id: UUID = Query(...),
+    db: AsyncSession = Depends(get_db),
+):
+    """Vergleichs-Daten fuer ein Kandidat-Job-Paar (auch ohne bestehenden Match).
+
+    Wird verwendet fuer den Vergleichs-Button in Stufe 0 und Stufe 1.
+    """
+    # Zuerst pruefen ob ein Match existiert
+    existing_match = await db.execute(
+        select(Match.id).where(
+            and_(Match.candidate_id == candidate_id, Match.job_id == job_id)
+        )
+    )
+    match_row = existing_match.scalar_one_or_none()
+
+    if match_row:
+        # Match existiert — normalen Compare-Endpoint verwenden
+        from app.services.match_center_service import MatchCenterService
+        service = MatchCenterService(db)
+        comparison = await service.get_match_comparison(match_row)
+        if comparison:
+            return {
+                "has_match": True,
+                "match_id": str(match_row),
+                "data": comparison.__dict__ if hasattr(comparison, "__dict__") else comparison,
+            }
+
+    # Kein Match — Daten direkt aus DB laden
+    candidate = await db.execute(
+        select(
+            Candidate.id,
+            Candidate.first_name,
+            Candidate.last_name,
+            Candidate.city,
+            Candidate.postal_code,
+            Candidate.street_address,
+            Candidate.current_position,
+            Candidate.current_company,
+            Candidate.work_history,
+            Candidate.education,
+            Candidate.further_education,
+            Candidate.languages,
+            Candidate.it_skills,
+            Candidate.skills,
+            Candidate.hotlist_job_title,
+            Candidate.salary,
+        ).where(Candidate.id == candidate_id)
+    )
+    cand = candidate.one_or_none()
+    if not cand:
+        raise HTTPException(status_code=404, detail="Kandidat nicht gefunden")
+
+    job = await db.execute(
+        select(
+            Job.id,
+            Job.position,
+            Job.company_name,
+            Job.city,
+            Job.postal_code,
+            Job.street_address,
+            Job.job_text,
+        ).where(Job.id == job_id)
+    )
+    j = job.one_or_none()
+    if not j:
+        raise HTTPException(status_code=404, detail="Job nicht gefunden")
+
+    name_parts = []
+    if cand.first_name:
+        name_parts.append(cand.first_name)
+    if cand.last_name:
+        name_parts.append(cand.last_name)
+
+    return {
+        "has_match": False,
+        "match_id": None,
+        "data": {
+            "candidate_id": str(cand.id),
+            "candidate_name": " ".join(name_parts) or "Unbekannt",
+            "candidate_city": cand.city or "",
+            "candidate_postal_code": cand.postal_code or "",
+            "candidate_street_address": cand.street_address or "",
+            "candidate_current_position": cand.current_position or "",
+            "candidate_current_company": cand.current_company or "",
+            "candidate_role": cand.hotlist_job_title or "",
+            "candidate_salary": cand.salary or "",
+            "work_history": cand.work_history,
+            "education": cand.education,
+            "further_education": cand.further_education,
+            "languages": cand.languages,
+            "it_skills": cand.it_skills,
+            "skills": cand.skills,
+            "job_id": str(j.id),
+            "job_position": j.position or "",
+            "job_company_name": j.company_name or "",
+            "job_city": j.city or "",
+            "job_postal_code": j.postal_code or "",
+            "job_street_address": j.street_address or "",
+            "job_text": j.job_text or "",
+            "ai_score": None,
+            "ai_explanation": None,
+            "ai_strengths": None,
+            "ai_weaknesses": None,
+            "distance_km": None,
+            "drive_time_car_min": None,
+            "drive_time_transit_min": None,
+        },
     }
 
 
