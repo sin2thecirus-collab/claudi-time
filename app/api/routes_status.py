@@ -1110,7 +1110,10 @@ async function startClassification(type) {
   btn.textContent = 'Wird gestartet...';
   try {
     const url = '/api/' + type + '/maintenance/reclassify-finance?force=true';
-    const res = await fetch(url, {method: 'POST'});
+    const csrfMatch = document.cookie.match(/pp_csrf=([^;]+)/);
+    const headers = {};
+    if (csrfMatch) headers['X-CSRF-Token'] = csrfMatch[1];
+    const res = await fetch(url, {method: 'POST', headers});
     const data = await res.json();
     msg.classList.remove('hidden');
     if (data.status === 'started') {
