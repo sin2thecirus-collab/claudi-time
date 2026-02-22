@@ -1682,3 +1682,213 @@ async def submit_detailed_feedback(
     feedback_stats = {row[0]: row[1] for row in stats}
 
     return {"success": True, "feedback_stats": feedback_stats}
+
+
+# ══════════════════════════════════════════════════════════════
+# Klassifizierungs-Pruefseite
+# ══════════════════════════════════════════════════════════════
+
+@router.get("/debug/classification-check")
+async def classification_check_page(
+    entity: str = Query("candidates", description="candidates oder jobs"),
+    db: AsyncSession = Depends(get_db),
+):
+    """HTML-Seite: 100 zufaellige Kandidaten/Jobs mit Werdegang + Klassifizierung nebeneinander."""
+    from fastapi.responses import HTMLResponse
+
+    if entity == "jobs":
+        query = (
+            select(
+                Job.id,
+                Job.position,
+                Job.company_name,
+                Job.city,
+                Job.job_text,
+                Job.job_tasks,
+                Job.classification_data,
+                Job.quality_score,
+            )
+            .where(
+                Job.deleted_at.is_(None),
+                Job.classification_data.isnot(None),
+            )
+            .order_by(func.random())
+            .limit(100)
+        )
+        rows = await db.execute(query)
+        items = rows.all()
+
+        cards_html = ""
+        for i, row in enumerate(items, 1):
+            cls = row.classification_data or {}
+            primary = cls.get("primary_role", "—")
+            roles = ", ".join(cls.get("roles", []))
+            sub_level = cls.get("sub_level", "—")
+            quality = row.quality_score or "—"
+            reasoning = cls.get("reasoning", "—")
+            tasks = (row.job_tasks or "—")[:500]
+            job_text = (row.job_text or "")[:800].replace("<", "&lt;").replace(">", "&gt;")
+
+            cards_html += f"""
+            <div style="border:1px solid #ddd;border-radius:12px;margin-bottom:16px;overflow:hidden;">
+                <div style="background:#f0f0f0;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;">
+                    <span style="font-weight:700;">#{i} — {(row.position or 'Kein Titel')[:60]}</span>
+                    <span style="font-size:12px;color:#666;">{row.company_name or ''} | {row.city or ''} | Quality: {quality}</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;">
+                    <div style="padding:16px;border-right:1px solid #eee;">
+                        <h4 style="margin:0 0 8px;font-size:13px;color:#888;">JOBBESCHREIBUNG</h4>
+                        <div style="font-size:12px;white-space:pre-wrap;max-height:300px;overflow-y:auto;">{job_text}</div>
+                        <h4 style="margin:12px 0 4px;font-size:13px;color:#888;">EXTRAHIERTE AUFGABEN</h4>
+                        <div style="font-size:12px;color:#333;">{tasks}</div>
+                    </div>
+                    <div style="padding:16px;background:#f9fafb;">
+                        <h4 style="margin:0 0 8px;font-size:13px;color:#888;">KLASSIFIZIERUNG</h4>
+                        <div style="margin-bottom:8px;">
+                            <span style="background:#3b82f6;color:#fff;padding:4px 12px;border-radius:20px;font-size:13px;font-weight:600;">{primary}</span>
+                        </div>
+                        <div style="font-size:12px;margin-bottom:4px;"><b>Alle Rollen:</b> {roles or '—'}</div>
+                        <div style="font-size:12px;margin-bottom:4px;"><b>Sub-Level:</b> {sub_level}</div>
+                        <div style="font-size:12px;margin-bottom:4px;"><b>Begruendung:</b></div>
+                        <div style="font-size:11px;color:#555;background:#fff;padding:8px;border-radius:6px;max-height:150px;overflow-y:auto;">{reasoning}</div>
+                    </div>
+                </div>
+            </div>"""
+
+    else:
+        query = (
+            select(
+                Candidate.id,
+                Candidate.first_name,
+                Candidate.last_name,
+                Candidate.current_position,
+                Candidate.city,
+                Candidate.work_history,
+                Candidate.education,
+                Candidate.further_education,
+                Candidate.skills,
+                Candidate.it_skills,
+                Candidate.hotlist_job_title,
+                Candidate.classification_data,
+            )
+            .where(
+                Candidate.deleted_at.is_(None),
+                Candidate.classification_data.isnot(None),
+            )
+            .order_by(func.random())
+            .limit(100)
+        )
+        rows = await db.execute(query)
+        items = rows.all()
+
+        cards_html = ""
+        for i, row in enumerate(items, 1):
+            cls = row.classification_data or {}
+            primary = cls.get("primary_role", "—")
+            roles = ", ".join(cls.get("roles", []))
+            sub_level = cls.get("sub_level", "—")
+            is_leadership = cls.get("is_leadership", False)
+            reasoning = cls.get("reasoning", "—")
+
+            # Werdegang aufbereiten
+            wh = row.work_history or []
+            wh_html = ""
+            if isinstance(wh, list):
+                for entry in wh[:6]:
+                    if isinstance(entry, dict):
+                        pos = entry.get("position", "—")
+                        comp = entry.get("company", "")
+                        period = entry.get("period", entry.get("duration", ""))
+                        desc = (entry.get("description", "") or "")[:200]
+                        wh_html += f"""<div style="margin-bottom:8px;padding:6px;background:#fff;border-radius:4px;">
+                            <div style="font-size:12px;font-weight:600;">{pos}</div>
+                            <div style="font-size:11px;color:#666;">{comp} | {period}</div>
+                            <div style="font-size:11px;color:#444;margin-top:2px;">{desc}</div>
+                        </div>"""
+            if not wh_html:
+                wh_html = '<div style="font-size:12px;color:#999;">Kein Werdegang vorhanden</div>'
+
+            # Ausbildung
+            edu = row.education or []
+            edu_html = ""
+            if isinstance(edu, list):
+                for entry in edu[:3]:
+                    if isinstance(entry, dict):
+                        degree = entry.get("degree", entry.get("qualification", "—"))
+                        inst = entry.get("institution", entry.get("school", ""))
+                        edu_html += f'<div style="font-size:11px;">{degree} — {inst}</div>'
+            if not edu_html:
+                edu_html = '<span style="font-size:11px;color:#999;">—</span>'
+
+            # IT Skills
+            it = row.it_skills or []
+            it_html = ", ".join(it[:10]) if it else "—"
+
+            # Skills
+            sk = row.skills or []
+            sk_html = ", ".join(sk[:10]) if sk else "—"
+
+            name = f"{row.first_name or ''} {row.last_name or ''}".strip() or "Unbekannt"
+            leadership_badge = ' <span style="background:#f59e0b;color:#fff;padding:2px 8px;border-radius:10px;font-size:10px;">LEADERSHIP</span>' if is_leadership else ""
+
+            cards_html += f"""
+            <div style="border:1px solid #ddd;border-radius:12px;margin-bottom:16px;overflow:hidden;">
+                <div style="background:#f0f0f0;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;">
+                    <span style="font-weight:700;">#{i} — {name}</span>
+                    <span style="font-size:12px;color:#666;">{row.current_position or '—'} | {row.city or '—'}</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;">
+                    <div style="padding:16px;border-right:1px solid #eee;max-height:400px;overflow-y:auto;">
+                        <h4 style="margin:0 0 8px;font-size:13px;color:#888;">BERUFLICHER WERDEGANG</h4>
+                        {wh_html}
+                        <h4 style="margin:12px 0 4px;font-size:13px;color:#888;">AUSBILDUNG</h4>
+                        {edu_html}
+                        <h4 style="margin:12px 0 4px;font-size:13px;color:#888;">IT-SKILLS</h4>
+                        <div style="font-size:11px;">{it_html}</div>
+                        <h4 style="margin:12px 0 4px;font-size:13px;color:#888;">SKILLS</h4>
+                        <div style="font-size:11px;">{sk_html}</div>
+                    </div>
+                    <div style="padding:16px;background:#f9fafb;">
+                        <h4 style="margin:0 0 8px;font-size:13px;color:#888;">KLASSIFIZIERUNG</h4>
+                        <div style="margin-bottom:8px;">
+                            <span style="background:#3b82f6;color:#fff;padding:4px 12px;border-radius:20px;font-size:13px;font-weight:600;">{primary}</span>
+                            {leadership_badge}
+                        </div>
+                        <div style="font-size:12px;margin-bottom:4px;"><b>Alle Rollen:</b> {roles or '—'}</div>
+                        <div style="font-size:12px;margin-bottom:4px;"><b>Sub-Level:</b> {sub_level}</div>
+                        <div style="font-size:12px;margin-bottom:4px;"><b>Hotlist-Titel:</b> {row.hotlist_job_title or '—'}</div>
+                        <div style="font-size:12px;margin-bottom:8px;"><b>Begruendung:</b></div>
+                        <div style="font-size:11px;color:#555;background:#fff;padding:8px;border-radius:6px;max-height:200px;overflow-y:auto;">{reasoning}</div>
+                    </div>
+                </div>
+            </div>"""
+
+    title = "Job-Klassifizierung" if entity == "jobs" else "Kandidaten-Klassifizierung"
+    count = len(items)
+    toggle_link = "jobs" if entity == "candidates" else "candidates"
+    toggle_text = "Jobs pruefen" if entity == "candidates" else "Kandidaten pruefen"
+
+    html = f"""<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8"><title>{title} — Pruefung</title>
+<style>
+  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+  body {{ font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f5f5; padding: 24px; }}
+</style>
+</head><body>
+<div style="max-width:1200px;margin:0 auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+        <div>
+            <h1 style="font-size:22px;">{title} — Pruefung</h1>
+            <p style="font-size:13px;color:#666;margin-top:4px;">{count} zufaellige Eintraege. Seite neu laden = neue Stichprobe.</p>
+        </div>
+        <div style="display:flex;gap:8px;">
+            <a href="?entity={toggle_link}" style="padding:8px 16px;background:#3b82f6;color:#fff;border-radius:8px;text-decoration:none;font-size:13px;">{toggle_text}</a>
+            <a href="?entity={entity}" style="padding:8px 16px;background:#10b981;color:#fff;border-radius:8px;text-decoration:none;font-size:13px;">Neue Stichprobe</a>
+        </div>
+    </div>
+    {cards_html}
+</div>
+</body></html>"""
+
+    return HTMLResponse(content=html)
