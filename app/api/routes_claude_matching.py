@@ -469,6 +469,74 @@ async def get_match_contacts(
     }
 
 
+@router.post("/claude-match/{match_id}/prepare-email")
+async def prepare_email(
+    match_id: UUID,
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+):
+    """Bereitet eine E-Mail vor (generiert Text via GPT, sendet NICHT).
+
+    Request body:
+        direction: "job_an_kandidat" oder "profil_an_kunden"
+        contact_email: E-Mail des Empfaengers (nur bei profil_an_kunden)
+    """
+    direction = body.get("direction", "")
+    if direction not in ("job_an_kandidat", "profil_an_kunden"):
+        raise HTTPException(status_code=400, detail="direction muss 'job_an_kandidat' oder 'profil_an_kunden' sein")
+
+    from app.services.email_preparation_service import EmailPreparationService
+    service = EmailPreparationService(db)
+    result = await service.prepare_email(
+        match_id=match_id,
+        direction=direction,
+        contact_email=body.get("contact_email"),
+    )
+
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+
+    return result
+
+
+@router.post("/claude-match/{match_id}/send-email")
+async def send_email(
+    match_id: UUID,
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+):
+    """Sendet vorbereitete E-Mail mit PDF-Anhang via Microsoft Graph.
+
+    Request body:
+        direction: "job_an_kandidat" oder "profil_an_kunden"
+        recipient_email: Empfaenger-E-Mail
+        subject: Betreff (ggf. editiert)
+        body_text: E-Mail-Text (ggf. editiert)
+    """
+    direction = body.get("direction", "")
+    recipient_email = body.get("recipient_email", "")
+    subject = body.get("subject", "")
+    body_text = body.get("body_text", "")
+
+    if not all([direction, recipient_email, subject, body_text]):
+        raise HTTPException(status_code=400, detail="direction, recipient_email, subject und body_text sind erforderlich")
+
+    from app.services.email_preparation_service import EmailPreparationService
+    service = EmailPreparationService(db)
+    result = await service.send_email(
+        match_id=match_id,
+        direction=direction,
+        recipient_email=recipient_email,
+        subject=subject,
+        body_text=body_text,
+    )
+
+    if not result.get("success"):
+        raise HTTPException(status_code=500, detail=result.get("message", "E-Mail-Versand fehlgeschlagen"))
+
+    return result
+
+
 @router.post("/claude-match/candidate/{candidate_id}")
 async def match_for_candidate(
     candidate_id: UUID,

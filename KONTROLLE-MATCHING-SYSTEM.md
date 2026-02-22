@@ -2,7 +2,7 @@
 
 > **Erstellt: 22.02.2026**
 > **Letzte Aktualisierung: 22.02.2026**
-> **Status: KONZEPT — Noch nicht umgesetzt**
+> **Status: Phase 1-4 IMPLEMENTIERT, Phase 5 OFFEN (Testing)**
 
 ---
 
@@ -853,51 +853,55 @@ Es wird KEIN neuer Profil-PDF-Service erstellt. Der bestehende wird wiederverwen
 
 ## 9. Technischer Umsetzungsplan
 
-### Phase 1: Kontrolliertes Matching (Prio 1 — HOECHSTE PRIORITAET)
+### Phase 1: Kontrolliertes Matching (Prio 1) — ✅ DEPLOYED (22.02.2026)
 
-1. `run_matching()` in 3 Funktionen aufteilen:
-   - `run_stufe_0()` → Gibt Paare zurueck, speichert in Session
-   - `run_stufe_1(session_id)` → Quick-Check, speichert Ergebnisse in Session
-   - `run_stufe_2(session_id)` → Deep Assessment, speichert Matches in DB
-2. Session-Storage implementieren (In-Memory Dict)
-3. 3 neue Endpoints bauen (`run-stufe-0`, `run-stufe-1`, `run-stufe-2`)
-4. `exclude-pairs` Endpoint bauen
-5. Action Board erweitern:
-   - Stufe-0-Ansicht (Paare-Tabelle)
-   - Stufe-1-Ansicht (Quick-Check-Ergebnisse)
-   - Navigation zwischen Stufen
-   - Ausschliessen-Button pro Paar
-   - Kosten-Schaetzung pro Stufe
+1. ✅ `run_matching()` in 3 Funktionen aufgeteilt (run_stufe_0, run_stufe_1, run_stufe_2)
+2. ✅ Session-Storage: In-Memory Dict (`_matching_sessions`)
+3. ✅ 3 neue Endpoints: `run-stufe-0`, `run-stufe-1`, `run-stufe-2`
+4. ✅ `exclude-pairs` Endpoint
+5. ✅ Action Board: Stufe-0/1/2-Ansichten, Ausschliessen-Button, Kosten-Schaetzung
+6. ✅ DSGVO: Keine Namen/Emails/Telefon an Claude (nur Kandidat-ID)
+7. ✅ Kandidaten-Namen in Stufen-Ansichten sichtbar
 
-### Phase 2: Vergleichs-Button (Prio 2)
+### Phase 2: Vergleichs-Button (Prio 2) — ✅ DEPLOYED (22.02.2026)
 
-1. Neuer Endpoint: `GET /api/v4/claude-match/compare-pair?candidate_id=...&job_id=...`
-2. Compare-Template fuer Paare OHNE Match anpassen
-3. Vergleichs-Button in Stufe-0 und Stufe-1 Ansichten einbauen
+1. ✅ Endpoint: `GET /api/v4/claude-match/compare-pair?candidate_id=...&job_id=...`
+2. ✅ `buildCompareHtml()` zeigt ALLE Felder (Education, Languages, IT-Skills, Zertifikate, Gehalt, Adressen, Fahrzeit, Staerken/Schwaechen)
+3. ✅ Vergleichs-Button in Stufe-0 und Stufe-1 Ansichten
 
-### Phase 3: Vorstellen aufteilen + Job-PDF (Prio 3)
+### Phase 3: Vorstellen aufteilen + Job-PDF (Prio 3) — ✅ DEPLOYED (22.02.2026)
 
-1. **NEUEN** `JobVorstellungPdfService` bauen (gleiches Design wie Profil-PDF)
-2. **NEUES** Template `job_vorstellung_sincirus.html` erstellen
-3. **NEUER** Endpoint: `GET /api/jobs/{id}/vorstellung-pdf` auf Job-Detailseite
-4. **NEUER** Button auf Job-Detailseite: "Job-PDF erstellen" (analog zum Profil-PDF Button)
-5. Action-Endpoint erweitern: `action = "job_an_kandidat"` und `action = "profil_an_kunden"`
-6. UI: Dropdown oder zwei Buttons statt einem "Vorstellen"
-7. Empfaenger-Auswahl-Dialog bauen (Kontakte im Unternehmen, Postfach, manuell)
-8. "Job an Kandidat senden" → Job-Vorstellungs-PDF automatisch generieren
-9. "Profil an Kunden senden" → Bestehenden Profil-PDF-Code aufrufen
+1. ✅ `JobVorstellungPdfService` (`app/services/job_vorstellung_pdf_service.py`) — Sincirus-Design
+2. ✅ Template `job_vorstellung_sincirus.html` — Dark Design wie Profil-PDF
+3. ✅ Endpoint: `GET /api/jobs/{id}/vorstellung-pdf`
+4. ✅ "Job-PDF" Button auf Job-Detailseite
+5. ✅ Action-Endpoint: `job_an_kandidat` + `profil_an_kunden`
+6. ✅ Zwei Buttons: "Job an Kandidat" (gruen) + "Profil an Kunden" (accent)
+7. ✅ Kontakt-Auswahl-Dialog (Kontakte + manuelle E-Mail)
+8. ✅ "Job an Kandidat" oeffnet Job-Vorstellungs-PDF automatisch im neuen Tab
+9. ✅ "Profil an Kunden" oeffnet Profil-PDF automatisch im neuen Tab
 
-### Phase 4: E-Mail-Automatisierung (Prio 4)
+### Phase 4: E-Mail-Automatisierung (Prio 4) — ✅ IMPLEMENTIERT (22.02.2026)
 
-1. Varianten-Erkennung implementieren (Erst/Folgekontakt)
-2. 4 E-Mail-Templates als Jinja2-Templates
-3. GPT-4o fachliche Einschaetzung generieren
-4. E-Mail-Vorschau-Dialog im Frontend (mit editierbarem Text)
-5. Varianten-Wechsel im Dialog (falls falsch erkannt)
-6. Senden-Button (Microsoft Graph API)
-7. Outreach-Status tracking erweitern
+1. ✅ Varianten-Erkennung implementieren (Erst/Folgekontakt) — `_detect_variant()` in EmailPreparationService
+2. ✅ 4 E-Mail-Varianten (inline Templates im neuen EmailPreparationService)
+3. ✅ GPT-4o fachliche Einschaetzung generieren (2-3 Saetze) — `_generate_fachliche_einschaetzung()`
+4. ✅ E-Mail-Vorschau-Dialog im Frontend (editierbarer Betreff + Text)
+5. ✅ Varianten-Wechsel — automatisch erkannt (Erst/Folgekontakt via Match-History)
+6. ✅ Senden-Button (Microsoft Graph API via bestehenden MicrosoftGraphClient)
+7. ✅ Outreach-Status tracking (outreach_status, outreach_sent_at, presentation_status)
 
-### Phase 5: Testing + Feinschliff (Prio 5)
+**Neuer Flow:**
+- "Job an Kandidat" → Email-Vorschau-Dialog → Bearbeiten → Senden ODER Nur PDF
+- "Profil an Kunden" → Kontakt-Auswahl → Email-Vorschau-Dialog → Bearbeiten → Senden ODER Nur PDF
+- 3 Buttons im Dialog: Abbrechen / Nur PDF (oeffnet PDF + setzt Status) / Senden (E-Mail + PDF-Anhang)
+
+**Neue Dateien Phase 4:**
+- `app/services/email_preparation_service.py` — Vorbereitung + Versand (~420 Zeilen)
+- Endpoints: `POST /prepare-email` + `POST /send-email` in routes_claude_matching.py
+- Frontend: Email-Vorschau-Modal + `prepareEmail()`, `sendEmail()`, `emailNurPdf()` in action_board.html
+
+### Phase 5: Testing + Feinschliff (Prio 5) — ⬜ OFFEN
 
 1. Milad legt Test-Unternehmen mit Kontakten an (fuer Kunden-E-Mail-Test)
 2. Kompletten Flow testen: Stufe 0 → 1 → 2 → Vorstellen → E-Mail
@@ -933,12 +937,12 @@ Es wird KEIN neuer Profil-PDF-Service erstellt. Der bestehende wird wiederverwen
 
 | # | Frage | Status |
 |---|-------|--------|
-| F1 | Sollen die Session-Daten in der DB oder In-Memory gespeichert werden? | ENTSCHEIDUNG: In-Memory (einfach, Matching-Sessions sind kurzlebig) |
-| F2 | Soll die automatische E-Mail-Varianten-Erkennung NUR auf Match-Daten basieren oder auch auf CRM-Daten (Anrufe, Notizen)? | OFFEN — CRM-Daten waeren genauer aber komplexer |
-| F3 | Soll das "alte" `run_matching()` als Fallback erhalten bleiben (fuer den n8n Morgen-Cron)? | EMPFEHLUNG: Ja, als `/api/v4/claude-match/run-auto` (ohne manuelle Kontrolle) |
-| F4 | Braucht der Kunden-E-Mail-Versand einen eigenen Microsoft Graph Zugang oder geht er ueber den gleichen? | PRUEFEN — Aktuell geht alles ueber Milads Graph Account |
+| F1 | Sollen die Session-Daten in der DB oder In-Memory gespeichert werden? | ERLEDIGT: In-Memory (`_matching_sessions` Dict) |
+| F2 | Soll die automatische E-Mail-Varianten-Erkennung NUR auf Match-Daten basieren oder auch auf CRM-Daten (Anrufe, Notizen)? | ENTSCHEIDUNG: Match-Daten (outreach_status == "sent"). CRM spaeter. |
+| F3 | Soll das "alte" `run_matching()` als Fallback erhalten bleiben (fuer den n8n Morgen-Cron)? | ERLEDIGT: `/api/v4/claude-match/run` existiert weiterhin als Auto-Modus |
+| F4 | Braucht der Kunden-E-Mail-Versand einen eigenen Microsoft Graph Zugang oder geht er ueber den gleichen? | ERLEDIGT: Gleicher Graph Account (Milads). MicrosoftGraphClient aus email_service.py wird wiederverwendet. |
 | F5 | Soll die Kosten-Anzeige auch historische Kosten zeigen (alle bisherigen Laeufe)? | OFFEN |
-| F6 | Gibt es bereits eine Kontakte-Tabelle im System (fuer Unternehmens-Kontakte)? | PRUEFEN — Wird gebraucht fuer Empfaenger-Auswahl bei "Profil an Kunden senden" |
+| F6 | Gibt es bereits eine Kontakte-Tabelle im System (fuer Unternehmens-Kontakte)? | ERLEDIGT: `CompanyContact` Model existiert (`app/models/company_contact.py`). Kontakt-Endpoint gebaut. |
 
 ### Aenderungsprotokoll
 
@@ -950,3 +954,8 @@ Es wird KEIN neuer Profil-PDF-Service erstellt. Der bestehende wird wiederverwen
 | 22.02.2026 | Job-PDF korrigiert | Milad will NEUES Job-Vorstellungs-PDF im Profil-Design, nicht den alten JobDescriptionPdfService |
 | 22.02.2026 | Empfaenger-Auswahl ergaenzt | Profil an Kunden geht an bestehende Kontakte/Postfaecher, nicht an "die Firma" |
 | 22.02.2026 | Phase 1+2 bestaetigt | Vergleichs-Button + Ausschliessen-Button sind in JEDER Stufe (0+1) vorhanden |
+| 22.02.2026 | Phase 1 deployed | Kontrolliertes Matching mit 3 Stufen, DSGVO-konform, Kandidaten-Namen sichtbar |
+| 22.02.2026 | Phase 2 deployed | buildCompareHtml() zeigt ALLE Felder (Education, Languages, IT-Skills, Gehalt, etc.) |
+| 22.02.2026 | Phase 3 deployed | Job-PDF-Service + Template, Buttons aufgeteilt, Kontakt-Dialog, PDF Auto-Oeffnen |
+| 22.02.2026 | Phase 4 gestartet | EmailPreparationService, prepare-email + send-email Endpoints, Email-Vorschau-Dialog |
+| 22.02.2026 | Phase 4 fertig | 4 E-Mail-Varianten, GPT fachliche Einschaetzung, Email-Vorschau-Dialog mit Bearbeiten, Senden via Graph, Nur-PDF-Option, Button-Flow umgestellt |

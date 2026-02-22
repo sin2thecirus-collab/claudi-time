@@ -284,7 +284,7 @@
 
                 <!-- Action Buttons -->
                 <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;">
-                    <button @click="doAction(match.match_id, 'job_an_kandidat')"
+                    <button @click="prepareEmail(match.match_id, 'job_an_kandidat')"
                             style="padding:6px 16px;border-radius:8px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:var(--pp-green);color:#fff;">Job an Kandidat</button>
                     <button @click="openContactDialog(match.match_id, match.candidate_id, match.job_id)"
                             style="padding:6px 16px;border-radius:8px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:var(--pp-accent);color:#fff;">Profil an Kunden</button>
@@ -334,7 +334,7 @@
 
                 <!-- Actions -->
                 <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;">
-                    <button @click="doAction(match.match_id, 'job_an_kandidat')"
+                    <button @click="prepareEmail(match.match_id, 'job_an_kandidat')"
                             style="padding:6px 16px;border-radius:8px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:var(--pp-green);color:#fff;">Job an Kandidat</button>
                     <button @click="openContactDialog(match.match_id, match.candidate_id, match.job_id)"
                             style="padding:6px 16px;border-radius:8px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:var(--pp-orange);color:#000;">Profil an Kunden</button>
@@ -364,7 +364,7 @@
                 </div>
                 <div style="display:flex;gap:6px;flex-shrink:0;margin-left:12px;flex-wrap:wrap;">
                     <div style="border-radius:50px;padding:3px 10px;font-weight:700;font-size:12px;color:#fff;background:var(--pp-accent);" x-text="Math.round(match.ai_score)"></div>
-                    <button @click="doAction(match.match_id, 'job_an_kandidat')"
+                    <button @click="prepareEmail(match.match_id, 'job_an_kandidat')"
                             style="padding:4px 12px;border-radius:6px;font-size:11px;font-weight:600;border:none;cursor:pointer;background:var(--pp-green);color:#fff;">Job an Kandidat</button>
                     <button @click="openContactDialog(match.match_id, match.candidate_id, match.job_id)"
                             style="padding:4px 12px;border-radius:6px;font-size:11px;font-weight:600;border:none;cursor:pointer;background:var(--pp-accent);color:#fff;">Profil an Kunden</button>
@@ -513,6 +513,78 @@
             </div>
         </div>
     </div>
+
+    <!-- Email Preview Dialog -->
+    <div x-show="emailPreviewOpen" x-transition
+         style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:70;display:flex;align-items:center;justify-content:center;"
+         @click.self="emailPreviewOpen = false">
+        <div style="background:var(--pp-surface);border-radius:16px;width:92%;max-width:600px;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+            <!-- Header -->
+            <div style="padding:20px 24px;border-bottom:1px solid var(--pp-border);">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <h3 style="font-size:15px;font-weight:700;color:var(--pp-text);">E-Mail vorbereiten</h3>
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <span style="font-size:11px;padding:3px 10px;border-radius:50px;font-weight:600;"
+                              :style="emailPreviewData.variant === 'erstkontakt'
+                                  ? 'background:rgba(52,211,153,0.15);color:#34D399;'
+                                  : 'background:rgba(167,139,250,0.15);color:#a78bfa;'"
+                              x-text="emailPreviewData.variant === 'erstkontakt' ? 'Erstkontakt' : 'Folgekontakt'"></span>
+                        <button @click="emailPreviewOpen = false" style="border:none;background:none;cursor:pointer;font-size:18px;color:var(--pp-textDim);">&#10005;</button>
+                    </div>
+                </div>
+                <p style="font-size:12px;color:var(--pp-textMuted);margin-top:4px;"
+                   x-text="(emailPreviewData.direction === 'job_an_kandidat' ? 'Job an Kandidat' : 'Profil an Kunden') + ' — ' + (emailPreviewData.candidate_name || '') + ' / ' + (emailPreviewData.job_position || '')"></p>
+            </div>
+
+            <!-- Loading -->
+            <div x-show="emailPreviewLoading" style="text-align:center;padding:40px;color:var(--pp-textMuted);font-size:13px;">
+                E-Mail wird vorbereitet...
+            </div>
+
+            <!-- Content -->
+            <div x-show="!emailPreviewLoading" style="padding:16px 24px;">
+                <!-- Empfaenger -->
+                <div style="margin-bottom:12px;">
+                    <label style="font-size:11px;font-weight:600;color:var(--pp-textMuted);display:block;margin-bottom:4px;">An:</label>
+                    <div style="font-size:13px;color:var(--pp-accent);font-weight:500;" x-text="emailPreviewData.recipient_email"></div>
+                </div>
+
+                <!-- Betreff (editierbar) -->
+                <div style="margin-bottom:12px;">
+                    <label style="font-size:11px;font-weight:600;color:var(--pp-textMuted);display:block;margin-bottom:4px;">Betreff:</label>
+                    <input type="text" x-model="emailPreviewData.subject"
+                           style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid var(--pp-border);background:var(--pp-surfaceHover);color:var(--pp-text);font-size:13px;outline:none;" />
+                </div>
+
+                <!-- E-Mail-Text (editierbar) -->
+                <div style="margin-bottom:12px;">
+                    <label style="font-size:11px;font-weight:600;color:var(--pp-textMuted);display:block;margin-bottom:4px;">Nachricht:</label>
+                    <textarea x-model="emailPreviewData.body_text"
+                              rows="14"
+                              style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--pp-border);background:var(--pp-surfaceHover);color:var(--pp-text);font-size:13px;line-height:1.6;outline:none;resize:vertical;font-family:inherit;"></textarea>
+                </div>
+
+                <!-- Info -->
+                <div style="font-size:11px;color:var(--pp-textDim);margin-bottom:8px;">
+                    PDF wird automatisch angehaengt. Text kann vor dem Senden bearbeitet werden.
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div x-show="!emailPreviewLoading" style="padding:16px 24px;border-top:1px solid var(--pp-border);display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
+                <button @click="emailPreviewOpen = false"
+                        style="padding:8px 16px;border-radius:8px;font-size:12px;font-weight:600;border:1px solid var(--pp-border);cursor:pointer;background:var(--pp-surface);color:var(--pp-textMuted);">Abbrechen</button>
+                <button @click="emailNurPdf()"
+                        style="padding:8px 16px;border-radius:8px;font-size:12px;font-weight:600;border:1px solid var(--pp-border);cursor:pointer;background:var(--pp-surface);color:var(--pp-text);">Nur PDF</button>
+                <button @click="sendEmail()"
+                        :disabled="emailSending"
+                        style="padding:8px 20px;border-radius:8px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:var(--pp-green);color:#fff;"
+                        :style="emailSending ? 'opacity:0.5;cursor:not-allowed;' : ''">
+                    <span x-text="emailSending ? 'Sende...' : 'Senden'"></span>
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -549,6 +621,13 @@ function actionBoard() {
         contactMatchId: null,
         selectedContactEmail: '',
         customContactEmail: '',
+
+        // Email Preview Dialog
+        emailPreviewOpen: false,
+        emailPreviewLoading: false,
+        emailPreviewData: {},
+        emailPreviewMatchId: '',
+        emailSending: false,
 
         get lastRunText() {
             if (this.lastRun) {
@@ -1018,10 +1097,85 @@ function actionBoard() {
         async submitProfilAnKunden() {
             if (!this.canSubmitContact || !this.contactMatchId) return;
             const email = this.selectedContactEmail === '__custom__' ? this.customContactEmail : this.selectedContactEmail;
+            const matchId = this.contactMatchId;
             this.contactDialogOpen = false;
+            // Email-Vorschau oeffnen mit Kontakt-E-Mail
+            await this.prepareEmail(matchId, 'profil_an_kunden', email);
+        },
 
-            // Action ausfuehren
-            await this.doAction(this.contactMatchId, 'profil_an_kunden', email);
+        // ── E-Mail-Vorschau-Flow ──
+        async prepareEmail(matchId, direction, contactEmail) {
+            this.emailPreviewMatchId = matchId;
+            this.emailPreviewLoading = true;
+            this.emailPreviewOpen = true;
+            this.emailPreviewData = {};
+            try {
+                const res = await fetch('/api/v4/claude-match/' + matchId + '/prepare-email', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({direction: direction, contact_email: contactEmail || null}),
+                });
+                if (!res.ok) throw new Error('prepare-email fehlgeschlagen');
+                this.emailPreviewData = await res.json();
+            } catch(e) {
+                console.error('E-Mail vorbereiten fehlgeschlagen:', e);
+                this.emailPreviewOpen = false;
+                alert('E-Mail konnte nicht vorbereitet werden: ' + e.message);
+            }
+            this.emailPreviewLoading = false;
+        },
+
+        async sendEmail() {
+            if (this.emailSending) return;
+            this.emailSending = true;
+            try {
+                const d = this.emailPreviewData;
+                const res = await fetch('/api/v4/claude-match/' + this.emailPreviewMatchId + '/send-email', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        direction: d.direction,
+                        recipient_email: d.recipient_email,
+                        subject: d.subject,
+                        body_text: d.body_text,
+                    }),
+                });
+                const result = await res.json();
+                if (!res.ok || !result.success) throw new Error(result.message || 'Senden fehlgeschlagen');
+                // Karte entfernen
+                const mid = this.emailPreviewMatchId;
+                this.topMatches = this.topMatches.filter(m => m.match_id !== mid);
+                this.wowMatches = this.wowMatches.filter(m => m.match_id !== mid);
+                this.followUps = this.followUps.filter(m => m.match_id !== mid);
+                this.proximityMatches = this.proximityMatches.filter(m => m.match_id !== mid);
+                this.summary.total_top = this.topMatches.length;
+                this.summary.total_wow = this.wowMatches.length;
+                this.summary.total_followups = this.followUps.length;
+                this.summary.total_proximity = this.proximityMatches.length;
+                this.emailPreviewOpen = false;
+            } catch(e) {
+                console.error('E-Mail senden fehlgeschlagen:', e);
+                alert('Fehler beim Senden: ' + e.message);
+            }
+            this.emailSending = false;
+        },
+
+        emailNurPdf() {
+            const d = this.emailPreviewData;
+            const mid = this.emailPreviewMatchId;
+            // PDF oeffnen
+            if (d.direction === 'job_an_kandidat') {
+                const allM = [...this.topMatches, ...this.wowMatches, ...this.followUps, ...this.proximityMatches];
+                const m = allM.find(x => x.match_id === mid);
+                if (m) window.open('/api/jobs/' + m.job_id + '/vorstellung-pdf?candidate_id=' + m.candidate_id + '&match_id=' + mid, '_blank');
+            } else {
+                const allM = [...this.topMatches, ...this.wowMatches, ...this.followUps, ...this.proximityMatches];
+                const m = allM.find(x => x.match_id === mid);
+                if (m) window.open('/api/candidates/' + m.candidate_id + '/profile-pdf', '_blank');
+            }
+            // Status setzen + Karte entfernen
+            this.emailPreviewOpen = false;
+            this.doAction(mid, d.direction, d.recipient_email);
         },
 
         startPolling() {
