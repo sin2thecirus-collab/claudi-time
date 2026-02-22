@@ -1021,6 +1021,11 @@ async function poll() {
   try {
     // Kandidaten
     const cr = await fetch('/api/candidates/maintenance/classification-status');
+    if (!cr.ok) {
+      document.getElementById('cand-db').textContent = 'Status-Endpoint Fehler: HTTP ' + cr.status;
+      document.getElementById('cand-db').className = 'text-sm text-red-400 mb-3';
+      throw new Error('HTTP ' + cr.status);
+    }
     const cd = await cr.json();
     const cl = cd.live_progress || {};
     const cdb = cd.db_status || {};
@@ -1063,6 +1068,12 @@ async function poll() {
   try {
     // Jobs
     const jr = await fetch('/api/jobs/maintenance/classification-status');
+    if (!jr.ok) {
+      document.getElementById('job-db').textContent = 'Status-Endpoint Fehler: HTTP ' + jr.status;
+      document.getElementById('job-db').className = 'text-sm text-red-400 mb-3';
+      console.error('Jobs status HTTP', jr.status, await jr.text());
+      throw new Error('HTTP ' + jr.status);
+    }
     const jd = await jr.json();
     const jl = jd.live_progress || {};
     const jdb = jd.db_status || {};
@@ -1100,7 +1111,11 @@ async function poll() {
       document.getElementById('job-badge').textContent = 'Inaktiv';
       document.getElementById('job-badge').className = 'text-xs px-2 py-1 rounded-full bg-zinc-700 text-zinc-400';
     }
-  } catch(e) { console.error('Jobs-Poll Fehler:', e); }
+  } catch(e) {
+    console.error('Jobs-Poll Fehler:', e);
+    document.getElementById('job-badge').textContent = 'Poll-Fehler';
+    document.getElementById('job-badge').className = 'text-xs px-2 py-1 rounded-full bg-red-900 text-red-300';
+  }
 }
 
 async function startClassification(type) {
