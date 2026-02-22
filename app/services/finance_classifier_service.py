@@ -43,7 +43,7 @@ Waehle die am besten passende Rolle:
 - Kreditorenbuchhalter/in (bucht hauptsaechlich nur Kreditoren / Eingangsrechnungen)
 - Debitorenbuchhalter/in (bucht hauptsaechlich nur Debitoren / Mahnwesen / Forderungen)
 - Lohnbuchhalter/in (Lohn- und Gehaltsabrechnung, Payroll)
-- Steuerfachangestellte/r (hat eine StFA-Ausbildung und arbeitet aktuell in einer Steuerkanzlei fuer Mandanten)
+- Steuerfachangestellte/r / Finanzbuchhalter/in (hat eine StFA-Ausbildung — StFA koennen alles was ein Finanzbuchhalter kann: Kreditoren, Debitoren, Anlagenbuchhaltung, Monatsabschluesse, JA-Vorbereitung)
 - Teamleiter Finanzbuchhaltung
 - Teamleiter Kreditorenbuchhaltung
 - Teamleiter Debitorenbuchhaltung
@@ -79,7 +79,7 @@ Waehle die am besten passende Rolle:
 - Kreditorenbuchhalter/in (hauptsaechlich Kreditoren / Eingangsrechnungen)
 - Debitorenbuchhalter/in (hauptsaechlich Debitoren / Mahnwesen)
 - Lohnbuchhalter/in (Payroll, Entgeltabrechnung)
-- Steuerfachangestellte/r (hat eine StFA-Ausbildung und arbeitet aktuell in einer Steuerkanzlei fuer Mandanten)
+- Steuerfachangestellte/r / Finanzbuchhalter/in (hat eine StFA-Ausbildung — StFA koennen alles was ein Finanzbuchhalter kann: Kreditoren, Debitoren, Anlagenbuchhaltung, Monatsabschluesse, JA-Vorbereitung)
 - Teamleiter Finanzbuchhaltung
 - Teamleiter Kreditorenbuchhaltung
 - Teamleiter Debitorenbuchhaltung
