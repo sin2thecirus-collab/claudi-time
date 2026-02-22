@@ -30,6 +30,19 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
 templates = Jinja2Templates(directory="app/templates")
 
+# ── Globaler Job-Klassifizierungs-Fortschritt (In-Memory) ──────────────
+_job_classification_progress: dict = {
+    "running": False,
+    "started_at": None,
+    "total": 0,
+    "processed": 0,
+    "classified": 0,
+    "errors": 0,
+    "cost_usd": 0.0,
+    "last_update": None,
+    "result": None,
+}
+
 
 # ==================== Import ====================
 
@@ -1709,102 +1722,242 @@ async def get_unclassified_ids(
 async def reclassify_finance_jobs(
     request: Request,
     force: bool = False,
-    background: bool = True,
 ):
     """
-    Deep Classification fuer alle FINANCE-Jobs ausfuehren.
-
-    Args:
-        force: Bereits klassifizierte Jobs nochmal klassifizieren?
-        background: Im Hintergrund ausfuehren? (Standard: true, verhindert Timeout)
+    Startet Bulk Deep Classification fuer Jobs als Background-Task.
+    Fortschritt abrufbar via GET /jobs/maintenance/classification-status.
     """
+    global _job_classification_progress
+
+    if _job_classification_progress["running"]:
+        return {
+            "status": "already_running",
+            "message": "Job-Klassifizierung laeuft bereits",
+            "progress": _job_classification_progress,
+        }
+
+    import asyncio
+    asyncio.create_task(_run_job_classification_background(force=force))
+
+    return {
+        "status": "started",
+        "message": "Job-Klassifizierung als Background-Task gestartet. Status via GET /jobs/maintenance/classification-status",
+    }
+
+
+async def _run_job_classification_background(force: bool = False) -> None:
+    """Background-Task fuer Job-Klassifizierung.
+
+    Verarbeitet Jobs EINZELN mit eigener DB-Session pro Job.
+    10 parallel via Semaphore. Jeder Job: Load -> Classify -> Save.
+    """
+    global _job_classification_progress
     import asyncio
 
-    async def _run_classification():
+    log = logging.getLogger(__name__)
+
+    _job_classification_progress = {
+        "running": True,
+        "started_at": datetime.now(timezone.utc).isoformat(),
+        "total": 0,
+        "processed": 0,
+        "classified": 0,
+        "errors": 0,
+        "cost_usd": 0.0,
+        "last_update": datetime.now(timezone.utc).isoformat(),
+        "result": None,
+    }
+
+    try:
         from app.database import async_session_maker
         from app.services.finance_classifier_service import FinanceClassifierService
         from sqlalchemy import and_, select
         from app.models.job import Job
 
-        try:
-            # 1. IDs laden (kurze Session)
-            async with async_session_maker() as db:
-                query = (
-                    select(Job.id)
-                    .where(and_(
-                        Job.hotlist_category == "FINANCE",
-                        Job.deleted_at.is_(None),
-                    ))
-                )
-                if not force:
-                    query = query.where(Job.classification_data.is_(None))
-                result = await db.execute(query)
-                job_ids = [row[0] for row in result.fetchall()]
+        # 1. IDs laden (kurze Session)
+        async with async_session_maker() as db:
+            query = (
+                select(Job.id)
+                .where(and_(
+                    Job.hotlist_category == "FINANCE",
+                    Job.deleted_at.is_(None),
+                ))
+            )
+            if not force:
+                query = query.where(Job.classification_data.is_(None))
+            result = await db.execute(query)
+            job_ids = [row[0] for row in result.fetchall()]
 
-            total = len(job_ids)
-            logger.info(f"Job Background Classification: {total} Jobs (force={force})")
+        total = len(job_ids)
+        _job_classification_progress["total"] = total
+        log.info(f"Job-Klassifizierung: {total} IDs geladen (force={force})")
 
-            if total == 0:
-                logger.info("Keine Jobs zu klassifizieren")
-                return
+        if total == 0:
+            _job_classification_progress["result"] = {"total": 0, "classified": 0, "message": "Keine Jobs"}
+            return
 
-            stats = {"classified": 0, "errors": 0}
-            semaphore = asyncio.Semaphore(2)  # 2 parallel (RPM-Schonung)
+        start_time = datetime.now(timezone.utc)
+        semaphore = asyncio.Semaphore(10)  # 10 parallel (gpt-4o vertraegt das)
 
-            async def _classify_one(jid):
-                async with semaphore:
-                    try:
-                        async with async_session_maker() as db2:
-                            classifier = FinanceClassifierService(db2)
-                            job = (await db2.execute(
-                                select(Job).where(Job.id == jid)
-                            )).scalar_one_or_none()
-                            if not job:
-                                return
-                            classification = await classifier.classify_job(job)
-                            if classification.success:
-                                classifier.apply_to_job(job, classification)
-                                await db2.commit()
-                                stats["classified"] += 1
-                            else:
-                                stats["errors"] += 1
-                                logger.warning(f"Job {jid}: {classification.error}")
-                            await classifier.close()
-                    except Exception as e:
-                        logger.error(f"Job {jid} Fehler: {e}")
-                        stats["errors"] += 1
-
-            # In Chunks von 10 mit Pause
-            for i in range(0, total, 10):
-                chunk = job_ids[i:i + 10]
-                await asyncio.gather(*[_classify_one(jid) for jid in chunk])
-                done = min(i + 10, total)
-                logger.info(f"Job Classification: {done}/{total} ({stats['classified']} klass., {stats['errors']} err)")
-                await asyncio.sleep(2)  # RPM-Schonung
-
-            logger.info(f"Job Background Classification fertig: {stats}")
-        except Exception as e:
-            logger.error(f"Background Classification Fehler: {e}")
-
-    if background:
-        asyncio.create_task(_run_classification())
-        return {
-            "status": "started",
-            "message": "Deep Classification laeuft im Hintergrund. Ergebnisse in den Logs.",
-            "force": force,
+        stats = {
+            "classified": 0, "errors": 0, "processed": 0,
+            "quality_high": 0, "quality_medium": 0, "quality_low": 0,
+            "input_tokens": 0, "output_tokens": 0,
+            "roles": {},
+            "last_errors": [],
         }
 
-    # Synchron (fuer kleine Batches)
-    from app.database import async_session_maker
-    from app.services.finance_classifier_service import FinanceClassifierService
+        async def _classify_one(jid):
+            async with semaphore:
+                try:
+                    async with async_session_maker() as db2:
+                        classifier = FinanceClassifierService(db2)
+                        job = (await db2.execute(
+                            select(Job).where(Job.id == jid)
+                        )).scalar_one_or_none()
+                        if not job:
+                            stats["errors"] += 1
+                            return
 
-    async with async_session_maker() as db:
-        classifier = FinanceClassifierService(db)
-        result = await classifier.deep_classify_finance_jobs(force=force)
+                        classification = await classifier.classify_job(job)
+                        stats["input_tokens"] += classification.input_tokens
+                        stats["output_tokens"] += classification.output_tokens
+
+                        if classification.success:
+                            classifier.apply_to_job(job, classification)
+                            await db2.commit()
+                            stats["classified"] += 1
+                            # Quality tracking
+                            qs = classification.quality_score
+                            if qs == "high":
+                                stats["quality_high"] += 1
+                            elif qs == "medium":
+                                stats["quality_medium"] += 1
+                            elif qs == "low":
+                                stats["quality_low"] += 1
+                            # Role tracking
+                            for role in (classification.roles or []):
+                                stats["roles"][role] = stats["roles"].get(role, 0) + 1
+                        else:
+                            stats["errors"] += 1
+                            err_msg = f"{jid}: {classification.error}"
+                            log.warning(f"Job {err_msg}")
+                            if len(stats["last_errors"]) < 5:
+                                stats["last_errors"].append(err_msg)
+
+                        await classifier.close()
+
+                except Exception as e:
+                    err_msg = f"{jid}: {str(e)[:200]}"
+                    log.error(f"Fehler Job {err_msg}")
+                    stats["errors"] += 1
+                    if len(stats["last_errors"]) < 5:
+                        stats["last_errors"].append(err_msg)
+
+                finally:
+                    stats["processed"] += 1
+                    _job_classification_progress["processed"] = stats["processed"]
+                    _job_classification_progress["classified"] = stats["classified"]
+                    _job_classification_progress["errors"] = stats["errors"]
+                    input_cost = (stats["input_tokens"] / 1_000_000) * 2.50
+                    output_cost = (stats["output_tokens"] / 1_000_000) * 10.0
+                    _job_classification_progress["cost_usd"] = round(input_cost + output_cost, 4)
+                    _job_classification_progress["last_update"] = datetime.now(timezone.utc).isoformat()
+
+        # In Chunks von 20 verarbeiten
+        chunk_size = 20
+        for chunk_start in range(0, total, chunk_size):
+            chunk = job_ids[chunk_start:chunk_start + chunk_size]
+            await asyncio.gather(*[_classify_one(jid) for jid in chunk])
+
+            elapsed = (datetime.now(timezone.utc) - start_time).total_seconds()
+            done = stats["processed"]
+            rate = done / elapsed if elapsed > 0 else 0
+            eta = (total - done) / rate if rate > 0 else 0
+
+            log.info(
+                f"Job-Klassifizierung: {done}/{total} "
+                f"({stats['classified']} klass., {stats['errors']} err, "
+                f"${_job_classification_progress['cost_usd']:.3f}, "
+                f"{rate:.1f}/s, ETA {eta:.0f}s)"
+            )
+
+            await asyncio.sleep(0.5)
+
+        # Ergebnis
+        duration = (datetime.now(timezone.utc) - start_time).total_seconds()
+
+        _job_classification_progress["result"] = {
+            "total": total,
+            "classified": stats["classified"],
+            "errors": stats["errors"],
+            "quality_high": stats["quality_high"],
+            "quality_medium": stats["quality_medium"],
+            "quality_low": stats["quality_low"],
+            "cost_usd": _job_classification_progress["cost_usd"],
+            "duration_seconds": round(duration, 1),
+            "roles_distribution": stats["roles"],
+            "last_errors": stats["last_errors"],
+        }
+        log.info(f"Job-Klassifizierung fertig: {stats['classified']}/{total} in {duration:.0f}s")
+
+    except Exception as e:
+        log.error(f"Job-Klassifizierung fehlgeschlagen: {e}")
+        _job_classification_progress["result"] = {"error": str(e)}
+
+    finally:
+        _job_classification_progress["running"] = False
+        _job_classification_progress["last_update"] = datetime.now(timezone.utc).isoformat()
+
+
+@router.get(
+    "/maintenance/classification-status",
+    summary="Status der Job-Klassifizierung",
+    tags=["Maintenance"],
+)
+@rate_limit(RateLimitTier.STANDARD)
+async def job_classification_status(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Zeigt den kombinierten Status: DB-Stand + Live-Fortschritt der laufenden Job-Klassifizierung.
+    """
+    from sqlalchemy import text
+
+    try:
+        r1 = await db.execute(text(
+            "SELECT COUNT(*) FROM jobs WHERE hotlist_category = 'FINANCE' AND deleted_at IS NULL"
+        ))
+        total_finance = r1.scalar() or 0
+
+        r2 = await db.execute(text(
+            "SELECT COUNT(*) FROM jobs WHERE hotlist_category = 'FINANCE' AND deleted_at IS NULL AND classification_data IS NOT NULL"
+        ))
+        classified = r2.scalar() or 0
+
+        r3 = await db.execute(text(
+            "SELECT COUNT(*) FROM jobs WHERE deleted_at IS NULL"
+        ))
+        total_all = r3.scalar() or 0
+
+        unclassified = total_finance - classified
+
+    except Exception as e:
+        return {
+            "db_status": {"error": str(e)},
+            "live_progress": _job_classification_progress,
+        }
 
     return {
-        "status": "completed",
-        **result,
+        "db_status": {
+            "total_jobs": total_all,
+            "total_finance": total_finance,
+            "classified": classified,
+            "unclassified": unclassified,
+            "classification_percent": round((classified / total_finance * 100), 1) if total_finance > 0 else 0,
+        },
+        "live_progress": _job_classification_progress,
     }
 
 

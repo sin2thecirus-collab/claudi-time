@@ -929,3 +929,178 @@ async def get_system_status_html(db: AsyncSession = Depends(get_db)):
     </div>
     """
     return HTMLResponse(content=html)
+
+
+# ══════════════════════════════════════════════════════════════════
+# 8. KLASSIFIZIERUNG LIVE-STATUS (HTML-Seite)
+# ══════════════════════════════════════════════════════════════════
+
+@router.get("/klassifizierung", response_class=HTMLResponse)
+async def klassifizierung_live_status():
+    """Standalone HTML-Seite die beide Klassifizierungs-Endpoints pollt."""
+    html = """<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Klassifizierung — Live-Status</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: 'Inter', system-ui, sans-serif; background: #09090B; color: #fafafa; }
+  .card { background: #18181B; border: 1px solid #27272A; border-radius: 12px; padding: 24px; }
+  .progress-bg { background: #27272A; border-radius: 9999px; height: 10px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 9999px; transition: width 0.5s ease; }
+  .pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+  .spinner { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body class="min-h-screen p-6">
+<div class="max-w-3xl mx-auto space-y-6">
+  <div class="flex items-center gap-3 mb-2">
+    <h1 class="text-2xl font-bold">Klassifizierung — Live-Status</h1>
+    <span id="auto-refresh" class="text-xs text-zinc-500">Auto-Refresh alle 3s</span>
+  </div>
+
+  <!-- Kandidaten -->
+  <div class="card" id="cand-card">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-lg font-semibold">Kandidaten</h2>
+      <span id="cand-badge" class="text-xs px-2 py-1 rounded-full bg-zinc-700 text-zinc-400">—</span>
+    </div>
+    <div id="cand-db" class="text-sm text-zinc-400 mb-3"></div>
+    <div class="progress-bg mb-2"><div id="cand-bar" class="progress-fill bg-blue-500" style="width:0%"></div></div>
+    <div class="flex justify-between text-sm">
+      <span id="cand-progress" class="text-zinc-400">—</span>
+      <span id="cand-pct" class="font-medium text-zinc-300">—</span>
+    </div>
+    <div id="cand-stats" class="mt-3 grid grid-cols-3 gap-3 text-center text-xs"></div>
+    <div id="cand-result" class="mt-3 text-sm text-zinc-400 hidden"></div>
+  </div>
+
+  <!-- Jobs -->
+  <div class="card" id="job-card">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-lg font-semibold">Jobs</h2>
+      <span id="job-badge" class="text-xs px-2 py-1 rounded-full bg-zinc-700 text-zinc-400">—</span>
+    </div>
+    <div id="job-db" class="text-sm text-zinc-400 mb-3"></div>
+    <div class="progress-bg mb-2"><div id="job-bar" class="progress-fill bg-emerald-500" style="width:0%"></div></div>
+    <div class="flex justify-between text-sm">
+      <span id="job-progress" class="text-zinc-400">—</span>
+      <span id="job-pct" class="font-medium text-zinc-300">—</span>
+    </div>
+    <div id="job-stats" class="mt-3 grid grid-cols-3 gap-3 text-center text-xs"></div>
+    <div id="job-result" class="mt-3 text-sm text-zinc-400 hidden"></div>
+  </div>
+
+  <!-- Links -->
+  <div class="card text-sm text-zinc-500">
+    <p class="font-medium text-zinc-300 mb-2">Klassifizierung starten:</p>
+    <code class="block bg-zinc-900 p-2 rounded mb-2 text-xs text-zinc-400">
+      POST /api/candidates/maintenance/reclassify-finance?force=true
+    </code>
+    <code class="block bg-zinc-900 p-2 rounded text-xs text-zinc-400">
+      POST /api/jobs/maintenance/reclassify-finance?force=true
+    </code>
+  </div>
+</div>
+
+<script>
+function stat(label, value, color) {
+  return `<div class="bg-zinc-900 rounded-lg p-2"><div class="font-bold text-${color}-400">${value}</div><div class="text-zinc-500">${label}</div></div>`;
+}
+
+async function poll() {
+  try {
+    // Kandidaten
+    const cr = await fetch('/api/candidates/maintenance/classification-status');
+    const cd = await cr.json();
+    const cl = cd.live_progress || {};
+    const cdb = cd.db_status || {};
+
+    document.getElementById('cand-db').textContent =
+      `DB: ${cdb.classified || 0} / ${cdb.total_finance || 0} klassifiziert (${cdb.classification_percent || 0}%)`;
+
+    if (cl.running) {
+      document.getElementById('cand-badge').className = 'text-xs px-2 py-1 rounded-full bg-blue-900 text-blue-300 pulse';
+      document.getElementById('cand-badge').textContent = 'Laeuft...';
+      const pct = cl.total > 0 ? Math.round(cl.processed / cl.total * 100) : 0;
+      document.getElementById('cand-bar').style.width = pct + '%';
+      document.getElementById('cand-progress').textContent = `${cl.processed} / ${cl.total}`;
+      document.getElementById('cand-pct').textContent = pct + '%';
+      document.getElementById('cand-stats').innerHTML =
+        stat('Klassifiziert', cl.classified, 'blue') +
+        stat('Fehler', cl.errors, 'red') +
+        stat('Kosten', '$' + (cl.cost_usd || 0).toFixed(3), 'amber');
+    } else if (cl.result) {
+      document.getElementById('cand-badge').className = 'text-xs px-2 py-1 rounded-full bg-green-900 text-green-300';
+      document.getElementById('cand-badge').textContent = 'Fertig';
+      document.getElementById('cand-bar').style.width = '100%';
+      const r = cl.result;
+      document.getElementById('cand-progress').textContent = `${r.classified || 0} / ${r.total || 0}`;
+      document.getElementById('cand-pct').textContent = '100%';
+      document.getElementById('cand-stats').innerHTML =
+        stat('Klassifiziert', r.classified || 0, 'blue') +
+        stat('Fehler', r.errors || 0, 'red') +
+        stat('Kosten', '$' + (r.cost_usd || 0).toFixed(3), 'amber');
+      if (r.duration_seconds) {
+        document.getElementById('cand-result').classList.remove('hidden');
+        document.getElementById('cand-result').textContent = `Dauer: ${Math.round(r.duration_seconds)}s | Rollen: ${JSON.stringify(r.roles_distribution || {})}`;
+      }
+    } else {
+      document.getElementById('cand-badge').textContent = 'Inaktiv';
+      document.getElementById('cand-badge').className = 'text-xs px-2 py-1 rounded-full bg-zinc-700 text-zinc-400';
+    }
+  } catch(e) { console.error('Kandidaten-Poll Fehler:', e); }
+
+  try {
+    // Jobs
+    const jr = await fetch('/api/jobs/maintenance/classification-status');
+    const jd = await jr.json();
+    const jl = jd.live_progress || {};
+    const jdb = jd.db_status || {};
+
+    document.getElementById('job-db').textContent =
+      `DB: ${jdb.classified || 0} / ${jdb.total_finance || 0} klassifiziert (${jdb.classification_percent || 0}%)`;
+
+    if (jl.running) {
+      document.getElementById('job-badge').className = 'text-xs px-2 py-1 rounded-full bg-emerald-900 text-emerald-300 pulse';
+      document.getElementById('job-badge').textContent = 'Laeuft...';
+      const pct = jl.total > 0 ? Math.round(jl.processed / jl.total * 100) : 0;
+      document.getElementById('job-bar').style.width = pct + '%';
+      document.getElementById('job-progress').textContent = `${jl.processed} / ${jl.total}`;
+      document.getElementById('job-pct').textContent = pct + '%';
+      document.getElementById('job-stats').innerHTML =
+        stat('Klassifiziert', jl.classified, 'emerald') +
+        stat('Fehler', jl.errors, 'red') +
+        stat('Kosten', '$' + (jl.cost_usd || 0).toFixed(3), 'amber');
+    } else if (jl.result) {
+      document.getElementById('job-badge').className = 'text-xs px-2 py-1 rounded-full bg-green-900 text-green-300';
+      document.getElementById('job-badge').textContent = 'Fertig';
+      document.getElementById('job-bar').style.width = '100%';
+      const r = jl.result;
+      document.getElementById('job-progress').textContent = `${r.classified || 0} / ${r.total || 0}`;
+      document.getElementById('job-pct').textContent = '100%';
+      document.getElementById('job-stats').innerHTML =
+        stat('Klassifiziert', r.classified || 0, 'emerald') +
+        stat('Fehler', r.errors || 0, 'red') +
+        stat('Kosten', '$' + (r.cost_usd || 0).toFixed(3), 'amber');
+      if (r.duration_seconds) {
+        document.getElementById('job-result').classList.remove('hidden');
+        document.getElementById('job-result').textContent = `Dauer: ${Math.round(r.duration_seconds)}s | Rollen: ${JSON.stringify(r.roles_distribution || {})}`;
+      }
+    } else {
+      document.getElementById('job-badge').textContent = 'Inaktiv';
+      document.getElementById('job-badge').className = 'text-xs px-2 py-1 rounded-full bg-zinc-700 text-zinc-400';
+    }
+  } catch(e) { console.error('Jobs-Poll Fehler:', e); }
+}
+
+poll();
+setInterval(poll, 3000);
+</script>
+</body>
+</html>"""
+    return HTMLResponse(content=html)
