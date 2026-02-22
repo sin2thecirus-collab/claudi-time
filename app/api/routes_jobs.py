@@ -2331,3 +2331,81 @@ async def backfill_job_tasks_status():
         **_backfill_tasks_status,
         "remaining": remaining,
     }
+
+
+@router.get(
+    "/maintenance/backfill-job-tasks/live",
+    summary="Live-Status-Seite fuer Job Tasks Backfill",
+    tags=["Maintenance"],
+    response_class=HTMLResponse,
+)
+async def backfill_job_tasks_live(request: Request):
+    """HTML-Seite mit Live-Fortschritt und Start-Button."""
+    return HTMLResponse(content="""<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Job Tasks Backfill</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 60px auto; padding: 0 20px; background: #0f1117; color: #e4e4e7; }
+  h1 { font-size: 20px; margin-bottom: 24px; }
+  .card { background: #1a1b23; border: 1px solid #2a2b35; border-radius: 12px; padding: 24px; margin-bottom: 16px; }
+  .row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
+  .label { color: #a1a1aa; }
+  .value { font-weight: 600; }
+  .green { color: #10b981; }
+  .red { color: #ef4444; }
+  .amber { color: #f59e0b; }
+  .bar-bg { background: #2a2b35; border-radius: 6px; height: 8px; margin: 16px 0; overflow: hidden; }
+  .bar { height: 100%; background: #6366f1; border-radius: 6px; transition: width 0.5s; }
+  button { width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; background: #6366f1; color: #fff; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .status { text-align: center; font-size: 13px; color: #a1a1aa; margin-top: 12px; }
+  a { color: #6366f1; text-decoration: none; }
+</style>
+</head>
+<body>
+<h1>Job Tasks Backfill</h1>
+<div class="card" id="info">Lade...</div>
+<button id="startBtn" onclick="startBackfill()" disabled>Backfill starten</button>
+<div class="status" id="statusText"></div>
+<p style="margin-top:24px;font-size:12px;"><a href="/action-board">&larr; Zurueck zum Action Board</a></p>
+
+<script>
+async function loadStatus() {
+  try {
+    const r = await fetch('/api/jobs/maintenance/backfill-job-tasks/status');
+    const d = await r.json();
+    const pct = d.total > 0 ? Math.round(d.done / d.total * 100) : 0;
+    document.getElementById('info').innerHTML = `
+      <div class="row"><span class="label">Status</span><span class="value ${d.running ? 'amber' : (d.done > 0 ? 'green' : '')}">${d.running ? 'Laeuft...' : (d.done > 0 && !d.running ? 'Fertig' : 'Bereit')}</span></div>
+      <div class="row"><span class="label">Gesamt</span><span class="value">${d.total}</span></div>
+      <div class="row"><span class="label">Erledigt</span><span class="value green">${d.done}</span></div>
+      <div class="row"><span class="label">Verbleibend</span><span class="value">${d.remaining}</span></div>
+      <div class="row"><span class="label">Fehler</span><span class="value ${d.errors > 0 ? 'red' : ''}">${d.errors}</span></div>
+      <div class="row"><span class="label">Kosten</span><span class="value">$${(d.cost_usd || 0).toFixed(4)}</span></div>
+      ${d.total > 0 ? '<div class="bar-bg"><div class="bar" style="width:' + pct + '%"></div></div><div style="text-align:center;font-size:12px;color:#a1a1aa;">' + pct + '%</div>' : ''}
+      ${d.started_at ? '<div class="row"><span class="label">Gestartet</span><span class="value" style="font-size:12px;">' + new Date(d.started_at).toLocaleString('de-DE') + '</span></div>' : ''}
+      ${d.finished_at ? '<div class="row"><span class="label">Fertig</span><span class="value" style="font-size:12px;">' + new Date(d.finished_at).toLocaleString('de-DE') + '</span></div>' : ''}
+    `;
+    document.getElementById('startBtn').disabled = d.running;
+    document.getElementById('startBtn').textContent = d.running ? 'Laeuft...' : 'Backfill starten';
+    if (d.running) setTimeout(loadStatus, 2000);
+  } catch(e) { document.getElementById('info').textContent = 'Fehler: ' + e.message; }
+}
+
+async function startBackfill() {
+  document.getElementById('startBtn').disabled = true;
+  document.getElementById('statusText').textContent = 'Wird gestartet...';
+  try {
+    const r = await fetch('/api/jobs/maintenance/backfill-job-tasks', {method: 'POST'});
+    const d = await r.json();
+    document.getElementById('statusText').textContent = d.message || d.error || 'Gestartet';
+    setTimeout(loadStatus, 1000);
+  } catch(e) { document.getElementById('statusText').textContent = 'Fehler: ' + e.message; }
+}
+
+loadStatus();
+</script>
+</body>
+</html>""")
