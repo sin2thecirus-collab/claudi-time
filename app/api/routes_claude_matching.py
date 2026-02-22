@@ -971,6 +971,61 @@ async def debug_last_run():
     }
 
 
+@router.get("/debug/claude-input")
+async def debug_claude_input():
+    """Zeigt den EXAKTEN Text den Claude fuer die ersten 3 Paare bekommen hat.
+
+    Damit kann man pruefen ob die Kandidaten-/Job-Daten leer oder unbrauchbar sind.
+    """
+    from app.services.claude_matching_service import (
+        get_all_sessions, get_session,
+        _extract_candidate_data, _extract_job_data,
+        QUICK_CHECK_SYSTEM, QUICK_CHECK_USER,
+    )
+
+    sessions = get_all_sessions()
+    if not sessions:
+        return {"error": "Keine Sessions gefunden"}
+
+    latest = sorted(sessions, key=lambda s: s.get("created_at", ""), reverse=True)[0]
+    session = get_session(latest["session_id"])
+    pairs = session.get("claude_pairs", [])
+
+    if not pairs:
+        return {"error": "Keine Paare in der Session"}
+
+    samples = []
+    for pair in pairs[:3]:
+        cand_data = _extract_candidate_data(pair)
+        job_data = _extract_job_data(pair)
+        user_msg = QUICK_CHECK_USER.format(**cand_data, **job_data)
+
+        fn = pair.get("candidate_first_name") or ""
+        ln = pair.get("candidate_last_name") or ""
+
+        samples.append({
+            "candidate_name": f"{fn} {ln}".strip() or "?",
+            "job_position": pair.get("position") or "?",
+            "job_company": pair.get("company_name") or "?",
+            "system_prompt": QUICK_CHECK_SYSTEM,
+            "user_prompt_an_claude": user_msg,
+            "rohdaten": {
+                "activities": cand_data["activities"],
+                "skills": cand_data["skills"],
+                "erp": cand_data["erp"],
+                "desired_positions": cand_data["desired_positions"],
+                "job_text_short_laenge": len(job_data["job_text_short"]),
+            },
+        })
+
+    return {
+        "session_id": latest["session_id"],
+        "total_pairs": len(pairs),
+        "hinweis": "Das ist der EXAKTE Text den Claude bekommt. Pruefen ob activities/skills/erp leer sind.",
+        "samples": samples,
+    }
+
+
 @router.get("/debug/match-count")
 async def debug_match_count(db: AsyncSession = Depends(get_db)):
     """Match-Statistiken fuer Claude-Matches."""
