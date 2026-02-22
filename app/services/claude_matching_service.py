@@ -62,6 +62,30 @@ def get_status() -> dict:
     return _matching_status.copy()
 
 
+# ── Stop-Flag (wird von Background-Tasks geprueft) ──
+_stop_requested = False
+
+
+def request_stop() -> dict:
+    """Fordert den laufenden Matching-Prozess auf, sich zu stoppen."""
+    global _stop_requested
+    if not _matching_status["running"]:
+        return {"status": "ok", "message": "Kein Lauf aktiv."}
+    _stop_requested = True
+    return {"status": "ok", "message": "Stop angefordert. Lauf wird nach aktuellem Paar beendet."}
+
+
+def is_stop_requested() -> bool:
+    """Prueft ob ein Stop angefordert wurde."""
+    return _stop_requested
+
+
+def clear_stop() -> None:
+    """Setzt das Stop-Flag zurueck."""
+    global _stop_requested
+    _stop_requested = False
+
+
 # ── Session-Storage (In-Memory, fuer kontrolliertes Matching) ──
 
 _matching_sessions: dict[str, dict] = {}
@@ -701,6 +725,12 @@ async def run_stufe_0(candidate_id: str | None = None) -> dict:
 
                 # In Chunks von 20 verarbeiten (Semaphore(3) = max 3 parallel)
                 for i in range(0, total_geo, 20):
+                    # Stop-Flag pruefen
+                    if is_stop_requested():
+                        logger.info("Vorfilter: Stop angefordert, breche ab.")
+                        clear_stop()
+                        break
+
                     chunk = geo_pairs[i:i + 20]
                     results = await asyncio.gather(*[_vorfilter_one(p) for p in chunk])
                     for p, passed in zip(chunk, results):

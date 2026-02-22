@@ -103,6 +103,148 @@ async def matching_status():
     return get_status()
 
 
+@router.get("/claude-match/live")
+async def matching_live():
+    """Live-Status-Seite fuer Matching — direkt im Browser aufrufbar."""
+    from fastapi.responses import HTMLResponse
+    return HTMLResponse(content="""<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Matching Live-Status</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 60px auto; padding: 0 20px; background: #0f1117; color: #e4e4e7; }
+  h1 { font-size: 20px; margin-bottom: 24px; }
+  .card { background: #1a1b23; border: 1px solid #2a2b35; border-radius: 12px; padding: 24px; margin-bottom: 16px; }
+  .row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
+  .label { color: #a1a1aa; }
+  .value { font-weight: 600; }
+  .green { color: #10b981; }
+  .red { color: #ef4444; }
+  .amber { color: #f59e0b; }
+  .blue { color: #6366f1; }
+  .bar-bg { background: #2a2b35; border-radius: 6px; height: 8px; margin: 16px 0; overflow: hidden; }
+  .bar { height: 100%; background: #6366f1; border-radius: 6px; transition: width 0.5s; }
+  button { width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; background: #6366f1; color: #fff; margin-bottom: 8px; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-red { background: #ef4444; }
+  .status-text { text-align: center; font-size: 13px; color: #a1a1aa; margin-top: 12px; }
+  a { color: #6366f1; text-decoration: none; }
+  pre { background: #1a1b23; border: 1px solid #2a2b35; border-radius: 8px; padding: 12px; font-size: 11px; overflow-x: auto; color: #a1a1aa; }
+</style>
+</head>
+<body>
+<h1>Matching Live-Status</h1>
+<div class="card" id="info">Lade...</div>
+<button id="startBtn" onclick="startMatching()">Kontrolliertes Matching starten</button>
+<button id="stopBtn" class="btn-red" onclick="stopMatching()" style="display:none;">Lauf stoppen</button>
+<div class="status-text" id="msg"></div>
+<h2 style="font-size:14px;margin-top:24px;">Raw JSON:</h2>
+<pre id="raw">-</pre>
+<p style="margin-top:24px;font-size:12px;"><a href="/action-board">&larr; Zurueck zum Action Board</a></p>
+
+<script>
+let polling = null;
+
+async function loadStatus() {
+  try {
+    const r = await fetch('/api/v4/claude-match/status');
+    const d = await r.json();
+    const p = d.progress || {};
+    const running = d.running || false;
+
+    document.getElementById('raw').textContent = JSON.stringify(d, null, 2);
+
+    let html = '';
+    html += row('Status', running ? '<span class="amber">Laeuft</span>' : '<span class="green">Bereit</span>');
+    html += row('Stufe', p.stufe || '-');
+    html += row('Phase', p.phase || '-');
+    html += row('Session', p.session_id || '-');
+
+    if (p.total_geo_pairs > 0) {
+      html += '<hr style="border-color:#2a2b35;margin:12px 0;">';
+      html += row('Geo-Paare gefunden', '<span class="blue">' + p.total_geo_pairs + '</span>');
+    }
+    if (p.vorfilter_total > 0) {
+      const pct = Math.round((p.vorfilter_done || 0) / p.vorfilter_total * 100);
+      html += row('Vorfilter geprueft', (p.vorfilter_done || 0) + ' / ' + p.vorfilter_total + ' (' + pct + '%)');
+      html += row('Bestanden', '<span class="green">' + (p.vorfilter_passed || 0) + '</span>');
+      html += row('Rausgefiltert', '<span class="red">' + (p.vorfilter_failed || 0) + '</span>');
+      html += '<div class="bar-bg"><div class="bar" style="width:' + pct + '%"></div></div>';
+    }
+    if (p.processed_stufe_1 > 0) {
+      html += '<hr style="border-color:#2a2b35;margin:12px 0;">';
+      html += row('Stufe 1 geprueft', (p.processed_stufe_1 || 0) + ' / ' + (p.total_pairs || '?'));
+      html += row('Stufe 1 bestanden', '<span class="green">' + (p.passed_stufe_1 || 0) + '</span>');
+    }
+    if (p.processed_stufe_2 > 0) {
+      html += '<hr style="border-color:#2a2b35;margin:12px 0;">';
+      html += row('Stufe 2 bewertet', (p.processed_stufe_2 || 0) + ' / ' + (p.total_pairs || '?'));
+      html += row('Top Matches', '<span class="green">' + (p.top_matches || 0) + '</span>');
+      html += row('WOW Matches', '<span class="amber">' + (p.wow_matches || 0) + '</span>');
+    }
+    if (p.errors > 0) {
+      html += row('Fehler', '<span class="red">' + p.errors + '</span>');
+    }
+    if (p.cost_estimate_usd > 0) {
+      html += row('Kosten', '$' + (p.cost_estimate_usd || 0).toFixed(4));
+    }
+    if (p.error_message) {
+      html += row('Error', '<span class="red">' + p.error_message + '</span>');
+    }
+
+    document.getElementById('info').innerHTML = html;
+    document.getElementById('startBtn').style.display = running ? 'none' : 'block';
+    document.getElementById('startBtn').disabled = running;
+    document.getElementById('stopBtn').style.display = running ? 'block' : 'none';
+
+    if (running && !polling) {
+      polling = setInterval(loadStatus, 2000);
+    }
+    if (!running && polling) {
+      clearInterval(polling);
+      polling = null;
+    }
+  } catch(e) {
+    document.getElementById('info').textContent = 'Fehler: ' + e.message;
+  }
+}
+
+function row(label, value) {
+  return '<div class="row"><span class="label">' + label + '</span><span class="value">' + value + '</span></div>';
+}
+
+async function startMatching() {
+  document.getElementById('msg').textContent = 'Starte...';
+  const r = await fetch('/api/v4/claude-match/run-stufe-0', {method:'POST'});
+  const d = await r.json();
+  document.getElementById('msg').textContent = d.message || d.error || JSON.stringify(d);
+  loadStatus();
+  if (!polling) polling = setInterval(loadStatus, 2000);
+}
+
+async function stopMatching() {
+  document.getElementById('msg').textContent = 'Wird gestoppt...';
+  const r = await fetch('/api/v4/claude-match/stop', {method:'POST'});
+  const d = await r.json();
+  document.getElementById('msg').textContent = d.message || d.error || JSON.stringify(d);
+  loadStatus();
+}
+
+loadStatus();
+if (!polling) polling = setInterval(loadStatus, 2000);
+</script>
+</body>
+</html>""")
+
+
+@router.post("/claude-match/stop")
+async def stop_matching():
+    """Stoppt den aktuell laufenden Matching-Prozess."""
+    from app.services.claude_matching_service import request_stop
+    return request_stop()
+
+
 @router.get("/claude-match/daily")
 async def daily_matches(
     db: AsyncSession = Depends(get_db),
