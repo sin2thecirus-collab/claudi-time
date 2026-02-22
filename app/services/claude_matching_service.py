@@ -350,10 +350,11 @@ async def _call_claude(
                 text = text.strip()
 
             parsed = json.loads(text)
+            logger.info(f"Claude response: {text[:300]}")
             return parsed, input_tokens, output_tokens
 
         except json.JSONDecodeError as e:
-            logger.warning(f"Claude JSON parse error: {e}, raw: {text[:200]}")
+            logger.warning(f"Claude JSON parse error: {e}, raw: {text[:500]}")
             # Tokens trotzdem tracken (API wurde aufgerufen!)
             return None, input_tokens, output_tokens
         except Exception as e:
@@ -715,16 +716,27 @@ async def run_stufe_1(
             _matching_status["progress"]["tokens_in"] = total_tokens_in
             _matching_status["progress"]["tokens_out"] = total_tokens_out
 
-            if parsed is None:
-                errors += 1
-                _matching_status["progress"]["errors"] = errors
-                continue
-
             distance_m = pair.get("distance_m")
             distance_km = round(distance_m / 1000, 1) if distance_m else None
 
             fn = pair.get("candidate_first_name") or ""
             ln = pair.get("candidate_last_name") or ""
+
+            if parsed is None:
+                errors += 1
+                _matching_status["progress"]["errors"] = errors
+                error_info = {
+                    "candidate_id": str(pair["candidate_id"]),
+                    "job_id": str(pair["job_id"]),
+                    "candidate_name": f"{fn} {ln}".strip() or "Unbekannt",
+                    "job_position": pair.get("position") or "Unbekannt",
+                    "job_company": pair.get("company_name") or "Unbekannt",
+                    "quick_reason": "FEHLER: Claude-Antwort konnte nicht geparst werden",
+                }
+                logger.warning(f"Stufe 1 [{i+1}/{len(active_pairs)}]: ERROR (parse) — {error_info['candidate_name']} → {error_info['job_position']}")
+                session.setdefault("error_pairs", []).append(error_info)
+                continue
+
             pair_info = {
                 "candidate_id": str(pair["candidate_id"]),
                 "job_id": str(pair["job_id"]),
@@ -739,15 +751,25 @@ async def run_stufe_1(
                 "quick_reason": parsed.get("reason", ""),
             }
 
-            if parsed.get("pass", False):
+            did_pass = parsed.get("pass", False)
+            reason = parsed.get("reason", "")
+            logger.info(
+                f"Stufe 1 [{i+1}/{len(active_pairs)}]: "
+                f"{'PASS' if did_pass else 'FAIL'} — "
+                f"{pair_info['candidate_name']} → {pair_info['job_position']} @ {pair_info['job_company']} — "
+                f"Grund: {reason}"
+            )
+
+            if did_pass:
                 passed_pairs.append(pair_info)
                 # Volles Paar mit Daten in Session speichern fuer Stufe 2
                 session["passed_pairs"].append({
                     **pair,
-                    "quick_reason": parsed.get("reason", ""),
+                    "quick_reason": reason,
                 })
                 _matching_status["progress"]["passed_stufe_1"] = len(passed_pairs)
             else:
+                pair_info["quick_reason"] = reason
                 failed_pairs.append(pair_info)
                 session["failed_pairs"].append(pair_info)
 
@@ -889,9 +911,23 @@ async def run_stufe_2(
             _matching_status["progress"]["tokens_in"] = total_tokens_in
             _matching_status["progress"]["tokens_out"] = total_tokens_out
 
+            fn2 = pair.get("candidate_first_name") or ""
+            ln2 = pair.get("candidate_last_name") or ""
+            cand_name = f"{fn2} {ln2}".strip() or "Unbekannt"
+
             if parsed is None:
                 errors += 1
                 _matching_status["progress"]["errors"] = errors
+                error_info = {
+                    "candidate_id": str(pair["candidate_id"]),
+                    "job_id": str(pair["job_id"]),
+                    "candidate_name": cand_name,
+                    "job_position": pair.get("position") or "Unbekannt",
+                    "job_company": pair.get("company_name") or "Unbekannt",
+                    "reason": "Claude-Antwort konnte nicht geparst werden",
+                }
+                logger.warning(f"Stufe 2 [{i+1}/{len(active_pairs)}]: ERROR (parse) — {cand_name}")
+                session.setdefault("stufe2_errors", []).append(error_info)
                 continue
 
             # Score clampen
@@ -902,13 +938,31 @@ async def run_stufe_2(
             if empfehlung not in ["vorstellen", "beobachten", "nicht_passend"]:
                 empfehlung = "beobachten"
 
+            logger.info(
+                f"Stufe 2 [{i+1}/{len(active_pairs)}]: "
+                f"Score={score} Empf={empfehlung} WOW={'JA' if parsed.get('wow_faktor') else 'nein'} — "
+                f"{cand_name} → {pair.get('position') or '?'} @ {pair.get('company_name') or '?'}"
+            )
+
+            if score < MIN_SCORE_SAVE:
+                # Track rejected pairs (Score zu niedrig)
+                session.setdefault("stufe2_rejected", []).append({
+                    "candidate_id": str(pair["candidate_id"]),
+                    "job_id": str(pair["job_id"]),
+                    "candidate_name": cand_name,
+                    "job_position": pair.get("position") or "Unbekannt",
+                    "job_company": pair.get("company_name") or "Unbekannt",
+                    "score": score,
+                    "empfehlung": empfehlung,
+                    "zusammenfassung": parsed.get("zusammenfassung", ""),
+                    "reason": f"Score {score} unter Minimum {MIN_SCORE_SAVE}",
+                })
+
             if score >= MIN_SCORE_SAVE:
-                fn2 = pair.get("candidate_first_name") or ""
-                ln2 = pair.get("candidate_last_name") or ""
                 deep_results.append({
                     "candidate_id": pair["candidate_id"],
                     "job_id": pair["job_id"],
-                    "candidate_name": f"{fn2} {ln2}".strip() or "Unbekannt",
+                    "candidate_name": cand_name,
                     "distance_km": distance_km,
                     "cand_lat": pair.get("cand_lat"),
                     "cand_lng": pair.get("cand_lng"),

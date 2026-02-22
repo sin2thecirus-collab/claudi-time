@@ -751,6 +751,12 @@ async def get_session_data(session_id: str):
             for dr in session.get("deep_results", [])
         ],
         "matches_saved": session.get("matches_saved", 0),
+        # Debug-Daten
+        "error_pairs": session.get("error_pairs", []),
+        "stufe2_errors": session.get("stufe2_errors", []),
+        "stufe2_rejected": session.get("stufe2_rejected", []),
+        "tokens_in": session.get("tokens_in", 0),
+        "tokens_out": session.get("tokens_out", 0),
     }
 
 
@@ -881,6 +887,89 @@ async def compare_pair(
 # ══════════════════════════════════════════════════════════════
 # Debug-Endpoints
 # ══════════════════════════════════════════════════════════════
+
+@router.get("/debug/last-run")
+async def debug_last_run():
+    """Zeigt die letzte Matching-Session mit allen Debug-Daten.
+
+    Stufe 1: passed/failed/error_pairs mit quick_reason
+    Stufe 2: deep_results/stufe2_rejected/stufe2_errors mit Score+Grund
+    """
+    from app.services.claude_matching_service import get_all_sessions, get_session, _matching_status
+
+    sessions = get_all_sessions()
+    if not sessions:
+        return {
+            "status": "keine_sessions",
+            "message": "Keine Matching-Sessions gefunden. Starte zuerst 'Kontrolliertes Matching'.",
+            "matching_status": _matching_status,
+        }
+
+    # Letzte Session nehmen (sortiert nach created_at)
+    latest = sorted(sessions, key=lambda s: s.get("created_at", ""), reverse=True)[0]
+    session_id = latest["session_id"]
+    session = get_session(session_id)
+
+    # Zusammenfassung
+    total_pairs = len(session.get("claude_pairs", []))
+    excluded_count = len(session.get("excluded_pairs", set()))
+    passed_count = len(session.get("passed_pairs", []))
+    failed_count = len(session.get("failed_pairs", []))
+    error_count = len(session.get("error_pairs", []))
+    deep_count = len(session.get("deep_results", []))
+    rejected_count = len(session.get("stufe2_rejected", []))
+    stufe2_error_count = len(session.get("stufe2_errors", []))
+
+    # Stufe 1: Erste 10 failed pairs mit Gruenden
+    failed_sample = []
+    for fp in session.get("failed_pairs", [])[:10]:
+        failed_sample.append({
+            "candidate_name": fp.get("candidate_name", "?"),
+            "candidate_role": fp.get("candidate_role", "?"),
+            "job_position": fp.get("job_position", "?"),
+            "job_company": fp.get("job_company", "?"),
+            "quick_reason": fp.get("quick_reason", "Kein Grund angegeben"),
+        })
+
+    # Stufe 1: Erste 5 passed pairs
+    passed_sample = []
+    for pp in session.get("passed_pairs", [])[:5]:
+        passed_sample.append({
+            "candidate_name": f"{pp.get('candidate_first_name', '')} {pp.get('candidate_last_name', '')}".strip() or "?",
+            "job_position": pp.get("position", "?"),
+            "job_company": pp.get("company_name", "?"),
+            "quick_reason": pp.get("quick_reason", ""),
+        })
+
+    # Stufe 2: Rejected (Score zu niedrig)
+    rejected_sample = session.get("stufe2_rejected", [])[:10]
+
+    return {
+        "session_id": session_id,
+        "created_at": session.get("created_at"),
+        "current_stufe": session.get("current_stufe"),
+        "matching_status": _matching_status,
+        "zusammenfassung": {
+            "stufe_0_paare_total": total_pairs,
+            "stufe_0_ausgeschlossen": excluded_count,
+            "stufe_0_aktiv": total_pairs - excluded_count,
+            "stufe_1_bestanden": passed_count,
+            "stufe_1_durchgefallen": failed_count,
+            "stufe_1_fehler": error_count,
+            "stufe_1_bestehensrate": f"{round(passed_count / max(passed_count + failed_count, 1) * 100, 1)}%",
+            "stufe_2_gespeichert": deep_count,
+            "stufe_2_rejected_score_zu_niedrig": rejected_count,
+            "stufe_2_fehler": stufe2_error_count,
+            "tokens_in": session.get("tokens_in", 0),
+            "tokens_out": session.get("tokens_out", 0),
+        },
+        "stufe_1_failed_sample": failed_sample,
+        "stufe_1_passed_sample": passed_sample,
+        "stufe_1_error_pairs": session.get("error_pairs", []),
+        "stufe_2_rejected_sample": rejected_sample,
+        "stufe_2_error_pairs": session.get("stufe2_errors", []),
+    }
+
 
 @router.get("/debug/match-count")
 async def debug_match_count(db: AsyncSession = Depends(get_db)):

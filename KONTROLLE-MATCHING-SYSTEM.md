@@ -799,12 +799,31 @@ Es wird KEIN neuer Profil-PDF-Service erstellt. Der bestehende wird wiederverwen
 #### Debug
 | Methode | Pfad | Datei | Zweck |
 |---------|------|-------|-------|
-| GET | `/api/v4/debug/match-count` | `routes_claude_matching.py` Z.386 | Match-Statistiken |
-| GET | `/api/v4/debug/stufe-0-preview` | `routes_claude_matching.py` Z.456 | Dry-Run Vorschau |
-| GET | `/api/v4/debug/job-health` | `routes_claude_matching.py` Z.529 | Job-Daten-Qualitaet |
-| GET | `/api/v4/debug/candidate-health` | `routes_claude_matching.py` Z.606 | Kandidaten-Daten-Qualitaet |
-| GET | `/api/v4/debug/match/{id}` | `routes_claude_matching.py` Z.689 | Match-Detail |
-| GET | `/api/v4/debug/cost-report` | `routes_claude_matching.py` Z.724 | Kosten-Report |
+| GET | `/api/v4/debug/last-run` | `routes_claude_matching.py` | **WICHTIGSTER DEBUG** — Letzte Session mit Zusammenfassung, failed/passed/error/rejected Samples |
+| GET | `/api/v4/debug/match-count` | `routes_claude_matching.py` | Match-Statistiken |
+| GET | `/api/v4/debug/stufe-0-preview` | `routes_claude_matching.py` | Dry-Run Stufe 0 Vorschau |
+| GET | `/api/v4/debug/job-health` | `routes_claude_matching.py` | Job-Daten-Qualitaet |
+| GET | `/api/v4/debug/candidate-health` | `routes_claude_matching.py` | Kandidaten-Daten-Qualitaet |
+| GET | `/api/v4/debug/match/{id}` | `routes_claude_matching.py` | Match-Detail mit Claude-Input/Output |
+| GET | `/api/v4/debug/cost-report` | `routes_claude_matching.py` | API-Kosten |
+
+#### Session-Debugging
+| Methode | Pfad | Datei | Zweck |
+|---------|------|-------|-------|
+| GET | `/api/v4/claude-match/sessions` | `routes_claude_matching.py` | Alle aktiven Sessions auflisten |
+| GET | `/api/v4/claude-match/session/{id}` | `routes_claude_matching.py` | Session-Detail mit allen Debug-Feldern |
+
+**Debug-Felder pro Session (nach Stufe 1):**
+- `failed_pairs` — Jedes Paar mit `quick_reason` (Claudes Begruendung warum FAIL)
+- `error_pairs` — Parse-Fehler (Claude-Antwort nicht als JSON parsebar)
+- `passed_pairs` — Bestandene Paare mit `quick_reason`
+
+**Debug-Felder pro Session (nach Stufe 2):**
+- `deep_results` — Gespeicherte Matches mit Score, Empfehlung, Zusammenfassung
+- `stufe2_rejected` — Score unter MIN_SCORE_SAVE (40) mit Score + Grund
+- `stufe2_errors` — Parse-Fehler in Stufe 2
+
+**TIPP:** `/debug/last-run` im Browser aufrufen (eingeloggt) fuer schnellen Ueberblick.
 
 ### Alle relevanten Services
 
@@ -932,6 +951,8 @@ Es wird KEIN neuer Profil-PDF-Service erstellt. Der bestehende wird wiederverwen
 | H11 | Job-Vorstellungs-PDF ist NEU, nicht der alte JobDescriptionPdfService | Milad will ein richtig schoen designtes PDF im gleichen Stil wie das Kandidaten-Profil. Der alte Service reicht dafuer nicht. | 22.02.2026 |
 | H12 | E-Mails an Kunden gehen an KONTAKTE, nicht an Firmen | Milad waehlt aus den bestehenden Kontakten im Unternehmen oder gibt ein Bewerber-Postfach ein. Die Kontakte-Tabelle muss existieren. | 22.02.2026 |
 | H13 | Stufe-0 und Stufe-1 haben BEIDE: Vergleichs-Button + Ausschliessen-Button | Milad will in JEDER Stufe Paare pruefen (Vergleich) und ausschliessen koennen. Nicht nur in Stufe 0. | 22.02.2026 |
+| H14 | Stufe 1: 0 Paare bestanden beim ersten Test | Claude ist moeglicherweise zu streng. Logging jetzt eingebaut: jedes Paar loggt PASS/FAIL + Grund. Debug via `/debug/last-run`. | 22.02.2026 |
+| H15 | Session-/Debug-Endpoints brauchen Login | AuthMiddleware auf allen `/api/v4/` Endpoints. Im Browser eingeloggt aufrufen, NICHT via curl mit API-Key. | 22.02.2026 |
 
 ### Offene Fragen
 
@@ -959,3 +980,4 @@ Es wird KEIN neuer Profil-PDF-Service erstellt. Der bestehende wird wiederverwen
 | 22.02.2026 | Phase 3 deployed | Job-PDF-Service + Template, Buttons aufgeteilt, Kontakt-Dialog, PDF Auto-Oeffnen |
 | 22.02.2026 | Phase 4 gestartet | EmailPreparationService, prepare-email + send-email Endpoints, Email-Vorschau-Dialog |
 | 22.02.2026 | Phase 4 fertig | 4 E-Mail-Varianten, GPT fachliche Einschaetzung, Email-Vorschau-Dialog mit Bearbeiten, Senden via Graph, Nur-PDF-Option, Button-Flow umgestellt |
+| 22.02.2026 | Debug erweitert | Stufe 1+2: Logging pro Paar (PASS/FAIL + Grund), error_pairs/stufe2_rejected/stufe2_errors tracken, neuer `/debug/last-run` Endpoint, Session-Endpoint erweitert |
