@@ -613,42 +613,70 @@ async def run_stufe_0(candidate_id: str | None = None) -> dict:
             _matching_status["progress"]["phase"] = "geo_distanz"
             _matching_status["progress"]["total_geo_pairs"] = len(geo_pairs)
 
-            # ── Query 3: ≤40km Luftlinie (nicht schon gefunden) ──
+            # ── Query 3: ≤40km Luftlinie — PRO JOB (Spatial Index nutzen) ──
+            # Cross-Join ST_DWithin ueber alle Kandidaten×Jobs ist zu langsam.
+            # Stattdessen: Jobs laden, pro Job die Kandidaten im Umkreis suchen.
+            new_dist = 0
+
+            # Zuerst alle relevanten Job-IDs + Koordinaten laden
             async with async_session_maker() as db:
-                existing_match = select(Match.id).where(
-                    and_(Match.candidate_id == Candidate.id, Match.job_id == Job.id)
-                ).correlate(Candidate, Job).exists()
+                job_rows = await db.execute(
+                    select(
+                        Job.id,
+                        func.ST_Y(func.ST_GeomFromWKB(Job.location_coords)).label("lat"),
+                        func.ST_X(func.ST_GeomFromWKB(Job.location_coords)).label("lng"),
+                    ).where(and_(
+                        *base_job,
+                        Job.location_coords.isnot(None),
+                        Job.job_text.isnot(None),
+                        func.length(Job.job_text) > 50,
+                    ))
+                )
+                job_list = [(str(r.id), r.lat, r.lng) for r in job_rows.all()]
 
-                distance_expr = func.ST_Distance(
-                    Candidate.address_coords, Job.location_coords
-                ).label("distance_m")
-                cand_lat = func.ST_Y(func.ST_GeomFromWKB(Candidate.address_coords)).label("cand_lat")
-                cand_lng = func.ST_X(func.ST_GeomFromWKB(Candidate.address_coords)).label("cand_lng")
-                job_lat = func.ST_Y(func.ST_GeomFromWKB(Job.location_coords)).label("job_lat")
-                job_lng = func.ST_X(func.ST_GeomFromWKB(Job.location_coords)).label("job_lng")
+            logger.info(f"Geo-Kaskade 40km: {len(job_list)} Jobs mit Koordinaten")
 
-                cols = _build_select_columns(cand_lat, cand_lng, job_lat, job_lng, distance_expr)
+            for job_idx, (job_id_str, _, _) in enumerate(job_list):
+                if job_idx % 50 == 0 and job_idx > 0:
+                    logger.info(f"Geo-Kaskade 40km: Job {job_idx}/{len(job_list)}, +{new_dist} neue Paare")
 
-                dist_query = select(*cols).where(and_(
-                    *base_cand, *base_job, *base_data,
-                    Candidate.address_coords.isnot(None),
-                    Job.location_coords.isnot(None),
-                    func.ST_DWithin(
-                        Candidate.address_coords,
-                        Job.location_coords,
-                        MAX_DISTANCE_M,
-                    ),
-                    ~existing_match,
-                ))
-                rows = await db.execute(dist_query)
-                new_dist = 0
-                for row in rows.all():
-                    d = dict(row._mapping)
-                    key = (str(d["candidate_id"]), str(d["job_id"]))
-                    if key not in seen_pair_keys:
-                        seen_pair_keys.add(key)
-                        geo_pairs.append(d)
-                        new_dist += 1
+                async with async_session_maker() as db:
+                    from sqlalchemy import cast
+                    from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+
+                    existing_match = select(Match.id).where(
+                        and_(Match.candidate_id == Candidate.id, Match.job_id == Job.id)
+                    ).correlate(Candidate, Job).exists()
+
+                    distance_expr = func.ST_Distance(
+                        Candidate.address_coords, Job.location_coords
+                    ).label("distance_m")
+                    cand_lat = func.ST_Y(func.ST_GeomFromWKB(Candidate.address_coords)).label("cand_lat")
+                    cand_lng = func.ST_X(func.ST_GeomFromWKB(Candidate.address_coords)).label("cand_lng")
+                    job_lat = func.ST_Y(func.ST_GeomFromWKB(Job.location_coords)).label("job_lat")
+                    job_lng = func.ST_X(func.ST_GeomFromWKB(Job.location_coords)).label("job_lng")
+
+                    cols = _build_select_columns(cand_lat, cand_lng, job_lat, job_lng, distance_expr)
+
+                    dist_query = select(*cols).where(and_(
+                        *base_cand, *base_data,
+                        Job.id == cast(job_id_str, PG_UUID),
+                        Candidate.address_coords.isnot(None),
+                        func.ST_DWithin(
+                            Candidate.address_coords,
+                            Job.location_coords,
+                            MAX_DISTANCE_M,
+                        ),
+                        ~existing_match,
+                    ))
+                    rows = await db.execute(dist_query)
+                    for row in rows.all():
+                        d = dict(row._mapping)
+                        key = (str(d["candidate_id"]), str(d["job_id"]))
+                        if key not in seen_pair_keys:
+                            seen_pair_keys.add(key)
+                            geo_pairs.append(d)
+                            new_dist += 1
 
             logger.info(f"Geo-Kaskade 40km: +{new_dist} neue Paare (gesamt: {len(geo_pairs)})")
             _matching_status["progress"]["total_geo_pairs"] = len(geo_pairs)
