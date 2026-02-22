@@ -35,6 +35,12 @@ ALLOWED_ROLES = {
     "Debitorenbuchhalter/in",
     "Lohnbuchhalter/in",
     "Steuerfachangestellte/r",
+    "Teamleiter Finanzbuchhaltung",
+    "Teamleiter Kreditorenbuchhaltung",
+    "Teamleiter Debitorenbuchhaltung",
+    "Financial Controller",
+    "Leiter Buchhaltung",
+    "Head of Finance",
 }
 
 # ═══════════════════════════════════════════════════════════════
