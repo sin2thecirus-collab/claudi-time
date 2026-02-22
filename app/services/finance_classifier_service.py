@@ -43,15 +43,15 @@ Waehle die am besten passende Rolle:
 - Kreditorenbuchhalter/in (bucht hauptsaechlich nur Kreditoren / Eingangsrechnungen)
 - Debitorenbuchhalter/in (bucht hauptsaechlich nur Debitoren / Mahnwesen / Forderungen)
 - Lohnbuchhalter/in (Lohn- und Gehaltsabrechnung, Payroll)
-- Steuerfachangestellte/r (StFA-Ausbildung, Kanzlei, Steuererklaerungen)
-- Teamleiter Finanzbuchhaltung (fuehrt ein FiBu-Team und bucht ggf. auch selbst)
-- Teamleiter Kreditorenbuchhaltung (fuehrt ein Kreditoren-Team)
-- Teamleiter Debitorenbuchhaltung (fuehrt ein Debitoren-Team)
-- Financial Controller (Controlling, Reporting, Analyse, Budgetplanung, Forecasting)
-- Leiter Buchhaltung (fuehrt die gesamte Buchhaltungsabteilung)
-- Head of Finance (Leitung Finanzen, CFO, VP Finance, kaufmaennischer Leiter)
+- Steuerfachangestellte/r (hat eine StFA-Ausbildung und arbeitet aktuell in einer Steuerkanzlei fuer Mandanten)
+- Teamleiter Finanzbuchhaltung
+- Teamleiter Kreditorenbuchhaltung
+- Teamleiter Debitorenbuchhaltung
+- Financial Controller
+- Leiter Buchhaltung
+- Head of Finance
 
-Wenn keine der obigen Rollen passt, entscheide aus dem Kontext heraus was die Person tatsaechlich macht und gib eine passende Berufsbezeichnung zurueck (z.B. "Treasurer", "Wirtschaftspruefer", "Tax Manager", "Accountant", "Sachbearbeiter Buchhaltung" etc.).
+Wenn keine der obigen Rollen passt, entscheide aus dem Kontext heraus was die Person tatsaechlich macht und gib eine passende Berufsbezeichnung zurueck.
 
 Waehle einfach die Rolle die am besten passt. Vertraue deinem Urteil.
 
@@ -79,15 +79,15 @@ Waehle die am besten passende Rolle:
 - Kreditorenbuchhalter/in (hauptsaechlich Kreditoren / Eingangsrechnungen)
 - Debitorenbuchhalter/in (hauptsaechlich Debitoren / Mahnwesen)
 - Lohnbuchhalter/in (Payroll, Entgeltabrechnung)
-- Steuerfachangestellte/r (Kanzlei, Steuererklaerungen)
-- Teamleiter Finanzbuchhaltung (fuehrt ein FiBu-Team)
-- Teamleiter Kreditorenbuchhaltung (fuehrt ein Kreditoren-Team)
-- Teamleiter Debitorenbuchhaltung (fuehrt ein Debitoren-Team)
-- Financial Controller (Controlling, Reporting, Analyse, Budgetplanung)
-- Leiter Buchhaltung (Leitung der gesamten Buchhaltungsabteilung)
-- Head of Finance (CFO, VP Finance, Leitung Finanzen)
+- Steuerfachangestellte/r (hat eine StFA-Ausbildung und arbeitet aktuell in einer Steuerkanzlei fuer Mandanten)
+- Teamleiter Finanzbuchhaltung
+- Teamleiter Kreditorenbuchhaltung
+- Teamleiter Debitorenbuchhaltung
+- Financial Controller
+- Leiter Buchhaltung
+- Head of Finance
 
-Wenn keine der obigen Rollen passt, entscheide aus dem Kontext heraus was fuer eine Stelle das ist und gib eine passende Berufsbezeichnung zurueck (z.B. "Treasurer", "Tax Manager", "Sachbearbeiter Buchhaltung" etc.).
+Wenn keine der obigen Rollen passt, entscheide aus dem Kontext heraus was fuer eine Stelle das ist und gib eine passende Berufsbezeichnung zurueck.
 
 Waehle einfach die Rolle die am besten passt. Vertraue deinem Urteil.
 
