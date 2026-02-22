@@ -28,21 +28,6 @@ PRICE_INPUT_PER_1M = 0.15
 PRICE_OUTPUT_PER_1M = 0.60
 
 # Erlaubte Rollen — alles andere wird ignoriert
-ALLOWED_ROLES = {
-    "Bilanzbuchhalter/in",
-    "Finanzbuchhalter/in",
-    "Kreditorenbuchhalter/in",
-    "Debitorenbuchhalter/in",
-    "Lohnbuchhalter/in",
-    "Steuerfachangestellte/r",
-    "Teamleiter Finanzbuchhaltung",
-    "Teamleiter Kreditorenbuchhaltung",
-    "Teamleiter Debitorenbuchhaltung",
-    "Financial Controller",
-    "Leiter Buchhaltung",
-    "Head of Finance",
-}
-
 # ═══════════════════════════════════════════════════════════════
 # SYSTEM PROMPT — Finance-Rollen-Klassifizierung
 # ═══════════════════════════════════════════════════════════════
@@ -532,15 +517,10 @@ class FinanceClassifierService:
         primary_role = result.get("primary_role")
         reasoning = result.get("reasoning", "")
 
-        # Rollen validieren — nur erlaubte Werte
-        roles = [r for r in roles if r in ALLOWED_ROLES]
-        if primary_role and primary_role not in ALLOWED_ROLES:
-            primary_role = roles[0] if roles else None
-
-        # V2-Felder parsen (einheitlich wie bei Jobs)
+        # sub_level nur bei FiBu relevant
         sub_level = result.get("sub_level")
-        if primary_role is None:
-            sub_level = None  # Kein sub_level wenn keine Rolle
+        if primary_role != "Finanzbuchhalter/in":
+            sub_level = None
         elif sub_level not in ("normal", "senior"):
             sub_level = "normal"
 
@@ -591,15 +571,13 @@ class FinanceClassifierService:
         job_text_for_validation = job.job_text or job.position or ""
         result = validate_job_classification(result, job_text_for_validation)
 
-        roles = [r for r in result.get("roles", []) if r in ALLOWED_ROLES]
+        roles = result.get("roles", [])
         primary_role = result.get("primary_role")
-        if primary_role and primary_role not in ALLOWED_ROLES:
-            primary_role = roles[0] if roles else None
 
-        # V2-Felder parsen
+        # sub_level nur bei FiBu relevant
         sub_level = result.get("sub_level")
-        if primary_role is None:
-            sub_level = None  # Kein sub_level wenn keine Rolle
+        if primary_role != "Finanzbuchhalter/in":
+            sub_level = None
         elif sub_level not in ("normal", "senior"):
             sub_level = "normal"
 
