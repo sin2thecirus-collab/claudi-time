@@ -2184,6 +2184,45 @@ async def candidate_classification_status(
     }
 
 
+# ==================== Sync: hotlist_job_title → manual_job_titles ====================
+
+
+@router.post(
+    "/maintenance/sync-titles",
+    summary="Kopiert hotlist_job_title nach manual_job_titles (wo leer)",
+    tags=["Maintenance"],
+)
+@rate_limit(RateLimitTier.ADMIN)
+async def sync_hotlist_to_manual_titles(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Einmalige Synchronisation: Kopiert hotlist_job_title/hotlist_job_titles
+    nach manual_job_titles fuer alle Kandidaten wo manual_job_titles noch leer ist.
+    """
+    from sqlalchemy import text
+
+    result = await db.execute(text("""
+        UPDATE candidates
+        SET manual_job_titles = COALESCE(hotlist_job_titles, ARRAY[hotlist_job_title]),
+            manual_job_titles_set_at = NOW()
+        WHERE hotlist_category = 'FINANCE'
+          AND deleted_at IS NULL
+          AND hotlist_job_title IS NOT NULL
+          AND (manual_job_titles IS NULL OR array_length(manual_job_titles, 1) IS NULL)
+        RETURNING id
+    """))
+    await db.commit()
+
+    updated_ids = [str(row[0]) for row in result.fetchall()]
+    return {
+        "status": "done",
+        "updated": len(updated_ids),
+        "message": f"{len(updated_ids)} Kandidaten: hotlist_job_title → manual_job_titles kopiert",
+    }
+
+
 # ==================== Temporär: n8n Massen-Profiling ====================
 
 

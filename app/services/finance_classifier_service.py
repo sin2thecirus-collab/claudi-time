@@ -616,6 +616,9 @@ class FinanceClassifierService:
         if result.roles:
             candidate.hotlist_job_title = result.primary_role or result.roles[0]
             candidate.hotlist_job_titles = result.roles
+            # manual_job_titles synchronisieren (nur wenn noch nicht manuell gesetzt)
+            if not candidate.manual_job_titles or len(candidate.manual_job_titles) == 0:
+                candidate.manual_job_titles = result.roles
         # V2: classification_data einheitlich wie bei Jobs speichern
         candidate.classification_data = {
             "source": "openai_v2",
