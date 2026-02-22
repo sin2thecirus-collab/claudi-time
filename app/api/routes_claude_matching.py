@@ -93,99 +93,196 @@ async def matching_live():
 <meta charset="utf-8">
 <title>V5 Matching Live-Status</title>
 <style>
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 60px auto; padding: 0 20px; background: #0f1117; color: #e4e4e7; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 960px; margin: 40px auto; padding: 0 20px; background: #0f1117; color: #e4e4e7; }
   h1 { font-size: 20px; margin-bottom: 24px; }
-  .card { background: #1a1b23; border: 1px solid #2a2b35; border-radius: 12px; padding: 24px; margin-bottom: 16px; }
-  .row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
+  h2 { font-size: 15px; margin: 20px 0 10px; color: #a1a1aa; }
+  .card { background: #1a1b23; border: 1px solid #2a2b35; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  .row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 13px; }
   .label { color: #a1a1aa; }
   .value { font-weight: 600; }
   .green { color: #10b981; }
   .red { color: #ef4444; }
   .amber { color: #f59e0b; }
   .blue { color: #6366f1; }
-  .bar-bg { background: #2a2b35; border-radius: 6px; height: 8px; margin: 16px 0; overflow: hidden; }
+  .bar-bg { background: #2a2b35; border-radius: 6px; height: 8px; margin: 12px 0; overflow: hidden; }
   .bar { height: 100%; background: #6366f1; border-radius: 6px; transition: width 0.5s; }
-  button { width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; background: #6366f1; color: #fff; margin-bottom: 8px; }
+  button { padding: 12px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; background: #6366f1; color: #fff; margin-bottom: 8px; }
   button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-full { width: 100%; }
   .btn-red { background: #ef4444; }
+  .btn-green { background: #10b981; }
+  .btn-sm { padding: 4px 10px; font-size: 11px; border-radius: 6px; margin: 0; }
   .status-text { text-align: center; font-size: 13px; color: #a1a1aa; margin-top: 12px; }
   a { color: #6366f1; text-decoration: none; }
-  pre { background: #1a1b23; border: 1px solid #2a2b35; border-radius: 8px; padding: 12px; font-size: 11px; overflow-x: auto; color: #a1a1aa; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+  th { text-align: left; color: #a1a1aa; font-weight: 600; padding: 6px 8px; border-bottom: 1px solid #2a2b35; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+  td { padding: 5px 8px; border-bottom: 1px solid #1f2029; color: #e4e4e7; }
+  tr:hover td { background: #1f2029; }
+  .tag { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 4px; margin: 1px 2px; }
+  .tag-green { background: rgba(16,185,129,0.15); color: #10b981; }
+  .tag-blue { background: rgba(99,102,241,0.15); color: #6366f1; }
+  .phase-badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 50px; margin-left: 8px; }
+  .phase-active { background: rgba(245,158,11,0.15); color: #f59e0b; }
+  .phase-done { background: rgba(16,185,129,0.15); color: #10b981; }
+  .phase-waiting { background: rgba(99,102,241,0.15); color: #6366f1; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+  .continue-box { text-align: center; padding: 16px; margin: 12px 0; background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.3); border-radius: 10px; }
+  .continue-box p { font-size: 13px; color: #a1a1aa; margin-bottom: 10px; }
+  /* Modal */
+  .modal-bg { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 100; display: flex; align-items: center; justify-content: center; }
+  .modal { background: #1a1b23; border: 1px solid #2a2b35; border-radius: 14px; padding: 24px; max-width: 700px; width: 90%; max-height: 80vh; overflow-y: auto; }
+  .modal h3 { font-size: 16px; margin-bottom: 16px; }
+  .modal .close { float: right; cursor: pointer; font-size: 18px; color: #a1a1aa; background: none; border: none; padding: 0; }
+  .detail-row { display: flex; gap: 8px; margin-bottom: 6px; font-size: 12px; }
+  .detail-label { color: #a1a1aa; min-width: 120px; }
+  .detail-value { color: #e4e4e7; flex: 1; }
 </style>
 </head>
 <body>
 <h1>V5 Matching Live-Status</h1>
 <div class="card" id="info">Lade...</div>
-<button id="startBtn" onclick="startMatching()">V5 Matching starten</button>
-<button id="stopBtn" class="btn-red" onclick="stopMatching()" style="display:none;">Lauf stoppen</button>
+<div id="buttons">
+  <button id="startBtn" class="btn-full" onclick="startMatching()">V5 Matching starten</button>
+  <button id="stopBtn" class="btn-full btn-red" onclick="stopMatching()" style="display:none;">Lauf stoppen</button>
+</div>
 <div class="status-text" id="msg"></div>
-<h2 style="font-size:14px;margin-top:24px;">Raw JSON:</h2>
-<pre id="raw">-</pre>
+
+<div id="continue-area"></div>
+<div id="phase-results"></div>
+<div id="modal-container"></div>
+
 <p style="margin-top:24px;font-size:12px;"><a href="/action-board">&larr; Zurueck zum Action Board</a></p>
 
 <script>
 let polling = null;
+const esc = s => { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
+
+function cmpBtn(cid, jid) {
+  return '<button class="btn-sm" onclick="showCompare(\\''+cid+'\\',\\''+jid+'\\')">Vergleich</button>';
+}
 
 async function loadStatus() {
   try {
     const r = await fetch('/api/v4/claude-match/status');
     const d = await r.json();
     const p = d.progress || {};
+    const pr = p.phase_results || {};
     const running = d.running || false;
+    const phase = p.phase || '';
+    const waiting = p.waiting_for_continue || false;
 
-    document.getElementById('raw').textContent = JSON.stringify(d, null, 2);
-
+    // ── Status-Card ──
     let html = '';
-    html += row('Status', running ? '<span class="amber">Laeuft</span>' : '<span class="green">Bereit</span>');
-    html += row('Phase', p.phase || '-');
-
-    if (p.geo_pairs_found > 0) {
-      html += '<hr style="border-color:#2a2b35;margin:12px 0;">';
-      html += row('Geo-Paare (27km)', '<span class="blue">' + p.geo_pairs_found + '</span>');
+    if (waiting) {
+      html += row('Status', '<span class="blue">Pausiert — warte auf Weiter</span>');
+    } else {
+      html += row('Status', running ? '<span class="amber">Laeuft</span>' : '<span class="green">Bereit</span>');
     }
-    if (p.role_matches > 0) {
-      html += row('Rollen-Matches', '<span class="green">' + p.role_matches + '</span>');
-    }
+    html += row('Phase', phase || '-');
+    if (p.cleanup_deleted > 0) html += row('Alte Matches geloescht', '<span class="amber">' + p.cleanup_deleted + '</span>');
+    if (p.geo_pairs_found > 0) html += row('Geo-Paare (27km)', '<span class="blue">' + p.geo_pairs_found + '</span>');
+    if (p.role_matches > 0) html += row('Rollen-Matches', '<span class="green">' + p.role_matches + '</span>');
     if (p.drive_time_total > 0) {
       const pct = Math.round((p.drive_time_done || 0) / p.drive_time_total * 100);
-      html += '<hr style="border-color:#2a2b35;margin:12px 0;">';
-      html += row('Fahrzeit berechnet', (p.drive_time_done || 0) + ' / ' + p.drive_time_total + ' (' + pct + '%)');
+      html += row('Fahrzeit', (p.drive_time_done || 0) + ' / ' + p.drive_time_total + ' (' + pct + '%)');
       html += '<div class="bar-bg"><div class="bar" style="width:' + pct + '%"></div></div>';
     }
-    if (p.matches_saved > 0) {
-      html += row('Matches gespeichert', '<span class="green">' + p.matches_saved + '</span>');
-    }
-    if (p.telegram_sent > 0) {
-      html += row('Telegram gesendet', '<span class="blue">' + p.telegram_sent + '</span>');
-    }
-    if (p.errors > 0) {
-      html += row('Fehler', '<span class="red">' + p.errors + '</span>');
-    }
+    if (p.matches_saved > 0) html += row('Gespeichert', '<span class="green">' + p.matches_saved + '</span>');
+    if (p.telegram_sent > 0) html += row('Telegram', '<span class="blue">' + p.telegram_sent + '</span>');
+    if (p.errors > 0) html += row('Fehler', '<span class="red">' + p.errors + '</span>');
 
-    // Last run result
     if (!running && d.last_run_result) {
       const lr = d.last_run_result;
-      html += '<hr style="border-color:#2a2b35;margin:12px 0;">';
+      html += '<hr style="border-color:#2a2b35;margin:10px 0;">';
       html += row('Letzter Lauf', d.last_run || '-');
       html += row('Dauer', lr.duration_seconds + 's');
-      html += row('Geo-Paare', lr.geo_pairs);
-      html += row('Rollen-Matches', lr.role_matches);
-      html += row('Gespeichert', lr.matches_saved);
-      html += row('Telegram', lr.telegram_notifications);
     }
-
     document.getElementById('info').innerHTML = html;
     document.getElementById('startBtn').style.display = running ? 'none' : 'block';
-    document.getElementById('startBtn').disabled = running;
     document.getElementById('stopBtn').style.display = running ? 'block' : 'none';
 
-    if (running && !polling) {
-      polling = setInterval(loadStatus, 2000);
+    // ── Weiter-Button ──
+    const phaseNames = {
+      cleanup_done: 'Cleanup abgeschlossen',
+      geo_filter_done: 'Geo-Filter abgeschlossen',
+      role_filter_done: 'Rollen-Filter abgeschlossen',
+      drive_time_done: 'Fahrzeit-Berechnung abgeschlossen',
+      saving_done: 'Matches gespeichert',
+    };
+    if (waiting) {
+      const phaseName = phaseNames[phase] || phase;
+      document.getElementById('continue-area').innerHTML =
+        '<div class="continue-box"><p>' + esc(phaseName) + ' — Ergebnisse pruefen, dann weiter.</p>' +
+        '<button class="btn-green" onclick="continueMatching()">Weiter &rarr; Naechste Phase</button></div>';
+    } else {
+      document.getElementById('continue-area').innerHTML = '';
     }
-    if (!running && polling) {
-      clearInterval(polling);
-      polling = null;
+
+    // ── Phase-Ergebnisse ──
+    let phaseHtml = '';
+
+    // Cleanup
+    if (pr.cleanup) {
+      phaseHtml += phaseSection('Phase 0: Cleanup', pr.cleanup.message || 'Fertig', phaseState('cleanup', phase));
     }
+
+    // Geo-Filter
+    if (pr.geo_filter && pr.geo_filter.length > 0) {
+      const st = phaseState('geo_filter', phase);
+      phaseHtml += '<h2>Phase A: Geo-Filter (27km) <span class="phase-badge phase-' + st + '">' + p.geo_pairs_found + ' Paare</span></h2>';
+      phaseHtml += '<div class="card"><table><thead><tr><th>Kandidat</th><th>Rolle</th><th>Job</th><th>Firma</th><th>km</th><th></th></tr></thead><tbody>';
+      pr.geo_filter.forEach(r => {
+        phaseHtml += '<tr><td>' + esc(r.kandidat) + '</td><td>' + esc(r.kandidat_rolle) + '</td><td>' + esc(r.job) + '</td><td>' + esc(r.firma) + ', ' + esc(r.job_stadt) + '</td><td>' + (r.distanz_km || '?') + '</td><td>' + cmpBtn(r.candidate_id, r.job_id) + '</td></tr>';
+      });
+      if (p.geo_pairs_found > 30) phaseHtml += '<tr><td colspan="6" style="color:#a1a1aa;text-align:center;">... und ' + (p.geo_pairs_found - 30) + ' weitere</td></tr>';
+      phaseHtml += '</tbody></table></div>';
+    }
+
+    // Rollen-Filter
+    if (pr.role_filter && pr.role_filter.length > 0) {
+      const st = phaseState('role_filter', phase);
+      phaseHtml += '<h2>Phase B: Rollen-Filter <span class="phase-badge phase-' + st + '">' + p.role_matches + ' Matches</span></h2>';
+      phaseHtml += '<div class="card"><table><thead><tr><th>Kandidat</th><th>Kand. Rollen</th><th>Job</th><th>Gematchte Rollen</th><th>km</th><th></th></tr></thead><tbody>';
+      pr.role_filter.forEach(r => {
+        const krTags = (r.kandidat_rollen || []).map(x => '<span class="tag tag-blue">' + esc(x) + '</span>').join('');
+        const mrTags = (r.gematchte_rollen || []).map(x => '<span class="tag tag-green">' + esc(x) + '</span>').join('');
+        phaseHtml += '<tr><td>' + esc(r.kandidat) + '</td><td>' + krTags + '</td><td>' + esc(r.job) + ' (' + esc(r.firma) + ')</td><td>' + mrTags + '</td><td>' + (r.distanz_km || '?') + '</td><td>' + cmpBtn(r.candidate_id, r.job_id) + '</td></tr>';
+      });
+      if (p.role_matches > 30) phaseHtml += '<tr><td colspan="6" style="color:#a1a1aa;text-align:center;">... und ' + (p.role_matches - 30) + ' weitere</td></tr>';
+      phaseHtml += '</tbody></table></div>';
+    }
+
+    // Fahrzeit
+    if (pr.drive_time && pr.drive_time.length > 0) {
+      const st = phaseState('drive_time', phase);
+      phaseHtml += '<h2>Phase C: Fahrzeit <span class="phase-badge phase-' + st + '">' + (p.drive_time_done || 0) + '/' + (p.drive_time_total || 0) + '</span></h2>';
+      phaseHtml += '<div class="card"><table><thead><tr><th>Kandidat</th><th>Job</th><th>km</th><th>Auto</th><th>OEPNV</th><th></th></tr></thead><tbody>';
+      pr.drive_time.forEach(r => {
+        const carColor = r.auto_min != null ? (r.auto_min <= 20 ? 'green' : r.auto_min <= 40 ? 'amber' : 'red') : '';
+        phaseHtml += '<tr><td>' + esc(r.kandidat) + '</td><td>' + esc(r.job) + '</td><td>' + (r.distanz_km || '?') + '</td><td class="' + carColor + '">' + (r.auto_min != null ? r.auto_min + ' Min' : '-') + '</td><td>' + (r.oepnv_min != null ? r.oepnv_min + ' Min' : '-') + '</td><td>' + cmpBtn(r.candidate_id, r.job_id) + '</td></tr>';
+      });
+      phaseHtml += '</tbody></table></div>';
+    }
+
+    // Gespeichert
+    if (pr.saved) {
+      phaseHtml += phaseSection('Phase D: Matches gespeichert', pr.saved.message || (pr.saved.count + ' Matches'), phaseState('saving', phase));
+    }
+
+    // Telegram
+    if (pr.telegram && pr.telegram.length > 0) {
+      phaseHtml += '<h2>Phase E: Telegram <span class="phase-badge phase-done">' + p.telegram_sent + ' gesendet</span></h2>';
+      phaseHtml += '<div class="card"><table><thead><tr><th>Kandidat</th><th>Rolle</th><th>Job</th><th>Auto</th><th>OEPNV</th></tr></thead><tbody>';
+      pr.telegram.forEach(r => {
+        phaseHtml += '<tr><td>' + esc(r.kandidat) + '</td><td>' + esc(r.rolle) + '</td><td>' + esc(r.job) + '</td><td class="green">' + r.auto_min + ' Min</td><td>' + r.oepnv_min + ' Min</td></tr>';
+      });
+      phaseHtml += '</tbody></table></div>';
+    }
+
+    document.getElementById('phase-results').innerHTML = phaseHtml;
+
+    if (running && !polling) polling = setInterval(loadStatus, 2000);
+    if (!running && polling) { clearInterval(polling); polling = null; }
   } catch(e) {
     document.getElementById('info').textContent = 'Fehler: ' + e.message;
   }
@@ -193,6 +290,14 @@ async function loadStatus() {
 
 function row(label, value) {
   return '<div class="row"><span class="label">' + label + '</span><span class="value">' + value + '</span></div>';
+}
+function phaseSection(title, msg, state) {
+  return '<h2>' + title + ' <span class="phase-badge phase-' + state + '">' + esc(msg) + '</span></h2>';
+}
+function phaseState(phaseName, currentPhase) {
+  if (currentPhase === phaseName) return 'active';
+  if (currentPhase === phaseName + '_done') return 'waiting';
+  return 'done';
 }
 
 async function startMatching() {
@@ -212,11 +317,88 @@ async function stopMatching() {
   loadStatus();
 }
 
+async function continueMatching() {
+  document.getElementById('msg').textContent = 'Naechste Phase wird gestartet...';
+  document.getElementById('continue-area').innerHTML = '';
+  const r = await fetch('/api/v4/claude-match/continue', {method:'POST'});
+  const d = await r.json();
+  document.getElementById('msg').textContent = d.message || '';
+  loadStatus();
+}
+
+async function showCompare(candidateId, jobId) {
+  document.getElementById('modal-container').innerHTML = '<div class="modal-bg" onclick="closeModal(event)"><div class="modal"><p>Lade Vergleich...</p></div></div>';
+  try {
+    const r = await fetch('/api/v4/claude-match/compare-pair?candidate_id=' + candidateId + '&job_id=' + jobId);
+    const d = await r.json();
+    const data = d.data || {};
+    let html = '<div class="modal-bg" onclick="closeModal(event)"><div class="modal" onclick="event.stopPropagation()">';
+    html += '<button class="close" onclick="closeModal()">&times;</button>';
+    html += '<h3>Vergleich: Kandidat vs. Job</h3>';
+    html += '<h2 style="margin:12px 0 8px;font-size:14px;">Kandidat</h2>';
+    html += detailRow('Name', data.candidate_name || '—');
+    html += detailRow('Stadt', data.candidate_city || '—');
+    html += detailRow('Position', data.candidate_current_position || '—');
+    html += detailRow('Rolle', data.candidate_role || '—');
+    html += detailRow('Gehalt', data.candidate_salary || '—');
+    if (data.skills && data.skills.length > 0) html += detailRow('Skills', data.skills.join(', '));
+    if (data.it_skills && data.it_skills.length > 0) html += detailRow('IT-Skills', data.it_skills.join(', '));
+    // Werdegang
+    if (data.work_history && data.work_history.length > 0) {
+      let whHtml = '';
+      data.work_history.slice(0, 5).forEach(e => {
+        if (typeof e === 'object') {
+          whHtml += '<div style="margin-bottom:6px;padding:6px;background:#0f1117;border-radius:6px;font-size:11px;">';
+          whHtml += '<b>' + esc(e.position || '—') + '</b> bei ' + esc(e.company || '—');
+          if (e.description) whHtml += '<br><span style="color:#a1a1aa;">' + esc((e.description || '').substring(0, 200)) + '</span>';
+          whHtml += '</div>';
+        }
+      });
+      html += detailRow('Werdegang', whHtml);
+    }
+    html += '<hr style="border-color:#2a2b35;margin:14px 0;">';
+    html += '<h2 style="margin:0 0 8px;font-size:14px;">Job</h2>';
+    html += detailRow('Position', data.job_position || '—');
+    html += detailRow('Firma', data.job_company_name || '—');
+    html += detailRow('Stadt', data.job_city || '—');
+    if (data.job_text) html += detailRow('Beschreibung', '<div style="max-height:200px;overflow-y:auto;font-size:11px;white-space:pre-wrap;">' + esc((data.job_text || '').substring(0, 1000)) + '</div>');
+    // Match-Info
+    if (data.distance_km != null || data.drive_time_car_min != null) {
+      html += '<hr style="border-color:#2a2b35;margin:14px 0;">';
+      html += '<h2 style="margin:0 0 8px;font-size:14px;">Match-Daten</h2>';
+      if (data.distance_km != null) html += detailRow('Distanz', data.distance_km + ' km');
+      if (data.drive_time_car_min != null) html += detailRow('Auto', data.drive_time_car_min + ' Min');
+      if (data.drive_time_transit_min != null) html += detailRow('OEPNV', data.drive_time_transit_min + ' Min');
+    }
+    html += '</div></div>';
+    document.getElementById('modal-container').innerHTML = html;
+  } catch(e) {
+    document.getElementById('modal-container').innerHTML = '<div class="modal-bg" onclick="closeModal(event)"><div class="modal"><button class="close" onclick="closeModal()">&times;</button><p class="red">Fehler: ' + esc(e.message) + '</p></div></div>';
+  }
+}
+
+function detailRow(label, value) {
+  return '<div class="detail-row"><span class="detail-label">' + esc(label) + '</span><span class="detail-value">' + value + '</span></div>';
+}
+
+function closeModal(event) {
+  if (!event || event.target.classList.contains('modal-bg')) {
+    document.getElementById('modal-container').innerHTML = '';
+  }
+}
+
 loadStatus();
 if (!polling) polling = setInterval(loadStatus, 2000);
 </script>
 </body>
 </html>""")
+
+
+@router.post("/claude-match/continue")
+async def continue_matching():
+    """Setzt den pausierten Matching-Prozess fort (naechste Phase starten)."""
+    from app.services.v5_matching_service import request_continue
+    return request_continue()
 
 
 @router.post("/claude-match/stop")

@@ -109,6 +109,9 @@ def get_status() -> dict:
 # ── Stop-Flag ──
 _stop_requested = False
 
+# ── Pausen-Steuerung (nach jeder Phase warten) ──
+_continue_event: asyncio.Event | None = None
+
 
 def request_stop() -> dict:
     """Fordert den laufenden Matching-Prozess auf, sich zu stoppen."""
@@ -116,7 +119,21 @@ def request_stop() -> dict:
     if not _matching_status["running"]:
         return {"status": "ok", "message": "Kein Lauf aktiv."}
     _stop_requested = True
+    # Falls gerade pausiert → aufwecken damit Stop wirkt
+    if _continue_event and not _continue_event.is_set():
+        _continue_event.set()
     return {"status": "ok", "message": "Stop angefordert."}
+
+
+def request_continue() -> dict:
+    """Setzt den pausierten Matching-Prozess fort."""
+    if not _matching_status["running"]:
+        return {"status": "error", "message": "Kein Lauf aktiv."}
+    if not _matching_status["progress"].get("waiting_for_continue"):
+        return {"status": "ok", "message": "Lauf ist nicht pausiert."}
+    if _continue_event:
+        _continue_event.set()
+    return {"status": "ok", "message": "Naechste Phase gestartet."}
 
 
 def is_stop_requested() -> bool:
@@ -295,6 +312,7 @@ async def run_matching(candidate_id: str | None = None) -> dict:
     if _matching_status["running"]:
         return {"status": "error", "message": "Ein Matching laeuft bereits"}
 
+    global _continue_event
     _matching_status["running"] = True
     _matching_status["progress"] = {
         "phase": "starting",
@@ -305,8 +323,12 @@ async def run_matching(candidate_id: str | None = None) -> dict:
         "matches_saved": 0,
         "telegram_sent": 0,
         "errors": 0,
+        "cleanup_deleted": 0,
+        "waiting_for_continue": False,
+        "phase_results": {},
     }
     clear_stop()
+    _continue_event = asyncio.Event()
 
     start_time = datetime.now(timezone.utc)
 
@@ -321,6 +343,53 @@ async def run_matching(candidate_id: str | None = None) -> dict:
             from app.services.telegram_bot_service import send_message
 
             progress = _matching_status["progress"]
+
+            async def _wait_for_continue(phase_name: str) -> bool:
+                """Pausiert nach einer Phase und wartet auf request_continue().
+
+                Returns True wenn fortgesetzt werden soll, False wenn Stop angefordert.
+                """
+                progress["waiting_for_continue"] = True
+                progress["phase"] = f"{phase_name}_done"
+                logger.info(f"V5: Phase {phase_name} abgeschlossen — warte auf 'Weiter'...")
+                _continue_event.clear()
+                await _continue_event.wait()
+                progress["waiting_for_continue"] = False
+                if is_stop_requested():
+                    logger.info(f"V5: Stop angefordert nach Phase {phase_name}")
+                    return False
+                return True
+
+            # ── Phase 0: Cleanup — alte V4/V3/V2 Matches loeschen ──
+            logger.info("V5 Phase 0: Alte Matches aufraemen...")
+            progress["phase"] = "cleanup"
+
+            async with async_session_maker() as db:
+                from sqlalchemy import delete
+                cleanup_result = await db.execute(
+                    delete(Match).where(
+                        or_(
+                            Match.matching_method != "v5_role_geo",
+                            Match.matching_method.is_(None),
+                        )
+                    )
+                )
+                deleted_count = cleanup_result.rowcount
+                if deleted_count > 0:
+                    await db.commit()
+                    logger.info(f"V5 Phase 0: {deleted_count} alte Matches geloescht")
+                else:
+                    logger.info("V5 Phase 0: Keine alten Matches vorhanden")
+
+            progress["cleanup_deleted"] = deleted_count
+            progress["phase_results"]["cleanup"] = {
+                "deleted": deleted_count,
+                "message": f"{deleted_count} alte V4/V3/V2 Matches geloescht" if deleted_count > 0 else "Keine alten Matches vorhanden",
+            }
+
+            # Warte auf "Weiter" nach Cleanup
+            if not await _wait_for_continue("cleanup"):
+                return
 
             # ── Phase A: Geo-Filter (27km) ──
             logger.info("V5 Phase A: Geo-Filter (27km)...")
@@ -416,14 +485,29 @@ async def run_matching(candidate_id: str | None = None) -> dict:
             # Session geschlossen
 
             progress["geo_pairs_found"] = len(geo_pairs)
+            # Zwischenergebnis Phase A: erste 30 Paare
+            progress["phase_results"]["geo_filter"] = [
+                {
+                    "candidate_id": str(p.get("candidate_id", "")),
+                    "job_id": str(p.get("job_id", "")),
+                    "kandidat": f"{p.get('candidate_first_name', '')} {p.get('candidate_last_name', '')}".strip() or "?",
+                    "kandidat_rolle": p.get("candidate_role") or "?",
+                    "kandidat_stadt": p.get("candidate_city") or "?",
+                    "job": p.get("job_position") or "?",
+                    "firma": p.get("job_company") or "?",
+                    "job_stadt": p.get("job_city") or "?",
+                    "distanz_km": p.get("distance_km"),
+                }
+                for p in geo_pairs[:30]
+            ]
             logger.info(f"V5 Phase A: {len(geo_pairs)} Paare innerhalb 27km gefunden")
 
             if not geo_pairs:
                 logger.info("V5: Keine Geo-Paare gefunden, beende.")
                 return
 
-            if is_stop_requested():
-                logger.info("V5: Stop angefordert nach Phase A")
+            # Warte auf "Weiter" nach Phase A
+            if not await _wait_for_continue("geo_filter"):
                 return
 
             # ── Phase B: Rollen-Filter ──
@@ -450,14 +534,29 @@ async def run_matching(candidate_id: str | None = None) -> dict:
                     role_matched_pairs.append(pair)
 
             progress["role_matches"] = len(role_matched_pairs)
+            # Zwischenergebnis Phase B: erste 30 Rollen-Matches
+            progress["phase_results"]["role_filter"] = [
+                {
+                    "candidate_id": str(p.get("candidate_id", "")),
+                    "job_id": str(p.get("job_id", "")),
+                    "kandidat": f"{p.get('candidate_first_name', '')} {p.get('candidate_last_name', '')}".strip() or "?",
+                    "kandidat_rollen": p.get("candidate_roles_list", []),
+                    "job": p.get("job_position") or "?",
+                    "firma": p.get("job_company") or "?",
+                    "job_rollen": p.get("job_roles_list", []),
+                    "gematchte_rollen": p.get("matched_roles", []),
+                    "distanz_km": p.get("distance_km"),
+                }
+                for p in role_matched_pairs[:30]
+            ]
             logger.info(f"V5 Phase B: {len(role_matched_pairs)} Rollen-Matches (von {len(geo_pairs)} Geo-Paaren)")
 
             if not role_matched_pairs:
                 logger.info("V5: Keine Rollen-Matches, beende.")
                 return
 
-            if is_stop_requested():
-                logger.info("V5: Stop angefordert nach Phase B")
+            # Warte auf "Weiter" nach Phase B
+            if not await _wait_for_continue("role_filter"):
                 return
 
             # ── Phase C: Google Maps Fahrzeit ──
@@ -521,9 +620,25 @@ async def run_matching(candidate_id: str | None = None) -> dict:
                     progress["drive_time_done"] += len(pairs_for_job)
 
             logger.info(f"V5 Phase C: Fahrzeit fuer {len(drive_time_results)} Paare berechnet")
+            # Zwischenergebnis Phase C: erste 30 mit Fahrzeiten
+            drive_time_sample = []
+            for pair in role_matched_pairs[:30]:
+                cid = str(pair["candidate_id"])
+                jid = str(pair["job_id"])
+                dt = drive_time_results.get(cid + "_" + jid, {})
+                drive_time_sample.append({
+                    "candidate_id": cid,
+                    "job_id": jid,
+                    "kandidat": f"{pair.get('candidate_first_name', '')} {pair.get('candidate_last_name', '')}".strip() or "?",
+                    "job": f"{pair.get('job_position', '?')} bei {pair.get('job_company', '?')}",
+                    "distanz_km": pair.get("distance_km"),
+                    "auto_min": dt.get("car_min"),
+                    "oepnv_min": dt.get("transit_min"),
+                })
+            progress["phase_results"]["drive_time"] = drive_time_sample
 
-            if is_stop_requested():
-                logger.info("V5: Stop angefordert nach Phase C")
+            # Warte auf "Weiter" nach Phase C
+            if not await _wait_for_continue("drive_time"):
                 return
 
             # ── Phase D: Matches speichern ──
@@ -592,6 +707,16 @@ async def run_matching(candidate_id: str | None = None) -> dict:
                     progress["errors"] += 1
 
             logger.info(f"V5 Phase D: {progress['matches_saved']} Matches gespeichert")
+            # Zwischenergebnis Phase D
+            progress["phase_results"]["saved"] = {
+                "count": progress["matches_saved"],
+                "telegram_qualifiziert": len(telegram_candidates),
+                "message": f"{progress['matches_saved']} Matches gespeichert, {len(telegram_candidates)} qualifiziert fuer Telegram",
+            }
+
+            # Warte auf "Weiter" nach Phase D
+            if not await _wait_for_continue("saving"):
+                return
 
             # ── Phase E: Telegram-Benachrichtigung ──
             if telegram_candidates:
@@ -613,6 +738,18 @@ async def run_matching(candidate_id: str | None = None) -> dict:
                         logger.warning(f"V5 Telegram Fehler: {e}")
 
                 logger.info(f"V5 Phase E: {progress['telegram_sent']} Notifications gesendet")
+
+            # Zwischenergebnis Phase E
+            progress["phase_results"]["telegram"] = [
+                {
+                    "kandidat": tc["name"],
+                    "rolle": tc["role"],
+                    "job": f"{tc['job_position']} bei {tc['job_company']}, {tc['job_city']}",
+                    "auto_min": tc["car_min"],
+                    "oepnv_min": tc["transit_min"],
+                }
+                for tc in telegram_candidates[:20]
+            ]
 
         except Exception as e:
             logger.error(f"V5 Matching Fehler: {e}", exc_info=True)
