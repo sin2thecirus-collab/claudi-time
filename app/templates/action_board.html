@@ -81,34 +81,35 @@
                 Stufe 0 laeuft...
             </h2>
             <p style="font-size:13px;color:var(--pp-textMuted);margin-bottom:16px;" x-text="
-                progress.phase === 'geo_kaskade' ? 'Geo-Kaskade: Paare werden gebildet (PLZ / Stadt / 40km)...' :
-                progress.phase === 'llm_vorfilter' ? 'LLM-Vorfilter: Claude Haiku prueft Passung...' :
-                'Wird vorbereitet...'
+                progress.phase === 'geo_kaskade' ? 'Schritt 1/2: Geo-Kaskade — Paare werden gebildet (PLZ / Stadt / 40km)...' :
+                progress.phase === 'llm_vorfilter' ? 'Schritt 2/2: LLM-Vorfilter — Claude Haiku prueft Passung...' :
+                progress.phase === 'fertig' ? 'Fertig!' :
+                'Starte Geo-Kaskade...'
             "></p>
-            <template x-if="progress.phase === 'llm_vorfilter'">
-                <div>
-                    <div style="display:flex;justify-content:center;gap:24px;margin-bottom:12px;">
-                        <div style="font-size:13px;color:var(--pp-textMuted);">
-                            Geo-Paare: <span style="font-weight:600;color:var(--pp-text);" x-text="progress.total_geo_pairs || 0"></span>
-                        </div>
-                        <div style="font-size:13px;color:var(--pp-textMuted);">
-                            Geprueft: <span style="font-weight:600;color:var(--pp-text);" x-text="(progress.vorfilter_done || 0) + ' / ' + (progress.vorfilter_total || 0)"></span>
-                        </div>
-                        <div style="font-size:13px;color:#10b981;">
-                            Bestanden: <span style="font-weight:600;" x-text="progress.vorfilter_passed || 0"></span>
-                        </div>
-                        <div style="font-size:13px;color:#ef4444;">
-                            Raus: <span style="font-weight:600;" x-text="progress.vorfilter_failed || 0"></span>
-                        </div>
+
+            <!-- Zahlen + Fortschrittsbalken (immer sichtbar sobald Daten da) -->
+            <div x-show="(progress.total_geo_pairs || 0) > 0 || (progress.vorfilter_done || 0) > 0">
+                <div style="display:flex;justify-content:center;gap:24px;margin-bottom:12px;flex-wrap:wrap;">
+                    <div style="font-size:13px;color:var(--pp-textMuted);">
+                        Geo-Paare: <span style="font-weight:600;color:var(--pp-text);" x-text="progress.total_geo_pairs || 0"></span>
                     </div>
-                    <!-- Progress Bar -->
-                    <div style="width:100%;max-width:400px;margin:0 auto;background:var(--pp-border);border-radius:6px;height:6px;overflow:hidden;">
-                        <div style="height:100%;background:var(--pp-accent);border-radius:6px;transition:width 0.3s;"
-                             :style="'width:' + ((progress.vorfilter_done || 0) / Math.max(progress.vorfilter_total || 1, 1) * 100) + '%'"></div>
+                    <div style="font-size:13px;color:var(--pp-textMuted);">
+                        Geprueft: <span style="font-weight:600;color:var(--pp-text);" x-text="(progress.vorfilter_done || 0) + ' / ' + (progress.vorfilter_total || 0)"></span>
                     </div>
-                    <p style="font-size:11px;color:var(--pp-textMuted);margin-top:8px;" x-text="'Kosten: $' + (progress.cost_estimate_usd || 0).toFixed(4)"></p>
+                    <div style="font-size:13px;color:#10b981;">
+                        Bestanden: <span style="font-weight:600;" x-text="progress.vorfilter_passed || 0"></span>
+                    </div>
+                    <div style="font-size:13px;color:#ef4444;">
+                        Raus: <span style="font-weight:600;" x-text="progress.vorfilter_failed || 0"></span>
+                    </div>
                 </div>
-            </template>
+                <!-- Progress Bar -->
+                <div x-show="(progress.vorfilter_total || 0) > 0" style="width:100%;max-width:400px;margin:0 auto;background:var(--pp-border);border-radius:6px;height:6px;overflow:hidden;">
+                    <div style="height:100%;background:var(--pp-accent);border-radius:6px;transition:width 0.3s;"
+                         :style="'width:' + ((progress.vorfilter_done || 0) / Math.max(progress.vorfilter_total || 1, 1) * 100) + '%'"></div>
+                </div>
+                <p style="font-size:11px;color:var(--pp-textMuted);margin-top:8px;" x-text="'Kosten: $' + (progress.cost_estimate_usd || 0).toFixed(4)"></p>
+            </div>
         </div>
     </div>
 
@@ -805,6 +806,7 @@ function actionBoard() {
                     this.sessionId = data.session_id;
                     this.matchingRunning = true;
                     this.stufenView = 'stufe_0_loading';
+                    await this.loadStatus();  // Status sofort laden
                     this.startPollingStufe0();
                 } else if (data.status === 'error') {
                     alert('Stufe 0 Fehler: ' + (data.message || 'Unbekannt'));
