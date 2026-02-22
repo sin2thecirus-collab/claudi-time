@@ -60,7 +60,9 @@ class AIAssessmentRequest(BaseModel):
 # ══════════════════════════════════════════════════════════════
 
 @router.post("/claude-match/run")
-async def start_matching():
+async def start_matching(
+    pause: bool = Query(default=False, description="True = nach jeder Phase pausieren (Live-Seite)"),
+):
     """Startet das V5 Matching (Rollen + Geo + Fahrzeit)."""
     from app.services.v5_matching_service import get_status, run_matching
 
@@ -72,7 +74,7 @@ async def start_matching():
             "progress": status["progress"],
         }
 
-    result = await run_matching()
+    result = await run_matching(pause_between_phases=pause)
     return result
 
 
@@ -301,12 +303,20 @@ function phaseState(phaseName, currentPhase) {
 }
 
 async function startMatching() {
-  document.getElementById('msg').textContent = 'Starte V5 Matching...';
-  const r = await fetch('/api/v4/claude-match/run', {method:'POST'});
-  const d = await r.json();
-  document.getElementById('msg').textContent = d.message || d.error || JSON.stringify(d);
-  loadStatus();
-  if (!polling) polling = setInterval(loadStatus, 2000);
+  try {
+    document.getElementById('msg').textContent = 'Starte V5 Matching...';
+    const r = await fetch('/api/v4/claude-match/run?pause=true', {method:'POST'});
+    if (!r.ok) {
+      document.getElementById('msg').textContent = 'Fehler: HTTP ' + r.status + ' ' + r.statusText;
+      return;
+    }
+    const d = await r.json();
+    document.getElementById('msg').textContent = d.message || d.error || JSON.stringify(d);
+    loadStatus();
+    if (!polling) polling = setInterval(loadStatus, 2000);
+  } catch(e) {
+    document.getElementById('msg').textContent = 'Fehler: ' + e.message;
+  }
 }
 
 async function stopMatching() {

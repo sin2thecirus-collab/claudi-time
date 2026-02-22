@@ -299,14 +299,16 @@ async def _call_claude(
 # ══════════════════════════════════════════════════════════════
 
 
-async def run_matching(candidate_id: str | None = None) -> dict:
+async def run_matching(
+    candidate_id: str | None = None,
+    pause_between_phases: bool = False,
+) -> dict:
     """Startet V5 Matching als Background-Task.
 
-    Phase A: Geo-Filter (27km, PostGIS)
-    Phase B: Rollen-Filter (hotlist_job_titles Ueberlappung + Kompatibilitaet)
-    Phase C: Google Maps Fahrzeit
-    Phase D: Matches speichern
-    Phase E: Telegram-Benachrichtigung
+    Args:
+        candidate_id: Optional — nur diesen Kandidaten matchen
+        pause_between_phases: True = nach jeder Phase pausieren (Live-Seite)
+                              False = durchlaufen ohne Pause (Action Board, n8n)
     """
     global _matching_status
     if _matching_status["running"]:
@@ -325,6 +327,7 @@ async def run_matching(candidate_id: str | None = None) -> dict:
         "errors": 0,
         "cleanup_deleted": 0,
         "waiting_for_continue": False,
+        "pause_mode": pause_between_phases,
         "phase_results": {},
     }
     clear_stop()
@@ -347,8 +350,14 @@ async def run_matching(candidate_id: str | None = None) -> dict:
             async def _wait_for_continue(phase_name: str) -> bool:
                 """Pausiert nach einer Phase und wartet auf request_continue().
 
+                Nur aktiv wenn pause_between_phases=True (Live-Seite).
                 Returns True wenn fortgesetzt werden soll, False wenn Stop angefordert.
                 """
+                if is_stop_requested():
+                    logger.info(f"V5: Stop angefordert nach Phase {phase_name}")
+                    return False
+                if not pause_between_phases:
+                    return True
                 progress["waiting_for_continue"] = True
                 progress["phase"] = f"{phase_name}_done"
                 logger.info(f"V5: Phase {phase_name} abgeschlossen — warte auf 'Weiter'...")
