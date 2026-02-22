@@ -51,6 +51,8 @@ Waehle die am besten passende Rolle:
 - Leiter Buchhaltung (fuehrt die gesamte Buchhaltungsabteilung)
 - Head of Finance (Leitung Finanzen, CFO, VP Finance, kaufmaennischer Leiter)
 
+Wenn keine der obigen Rollen passt, entscheide aus dem Kontext heraus was die Person tatsaechlich macht und gib eine passende Berufsbezeichnung zurueck (z.B. "Treasurer", "Wirtschaftspruefer", "Tax Manager", "Accountant", "Sachbearbeiter Buchhaltung" etc.).
+
 Waehle einfach die Rolle die am besten passt. Vertraue deinem Urteil.
 
 AUSGABE (strikt JSON, nichts anderes):
@@ -84,6 +86,8 @@ Waehle die am besten passende Rolle:
 - Financial Controller (Controlling, Reporting, Analyse, Budgetplanung)
 - Leiter Buchhaltung (Leitung der gesamten Buchhaltungsabteilung)
 - Head of Finance (CFO, VP Finance, Leitung Finanzen)
+
+Wenn keine der obigen Rollen passt, entscheide aus dem Kontext heraus was fuer eine Stelle das ist und gib eine passende Berufsbezeichnung zurueck (z.B. "Treasurer", "Tax Manager", "Sachbearbeiter Buchhaltung" etc.).
 
 Waehle einfach die Rolle die am besten passt. Vertraue deinem Urteil.
 
