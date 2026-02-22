@@ -84,20 +84,30 @@ Gehe SCHRITT FUER SCHRITT vor:
 4. Bestimme die PRIMARY_ROLE anhand der TAETIGKEITEN der AKTUELLEN/LETZTEN Position
 5. Bestimme ALLE roles anhand der Taetigkeiten ALLER Positionen (auch vergangene)
 
-WICHTIG: Die PRIMARY_ROLE ergibt sich aus den TAETIGKEITEN der aktuellen/letzten Position.
-NICHT aus dem Jobtitel. NICHT aus der Positionsbezeichnung. NUR aus dem was der Kandidat
-tatsaechlich TUT (Kreditoren, Debitoren, USt, Anlagen, JA-Vorbereitung etc.).
+WICHTIG: Die PRIMARY_ROLE ergibt sich aus den TAETIGKEITEN der AKTUELLEN/LETZTEN Position.
+NICHT aus dem Jobtitel. NICHT aus frueheren Positionen. NICHT aus Qualifikationen.
+NUR aus dem was der Kandidat AKTUELL TUT.
+
+Beispiel: Ein "Director Finance" der frueher BiBu war, aber jetzt nur noch Team fuehrt,
+Budget plant und strategisch arbeitet → primary_role = null (keine der 6 Rollen passt),
+is_leadership = true. Er ist KEIN Bilanzbuchhalter mehr nur weil er die Qualifikation hat!
 
 AUSSCHLUSS: Was KEINE Rolle fuer die Klassifizierung spielt
 
-Die Klassifizierung basiert AUSSCHLIESSLICH auf fachlichen Taetigkeiten.
+Die Klassifizierung basiert AUSSCHLIESSLICH auf fachlichen Taetigkeiten DER AKTUELLEN POSITION.
 Folgendes wird KOMPLETT IGNORIERT:
 - Sprachen (Deutsch, Englisch, Franzoesisch etc.)
 - Soft Skills (Teamfaehigkeit, Kommunikation, Belastbarkeit etc.)
 - IT-Grundkenntnisse (MS Office, Excel — nur ERP-Systeme wie DATEV/SAP sind relevant)
 - Persoenliche Eigenschaften
+- Qualifikationen/Zertifikate die NICHT zur aktuellen Taetigkeit passen
 
-SCHRITT 1 – LEITENDE POSITION ERKENNEN (ABER TROTZDEM KLASSIFIZIEREN)
+SCHRITT 1 – LEITENDE POSITION ERKENNEN
+
+WICHTIG: Bei hoeheren Leitungspositionen (Director, CFO, VP Finance, Head of Finance,
+Leiter Rechnungswesen) pruefe ob die Person noch OPERATIVE Buchhaltung macht:
+- Ja (z.B. Teamleiter FiBu der selbst noch bucht) → is_leadership = true + primary_role setzen
+- Nein (z.B. Director Finance der nur fuehrt/plant/steuert) → is_leadership = true + primary_role = null
 
 Als LEITUNG gilt, wenn mindestens eines zutrifft:
 
@@ -105,8 +115,11 @@ Jobtitel enthaelt: Leiter, Head of, Teamleiter, Abteilungsleiter, Director, CFO,
 
 ODER Taetigkeiten enthalten: disziplinarische Fuehrung, fachliche Fuehrung, Mitarbeiterverantwortung, Budgetverantwortung, Aufbau oder Leitung eines Teams
 
-Wenn Leitung = true: is_leadership = true setzen, ABER TROTZDEM die Rollen klassifizieren (Schritte 2-4 ausfuehren).
-Grund: Ein "Leiter Finanzbuchhaltung" muss trotzdem als Finanzbuchhalter/in klassifiziert werden, damit Matching und Profiling funktionieren.
+Wenn Leitung = true: is_leadership = true setzen. Dann unterscheide:
+A) Teamleiter/Gruppenleiter die AUCH noch operativ buchen → primary_role SETZEN (z.B. FiBu)
+B) Director/CFO/VP/Head of die NUR fuehren/planen/steuern → primary_role = null
+   Ein "Director Finance" der nur "Teamfuehrung, Budgetplanung, Reporting" macht ist KEIN FiBu!
+   Er hat vielleicht frueher FiBu/BiBu gemacht, aber seine AKTUELLE Rolle ist reine Leitung.
 
 SCHRITT 2 – JAHRESABSCHLUSS-REGEL (KRITISCHSTE REGEL)
 
@@ -316,7 +329,13 @@ SCHRITT 2: LEITUNGSPOSITIONEN ERKENNEN
 
 Wenn Titel oder Aufgaben enthalten: Leiter, Head of, Teamleiter, Abteilungsleiter, Director,
 CFO, Leitung, Fuehrung eines Teams, disziplinarische Verantwortung
-→ is_leadership = true UND trotzdem die fachliche Rolle bestimmen.
+→ is_leadership = true. Dann unterscheide:
+A) Job enthalt AUCH operative Buchhaltungs-Aufgaben (z.B. "Teamleiter FiBu" mit Kredi+Debi+JA)
+   → is_leadership = true + primary_role setzen (z.B. Finanzbuchhalter/in)
+B) Job ist REINE Leitung ohne Buchhaltungs-Kernaufgaben (z.B. "Director Finance" mit nur
+   Teamfuehrung, Budgetplanung, Reporting, Strategie)
+   → is_leadership = true + primary_role = null
+   Ein "Leiter Rechnungswesen" der nur fuehrt/plant/steuert sucht keinen Finanzbuchhalter!
 
 SCHRITT 3: JAHRESABSCHLUSS-REGEL (KRITISCHSTE REGEL)
 
@@ -486,6 +505,11 @@ def validate_job_classification(gpt_result: dict, job_text: str) -> dict:
     if not job_text:
         return gpt_result
 
+    # GUARD: Wenn GPT primary_role = null gesetzt hat (z.B. reine Leitung oder
+    # nicht klassifizierbar), NICHT ueberschreiben. GPT hat bewusst entschieden.
+    if gpt_result.get("primary_role") is None:
+        return gpt_result
+
     text_lower = job_text.lower()
     corrections = []
 
@@ -562,6 +586,11 @@ def validate_candidate_classification(gpt_result: dict, candidate_text: str) -> 
     4. Nur Debitoren-Taetigkeit = DebiBu (nicht FiBu)
     """
     if not candidate_text:
+        return gpt_result
+
+    # GUARD: Wenn GPT primary_role = null gesetzt hat (z.B. reine Leitung oder
+    # nicht klassifizierbar), NICHT ueberschreiben. GPT hat bewusst entschieden.
+    if gpt_result.get("primary_role") is None:
         return gpt_result
 
     text_lower = candidate_text.lower()
@@ -924,7 +953,9 @@ class FinanceClassifierService:
 
         # V2-Felder parsen (einheitlich wie bei Jobs)
         sub_level = result.get("sub_level")
-        if sub_level not in ("normal", "senior"):
+        if primary_role is None:
+            sub_level = None  # Kein sub_level wenn keine Rolle
+        elif sub_level not in ("normal", "senior"):
             sub_level = "normal"
 
         return ClassificationResult(
@@ -981,7 +1012,9 @@ class FinanceClassifierService:
 
         # V2-Felder parsen
         sub_level = result.get("sub_level")
-        if sub_level not in ("normal", "senior"):
+        if primary_role is None:
+            sub_level = None  # Kein sub_level wenn keine Rolle
+        elif sub_level not in ("normal", "senior"):
             sub_level = "normal"
 
         quality_score = result.get("quality_score")
