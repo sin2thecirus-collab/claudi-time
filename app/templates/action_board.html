@@ -283,9 +283,11 @@
                 </div>
 
                 <!-- Action Buttons -->
-                <div style="display:flex;gap:8px;margin-top:14px;">
-                    <button @click="doAction(match.match_id, 'vorstellen')"
-                            style="padding:6px 16px;border-radius:8px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:var(--pp-accent);color:#fff;">Vorstellen</button>
+                <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;">
+                    <button @click="doAction(match.match_id, 'job_an_kandidat')"
+                            style="padding:6px 16px;border-radius:8px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:var(--pp-green);color:#fff;">Job an Kandidat</button>
+                    <button @click="openContactDialog(match.match_id, match.candidate_id, match.job_id)"
+                            style="padding:6px 16px;border-radius:8px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:var(--pp-accent);color:#fff;">Profil an Kunden</button>
                     <a :href="'/kandidaten/' + match.candidate_id"
                        style="padding:6px 16px;border-radius:8px;font-size:12px;font-weight:600;border:1px solid var(--pp-border);cursor:pointer;background:var(--pp-surfaceHover);color:var(--pp-text);text-decoration:none;">Kandidat</a>
                     <button @click="doAction(match.match_id, 'spaeter')"
@@ -331,9 +333,11 @@
                 </div>
 
                 <!-- Actions -->
-                <div style="display:flex;gap:8px;margin-top:14px;">
-                    <button @click="doAction(match.match_id, 'vorstellen')"
-                            style="padding:6px 16px;border-radius:8px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:var(--pp-orange);color:#000;">Anrufen &amp; vorschlagen</button>
+                <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;">
+                    <button @click="doAction(match.match_id, 'job_an_kandidat')"
+                            style="padding:6px 16px;border-radius:8px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:var(--pp-green);color:#fff;">Job an Kandidat</button>
+                    <button @click="openContactDialog(match.match_id, match.candidate_id, match.job_id)"
+                            style="padding:6px 16px;border-radius:8px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:var(--pp-orange);color:#000;">Profil an Kunden</button>
                     <button @click="doAction(match.match_id, 'spaeter')"
                             style="padding:6px 16px;border-radius:8px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:var(--pp-surfaceHover);color:var(--pp-textMuted);">Merken</button>
                     <button @click="doAction(match.match_id, 'ablehnen')"
@@ -358,10 +362,12 @@
                     <span style="font-size:12px;color:var(--pp-text);" x-text="match.job_position + ' bei ' + match.job_company"></span>
                     <div style="font-size:11px;color:var(--pp-textMuted);margin-top:2px;" x-text="match.ai_explanation"></div>
                 </div>
-                <div style="display:flex;gap:6px;flex-shrink:0;margin-left:12px;">
+                <div style="display:flex;gap:6px;flex-shrink:0;margin-left:12px;flex-wrap:wrap;">
                     <div style="border-radius:50px;padding:3px 10px;font-weight:700;font-size:12px;color:#fff;background:var(--pp-accent);" x-text="Math.round(match.ai_score)"></div>
-                    <button @click="doAction(match.match_id, 'vorstellen')"
-                            style="padding:4px 12px;border-radius:6px;font-size:11px;font-weight:600;border:none;cursor:pointer;background:var(--pp-accent);color:#fff;">Vorstellen</button>
+                    <button @click="doAction(match.match_id, 'job_an_kandidat')"
+                            style="padding:4px 12px;border-radius:6px;font-size:11px;font-weight:600;border:none;cursor:pointer;background:var(--pp-green);color:#fff;">Job an Kandidat</button>
+                    <button @click="openContactDialog(match.match_id, match.candidate_id, match.job_id)"
+                            style="padding:4px 12px;border-radius:6px;font-size:11px;font-weight:600;border:none;cursor:pointer;background:var(--pp-accent);color:#fff;">Profil an Kunden</button>
                     <button @click="doAction(match.match_id, 'ablehnen')"
                             style="padding:4px 12px;border-radius:6px;font-size:11px;font-weight:600;border:none;cursor:pointer;background:var(--pp-surfaceHover);color:var(--pp-textDim);">X</button>
                 </div>
@@ -440,6 +446,73 @@
             </div>
         </div>
     </div>
+
+    <!-- Contact Selection Dialog -->
+    <div x-show="contactDialogOpen" x-transition
+         style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:60;display:flex;align-items:center;justify-content:center;"
+         @click.self="contactDialogOpen = false">
+        <div style="background:var(--pp-surface);border-radius:16px;width:90%;max-width:480px;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+            <div style="padding:20px 24px;border-bottom:1px solid var(--pp-border);">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <h3 style="font-size:15px;font-weight:700;color:var(--pp-text);">Kandidat vorstellen bei:</h3>
+                    <button @click="contactDialogOpen = false" style="border:none;background:none;cursor:pointer;font-size:18px;color:var(--pp-textDim);">✕</button>
+                </div>
+                <p style="font-size:13px;color:var(--pp-accent);margin-top:4px;" x-text="contactData.company_name + ' — ' + contactData.job_position"></p>
+            </div>
+
+            <div style="padding:16px 24px;">
+                <!-- Loading -->
+                <div x-show="contactLoading" style="text-align:center;padding:20px;color:var(--pp-textMuted);font-size:13px;">Lade Kontakte...</div>
+
+                <!-- Kontakt-Liste -->
+                <div x-show="!contactLoading">
+                    <p style="font-size:12px;font-weight:600;color:var(--pp-textMuted);margin-bottom:10px;">An wen senden?</p>
+
+                    <template x-for="(contact, idx) in contactData.contacts || []" :key="contact.contact_id">
+                        <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;cursor:pointer;margin-bottom:6px;border:1px solid var(--pp-border);"
+                               :style="selectedContactEmail === contact.email ? 'border-color:var(--pp-accent);background:var(--pp-surface3);' : ''">
+                            <input type="radio" name="contact" :value="contact.email" x-model="selectedContactEmail"
+                                   style="accent-color:var(--pp-accent);" />
+                            <div>
+                                <div style="font-size:13px;font-weight:600;color:var(--pp-text);" x-text="contact.name"></div>
+                                <div style="font-size:11px;color:var(--pp-textMuted);" x-text="contact.position"></div>
+                                <div style="font-size:11px;color:var(--pp-accent);" x-text="contact.email"></div>
+                            </div>
+                        </label>
+                    </template>
+
+                    <!-- Keine Kontakte -->
+                    <div x-show="!contactData.contacts || contactData.contacts.length === 0"
+                         style="padding:12px;font-size:12px;color:var(--pp-textMuted);text-align:center;">
+                        Keine Kontakte im Unternehmen hinterlegt.
+                    </div>
+
+                    <!-- Manuelle E-Mail -->
+                    <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;cursor:pointer;margin-top:10px;border:1px solid var(--pp-border);"
+                           :style="selectedContactEmail === '__custom__' ? 'border-color:var(--pp-accent);background:var(--pp-surface3);' : ''">
+                        <input type="radio" name="contact" value="__custom__" x-model="selectedContactEmail"
+                               style="accent-color:var(--pp-accent);" />
+                        <div style="flex:1;">
+                            <div style="font-size:13px;font-weight:600;color:var(--pp-text);">Andere E-Mail</div>
+                            <input x-show="selectedContactEmail === '__custom__'" type="email" x-model="customContactEmail"
+                                   placeholder="email@firma.de"
+                                   style="margin-top:6px;width:100%;padding:6px 10px;border-radius:6px;border:1px solid var(--pp-border);background:var(--pp-surfaceHover);color:var(--pp-text);font-size:12px;outline:none;" />
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div style="padding:16px 24px;border-top:1px solid var(--pp-border);display:flex;gap:8px;justify-content:flex-end;">
+                <button @click="contactDialogOpen = false"
+                        style="padding:8px 16px;border-radius:8px;font-size:12px;font-weight:600;border:1px solid var(--pp-border);cursor:pointer;background:var(--pp-surface);color:var(--pp-textMuted);">Abbrechen</button>
+                <button @click="submitProfilAnKunden()"
+                        :disabled="!canSubmitContact"
+                        style="padding:8px 20px;border-radius:8px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:var(--pp-accent);color:#fff;"
+                        :style="!canSubmitContact ? 'opacity:0.5;cursor:not-allowed;' : ''">Profil senden</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -468,6 +541,14 @@ function actionBoard() {
         // Compare Modal
         compareOpen: false,
         compareHtml: '',
+
+        // Contact Dialog
+        contactDialogOpen: false,
+        contactLoading: false,
+        contactData: {},
+        contactMatchId: null,
+        selectedContactEmail: '',
+        customContactEmail: '',
 
         get lastRunText() {
             if (this.lastRun) {
@@ -737,73 +818,210 @@ function actionBoard() {
             }
         },
 
-        buildCompareHtml(d) {
-            let html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">';
+        _esc(str) {
+            if (!str) return '';
+            const div = document.createElement('div');
+            div.textContent = String(str);
+            return div.innerHTML;
+        },
 
-            // Kandidat
-            html += '<div>';
-            html += '<h4 style="font-size:14px;font-weight:700;color:var(--pp-accent);margin-bottom:12px;">Kandidat</h4>';
-            html += '<div style="font-size:13px;color:var(--pp-text);margin-bottom:4px;"><b>' + (d.candidate_name || 'Unbekannt') + '</b></div>';
-            html += '<div style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;">' + (d.candidate_current_position || '') + '</div>';
-            html += '<div style="font-size:12px;color:var(--pp-textMuted);margin-bottom:12px;">' + (d.candidate_city || '') + ' ' + (d.candidate_postal_code || '') + '</div>';
+        _sectionHeader(title) {
+            return '<div style="font-size:11px;font-weight:700;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.05em;margin-top:14px;margin-bottom:6px;border-bottom:1px solid var(--pp-borderLight);padding-bottom:4px;">' + title + '</div>';
+        },
+
+        _tagList(items, bg, color) {
+            if (!items || !Array.isArray(items) || items.length === 0) return '';
+            let html = '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">';
+            items.forEach(s => {
+                const text = typeof s === 'object' ? (s.name || s.skill || JSON.stringify(s)) : String(s);
+                html += '<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:' + (bg || 'var(--pp-surface3)') + ';color:' + (color || 'var(--pp-text)') + ';">' + this._esc(text) + '</span>';
+            });
+            html += '</div>';
+            return html;
+        },
+
+        buildCompareHtml(d) {
+            let html = '';
+
+            // ── Distanz / Fahrzeit Header ──
+            if (d.distance_km || d.drive_time_car_min || d.drive_time_transit_min) {
+                html += '<div style="display:flex;gap:16px;margin-bottom:16px;padding:10px 14px;background:var(--pp-surface3);border-radius:8px;font-size:12px;align-items:center;">';
+                if (d.distance_km) html += '<span style="color:var(--pp-textMuted);">Distanz: <b style="color:var(--pp-text);">' + this._esc(d.distance_km) + ' km</b></span>';
+                if (d.drive_time_car_min) {
+                    const carColor = d.drive_time_car_min <= 20 ? 'var(--pp-green)' : d.drive_time_car_min <= 40 ? 'var(--pp-orange)' : 'var(--pp-textDim)';
+                    html += '<span style="color:var(--pp-textMuted);">Auto: <b style="color:' + carColor + ';">' + d.drive_time_car_min + ' Min</b></span>';
+                }
+                if (d.drive_time_transit_min) html += '<span style="color:var(--pp-textMuted);">OEPNV: <b style="color:var(--pp-text);">' + d.drive_time_transit_min + ' Min</b></span>';
+                html += '</div>';
+            }
+
+            // ── Zwei-Spalten-Layout ──
+            html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">';
+
+            // ═══ LINKE SPALTE: Kandidat ═══
+            html += '<div style="min-width:0;">';
+            html += '<h4 style="font-size:14px;font-weight:700;color:var(--pp-accent);margin-bottom:10px;">Kandidat</h4>';
+            html += '<div style="font-size:14px;color:var(--pp-text);font-weight:600;">' + this._esc(d.candidate_name || 'Unbekannt') + '</div>';
+            if (d.candidate_current_position) html += '<div style="font-size:12px;color:var(--pp-text);margin-top:2px;">' + this._esc(d.candidate_current_position) + '</div>';
+            if (d.candidate_current_company) html += '<div style="font-size:12px;color:var(--pp-textMuted);">' + this._esc(d.candidate_current_company) + '</div>';
+
+            // Adresse
+            let candAddr = '';
+            if (d.candidate_street_address) candAddr += d.candidate_street_address + ', ';
+            if (d.candidate_postal_code) candAddr += d.candidate_postal_code + ' ';
+            if (d.candidate_city) candAddr += d.candidate_city;
+            if (candAddr) html += '<div style="font-size:11px;color:var(--pp-textMuted);margin-top:4px;">' + this._esc(candAddr.trim()) + '</div>';
+
+            // Gehalt
+            if (d.candidate_salary) html += '<div style="font-size:12px;color:var(--pp-green);font-weight:600;margin-top:6px;">Gehalt: ' + this._esc(d.candidate_salary) + '</div>';
 
             // Skills
             if (d.skills && d.skills.length > 0) {
-                html += '<div style="margin-bottom:8px;"><span style="font-size:11px;font-weight:600;color:var(--pp-textDim);">Skills:</span>';
-                html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">';
-                const skills = Array.isArray(d.skills) ? d.skills.slice(0, 10) : [];
-                skills.forEach(s => {
-                    html += '<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:var(--pp-surface3);color:var(--pp-text);">' + s + '</span>';
-                });
-                html += '</div></div>';
+                html += this._sectionHeader('Skills');
+                html += this._tagList(d.skills, 'var(--pp-surface3)', 'var(--pp-text)');
             }
 
             // Berufserfahrung
-            if (d.work_history && d.work_history.length > 0) {
-                html += '<div style="margin-top:12px;"><span style="font-size:11px;font-weight:600;color:var(--pp-textDim);">Berufserfahrung:</span>';
-                const wh = Array.isArray(d.work_history) ? d.work_history.slice(0, 3) : [];
-                wh.forEach(w => {
+            if (d.work_history && Array.isArray(d.work_history) && d.work_history.length > 0) {
+                html += this._sectionHeader('Berufserfahrung');
+                d.work_history.forEach(w => {
                     if (typeof w === 'object') {
                         html += '<div style="margin-top:6px;font-size:12px;color:var(--pp-text);">';
-                        html += '<b>' + (w.position || '') + '</b>';
-                        if (w.company) html += ' bei ' + w.company;
-                        if (w.start_date) html += ' (' + w.start_date + ' - ' + (w.end_date || 'heute') + ')';
+                        html += '<b>' + this._esc(w.position || '') + '</b>';
+                        if (w.company) html += ' bei ' + this._esc(w.company);
+                        if (w.start_date) html += ' <span style="color:var(--pp-textDim);">(' + this._esc(w.start_date) + ' - ' + this._esc(w.end_date || 'heute') + ')</span>';
                         html += '</div>';
-                        if (w.description) {
-                            html += '<div style="font-size:11px;color:var(--pp-textMuted);margin-top:2px;">' + w.description.substring(0, 200) + '</div>';
-                        }
+                        if (w.description) html += '<div style="font-size:11px;color:var(--pp-textMuted);margin-top:2px;line-height:1.4;">' + this._esc((w.description || '').substring(0, 300)) + '</div>';
                     }
                 });
-                html += '</div>';
             }
+
+            // Ausbildung
+            if (d.education && Array.isArray(d.education) && d.education.length > 0) {
+                html += this._sectionHeader('Ausbildung');
+                d.education.forEach(e => {
+                    if (typeof e === 'object') {
+                        html += '<div style="margin-top:4px;font-size:12px;color:var(--pp-text);">';
+                        html += '<b>' + this._esc(e.degree || e.qualification || '') + '</b>';
+                        if (e.institution) html += ' — ' + this._esc(e.institution);
+                        if (e.year || e.end_date) html += ' <span style="color:var(--pp-textDim);">(' + this._esc(e.year || e.end_date) + ')</span>';
+                        html += '</div>';
+                    } else {
+                        html += '<div style="font-size:12px;color:var(--pp-text);margin-top:4px;">' + this._esc(e) + '</div>';
+                    }
+                });
+            }
+
+            // Weiterbildung / Zertifikate
+            if (d.further_education && Array.isArray(d.further_education) && d.further_education.length > 0) {
+                html += this._sectionHeader('Weiterbildung / Zertifikate');
+                d.further_education.forEach(fe => {
+                    if (typeof fe === 'object') {
+                        html += '<div style="font-size:12px;color:var(--pp-text);margin-top:4px;">' + this._esc(fe.name || fe.title || JSON.stringify(fe)) + '</div>';
+                    } else {
+                        html += '<div style="font-size:12px;color:var(--pp-text);margin-top:4px;">' + this._esc(fe) + '</div>';
+                    }
+                });
+            }
+
+            // IT-Skills
+            if (d.it_skills && Array.isArray(d.it_skills) && d.it_skills.length > 0) {
+                html += this._sectionHeader('IT-Skills / Software');
+                html += this._tagList(d.it_skills, 'var(--pp-surface3)', 'var(--pp-accent)');
+            }
+
+            // Sprachen
+            if (d.languages && Array.isArray(d.languages) && d.languages.length > 0) {
+                html += this._sectionHeader('Sprachen');
+                d.languages.forEach(lang => {
+                    if (typeof lang === 'object') {
+                        html += '<div style="font-size:12px;color:var(--pp-text);margin-top:3px;">' + this._esc(lang.language || lang.name || '') + (lang.level ? ' — <span style="color:var(--pp-textMuted);">' + this._esc(lang.level) + '</span>' : '') + '</div>';
+                    } else {
+                        html += '<div style="font-size:12px;color:var(--pp-text);margin-top:3px;">' + this._esc(lang) + '</div>';
+                    }
+                });
+            }
+
             html += '</div>';
 
-            // Job
-            html += '<div>';
-            html += '<h4 style="font-size:14px;font-weight:700;color:var(--pp-green);margin-bottom:12px;">Stelle</h4>';
-            html += '<div style="font-size:13px;color:var(--pp-text);margin-bottom:4px;"><b>' + (d.job_position || '') + '</b></div>';
-            html += '<div style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;">' + (d.job_company_name || '') + '</div>';
-            html += '<div style="font-size:12px;color:var(--pp-textMuted);margin-bottom:12px;">' + (d.job_city || '') + ' ' + (d.job_postal_code || '') + '</div>';
+            // ═══ RECHTE SPALTE: Job ═══
+            html += '<div style="min-width:0;">';
+            html += '<h4 style="font-size:14px;font-weight:700;color:var(--pp-green);margin-bottom:10px;">Stelle</h4>';
+            html += '<div style="font-size:14px;color:var(--pp-text);font-weight:600;">' + this._esc(d.job_position || '') + '</div>';
+            if (d.job_company_name) html += '<div style="font-size:12px;color:var(--pp-text);margin-top:2px;">' + this._esc(d.job_company_name) + '</div>';
+
+            // Job Adresse
+            let jobAddr = '';
+            if (d.job_street_address) jobAddr += d.job_street_address + ', ';
+            if (d.job_postal_code) jobAddr += d.job_postal_code + ' ';
+            if (d.job_city) jobAddr += d.job_city;
+            if (jobAddr) html += '<div style="font-size:11px;color:var(--pp-textMuted);margin-top:4px;">' + this._esc(jobAddr.trim()) + '</div>';
 
             // Job Text
             if (d.job_text) {
-                html += '<div style="margin-top:8px;"><span style="font-size:11px;font-weight:600;color:var(--pp-textDim);">Stellenbeschreibung:</span>';
-                html += '<div style="font-size:12px;color:var(--pp-text);margin-top:4px;line-height:1.5;max-height:300px;overflow-y:auto;">' + d.job_text.substring(0, 1000).replace(/\n/g, '<br>') + '</div>';
-                html += '</div>';
+                html += this._sectionHeader('Stellenbeschreibung');
+                html += '<div style="font-size:12px;color:var(--pp-text);margin-top:4px;line-height:1.5;max-height:500px;overflow-y:auto;white-space:pre-line;">' + this._esc(d.job_text) + '</div>';
             }
-            html += '</div>';
 
             html += '</div>';
+            html += '</div>'; // grid end
 
-            // Score wenn vorhanden
+            // ── Score + KI-Bewertung (wenn Match existiert) ──
             if (d.ai_score) {
-                html += '<div style="margin-top:16px;padding:12px;background:var(--pp-surface3);border-radius:8px;">';
-                html += '<span style="font-size:13px;font-weight:700;">Score: ' + Math.round(d.ai_score * 100) + '</span>';
-                if (d.ai_explanation) html += '<p style="font-size:12px;color:var(--pp-text);margin-top:4px;">' + d.ai_explanation + '</p>';
+                const scoreVal = Math.round(d.ai_score * 100);
+                const scoreBg = scoreVal >= 70 ? 'var(--pp-green)' : scoreVal >= 40 ? 'var(--pp-orange)' : 'var(--pp-red)';
+                html += '<div style="margin-top:20px;padding:14px;background:var(--pp-surface3);border-radius:10px;">';
+                html += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">';
+                html += '<span style="display:inline-block;padding:4px 14px;border-radius:50px;font-weight:700;font-size:15px;color:#fff;background:' + scoreBg + ';">' + scoreVal + '</span>';
+                html += '<span style="font-size:13px;font-weight:600;color:var(--pp-text);">KI-Bewertung</span>';
+                html += '</div>';
+                if (d.ai_explanation) html += '<p style="font-size:12px;color:var(--pp-text);line-height:1.5;margin-bottom:10px;">' + this._esc(d.ai_explanation) + '</p>';
+
+                // Staerken + Schwaechen
+                if ((d.ai_strengths && d.ai_strengths.length > 0) || (d.ai_weaknesses && d.ai_weaknesses.length > 0)) {
+                    html += '<div style="display:flex;flex-wrap:wrap;gap:5px;">';
+                    if (d.ai_strengths) d.ai_strengths.forEach(s => { html += '<span style="font-size:11px;padding:2px 8px;border-radius:50px;background:var(--pp-greenSoft);color:var(--pp-green);font-weight:500;">+ ' + this._esc(s) + '</span>'; });
+                    if (d.ai_weaknesses) d.ai_weaknesses.forEach(w => { html += '<span style="font-size:11px;padding:2px 8px;border-radius:50px;background:var(--pp-redSoft);color:var(--pp-red);font-weight:500;">- ' + this._esc(w) + '</span>'; });
+                    html += '</div>';
+                }
                 html += '</div>';
             }
 
             return html;
+        },
+
+        // ── Kontakt-Dialog ──
+        get canSubmitContact() {
+            if (this.selectedContactEmail === '__custom__') return this.customContactEmail && this.customContactEmail.includes('@');
+            return !!this.selectedContactEmail;
+        },
+
+        async openContactDialog(matchId, candidateId, jobId) {
+            this.contactMatchId = matchId;
+            this.selectedContactEmail = '';
+            this.customContactEmail = '';
+            this.contactData = {};
+            this.contactLoading = true;
+            this.contactDialogOpen = true;
+
+            try {
+                const res = await fetch('/api/v4/claude-match/' + matchId + '/contacts');
+                const data = await res.json();
+                this.contactData = data;
+            } catch(e) {
+                console.error('Kontakte laden fehlgeschlagen:', e);
+                this.contactData = {contacts: [], company_name: '', job_position: ''};
+            }
+            this.contactLoading = false;
+        },
+
+        async submitProfilAnKunden() {
+            if (!this.canSubmitContact || !this.contactMatchId) return;
+            const email = this.selectedContactEmail === '__custom__' ? this.customContactEmail : this.selectedContactEmail;
+            this.contactDialogOpen = false;
+
+            // Action ausfuehren
+            await this.doAction(this.contactMatchId, 'profil_an_kunden', email);
         },
 
         startPolling() {
@@ -818,12 +1036,15 @@ function actionBoard() {
             }, 2000);
         },
 
-        async doAction(matchId, action) {
+        async doAction(matchId, action, contactEmail) {
             try {
                 let note = '';
                 if (action === 'ablehnen') {
                     const reason = prompt('Ablehnungsgrund (optional):');
                     if (reason) note = reason;
+                }
+                if (contactEmail) {
+                    note = 'Empfaenger: ' + contactEmail;
                 }
                 await fetch('/api/v4/claude-match/' + matchId + '/action', {
                     method: 'POST',

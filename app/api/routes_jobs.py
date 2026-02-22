@@ -2066,6 +2066,48 @@ async def debug_classification_mismatches(
 
 
 # ══════════════════════════════════════════════════════════════
+# Job-Vorstellungs-PDF (Sincirus Branded)
+# ══════════════════════════════════════════════════════════════
+
+
+@router.get("/{job_id}/vorstellung-pdf")
+async def get_job_vorstellung_pdf(
+    job_id: UUID,
+    candidate_id: UUID = Query(None, description="Optional: Kandidat fuer personalisierte Version"),
+    match_id: UUID = Query(None, description="Optional: Match fuer Fahrzeit + Score"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Generiert ein Sincirus Branded Job-Vorstellungs-PDF.
+
+    Ohne candidate_id: Generisches Job-PDF.
+    Mit candidate_id/match_id: Personalisiert mit Fahrzeit + Einschaetzung.
+    """
+    from fastapi.responses import Response
+    from app.services.job_vorstellung_pdf_service import JobVorstellungPdfService
+
+    service = JobVorstellungPdfService(db)
+    try:
+        pdf_bytes = await service.generate_job_vorstellung_pdf(
+            job_id=job_id,
+            candidate_id=candidate_id,
+            match_id=match_id,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    # Job-Position fuer Dateiname laden
+    job = await db.execute(select(Job.position).where(Job.id == job_id))
+    position = (job.scalar_one_or_none() or "Stelle").replace(" ", "_").replace("/", "_")
+    filename = f"Stellenprofil_{position}.pdf"
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
+
+
+# ══════════════════════════════════════════════════════════════
 # Phase 10: Google Maps Fahrzeit — Debug-Endpoints
 # ══════════════════════════════════════════════════════════════
 

@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ job_position }} — {{ job_company }}</title>
+  <style>
+    /* Fonts — lokal eingebettet fuer WeasyPrint */
+    @font-face {
+      font-family: 'DM Sans';
+      src: url('{{ font_dir }}/DMSans-Regular.ttf') format('truetype');
+      font-weight: 100 900;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: 'DM Sans';
+      src: url('{{ font_dir }}/DMSans-Italic.ttf') format('truetype');
+      font-weight: 100 900;
+      font-style: italic;
+    }
+    @font-face {
+      font-family: 'DM Serif Display';
+      src: url('{{ font_dir }}/DMSerifDisplay-Regular.ttf') format('truetype');
+      font-weight: 400;
+      font-style: normal;
+    }
+
+    @page {
+      size: A4;
+      margin: 14px 0 0 0;
+      background: #0E1B2E;
+    }
+    @page :first {
+      margin-top: 0;
+    }
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --navy: #0E1B2E;
+      --navy-mid: #162B47;
+      --navy-light: #1E3A5F;
+      --surface: #132239;
+      --border: #1E3A5F;
+      --border-light: #253D5C;
+      --text: #E8EDF3;
+      --text-body: #C8D3E0;
+      --text-muted: #7E93AD;
+      --text-subtle: #506882;
+      --green: #16825D;
+      --green-light: #1EAA79;
+      --green-bg: rgba(22, 130, 93, 0.12);
+      --green-glow: rgba(30, 170, 121, 0.3);
+      --accent-bg: rgba(22, 130, 93, 0.06);
+    }
+
+    html {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    body {
+      font-family: 'DM Sans', -apple-system, sans-serif;
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--text-body);
+      background: var(--navy);
+    }
+
+    /* Seite 1 */
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      background: var(--navy);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      page-break-after: always;
+    }
+    .page:last-child { page-break-after: auto; }
+
+    .top-accent {
+      height: 3px;
+      background: linear-gradient(90deg, var(--green), var(--green-light), transparent);
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 22px 44px 18px 44px;
+    }
+    .header img {
+      height: 44px;
+      width: auto;
+      filter: brightness(0) invert(1);
+    }
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .header-date {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .header-badge {
+      font-size: 8px;
+      font-weight: 700;
+      color: var(--green);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      background: var(--green-bg);
+      padding: 4px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(22, 130, 93, 0.2);
+    }
+
+    /* Hero */
+    .hero {
+      padding: 28px 44px 0 44px;
+    }
+    .hero-label {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--green);
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .hero h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 34px;
+      font-weight: 400;
+      color: var(--text);
+      line-height: 1.15;
+      margin-bottom: 10px;
+    }
+    .hero-meta {
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+    .hero-meta strong {
+      color: var(--green-light);
+      font-weight: 600;
+    }
+
+    .pulse-dots {
+      display: flex;
+      gap: 6px;
+      margin-top: 16px;
+    }
+    .pulse-dots span {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+    }
+    .pulse-dots span:nth-child(2) { opacity: 0.6; }
+    .pulse-dots span:nth-child(3) { opacity: 0.3; }
+
+    .hero-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 22px 44px 0 44px;
+    }
+
+    /* Content */
+    .page-content {
+      flex: 1;
+      padding: 18px 44px 0 44px;
+    }
+
+    /* Section Headings */
+    .sh {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--green);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+      margin-top: 20px;
+    }
+    .sh:first-child { margin-top: 0; }
+
+    /* Quick Facts Grid */
+    .quick-facts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .qf-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 16px;
+      min-width: 140px;
+      flex: 1;
+    }
+    .qf-label {
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--text-subtle);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .qf-value {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    /* Personalisierung Box */
+    .personal-box {
+      background: var(--green-bg);
+      border: 1px solid rgba(22, 130, 93, 0.25);
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-top: 18px;
+      margin-bottom: 8px;
+    }
+    .personal-box .label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--green);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .personal-row {
+      display: flex;
+      gap: 24px;
+      font-size: 13px;
+      color: var(--text);
+    }
+    .personal-row .key {
+      color: var(--text-muted);
+      min-width: 80px;
+    }
+    .personal-row .val {
+      font-weight: 600;
+    }
+    .drive-green { color: var(--green-light); }
+
+    /* Task/Requirement List */
+    .task-list {
+      list-style: none;
+      padding: 0;
+    }
+    .task-list li {
+      position: relative;
+      padding: 6px 0 6px 20px;
+      font-size: 12.5px;
+      color: var(--text-body);
+      line-height: 1.5;
+      border-bottom: 1px solid rgba(30, 58, 95, 0.3);
+    }
+    .task-list li:last-child { border-bottom: none; }
+    .task-list li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 12px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+    }
+
+    .req-list li::before {
+      background: var(--green-light);
+      border-radius: 2px;
+    }
+
+    /* Raw Text Fallback */
+    .raw-text {
+      font-size: 12px;
+      color: var(--text-body);
+      line-height: 1.7;
+      white-space: pre-line;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 20px;
+    }
+
+    /* Footer / Consultant */
+    .footer {
+      padding: 20px 44px 28px 44px;
+      margin-top: auto;
+    }
+    .vcard {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .vcard-info { flex: 1; }
+    .vcard-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 2px;
+    }
+    .vcard-title {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+    .vcard-contact {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+    .vcard-contact strong {
+      color: var(--green-light);
+      font-weight: 600;
+    }
+    .vcard-brand {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
+    }
+    .vcard-brand img {
+      height: 30px;
+      width: auto;
+      filter: brightness(0) invert(1);
+      opacity: 0.6;
+    }
+    .vcard-company {
+      font-size: 10px;
+      color: var(--text-subtle);
+      letter-spacing: 1px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="page">
+  <div class="top-accent"></div>
+
+  <!-- Header -->
+  <div class="header">
+    <img src="{{ logo_path }}" alt="Sincirus" />
+    <div class="header-right">
+      <span class="header-date">{{ today_date }}</span>
+      <span class="header-badge">Stellenprofil</span>
+    </div>
+  </div>
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-label">Stellenangebot</div>
+    <h1>{{ job_position }}</h1>
+    <div class="hero-meta">
+      <strong>{{ job_company }}</strong>
+      {% if job_city %} &mdash; {{ job_city }}{% endif %}
+    </div>
+    <div class="pulse-dots"><span></span><span></span><span></span></div>
+  </div>
+
+  <div class="hero-divider"></div>
+
+  <!-- Content -->
+  <div class="page-content">
+
+    <!-- Quick Facts -->
+    <div class="sh">Eckdaten</div>
+    <div class="quick-facts">
+      {% if job_city %}
+      <div class="qf-item">
+        <div class="qf-label">Standort</div>
+        <div class="qf-value">{{ job_city }}</div>
+      </div>
+      {% endif %}
+      {% if job_employment_type %}
+      <div class="qf-item">
+        <div class="qf-label">Arbeitszeit</div>
+        <div class="qf-value">{{ job_employment_type }}</div>
+      </div>
+      {% endif %}
+      {% if job_work_arrangement %}
+      <div class="qf-item">
+        <div class="qf-label">Arbeitsmodell</div>
+        <div class="qf-value">{{ job_work_arrangement }}</div>
+      </div>
+      {% endif %}
+      {% if job_industry %}
+      <div class="qf-item">
+        <div class="qf-label">Branche</div>
+        <div class="qf-value">{{ job_industry }}</div>
+      </div>
+      {% endif %}
+      {% if job_company_size %}
+      <div class="qf-item">
+        <div class="qf-label">Unternehmensgroesse</div>
+        <div class="qf-value">{{ job_company_size }}</div>
+      </div>
+      {% endif %}
+      {% if job_role %}
+      <div class="qf-item">
+        <div class="qf-label">Fachgebiet</div>
+        <div class="qf-value">{{ job_role }}{% if job_sub_level %} ({{ job_sub_level }}){% endif %}</div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Personalisierung (nur wenn Kandidat vorhanden) -->
+    {% if is_personalized %}
+    <div class="personal-box">
+      <div class="label">Fuer Sie berechnet</div>
+      {% if drive_time_car_min or distance_km %}
+      <div class="personal-row" style="margin-bottom: 4px;">
+        {% if drive_time_car_min %}
+        <span class="key">Fahrzeit Auto:</span>
+        <span class="val drive-green">{{ drive_time_car_min }} Minuten</span>
+        {% endif %}
+        {% if drive_time_transit_min %}
+        <span class="key" style="margin-left: 16px;">OEPNV:</span>
+        <span class="val">{{ drive_time_transit_min }} Minuten</span>
+        {% endif %}
+      </div>
+      {% endif %}
+      {% if distance_km %}
+      <div class="personal-row" style="margin-bottom: 4px;">
+        <span class="key">Entfernung:</span>
+        <span class="val">{{ distance_km }} km{% if candidate_city %} von {{ candidate_city }}{% endif %}</span>
+      </div>
+      {% endif %}
+      {% if match_score %}
+      <div class="personal-row">
+        <span class="key">Passung:</span>
+        <span class="val drive-green">{{ match_score|int }}%</span>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Aufgaben -->
+    {% if job_tasks %}
+    <div class="sh">Ihre Aufgaben</div>
+    <ul class="task-list">
+      {% for task in job_tasks %}
+      <li>{{ task }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+
+    <!-- Anforderungen -->
+    {% if job_requirements %}
+    <div class="sh">Ihr Profil</div>
+    <ul class="task-list req-list">
+      {% for req in job_requirements %}
+      <li>{{ req }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+
+    <!-- Fallback: Roher Text wenn keine Struktur erkannt -->
+    {% if not has_structured_content and job_text_raw %}
+    <div class="sh">Stellenbeschreibung</div>
+    <div class="raw-text">{{ job_text_raw[:3000] }}</div>
+    {% endif %}
+
+  </div>
+
+  <!-- Footer / Consultant -->
+  <div class="footer">
+    <div class="vcard">
+      <div class="vcard-info">
+        <div class="vcard-name">{{ consultant.name }}</div>
+        <div class="vcard-title">{{ consultant.title }}</div>
+        <div class="vcard-contact">
+          <strong>{{ consultant.email }}</strong><br>
+          {{ consultant.phone }} &nbsp;&middot;&nbsp; {{ consultant.phone2 }}<br>
+          {{ consultant.address }}
+        </div>
+      </div>
+      <div class="vcard-brand">
+        <img src="{{ logo_path }}" alt="Sincirus" />
+        <div class="vcard-company">sincirus.com</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

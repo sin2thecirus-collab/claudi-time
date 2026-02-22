@@ -352,6 +352,50 @@ async def match_action(
         if body.note:
             match.feedback_note = body.note
 
+    elif body.action == "job_an_kandidat":
+        match.user_feedback = "job_an_kandidat"
+        match.feedback_at = now
+        match.status = MatchStatus.PRESENTED
+        match.presentation_status = "prepared"
+        if body.note:
+            match.feedback_note = body.note
+
+    elif body.action == "profil_an_kunden":
+        match.user_feedback = "profil_an_kunden"
+        match.feedback_at = now
+        match.status = MatchStatus.PRESENTED
+        match.presentation_status = "prepared"
+        if body.note:
+            match.feedback_note = body.note
+
+        # ATS Integration: Kandidat in Pipeline einfuegen
+        try:
+            from app.models.ats_job import ATSJob
+            from app.models.ats_pipeline import ATSPipelineEntry, PipelineStage
+
+            ats_job_result = await db.execute(
+                select(ATSJob).where(ATSJob.source_job_id == match.job_id)
+            )
+            ats_job = ats_job_result.scalar_one_or_none()
+
+            if ats_job:
+                existing = await db.execute(
+                    select(ATSPipelineEntry).where(
+                        ATSPipelineEntry.ats_job_id == ats_job.id,
+                        ATSPipelineEntry.candidate_id == match.candidate_id,
+                    )
+                )
+                if not existing.scalar_one_or_none():
+                    entry = ATSPipelineEntry(
+                        ats_job_id=ats_job.id,
+                        candidate_id=match.candidate_id,
+                        stage=PipelineStage.MATCHED,
+                    )
+                    db.add(entry)
+                    logger.info("ATS Pipeline Entry erstellt fuer Match %s (profil_an_kunden)", match_id)
+        except Exception as e:
+            logger.warning("ATS Integration fuer Match %s: %s", match_id, e)
+
     elif body.action == "ablehnen":
         match.user_feedback = "ablehnen"
         match.feedback_at = now
@@ -366,6 +410,63 @@ async def match_action(
     await db.commit()
 
     return {"success": True, "match_id": str(match_id), "action": body.action}
+
+
+@router.get("/claude-match/{match_id}/contacts")
+async def get_match_contacts(
+    match_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Laedt Kontakte des Unternehmens fuer die Empfaenger-Auswahl bei 'Profil an Kunden'.
+
+    Gibt alle CompanyContacts fuer die Firma des Jobs zurueck.
+    """
+    match = await db.get(Match, match_id)
+    if not match:
+        raise HTTPException(status_code=404, detail="Match nicht gefunden")
+
+    # Job laden um company_id zu bekommen
+    job = await db.execute(select(Job).where(Job.id == match.job_id))
+    job_obj = job.scalar_one_or_none()
+    if not job_obj:
+        raise HTTPException(status_code=404, detail="Job nicht gefunden")
+
+    contacts = []
+    company_name = job_obj.company_name or "Unbekannt"
+
+    # CompanyContacts laden wenn company_id vorhanden
+    if job_obj.company_id:
+        try:
+            from app.models.company_contact import CompanyContact
+
+            contact_result = await db.execute(
+                select(CompanyContact).where(
+                    CompanyContact.company_id == job_obj.company_id
+                )
+            )
+            for c in contact_result.scalars().all():
+                name_parts = []
+                if c.first_name:
+                    name_parts.append(c.first_name)
+                if c.last_name:
+                    name_parts.append(c.last_name)
+                contacts.append({
+                    "contact_id": str(c.id),
+                    "name": " ".join(name_parts) or "Unbekannt",
+                    "position": c.position or "",
+                    "email": c.email or "",
+                    "phone": c.phone or c.mobile or "",
+                })
+        except Exception as e:
+            logger.warning("Kontakte laden fuer Match %s: %s", match_id, e)
+
+    return {
+        "match_id": str(match_id),
+        "job_id": str(match.job_id),
+        "job_position": job_obj.position or "",
+        "company_name": company_name,
+        "contacts": contacts,
+    }
 
 
 @router.post("/claude-match/candidate/{candidate_id}")
