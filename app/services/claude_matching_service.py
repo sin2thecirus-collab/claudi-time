@@ -260,6 +260,7 @@ async def _call_claude(
     system: str,
     user_message: str,
     semaphore: asyncio.Semaphore,
+    max_tokens: int = 500,
 ) -> tuple[dict | None, int, int]:
     """Ruft Claude API auf mit Semaphore-Schutz.
 
@@ -270,7 +271,7 @@ async def _call_claude(
             response = await asyncio.to_thread(
                 client.messages.create,
                 model=model,
-                max_tokens=500,
+                max_tokens=max_tokens,
                 system=system,
                 messages=[{"role": "user", "content": user_message}],
             )
@@ -291,7 +292,8 @@ async def _call_claude(
 
         except json.JSONDecodeError as e:
             logger.warning(f"Claude JSON parse error: {e}, raw: {text[:200]}")
-            return None, 0, 0
+            # Tokens trotzdem tracken (API wurde aufgerufen!)
+            return None, input_tokens, output_tokens
         except Exception as e:
             logger.error(f"Claude API error: {e}")
             return None, 0, 0
@@ -611,7 +613,8 @@ async def run_matching(
                 distance_km=distance_km or "Unbekannt",
             )
             parsed, t_in, t_out = await _call_claude(
-                client, model_deep, DEEP_ASSESSMENT_SYSTEM, user_msg, semaphore
+                client, model_deep, DEEP_ASSESSMENT_SYSTEM, user_msg, semaphore,
+                max_tokens=1200,
             )
             total_tokens_in += t_in
             total_tokens_out += t_out
