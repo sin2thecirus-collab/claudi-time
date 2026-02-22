@@ -39,7 +39,9 @@ MAX_DISTANCE_M = 40_000       # 40km fuer Claude-Matches
 PROXIMITY_DISTANCE_M = 10_000  # 10km fuer Naehe-Matches (ohne Claude)
 
 # Concurrency
-SEMAPHORE_LIMIT = 3  # Max parallele Claude-Calls
+SEMAPHORE_LIMIT = 3       # Max parallele Claude-Calls (Stufe 1/2 — teuer)
+VORFILTER_SEMAPHORE = 15  # Max parallele Haiku-Calls (Stufe 0 — billig + schnell)
+VORFILTER_CHUNK_SIZE = 50 # Paare pro Chunk im Vorfilter
 
 # Score-Thresholds
 MIN_SCORE_SAVE = 75  # Nur starke Matches (75+) werden gespeichert
@@ -722,7 +724,7 @@ async def run_stufe_0(candidate_id: str | None = None) -> dict:
                 passed_pairs = geo_pairs  # Alle durchlassen wenn kein API Key
             else:
                 client = Anthropic(api_key=settings.anthropic_api_key)
-                semaphore = asyncio.Semaphore(SEMAPHORE_LIMIT)
+                semaphore = asyncio.Semaphore(VORFILTER_SEMAPHORE)
                 passed_pairs = []
                 total_cost = 0.0
 
@@ -790,15 +792,16 @@ async def run_stufe_0(candidate_id: str | None = None) -> dict:
                         _matching_status["progress"]["errors"] += 1
                         return True  # Im Fehlerfall durchlassen
 
-                # In Chunks von 20 verarbeiten (Semaphore(3) = max 3 parallel)
-                for i in range(0, total_geo, 20):
+                # In Chunks verarbeiten (Semaphore begrenzt echte Parallelitaet)
+                chunk_size = VORFILTER_CHUNK_SIZE
+                for i in range(0, total_geo, chunk_size):
                     # Stop-Flag pruefen
                     if is_stop_requested():
                         logger.info("Vorfilter: Stop angefordert, breche ab.")
                         clear_stop()
                         break
 
-                    chunk = geo_pairs[i:i + 20]
+                    chunk = geo_pairs[i:i + chunk_size]
                     results = await asyncio.gather(*[_vorfilter_one(p) for p in chunk])
                     for p, passed in zip(chunk, results):
                         if passed:
@@ -806,14 +809,14 @@ async def run_stufe_0(candidate_id: str | None = None) -> dict:
                             _matching_status["progress"]["vorfilter_passed"] += 1
                         else:
                             _matching_status["progress"]["vorfilter_failed"] += 1
-                    _matching_status["progress"]["vorfilter_done"] = min(i + 20, total_geo)
+                    _matching_status["progress"]["vorfilter_done"] = min(i + chunk_size, total_geo)
                     _matching_status["progress"]["cost_estimate_usd"] = round(total_cost, 4)
 
                     done = _matching_status["progress"]["vorfilter_done"]
                     passed_count = _matching_status["progress"]["vorfilter_passed"]
                     logger.info(f"Vorfilter: {done}/{total_geo} — {passed_count} bestanden (${total_cost:.4f})")
 
-                    await asyncio.sleep(1)  # RPM-Schonung
+                    await asyncio.sleep(0.1)  # Kurze Pause zwischen Chunks
 
             # ── Session erstellen mit gefilterten Paaren ──
             _matching_sessions[session_id] = {
