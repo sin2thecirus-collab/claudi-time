@@ -1010,6 +1010,12 @@ async def klassifizierung_live_status():
     </div>
     <div id="start-msg" class="mt-3 text-sm text-zinc-400 hidden"></div>
   </div>
+
+  <!-- Debug -->
+  <div class="card">
+    <p class="font-medium text-zinc-300 mb-2">Debug (Raw API Response):</p>
+    <pre id="debug-raw" class="text-xs text-zinc-500 bg-zinc-900 p-3 rounded overflow-auto max-h-48">Laden...</pre>
+  </div>
 </div>
 
 <script>
@@ -1157,8 +1163,20 @@ async function startClassification(type) {
   setTimeout(() => poll(), 1000);
 }
 
+async function debugPoll() {
+  let dbg = '';
+  try {
+    const jr = await fetch('/api/jobs/maintenance/classification-status');
+    const txt = await jr.text();
+    dbg = 'Jobs Status (HTTP ' + jr.status + '):\\n' + txt;
+  } catch(e) { dbg = 'Jobs Fetch Error: ' + e.message; }
+  document.getElementById('debug-raw').textContent = dbg;
+}
+
 poll();
+debugPoll();
 setInterval(poll, 3000);
+setInterval(debugPoll, 5000);
 </script>
 </body>
 </html>"""
