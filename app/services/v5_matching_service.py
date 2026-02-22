@@ -338,11 +338,13 @@ async def run_matching(candidate_id: str | None = None) -> dict:
                     Candidate.address_coords, Job.location_coords
                 ).label("distance_m")
 
-                # Existing match check
+                # Existing match check — NUR V5 Duplikate verhindern
+                # Alte V4-Matches sollen NICHT blockieren
                 existing_match = exists(
                     select(Match.id).where(
                         Match.candidate_id == Candidate.id,
                         Match.job_id == Job.id,
+                        Match.matching_method == "v5_role_geo",
                     )
                 )
 
