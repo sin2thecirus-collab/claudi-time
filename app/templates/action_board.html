@@ -80,14 +80,15 @@
             <h2 style="font-size:16px;font-weight:700;color:var(--pp-text);margin-bottom:8px;">
                 Stufe 0 laeuft...
             </h2>
-            <p style="font-size:13px;color:var(--pp-textMuted);margin-bottom:16px;" x-text="
+            <p style="font-size:13px;margin-bottom:16px;" :style="progress.phase === 'error' ? 'color:#ef4444' : 'color:var(--pp-textMuted)'" x-text="
                 progress.phase === 'geo_plz' ? 'Schritt 1/5: PLZ-Abgleich...' :
                 progress.phase === 'geo_stadt' ? 'Schritt 2/5: Stadt-Abgleich...' :
                 progress.phase === 'geo_distanz' ? 'Schritt 3/5: Umkreis-Abgleich (40km)...' :
                 progress.phase === 'hard_filter' ? 'Schritt 4/5: Rollen-Filter (BiBu≠LohnBu etc.)... ' + (progress.hard_filtered || 0) + ' rausgefiltert' :
                 progress.phase === 'llm_vorfilter' ? 'Schritt 5/5: LLM-Vorfilter — Claude Haiku prueft Passung...' :
                 progress.phase === 'fertig' ? 'Fertig!' :
-                'Starte Geo-Kaskade...'
+                progress.phase === 'error' ? 'FEHLER: ' + (progress.error_message || 'Unbekannt') :
+                'Wird vorbereitet...'
             "></p>
 
             <!-- Zahlen + Fortschrittsbalken (immer sichtbar sobald Daten da) -->

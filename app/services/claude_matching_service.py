@@ -443,7 +443,7 @@ async def run_stufe_0(candidate_id: str | None = None) -> dict:
     _matching_status["progress"] = {
         "stufe": "stufe_0",
         "session_id": session_id,
-        "phase": "geo_kaskade",
+        "phase": "geo_plz",
         "total_geo_pairs": 0,
         "vorfilter_total": 0,
         "vorfilter_done": 0,
@@ -793,8 +793,12 @@ async def run_stufe_0(candidate_id: str | None = None) -> dict:
                 passed_pairs = []
                 total_cost = 0.0
 
+                import re as re_module
+
                 async def _vorfilter_one(pair: dict) -> bool:
-                    """LLM-Vorfilter fuer ein Paar. Gibt True zurueck wenn >= 70%."""
+                    """LLM-Vorfilter fuer ein Paar. Gibt True zurueck wenn >= 65%."""
+                    nonlocal total_cost
+                    passed = True  # Default: durchlassen
                     try:
                         # Aktuelle Position + Taetigkeiten extrahieren
                         work_history = pair.get("work_history") or []
@@ -814,8 +818,7 @@ async def run_stufe_0(candidate_id: str | None = None) -> dict:
                             job_tasks = (pair.get("job_text") or "")[:300]
 
                         if not current_position and not current_activities:
-                            # Kein Werdegang → durchlassen (Stufe 1 entscheidet)
-                            return True
+                            return True  # Kein Werdegang → durchlassen
 
                         # Rollen aus classification_data
                         cand_cls = pair.get("cand_classification") or {}
@@ -833,63 +836,76 @@ async def run_stufe_0(candidate_id: str | None = None) -> dict:
                         )
 
                         async with semaphore:
-                            response = await asyncio.to_thread(
-                                client.messages.create,
-                                model=DEFAULT_MODEL_QUICK,
-                                max_tokens=10,
-                                system=VORFILTER_SYSTEM,
-                                messages=[{"role": "user", "content": user_msg}],
+                            # 30s Timeout pro Call
+                            response = await asyncio.wait_for(
+                                asyncio.to_thread(
+                                    client.messages.create,
+                                    model=DEFAULT_MODEL_QUICK,
+                                    max_tokens=10,
+                                    system=VORFILTER_SYSTEM,
+                                    messages=[{"role": "user", "content": user_msg}],
+                                ),
+                                timeout=30.0,
                             )
                             text = response.content[0].text.strip()
                             in_tokens = response.usage.input_tokens
                             out_tokens = response.usage.output_tokens
 
-                            # Kosten tracken
                             cost = (in_tokens * 0.80 + out_tokens * 4.0) / 1_000_000
-                            nonlocal total_cost
                             total_cost += cost
 
-                            # Prozentzahl parsen
-                            # Manchmal antwortet Haiku mit "75%" oder "75" oder "ca. 75"
-                            import re
-                            match = re.search(r"(\d+)", text)
+                            match = re_module.search(r"(\d+)", text)
                             if match:
                                 score = int(match.group(1))
-                                return score >= VORFILTER_MIN_SCORE
+                                passed = score >= VORFILTER_MIN_SCORE
                             else:
                                 logger.warning(f"Vorfilter: Konnte keine Zahl parsen aus '{text}'")
-                                return True  # Im Zweifel durchlassen
+                                passed = True
 
+                    except asyncio.TimeoutError:
+                        logger.warning("Vorfilter: API Timeout (30s) — Paar durchgelassen")
+                        _matching_status["progress"]["errors"] += 1
+                        passed = True
                     except Exception as e:
                         logger.error(f"Vorfilter-Fehler: {e}")
                         _matching_status["progress"]["errors"] += 1
-                        return True  # Im Fehlerfall durchlassen
-
-                # In Chunks verarbeiten (Semaphore begrenzt echte Parallelitaet)
-                chunk_size = VORFILTER_CHUNK_SIZE
-                for i in range(0, total_geo, chunk_size):
-                    # Stop-Flag pruefen
-                    if is_stop_requested():
-                        logger.info("Vorfilter: Stop angefordert, breche ab.")
-                        clear_stop()
-                        break
-
-                    chunk = geo_pairs[i:i + chunk_size]
-                    results = await asyncio.gather(*[_vorfilter_one(p) for p in chunk])
-                    for p, passed in zip(chunk, results):
+                        passed = True
+                    finally:
+                        # Fortschritt SOFORT nach jedem einzelnen Call aktualisieren
                         if passed:
-                            passed_pairs.append(p)
                             _matching_status["progress"]["vorfilter_passed"] += 1
                         else:
                             _matching_status["progress"]["vorfilter_failed"] += 1
-                    _matching_status["progress"]["vorfilter_done"] = min(i + chunk_size, total_geo)
-                    _matching_status["progress"]["cost_estimate_usd"] = round(total_cost, 4)
+                        _matching_status["progress"]["vorfilter_done"] += 1
+                        _matching_status["progress"]["cost_estimate_usd"] = round(total_cost, 4)
 
-                    done = _matching_status["progress"]["vorfilter_done"]
-                    passed_count = _matching_status["progress"]["vorfilter_passed"]
-                    logger.info(f"Vorfilter: {done}/{total_geo} — {passed_count} bestanden (${total_cost:.4f})")
+                    return passed
 
-                    await asyncio.sleep(0.1)  # Kurze Pause zwischen Chunks
+                # Alle Paare als Tasks starten (Semaphore begrenzt echte Parallelitaet)
+                # Kein Chunk-System mehr — Tasks laufen frei, Fortschritt pro Call
+                tasks = []
+                for idx, pair in enumerate(geo_pairs):
+                    # Stop-Flag alle 100 Paare pruefen
+                    if idx % 100 == 0 and idx > 0:
+                        if is_stop_requested():
+                            logger.info("Vorfilter: Stop angefordert, breche ab.")
+                            clear_stop()
+                            break
+                        done = _matching_status["progress"]["vorfilter_done"]
+                        passed_count = _matching_status["progress"]["vorfilter_passed"]
+                        logger.info(f"Vorfilter: {done}/{total_geo} — {passed_count} bestanden (${total_cost:.4f})")
+
+                    tasks.append(_vorfilter_one(pair))
+
+                # Alle Tasks parallel starten (Semaphore limitiert auf 15 gleichzeitig)
+                results = await asyncio.gather(*tasks)
+                for pair, passed in zip(geo_pairs[:len(results)], results):
+                    if passed:
+                        passed_pairs.append(pair)
+
+                done = _matching_status["progress"]["vorfilter_done"]
+                passed_count = _matching_status["progress"]["vorfilter_passed"]
+                logger.info(f"Vorfilter fertig: {done}/{total_geo} — {passed_count} bestanden (${total_cost:.4f})")
 
             # ── Session erstellen mit gefilterten Paaren ──
             _matching_sessions[session_id] = {
