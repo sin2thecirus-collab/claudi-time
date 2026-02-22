@@ -81,8 +81,10 @@
                 Stufe 0 laeuft...
             </h2>
             <p style="font-size:13px;color:var(--pp-textMuted);margin-bottom:16px;" x-text="
-                progress.phase === 'geo_kaskade' ? 'Schritt 1/2: Geo-Kaskade — Paare werden gebildet (PLZ / Stadt / 40km)...' :
-                progress.phase === 'llm_vorfilter' ? 'Schritt 2/2: LLM-Vorfilter — Claude Haiku prueft Passung...' :
+                progress.phase === 'geo_plz' ? 'Schritt 1/4: PLZ-Abgleich...' :
+                progress.phase === 'geo_stadt' ? 'Schritt 2/4: Stadt-Abgleich...' :
+                progress.phase === 'geo_distanz' ? 'Schritt 3/4: Umkreis-Abgleich (40km)...' :
+                progress.phase === 'llm_vorfilter' ? 'Schritt 4/4: LLM-Vorfilter — Claude Haiku prueft Passung...' :
                 progress.phase === 'fertig' ? 'Fertig!' :
                 'Starte Geo-Kaskade...'
             "></p>

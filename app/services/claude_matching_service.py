@@ -444,151 +444,208 @@ async def run_stufe_0(candidate_id: str | None = None) -> dict:
             from anthropic import Anthropic
             from app.config import settings
 
-            # ── Schritt 1: Geo-Kaskade ──
-            logger.info("Stufe 0, Schritt 1: Geo-Kaskade (PLZ → Stadt → 40km)...")
+            # ── Schritt 1: Geo-Kaskade (3 separate schnelle Queries) ──
+            logger.info("Stufe 0, Schritt 1: Geo-Kaskade (3 Queries: PLZ → Stadt → 40km)...")
+            _matching_status["progress"]["phase"] = "geo_plz"
 
+            # Gemeinsame Select-Spalten fuer alle 3 Queries
+            def _build_select_columns(cand_lat, cand_lng, job_lat, job_lng, distance_expr):
+                return [
+                    Candidate.id.label("candidate_id"),
+                    Candidate.first_name.label("candidate_first_name"),
+                    Candidate.last_name.label("candidate_last_name"),
+                    Candidate.work_history,
+                    Candidate.cv_text,
+                    Candidate.education,
+                    Candidate.further_education,
+                    Candidate.skills,
+                    Candidate.it_skills,
+                    Candidate.erp,
+                    Candidate.salary,
+                    Candidate.notice_period,
+                    Candidate.willingness_to_change,
+                    Candidate.desired_positions,
+                    Candidate.key_activities,
+                    Candidate.preferred_industries,
+                    Candidate.avoided_industries,
+                    Candidate.commute_max,
+                    Candidate.employment_type,
+                    Candidate.call_summary,
+                    Candidate.city.label("candidate_city"),
+                    Candidate.postal_code.label("candidate_plz"),
+                    Candidate.hotlist_job_title.label("candidate_role"),
+                    Candidate.current_position.label("candidate_position"),
+                    cand_lat,
+                    cand_lng,
+                    Job.id.label("job_id"),
+                    Job.position,
+                    Job.company_name,
+                    Job.city.label("job_city"),
+                    Job.job_text,
+                    Job.job_tasks,
+                    Job.company_size,
+                    Job.employment_type.label("job_employment_type"),
+                    Job.industry,
+                    Job.work_arrangement,
+                    Job.postal_code.label("job_plz"),
+                    job_lat,
+                    job_lng,
+                    distance_expr,
+                ]
+
+            seen_pair_keys = set()  # Duplikate vermeiden (cand_id, job_id)
+            geo_pairs = []
+
+            # Gemeinsame Basis-Bedingungen
+            base_cand = [
+                Candidate.deleted_at.is_(None),
+                Candidate.hidden == False,
+                Candidate.classification_data.isnot(None),
+            ]
+            base_job = [
+                Job.deleted_at.is_(None),
+                Job.quality_score.in_(["high", "medium"]),
+                Job.classification_data.isnot(None),
+                (Job.expires_at.is_(None)) | (Job.expires_at > func.now()),
+            ]
+            base_data = [
+                (Candidate.work_history.isnot(None)) | (Candidate.cv_text.isnot(None)),
+                Job.job_text.isnot(None),
+                func.length(Job.job_text) > 50,
+            ]
+
+            if candidate_id:
+                base_cand.append(Candidate.id == candidate_id)
+
+            # ── Query 1: PLZ gleich ──
             async with async_session_maker() as db:
-                # Basis-Bedingungen
-                cand_conditions = [
-                    Candidate.deleted_at.is_(None),
-                    Candidate.hidden == False,
-                    Candidate.classification_data.isnot(None),
-                ]
-                job_conditions = [
-                    Job.deleted_at.is_(None),
-                    Job.quality_score.in_(["high", "medium"]),
-                    Job.classification_data.isnot(None),
-                    (Job.expires_at.is_(None)) | (Job.expires_at > func.now()),
-                ]
-
-                if candidate_id:
-                    cand_conditions.append(Candidate.id == candidate_id)
-
-                # Subquery: Bereits existierende Match-Paare
                 existing_match = select(Match.id).where(
-                    and_(
-                        Match.candidate_id == Candidate.id,
-                        Match.job_id == Job.id,
-                    )
+                    and_(Match.candidate_id == Candidate.id, Match.job_id == Job.id)
                 ).correlate(Candidate, Job).exists()
 
-                # Distanz-Expression (fuer Paare mit Koordinaten)
                 distance_expr = func.ST_Distance(
-                    Candidate.address_coords,
-                    Job.location_coords,
+                    Candidate.address_coords, Job.location_coords
                 ).label("distance_m")
-
-                # Lat/Lng
                 cand_lat = func.ST_Y(func.ST_GeomFromWKB(Candidate.address_coords)).label("cand_lat")
                 cand_lng = func.ST_X(func.ST_GeomFromWKB(Candidate.address_coords)).label("cand_lng")
                 job_lat = func.ST_Y(func.ST_GeomFromWKB(Job.location_coords)).label("job_lat")
                 job_lng = func.ST_X(func.ST_GeomFromWKB(Job.location_coords)).label("job_lng")
 
-                # Geo-Kaskade: PLZ gleich ODER Stadt gleich ODER ≤40km
-                geo_condition = or_(
-                    # PLZ gleich (beide muessen PLZ haben)
-                    and_(
-                        Candidate.postal_code.isnot(None),
-                        Job.postal_code.isnot(None),
-                        Candidate.postal_code == Job.postal_code,
-                    ),
-                    # Stadt gleich (beide muessen Stadt haben)
-                    and_(
-                        Candidate.city.isnot(None),
-                        or_(Job.city.isnot(None), Job.work_location_city.isnot(None)),
-                        or_(
-                            func.lower(Candidate.city) == func.lower(Job.city),
-                            func.lower(Candidate.city) == func.lower(Job.work_location_city),
-                        ),
-                    ),
-                    # ≤40km Luftlinie (beide muessen Koordinaten haben)
-                    and_(
-                        Candidate.address_coords.isnot(None),
-                        Job.location_coords.isnot(None),
-                        func.ST_DWithin(
-                            Candidate.address_coords,
-                            Job.location_coords,
-                            MAX_DISTANCE_M,
-                        ),
-                    ),
-                )
+                cols = _build_select_columns(cand_lat, cand_lng, job_lat, job_lng, distance_expr)
 
-                # Vollstaendige Daten noetig fuer Claude
-                data_conditions = [
-                    *cand_conditions,
-                    *job_conditions,
-                    (Candidate.work_history.isnot(None)) | (Candidate.cv_text.isnot(None)),
-                    Job.job_text.isnot(None),
-                    func.length(Job.job_text) > 50,
-                    geo_condition,
+                plz_query = select(*cols).where(and_(
+                    *base_cand, *base_job, *base_data,
+                    Candidate.postal_code.isnot(None),
+                    Job.postal_code.isnot(None),
+                    Candidate.postal_code == Job.postal_code,
                     ~existing_match,
-                ]
+                ))
+                rows = await db.execute(plz_query)
+                for row in rows.all():
+                    d = dict(row._mapping)
+                    key = (str(d["candidate_id"]), str(d["job_id"]))
+                    if key not in seen_pair_keys:
+                        seen_pair_keys.add(key)
+                        geo_pairs.append(d)
 
-                claude_query = (
-                    select(
-                        Candidate.id.label("candidate_id"),
-                        Candidate.first_name.label("candidate_first_name"),
-                        Candidate.last_name.label("candidate_last_name"),
-                        Candidate.work_history,
-                        Candidate.cv_text,
-                        Candidate.education,
-                        Candidate.further_education,
-                        Candidate.skills,
-                        Candidate.it_skills,
-                        Candidate.erp,
-                        Candidate.salary,
-                        Candidate.notice_period,
-                        Candidate.willingness_to_change,
-                        Candidate.desired_positions,
-                        Candidate.key_activities,
-                        Candidate.preferred_industries,
-                        Candidate.avoided_industries,
-                        Candidate.commute_max,
-                        Candidate.employment_type,
-                        Candidate.call_summary,
-                        Candidate.city.label("candidate_city"),
-                        Candidate.postal_code.label("candidate_plz"),
-                        Candidate.hotlist_job_title.label("candidate_role"),
-                        Candidate.current_position.label("candidate_position"),
-                        cand_lat,
-                        cand_lng,
-                        Job.id.label("job_id"),
-                        Job.position,
-                        Job.company_name,
-                        Job.city.label("job_city"),
-                        Job.job_text,
-                        Job.job_tasks,
-                        Job.company_size,
-                        Job.employment_type.label("job_employment_type"),
-                        Job.industry,
-                        Job.work_arrangement,
-                        Job.postal_code.label("job_plz"),
-                        job_lat,
-                        job_lng,
-                        distance_expr,
-                    )
-                    .where(and_(*data_conditions))
-                )
+            logger.info(f"Geo-Kaskade PLZ: {len(geo_pairs)} Paare")
+            _matching_status["progress"]["phase"] = "geo_stadt"
+            _matching_status["progress"]["total_geo_pairs"] = len(geo_pairs)
 
-                rows = await db.execute(claude_query)
-                geo_pairs = [dict(row._mapping) for row in rows.all()]
+            # ── Query 2: Stadt gleich (nicht schon durch PLZ gefunden) ──
+            async with async_session_maker() as db:
+                existing_match = select(Match.id).where(
+                    and_(Match.candidate_id == Candidate.id, Match.job_id == Job.id)
+                ).correlate(Candidate, Job).exists()
 
-                # ── Naehe-Matches (ohne Claude, unvollstaendige Daten, <10km) ──
-                proximity_conditions = [
-                    *cand_conditions,
-                    *job_conditions,
-                    (
-                        (Candidate.work_history.is_(None) & Candidate.cv_text.is_(None))
-                        | Job.job_text.is_(None)
-                        | (func.length(func.coalesce(Job.job_text, "")) <= 50)
+                distance_expr = func.ST_Distance(
+                    Candidate.address_coords, Job.location_coords
+                ).label("distance_m")
+                cand_lat = func.ST_Y(func.ST_GeomFromWKB(Candidate.address_coords)).label("cand_lat")
+                cand_lng = func.ST_X(func.ST_GeomFromWKB(Candidate.address_coords)).label("cand_lng")
+                job_lat = func.ST_Y(func.ST_GeomFromWKB(Job.location_coords)).label("job_lat")
+                job_lng = func.ST_X(func.ST_GeomFromWKB(Job.location_coords)).label("job_lng")
+
+                cols = _build_select_columns(cand_lat, cand_lng, job_lat, job_lng, distance_expr)
+
+                city_query = select(*cols).where(and_(
+                    *base_cand, *base_job, *base_data,
+                    Candidate.city.isnot(None),
+                    or_(Job.city.isnot(None), Job.work_location_city.isnot(None)),
+                    or_(
+                        func.lower(Candidate.city) == func.lower(Job.city),
+                        func.lower(Candidate.city) == func.lower(Job.work_location_city),
                     ),
+                    ~existing_match,
+                ))
+                rows = await db.execute(city_query)
+                new_city = 0
+                for row in rows.all():
+                    d = dict(row._mapping)
+                    key = (str(d["candidate_id"]), str(d["job_id"]))
+                    if key not in seen_pair_keys:
+                        seen_pair_keys.add(key)
+                        geo_pairs.append(d)
+                        new_city += 1
+
+            logger.info(f"Geo-Kaskade Stadt: +{new_city} neue Paare (gesamt: {len(geo_pairs)})")
+            _matching_status["progress"]["phase"] = "geo_distanz"
+            _matching_status["progress"]["total_geo_pairs"] = len(geo_pairs)
+
+            # ── Query 3: ≤40km Luftlinie (nicht schon gefunden) ──
+            async with async_session_maker() as db:
+                existing_match = select(Match.id).where(
+                    and_(Match.candidate_id == Candidate.id, Match.job_id == Job.id)
+                ).correlate(Candidate, Job).exists()
+
+                distance_expr = func.ST_Distance(
+                    Candidate.address_coords, Job.location_coords
+                ).label("distance_m")
+                cand_lat = func.ST_Y(func.ST_GeomFromWKB(Candidate.address_coords)).label("cand_lat")
+                cand_lng = func.ST_X(func.ST_GeomFromWKB(Candidate.address_coords)).label("cand_lng")
+                job_lat = func.ST_Y(func.ST_GeomFromWKB(Job.location_coords)).label("job_lat")
+                job_lng = func.ST_X(func.ST_GeomFromWKB(Job.location_coords)).label("job_lng")
+
+                cols = _build_select_columns(cand_lat, cand_lng, job_lat, job_lng, distance_expr)
+
+                dist_query = select(*cols).where(and_(
+                    *base_cand, *base_job, *base_data,
+                    Candidate.address_coords.isnot(None),
+                    Job.location_coords.isnot(None),
                     func.ST_DWithin(
                         Candidate.address_coords,
                         Job.location_coords,
-                        PROXIMITY_DISTANCE_M,
+                        MAX_DISTANCE_M,
                     ),
                     ~existing_match,
-                ]
+                ))
+                rows = await db.execute(dist_query)
+                new_dist = 0
+                for row in rows.all():
+                    d = dict(row._mapping)
+                    key = (str(d["candidate_id"]), str(d["job_id"]))
+                    if key not in seen_pair_keys:
+                        seen_pair_keys.add(key)
+                        geo_pairs.append(d)
+                        new_dist += 1
+
+            logger.info(f"Geo-Kaskade 40km: +{new_dist} neue Paare (gesamt: {len(geo_pairs)})")
+            _matching_status["progress"]["total_geo_pairs"] = len(geo_pairs)
+
+            # ── Naehe-Matches (ohne Claude, unvollstaendige Daten, <10km) ──
+            proximity_pairs = []
+            async with async_session_maker() as db:
+                existing_match = select(Match.id).where(
+                    and_(Match.candidate_id == Candidate.id, Match.job_id == Job.id)
+                ).correlate(Candidate, Job).exists()
+
+                distance_expr = func.ST_Distance(
+                    Candidate.address_coords, Job.location_coords
+                ).label("distance_m")
+                cand_lat = func.ST_Y(func.ST_GeomFromWKB(Candidate.address_coords)).label("cand_lat")
+                cand_lng = func.ST_X(func.ST_GeomFromWKB(Candidate.address_coords)).label("cand_lng")
+                job_lat = func.ST_Y(func.ST_GeomFromWKB(Job.location_coords)).label("job_lat")
+                job_lng = func.ST_X(func.ST_GeomFromWKB(Job.location_coords)).label("job_lng")
 
                 proximity_query = (
                     select(
@@ -599,26 +656,36 @@ async def run_stufe_0(candidate_id: str | None = None) -> dict:
                         Candidate.postal_code.label("candidate_plz"),
                         Candidate.hotlist_job_title.label("candidate_role"),
                         Candidate.classification_data.label("cand_classification"),
-                        cand_lat,
-                        cand_lng,
+                        cand_lat, cand_lng,
                         Job.id.label("job_id"),
                         Job.position,
                         Job.company_name,
                         Job.city.label("job_city"),
                         Job.postal_code.label("job_plz"),
-                        job_lat,
-                        job_lng,
+                        job_lat, job_lng,
                         distance_expr,
                     )
-                    .where(and_(*proximity_conditions))
+                    .where(and_(
+                        *base_cand, *base_job,
+                        (
+                            (Candidate.work_history.is_(None) & Candidate.cv_text.is_(None))
+                            | Job.job_text.is_(None)
+                            | (func.length(func.coalesce(Job.job_text, "")) <= 50)
+                        ),
+                        func.ST_DWithin(
+                            Candidate.address_coords,
+                            Job.location_coords,
+                            PROXIMITY_DISTANCE_M,
+                        ),
+                        ~existing_match,
+                    ))
                     .order_by(distance_expr.asc())
                     .limit(500)
                 )
-
                 rows = await db.execute(proximity_query)
                 proximity_pairs = [dict(row._mapping) for row in rows.all()]
 
-            # DB-Session GESCHLOSSEN!
+            # Alle DB-Sessions GESCHLOSSEN!
 
             total_geo = len(geo_pairs)
             _matching_status["progress"]["total_geo_pairs"] = total_geo
