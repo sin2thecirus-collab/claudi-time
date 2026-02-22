@@ -44,23 +44,190 @@
         </div>
     </div>
 
-    <!-- Progress Bar (nur sichtbar wenn Matching laeuft) -->
-    <div x-show="matchingRunning" x-transition style="margin-bottom:24px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:10px;padding:16px;">
-        <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-            <span style="font-size:12px;font-weight:600;color:var(--pp-text);" x-text="'Phase: ' + (progress.phase || 'Initialisierung')"></span>
-            <span style="font-size:12px;color:var(--pp-textMuted);" x-text="progressText"></span>
+    <!-- Progress Bar (sichtbar wenn Matching laeuft ODER Ergebnisse vorhanden) -->
+    <div x-show="matchingRunning || showResults" x-transition style="margin-bottom:24px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:10px;padding:16px;position:relative;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <span style="font-size:12px;font-weight:600;color:var(--pp-text);" x-text="progressText"></span>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <!-- Weiter-Button (pulsiert wenn pausiert) -->
+                <button x-show="progress.waiting_for_continue"
+                        @click="continueMatching()"
+                        style="padding:6px 20px;border-radius:8px;font-size:13px;font-weight:700;border:none;cursor:pointer;background:var(--pp-accent);color:#fff;animation:pulse 1.5s infinite;">
+                    Weiter &rarr;
+                </button>
+                <!-- Stop-Button (nur waehrend Lauf) -->
+                <button @click="stopMatching()"
+                        x-show="matchingRunning && !progress.waiting_for_continue"
+                        style="padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;border:1px solid var(--pp-border);cursor:pointer;background:var(--pp-surface);color:var(--pp-textDim);">Stop</button>
+                <!-- Schliessen-Button (nach Lauf-Ende) -->
+                <button @click="showResults = false"
+                        x-show="!matchingRunning"
+                        style="border:none;background:none;cursor:pointer;font-size:16px;color:var(--pp-textDim);padding:2px 6px;" title="Schliessen">&#10005;</button>
+            </div>
         </div>
         <div style="height:6px;background:var(--pp-surface3);border-radius:3px;overflow:hidden;">
-            <div style="height:100%;background:var(--pp-accent);border-radius:3px;transition:width .3s;"
-                 :style="'width:' + progressPercent + '%'"></div>
+            <div style="height:100%;border-radius:3px;transition:width .3s;"
+                 :style="'width:' + progressPercent + '%;background:' + (progress.waiting_for_continue ? 'var(--pp-orange)' : 'var(--pp-accent)')"></div>
         </div>
-        <div style="display:flex;gap:16px;margin-top:8px;">
+        <div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap;">
             <span style="font-size:11px;color:var(--pp-textDim);" x-text="'Geo-Paare: ' + (progress.geo_pairs_found || 0)"></span>
             <span style="font-size:11px;color:var(--pp-green);" x-text="'Rollen-Matches: ' + (progress.role_matches || 0)"></span>
             <span style="font-size:11px;color:var(--pp-accent);" x-text="'Fahrzeit: ' + (progress.drive_time_done || 0) + '/' + (progress.drive_time_total || 0)"></span>
             <span style="font-size:11px;color:var(--pp-textDim);" x-text="'Gespeichert: ' + (progress.matches_saved || 0)"></span>
         </div>
+
+        <!-- Phasen-Ergebnisse (Zwischenergebnisse) -->
+        <template x-if="progress.phase_results">
+            <div style="margin-top:14px;">
+
+                <!-- Cleanup -->
+                <template x-if="progress.phase_results.cleanup">
+                    <div style="padding:8px 12px;background:var(--pp-surface3);border-radius:6px;margin-bottom:6px;font-size:12px;color:var(--pp-text);">
+                        <span style="font-weight:600;">Phase 0 — Cleanup:</span>
+                        <span x-text="progress.phase_results.cleanup.message" style="margin-left:6px;color:var(--pp-textMuted);"></span>
+                    </div>
+                </template>
+
+                <!-- Geo-Filter Ergebnisse -->
+                <template x-if="progress.phase_results.geo_filter && progress.phase_results.geo_filter.length > 0">
+                    <div style="margin-bottom:8px;">
+                        <div style="font-size:11px;font-weight:700;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">
+                            Phase A — Geo-Filter: <span x-text="progress.geo_pairs_found" style="color:var(--pp-text);"></span> Paare in 27km
+                        </div>
+                        <div style="max-height:200px;overflow-y:auto;border:1px solid var(--pp-border);border-radius:8px;">
+                            <table style="width:100%;border-collapse:collapse;font-size:11px;">
+                                <thead><tr style="background:var(--pp-surface3);position:sticky;top:0;">
+                                    <th style="padding:6px 8px;text-align:left;font-weight:600;color:var(--pp-textMuted);">Kandidat</th>
+                                    <th style="padding:6px 8px;text-align:left;font-weight:600;color:var(--pp-textMuted);">Rolle</th>
+                                    <th style="padding:6px 8px;text-align:left;font-weight:600;color:var(--pp-textMuted);">Stelle</th>
+                                    <th style="padding:6px 8px;text-align:left;font-weight:600;color:var(--pp-textMuted);">Firma</th>
+                                    <th style="padding:6px 8px;text-align:right;font-weight:600;color:var(--pp-textMuted);">km</th>
+                                    <th style="padding:6px 4px;text-align:center;font-weight:600;color:var(--pp-textMuted);width:30px;"></th>
+                                </tr></thead>
+                                <tbody>
+                                    <template x-for="r in progress.phase_results.geo_filter" :key="r.candidate_id + r.job_id">
+                                        <tr style="border-top:1px solid var(--pp-borderLight);">
+                                            <td style="padding:5px 8px;color:var(--pp-text);" x-text="r.kandidat"></td>
+                                            <td style="padding:5px 8px;color:var(--pp-accent);" x-text="r.kandidat_rolle"></td>
+                                            <td style="padding:5px 8px;color:var(--pp-text);" x-text="r.job"></td>
+                                            <td style="padding:5px 8px;color:var(--pp-textMuted);" x-text="r.firma"></td>
+                                            <td style="padding:5px 8px;text-align:right;color:var(--pp-textDim);" x-text="r.distanz_km"></td>
+                                            <td style="padding:5px 4px;text-align:center;">
+                                                <button @click="openCompare(r.candidate_id, r.job_id)"
+                                                        style="border:none;background:none;cursor:pointer;font-size:14px;color:var(--pp-accent);padding:0;" title="Vergleichen">&#128269;</button>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Rollen-Filter Ergebnisse -->
+                <template x-if="progress.phase_results.role_filter && progress.phase_results.role_filter.length > 0">
+                    <div style="margin-bottom:8px;">
+                        <div style="font-size:11px;font-weight:700;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">
+                            Phase B — Rollen-Match: <span x-text="progress.role_matches" style="color:var(--pp-green);"></span> Treffer
+                        </div>
+                        <div style="max-height:200px;overflow-y:auto;border:1px solid var(--pp-border);border-radius:8px;">
+                            <table style="width:100%;border-collapse:collapse;font-size:11px;">
+                                <thead><tr style="background:var(--pp-surface3);position:sticky;top:0;">
+                                    <th style="padding:6px 8px;text-align:left;font-weight:600;color:var(--pp-textMuted);">Kandidat</th>
+                                    <th style="padding:6px 8px;text-align:left;font-weight:600;color:var(--pp-textMuted);">Stelle / Firma</th>
+                                    <th style="padding:6px 8px;text-align:left;font-weight:600;color:var(--pp-textMuted);">Gematchte Rollen</th>
+                                    <th style="padding:6px 8px;text-align:right;font-weight:600;color:var(--pp-textMuted);">km</th>
+                                    <th style="padding:6px 4px;text-align:center;font-weight:600;color:var(--pp-textMuted);width:30px;"></th>
+                                </tr></thead>
+                                <tbody>
+                                    <template x-for="r in progress.phase_results.role_filter" :key="r.candidate_id + r.job_id">
+                                        <tr style="border-top:1px solid var(--pp-borderLight);">
+                                            <td style="padding:5px 8px;color:var(--pp-text);" x-text="r.kandidat"></td>
+                                            <td style="padding:5px 8px;color:var(--pp-text);"><span x-text="r.job"></span> <span style="color:var(--pp-textMuted);" x-text="r.firma"></span></td>
+                                            <td style="padding:5px 8px;">
+                                                <div style="display:flex;flex-wrap:wrap;gap:3px;">
+                                                    <template x-for="role in (r.gematchte_rollen || [])">
+                                                        <span style="font-size:10px;padding:1px 6px;border-radius:4px;background:var(--pp-greenSoft);color:var(--pp-green);font-weight:500;" x-text="role"></span>
+                                                    </template>
+                                                </div>
+                                            </td>
+                                            <td style="padding:5px 8px;text-align:right;color:var(--pp-textDim);" x-text="r.distanz_km"></td>
+                                            <td style="padding:5px 4px;text-align:center;">
+                                                <button @click="openCompare(r.candidate_id, r.job_id)"
+                                                        style="border:none;background:none;cursor:pointer;font-size:14px;color:var(--pp-accent);padding:0;" title="Vergleichen">&#128269;</button>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Fahrzeit Ergebnisse -->
+                <template x-if="progress.phase_results.drive_time && progress.phase_results.drive_time.length > 0">
+                    <div style="margin-bottom:8px;">
+                        <div style="font-size:11px;font-weight:700;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">
+                            Phase C — Fahrzeit: <span x-text="progress.drive_time_done" style="color:var(--pp-accent);"></span> berechnet
+                        </div>
+                        <div style="max-height:200px;overflow-y:auto;border:1px solid var(--pp-border);border-radius:8px;">
+                            <table style="width:100%;border-collapse:collapse;font-size:11px;">
+                                <thead><tr style="background:var(--pp-surface3);position:sticky;top:0;">
+                                    <th style="padding:6px 8px;text-align:left;font-weight:600;color:var(--pp-textMuted);">Kandidat</th>
+                                    <th style="padding:6px 8px;text-align:left;font-weight:600;color:var(--pp-textMuted);">Stelle</th>
+                                    <th style="padding:6px 8px;text-align:right;font-weight:600;color:var(--pp-textMuted);">km</th>
+                                    <th style="padding:6px 8px;text-align:right;font-weight:600;color:var(--pp-textMuted);">Auto</th>
+                                    <th style="padding:6px 8px;text-align:right;font-weight:600;color:var(--pp-textMuted);">OEPNV</th>
+                                    <th style="padding:6px 4px;text-align:center;font-weight:600;color:var(--pp-textMuted);width:30px;"></th>
+                                </tr></thead>
+                                <tbody>
+                                    <template x-for="r in progress.phase_results.drive_time" :key="r.candidate_id + r.job_id">
+                                        <tr style="border-top:1px solid var(--pp-borderLight);">
+                                            <td style="padding:5px 8px;color:var(--pp-text);" x-text="r.kandidat"></td>
+                                            <td style="padding:5px 8px;color:var(--pp-text);" x-text="r.job"></td>
+                                            <td style="padding:5px 8px;text-align:right;color:var(--pp-textDim);" x-text="r.distanz_km"></td>
+                                            <td style="padding:5px 8px;text-align:right;"
+                                                :style="'font-weight:600;color:' + (r.auto_min != null ? (r.auto_min <= 20 ? 'var(--pp-green)' : r.auto_min <= 40 ? 'var(--pp-orange)' : 'var(--pp-textDim)') : 'var(--pp-textDim)')"
+                                                x-text="r.auto_min != null ? r.auto_min + ' Min' : '—'"></td>
+                                            <td style="padding:5px 8px;text-align:right;color:var(--pp-textMuted);"
+                                                x-text="r.oepnv_min != null ? r.oepnv_min + ' Min' : '—'"></td>
+                                            <td style="padding:5px 4px;text-align:center;">
+                                                <button @click="openCompare(r.candidate_id, r.job_id)"
+                                                        style="border:none;background:none;cursor:pointer;font-size:14px;color:var(--pp-accent);padding:0;" title="Vergleichen">&#128269;</button>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Gespeichert -->
+                <template x-if="progress.phase_results.saved">
+                    <div style="padding:8px 12px;background:var(--pp-surface3);border-radius:6px;margin-bottom:6px;font-size:12px;color:var(--pp-text);">
+                        <span style="font-weight:600;">Phase D — Gespeichert:</span>
+                        <span x-text="progress.phase_results.saved.message" style="margin-left:6px;color:var(--pp-textMuted);"></span>
+                    </div>
+                </template>
+
+                <!-- Telegram -->
+                <template x-if="progress.phase_results.telegram && progress.phase_results.telegram.length > 0">
+                    <div style="padding:8px 12px;background:var(--pp-surface3);border-radius:6px;margin-bottom:6px;font-size:12px;color:var(--pp-text);">
+                        <span style="font-weight:600;">Phase E — Telegram:</span>
+                        <span style="margin-left:6px;color:var(--pp-green);" x-text="progress.telegram_sent + ' Notifications gesendet'"></span>
+                    </div>
+                </template>
+            </div>
+        </template>
     </div>
+
+    <style>
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.85; transform: scale(1.03); }
+        }
+    </style>
 
     <!-- Loading -->
     <div x-show="loading" style="text-align:center;padding:40px;color:var(--pp-textMuted);font-size:13px;">
@@ -150,6 +317,8 @@
                             style="padding:6px 16px;border-radius:8px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:var(--pp-green);color:#fff;">Job an Kandidat</button>
                     <button @click="openContactDialog(match.match_id, match.candidate_id, match.job_id)"
                             style="padding:6px 16px;border-radius:8px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:var(--pp-accent);color:#fff;">Profil an Kunden</button>
+                    <button @click="openCompare(match.candidate_id, match.job_id)"
+                            style="padding:6px 16px;border-radius:8px;font-size:12px;font-weight:600;border:1px solid var(--pp-border);cursor:pointer;background:var(--pp-surfaceHover);color:var(--pp-accent);">Vergleich</button>
                     <a :href="'/kandidaten/' + match.candidate_id"
                        style="padding:6px 16px;border-radius:8px;font-size:12px;font-weight:600;border:1px solid var(--pp-border);cursor:pointer;background:var(--pp-surfaceHover);color:var(--pp-text);text-decoration:none;">Kandidat</a>
                     <button @click="triggerAIAssessment([match.match_id])"
@@ -401,6 +570,9 @@ function actionBoard() {
         lastRun: null,
         pollInterval: null,
 
+        // Ergebnisse anzeigen (nach Lauf-Ende)
+        showResults: false,
+
         // KI-Bewertung
         aiAssessmentRunning: false,
 
@@ -439,27 +611,40 @@ function actionBoard() {
 
         get progressPercent() {
             const phase = this.progress.phase || '';
+            if (phase === 'cleanup') return 5;
+            if (phase === 'cleanup_done') return 8;
             if (phase === 'geo_filter') return 15;
+            if (phase === 'geo_filter_done') return 20;
             if (phase === 'role_filter') return 30;
+            if (phase === 'role_filter_done') return 35;
             if (phase === 'drive_time') {
                 const done = this.progress.drive_time_done || 0;
                 const total = this.progress.drive_time_total || 1;
-                return 30 + Math.round((done / total) * 50);
+                return 35 + Math.round((done / total) * 45);
             }
+            if (phase === 'drive_time_done') return 82;
             if (phase === 'saving') return 85;
+            if (phase === 'saving_done') return 92;
             if (phase === 'telegram') return 95;
             if (phase === 'done') return 100;
-            return 5;
+            return 3;
         },
 
         get progressText() {
             const phase = this.progress.phase || '';
+            const waiting = this.progress.waiting_for_continue;
+            if (phase === 'cleanup') return 'Alte Matches aufraemen...';
+            if (phase === 'cleanup_done') return 'Cleanup fertig — Weiter fuer Geo-Filter';
             if (phase === 'geo_filter') return 'Geo-Filter (27km)...';
+            if (phase === 'geo_filter_done') return (this.progress.geo_pairs_found || 0) + ' Geo-Paare gefunden — Weiter fuer Rollen-Abgleich';
             if (phase === 'role_filter') return 'Rollen-Abgleich...';
+            if (phase === 'role_filter_done') return (this.progress.role_matches || 0) + ' Rollen-Matches — Weiter fuer Fahrzeit';
             if (phase === 'drive_time') return 'Fahrzeit: ' + (this.progress.drive_time_done || 0) + '/' + (this.progress.drive_time_total || '?');
+            if (phase === 'drive_time_done') return 'Fahrzeit fertig — Weiter zum Speichern';
             if (phase === 'saving') return 'Speichere Matches...';
+            if (phase === 'saving_done') return (this.progress.matches_saved || 0) + ' Matches gespeichert — Weiter fuer Telegram';
             if (phase === 'telegram') return 'Telegram-Benachrichtigungen...';
-            if (phase === 'done') return 'Fertig!';
+            if (phase === 'done') return 'Fertig! ' + (this.progress.matches_saved || 0) + ' Matches';
             if (phase === 'error') return 'FEHLER: ' + (this.progress.error_message || '');
             return 'Initialisierung...';
         },
@@ -507,16 +692,36 @@ function actionBoard() {
             } catch(e) {}
         },
 
-        // ── Matching starten ──
+        // ── Matching starten (mit Pausen-Modus) ──
         async startMatching() {
             if (this.matchingRunning) return;
             this.matchingRunning = true;
+            this.showResults = false;
+            this.progress = {};
             try {
-                await fetch('/api/v4/claude-match/run', {method: 'POST'});
+                await fetch('/api/v4/claude-match/run?pause=true', {method: 'POST'});
                 this.startPolling();
             } catch(e) {
                 this.matchingRunning = false;
                 console.error('Start fehlgeschlagen:', e);
+            }
+        },
+
+        // ── Weiter-Button: naechste Phase starten ──
+        async continueMatching() {
+            try {
+                await fetch('/api/v4/claude-match/continue', {method: 'POST'});
+            } catch(e) {
+                console.error('Weiter fehlgeschlagen:', e);
+            }
+        },
+
+        // ── Matching stoppen ──
+        async stopMatching() {
+            try {
+                await fetch('/api/v4/claude-match/stop', {method: 'POST'});
+            } catch(e) {
+                console.error('Stop fehlgeschlagen:', e);
             }
         },
 
@@ -527,6 +732,10 @@ function actionBoard() {
                 if (!this.matchingRunning) {
                     clearInterval(this.pollInterval);
                     this.pollInterval = null;
+                    // Ergebnisse anzeigen lassen
+                    if (this.progress.phase_results && Object.keys(this.progress.phase_results).length > 0) {
+                        this.showResults = true;
+                    }
                     await this.loadMatches();
                 }
             }, 2000);
