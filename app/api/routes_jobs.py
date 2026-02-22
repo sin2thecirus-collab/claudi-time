@@ -165,14 +165,14 @@ async def _run_pipeline_background(import_job_id):
         # Auto-Trigger: Claude Matching im Hintergrund starten
         try:
             import asyncio
-            from app.services.claude_matching_service import run_matching, get_status
+            from app.services.v5_matching_service import run_matching, get_status
             if not get_status()["running"]:
                 asyncio.create_task(run_matching())
-                logger.info("Claude Matching automatisch gestartet nach CSV-Import")
+                logger.info("V5 Matching automatisch gestartet nach CSV-Import")
             else:
-                logger.info("Claude Matching laeuft bereits, kein Auto-Trigger")
+                logger.info("V5 Matching laeuft bereits, kein Auto-Trigger")
         except Exception as e:
-            logger.warning(f"Claude Matching Auto-Trigger: {e}")
+            logger.warning(f"V5 Matching Auto-Trigger: {e}")
 
     except PipelineCancelled:
         cancelled = True

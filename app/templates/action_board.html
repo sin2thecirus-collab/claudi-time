@@ -13,40 +13,33 @@
                 <p style="font-size:13px;color:var(--pp-textMuted);margin-top:4px;" x-text="lastRunText"></p>
             </div>
             <div style="display:flex;gap:8px;">
-                <button @click="startKontrolliertesMatching()"
+                <button @click="triggerAIAssessmentAll()"
+                        :disabled="aiAssessmentRunning || topMatches.length === 0"
+                        x-show="topMatches.some(m => !m.ai_checked_at)"
+                        style="padding:8px 14px;border-radius:8px;font-size:12px;font-weight:500;border:1px solid var(--pp-border);cursor:pointer;transition:all .15s;background:var(--pp-surface);color:var(--pp-accent);"
+                        :style="aiAssessmentRunning ? 'cursor:not-allowed;opacity:0.5;' : ''"
+                        x-text="aiAssessmentRunning ? 'KI laeuft...' : 'Alle KI-bewerten'">
+                </button>
+                <button @click="startMatching()"
                         :disabled="matchingRunning"
                         style="padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;border:none;cursor:pointer;transition:all .15s;"
                         :style="matchingRunning
                             ? 'background:var(--pp-surface3);color:var(--pp-textDim);cursor:not-allowed;'
                             : 'background:var(--pp-accent);color:#fff;'"
-                        x-text="matchingRunning ? 'Laeuft...' : 'Kontrolliertes Matching'">
-                </button>
-                <button @click="startMatching()"
-                        :disabled="matchingRunning"
-                        style="padding:8px 14px;border-radius:8px;font-size:12px;font-weight:500;border:1px solid var(--pp-border);cursor:pointer;transition:all .15s;background:var(--pp-surface);color:var(--pp-textMuted);"
-                        :style="matchingRunning ? 'cursor:not-allowed;opacity:0.5;' : ''"
-                        title="Alle 3 Stufen automatisch ohne Kontrolle">Auto
+                        x-text="matchingRunning ? 'Laeuft...' : 'Matching starten'">
                 </button>
             </div>
         </div>
 
         <!-- Summary Cards -->
-        <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:10px;">
+        <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:10px;">
             <div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:10px;padding:14px;">
                 <div style="font-size:22px;font-weight:700;color:var(--pp-text);" x-text="summary.total_top || 0"></div>
-                <div style="font-size:11px;color:var(--pp-textMuted);font-weight:500;">Top Matches</div>
-            </div>
-            <div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:10px;padding:14px;">
-                <div style="font-size:22px;font-weight:700;color:var(--pp-orange);" x-text="summary.total_wow || 0"></div>
-                <div style="font-size:11px;color:var(--pp-textMuted);font-weight:500;">Goldene Chancen</div>
+                <div style="font-size:11px;color:var(--pp-textMuted);font-weight:500;">Neue Matches</div>
             </div>
             <div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:10px;padding:14px;">
                 <div style="font-size:22px;font-weight:700;color:var(--pp-textMuted);" x-text="summary.total_followups || 0"></div>
                 <div style="font-size:11px;color:var(--pp-textMuted);font-weight:500;">Follow-ups</div>
-            </div>
-            <div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:10px;padding:14px;">
-                <div style="font-size:22px;font-weight:700;color:var(--pp-textDim);" x-text="summary.total_proximity || 0"></div>
-                <div style="font-size:11px;color:var(--pp-textMuted);font-weight:500;">Naehe-Matches</div>
             </div>
         </div>
     </div>
@@ -54,7 +47,7 @@
     <!-- Progress Bar (nur sichtbar wenn Matching laeuft) -->
     <div x-show="matchingRunning" x-transition style="margin-bottom:24px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:10px;padding:16px;">
         <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-            <span style="font-size:12px;font-weight:600;color:var(--pp-text);" x-text="'Stufe: ' + (progress.stufe || '...')"></span>
+            <span style="font-size:12px;font-weight:600;color:var(--pp-text);" x-text="'Phase: ' + (progress.phase || 'Initialisierung')"></span>
             <span style="font-size:12px;color:var(--pp-textMuted);" x-text="progressText"></span>
         </div>
         <div style="height:6px;background:var(--pp-surface3);border-radius:3px;overflow:hidden;">
@@ -62,211 +55,12 @@
                  :style="'width:' + progressPercent + '%'"></div>
         </div>
         <div style="display:flex;gap:16px;margin-top:8px;">
-            <span style="font-size:11px;color:var(--pp-textDim);" x-text="'Stufe 1: ' + (progress.processed_stufe_1 || 0) + '/' + (progress.total_pairs || 0)"></span>
-            <span style="font-size:11px;color:var(--pp-green);" x-text="'Bestanden: ' + (progress.passed_stufe_1 || 0)"></span>
-            <span style="font-size:11px;color:var(--pp-accent);" x-text="'Stufe 2: ' + (progress.processed_stufe_2 || 0)"></span>
-            <span style="font-size:11px;color:var(--pp-textDim);" x-text="'Kosten: $' + (progress.cost_estimate_usd || 0).toFixed(2)"></span>
+            <span style="font-size:11px;color:var(--pp-textDim);" x-text="'Geo-Paare: ' + (progress.geo_pairs_found || 0)"></span>
+            <span style="font-size:11px;color:var(--pp-green);" x-text="'Rollen-Matches: ' + (progress.role_matches || 0)"></span>
+            <span style="font-size:11px;color:var(--pp-accent);" x-text="'Fahrzeit: ' + (progress.drive_time_done || 0) + '/' + (progress.drive_time_total || 0)"></span>
+            <span style="font-size:11px;color:var(--pp-textDim);" x-text="'Gespeichert: ' + (progress.matches_saved || 0)"></span>
         </div>
     </div>
-
-    <!-- ══════════════════════════════════════════════ -->
-    <!-- KONTROLLIERTES MATCHING — Stufen-Ansicht      -->
-    <!-- ══════════════════════════════════════════════ -->
-
-    <!-- STUFE 0: Loading (Geo-Kaskade + LLM-Vorfilter laeuft) -->
-    <div x-show="stufenView === 'stufe_0_loading'" x-transition style="margin-bottom:32px;">
-        <div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:12px;padding:32px;text-align:center;">
-            <div style="font-size:24px;margin-bottom:12px;">&#9881;</div>
-            <h2 style="font-size:16px;font-weight:700;color:var(--pp-text);margin-bottom:8px;">
-                Stufe 0 laeuft...
-            </h2>
-            <p style="font-size:13px;margin-bottom:16px;" :style="progress.phase === 'error' ? 'color:#ef4444' : 'color:var(--pp-textMuted)'" x-text="
-                progress.phase === 'geo_plz' ? 'Schritt 1/5: PLZ-Abgleich...' :
-                progress.phase === 'geo_stadt' ? 'Schritt 2/5: Stadt-Abgleich...' :
-                progress.phase === 'geo_distanz' ? 'Schritt 3/5: Umkreis-Abgleich (40km)...' :
-                progress.phase === 'hard_filter' ? 'Schritt 4/5: Rollen-Filter (BiBu≠LohnBu etc.)... ' + (progress.hard_filtered || 0) + ' rausgefiltert' :
-                progress.phase === 'llm_vorfilter' ? 'Schritt 5/5: LLM-Vorfilter — Claude Haiku prueft Passung...' :
-                progress.phase === 'fertig' ? 'Fertig!' :
-                progress.phase === 'error' ? 'FEHLER: ' + (progress.error_message || 'Unbekannt') :
-                'Wird vorbereitet...'
-            "></p>
-
-            <!-- Zahlen + Fortschrittsbalken (immer sichtbar sobald Daten da) -->
-            <div x-show="(progress.total_geo_pairs || 0) > 0 || (progress.vorfilter_done || 0) > 0">
-                <div style="display:flex;justify-content:center;gap:24px;margin-bottom:12px;flex-wrap:wrap;">
-                    <div style="font-size:13px;color:var(--pp-textMuted);">
-                        Geo-Paare: <span style="font-weight:600;color:var(--pp-text);" x-text="progress.total_geo_pairs || 0"></span>
-                    </div>
-                    <div style="font-size:13px;color:var(--pp-textMuted);">
-                        Geprueft: <span style="font-weight:600;color:var(--pp-text);" x-text="(progress.vorfilter_done || 0) + ' / ' + (progress.vorfilter_total || 0)"></span>
-                    </div>
-                    <div style="font-size:13px;color:#10b981;">
-                        Bestanden: <span style="font-weight:600;" x-text="progress.vorfilter_passed || 0"></span>
-                    </div>
-                    <div style="font-size:13px;color:#ef4444;">
-                        Raus: <span style="font-weight:600;" x-text="progress.vorfilter_failed || 0"></span>
-                    </div>
-                </div>
-                <!-- Progress Bar -->
-                <div x-show="(progress.vorfilter_total || 0) > 0" style="width:100%;max-width:400px;margin:0 auto;background:var(--pp-border);border-radius:6px;height:6px;overflow:hidden;">
-                    <div style="height:100%;background:var(--pp-accent);border-radius:6px;transition:width 0.3s;"
-                         :style="'width:' + ((progress.vorfilter_done || 0) / Math.max(progress.vorfilter_total || 1, 1) * 100) + '%'"></div>
-                </div>
-                <p style="font-size:11px;color:var(--pp-textMuted);margin-top:8px;" x-text="'Kosten: $' + (progress.cost_estimate_usd || 0).toFixed(4)"></p>
-            </div>
-        </div>
-    </div>
-
-    <!-- STUFE 0: Paare-Uebersicht -->
-    <div x-show="stufenView === 'stufe_0'" x-transition style="margin-bottom:32px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-            <div>
-                <h2 style="font-size:16px;font-weight:700;color:var(--pp-text);">Stufe 0 — Gefundene Paare</h2>
-                <p style="font-size:12px;color:var(--pp-textMuted);margin-top:2px;"
-                   x-text="stufenData.total_claude_pairs + ' Paare nach Vorfilter' + (stufenData.vorfilter_stats ? ' (von ' + stufenData.vorfilter_stats.total_geo_pairs + ' Geo-Paaren, ' + stufenData.vorfilter_stats.pass_rate + '% bestanden)' : '')"></p>
-            </div>
-            <div style="display:flex;gap:8px;align-items:center;">
-                <span style="font-size:11px;color:var(--pp-textDim);"
-                      x-text="'Geschaetzte Kosten Stufe 1: $' + (stufenData.cost_stufe_1?.cost_estimate_usd || 0).toFixed(2)"></span>
-                <button @click="startStufe1()"
-                        :disabled="matchingRunning"
-                        style="padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;border:none;cursor:pointer;background:var(--pp-accent);color:#fff;">
-                    Stufe 1 starten
-                </button>
-            </div>
-        </div>
-
-        <!-- Paare-Tabelle -->
-        <div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:10px;overflow:hidden;">
-            <template x-for="(pair, idx) in stufenData.claude_pairs || []" :key="pair.candidate_id + pair.job_id">
-                <div style="padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--pp-borderLight);"
-                     :style="pair.excluded ? 'opacity:0.35;text-decoration:line-through;' : ''">
-                    <div style="flex:1;">
-                        <span style="font-size:13px;font-weight:600;color:var(--pp-text);" x-text="pair.candidate_name"></span>
-                        <span style="font-size:11px;color:var(--pp-accent);font-weight:500;margin-left:4px;" x-text="'(' + pair.candidate_role + ')'"></span>
-                        <span style="font-size:12px;color:var(--pp-textDim);"> aus </span>
-                        <span style="font-size:12px;color:var(--pp-text);" x-text="pair.candidate_city"></span>
-                        <span style="font-size:12px;color:var(--pp-textDim);"> &rarr; </span>
-                        <span style="font-size:13px;color:var(--pp-text);" x-text="pair.job_position"></span>
-                        <span style="font-size:12px;color:var(--pp-textMuted);" x-text="' bei ' + pair.job_company + ', ' + pair.job_city"></span>
-                    </div>
-                    <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;margin-left:12px;">
-                        <span style="font-size:11px;color:var(--pp-green);font-weight:600;" x-text="pair.distance_km ? pair.distance_km + ' km' : '?'"></span>
-                        <button @click="openCompare(pair.candidate_id, pair.job_id)"
-                                style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:500;border:1px solid var(--pp-border);cursor:pointer;background:var(--pp-surface);color:var(--pp-accent);">Vergleich</button>
-                        <button @click="toggleExclude(pair)"
-                                style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:500;border:none;cursor:pointer;"
-                                :style="pair.excluded ? 'background:var(--pp-greenSoft);color:var(--pp-green);' : 'background:var(--pp-redSoft);color:var(--pp-red);'"
-                                x-text="pair.excluded ? 'Zurueck' : 'Ausschliessen'">
-                        </button>
-                    </div>
-                </div>
-            </template>
-        </div>
-    </div>
-
-    <!-- STUFE 1: Quick-Check Ergebnisse -->
-    <div x-show="stufenView === 'stufe_1'" x-transition style="margin-bottom:32px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-            <div>
-                <h2 style="font-size:16px;font-weight:700;color:var(--pp-text);">Stufe 1 — Quick-Check Ergebnisse</h2>
-                <p style="font-size:12px;color:var(--pp-textMuted);margin-top:2px;"
-                   x-text="stufe1Data.passed_count + ' bestanden, ' + stufe1Data.failed_count + ' durchgefallen, $' + (stufe1Data.cost_usd || 0).toFixed(2)"></p>
-            </div>
-            <div style="display:flex;gap:8px;align-items:center;">
-                <span style="font-size:11px;color:var(--pp-textDim);"
-                      x-text="'Geschaetzte Kosten Stufe 2: $' + (stufe1Data.cost_stufe_2?.cost_estimate_usd || 0).toFixed(2)"></span>
-                <button @click="startStufe2()"
-                        :disabled="matchingRunning"
-                        style="padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;border:none;cursor:pointer;background:var(--pp-accent);color:#fff;">
-                    Stufe 2 starten
-                </button>
-            </div>
-        </div>
-
-        <!-- Bestanden -->
-        <h3 style="font-size:13px;font-weight:600;color:var(--pp-green);margin-bottom:8px;">Bestanden</h3>
-        <div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:10px;overflow:hidden;margin-bottom:16px;">
-            <template x-for="pair in stufe1Data.passed || []" :key="pair.candidate_id + pair.job_id">
-                <div style="padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--pp-borderLight);">
-                    <div style="flex:1;">
-                        <span style="font-size:13px;font-weight:600;color:var(--pp-text);" x-text="pair.candidate_name"></span>
-                        <span style="font-size:11px;color:var(--pp-accent);font-weight:500;margin-left:4px;" x-text="'(' + pair.candidate_role + ')'"></span>
-                        <span style="font-size:12px;color:var(--pp-textDim);"> &rarr; </span>
-                        <span style="font-size:13px;color:var(--pp-text);" x-text="pair.job_position"></span>
-                        <span style="font-size:12px;color:var(--pp-textMuted);" x-text="' bei ' + pair.job_company"></span>
-                        <div style="font-size:11px;color:var(--pp-green);margin-top:2px;" x-text="pair.quick_reason"></div>
-                    </div>
-                    <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;margin-left:12px;">
-                        <span style="font-size:11px;color:var(--pp-green);font-weight:600;" x-text="pair.distance_km ? pair.distance_km + ' km' : '?'"></span>
-                        <button @click="openCompare(pair.candidate_id, pair.job_id)"
-                                style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:500;border:1px solid var(--pp-border);cursor:pointer;background:var(--pp-surface);color:var(--pp-accent);">Vergleich</button>
-                        <button @click="excludeFromStufe1(pair)"
-                                style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:500;border:none;cursor:pointer;background:var(--pp-redSoft);color:var(--pp-red);">Ausschliessen</button>
-                    </div>
-                </div>
-            </template>
-            <div x-show="!stufe1Data.passed || stufe1Data.passed.length === 0" style="padding:20px;text-align:center;color:var(--pp-textMuted);font-size:13px;">
-                Keine Paare bestanden
-            </div>
-        </div>
-
-        <!-- Durchgefallen (eingeklappt) -->
-        <details style="margin-bottom:16px;">
-            <summary style="font-size:13px;font-weight:600;color:var(--pp-textDim);cursor:pointer;margin-bottom:8px;"
-                     x-text="'Durchgefallen (' + (stufe1Data.failed?.length || 0) + ')'"></summary>
-            <div style="background:var(--pp-surface);border:1px solid var(--pp-borderLight);border-radius:10px;overflow:hidden;">
-                <template x-for="pair in stufe1Data.failed || []" :key="pair.candidate_id + pair.job_id">
-                    <div style="padding:10px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--pp-borderLight);opacity:0.6;">
-                        <div>
-                            <span style="font-size:12px;color:var(--pp-textMuted);" x-text="pair.candidate_name + ' (' + pair.candidate_role + ') → ' + pair.job_position"></span>
-                            <span style="font-size:11px;color:var(--pp-red);margin-left:8px;" x-text="pair.quick_reason"></span>
-                        </div>
-                    </div>
-                </template>
-            </div>
-        </details>
-    </div>
-
-    <!-- STUFE 2: Ergebnisse (nach Abschluss) -->
-    <div x-show="stufenView === 'stufe_2_done'" x-transition style="margin-bottom:32px;">
-        <div style="margin-bottom:16px;">
-            <h2 style="font-size:16px;font-weight:700;color:var(--pp-text);">Stufe 2 — Ergebnisse</h2>
-            <p style="font-size:12px;color:var(--pp-textMuted);margin-top:2px;"
-               x-text="(stufe2Data.matches_saved_count || 0) + ' Matches gespeichert, ' + (stufe2Data.top_matches || 0) + ' Top, ' + (stufe2Data.wow_matches || 0) + ' Wow, $' + (stufe2Data.total_session_cost_usd || 0).toFixed(2) + ' gesamt'"></p>
-        </div>
-
-        <div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:10px;overflow:hidden;">
-            <template x-for="m in stufe2Data.matches_saved || []" :key="m.match_id">
-                <div style="padding:14px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--pp-borderLight);">
-                    <div style="flex:1;">
-                        <span style="font-size:13px;font-weight:600;color:var(--pp-text);" x-text="m.candidate_name"></span>
-                        <span style="font-size:11px;font-weight:600;margin-left:6px;padding:1px 6px;border-radius:4px;"
-                              :style="m.empfehlung === 'vorstellen' ? 'background:var(--pp-greenSoft);color:var(--pp-green);' : 'background:var(--pp-surface3);color:var(--pp-textDim);'"
-                              x-text="m.empfehlung === 'vorstellen' ? 'VORSTELLEN' : m.empfehlung"></span>
-                        <div style="font-size:12px;color:var(--pp-textMuted);margin-top:2px;" x-text="m.zusammenfassung"></div>
-                    </div>
-                    <div style="display:flex;gap:8px;align-items:center;">
-                        <span x-show="m.wow_faktor" style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:50px;background:var(--pp-orange);color:#000;">WOW</span>
-                        <div style="border-radius:50px;padding:3px 10px;font-weight:700;font-size:13px;color:#fff;"
-                             :style="'background:' + (m.score >= 85 ? 'var(--pp-green)' : m.score >= 70 ? 'var(--pp-accent)' : 'var(--pp-orange)')"
-                             x-text="m.score"></div>
-                    </div>
-                </div>
-            </template>
-        </div>
-
-        <button @click="stufenView = ''; loadMatches();"
-                style="margin-top:16px;padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;border:1px solid var(--pp-border);cursor:pointer;background:var(--pp-surface);color:var(--pp-text);">
-            Zum Action Board
-        </button>
-    </div>
-
-    <!-- ══════════════════════════════════════════════ -->
-    <!-- NORMALES ACTION BOARD (Matches-Ansicht)        -->
-    <!-- ══════════════════════════════════════════════ -->
-
-    <div x-show="!stufenView">
 
     <!-- Loading -->
     <div x-show="loading" style="text-align:center;padding:40px;color:var(--pp-textMuted);font-size:13px;">
@@ -274,57 +68,81 @@
     </div>
 
     <!-- Empty State -->
-    <div x-show="!loading && topMatches.length === 0 && wowMatches.length === 0 && followUps.length === 0 && !matchingRunning"
+    <div x-show="!loading && topMatches.length === 0 && followUps.length === 0 && !matchingRunning"
          style="text-align:center;padding:60px 20px;color:var(--pp-textMuted);">
         <div style="font-size:32px;margin-bottom:12px;">&#128640;</div>
         <p style="font-size:15px;font-weight:600;color:var(--pp-text);margin-bottom:6px;">Keine neuen Matches</p>
-        <p style="font-size:13px;">Klicke "Kontrolliertes Matching" um neue Paare zu pruefen.</p>
+        <p style="font-size:13px;">Klicke "Matching starten" um neue Rollen-Matches zu finden.</p>
     </div>
 
     <!-- TOP MATCHES -->
     <div x-show="!loading && topMatches.length > 0" style="margin-bottom:32px;">
         <h2 style="font-size:14px;font-weight:700;color:var(--pp-text);margin-bottom:12px;letter-spacing:-0.02em;">
-            Top Matches
+            Neue Matches
             <span style="font-size:12px;font-weight:500;color:var(--pp-textMuted);margin-left:6px;" x-text="'(' + topMatches.length + ')'"></span>
         </h2>
 
         <template x-for="match in topMatches" :key="match.match_id">
             <div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:12px;padding:18px;margin-bottom:10px;">
-                <!-- Header: Kandidat → Job -->
+                <!-- Header: Kandidat-Name + Rolle → Job -->
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;">
                     <div style="flex:1;">
-                        <span style="font-size:13px;font-weight:600;color:var(--pp-text);" x-text="match.candidate_role || 'Kandidat'"></span>
-                        <span style="color:var(--pp-textDim);font-size:12px;"> &rarr; </span>
-                        <span style="font-size:13px;color:var(--pp-text);" x-text="match.job_position"></span>
-                        <span style="font-size:12px;color:var(--pp-textMuted);" x-text="' bei ' + match.job_company + ', ' + match.job_city"></span>
+                        <span style="font-size:14px;font-weight:700;color:var(--pp-text);"
+                              x-text="(match.candidate_first_name || '') + ' ' + (match.candidate_last_name || '')"></span>
+                        <span style="font-size:11px;color:var(--pp-accent);font-weight:500;margin-left:4px;"
+                              x-text="'(' + (match.candidate_role || '?') + ')'"></span>
+                        <div style="font-size:12px;color:var(--pp-textMuted);margin-top:2px;">
+                            <span x-text="match.job_position"></span>
+                            <span x-text="' bei ' + match.job_company + ', ' + match.job_city"></span>
+                        </div>
                     </div>
-                    <div style="border-radius:50px;padding:4px 12px;font-weight:700;font-size:14px;color:#fff;flex-shrink:0;margin-left:12px;"
-                         :style="'background:' + (match.ai_score >= 85 ? 'var(--pp-green)' : match.ai_score >= 70 ? 'var(--pp-accent)' : 'var(--pp-orange)')">
-                        <span x-text="Math.round(match.ai_score)"></span>
+                    <!-- KI-Badge oder Fahrzeit-Pill -->
+                    <div style="flex-shrink:0;margin-left:12px;display:flex;gap:6px;align-items:center;">
+                        <span x-show="match.ai_checked_at"
+                              style="font-size:10px;font-weight:600;padding:3px 10px;border-radius:50px;background:var(--pp-greenSoft);color:var(--pp-green);">KI bewertet</span>
+                        <div x-show="match.ai_checked_at && match.v2_score"
+                             style="border-radius:50px;padding:4px 12px;font-weight:700;font-size:14px;color:#fff;flex-shrink:0;"
+                             :style="'background:' + (match.v2_score >= 85 ? 'var(--pp-green)' : match.v2_score >= 70 ? 'var(--pp-accent)' : 'var(--pp-orange)')"
+                             x-text="Math.round(match.v2_score)"></div>
                     </div>
                 </div>
 
-                <!-- Meta -->
-                <div style="display:flex;gap:12px;margin-top:6px;font-size:11px;color:var(--pp-textMuted);">
-                    <span x-show="match.drive_time_car_min" x-text="match.drive_time_car_min + ' Min Auto'"
-                          :style="'color:' + (match.drive_time_car_min <= 20 ? 'var(--pp-green)' : match.drive_time_car_min <= 40 ? 'var(--pp-orange)' : 'var(--pp-textDim)')"></span>
-                    <span x-show="!match.drive_time_car_min && match.distance_km" x-text="match.distance_km + ' km'"></span>
-                    <span x-show="match.candidate_salary" x-text="match.candidate_salary"></span>
-                    <span x-text="match.candidate_city"></span>
-                </div>
-
-                <!-- Claude Begruendung -->
-                <p style="margin-top:10px;font-size:13px;color:var(--pp-text);line-height:1.5;" x-text="match.ai_explanation"></p>
-
-                <!-- Staerken + Luecken Tags -->
-                <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:10px;">
-                    <template x-for="s in (match.ai_strengths || [])">
-                        <span style="font-size:11px;padding:2px 8px;border-radius:50px;background:var(--pp-greenSoft);color:var(--pp-green);font-weight:500;" x-text="'+ ' + s"></span>
-                    </template>
-                    <template x-for="w in (match.ai_weaknesses || [])">
-                        <span style="font-size:11px;padding:2px 8px;border-radius:50px;background:var(--pp-redSoft);color:var(--pp-red);font-weight:500;" x-text="'- ' + w"></span>
+                <!-- Gematchte Rollen -->
+                <div x-show="match.v2_score_breakdown && match.v2_score_breakdown.matched_roles && match.v2_score_breakdown.matched_roles.length > 0"
+                     style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;">
+                    <template x-for="role in (match.v2_score_breakdown?.matched_roles || [])">
+                        <span style="font-size:11px;padding:2px 8px;border-radius:50px;background:var(--pp-greenSoft);color:var(--pp-green);font-weight:500;" x-text="role"></span>
                     </template>
                 </div>
+
+                <!-- Fahrzeit + Distanz -->
+                <div style="display:flex;gap:12px;margin-top:8px;font-size:12px;">
+                    <span x-show="match.drive_time_car_min != null"
+                          :style="'font-weight:600;color:' + (match.drive_time_car_min <= 20 ? 'var(--pp-green)' : match.drive_time_car_min <= 40 ? 'var(--pp-orange)' : 'var(--pp-textDim)')"
+                          x-text="match.drive_time_car_min + ' Min Auto'"></span>
+                    <span x-show="match.drive_time_transit_min != null"
+                          style="color:var(--pp-textMuted);"
+                          x-text="match.drive_time_transit_min + ' Min OEPNV'"></span>
+                    <span x-show="match.distance_km" style="color:var(--pp-textDim);"
+                          x-text="match.distance_km + ' km'"></span>
+                    <span x-show="match.candidate_city" style="color:var(--pp-textMuted);"
+                          x-text="'aus ' + match.candidate_city"></span>
+                </div>
+
+                <!-- KI-Bewertung Ergebnisse (wenn vorhanden) -->
+                <template x-if="match.ai_checked_at && match.ai_explanation">
+                    <div style="margin-top:10px;padding:10px 14px;background:var(--pp-surface3);border-radius:8px;">
+                        <p style="font-size:13px;color:var(--pp-text);line-height:1.5;" x-text="match.ai_explanation"></p>
+                        <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;">
+                            <template x-for="s in (match.ai_strengths || [])">
+                                <span style="font-size:11px;padding:2px 8px;border-radius:50px;background:var(--pp-greenSoft);color:var(--pp-green);font-weight:500;" x-text="'+ ' + s"></span>
+                            </template>
+                            <template x-for="w in (match.ai_weaknesses || [])">
+                                <span style="font-size:11px;padding:2px 8px;border-radius:50px;background:var(--pp-redSoft);color:var(--pp-red);font-weight:500;" x-text="'- ' + w"></span>
+                            </template>
+                        </div>
+                    </div>
+                </template>
 
                 <!-- Action Buttons -->
                 <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;">
@@ -334,58 +152,15 @@
                             style="padding:6px 16px;border-radius:8px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:var(--pp-accent);color:#fff;">Profil an Kunden</button>
                     <a :href="'/kandidaten/' + match.candidate_id"
                        style="padding:6px 16px;border-radius:8px;font-size:12px;font-weight:600;border:1px solid var(--pp-border);cursor:pointer;background:var(--pp-surfaceHover);color:var(--pp-text);text-decoration:none;">Kandidat</a>
+                    <button @click="triggerAIAssessment([match.match_id])"
+                            x-show="!match.ai_checked_at"
+                            :disabled="aiAssessmentRunning"
+                            style="padding:6px 16px;border-radius:8px;font-size:12px;font-weight:600;border:1px solid var(--pp-border);cursor:pointer;background:var(--pp-surface);color:var(--pp-accent);"
+                            :style="aiAssessmentRunning ? 'opacity:0.5;cursor:not-allowed;' : ''">KI-Bewertung</button>
                     <button @click="doAction(match.match_id, 'spaeter')"
                             style="padding:6px 16px;border-radius:8px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:var(--pp-surfaceHover);color:var(--pp-textMuted);">Spaeter</button>
                     <button @click="doAction(match.match_id, 'ablehnen')"
                             style="padding:6px 16px;border-radius:8px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:transparent;color:var(--pp-textDim);">Ablehnen</button>
-                </div>
-            </div>
-        </template>
-    </div>
-
-    <!-- GOLDENE CHANCEN (wow_faktor) -->
-    <div x-show="!loading && wowMatches.length > 0" style="margin-bottom:32px;">
-        <h2 style="font-size:14px;font-weight:700;color:var(--pp-orange);margin-bottom:12px;letter-spacing:-0.02em;">
-            Goldene Chancen
-            <span style="font-size:12px;font-weight:500;color:var(--pp-textMuted);margin-left:6px;" x-text="'(' + wowMatches.length + ')'"></span>
-        </h2>
-
-        <template x-for="match in wowMatches" :key="match.match_id">
-            <div style="background:var(--pp-surface);border:1px solid var(--pp-orange);border-radius:12px;padding:18px;margin-bottom:10px;position:relative;">
-                <!-- Wow Badge -->
-                <div style="position:absolute;top:-8px;right:16px;background:var(--pp-orange);color:#000;font-size:10px;font-weight:700;padding:2px 10px;border-radius:50px;">WOW</div>
-
-                <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-                    <div style="flex:1;">
-                        <span style="font-size:13px;font-weight:600;color:var(--pp-text);" x-text="match.candidate_role || 'Kandidat'"></span>
-                        <span style="font-size:12px;color:var(--pp-textDim);" x-show="match.willingness_to_change === 'nein'"> — NICHT aktiv suchend</span>
-                        <div style="font-size:12px;color:var(--pp-textMuted);margin-top:2px;" x-text="match.job_position + ' bei ' + match.job_company + ', ' + match.job_city"></div>
-                    </div>
-                    <div style="border-radius:50px;padding:4px 12px;font-weight:700;font-size:14px;color:#fff;background:var(--pp-orange);flex-shrink:0;margin-left:12px;">
-                        <span x-text="Math.round(match.ai_score)"></span>
-                    </div>
-                </div>
-
-                <!-- Wow Grund -->
-                <p style="margin-top:8px;font-size:13px;color:var(--pp-orange);font-weight:500;" x-text="match.wow_grund"></p>
-                <p style="margin-top:6px;font-size:13px;color:var(--pp-text);line-height:1.5;" x-text="match.ai_explanation"></p>
-
-                <!-- Meta -->
-                <div style="display:flex;gap:12px;margin-top:8px;font-size:11px;color:var(--pp-textMuted);">
-                    <span x-show="match.drive_time_car_min" x-text="match.drive_time_car_min + ' Min Fahrzeit'"></span>
-                    <span x-show="match.distance_km" x-text="match.distance_km + ' km'"></span>
-                </div>
-
-                <!-- Actions -->
-                <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;">
-                    <button @click="prepareEmail(match.match_id, 'job_an_kandidat')"
-                            style="padding:6px 16px;border-radius:8px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:var(--pp-green);color:#fff;">Job an Kandidat</button>
-                    <button @click="openContactDialog(match.match_id, match.candidate_id, match.job_id)"
-                            style="padding:6px 16px;border-radius:8px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:var(--pp-orange);color:#000;">Profil an Kunden</button>
-                    <button @click="doAction(match.match_id, 'spaeter')"
-                            style="padding:6px 16px;border-radius:8px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:var(--pp-surfaceHover);color:var(--pp-textMuted);">Merken</button>
-                    <button @click="doAction(match.match_id, 'ablehnen')"
-                            style="padding:6px 16px;border-radius:8px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:transparent;color:var(--pp-textDim);">Ignorieren</button>
                 </div>
             </div>
         </template>
@@ -401,43 +176,26 @@
         <template x-for="match in followUps" :key="match.match_id">
             <div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:10px;padding:14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
                 <div style="flex:1;">
-                    <span style="font-size:13px;font-weight:600;color:var(--pp-text);" x-text="match.candidate_role || 'Kandidat'"></span>
+                    <span style="font-size:13px;font-weight:600;color:var(--pp-text);"
+                          x-text="(match.candidate_first_name || '') + ' ' + (match.candidate_last_name || match.candidate_role || 'Kandidat')"></span>
                     <span style="font-size:12px;color:var(--pp-textDim);"> &rarr; </span>
                     <span style="font-size:12px;color:var(--pp-text);" x-text="match.job_position + ' bei ' + match.job_company"></span>
-                    <div style="font-size:11px;color:var(--pp-textMuted);margin-top:2px;" x-text="match.ai_explanation"></div>
+                    <div style="font-size:11px;color:var(--pp-textMuted);margin-top:2px;">
+                        <span x-show="match.drive_time_car_min != null" x-text="match.drive_time_car_min + ' Min Auto'"></span>
+                        <span x-show="match.distance_km" x-text="' | ' + match.distance_km + ' km'"></span>
+                    </div>
                 </div>
                 <div style="display:flex;gap:6px;flex-shrink:0;margin-left:12px;flex-wrap:wrap;">
-                    <div style="border-radius:50px;padding:3px 10px;font-weight:700;font-size:12px;color:#fff;background:var(--pp-accent);" x-text="Math.round(match.ai_score)"></div>
+                    <span x-show="match.ai_checked_at"
+                          style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:50px;background:var(--pp-greenSoft);color:var(--pp-green);">KI</span>
+                    <div x-show="match.v2_score"
+                         style="border-radius:50px;padding:3px 10px;font-weight:700;font-size:12px;color:#fff;background:var(--pp-accent);" x-text="Math.round(match.v2_score || 0)"></div>
                     <button @click="prepareEmail(match.match_id, 'job_an_kandidat')"
                             style="padding:4px 12px;border-radius:6px;font-size:11px;font-weight:600;border:none;cursor:pointer;background:var(--pp-green);color:#fff;">Job an Kandidat</button>
                     <button @click="openContactDialog(match.match_id, match.candidate_id, match.job_id)"
                             style="padding:4px 12px;border-radius:6px;font-size:11px;font-weight:600;border:none;cursor:pointer;background:var(--pp-accent);color:#fff;">Profil an Kunden</button>
                     <button @click="doAction(match.match_id, 'ablehnen')"
                             style="padding:4px 12px;border-radius:6px;font-size:11px;font-weight:600;border:none;cursor:pointer;background:var(--pp-surfaceHover);color:var(--pp-textDim);">X</button>
-                </div>
-            </div>
-        </template>
-    </div>
-
-    <!-- NAEHE-MATCHES -->
-    <div x-show="!loading && proximityMatches.length > 0" style="margin-bottom:32px;">
-        <h2 style="font-size:14px;font-weight:700;color:var(--pp-textDim);margin-bottom:12px;">
-            Naehe-Matches (ohne Bewertung)
-            <span style="font-size:12px;font-weight:500;margin-left:6px;" x-text="'(' + proximityMatches.length + ')'"></span>
-        </h2>
-        <p style="font-size:11px;color:var(--pp-textDim);margin-bottom:10px;">Kandidaten/Jobs ohne vollstaendige Daten, aber unter 10 km Entfernung.</p>
-
-        <template x-for="match in proximityMatches" :key="match.match_id">
-            <div style="background:var(--pp-surface);border:1px solid var(--pp-borderLight);border-radius:8px;padding:12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">
-                <div>
-                    <span style="font-size:12px;font-weight:600;color:var(--pp-textMuted);" x-text="match.candidate_role || '?'"></span>
-                    <span style="font-size:11px;color:var(--pp-textDim);"> &rarr; </span>
-                    <span style="font-size:12px;color:var(--pp-textMuted);" x-text="match.job_position + ' (' + match.job_company + ')'"></span>
-                </div>
-                <div style="display:flex;gap:8px;align-items:center;">
-                    <span style="font-size:11px;color:var(--pp-green);font-weight:600;" x-text="(match.distance_km || '?') + ' km'"></span>
-                    <a :href="'/kandidaten/' + match.candidate_id"
-                       style="font-size:11px;color:var(--pp-accent);text-decoration:none;font-weight:500;">Ansehen</a>
                 </div>
             </div>
         </template>
@@ -474,8 +232,6 @@
         </div>
     </div>
 
-    </div><!-- Ende normales Action Board -->
-
     <!-- Compare Modal -->
     <div x-show="compareOpen" x-transition
          style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:50;display:flex;align-items:center;justify-content:center;"
@@ -483,7 +239,7 @@
         <div style="background:var(--pp-surface);border-radius:16px;width:90%;max-width:800px;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
             <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--pp-border);">
                 <h3 style="font-size:15px;font-weight:700;color:var(--pp-text);">Vergleich</h3>
-                <button @click="compareOpen = false" style="border:none;background:none;cursor:pointer;font-size:18px;color:var(--pp-textDim);">✕</button>
+                <button @click="compareOpen = false" style="border:none;background:none;cursor:pointer;font-size:18px;color:var(--pp-textDim);">&#10005;</button>
             </div>
             <div id="compare-content" style="padding:20px;" x-html="compareHtml">
                 <div style="text-align:center;color:var(--pp-textMuted);padding:40px;">Lade Vergleich...</div>
@@ -499,7 +255,7 @@
             <div style="padding:20px 24px;border-bottom:1px solid var(--pp-border);">
                 <div style="display:flex;justify-content:space-between;align-items:center;">
                     <h3 style="font-size:15px;font-weight:700;color:var(--pp-text);">Kandidat vorstellen bei:</h3>
-                    <button @click="contactDialogOpen = false" style="border:none;background:none;cursor:pointer;font-size:18px;color:var(--pp-textDim);">✕</button>
+                    <button @click="contactDialogOpen = false" style="border:none;background:none;cursor:pointer;font-size:18px;color:var(--pp-textDim);">&#10005;</button>
                 </div>
                 <p style="font-size:13px;color:var(--pp-accent);margin-top:4px;" x-text="contactData.company_name + ' — ' + contactData.job_position"></p>
             </div>
@@ -634,11 +390,9 @@
 <script>
 function actionBoard() {
     return {
-        // Normales Action Board
+        // Matches
         topMatches: [],
-        wowMatches: [],
         followUps: [],
-        proximityMatches: [],
         regions: [],
         summary: {},
         loading: true,
@@ -647,12 +401,8 @@ function actionBoard() {
         lastRun: null,
         pollInterval: null,
 
-        // Kontrolliertes Matching
-        stufenView: '',  // '', 'stufe_0_loading', 'stufe_0', 'stufe_1', 'stufe_2_done'
-        sessionId: null,
-        stufenData: {},   // Stufe 0 Daten
-        stufe1Data: {},   // Stufe 1 Ergebnisse
-        stufe2Data: {},   // Stufe 2 Ergebnisse
+        // KI-Bewertung
+        aiAssessmentRunning: false,
 
         // Compare Modal
         compareOpen: false,
@@ -688,24 +438,29 @@ function actionBoard() {
         },
 
         get progressPercent() {
-            const total = this.progress.total_pairs || 1;
-            const s1 = this.progress.processed_stufe_1 || 0;
-            const s2 = this.progress.processed_stufe_2 || 0;
-            const passed = this.progress.passed_stufe_1 || 0;
-            const p1 = Math.min(100, (s1 / total) * 60);
-            const p2 = passed > 0 ? Math.min(100, (s2 / passed) * 40) : 0;
-            return Math.min(100, Math.round(p1 + p2));
+            const phase = this.progress.phase || '';
+            if (phase === 'geo_filter') return 15;
+            if (phase === 'role_filter') return 30;
+            if (phase === 'drive_time') {
+                const done = this.progress.drive_time_done || 0;
+                const total = this.progress.drive_time_total || 1;
+                return 30 + Math.round((done / total) * 50);
+            }
+            if (phase === 'saving') return 85;
+            if (phase === 'telegram') return 95;
+            if (phase === 'done') return 100;
+            return 5;
         },
 
         get progressText() {
-            if (this.progress.stufe === 'stufe_0') return 'Lade Paare aus DB...';
-            if (this.progress.stufe === 'stufe_0') return 'Vorfilter: ' + (this.progress.vorfilter_done || 0) + '/' + (this.progress.vorfilter_total || '?') + ' (' + (this.progress.vorfilter_passed || 0) + ' bestanden)';
-            if (this.progress.stufe === 'stufe_0_fertig') return 'Vorfilter fertig!';
-            if (this.progress.stufe === 'stufe_1') return 'Quick-Check: ' + (this.progress.processed_stufe_1 || 0) + '/' + (this.progress.total_pairs || '?');
-            if (this.progress.stufe === 'stufe_2') return 'Deep Assessment: ' + (this.progress.processed_stufe_2 || 0) + '/' + (this.progress.total_pairs || '?');
-            if (this.progress.stufe === 'speichern') return 'Speichere Matches...';
-            if (this.progress.stufe === 'fahrzeit') return 'Berechne Fahrzeiten...';
-            if (this.progress.stufe === 'fertig' || this.progress.stufe === 'stufe_1_fertig') return 'Fertig!';
+            const phase = this.progress.phase || '';
+            if (phase === 'geo_filter') return 'Geo-Filter (27km)...';
+            if (phase === 'role_filter') return 'Rollen-Abgleich...';
+            if (phase === 'drive_time') return 'Fahrzeit: ' + (this.progress.drive_time_done || 0) + '/' + (this.progress.drive_time_total || '?');
+            if (phase === 'saving') return 'Speichere Matches...';
+            if (phase === 'telegram') return 'Telegram-Benachrichtigungen...';
+            if (phase === 'done') return 'Fertig!';
+            if (phase === 'error') return 'FEHLER: ' + (this.progress.error_message || '');
             return 'Initialisierung...';
         },
 
@@ -718,12 +473,10 @@ function actionBoard() {
 
         async loadMatches() {
             try {
-                const res = await fetch('/api/v4/claude-match/daily?limit=20&include_wow=true&include_followups=true');
+                const res = await fetch('/api/v4/claude-match/daily?limit=20');
                 const data = await res.json();
                 this.topMatches = data.top_matches || [];
-                this.wowMatches = data.wow_matches || [];
                 this.followUps = data.follow_ups || [];
-                this.proximityMatches = data.proximity_matches || [];
                 this.summary = data.summary || {};
             } catch(e) {
                 console.error('Fehler beim Laden:', e);
@@ -748,45 +501,13 @@ function actionBoard() {
                 this.progress = data.progress || {};
                 this.lastRun = data.last_run;
 
-                const stufe = (this.progress.stufe || '');
-                const sid = this.progress.session_id || '';
-
-                // ── Session-Wiederherstellung bei Page-Reload ──
-                if (sid && !this.sessionId) {
-                    this.sessionId = sid;
-
-                    if (this.matchingRunning) {
-                        // Lauf laeuft noch — richtige Polling-Methode starten
-                        if (stufe === 'stufe_0') {
-                            this.stufenView = 'stufe_0_loading';
-                            this.startPollingStufe0();
-                        } else if (stufe === 'stufe_1') {
-                            this.startPollingStufe1();
-                        } else if (stufe === 'stufe_2' || stufe === 'speichern' || stufe === 'fahrzeit') {
-                            this.startPollingStufe2();
-                        } else {
-                            this.startPolling();
-                        }
-                    } else if (stufe === 'stufe_0_fertig') {
-                        // Stufe 0 fertig — Paare laden
-                        const res2 = await fetch('/api/v4/claude-match/session/' + sid);
-                        const sdata = await res2.json();
-                        this.stufenData = sdata;
-                        this.stufenView = 'stufe_0';
-                    } else if (stufe === 'stufe_1_fertig') {
-                        // Stufe 1 fertig — Ergebnisse laden
-                        await this.loadSessionData();
-                    } else if (stufe === 'fertig') {
-                        // Stufe 2 fertig — Ergebnisse laden
-                        await this.loadSessionData();
-                    }
-                } else if (this.matchingRunning && !this.pollInterval) {
+                if (this.matchingRunning && !this.pollInterval) {
                     this.startPolling();
                 }
             } catch(e) {}
         },
 
-        // ── Automatisches Matching (alle Stufen) ──
+        // ── Matching starten ──
         async startMatching() {
             if (this.matchingRunning) return;
             this.matchingRunning = true;
@@ -799,184 +520,56 @@ function actionBoard() {
             }
         },
 
-        // ── Kontrolliertes Matching ──
-        async startKontrolliertesMatching() {
-            if (this.matchingRunning) return;
-            try {
-                const res = await fetch('/api/v4/claude-match/run-stufe-0', {method: 'POST'});
-                const data = await res.json();
-                if (data.status === 'running') {
-                    // Neue async Stufe 0: Session-ID merken, Polling starten
-                    this.sessionId = data.session_id;
-                    this.matchingRunning = true;
-                    this.stufenView = 'stufe_0_loading';
-                    await this.loadStatus();  // Status sofort laden
-                    this.startPollingStufe0();
-                } else if (data.status === 'error') {
-                    alert('Stufe 0 Fehler: ' + (data.message || 'Unbekannt'));
-                }
-            } catch(e) {
-                console.error('Stufe 0 fehlgeschlagen:', e);
-                alert('Stufe 0 fehlgeschlagen: ' + e.message);
-            }
-        },
-
-        startPollingStufe0() {
-            if (this.pollInterval) clearInterval(this.pollInterval);
-            this.pollInterval = setInterval(async () => {
-                await this.loadStatus();
-                const stufe = this.progress.stufe || '';
-                if (stufe === 'stufe_0_fertig') {
-                    clearInterval(this.pollInterval);
-                    this.pollInterval = null;
-                    this.matchingRunning = false;
-                    // Session-Daten laden
-                    const res = await fetch('/api/v4/claude-match/session/' + this.sessionId);
-                    const data = await res.json();
-                    this.stufenData = data;
-                    this.stufenView = 'stufe_0';
-                }
-            }, 2000);
-        },
-
-        async startStufe1() {
-            if (this.matchingRunning || !this.sessionId) return;
-            try {
-                // Zuerst ausgeschlossene Paare senden
-                const excludedPairs = (this.stufenData.claude_pairs || [])
-                    .filter(p => p.excluded)
-                    .map(p => ({candidate_id: p.candidate_id, job_id: p.job_id}));
-
-                if (excludedPairs.length > 0) {
-                    await fetch('/api/v4/claude-match/exclude-pairs', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({session_id: this.sessionId, pairs: excludedPairs}),
-                    });
-                }
-
-                // Stufe 1 starten
-                const res = await fetch('/api/v4/claude-match/run-stufe-1?session_id=' + this.sessionId, {method: 'POST'});
-                const data = await res.json();
-                if (data.status === 'started') {
-                    this.matchingRunning = true;
-                    this.startPollingStufe1();
-                } else {
-                    alert('Stufe 1 Fehler: ' + (data.message || data.detail || 'Unbekannt'));
-                }
-            } catch(e) {
-                console.error('Stufe 1 fehlgeschlagen:', e);
-            }
-        },
-
-        startPollingStufe1() {
+        startPolling() {
             if (this.pollInterval) clearInterval(this.pollInterval);
             this.pollInterval = setInterval(async () => {
                 await this.loadStatus();
                 if (!this.matchingRunning) {
                     clearInterval(this.pollInterval);
                     this.pollInterval = null;
-                    // Session-Daten laden fuer Stufe 1 Ergebnisse
-                    await this.loadSessionData();
+                    await this.loadMatches();
                 }
             }, 2000);
         },
 
-        async loadSessionData() {
-            if (!this.sessionId) return;
+        // ── KI-Bewertung ──
+        async triggerAIAssessment(matchIds) {
+            if (this.aiAssessmentRunning) return;
+            this.aiAssessmentRunning = true;
             try {
-                const res = await fetch('/api/v4/claude-match/session/' + this.sessionId);
-                const data = await res.json();
-                if (data.current_stufe >= 1 && data.current_stufe < 2) {
-                    this.stufe1Data = {
-                        passed: data.passed_pairs.filter(p => !p.excluded),
-                        failed: data.failed_pairs,
-                        passed_count: data.passed_pairs.filter(p => !p.excluded).length,
-                        failed_count: data.failed_pairs.length,
-                        cost_usd: 0, // wird aus progress geladen
-                        cost_stufe_2: {},
-                    };
-                    // Kosten aus letztem progress
-                    if (this.progress.cost_estimate_usd) {
-                        this.stufe1Data.cost_usd = this.progress.cost_estimate_usd;
-                    }
-                    // Stufe 2 Kosten schaetzen (~$0.002 pro Paar)
-                    const passedCount = this.stufe1Data.passed_count;
-                    this.stufe1Data.cost_stufe_2 = {
-                        cost_estimate_usd: Math.round(passedCount * 0.002 * 10000) / 10000,
-                    };
-                    this.stufenView = 'stufe_1';
-                } else if (data.current_stufe >= 2) {
-                    this.stufe2Data = {
-                        matches_saved: data.deep_results,
-                        matches_saved_count: data.matches_saved,
-                        top_matches: data.deep_results.filter(m => m.empfehlung === 'vorstellen').length,
-                        wow_matches: data.deep_results.filter(m => m.wow_faktor).length,
-                        total_session_cost_usd: 0,
-                    };
-                    this.stufenView = 'stufe_2_done';
-                }
-            } catch(e) {
-                console.error('Session laden fehlgeschlagen:', e);
-            }
-        },
-
-        async startStufe2() {
-            if (this.matchingRunning || !this.sessionId) return;
-            try {
-                // Ausgeschlossene Paare von Stufe 1 senden
-                const excludedPairs = (this.stufe1Data.passed || [])
-                    .filter(p => p._excluded)
-                    .map(p => ({candidate_id: p.candidate_id, job_id: p.job_id}));
-
-                if (excludedPairs.length > 0) {
-                    await fetch('/api/v4/claude-match/exclude-pairs', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({session_id: this.sessionId, pairs: excludedPairs}),
-                    });
-                }
-
-                const res = await fetch('/api/v4/claude-match/run-stufe-2?session_id=' + this.sessionId, {method: 'POST'});
+                const res = await fetch('/api/v4/claude-match/ai-assessment', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({match_ids: matchIds}),
+                });
                 const data = await res.json();
                 if (data.status === 'started') {
-                    this.matchingRunning = true;
-                    this.startPollingStufe2();
+                    // Polling fuer KI-Bewertung
+                    const aiPoll = setInterval(async () => {
+                        const sRes = await fetch('/api/v4/claude-match/status');
+                        const sData = await sRes.json();
+                        if (!sData.running) {
+                            clearInterval(aiPoll);
+                            this.aiAssessmentRunning = false;
+                            await this.loadMatches();
+                        }
+                    }, 3000);
                 } else {
-                    alert('Stufe 2 Fehler: ' + (data.message || data.detail || 'Unbekannt'));
+                    this.aiAssessmentRunning = false;
+                    if (data.message) alert(data.message);
                 }
             } catch(e) {
-                console.error('Stufe 2 fehlgeschlagen:', e);
+                this.aiAssessmentRunning = false;
+                console.error('KI-Bewertung fehlgeschlagen:', e);
             }
         },
 
-        startPollingStufe2() {
-            if (this.pollInterval) clearInterval(this.pollInterval);
-            this.pollInterval = setInterval(async () => {
-                await this.loadStatus();
-                if (!this.matchingRunning) {
-                    clearInterval(this.pollInterval);
-                    this.pollInterval = null;
-                    await this.loadSessionData();
-                }
-            }, 2000);
-        },
-
-        // ── Paare ausschliessen ──
-        toggleExclude(pair) {
-            pair.excluded = !pair.excluded;
-        },
-
-        excludeFromStufe1(pair) {
-            pair._excluded = true;
-            this.stufe1Data.passed = this.stufe1Data.passed.filter(p =>
-                p.candidate_id !== pair.candidate_id || p.job_id !== pair.job_id
-            );
-            this.stufe1Data.passed_count = this.stufe1Data.passed.length;
-            // Kosten-Schaetzung aktualisieren
-            this.stufe1Data.cost_stufe_2 = {
-                cost_estimate_usd: Math.round(this.stufe1Data.passed_count * 0.002 * 10000) / 10000,
-            };
+        async triggerAIAssessmentAll() {
+            const matchIds = this.topMatches
+                .filter(m => !m.ai_checked_at)
+                .map(m => m.match_id);
+            if (matchIds.length === 0) return;
+            await this.triggerAIAssessment(matchIds);
         },
 
         // ── Vergleich oeffnen ──
@@ -1245,13 +838,9 @@ function actionBoard() {
                 // Karte entfernen
                 const mid = this.emailPreviewMatchId;
                 this.topMatches = this.topMatches.filter(m => m.match_id !== mid);
-                this.wowMatches = this.wowMatches.filter(m => m.match_id !== mid);
                 this.followUps = this.followUps.filter(m => m.match_id !== mid);
-                this.proximityMatches = this.proximityMatches.filter(m => m.match_id !== mid);
                 this.summary.total_top = this.topMatches.length;
-                this.summary.total_wow = this.wowMatches.length;
                 this.summary.total_followups = this.followUps.length;
-                this.summary.total_proximity = this.proximityMatches.length;
                 this.emailPreviewOpen = false;
             } catch(e) {
                 console.error('E-Mail senden fehlgeschlagen:', e);
@@ -1265,29 +854,17 @@ function actionBoard() {
             const mid = this.emailPreviewMatchId;
             // PDF oeffnen
             if (d.direction === 'job_an_kandidat') {
-                const allM = [...this.topMatches, ...this.wowMatches, ...this.followUps, ...this.proximityMatches];
+                const allM = [...this.topMatches, ...this.followUps];
                 const m = allM.find(x => x.match_id === mid);
                 if (m) window.open('/api/jobs/' + m.job_id + '/vorstellung-pdf?candidate_id=' + m.candidate_id + '&match_id=' + mid, '_blank');
             } else {
-                const allM = [...this.topMatches, ...this.wowMatches, ...this.followUps, ...this.proximityMatches];
+                const allM = [...this.topMatches, ...this.followUps];
                 const m = allM.find(x => x.match_id === mid);
                 if (m) window.open('/api/candidates/' + m.candidate_id + '/profile-pdf', '_blank');
             }
             // Status setzen + Karte entfernen
             this.emailPreviewOpen = false;
             this.doAction(mid, d.direction, d.recipient_email);
-        },
-
-        startPolling() {
-            if (this.pollInterval) clearInterval(this.pollInterval);
-            this.pollInterval = setInterval(async () => {
-                await this.loadStatus();
-                if (!this.matchingRunning) {
-                    clearInterval(this.pollInterval);
-                    this.pollInterval = null;
-                    await this.loadMatches();
-                }
-            }, 2000);
         },
 
         async doAction(matchId, action, contactEmail) {
@@ -1307,14 +884,10 @@ function actionBoard() {
                 });
                 // Karte sofort aus der Liste entfernen
                 this.topMatches = this.topMatches.filter(m => m.match_id !== matchId);
-                this.wowMatches = this.wowMatches.filter(m => m.match_id !== matchId);
                 this.followUps = this.followUps.filter(m => m.match_id !== matchId);
-                this.proximityMatches = this.proximityMatches.filter(m => m.match_id !== matchId);
                 // Summary aktualisieren
                 this.summary.total_top = this.topMatches.length;
-                this.summary.total_wow = this.wowMatches.length;
                 this.summary.total_followups = this.followUps.length;
-                this.summary.total_proximity = this.proximityMatches.length;
             } catch(e) {
                 console.error('Aktion fehlgeschlagen:', e);
             }

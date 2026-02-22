@@ -1,27 +1,21 @@
-"""Claude Matching v4 — API Routes.
+"""V5 Matching — API Routes.
 
-Endpoints (Automatisch):
-  POST /claude-match/run               — Matching starten (alle Stufen, Background-Task)
+Matching:
+  POST /claude-match/run               — V5 Matching starten (Rollen+Geo, Background-Task)
   POST /claude-match/run-auto          — Alias fuer /run (n8n Cron)
   GET  /claude-match/status             — Live-Fortschritt
+  POST /claude-match/stop              — Matching stoppen
   GET  /claude-match/daily              — Heutige Top-Matches fuer Action Board
   POST /claude-match/{match_id}/action  — Vorstellen/Spaeter/Ablehnen
   POST /claude-match/candidate/{id}     — Ad-hoc: Jobs fuer einen Kandidaten finden
-
-Endpoints (Kontrolliert — Stufe fuer Stufe):
-  POST /claude-match/run-stufe-0       — Stufe 0: Paare laden + Session erstellen
-  POST /claude-match/run-stufe-1       — Stufe 1: Quick-Check (Claude)
-  POST /claude-match/run-stufe-2       — Stufe 2: Deep Assessment + Speichern
-  POST /claude-match/exclude-pairs     — Paare aus Session ausschliessen
-  GET  /claude-match/session/{id}      — Session-Daten abfragen
-  GET  /claude-match/sessions          — Alle Sessions auflisten
+  POST /claude-match/ai-assessment      — Manuelle KI-Bewertung fuer ausgewaehlte Matches
 
 Debug:
   GET  /debug/match-count               — Match-Statistiken
-  GET  /debug/stufe-0-preview           — Dry-Run Stufe 0
+  GET  /debug/stufe-0-preview           — Dry-Run: Daten-Uebersicht
   GET  /debug/job-health                — Job-Daten Gesundheitscheck
   GET  /debug/candidate-health          — Kandidaten-Daten Gesundheitscheck
-  GET  /debug/match/{match_id}          — Match-Detail mit Claude-Input/Output
+  GET  /debug/match/{match_id}          — Match-Detail
   GET  /debug/cost-report               — API-Kosten
 """
 
@@ -29,7 +23,7 @@ import logging
 from datetime import datetime, date, timezone, timedelta
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 import sqlalchemy as sa
 from sqlalchemy import select, func, and_, case, text
@@ -42,7 +36,7 @@ from app.models.job import Job
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["Claude Matching v4"])
+router = APIRouter(tags=["V5 Matching"])
 
 
 # ══════════════════════════════════════════════════════════════
@@ -55,10 +49,10 @@ class ActionRequest(BaseModel):
     note: str | None = None
 
 
-class ExcludePairsRequest(BaseModel):
-    """Request Body fuer Paare ausschliessen."""
-    session_id: str
-    pairs: list[dict]  # [{"candidate_id": "...", "job_id": "..."}]
+class AIAssessmentRequest(BaseModel):
+    """Request Body fuer manuelle KI-Bewertung."""
+    match_ids: list[str]
+    custom_prompt: str | None = None
 
 
 # ══════════════════════════════════════════════════════════════
@@ -66,13 +60,9 @@ class ExcludePairsRequest(BaseModel):
 # ══════════════════════════════════════════════════════════════
 
 @router.post("/claude-match/run")
-async def start_matching(
-    background_tasks: BackgroundTasks,
-    model_quick: str = Query(default="claude-haiku-4-5-20251001", description="Modell fuer Stufe 1"),
-    model_deep: str = Query(default="claude-haiku-4-5-20251001", description="Modell fuer Stufe 2"),
-):
-    """Startet das Claude Matching als Background-Task."""
-    from app.services.claude_matching_service import get_status, run_matching
+async def start_matching():
+    """Startet das V5 Matching (Rollen + Geo + Fahrzeit)."""
+    from app.services.v5_matching_service import get_status, run_matching
 
     status = get_status()
     if status["running"]:
@@ -82,36 +72,26 @@ async def start_matching(
             "progress": status["progress"],
         }
 
-    async def _background():
-        await run_matching(
-            model_quick=model_quick,
-            model_deep=model_deep,
-        )
-
-    background_tasks.add_task(_background)
-
-    return {
-        "status": "started",
-        "message": "Claude Matching v4 gestartet. Fortschritt unter /api/v4/claude-match/status.",
-    }
+    result = await run_matching()
+    return result
 
 
 @router.get("/claude-match/status")
 async def matching_status():
     """Gibt den aktuellen Matching-Status zurueck (Live-Fortschritt)."""
-    from app.services.claude_matching_service import get_status
+    from app.services.v5_matching_service import get_status
     return get_status()
 
 
 @router.get("/claude-match/live")
 async def matching_live():
-    """Live-Status-Seite fuer Matching — direkt im Browser aufrufbar."""
+    """Live-Status-Seite fuer V5 Matching — direkt im Browser aufrufbar."""
     from fastapi.responses import HTMLResponse
     return HTMLResponse(content="""<!DOCTYPE html>
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<title>Matching Live-Status</title>
+<title>V5 Matching Live-Status</title>
 <style>
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 60px auto; padding: 0 20px; background: #0f1117; color: #e4e4e7; }
   h1 { font-size: 20px; margin-bottom: 24px; }
@@ -134,9 +114,9 @@ async def matching_live():
 </style>
 </head>
 <body>
-<h1>Matching Live-Status</h1>
+<h1>V5 Matching Live-Status</h1>
 <div class="card" id="info">Lade...</div>
-<button id="startBtn" onclick="startMatching()">Kontrolliertes Matching starten</button>
+<button id="startBtn" onclick="startMatching()">V5 Matching starten</button>
 <button id="stopBtn" class="btn-red" onclick="stopMatching()" style="display:none;">Lauf stoppen</button>
 <div class="status-text" id="msg"></div>
 <h2 style="font-size:14px;margin-top:24px;">Raw JSON:</h2>
@@ -157,40 +137,41 @@ async function loadStatus() {
 
     let html = '';
     html += row('Status', running ? '<span class="amber">Laeuft</span>' : '<span class="green">Bereit</span>');
-    html += row('Stufe', p.stufe || '-');
     html += row('Phase', p.phase || '-');
-    html += row('Session', p.session_id || '-');
 
-    if (p.total_geo_pairs > 0) {
+    if (p.geo_pairs_found > 0) {
       html += '<hr style="border-color:#2a2b35;margin:12px 0;">';
-      html += row('Geo-Paare gefunden', '<span class="blue">' + p.total_geo_pairs + '</span>');
+      html += row('Geo-Paare (27km)', '<span class="blue">' + p.geo_pairs_found + '</span>');
     }
-    if (p.vorfilter_total > 0) {
-      const pct = Math.round((p.vorfilter_done || 0) / p.vorfilter_total * 100);
-      html += row('Vorfilter geprueft', (p.vorfilter_done || 0) + ' / ' + p.vorfilter_total + ' (' + pct + '%)');
-      html += row('Bestanden', '<span class="green">' + (p.vorfilter_passed || 0) + '</span>');
-      html += row('Rausgefiltert', '<span class="red">' + (p.vorfilter_failed || 0) + '</span>');
+    if (p.role_matches > 0) {
+      html += row('Rollen-Matches', '<span class="green">' + p.role_matches + '</span>');
+    }
+    if (p.drive_time_total > 0) {
+      const pct = Math.round((p.drive_time_done || 0) / p.drive_time_total * 100);
+      html += '<hr style="border-color:#2a2b35;margin:12px 0;">';
+      html += row('Fahrzeit berechnet', (p.drive_time_done || 0) + ' / ' + p.drive_time_total + ' (' + pct + '%)');
       html += '<div class="bar-bg"><div class="bar" style="width:' + pct + '%"></div></div>';
     }
-    if (p.processed_stufe_1 > 0) {
-      html += '<hr style="border-color:#2a2b35;margin:12px 0;">';
-      html += row('Stufe 1 geprueft', (p.processed_stufe_1 || 0) + ' / ' + (p.total_pairs || '?'));
-      html += row('Stufe 1 bestanden', '<span class="green">' + (p.passed_stufe_1 || 0) + '</span>');
+    if (p.matches_saved > 0) {
+      html += row('Matches gespeichert', '<span class="green">' + p.matches_saved + '</span>');
     }
-    if (p.processed_stufe_2 > 0) {
-      html += '<hr style="border-color:#2a2b35;margin:12px 0;">';
-      html += row('Stufe 2 bewertet', (p.processed_stufe_2 || 0) + ' / ' + (p.total_pairs || '?'));
-      html += row('Top Matches', '<span class="green">' + (p.top_matches || 0) + '</span>');
-      html += row('WOW Matches', '<span class="amber">' + (p.wow_matches || 0) + '</span>');
+    if (p.telegram_sent > 0) {
+      html += row('Telegram gesendet', '<span class="blue">' + p.telegram_sent + '</span>');
     }
     if (p.errors > 0) {
       html += row('Fehler', '<span class="red">' + p.errors + '</span>');
     }
-    if (p.cost_estimate_usd > 0) {
-      html += row('Kosten', '$' + (p.cost_estimate_usd || 0).toFixed(4));
-    }
-    if (p.error_message) {
-      html += row('Error', '<span class="red">' + p.error_message + '</span>');
+
+    // Last run result
+    if (!running && d.last_run_result) {
+      const lr = d.last_run_result;
+      html += '<hr style="border-color:#2a2b35;margin:12px 0;">';
+      html += row('Letzter Lauf', d.last_run || '-');
+      html += row('Dauer', lr.duration_seconds + 's');
+      html += row('Geo-Paare', lr.geo_pairs);
+      html += row('Rollen-Matches', lr.role_matches);
+      html += row('Gespeichert', lr.matches_saved);
+      html += row('Telegram', lr.telegram_notifications);
     }
 
     document.getElementById('info').innerHTML = html;
@@ -215,8 +196,8 @@ function row(label, value) {
 }
 
 async function startMatching() {
-  document.getElementById('msg').textContent = 'Starte...';
-  const r = await fetch('/api/v4/claude-match/run-stufe-0', {method:'POST'});
+  document.getElementById('msg').textContent = 'Starte V5 Matching...';
+  const r = await fetch('/api/v4/claude-match/run', {method:'POST'});
   const d = await r.json();
   document.getElementById('msg').textContent = d.message || d.error || JSON.stringify(d);
   loadStatus();
@@ -241,7 +222,7 @@ if (!polling) polling = setInterval(loadStatus, 2000);
 @router.post("/claude-match/stop")
 async def stop_matching():
     """Stoppt den aktuell laufenden Matching-Prozess."""
-    from app.services.claude_matching_service import request_stop
+    from app.services.v5_matching_service import request_stop
     return request_stop()
 
 
@@ -249,32 +230,32 @@ async def stop_matching():
 async def daily_matches(
     db: AsyncSession = Depends(get_db),
     limit: int = Query(default=20, ge=1, le=100),
-    include_wow: bool = Query(default=True),
     include_followups: bool = Query(default=True),
 ):
-    """Holt heutige Top-Matches fuer das Action Board."""
+    """Holt heutige Top-Matches fuer das Action Board (V5)."""
     today = date.today()
     today_start = datetime(today.year, today.month, today.day, tzinfo=timezone.utc)
 
-    # ── Top-Matches: empfehlung="vorstellen", heute erstellt, kein Feedback ──
+    # ── Top-Matches: V5 Rollen+Geo, heute erstellt, kein Feedback ──
     top_query = (
         select(
             Match.id.label("match_id"),
             Match.candidate_id,
             Match.job_id,
-            Match.v2_score.label("ai_score"),
-            Match.ai_explanation,
+            Match.v2_score,
             Match.ai_strengths,
             Match.ai_weaknesses,
-            Match.empfehlung,
-            Match.wow_faktor,
-            Match.wow_grund,
+            Match.ai_explanation,
+            Match.ai_checked_at,
             Match.distance_km,
             Match.drive_time_car_min,
             Match.drive_time_transit_min,
             Match.matching_method,
+            Match.v2_score_breakdown,
             Match.created_at,
-            # Kandidaten-Info (NUR nicht-persoenliche Daten!)
+            # Kandidaten-Info
+            Candidate.first_name.label("candidate_first_name"),
+            Candidate.last_name.label("candidate_last_name"),
             Candidate.city.label("candidate_city"),
             Candidate.current_position.label("candidate_position"),
             Candidate.salary.label("candidate_salary"),
@@ -288,62 +269,17 @@ async def daily_matches(
         .outerjoin(Job, Match.job_id == Job.id)
         .where(
             and_(
-                Match.matching_method == "claude_match",
-                Match.empfehlung == "vorstellen",
+                Match.matching_method.in_(["v5_role_geo", "claude_match"]),
                 Match.user_feedback.is_(None),
                 Match.created_at >= today_start,
             )
         )
-        .order_by(Match.v2_score.desc())
+        .order_by(Match.distance_km.asc())
         .limit(limit)
     )
 
     result = await db.execute(top_query)
     top_matches = [dict(row._mapping) for row in result.all()]
-
-    # ── Wow-Matches ──
-    wow_matches = []
-    if include_wow:
-        wow_query = (
-            select(
-                Match.id.label("match_id"),
-                Match.candidate_id,
-                Match.job_id,
-                Match.v2_score.label("ai_score"),
-                Match.ai_explanation,
-                Match.ai_strengths,
-                Match.ai_weaknesses,
-                Match.empfehlung,
-                Match.wow_faktor,
-                Match.wow_grund,
-                Match.distance_km,
-                Match.drive_time_car_min,
-                Match.drive_time_transit_min,
-                Match.created_at,
-                Candidate.city.label("candidate_city"),
-                Candidate.current_position.label("candidate_position"),
-                Candidate.salary.label("candidate_salary"),
-                Candidate.hotlist_job_title.label("candidate_role"),
-                Candidate.willingness_to_change,
-                Job.position.label("job_position"),
-                Job.company_name.label("job_company"),
-                Job.city.label("job_city"),
-            )
-            .outerjoin(Candidate, Match.candidate_id == Candidate.id)
-            .outerjoin(Job, Match.job_id == Job.id)
-            .where(
-                and_(
-                    Match.matching_method == "claude_match",
-                    Match.wow_faktor == True,
-                    Match.user_feedback.is_(None),
-                    Match.created_at >= today_start,
-                )
-            )
-            .order_by(Match.v2_score.desc())
-            .limit(10)
-        )
-        result = await db.execute(wow_query)
-        wow_matches = [dict(row._mapping) for row in result.all()]
 
     # ── Follow-ups (Spaeter von gestern/vorgestern) ──
     follow_ups = []
@@ -353,15 +289,18 @@ async def daily_matches(
                 Match.id.label("match_id"),
                 Match.candidate_id,
                 Match.job_id,
-                Match.v2_score.label("ai_score"),
-                Match.ai_explanation,
+                Match.v2_score,
                 Match.ai_strengths,
                 Match.ai_weaknesses,
-                Match.empfehlung,
-                Match.wow_faktor,
+                Match.ai_explanation,
+                Match.ai_checked_at,
                 Match.distance_km,
                 Match.drive_time_car_min,
+                Match.drive_time_transit_min,
+                Match.matching_method,
                 Match.feedback_at,
+                Candidate.first_name.label("candidate_first_name"),
+                Candidate.last_name.label("candidate_last_name"),
                 Candidate.city.label("candidate_city"),
                 Candidate.current_position.label("candidate_position"),
                 Candidate.hotlist_job_title.label("candidate_role"),
@@ -373,45 +312,16 @@ async def daily_matches(
             .outerjoin(Job, Match.job_id == Job.id)
             .where(
                 and_(
-                    Match.matching_method == "claude_match",
+                    Match.matching_method.in_(["v5_role_geo", "claude_match"]),
                     Match.user_feedback == "spaeter",
-                    Match.feedback_at < today_start,  # Von gestern oder aelter
+                    Match.feedback_at < today_start,
                 )
             )
-            .order_by(Match.v2_score.desc())
+            .order_by(Match.distance_km.asc())
             .limit(10)
         )
         result = await db.execute(followup_query)
         follow_ups = [dict(row._mapping) for row in result.all()]
-
-    # ── Naehe-Matches ──
-    proximity_query = (
-        select(
-            Match.id.label("match_id"),
-            Match.candidate_id,
-            Match.job_id,
-            Match.distance_km,
-            Match.created_at,
-            Candidate.city.label("candidate_city"),
-            Candidate.hotlist_job_title.label("candidate_role"),
-            Job.position.label("job_position"),
-            Job.company_name.label("job_company"),
-            Job.city.label("job_city"),
-        )
-        .outerjoin(Candidate, Match.candidate_id == Candidate.id)
-        .outerjoin(Job, Match.job_id == Job.id)
-        .where(
-            and_(
-                Match.matching_method == "proximity_match",
-                Match.user_feedback.is_(None),
-                Match.created_at >= today_start,
-            )
-        )
-        .order_by(Match.distance_km.asc())
-        .limit(20)
-    )
-    result = await db.execute(proximity_query)
-    proximity_matches = [dict(row._mapping) for row in result.all()]
 
     # Alle UUIDs und datetimes serialisierbar machen
     def _serialize(matches: list[dict]) -> list[dict]:
@@ -425,14 +335,10 @@ async def daily_matches(
 
     return {
         "top_matches": _serialize(top_matches),
-        "wow_matches": _serialize(wow_matches),
         "follow_ups": _serialize(follow_ups),
-        "proximity_matches": _serialize(proximity_matches),
         "summary": {
             "total_top": len(top_matches),
-            "total_wow": len(wow_matches),
             "total_followups": len(follow_ups),
-            "total_proximity": len(proximity_matches),
         },
     }
 
@@ -682,10 +588,9 @@ async def send_email(
 @router.post("/claude-match/candidate/{candidate_id}")
 async def match_for_candidate(
     candidate_id: UUID,
-    background_tasks: BackgroundTasks,
 ):
     """Ad-hoc: Finde passende Jobs fuer einen bestimmten Kandidaten."""
-    from app.services.claude_matching_service import get_status, run_matching
+    from app.services.v5_matching_service import get_status, run_matching
 
     status = get_status()
     if status["running"]:
@@ -694,220 +599,46 @@ async def match_for_candidate(
             "message": "Matching laeuft bereits.",
         }
 
-    async def _background():
-        await run_matching(candidate_id=str(candidate_id))
-
-    background_tasks.add_task(_background)
-
-    return {
-        "status": "started",
-        "message": f"Suche Jobs fuer Kandidat {candidate_id}...",
-    }
+    result = await run_matching(candidate_id=str(candidate_id))
+    return result
 
 
 # Alias fuer n8n Cron
 @router.post("/claude-match/run-auto")
-async def start_matching_auto(
-    background_tasks: BackgroundTasks,
-):
-    """Alias fuer /run — fuer n8n Morgen-Cron (automatisch, ohne Kontrolle)."""
-    from app.services.claude_matching_service import get_status, run_matching
+async def start_matching_auto():
+    """Alias fuer /run — fuer n8n Morgen-Cron."""
+    from app.services.v5_matching_service import get_status, run_matching
 
     status = get_status()
     if status["running"]:
         return {"status": "already_running", "message": "Matching laeuft bereits."}
 
-    async def _background():
-        await run_matching()
-
-    background_tasks.add_task(_background)
-    return {"status": "started", "message": "Automatisches Matching gestartet."}
-
-
-# ══════════════════════════════════════════════════════════════
-# Kontrolliertes Matching — Stufe fuer Stufe
-# ══════════════════════════════════════════════════════════════
-
-@router.post("/claude-match/run-stufe-0")
-async def start_stufe_0():
-    """Stufe 0: Paare aus DB laden + Session erstellen. KEIN Claude-Call."""
-    from app.services.claude_matching_service import run_stufe_0
-    result = await run_stufe_0()
+    result = await run_matching()
     return result
 
 
-@router.post("/claude-match/run-stufe-1")
-async def start_stufe_1(
-    background_tasks: BackgroundTasks,
-    session_id: str = Query(..., description="Session-ID von Stufe 0"),
-    model_quick: str = Query(default="claude-haiku-4-5-20251001"),
-):
-    """Stufe 1: Quick-Check per Claude. Laeuft als Background-Task."""
-    from app.services.claude_matching_service import get_status, get_session, run_stufe_1
+@router.post("/claude-match/ai-assessment")
+async def trigger_ai_assessment(body: AIAssessmentRequest):
+    """Manuelle KI-Bewertung fuer ausgewaehlte Matches starten."""
+    from app.services.v5_matching_service import run_ai_assessment, get_status
 
     status = get_status()
     if status["running"]:
-        return {"status": "already_running", "message": "Matching laeuft bereits."}
+        return {
+            "status": "already_running",
+            "message": "Ein Matching/Assessment laeuft bereits.",
+        }
 
-    session = get_session(session_id)
-    if not session:
-        raise HTTPException(status_code=404, detail="Session nicht gefunden")
+    if not body.match_ids:
+        raise HTTPException(status_code=400, detail="Keine Match-IDs angegeben")
 
-    if session["current_stufe"] >= 1:
-        raise HTTPException(status_code=400, detail="Stufe 1 wurde bereits ausgefuehrt")
-
-    # Stufe 1 als Background-Task starten
-    _stufe_1_result: dict = {}
-
-    async def _background():
-        nonlocal _stufe_1_result
-        _stufe_1_result = await run_stufe_1(session_id=session_id, model_quick=model_quick)
-
-    background_tasks.add_task(_background)
-
-    return {
-        "status": "started",
-        "session_id": session_id,
-        "message": "Stufe 1 (Quick-Check) gestartet. Fortschritt unter /api/v4/claude-match/status.",
-    }
-
-
-@router.post("/claude-match/run-stufe-2")
-async def start_stufe_2(
-    background_tasks: BackgroundTasks,
-    session_id: str = Query(..., description="Session-ID"),
-    model_deep: str = Query(default="claude-haiku-4-5-20251001"),
-):
-    """Stufe 2: Deep Assessment + Matches speichern. Laeuft als Background-Task."""
-    from app.services.claude_matching_service import get_status, get_session, run_stufe_2
-
-    status = get_status()
-    if status["running"]:
-        return {"status": "already_running", "message": "Matching laeuft bereits."}
-
-    session = get_session(session_id)
-    if not session:
-        raise HTTPException(status_code=404, detail="Session nicht gefunden")
-
-    if session["current_stufe"] < 1:
-        raise HTTPException(status_code=400, detail="Stufe 1 muss zuerst ausgefuehrt werden")
-
-    if session["current_stufe"] >= 2:
-        raise HTTPException(status_code=400, detail="Stufe 2 wurde bereits ausgefuehrt")
-
-    async def _background():
-        await run_stufe_2(session_id=session_id, model_deep=model_deep)
-
-    background_tasks.add_task(_background)
-
-    return {
-        "status": "started",
-        "session_id": session_id,
-        "message": "Stufe 2 (Deep Assessment) gestartet. Fortschritt unter /api/v4/claude-match/status.",
-    }
-
-
-@router.post("/claude-match/exclude-pairs")
-async def exclude_pairs(body: ExcludePairsRequest):
-    """Paare aus einer Session ausschliessen (vor Stufe 1 oder vor Stufe 2)."""
-    from app.services.claude_matching_service import exclude_pairs_from_session
-
-    result = exclude_pairs_from_session(body.session_id, body.pairs)
-    if "error" in result:
-        raise HTTPException(status_code=404, detail=result["error"])
+    result = await run_ai_assessment(
+        match_ids=body.match_ids,
+        custom_prompt=body.custom_prompt,
+    )
     return result
 
 
-@router.get("/claude-match/session/{session_id}")
-async def get_session_data(session_id: str):
-    """Session-Daten abfragen (Paare, Ergebnisse, Status)."""
-    from app.services.claude_matching_service import get_session
-
-    session = get_session(session_id)
-    if not session:
-        raise HTTPException(status_code=404, detail="Session nicht gefunden")
-
-    # Aufbereitete Daten zurueckgeben (keine vollen Paare mit Rohdaten)
-    excluded_count = len(session.get("excluded_pairs", set()))
-
-    # Display-Paare aus claude_pairs erstellen
-    display_pairs = []
-    excluded = session.get("excluded_pairs", set())
-    for p in session.get("claude_pairs", []):
-        cid = str(p["candidate_id"])
-        jid = str(p["job_id"])
-        is_excluded = (cid, jid) in excluded
-        distance_m = p.get("distance_m")
-        fn = p.get("candidate_first_name") or ""
-        ln = p.get("candidate_last_name") or ""
-        display_pairs.append({
-            "candidate_id": cid,
-            "job_id": jid,
-            "candidate_name": f"{fn} {ln}".strip() or "Unbekannt",
-            "candidate_role": p.get("candidate_role") or "Unbekannt",
-            "candidate_position": p.get("candidate_position") or "",
-            "candidate_city": p.get("candidate_city") or "Unbekannt",
-            "job_position": p.get("position") or "Unbekannt",
-            "job_company": p.get("company_name") or "Unbekannt",
-            "job_city": p.get("job_city") or "Unbekannt",
-            "distance_km": round(distance_m / 1000, 1) if distance_m else None,
-            "excluded": is_excluded,
-        })
-
-    return {
-        "session_id": session_id,
-        "created_at": session.get("created_at"),
-        "current_stufe": session.get("current_stufe"),
-        "total_claude_pairs": len(session.get("claude_pairs", [])),
-        "excluded_count": excluded_count,
-        "active_pairs": len(session.get("claude_pairs", [])) - excluded_count,
-        "claude_pairs": display_pairs,
-        "passed_pairs": [
-            {
-                "candidate_id": str(p.get("candidate_id")),
-                "job_id": str(p.get("job_id")),
-                "candidate_name": f"{p.get('candidate_first_name') or ''} {p.get('candidate_last_name') or ''}".strip() or "Unbekannt",
-                "candidate_role": p.get("candidate_role") or "Unbekannt",
-                "candidate_city": p.get("candidate_city") or "Unbekannt",
-                "job_position": p.get("position") or "Unbekannt",
-                "job_company": p.get("company_name") or "Unbekannt",
-                "job_city": p.get("job_city") or "Unbekannt",
-                "distance_km": round(p.get("distance_m", 0) / 1000, 1) if p.get("distance_m") else None,
-                "quick_reason": p.get("quick_reason", ""),
-                "excluded": (str(p.get("candidate_id")), str(p.get("job_id"))) in excluded,
-            }
-            for p in session.get("passed_pairs", [])
-        ],
-        "failed_pairs": session.get("failed_pairs", []),
-        "deep_results": [
-            {
-                "candidate_id": str(dr.get("candidate_id")),
-                "job_id": str(dr.get("job_id")),
-                "candidate_name": dr.get("candidate_name", "Unbekannt"),
-                "score": dr.get("score"),
-                "empfehlung": dr.get("empfehlung"),
-                "wow_faktor": dr.get("wow_faktor"),
-                "zusammenfassung": dr.get("zusammenfassung"),
-                "distance_km": dr.get("distance_km"),
-            }
-            for dr in session.get("deep_results", [])
-        ],
-        "matches_saved": session.get("matches_saved", 0),
-        # Debug-Daten
-        "error_pairs": session.get("error_pairs", []),
-        "stufe2_errors": session.get("stufe2_errors", []),
-        "stufe2_rejected": session.get("stufe2_rejected", []),
-        "tokens_in": session.get("tokens_in", 0),
-        "tokens_out": session.get("tokens_out", 0),
-        "vorfilter_stats": session.get("vorfilter_stats"),
-    }
-
-
-@router.get("/claude-match/sessions")
-async def list_sessions():
-    """Alle aktiven Sessions auflisten."""
-    from app.services.claude_matching_service import get_all_sessions
-    return get_all_sessions()
 
 
 # ══════════════════════════════════════════════════════════════
@@ -1033,211 +764,66 @@ async def compare_pair(
 
 @router.get("/debug/last-run")
 async def debug_last_run():
-    """Zeigt die letzte Matching-Session mit allen Debug-Daten.
-
-    Stufe 1: passed/failed/error_pairs mit quick_reason
-    Stufe 2: deep_results/stufe2_rejected/stufe2_errors mit Score+Grund
-    """
-    from app.services.claude_matching_service import get_all_sessions, get_session, _matching_status
-
-    sessions = get_all_sessions()
-    if not sessions:
-        return {
-            "status": "keine_sessions",
-            "message": "Keine Matching-Sessions gefunden. Starte zuerst 'Kontrolliertes Matching'.",
-            "matching_status": _matching_status,
-        }
-
-    # Letzte Session nehmen (sortiert nach created_at)
-    # get_all_sessions() gibt ein dict zurueck {session_id: {session_data}}
-    session_list = list(sessions.values())
-    latest = sorted(session_list, key=lambda s: s.get("created_at", ""), reverse=True)[0]
-    session_id = latest["session_id"]
-    session = get_session(session_id)
-
-    # Zusammenfassung
-    total_pairs = len(session.get("claude_pairs", []))
-    excluded_count = len(session.get("excluded_pairs", set()))
-    passed_count = len(session.get("passed_pairs", []))
-    failed_count = len(session.get("failed_pairs", []))
-    error_count = len(session.get("error_pairs", []))
-    deep_count = len(session.get("deep_results", []))
-    rejected_count = len(session.get("stufe2_rejected", []))
-    stufe2_error_count = len(session.get("stufe2_errors", []))
-
-    # Stufe 1: Erste 10 failed pairs mit Gruenden
-    failed_sample = []
-    for fp in session.get("failed_pairs", [])[:10]:
-        failed_sample.append({
-            "candidate_name": fp.get("candidate_name", "?"),
-            "candidate_role": fp.get("candidate_role", "?"),
-            "job_position": fp.get("job_position", "?"),
-            "job_company": fp.get("job_company", "?"),
-            "quick_reason": fp.get("quick_reason", "Kein Grund angegeben"),
-        })
-
-    # Stufe 1: Erste 5 passed pairs
-    passed_sample = []
-    for pp in session.get("passed_pairs", [])[:5]:
-        passed_sample.append({
-            "candidate_name": f"{pp.get('candidate_first_name', '')} {pp.get('candidate_last_name', '')}".strip() or "?",
-            "job_position": pp.get("position", "?"),
-            "job_company": pp.get("company_name", "?"),
-            "quick_reason": pp.get("quick_reason", ""),
-        })
-
-    # Stufe 2: Rejected (Score zu niedrig)
-    rejected_sample = session.get("stufe2_rejected", [])[:10]
-
+    """Zeigt den letzten V5 Matching-Lauf mit Ergebnissen."""
+    from app.services.v5_matching_service import get_status
+    status = get_status()
     return {
-        "session_id": session_id,
-        "created_at": session.get("created_at"),
-        "current_stufe": session.get("current_stufe"),
-        "matching_status": _matching_status,
-        "zusammenfassung": {
-            "stufe_0_paare_total": total_pairs,
-            "stufe_0_ausgeschlossen": excluded_count,
-            "stufe_0_aktiv": total_pairs - excluded_count,
-            "stufe_1_bestanden": passed_count,
-            "stufe_1_durchgefallen": failed_count,
-            "stufe_1_fehler": error_count,
-            "stufe_1_bestehensrate": f"{round(passed_count / max(passed_count + failed_count, 1) * 100, 1)}%",
-            "stufe_2_gespeichert": deep_count,
-            "stufe_2_rejected_score_zu_niedrig": rejected_count,
-            "stufe_2_fehler": stufe2_error_count,
-            "tokens_in": session.get("tokens_in", 0),
-            "tokens_out": session.get("tokens_out", 0),
-        },
-        "stufe_1_failed_sample": failed_sample,
-        "stufe_1_passed_sample": passed_sample,
-        "stufe_1_error_pairs": session.get("error_pairs", []),
-        "stufe_2_rejected_sample": rejected_sample,
-        "stufe_2_error_pairs": session.get("stufe2_errors", []),
-    }
-
-
-@router.get("/debug/claude-input")
-async def debug_claude_input():
-    """Zeigt den EXAKTEN Text den Claude fuer die ersten 3 Paare bekommen hat.
-
-    Damit kann man pruefen ob die Kandidaten-/Job-Daten leer oder unbrauchbar sind.
-    """
-    from app.services.claude_matching_service import (
-        get_all_sessions, get_session,
-        _extract_candidate_data, _extract_job_data,
-        QUICK_CHECK_SYSTEM, QUICK_CHECK_USER,
-    )
-
-    sessions = get_all_sessions()
-    if not sessions:
-        return {"error": "Keine Sessions gefunden"}
-
-    latest = sorted(sessions, key=lambda s: s.get("created_at", ""), reverse=True)[0]
-    session = get_session(latest["session_id"])
-    pairs = session.get("claude_pairs", [])
-
-    if not pairs:
-        return {"error": "Keine Paare in der Session"}
-
-    samples = []
-    for pair in pairs[:3]:
-        cand_data = _extract_candidate_data(pair)
-        job_data = _extract_job_data(pair)
-        user_msg = QUICK_CHECK_USER.format(**cand_data, **job_data)
-
-        fn = pair.get("candidate_first_name") or ""
-        ln = pair.get("candidate_last_name") or ""
-
-        samples.append({
-            "candidate_name": f"{fn} {ln}".strip() or "?",
-            "job_position": pair.get("position") or "?",
-            "job_company": pair.get("company_name") or "?",
-            "system_prompt": QUICK_CHECK_SYSTEM,
-            "user_prompt_an_claude": user_msg,
-            "rohdaten": {
-                "activities": cand_data["activities"],
-                "skills": cand_data["skills"],
-                "erp": cand_data["erp"],
-                "desired_positions": cand_data["desired_positions"],
-                "job_text_short_laenge": len(job_data["job_text_short"]),
-            },
-        })
-
-    return {
-        "session_id": latest["session_id"],
-        "total_pairs": len(pairs),
-        "hinweis": "Das ist der EXAKTE Text den Claude bekommt. Pruefen ob activities/skills/erp leer sind.",
-        "samples": samples,
+        "running": status["running"],
+        "last_run": status.get("last_run"),
+        "last_run_result": status.get("last_run_result"),
+        "current_progress": status.get("progress"),
     }
 
 
 @router.get("/debug/match-count")
 async def debug_match_count(db: AsyncSession = Depends(get_db)):
-    """Match-Statistiken fuer Claude-Matches."""
+    """Match-Statistiken (V5 + Legacy)."""
     today = date.today()
     today_start = datetime(today.year, today.month, today.day, tzinfo=timezone.utc)
     week_start = today_start - timedelta(days=7)
 
-    # Total Claude-Matches
-    total = await db.execute(
-        select(func.count()).where(Match.matching_method == "claude_match")
+    # By matching_method
+    method_query = await db.execute(
+        select(Match.matching_method, func.count())
+        .group_by(Match.matching_method)
     )
-    total_count = total.scalar() or 0
-
-    # By empfehlung
-    empf_query = await db.execute(
-        select(Match.empfehlung, func.count())
-        .where(Match.matching_method == "claude_match")
-        .group_by(Match.empfehlung)
-    )
-    by_empfehlung = {row[0] or "none": row[1] for row in empf_query.all()}
+    by_method = {row[0] or "unknown": row[1] for row in method_query.all()}
 
     # By status
     status_query = await db.execute(
         select(Match.status, func.count())
-        .where(Match.matching_method == "claude_match")
         .group_by(Match.status)
     )
     by_status = {row[0].value if hasattr(row[0], "value") else str(row[0]): row[1] for row in status_query.all()}
 
-    # Wow
-    wow = await db.execute(
-        select(func.count()).where(
-            and_(Match.matching_method == "claude_match", Match.wow_faktor == True)
-        )
-    )
-    wow_count = wow.scalar() or 0
-
-    # Today
+    # Today (V5)
     today_q = await db.execute(
         select(func.count()).where(
-            and_(Match.matching_method == "claude_match", Match.created_at >= today_start)
+            and_(Match.matching_method == "v5_role_geo", Match.created_at >= today_start)
         )
     )
-    today_count = today_q.scalar() or 0
+    today_v5 = today_q.scalar() or 0
 
-    # This week
+    # This week (V5)
     week_q = await db.execute(
         select(func.count()).where(
-            and_(Match.matching_method == "claude_match", Match.created_at >= week_start)
+            and_(Match.matching_method == "v5_role_geo", Match.created_at >= week_start)
         )
     )
-    week_count = week_q.scalar() or 0
+    week_v5 = week_q.scalar() or 0
 
-    # Proximity Matches
-    prox = await db.execute(
-        select(func.count()).where(Match.matching_method == "proximity_match")
+    # AI assessed
+    ai_q = await db.execute(
+        select(func.count()).where(Match.ai_checked_at.isnot(None))
     )
-    prox_count = prox.scalar() or 0
+    ai_assessed = ai_q.scalar() or 0
 
     return {
-        "total_claude_matches": total_count,
-        "by_empfehlung": by_empfehlung,
+        "by_method": by_method,
         "by_status": by_status,
-        "wow_matches": wow_count,
-        "today": today_count,
-        "this_week": week_count,
-        "proximity_matches": prox_count,
+        "today_v5": today_v5,
+        "this_week_v5": week_v5,
+        "ai_assessed_total": ai_assessed,
     }
 
 
@@ -1511,73 +1097,53 @@ async def debug_match_detail(
 
 @router.get("/debug/cost-report")
 async def debug_cost_report(db: AsyncSession = Depends(get_db)):
-    """API-Kosten Uebersicht basierend auf gespeicherten Token-Counts."""
-    from app.services.claude_matching_service import get_status
+    """Kosten-Uebersicht: V5 Matching ist kostenfrei, nur optionale KI kostet."""
+    from app.services.v5_matching_service import get_status
 
     today = date.today()
     today_start = datetime(today.year, today.month, today.day, tzinfo=timezone.utc)
     week_start = today_start - timedelta(days=7)
     month_start = today_start.replace(day=1)
 
-    # Kosten aus v2_score_breakdown aggregieren (tokens_in/tokens_out)
-    # Haiku Preise: $0.80/1M input, $4.00/1M output
-    async def _cost_for_period(start: datetime) -> dict:
-        query = await db.execute(
-            select(
-                func.count().label("calls"),
-                func.sum(
-                    func.cast(
-                        Match.v2_score_breakdown["tokens_in"].astext,
-                        sa.Integer,
-                    )
-                ).label("tokens_in"),
-                func.sum(
-                    func.cast(
-                        Match.v2_score_breakdown["tokens_out"].astext,
-                        sa.Integer,
-                    )
-                ).label("tokens_out"),
-            ).where(
-                and_(
-                    Match.matching_method == "claude_match",
-                    Match.created_at >= start,
-                )
-            )
-        )
-        row = query.one()
-        t_in = row.tokens_in or 0
-        t_out = row.tokens_out or 0
-        cost = (t_in * 0.80 + t_out * 4.0) / 1_000_000
-        return {
-            "matches": row.calls or 0,
-            "tokens_in": t_in,
-            "tokens_out": t_out,
-            "cost_usd": round(cost, 4),
-        }
-
     status = get_status()
 
-    # Einfache Zaehlung statt komplexer JSONB-Aggregation
-    today_count = await db.execute(
+    # V5 Matches (kostenfrei)
+    v5_today = await db.execute(
         select(func.count()).where(
-            and_(Match.matching_method == "claude_match", Match.created_at >= today_start)
+            and_(Match.matching_method == "v5_role_geo", Match.created_at >= today_start)
         )
     )
-    week_count = await db.execute(
+    v5_week = await db.execute(
         select(func.count()).where(
-            and_(Match.matching_method == "claude_match", Match.created_at >= week_start)
+            and_(Match.matching_method == "v5_role_geo", Match.created_at >= week_start)
         )
     )
-    month_count = await db.execute(
+    v5_month = await db.execute(
         select(func.count()).where(
-            and_(Match.matching_method == "claude_match", Match.created_at >= month_start)
+            and_(Match.matching_method == "v5_role_geo", Match.created_at >= month_start)
+        )
+    )
+
+    # KI-Assessments (kostenpflichtig)
+    ai_today = await db.execute(
+        select(func.count()).where(
+            and_(Match.ai_checked_at.isnot(None), Match.ai_checked_at >= today_start)
+        )
+    )
+    ai_month = await db.execute(
+        select(func.count()).where(
+            and_(Match.ai_checked_at.isnot(None), Match.ai_checked_at >= month_start)
         )
     )
 
     return {
-        "today_matches": today_count.scalar() or 0,
-        "week_matches": week_count.scalar() or 0,
-        "month_matches": month_count.scalar() or 0,
+        "v5_matches_today": v5_today.scalar() or 0,
+        "v5_matches_week": v5_week.scalar() or 0,
+        "v5_matches_month": v5_month.scalar() or 0,
+        "v5_matching_cost_usd": 0.00,
+        "ai_assessments_today": ai_today.scalar() or 0,
+        "ai_assessments_month": ai_month.scalar() or 0,
+        "ai_estimated_cost_per_assessment_usd": 0.003,
         "last_run": status.get("last_run"),
         "last_run_result": status.get("last_run_result"),
     }
@@ -1673,7 +1239,7 @@ async def submit_detailed_feedback(
     stats_query = (
         select(Match.user_feedback, func.count(Match.id))
         .where(
-            Match.matching_method == "claude_match",
+            Match.matching_method.in_(["v5_role_geo", "claude_match"]),
             Match.user_feedback.isnot(None),
         )
         .group_by(Match.user_feedback)

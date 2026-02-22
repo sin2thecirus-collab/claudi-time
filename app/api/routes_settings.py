@@ -183,7 +183,7 @@ async def get_system_limits():
 
 class SystemSettingUpdate(BaseModel):
     """Schema fuer System-Einstellungs-Update."""
-    value: str = Field(min_length=1, max_length=500)
+    value: str = Field(min_length=1, max_length=5000)
 
 
 @router.get(
@@ -267,3 +267,32 @@ async def get_drive_time_threshold(db: AsyncSession) -> int:
     except Exception:
         pass
     return 80  # Fallback
+
+
+async def get_ai_assessment_prompt(db: AsyncSession) -> str:
+    """Liest den ai_assessment_prompt aus der DB. Fallback: Default-Prompt."""
+    try:
+        result = await db.execute(
+            select(SystemSetting.value).where(
+                SystemSetting.key == "ai_assessment_prompt"
+            )
+        )
+        val = result.scalar_one_or_none()
+        if val:
+            return val
+    except Exception:
+        pass
+    return (
+        "Du bist ein extrem erfahrener Personalberater mit 20 Jahre Berufserfahrung "
+        "im Bereich Finance und Accounting.\n\n"
+        "Bewerte bitte nach deiner Meinung und nach deinem Ermessen ob dieser "
+        "Kandidat fuer diese Stelle geeignet ist.\n\n"
+        "Achte besonders auf:\n"
+        "- Uebereinstimmung der Taetigkeiten\n"
+        "- Qualifikations-Level\n"
+        "- Branchenerfahrung\n"
+        "- Software-Kenntnisse (DATEV, SAP, etc.)\n"
+        "- Soft Skills und Entwicklungspotenzial\n\n"
+        'Antworte NUR als JSON:\n'
+        '{"score": 0-100, "staerken": ["...", "..."], "luecken": ["...", "..."]}'
+    )
