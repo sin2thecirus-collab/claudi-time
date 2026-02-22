@@ -1116,14 +1116,20 @@ async function startClassification(type) {
     const res = await fetch(url, {method: 'POST', headers});
     const data = await res.json();
     msg.classList.remove('hidden');
-    if (data.status === 'started') {
+    if (res.status === 429) {
+      msg.textContent = 'Rate-Limit erreicht. Bitte kurz warten.';
+      msg.className = 'mt-3 text-sm text-amber-400';
+    } else if (res.status === 401 || res.status === 403) {
+      msg.textContent = 'Nicht authentifiziert (HTTP ' + res.status + '). Bitte neu einloggen.';
+      msg.className = 'mt-3 text-sm text-red-400';
+    } else if (data.status === 'started') {
       msg.textContent = (type === 'candidates' ? 'Kandidaten' : 'Jobs') + '-Klassifizierung gestartet!';
       msg.className = 'mt-3 text-sm text-green-400';
     } else if (data.status === 'already_running') {
       msg.textContent = 'Laeuft bereits!';
       msg.className = 'mt-3 text-sm text-amber-400';
     } else {
-      msg.textContent = JSON.stringify(data);
+      msg.textContent = 'HTTP ' + res.status + ': ' + JSON.stringify(data);
       msg.className = 'mt-3 text-sm text-red-400';
     }
   } catch(e) {
