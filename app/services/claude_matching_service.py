@@ -144,20 +144,35 @@ def exclude_pairs_from_session(session_id: str, pairs: list[dict]) -> dict:
 
 # ── Stufe-0 LLM-Vorfilter Prompt ──
 
-VORFILTER_SYSTEM = """Du bist ein Finance-Recruiter. Schaetze die fachliche Passung zwischen Kandidat und Stelle ein.
-Antworte NUR mit einer Zahl von 0 bis 100 (Prozentzahl der Passung). Kein Text, kein JSON, nur die Zahl."""
+VORFILTER_SYSTEM = """Du bist ein strenger Finance-Recruiter-Filter. Deine Aufgabe: Aussortieren was NICHT passt.
+
+STRENGE REGELN:
+- Die TAETIGKEITEN des Kandidaten muessen zu den AUFGABEN der Stelle passen
+- Ein Bilanzbuchhalter passt NICHT auf eine Lohnbuchhaltung-Stelle (und umgekehrt)
+- Ein FiBu-Sachbearbeiter passt NICHT auf eine Leiter-Stelle
+- Nur wenn die KERNAUFGABEN ueberlappen: hohe Zahl
+- Im Zweifel NIEDRIG bewerten (lieber zu streng als zu locker)
+
+Antworte NUR mit einer Zahl von 0 bis 100. Kein Text, nur die Zahl.
+
+Orientierung:
+0-30 = Komplett anderes Fachgebiet oder Level
+31-50 = Gleicher Bereich aber andere Spezialisierung
+51-70 = Teilweise passend, aber wichtige Luecken
+71-85 = Gute Passung, Kerntaetigkeiten ueberlappen
+86-100 = Sehr gute Passung, fast identisches Profil"""
 
 VORFILTER_USER = """KANDIDAT:
-- Aktuelle Position: {current_position}
-- Aktuelle Taetigkeiten: {current_activities}
+- Position: {current_position}
+- Taetigkeiten: {current_activities}
 
-JOB:
+STELLE:
 - Titel: {job_position}
 - Aufgaben: {job_tasks}
 
-Passung in Prozent:"""
+Passung (0-100):"""
 
-VORFILTER_MIN_SCORE = 70  # Nur >= 70% gehen in Stufe 1
+VORFILTER_MIN_SCORE = 65  # Strenger Prompt → niedrigerer Threshold reicht
 
 
 # ── Quick-Check Prompt (Stufe 1) ──
