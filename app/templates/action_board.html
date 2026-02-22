@@ -701,7 +701,31 @@ function actionBoard() {
                 this.matchingRunning = data.running || false;
                 this.progress = data.progress || {};
                 this.lastRun = data.last_run;
-                if (this.matchingRunning && !this.pollInterval) {
+
+                const stufe = (this.progress.stufe || '');
+                const sid = this.progress.session_id || '';
+
+                // ── Session-Wiederherstellung bei Page-Reload ──
+                if (sid && !this.sessionId) {
+                    this.sessionId = sid;
+
+                    if (this.matchingRunning) {
+                        // Lauf laeuft noch — richtige Polling-Methode starten
+                        if (stufe === 'stufe_1') {
+                            this.startPollingStufe1();
+                        } else if (stufe === 'stufe_2' || stufe === 'speichern' || stufe === 'fahrzeit') {
+                            this.startPollingStufe2();
+                        } else {
+                            this.startPolling();
+                        }
+                    } else if (stufe === 'stufe_1_fertig') {
+                        // Stufe 1 fertig — Ergebnisse laden
+                        await this.loadSessionData();
+                    } else if (stufe === 'fertig') {
+                        // Stufe 2 fertig — Ergebnisse laden
+                        await this.loadSessionData();
+                    }
+                } else if (this.matchingRunning && !this.pollInterval) {
                     this.startPolling();
                 }
             } catch(e) {}

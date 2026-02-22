@@ -42,7 +42,7 @@ PROXIMITY_DISTANCE_M = 10_000  # 10km fuer Naehe-Matches (ohne Claude)
 SEMAPHORE_LIMIT = 3  # Max parallele Claude-Calls
 
 # Score-Thresholds
-MIN_SCORE_SAVE = 40  # Matches unter 40 werden nicht gespeichert
+MIN_SCORE_SAVE = 75  # Nur starke Matches (75+) werden gespeichert
 
 # Alle Finance-Rollen = eine Familie (kein Familienfilter noetig)
 FINANCE_ROLES = ["fibu", "bibu", "kredibu", "debibu", "lohnbu", "stfa"]
@@ -147,69 +147,30 @@ Ist dieser Kandidat grundsaetzlich fachlich geeignet?"""
 
 # ── Deep Assessment Prompt (Stufe 2) ──
 
-DEEP_ASSESSMENT_SYSTEM = """Du bist ein erfahrener Personalberater fuer Finance/Accounting.
-Bewerte ob ein Kandidat fuer eine Stelle geeignet ist.
+DEEP_ASSESSMENT_SYSTEM = """Du bist ein erfahrener Personalberater fuer Finance & Accounting.
 
-WICHTIG: Bewerte anhand der TAETIGKEITEN im Lebenslauf, NICHT anhand der Berufsbezeichnung.
-Berufsbezeichnungen sind in 20-30% der Faelle falsch oder ungenau.
+Schau dir den Werdegang des Kandidaten an: Wo kommt er her, was hat er gemacht, wo steht er jetzt? Dann schau dir die Stellenausschreibung an: Welche Aufgaben, welche Anforderungen? Passt das zusammen?
 
-Antworte IMMER als JSON:
-{{
-  "score": 0-100,
-  "zusammenfassung": "1-2 Saetze",
-  "staerken": ["Aufzaehlung der Passungspunkte"],
-  "luecken": ["Aufzaehlung der Abweichungen"],
-  "empfehlung": "vorstellen" | "beobachten" | "nicht_passend",
-  "begruendung": "2-3 Saetze ausfuehrliche Begruendung",
-  "wow_faktor": true/false,
-  "wow_grund": "Nur wenn wow_faktor=true"
-}}
+Ein wichtiger Hinweis: Bei Bilanzbuchhalter-Stellen muss der Kandidat eine Bilanzbuchhalter-Zertifizierung haben (steht bei Ausbildung oder Weiterbildung). Ausserdem: "Eigenstaendige Erstellung der Abschluesse" = Bilanzbuchhalter. "Unterstuetzung/Mitwirkung/Zuarbeit bei Abschluessen" = Finanzbuchhalter, KEIN Bilanzbuchhalter.
 
-Scoring-Richtlinien:
-- 90-100: Perfekte Passung, sofort vorstellen
-- 75-89: Starke Passung, kleine Luecken
-- 60-74: Moderate Passung, signifikante Luecken aber Potenzial
-- 40-59: Schwache Passung, groessere Abweichungen
-- 0-39: Keine Passung
+Antworte NUR als JSON:
+- Gute Passung (Score >= 75):
+{{"score": 75-100, "zusammenfassung": "1-2 Saetze", "staerken": ["..."], "luecken": ["..."], "empfehlung": "vorstellen", "wow_faktor": true/false, "wow_grund": "nur wenn true"}}
+- Schwache Passung:
+{{"score": 0, "empfehlung": "nicht_passend"}}"""
 
-wow_faktor = true wenn:
-- Entfernung <10 km UND fachlich >75
-- Kandidat ist nicht wechselwillig ABER Match ist >85
-- Kandidat bringt seltene Zusatzqualifikation mit (IFRS, Konsolidierung, etc.)
-
-Kein anderer Text. Nur das JSON-Objekt."""
-
-DEEP_ASSESSMENT_USER = """KANDIDAT (ID: {candidate_id}):
-- Berufserfahrung: {work_history}
+DEEP_ASSESSMENT_USER = """KANDIDAT:
+- Berufserfahrung:
+{work_history}
 - Ausbildung: {education}
 - Weiterbildungen/Zertifikate: {further_education}
-- Skills: {skills}
-- IT-Skills: {it_skills}
-- ERP-Systeme: {erp}
-- Gehaltsvorstellung: {salary}
-- Kuendigungsfrist: {notice_period}
-- Wechselbereitschaft: {willingness_to_change}
-- Gewuenschte Positionen: {desired_positions}
-- Kernkompetenzen: {key_activities}
-- Bevorzugte Branchen: {preferred_industries}
-- Vermiedene Branchen: {avoided_industries}
-- Maximaler Arbeitsweg: {commute_max}
-- Beschaeftigungsart: {employment_type}
-- Gespraechszusammenfassung: {call_summary}
-- Standort: {candidate_city}, {candidate_plz}
+- IT-Skills/ERP: {it_skills}
 
 JOB:
 - Titel: {job_position}
-- Unternehmen: {job_company}
-- Standort: {job_city}
 - Stellenbeschreibung: {job_text}
-- Unternehmensgroesse: {company_size}
-- Beschaeftigungsart: {job_employment_type}
-- Branche: {industry}
-- Arbeitsmodell: {work_arrangement}
 
-KONTEXT:
-- Entfernung (Luftlinie): {distance_km} km"""
+Entfernung: {distance_km} km"""
 
 
 # ── Daten-Extraktion (ORM → Dict, KEINE persoenlichen Daten) ──
@@ -905,7 +866,7 @@ async def run_stufe_2(
             )
             parsed, t_in, t_out = await _call_claude(
                 client, model_deep, DEEP_ASSESSMENT_SYSTEM, user_msg, semaphore,
-                max_tokens=1200,
+                max_tokens=800,
             )
             total_tokens_in += t_in
             total_tokens_out += t_out
@@ -1517,7 +1478,7 @@ async def run_matching(
             )
             parsed, t_in, t_out = await _call_claude(
                 client, model_deep, DEEP_ASSESSMENT_SYSTEM, user_msg, semaphore,
-                max_tokens=1200,
+                max_tokens=800,
             )
             total_tokens_in += t_in
             total_tokens_out += t_out

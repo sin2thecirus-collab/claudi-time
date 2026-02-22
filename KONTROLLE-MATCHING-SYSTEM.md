@@ -45,17 +45,14 @@ STUFE 0: Datenbank-Filter (keine KI)
 │   Ergebnis: ~1300 Paare die weiter duerfen
 │
 └── STUFE 2: Deep Assessment (Claude Haiku KI)
-    "Wie gut passt das genau?"
-    - KI bekommt ALLES: Lebenslauf, Stellenbeschreibung, Gehalt, etc.
-    - KI gibt zurueck:
-      - Score (0-100)
-      - Zusammenfassung (1-2 Saetze)
-      - Staerken-Liste
-      - Luecken-Liste
-      - Empfehlung: "vorstellen" / "beobachten" / "nicht_passend"
-      - WOW-Faktor: ja/nein + Grund
-    - Nur Score >= 40 wird gespeichert
-    Ergebnis: Fertige Matches in der Datenbank
+    "Passt das WIRKLICH zusammen?"
+    - KI bekommt: Berufserfahrung, Ausbildung, Zertifikate, IT-Skills + Jobtitel, Stellenbeschreibung, Entfernung
+    - KI schaut sich Werdegang an (wo kommt er her, was hat er gemacht, wo steht er jetzt?) und vergleicht mit Stellenanforderungen
+    - Einziger Fach-Hinweis: BiBu braucht Zertifizierung + "eigenstaendige Erstellung" (nicht "Unterstuetzung/Mitwirkung")
+    - Bei Score < 75: Kurzantwort {"score": 0, "empfehlung": "nicht_passend"} (spart Tokens)
+    - Bei Score >= 75: Volle Bewertung mit Staerken, Luecken, WOW-Faktor
+    - Nur Score >= 75 wird gespeichert (kein Muell in der DB)
+    Ergebnis: Nur starke Matches in der Datenbank
 ```
 
 ### PROBLEM mit dem aktuellen System
@@ -92,7 +89,7 @@ GET /api/v4/claude-match/daily
 | Claude-Modell Quick-Check (Stufe 1) | `claude-haiku-4-5-20251001` |
 | Claude-Modell Deep Assessment (Stufe 2) | `claude-haiku-4-5-20251001` |
 | Max Tokens Quick-Check | 500 |
-| Max Tokens Deep Assessment | 1200 |
+| Max Tokens Deep Assessment | 800 |
 | Concurrency (parallele Calls) | Semaphore(3) |
 | Max Paare pro Lauf | 2000 |
 | Proximity-Matches (ohne KI) | < 10km, ohne Beschreibung |
@@ -136,7 +133,6 @@ Milad will die **volle Kontrolle** ueber den Matching-Prozess:
 ### Was sich NICHT aendert
 
 - Die Logik innerhalb jeder Stufe bleibt identisch
-- Die Claude-Prompts bleiben identisch
 - Die Score-Berechnung bleibt identisch
 - Die Match-Speicherung bleibt identisch
 - Die Fahrzeit-Berechnung bleibt identisch
@@ -820,7 +816,7 @@ Es wird KEIN neuer Profil-PDF-Service erstellt. Der bestehende wird wiederverwen
 
 **Debug-Felder pro Session (nach Stufe 2):**
 - `deep_results` — Gespeicherte Matches mit Score, Empfehlung, Zusammenfassung
-- `stufe2_rejected` — Score unter MIN_SCORE_SAVE (40) mit Score + Grund
+- `stufe2_rejected` — Score unter MIN_SCORE_SAVE (75) mit Score + Grund
 - `stufe2_errors` — Parse-Fehler in Stufe 2
 
 **TIPP:** `/debug/last-run` im Browser aufrufen (eingeloggt) fuer schnellen Ueberblick.
@@ -941,7 +937,7 @@ Es wird KEIN neuer Profil-PDF-Service erstellt. Der bestehende wird wiederverwen
 | H1 | `async_session_maker` NICHT `async_session_factory` | Import-Name in `app/database.py`. Falscher Name crashed den Service. | 16.02.2026 |
 | H2 | Railway 30s idle-in-transaction Timeout | DB-Session MUSS vor jedem API-Call geschlossen werden. Pro API-Call eigene Session. | 16.02.2026 |
 | H3 | Imports MUESSEN im try-Block sein | Bei Background-Tasks: Wenn Import ausserhalb try/except fehlschlaegt, wird finally NICHT ausgefuehrt → Status bleibt "running: True" | 16.02.2026 |
-| H4 | max_tokens=500 reicht NICHT fuer Deep Assessment | JSON wird abgeschnitten → JSON parse error → alle Stufe-2 Ergebnisse verloren. Fix: max_tokens=1200 | 22.02.2026 |
+| H4 | max_tokens=500 reicht NICHT fuer Deep Assessment | JSON wird abgeschnitten → JSON parse error → alle Stufe-2 Ergebnisse verloren. Fix: max_tokens=800 (vorher 1200, reduziert weil Score<75 nur Kurzantwort). | 22.02.2026 |
 | H5 | ai_score ist 0.0-1.0, NICHT 0-100 | Templates muessen `ai_score * 100` rechnen fuer Vergleiche mit Thresholds. 5 Templates waren falsch. | 22.02.2026 |
 | H6 | `description` in work_history kann None sein | `work_history[0].get("description", "")` gibt None zurueck wenn key existiert aber Wert None ist. Fix: `(... or "")` | 22.02.2026 |
 | H7 | E-Mail-Fehler sind FATAL in der Recruiting-Branche | Falsche Daten, falsche Anrede, falscher Firma-Name → Kandidat/Kunde ist verloren. IMMER Vorschau zeigen. | 22.02.2026 |
@@ -953,6 +949,8 @@ Es wird KEIN neuer Profil-PDF-Service erstellt. Der bestehende wird wiederverwen
 | H13 | Stufe-0 und Stufe-1 haben BEIDE: Vergleichs-Button + Ausschliessen-Button | Milad will in JEDER Stufe Paare pruefen (Vergleich) und ausschliessen koennen. Nicht nur in Stufe 0. | 22.02.2026 |
 | H14 | Stufe 1: 0 Paare bestanden beim ersten Test | Claude hat nur `activities` (description der letzten Position) bekommen — oft leer ("Nicht verfuegbar"). Fix: Jetzt bekommt Claude den vollen Werdegang (work_history + education + further_education). | 22.02.2026 |
 | H15 | Session-/Debug-Endpoints brauchen Login | AuthMiddleware auf allen `/api/v4/` Endpoints. Im Browser eingeloggt aufrufen, NICHT via curl mit API-Key. | 22.02.2026 |
+| H16 | Session-Persistence bei Page-Navigation | Wenn Milad die Seite verlaesst und zurueckkommt, muss der laufende/fertige Matching-Lauf wiederhergestellt werden. Frontend `loadStatus()` prueft `progress.session_id` + `progress.stufe` und stellt `stufenView` + `sessionId` wieder her. Keine Parallel-Laeufe moeglich (Server prueft `_matching_status["running"]`). | 22.02.2026 |
+| H17 | `/debug/last-run` Internal Server Error | `get_all_sessions()` gibt ein dict zurueck (keys=session_ids), nicht eine Liste. `sorted()` muss ueber `.values()` iterieren, nicht ueber das dict direkt. | 22.02.2026 |
 
 ### Offene Fragen
 
@@ -982,3 +980,8 @@ Es wird KEIN neuer Profil-PDF-Service erstellt. Der bestehende wird wiederverwen
 | 22.02.2026 | Phase 4 fertig | 4 E-Mail-Varianten, GPT fachliche Einschaetzung, Email-Vorschau-Dialog mit Bearbeiten, Senden via Graph, Nur-PDF-Option, Button-Flow umgestellt |
 | 22.02.2026 | Debug erweitert | Stufe 1+2: Logging pro Paar (PASS/FAIL + Grund), error_pairs/stufe2_rejected/stufe2_errors tracken, neuer `/debug/last-run` + `/debug/claude-input` Endpoint |
 | 22.02.2026 | Stufe-1-Prompt gefixt | Claude bekam nur `activities` (oft leer). Jetzt bekommt Stufe 1: work_history (alle Positionen), education, further_education/Zertifikate. Damit kann Claude z.B. IHK BiBu pruefen. |
+| 22.02.2026 | Session-Persistence gefixt | `loadStatus()` stellt jetzt bei Page-Reload `sessionId` + `stufenView` aus `progress.session_id` + `progress.stufe` wieder her. Startet Polling wenn Lauf noch laeuft, laedt Session-Daten wenn Lauf fertig. |
+| 22.02.2026 | `/debug/last-run` Bug gefixt | `get_all_sessions()` Rueckgabe ist dict, nicht list. `sorted()` iteriert jetzt ueber `.values()`. |
+| 22.02.2026 | MIN_SCORE_SAVE: 40 → 75 | Nur noch starke Matches (75+) werden gespeichert. Alles unter 75 ist "nicht_passend" und wird verworfen. Weniger Muell in der DB. |
+| 22.02.2026 | Stufe-2-Prompt komplett neu | Kurzer, klarer Prompt: "Schau dir den Werdegang an, schau dir die Stelle an, passt das zusammen?" Einziger Fach-Hinweis: BiBu braucht Zertifizierung + "eigenstaendige Erstellung" vs. "Unterstuetzung/Mitwirkung". Claude bewertet den Rest selbst. Score < 75 → Kurzantwort. |
+| 22.02.2026 | Stufe-2-Daten reduziert | Kandidat: nur Berufserfahrung, Ausbildung, Weiterbildung, IT-Skills. Job: nur Titel + Stellenbeschreibung + Entfernung. Weniger Tokens = schneller. max_tokens 1200 → 800. |

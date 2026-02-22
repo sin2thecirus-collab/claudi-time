@@ -906,7 +906,9 @@ async def debug_last_run():
         }
 
     # Letzte Session nehmen (sortiert nach created_at)
-    latest = sorted(sessions, key=lambda s: s.get("created_at", ""), reverse=True)[0]
+    # get_all_sessions() gibt ein dict zurueck {session_id: {session_data}}
+    session_list = list(sessions.values())
+    latest = sorted(session_list, key=lambda s: s.get("created_at", ""), reverse=True)[0]
     session_id = latest["session_id"]
     session = get_session(session_id)
 
