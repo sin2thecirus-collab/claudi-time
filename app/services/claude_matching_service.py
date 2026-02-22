@@ -467,6 +467,8 @@ async def run_stufe_0(candidate_id: str | None = None) -> dict:
             claude_query = (
                 select(
                     Candidate.id.label("candidate_id"),
+                    Candidate.first_name.label("candidate_first_name"),
+                    Candidate.last_name.label("candidate_last_name"),
                     Candidate.work_history,
                     Candidate.cv_text,
                     Candidate.education,
@@ -532,6 +534,8 @@ async def run_stufe_0(candidate_id: str | None = None) -> dict:
             proximity_query = (
                 select(
                     Candidate.id.label("candidate_id"),
+                    Candidate.first_name.label("candidate_first_name"),
+                    Candidate.last_name.label("candidate_last_name"),
                     Candidate.city.label("candidate_city"),
                     Candidate.postal_code.label("candidate_plz"),
                     Candidate.hotlist_job_title.label("candidate_role"),
@@ -578,9 +582,12 @@ async def run_stufe_0(candidate_id: str | None = None) -> dict:
         display_pairs = []
         for p in claude_pairs:
             distance_m = p.get("distance_m")
+            fn = p.get("candidate_first_name") or ""
+            ln = p.get("candidate_last_name") or ""
             display_pairs.append({
                 "candidate_id": str(p["candidate_id"]),
                 "job_id": str(p["job_id"]),
+                "candidate_name": f"{fn} {ln}".strip() or "Unbekannt",
                 "candidate_role": p.get("candidate_role") or "Unbekannt",
                 "candidate_position": p.get("candidate_position") or "",
                 "candidate_city": p.get("candidate_city") or "Unbekannt",
@@ -593,9 +600,12 @@ async def run_stufe_0(candidate_id: str | None = None) -> dict:
         display_proximity = []
         for p in proximity_pairs:
             distance_m = p.get("distance_m")
+            fn = p.get("candidate_first_name") or ""
+            ln = p.get("candidate_last_name") or ""
             display_proximity.append({
                 "candidate_id": str(p["candidate_id"]),
                 "job_id": str(p["job_id"]),
+                "candidate_name": f"{fn} {ln}".strip() or "Unbekannt",
                 "candidate_role": p.get("candidate_role") or "Unbekannt",
                 "candidate_city": p.get("candidate_city") or "Unbekannt",
                 "job_position": p.get("position") or "Unbekannt",
@@ -713,9 +723,12 @@ async def run_stufe_1(
             distance_m = pair.get("distance_m")
             distance_km = round(distance_m / 1000, 1) if distance_m else None
 
+            fn = pair.get("candidate_first_name") or ""
+            ln = pair.get("candidate_last_name") or ""
             pair_info = {
                 "candidate_id": str(pair["candidate_id"]),
                 "job_id": str(pair["job_id"]),
+                "candidate_name": f"{fn} {ln}".strip() or "Unbekannt",
                 "candidate_role": pair.get("candidate_role") or "Unbekannt",
                 "candidate_position": pair.get("candidate_position") or "",
                 "candidate_city": pair.get("candidate_city") or "Unbekannt",
@@ -890,9 +903,12 @@ async def run_stufe_2(
                 empfehlung = "beobachten"
 
             if score >= MIN_SCORE_SAVE:
+                fn2 = pair.get("candidate_first_name") or ""
+                ln2 = pair.get("candidate_last_name") or ""
                 deep_results.append({
                     "candidate_id": pair["candidate_id"],
                     "job_id": pair["job_id"],
+                    "candidate_name": f"{fn2} {ln2}".strip() or "Unbekannt",
                     "distance_km": distance_km,
                     "cand_lat": pair.get("cand_lat"),
                     "cand_lng": pair.get("cand_lng"),
@@ -969,6 +985,7 @@ async def run_stufe_2(
                         "match_id": str(match.id),
                         "candidate_id": str(dr["candidate_id"]),
                         "job_id": str(dr["job_id"]),
+                        "candidate_name": dr.get("candidate_name", "Unbekannt"),
                         "score": dr["score"],
                         "empfehlung": dr["empfehlung"],
                         "wow_faktor": dr["wow_faktor"],
@@ -1264,6 +1281,8 @@ async def run_matching(
             claude_query = (
                 select(
                     Candidate.id.label("candidate_id"),
+                    Candidate.first_name.label("candidate_first_name"),
+                    Candidate.last_name.label("candidate_last_name"),
                     # Fachliche Daten (KEINE persoenlichen!)
                     Candidate.work_history,
                     Candidate.cv_text,
@@ -1333,6 +1352,8 @@ async def run_matching(
             proximity_query = (
                 select(
                     Candidate.id.label("candidate_id"),
+                    Candidate.first_name.label("candidate_first_name"),
+                    Candidate.last_name.label("candidate_last_name"),
                     Candidate.city.label("candidate_city"),
                     Candidate.postal_code.label("candidate_plz"),
                     Candidate.hotlist_job_title,
@@ -1460,9 +1481,12 @@ async def run_matching(
                 empfehlung = "beobachten"
 
             if score >= MIN_SCORE_SAVE:
+                fn2 = pair.get("candidate_first_name") or ""
+                ln2 = pair.get("candidate_last_name") or ""
                 deep_results.append({
                     "candidate_id": pair["candidate_id"],
                     "job_id": pair["job_id"],
+                    "candidate_name": f"{fn2} {ln2}".strip() or "Unbekannt",
                     "distance_km": distance_km,
                     "cand_lat": pair.get("cand_lat"),
                     "cand_lng": pair.get("cand_lng"),

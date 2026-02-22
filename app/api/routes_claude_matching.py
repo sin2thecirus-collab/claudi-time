@@ -527,9 +527,12 @@ async def get_session_data(session_id: str):
         jid = str(p["job_id"])
         is_excluded = (cid, jid) in excluded
         distance_m = p.get("distance_m")
+        fn = p.get("candidate_first_name") or ""
+        ln = p.get("candidate_last_name") or ""
         display_pairs.append({
             "candidate_id": cid,
             "job_id": jid,
+            "candidate_name": f"{fn} {ln}".strip() or "Unbekannt",
             "candidate_role": p.get("candidate_role") or "Unbekannt",
             "candidate_position": p.get("candidate_position") or "",
             "candidate_city": p.get("candidate_city") or "Unbekannt",
@@ -552,6 +555,7 @@ async def get_session_data(session_id: str):
             {
                 "candidate_id": str(p.get("candidate_id")),
                 "job_id": str(p.get("job_id")),
+                "candidate_name": f"{p.get('candidate_first_name') or ''} {p.get('candidate_last_name') or ''}".strip() or "Unbekannt",
                 "candidate_role": p.get("candidate_role") or "Unbekannt",
                 "candidate_city": p.get("candidate_city") or "Unbekannt",
                 "job_position": p.get("position") or "Unbekannt",
@@ -568,6 +572,7 @@ async def get_session_data(session_id: str):
             {
                 "candidate_id": str(dr.get("candidate_id")),
                 "job_id": str(dr.get("job_id")),
+                "candidate_name": dr.get("candidate_name", "Unbekannt"),
                 "score": dr.get("score"),
                 "empfehlung": dr.get("empfehlung"),
                 "wow_faktor": dr.get("wow_faktor"),

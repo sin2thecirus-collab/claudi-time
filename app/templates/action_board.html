@@ -98,7 +98,8 @@
                 <div style="padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--pp-borderLight);"
                      :style="pair.excluded ? 'opacity:0.35;text-decoration:line-through;' : ''">
                     <div style="flex:1;">
-                        <span style="font-size:13px;font-weight:600;color:var(--pp-text);" x-text="pair.candidate_role"></span>
+                        <span style="font-size:13px;font-weight:600;color:var(--pp-text);" x-text="pair.candidate_name"></span>
+                        <span style="font-size:11px;color:var(--pp-accent);font-weight:500;margin-left:4px;" x-text="'(' + pair.candidate_role + ')'"></span>
                         <span style="font-size:12px;color:var(--pp-textDim);"> aus </span>
                         <span style="font-size:12px;color:var(--pp-text);" x-text="pair.candidate_city"></span>
                         <span style="font-size:12px;color:var(--pp-textDim);"> &rarr; </span>
@@ -145,7 +146,8 @@
             <template x-for="pair in stufe1Data.passed || []" :key="pair.candidate_id + pair.job_id">
                 <div style="padding:12px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--pp-borderLight);">
                     <div style="flex:1;">
-                        <span style="font-size:13px;font-weight:600;color:var(--pp-text);" x-text="pair.candidate_role"></span>
+                        <span style="font-size:13px;font-weight:600;color:var(--pp-text);" x-text="pair.candidate_name"></span>
+                        <span style="font-size:11px;color:var(--pp-accent);font-weight:500;margin-left:4px;" x-text="'(' + pair.candidate_role + ')'"></span>
                         <span style="font-size:12px;color:var(--pp-textDim);"> &rarr; </span>
                         <span style="font-size:13px;color:var(--pp-text);" x-text="pair.job_position"></span>
                         <span style="font-size:12px;color:var(--pp-textMuted);" x-text="' bei ' + pair.job_company"></span>
@@ -173,7 +175,7 @@
                 <template x-for="pair in stufe1Data.failed || []" :key="pair.candidate_id + pair.job_id">
                     <div style="padding:10px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--pp-borderLight);opacity:0.6;">
                         <div>
-                            <span style="font-size:12px;color:var(--pp-textMuted);" x-text="pair.candidate_role + ' → ' + pair.job_position"></span>
+                            <span style="font-size:12px;color:var(--pp-textMuted);" x-text="pair.candidate_name + ' (' + pair.candidate_role + ') → ' + pair.job_position"></span>
                             <span style="font-size:11px;color:var(--pp-red);margin-left:8px;" x-text="pair.quick_reason"></span>
                         </div>
                     </div>
@@ -194,8 +196,11 @@
             <template x-for="m in stufe2Data.matches_saved || []" :key="m.match_id">
                 <div style="padding:14px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--pp-borderLight);">
                     <div style="flex:1;">
-                        <span style="font-size:13px;font-weight:600;color:var(--pp-text);" x-text="m.empfehlung === 'vorstellen' ? 'VORSTELLEN' : m.empfehlung"></span>
-                        <span style="font-size:12px;color:var(--pp-textMuted);margin-left:8px;" x-text="m.zusammenfassung"></span>
+                        <span style="font-size:13px;font-weight:600;color:var(--pp-text);" x-text="m.candidate_name"></span>
+                        <span style="font-size:11px;font-weight:600;margin-left:6px;padding:1px 6px;border-radius:4px;"
+                              :style="m.empfehlung === 'vorstellen' ? 'background:var(--pp-greenSoft);color:var(--pp-green);' : 'background:var(--pp-surface3);color:var(--pp-textDim);'"
+                              x-text="m.empfehlung === 'vorstellen' ? 'VORSTELLEN' : m.empfehlung"></span>
+                        <div style="font-size:12px;color:var(--pp-textMuted);margin-top:2px;" x-text="m.zusammenfassung"></div>
                     </div>
                     <div style="display:flex;gap:8px;align-items:center;">
                         <span x-show="m.wow_faktor" style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:50px;background:var(--pp-orange);color:#000;">WOW</span>
