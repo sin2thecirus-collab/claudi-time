@@ -995,15 +995,20 @@ async def klassifizierung_live_status():
     <div id="job-result" class="mt-3 text-sm text-zinc-400 hidden"></div>
   </div>
 
-  <!-- Links -->
-  <div class="card text-sm text-zinc-500">
-    <p class="font-medium text-zinc-300 mb-2">Klassifizierung starten:</p>
-    <code class="block bg-zinc-900 p-2 rounded mb-2 text-xs text-zinc-400">
-      POST /api/candidates/maintenance/reclassify-finance?force=true
-    </code>
-    <code class="block bg-zinc-900 p-2 rounded text-xs text-zinc-400">
-      POST /api/jobs/maintenance/reclassify-finance?force=true
-    </code>
+  <!-- Start-Buttons -->
+  <div class="card">
+    <p class="font-medium text-zinc-300 mb-4">Klassifizierung starten:</p>
+    <div class="flex gap-3">
+      <button id="btn-cand" onclick="startClassification('candidates')"
+        class="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+        Kandidaten klassifizieren
+      </button>
+      <button id="btn-job" onclick="startClassification('jobs')"
+        class="flex-1 px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+        Jobs klassifizieren
+      </button>
+    </div>
+    <div id="start-msg" class="mt-3 text-sm text-zinc-400 hidden"></div>
   </div>
 </div>
 
@@ -1096,6 +1101,36 @@ async function poll() {
       document.getElementById('job-badge').className = 'text-xs px-2 py-1 rounded-full bg-zinc-700 text-zinc-400';
     }
   } catch(e) { console.error('Jobs-Poll Fehler:', e); }
+}
+
+async function startClassification(type) {
+  const btn = document.getElementById(type === 'candidates' ? 'btn-cand' : 'btn-job');
+  const msg = document.getElementById('start-msg');
+  btn.disabled = true;
+  btn.textContent = 'Wird gestartet...';
+  try {
+    const url = '/api/' + type + '/maintenance/reclassify-finance?force=true';
+    const res = await fetch(url, {method: 'POST'});
+    const data = await res.json();
+    msg.classList.remove('hidden');
+    if (data.status === 'started') {
+      msg.textContent = (type === 'candidates' ? 'Kandidaten' : 'Jobs') + '-Klassifizierung gestartet!';
+      msg.className = 'mt-3 text-sm text-green-400';
+    } else if (data.status === 'already_running') {
+      msg.textContent = 'Laeuft bereits!';
+      msg.className = 'mt-3 text-sm text-amber-400';
+    } else {
+      msg.textContent = JSON.stringify(data);
+      msg.className = 'mt-3 text-sm text-red-400';
+    }
+  } catch(e) {
+    msg.classList.remove('hidden');
+    msg.textContent = 'Fehler: ' + e.message;
+    msg.className = 'mt-3 text-sm text-red-400';
+  }
+  btn.disabled = false;
+  btn.textContent = type === 'candidates' ? 'Kandidaten klassifizieren' : 'Jobs klassifizieren';
+  setTimeout(() => poll(), 1000);
 }
 
 poll();
