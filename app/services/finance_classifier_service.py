@@ -39,6 +39,7 @@ Entscheide NUR anhand der AKTUELLEN/LETZTEN Position und deren Taetigkeiten.
 
 Waehle die am besten passende Rolle:
 - Finanzbuchhalter/in (bucht aktiv Kreditoren UND Debitoren, Kontenabstimmung, laufende Buchhaltung)
+- Senior Finanzbuchhalter/in (wie Finanzbuchhalter/in, aber zusaetzlich JA-Vorbereitung, Anlagenbuchhaltung oder USt-Voranmeldungen)
 - Bilanzbuchhalter/in (erstellt eigenstaendig Jahresabschluesse UND hat eine BiBu-Qualifikation wie z.B. "Bilanzbuchhalter IHK", "geprüfter Bilanzbuchhalter", "Weiterbildung Bilanzbuchhalter", "Zertifikat Bilanzbuchhalter" — egal wo es steht: Ausbildung, Weiterbildung, Zertifikate)
 - Kreditorenbuchhalter/in (bucht hauptsaechlich nur Kreditoren / Eingangsrechnungen)
 - Debitorenbuchhalter/in (bucht hauptsaechlich nur Debitoren / Mahnwesen / Forderungen)
@@ -56,12 +57,11 @@ Wenn keine der obigen Rollen passt, entscheide aus dem Kontext heraus was die Pe
 Waehle einfach die Rolle die am besten passt. Vertraue deinem Urteil.
 
 AUSGABE (strikt JSON, nichts anderes):
-{"is_leadership": bool, "roles": ["Rolle1", "Rolle2"], "primary_role": "aktuelle Rolle", "sub_level": "senior"/"normal"/null, "reasoning": "2-3 Saetze warum diese Rolle"}
+{"is_leadership": bool, "roles": ["Rolle1", "Rolle2"], "primary_role": "aktuelle Rolle", "reasoning": "2-3 Saetze warum diese Rolle"}
 
 Hinweise:
 - roles = alle passenden Rollen aus dem GESAMTEN Werdegang
 - primary_role = die EINE Rolle die JETZT am besten passt
-- sub_level: nur bei Finanzbuchhalter/in ("senior" bei JA-Vorbereitung/Anlagen/USt, sonst "normal"), bei allen anderen null
 - is_leadership = true wenn die Person Fuehrungsverantwortung hat
 """
 
@@ -75,6 +75,7 @@ Schau dir die Stellenbeschreibung an und entscheide: Was fuer eine Stelle ist da
 
 Waehle die am besten passende Rolle:
 - Finanzbuchhalter/in (operative Buchhaltung: Kreditoren, Debitoren, Kontenabstimmung)
+- Senior Finanzbuchhalter/in (wie Finanzbuchhalter/in, aber zusaetzlich JA-Vorbereitung, Anlagenbuchhaltung oder USt-Voranmeldungen)
 - Bilanzbuchhalter/in (eigenstaendige JA-Erstellung, BiBu-IHK als MUSS-Qualifikation)
 - Kreditorenbuchhalter/in (hauptsaechlich Kreditoren / Eingangsrechnungen)
 - Debitorenbuchhalter/in (hauptsaechlich Debitoren / Mahnwesen)
@@ -97,10 +98,9 @@ QUALITY GATE (wie gut ist die Stellenbeschreibung?):
 - "low": Kaum Aufgaben, nur Stichworte
 
 AUSGABE (strikt JSON, nichts anderes):
-{"is_leadership": bool, "roles": [...], "primary_role": "aktuelle Rolle", "sub_level": "senior"/"normal"/null, "quality_score": "high"/"medium"/"low", "quality_reason": "...", "original_title": "Originaltitel", "corrected_title": "korrigiert" oder null, "title_was_corrected": bool, "reasoning": "2-3 Saetze", "job_tasks": "kommaseparierte Aufgaben, max 300 Zeichen"}
+{"is_leadership": bool, "roles": [...], "primary_role": "aktuelle Rolle", "quality_score": "high"/"medium"/"low", "quality_reason": "...", "original_title": "Originaltitel", "corrected_title": "korrigiert" oder null, "title_was_corrected": bool, "reasoning": "2-3 Saetze", "job_tasks": "kommaseparierte Aufgaben, max 300 Zeichen"}
 
 Hinweise:
-- sub_level: nur bei Finanzbuchhalter/in ("senior" bei JA-Vorbereitung/Anlagen/USt, sonst "normal"), bei allen anderen null
 - job_tasks: Extrahiere die konkreten Aufgaben als Liste, keine Anforderungen/Benefits
 """
 
