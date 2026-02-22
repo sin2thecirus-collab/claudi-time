@@ -38,7 +38,7 @@ STUFE 0: Datenbank-Filter (keine KI)
 │
 ├── STUFE 1: Quick-Check (Claude Haiku KI)
 │   "Passt das grob zusammen? JA oder NEIN?"
-│   - KI bekommt NUR: Taetigkeiten, Skills, ERP, gewuenschte Positionen
+│   - KI bekommt: Berufserfahrung (alle Positionen), Ausbildung, Zertifikate, Skills, ERP, gewuenschte Positionen
 │   - KI antwortet: {"pass": true/false, "reason": "1 Satz"}
 │   - ~2 Sekunden pro Paar
 │   - ~65% Bestehensrate
@@ -951,7 +951,7 @@ Es wird KEIN neuer Profil-PDF-Service erstellt. Der bestehende wird wiederverwen
 | H11 | Job-Vorstellungs-PDF ist NEU, nicht der alte JobDescriptionPdfService | Milad will ein richtig schoen designtes PDF im gleichen Stil wie das Kandidaten-Profil. Der alte Service reicht dafuer nicht. | 22.02.2026 |
 | H12 | E-Mails an Kunden gehen an KONTAKTE, nicht an Firmen | Milad waehlt aus den bestehenden Kontakten im Unternehmen oder gibt ein Bewerber-Postfach ein. Die Kontakte-Tabelle muss existieren. | 22.02.2026 |
 | H13 | Stufe-0 und Stufe-1 haben BEIDE: Vergleichs-Button + Ausschliessen-Button | Milad will in JEDER Stufe Paare pruefen (Vergleich) und ausschliessen koennen. Nicht nur in Stufe 0. | 22.02.2026 |
-| H14 | Stufe 1: 0 Paare bestanden beim ersten Test | Claude ist moeglicherweise zu streng. Logging jetzt eingebaut: jedes Paar loggt PASS/FAIL + Grund. Debug via `/debug/last-run`. | 22.02.2026 |
+| H14 | Stufe 1: 0 Paare bestanden beim ersten Test | Claude hat nur `activities` (description der letzten Position) bekommen — oft leer ("Nicht verfuegbar"). Fix: Jetzt bekommt Claude den vollen Werdegang (work_history + education + further_education). | 22.02.2026 |
 | H15 | Session-/Debug-Endpoints brauchen Login | AuthMiddleware auf allen `/api/v4/` Endpoints. Im Browser eingeloggt aufrufen, NICHT via curl mit API-Key. | 22.02.2026 |
 
 ### Offene Fragen
@@ -980,4 +980,5 @@ Es wird KEIN neuer Profil-PDF-Service erstellt. Der bestehende wird wiederverwen
 | 22.02.2026 | Phase 3 deployed | Job-PDF-Service + Template, Buttons aufgeteilt, Kontakt-Dialog, PDF Auto-Oeffnen |
 | 22.02.2026 | Phase 4 gestartet | EmailPreparationService, prepare-email + send-email Endpoints, Email-Vorschau-Dialog |
 | 22.02.2026 | Phase 4 fertig | 4 E-Mail-Varianten, GPT fachliche Einschaetzung, Email-Vorschau-Dialog mit Bearbeiten, Senden via Graph, Nur-PDF-Option, Button-Flow umgestellt |
-| 22.02.2026 | Debug erweitert | Stufe 1+2: Logging pro Paar (PASS/FAIL + Grund), error_pairs/stufe2_rejected/stufe2_errors tracken, neuer `/debug/last-run` Endpoint, Session-Endpoint erweitert |
+| 22.02.2026 | Debug erweitert | Stufe 1+2: Logging pro Paar (PASS/FAIL + Grund), error_pairs/stufe2_rejected/stufe2_errors tracken, neuer `/debug/last-run` + `/debug/claude-input` Endpoint |
+| 22.02.2026 | Stufe-1-Prompt gefixt | Claude bekam nur `activities` (oft leer). Jetzt bekommt Stufe 1: work_history (alle Positionen), education, further_education/Zertifikate. Damit kann Claude z.B. IHK BiBu pruefen. |

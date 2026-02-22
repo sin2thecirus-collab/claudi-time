@@ -129,7 +129,10 @@ Antworte IMMER als JSON:
 Kein anderer Text. Nur das JSON-Objekt."""
 
 QUICK_CHECK_USER = """KANDIDAT (ID: {candidate_id}):
-- Aktuelle Taetigkeiten: {activities}
+- Berufserfahrung:
+{work_history}
+- Ausbildung / Qualifikationen: {education}
+- Weiterbildung / Zertifikate: {further_education}
 - Skills: {skills}
 - ERP-Systeme: {erp}
 - Gewuenschte Positionen: {desired_positions}
