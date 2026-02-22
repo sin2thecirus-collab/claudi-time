@@ -2205,3 +2205,129 @@ async def debug_drive_time_summary(
         "min_car_min": avg_row[2] if avg_row else None,
         "max_car_min": avg_row[3] if avg_row else None,
     }
+
+
+# ═══════════════════════════════════════════════════════════════
+# Job Tasks Backfill — Taetigkeiten aus job_text extrahieren
+# ═══════════════════════════════════════════════════════════════
+
+_backfill_tasks_status = {
+    "running": False,
+    "total": 0,
+    "done": 0,
+    "errors": 0,
+    "cost_usd": 0.0,
+    "started_at": None,
+    "finished_at": None,
+}
+
+
+@router.post(
+    "/maintenance/backfill-job-tasks",
+    summary="job_tasks fuer alle FINANCE-Jobs extrahieren (Backfill)",
+    tags=["Maintenance"],
+)
+@rate_limit(RateLimitTier.ADMIN)
+async def backfill_job_tasks(request: Request):
+    """
+    Re-klassifiziert FINANCE-Jobs die noch kein job_tasks haben.
+    Laeuft im Hintergrund — Fortschritt via GET /maintenance/backfill-job-tasks/status.
+    """
+    import asyncio
+
+    if _backfill_tasks_status["running"]:
+        return JSONResponse(
+            status_code=409,
+            content={"error": "Backfill laeuft bereits", **_backfill_tasks_status},
+        )
+
+    async def _run_backfill():
+        try:
+            from app.database import async_session_maker
+            from app.services.finance_classifier_service import FinanceClassifierService
+            from sqlalchemy import and_
+
+            _backfill_tasks_status["running"] = True
+            _backfill_tasks_status["done"] = 0
+            _backfill_tasks_status["errors"] = 0
+            _backfill_tasks_status["cost_usd"] = 0.0
+            _backfill_tasks_status["started_at"] = datetime.now(timezone.utc).isoformat()
+            _backfill_tasks_status["finished_at"] = None
+
+            # 1. IDs laden (Jobs mit job_text aber ohne job_tasks)
+            async with async_session_maker() as db:
+                result = await db.execute(
+                    select(Job.id).where(and_(
+                        Job.hotlist_category == "FINANCE",
+                        Job.deleted_at.is_(None),
+                        Job.job_tasks.is_(None),
+                        Job.job_text.isnot(None),
+                    ))
+                )
+                job_ids = [row[0] for row in result.fetchall()]
+
+            total = len(job_ids)
+            _backfill_tasks_status["total"] = total
+            logger.info(f"Job Tasks Backfill: {total} Jobs ohne job_tasks")
+
+            if total == 0:
+                return
+
+            semaphore = asyncio.Semaphore(2)
+
+            async def _classify_one(jid):
+                async with semaphore:
+                    try:
+                        async with async_session_maker() as db2:
+                            classifier = FinanceClassifierService(db2)
+                            job = (await db2.execute(
+                                select(Job).where(Job.id == jid)
+                            )).scalar_one_or_none()
+                            if not job:
+                                return
+                            classification = await classifier.classify_job(job)
+                            if classification.success:
+                                classifier.apply_to_job(job, classification)
+                                await db2.commit()
+                                _backfill_tasks_status["cost_usd"] += classification.cost_usd
+                            else:
+                                _backfill_tasks_status["errors"] += 1
+                                logger.warning(f"Backfill Job {jid}: {classification.error}")
+                            await classifier.close()
+                    except Exception as e:
+                        logger.error(f"Backfill Job {jid} Fehler: {e}")
+                        _backfill_tasks_status["errors"] += 1
+                    finally:
+                        _backfill_tasks_status["done"] += 1
+
+            # In Chunks von 10 mit Pause
+            for i in range(0, total, 10):
+                chunk = job_ids[i:i + 10]
+                await asyncio.gather(*[_classify_one(jid) for jid in chunk])
+                done = _backfill_tasks_status["done"]
+                logger.info(f"Job Tasks Backfill: {done}/{total} ({_backfill_tasks_status['errors']} err, ${_backfill_tasks_status['cost_usd']:.4f})")
+                await asyncio.sleep(2)
+
+            logger.info(f"Job Tasks Backfill fertig: {_backfill_tasks_status}")
+        except Exception as e:
+            logger.error(f"Backfill Fehler: {e}")
+        finally:
+            _backfill_tasks_status["running"] = False
+            _backfill_tasks_status["finished_at"] = datetime.now(timezone.utc).isoformat()
+
+    asyncio.create_task(_run_backfill())
+    return {"status": "started", "message": "Job Tasks Backfill laeuft im Hintergrund"}
+
+
+@router.get(
+    "/maintenance/backfill-job-tasks/status",
+    summary="Status des Job Tasks Backfill",
+    tags=["Maintenance"],
+)
+async def backfill_job_tasks_status():
+    """Live-Fortschritt des job_tasks Backfill."""
+    remaining = _backfill_tasks_status["total"] - _backfill_tasks_status["done"]
+    return {
+        **_backfill_tasks_status,
+        "remaining": remaining,
+    }

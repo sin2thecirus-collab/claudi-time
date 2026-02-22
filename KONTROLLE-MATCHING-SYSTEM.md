@@ -26,23 +26,39 @@
 ### Die 3 Stufen (laufen AUTOMATISCH hintereinander)
 
 ```
-STUFE 0: Datenbank-Filter (keine KI)
-│   "Wer kommt ueberhaupt in Frage?"
+STUFE 0: Datenbank-Filter + Geo-Kaskade + LLM-Vorfilter
+│
+│   SCHRITT 1: DB-Basisfilter (keine KI)
+│   - Kandidat nicht geloescht, nicht versteckt, klassifiziert?
 │   - Kandidat hat Berufserfahrung (work_history ODER cv_text)?
+│   - Job nicht geloescht, nicht abgelaufen, klassifiziert?
 │   - Job hat Beschreibung (job_text > 50 Zeichen)?
-│   - Beide innerhalb 40km (PostGIS ST_DWithin)?
-│   - Noch kein Match fuer dieses Paar in der DB?
-│   - Job nicht abgelaufen (expires_at)?
 │   - Job Qualitaet mindestens "medium"?
-│   Ergebnis: ~2000 Kandidat-Job-Paare (Limit 2000)
+│   - Noch kein Match fuer dieses Paar in der DB?
+│
+│   SCHRITT 2: Geo-Kaskade (KEIN 2000er-Limit!)
+│   Fuer jedes Kandidat-Job-Paar:
+│     1. Gleiche PLZ?         → JA → Paar bilden ✓
+│     2. Gleiche Stadt?       → JA → Paar bilden ✓
+│     3. Luftlinie <= 40km?   → JA → Paar bilden ✓
+│     4. Sonst                → Kein Paar ✗
+│   Vorteil: Auch bei fehlenden/falschen Geodaten werden Paare
+│   mit gleicher PLZ oder Stadt nicht verloren.
+│
+│   SCHRITT 3: Claude Haiku LLM-Vorfilter
+│   - KI bekommt NUR: Aktuelle Position + aktuelle Taetigkeiten des Kandidaten
+│     + job_tasks (Taetigkeiten aus der Stellenausschreibung)
+│   - KI antwortet mit einer Prozent-Zahl (0-100)
+│   - Filter: >= 70% → Paar geht weiter | < 70% → aussortiert
+│   - Kosten: ~$0.0003 pro Paar (~$3 fuer 10.000 Paare)
+│   Ergebnis: Nur fachlich relevante Paare (KEIN 2000-Limit!)
 │
 ├── STUFE 1: Quick-Check (Claude Haiku KI)
 │   "Passt das grob zusammen? JA oder NEIN?"
 │   - KI bekommt: Berufserfahrung (alle Positionen), Ausbildung, Zertifikate, Skills, ERP, gewuenschte Positionen
 │   - KI antwortet: {"pass": true/false, "reason": "1 Satz"}
 │   - ~2 Sekunden pro Paar
-│   - ~65% Bestehensrate
-│   Ergebnis: ~1300 Paare die weiter duerfen
+│   Ergebnis: Paare die fachlich bestanden haben
 │
 └── STUFE 2: Deep Assessment (Claude Haiku KI)
     "Passt das WIRKLICH zusammen?"
@@ -86,19 +102,25 @@ GET /api/v4/claude-match/daily
 
 | Detail | Wert |
 |--------|------|
+| Claude-Modell Stufe-0 Vorfilter | `claude-haiku-4-5-20251001` |
 | Claude-Modell Quick-Check (Stufe 1) | `claude-haiku-4-5-20251001` |
 | Claude-Modell Deep Assessment (Stufe 2) | `claude-haiku-4-5-20251001` |
+| Max Tokens Stufe-0 Vorfilter | ~5 (nur Prozent-Zahl) |
 | Max Tokens Quick-Check | 500 |
 | Max Tokens Deep Assessment | 800 |
 | Concurrency (parallele Calls) | Semaphore(3) |
-| Max Paare pro Lauf | 2000 |
+| Max Paare pro Lauf | **KEIN LIMIT** (vorher 2000) |
+| Stufe-0 Vorfilter Threshold | >= 70% Passung |
+| MIN_SCORE_SAVE (Stufe 2) | 75 (vorher 40) |
 | Proximity-Matches (ohne KI) | < 10km, ohne Beschreibung |
-| Kosten Stufe 1 (~2000 Paare) | ~$0.80 |
-| Kosten Stufe 2 (~1300 Paare) | ~$3-5 |
+| Kosten Stufe-0 Vorfilter | ~$0.0003 pro Paar (~$3 fuer 10.000 Paare) |
+| Kosten Stufe 1 | ~$0.0004 pro Paar |
+| Kosten Stufe 2 | ~$0.002 pro Paar |
 | Fahrzeit-Threshold | Score >= 80 (konfigurierbar via /einstellungen) |
 | Klassifizierung | GPT-4o (gerade geaendert von gpt-4o-mini) |
 | Geocoding | Nominatim/OpenStreetMap (kostenlos) |
 | Fahrzeit | Google Maps Distance Matrix API |
+| Neues Feld: `job_tasks` | Taetigkeiten extrahiert aus job_text (bei Klassifizierung) |
 
 ### Datei-Referenzen (V4 System)
 
@@ -916,10 +938,30 @@ Es wird KEIN neuer Profil-PDF-Service erstellt. Der bestehende wird wiederverwen
 - Endpoints: `POST /prepare-email` + `POST /send-email` in routes_claude_matching.py
 - Frontend: Email-Vorschau-Modal + `prepareEmail()`, `sendEmail()`, `emailNurPdf()` in action_board.html
 
-### Phase 5: Testing + Feinschliff (Prio 5) — ⬜ OFFEN
+### Phase 5: Neue Stufe 0 (Geo-Kaskade + LLM-Vorfilter) — ⬜ IN ARBEIT
+
+**Warum:** Das alte 2000-Limit schneidet gute Matches ab, weil nur nach Entfernung sortiert wird.
+Neue Stufe 0 prueft ALLE Paare (kein Limit) und filtert mit Claude Haiku nach fachlicher Passung.
+
+1. ⬜ `job_tasks` Feld auf Job-Model + DB-Migration (Alembic)
+2. ⬜ Job-Klassifizierung erweitern: GPT extrahiert Taetigkeiten aus job_text → speichert in `job_tasks`
+3. ⬜ Backfill: `job_tasks` fuer alle bestehenden Jobs + Status-Endpoint (Live-Fortschritt)
+4. ⬜ Stufe 0 neu: Geo-Kaskade (PLZ → Stadt → 40km) statt nur ST_DWithin + kein 2000-Limit
+5. ⬜ Stufe 0 neu: Claude Haiku Vorfilter (aktuelle Position + Taetigkeiten vs. job_tasks → Prozent)
+6. ⬜ Stufe 0 neu: Filter >= 70% Passung → weiter zu Stufe 1
+7. ⬜ Testen: Neuer Lauf ab Stufe 0
+
+**Neue Dateien / Aenderungen:**
+- Migration: Neues `job_tasks` Feld (Text) auf `jobs` Tabelle
+- `app/services/finance_classifier_service.py` — Taetigkeiten-Extraktion im Klassifizierungs-Prompt
+- `app/services/claude_matching_service.py` — Neue `run_stufe_0()` mit Geo-Kaskade + LLM-Vorfilter
+- `app/api/routes_claude_matching.py` — Backfill-Endpoint + Status-Endpoint fuer job_tasks
+- Job-Detailseite: `job_tasks` Feld sichtbar + editierbar
+
+### Phase 6: Testing + Feinschliff (Prio 6) — ⬜ OFFEN
 
 1. Milad legt Test-Unternehmen mit Kontakten an (fuer Kunden-E-Mail-Test)
-2. Kompletten Flow testen: Stufe 0 → 1 → 2 → Vorstellen → E-Mail
+2. Kompletten Flow testen: Stufe 0 (neu) → 1 → 2 → Vorstellen → E-Mail
 3. Test "Job an Kandidat senden" (Job-PDF + E-Mail an Kandidat)
 4. Test "Profil an Kunden senden" (Profil-PDF + Kontakt-Auswahl + E-Mail an Kontakt/Postfach)
 5. Edge Cases pruefen (leere Ergebnisse, Fehler in einzelnen Stufen, kein Kontakt vorhanden)
@@ -951,6 +993,9 @@ Es wird KEIN neuer Profil-PDF-Service erstellt. Der bestehende wird wiederverwen
 | H15 | Session-/Debug-Endpoints brauchen Login | AuthMiddleware auf allen `/api/v4/` Endpoints. Im Browser eingeloggt aufrufen, NICHT via curl mit API-Key. | 22.02.2026 |
 | H16 | Session-Persistence bei Page-Navigation | Wenn Milad die Seite verlaesst und zurueckkommt, muss der laufende/fertige Matching-Lauf wiederhergestellt werden. Frontend `loadStatus()` prueft `progress.session_id` + `progress.stufe` und stellt `stufenView` + `sessionId` wieder her. Keine Parallel-Laeufe moeglich (Server prueft `_matching_status["running"]`). | 22.02.2026 |
 | H17 | `/debug/last-run` Internal Server Error | `get_all_sessions()` gibt ein dict zurueck (keys=session_ids), nicht eine Liste. `sorted()` muss ueber `.values()` iterieren, nicht ueber das dict direkt. | 22.02.2026 |
+| H18 | 2000-Limit in Stufe 0 schneidet gute Matches ab | Sortierung nach Entfernung + Limit 2000 → ein perfekt passender Kandidat bei 35km wird verworfen, wenn 2000 naehere (aber fachlich schlechtere) Paare existieren. Loesung: Kein Limit, stattdessen LLM-Vorfilter. | 22.02.2026 |
+| H19 | Geo-Kaskade: PLZ → Stadt → 40km | Nicht nur ST_DWithin verwenden! Manche Kandidaten/Jobs haben falsche oder fehlende Geodaten. PLZ- und Stadt-Vergleich als Fallback fangen das ab. Reihenfolge: 1. PLZ gleich? 2. Stadt gleich? 3. Luftlinie <= 40km? | 22.02.2026 |
+| H20 | `job_tasks` Feld fuer Token-Ersparnis | Taetigkeiten einmal aus job_text extrahieren (bei Klassifizierung), in eigenem Feld speichern. Stufe-0-Vorfilter braucht dann nur ~100 statt ~500 Tokens pro Job. Backfill fuer bestehende Jobs noetig. | 22.02.2026 |
 
 ### Offene Fragen
 
@@ -985,3 +1030,6 @@ Es wird KEIN neuer Profil-PDF-Service erstellt. Der bestehende wird wiederverwen
 | 22.02.2026 | MIN_SCORE_SAVE: 40 → 75 | Nur noch starke Matches (75+) werden gespeichert. Alles unter 75 ist "nicht_passend" und wird verworfen. Weniger Muell in der DB. |
 | 22.02.2026 | Stufe-2-Prompt komplett neu | Kurzer, klarer Prompt: "Schau dir den Werdegang an, schau dir die Stelle an, passt das zusammen?" Einziger Fach-Hinweis: BiBu braucht Zertifizierung + "eigenstaendige Erstellung" vs. "Unterstuetzung/Mitwirkung". Claude bewertet den Rest selbst. Score < 75 → Kurzantwort. |
 | 22.02.2026 | Stufe-2-Daten reduziert | Kandidat: nur Berufserfahrung, Ausbildung, Weiterbildung, IT-Skills. Job: nur Titel + Stellenbeschreibung + Entfernung. Weniger Tokens = schneller. max_tokens 1200 → 800. |
+| 22.02.2026 | Alles deployed | Session-Persistence, Stufe-2-Prompt, MIN_SCORE 75, Debug-Fix — alles auf Railway deployed. |
+| 22.02.2026 | Stufe 0 NEU geplant | 2000-Limit weg. Neue Stufe 0: DB-Basisfilter → Geo-Kaskade (PLZ → Stadt → 40km) → Claude Haiku Vorfilter (aktuelle Position + Taetigkeiten vs. job_tasks → Prozent >= 70%). |
+| 22.02.2026 | Neues Feld `job_tasks` geplant | Taetigkeiten aus job_text extrahieren (bei Klassifizierung), in eigenem Feld speichern. Spart Tokens in Stufe 0. Sichtbar + editierbar auf Job-Detailseite. |

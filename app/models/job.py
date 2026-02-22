@@ -76,6 +76,7 @@ class Job(Base):
     # ── Deep Classification (Phase 1) ──
     classification_data = Column(JobJSONB, nullable=True)  # GPT-Klassifizierung: primary_role, roles, sub_level, quality etc.
     quality_score: Mapped[str | None] = mapped_column(String(20))  # high / medium / low — Quality Gate
+    job_tasks: Mapped[str | None] = mapped_column(Text)  # Extrahierte Taetigkeiten aus job_text (fuer Stufe-0 LLM-Vorfilter)
 
     # Duplikaterkennung
     content_hash: Mapped[str | None] = mapped_column(String(64), unique=True)

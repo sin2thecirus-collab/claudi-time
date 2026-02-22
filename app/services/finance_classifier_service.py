@@ -360,8 +360,13 @@ AUSGABEFORMAT (strikt JSON)
   "original_title": "Bilanzbuchhalter (m/w/d)",
   "corrected_title": "Finanzbuchhalter/in",
   "title_was_corrected": true,
-  "reasoning": "Trotz Titel 'Bilanzbuchhalter' beschreibt die Stelle nur vorbereitende JA-Taetigkeiten und fordert keine BiBu-Qualifikation als Muss. Taetigkeiten entsprechen FiBu Senior."
+  "reasoning": "Trotz Titel 'Bilanzbuchhalter' beschreibt die Stelle nur vorbereitende JA-Taetigkeiten und fordert keine BiBu-Qualifikation als Muss. Taetigkeiten entsprechen FiBu Senior.",
+  "job_tasks": "Kreditoren- und Debitorenbuchhaltung, USt-Voranmeldungen, Anlagenbuchhaltung, Vorbereitung Monats-/Jahresabschluesse, Zahlungsverkehr, Kontenabstimmungen"
 }
+
+HINWEIS zu job_tasks:
+Extrahiere ALLE konkreten Aufgaben/Taetigkeiten aus der Stellenbeschreibung als kommaseparierte Liste.
+Nur Taetigkeiten, keine Anforderungen/Benefits/Soft-Skills. Kurz und praegnant, max 300 Zeichen.
 
 ERLAUBTE WERTE:
 - roles: "Bilanzbuchhalter/in", "Finanzbuchhalter/in", "Kreditorenbuchhalter/in", "Debitorenbuchhalter/in", "Lohnbuchhalter/in", "Steuerfachangestellte/r"
@@ -573,6 +578,7 @@ class ClassificationResult:
     original_title: str | None = None  # Original-Titel aus CSV
     corrected_title: str | None = None  # Korrigierter Titel
     title_was_corrected: bool = False  # Titel wurde geaendert?
+    job_tasks: str | None = None  # Extrahierte Taetigkeiten (kommasepariert)
 
     @property
     def cost_usd(self) -> float:
@@ -909,6 +915,7 @@ class FinanceClassifierService:
             original_title=result.get("original_title", job.position),
             corrected_title=result.get("corrected_title"),
             title_was_corrected=result.get("title_was_corrected", False),
+            job_tasks=result.get("job_tasks"),
         )
 
     # ──────────────────────────────────────────────────
@@ -953,6 +960,8 @@ class FinanceClassifierService:
             "classified_at": datetime.now(timezone.utc).isoformat(),
         }
         job.quality_score = result.quality_score
+        if result.job_tasks:
+            job.job_tasks = result.job_tasks[:500]  # Max 500 Zeichen
 
     # ──────────────────────────────────────────────────
     # Batch-Klassifizierung: Alle FINANCE-Kandidaten
