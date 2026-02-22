@@ -126,7 +126,7 @@ GET /api/v4/claude-match/daily
 
 | Datei | Zweck | Wichtige Zeilen |
 |-------|-------|-----------------|
-| `app/services/claude_matching_service.py` | Kern-Service: 3 Stufen | Stufe 0: Z.368-531, Stufe 1: Z.551-591, Stufe 2: Z.593-661 |
+| `app/services/claude_matching_service.py` | Kern-Service: 3 Stufen + Vorfilter | Vorfilter-Prompt: Z.132, Stufe 0 (Geo+LLM): Z.382-660, Stufe 1: Z.662+, Stufe 2: Z.750+ |
 | `app/api/routes_claude_matching.py` | API-Endpoints | 8 Haupt-Endpoints + 7 Debug |
 | `app/templates/action_board.html` | Dashboard UI | Alpine.js, ~500 Zeilen |
 | `app/config.py` | API Keys, Settings | anthropic_api_key, google_maps_api_key |
@@ -938,25 +938,27 @@ Es wird KEIN neuer Profil-PDF-Service erstellt. Der bestehende wird wiederverwen
 - Endpoints: `POST /prepare-email` + `POST /send-email` in routes_claude_matching.py
 - Frontend: Email-Vorschau-Modal + `prepareEmail()`, `sendEmail()`, `emailNurPdf()` in action_board.html
 
-### Phase 5: Neue Stufe 0 (Geo-Kaskade + LLM-Vorfilter) — ⬜ IN ARBEIT
+### Phase 5: Neue Stufe 0 (Geo-Kaskade + LLM-Vorfilter) — ✅ IMPLEMENTIERT
 
 **Warum:** Das alte 2000-Limit schneidet gute Matches ab, weil nur nach Entfernung sortiert wird.
 Neue Stufe 0 prueft ALLE Paare (kein Limit) und filtert mit Claude Haiku nach fachlicher Passung.
 
-1. ⬜ `job_tasks` Feld auf Job-Model + DB-Migration (Alembic)
-2. ⬜ Job-Klassifizierung erweitern: GPT extrahiert Taetigkeiten aus job_text → speichert in `job_tasks`
-3. ⬜ Backfill: `job_tasks` fuer alle bestehenden Jobs + Status-Endpoint (Live-Fortschritt)
-4. ⬜ Stufe 0 neu: Geo-Kaskade (PLZ → Stadt → 40km) statt nur ST_DWithin + kein 2000-Limit
-5. ⬜ Stufe 0 neu: Claude Haiku Vorfilter (aktuelle Position + Taetigkeiten vs. job_tasks → Prozent)
-6. ⬜ Stufe 0 neu: Filter >= 70% Passung → weiter zu Stufe 1
-7. ⬜ Testen: Neuer Lauf ab Stufe 0
+1. ✅ `job_tasks` Feld auf Job-Model + DB-Migration 024
+2. ✅ Job-Klassifizierung erweitern: GPT extrahiert Taetigkeiten aus job_text → speichert in `job_tasks`
+3. ✅ Backfill: `POST /api/jobs/maintenance/backfill-job-tasks` mit Status-Endpoint
+4. ✅ Stufe 0 neu: Geo-Kaskade (PLZ → Stadt → 40km) statt nur ST_DWithin + kein 2000-Limit
+5. ✅ Stufe 0 neu: Claude Haiku Vorfilter (aktuelle Position + Taetigkeiten vs. job_tasks → Prozent)
+6. ✅ Stufe 0 neu: Filter >= 70% Passung → weiter zu Stufe 1
+7. ⬜ Testen: Neuer Lauf ab Stufe 0 (braucht erst Backfill)
 
-**Neue Dateien / Aenderungen:**
-- Migration: Neues `job_tasks` Feld (Text) auf `jobs` Tabelle
-- `app/services/finance_classifier_service.py` — Taetigkeiten-Extraktion im Klassifizierungs-Prompt
-- `app/services/claude_matching_service.py` — Neue `run_stufe_0()` mit Geo-Kaskade + LLM-Vorfilter
-- `app/api/routes_claude_matching.py` — Backfill-Endpoint + Status-Endpoint fuer job_tasks
-- Job-Detailseite: `job_tasks` Feld sichtbar + editierbar
+**Geaenderte Dateien:**
+- `migrations/versions/024_add_job_tasks_field.py` — Neues `job_tasks` Text-Feld
+- `app/models/job.py` — `job_tasks` Feld hinzugefuegt
+- `app/services/finance_classifier_service.py` — Prompt + Datenklasse + apply_to_job erweitert
+- `app/api/routes_jobs.py` — Backfill-Endpoint + Status-Endpoint
+- `app/services/claude_matching_service.py` — Neue `run_stufe_0()` mit Geo-Kaskade + LLM-Vorfilter (async)
+- `app/api/routes_claude_matching.py` — `vorfilter_stats` in Session-Response
+- `app/templates/action_board.html` — Neuer `stufe_0_loading` View mit Fortschrittsanzeige
 
 ### Phase 6: Testing + Feinschliff (Prio 6) — ⬜ OFFEN
 
@@ -1033,3 +1035,5 @@ Neue Stufe 0 prueft ALLE Paare (kein Limit) und filtert mit Claude Haiku nach fa
 | 22.02.2026 | Alles deployed | Session-Persistence, Stufe-2-Prompt, MIN_SCORE 75, Debug-Fix — alles auf Railway deployed. |
 | 22.02.2026 | Stufe 0 NEU geplant | 2000-Limit weg. Neue Stufe 0: DB-Basisfilter → Geo-Kaskade (PLZ → Stadt → 40km) → Claude Haiku Vorfilter (aktuelle Position + Taetigkeiten vs. job_tasks → Prozent >= 70%). |
 | 22.02.2026 | Neues Feld `job_tasks` geplant | Taetigkeiten aus job_text extrahieren (bei Klassifizierung), in eigenem Feld speichern. Spart Tokens in Stufe 0. Sichtbar + editierbar auf Job-Detailseite. |
+| 22.02.2026 | `job_tasks` implementiert | Migration 024, Job-Klassifizierung extrahiert jetzt automatisch Taetigkeiten, Backfill-Endpoint gebaut. |
+| 22.02.2026 | Stufe 0 NEU implementiert | Geo-Kaskade (OR: PLZ gleich / Stadt gleich / ≤40km) + Claude Haiku Vorfilter (≥70% Passung). Stufe 0 laeuft jetzt als Background-Task mit Live-Fortschritt. Neuer `stufe_0_loading` View im Frontend. |

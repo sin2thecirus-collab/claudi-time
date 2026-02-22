@@ -757,6 +757,7 @@ async def get_session_data(session_id: str):
         "stufe2_rejected": session.get("stufe2_rejected", []),
         "tokens_in": session.get("tokens_in", 0),
         "tokens_out": session.get("tokens_out", 0),
+        "vorfilter_stats": session.get("vorfilter_stats"),
     }
 
 

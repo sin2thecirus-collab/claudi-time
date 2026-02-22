@@ -116,6 +116,24 @@ def exclude_pairs_from_session(session_id: str, pairs: list[dict]) -> dict:
     return {"excluded": new_count, "total_excluded": len(excluded)}
 
 
+# ── Stufe-0 LLM-Vorfilter Prompt ──
+
+VORFILTER_SYSTEM = """Du bist ein Finance-Recruiter. Schaetze die fachliche Passung zwischen Kandidat und Stelle ein.
+Antworte NUR mit einer Zahl von 0 bis 100 (Prozentzahl der Passung). Kein Text, kein JSON, nur die Zahl."""
+
+VORFILTER_USER = """KANDIDAT:
+- Aktuelle Position: {current_position}
+- Aktuelle Taetigkeiten: {current_activities}
+
+JOB:
+- Titel: {job_position}
+- Aufgaben: {job_tasks}
+
+Passung in Prozent:"""
+
+VORFILTER_MIN_SCORE = 70  # Nur >= 70% gehen in Stufe 1
+
+
 # ── Quick-Check Prompt (Stufe 1) ──
 
 QUICK_CHECK_SYSTEM = """Du bist ein Finance/Accounting Recruiter-Assistent.
@@ -332,10 +350,14 @@ def _estimate_cost(pairs_count: int, stufe: str) -> dict:
     """Schaetzt die Kosten fuer eine Stufe.
 
     Haiku: $0.80/1M input, $4.00/1M output
+    Stufe 0 Vorfilter: ~100 input tokens, ~5 output tokens pro Paar
     Stufe 1: ~400 input tokens, ~50 output tokens pro Paar
     Stufe 2: ~1200 input tokens, ~400 output tokens pro Paar
     """
-    if stufe == "stufe_1":
+    if stufe == "stufe_0":
+        est_in = pairs_count * 100
+        est_out = pairs_count * 5
+    elif stufe == "stufe_1":
         est_in = pairs_count * 400
         est_out = pairs_count * 50
     elif stufe == "stufe_2":
@@ -357,249 +379,429 @@ def _estimate_cost(pairs_count: int, stufe: str) -> dict:
 # ══════════════════════════════════════════════════════════════
 
 async def run_stufe_0(candidate_id: str | None = None) -> dict:
-    """Stufe 0: Harte DB-Filter — Paare laden und Session erstellen.
+    """Stufe 0: Geo-Kaskade + Claude Haiku LLM-Vorfilter.
 
-    Gibt Paare zurueck OHNE Claude-Calls. Milad kann pruefen und ausschliessen.
+    Schritt 1 (Geo-Kaskade): PLZ gleich → Paar, Stadt gleich → Paar, ≤40km → Paar
+    Schritt 2 (LLM-Vorfilter): Haiku prueft aktuelle Position vs. job_tasks → Prozent ≥ 70%
+
+    Laeuft als Background-Task. Fortschritt via get_status().
 
     Returns:
-        {"session_id": "...", "claude_pairs": [...], "proximity_pairs": [...], ...}
+        {"session_id": "...", "status": "running", ...} — sofort
+        Ergebnis wird in _matching_sessions gespeichert
     """
-    try:
-        from app.database import async_session_maker
-        from app.models.match import Match
-        from app.models.candidate import Candidate
-        from app.models.job import Job
-        from sqlalchemy import select, and_, func
+    global _matching_status
+    if _matching_status["running"]:
+        return {"status": "error", "message": "Ein Matching laeuft bereits"}
 
-        async with async_session_maker() as db:
-            # Basis-Bedingungen fuer Kandidaten
-            cand_conditions = [
-                Candidate.deleted_at.is_(None),
-                Candidate.hidden == False,
-                Candidate.classification_data.isnot(None),
-            ]
+    session_id = str(uuid.uuid4())[:8]
 
-            # Basis-Bedingungen fuer Jobs
-            job_conditions = [
-                Job.deleted_at.is_(None),
-                Job.quality_score.in_(["high", "medium"]),
-                Job.classification_data.isnot(None),
-            ]
+    _matching_status["running"] = True
+    _matching_status["progress"] = {
+        "stufe": "stufe_0",
+        "session_id": session_id,
+        "phase": "geo_kaskade",
+        "total_geo_pairs": 0,
+        "vorfilter_total": 0,
+        "vorfilter_done": 0,
+        "vorfilter_passed": 0,
+        "vorfilter_failed": 0,
+        "errors": 0,
+        "cost_estimate_usd": 0.0,
+    }
 
-            # expires_at Filter (wenn gesetzt)
-            job_conditions.append(
-                (Job.expires_at.is_(None)) | (Job.expires_at > func.now())
-            )
+    async def _run_stufe_0_background():
+        try:
+            from app.database import async_session_maker
+            from app.models.match import Match
+            from app.models.candidate import Candidate
+            from app.models.job import Job
+            from sqlalchemy import select, and_, func, or_
+            from anthropic import Anthropic
+            from app.config import settings
 
-            if candidate_id:
-                cand_conditions.append(Candidate.id == candidate_id)
+            # ── Schritt 1: Geo-Kaskade ──
+            logger.info("Stufe 0, Schritt 1: Geo-Kaskade (PLZ → Stadt → 40km)...")
 
-            # Distanz-Expression
-            distance_expr = func.ST_Distance(
-                Candidate.address_coords,
-                Job.location_coords,
-            ).label("distance_m")
+            async with async_session_maker() as db:
+                # Basis-Bedingungen
+                cand_conditions = [
+                    Candidate.deleted_at.is_(None),
+                    Candidate.hidden == False,
+                    Candidate.classification_data.isnot(None),
+                ]
+                job_conditions = [
+                    Job.deleted_at.is_(None),
+                    Job.quality_score.in_(["high", "medium"]),
+                    Job.classification_data.isnot(None),
+                    (Job.expires_at.is_(None)) | (Job.expires_at > func.now()),
+                ]
 
-            # Lat/Lng fuer Google Maps spaeter
-            cand_lat = func.ST_Y(func.ST_GeomFromWKB(Candidate.address_coords)).label("cand_lat")
-            cand_lng = func.ST_X(func.ST_GeomFromWKB(Candidate.address_coords)).label("cand_lng")
-            job_lat = func.ST_Y(func.ST_GeomFromWKB(Job.location_coords)).label("job_lat")
-            job_lng = func.ST_X(func.ST_GeomFromWKB(Job.location_coords)).label("job_lng")
+                if candidate_id:
+                    cand_conditions.append(Candidate.id == candidate_id)
 
-            # Subquery: Bereits existierende Match-Paare
-            existing_match = select(Match.id).where(
-                and_(
-                    Match.candidate_id == Candidate.id,
-                    Match.job_id == Job.id,
-                )
-            ).correlate(Candidate, Job).exists()
+                # Subquery: Bereits existierende Match-Paare
+                existing_match = select(Match.id).where(
+                    and_(
+                        Match.candidate_id == Candidate.id,
+                        Match.job_id == Job.id,
+                    )
+                ).correlate(Candidate, Job).exists()
 
-            # ── Kategorie A: Vollstaendige Daten (Claude-Matches) ──
-            claude_conditions = [
-                *cand_conditions,
-                *job_conditions,
-                (Candidate.work_history.isnot(None)) | (Candidate.cv_text.isnot(None)),
-                Job.job_text.isnot(None),
-                func.length(Job.job_text) > 50,
-                func.ST_DWithin(
+                # Distanz-Expression (fuer Paare mit Koordinaten)
+                distance_expr = func.ST_Distance(
                     Candidate.address_coords,
                     Job.location_coords,
-                    MAX_DISTANCE_M,
-                ),
-                ~existing_match,
-            ]
+                ).label("distance_m")
 
-            claude_query = (
-                select(
-                    Candidate.id.label("candidate_id"),
-                    Candidate.first_name.label("candidate_first_name"),
-                    Candidate.last_name.label("candidate_last_name"),
-                    Candidate.work_history,
-                    Candidate.cv_text,
-                    Candidate.education,
-                    Candidate.further_education,
-                    Candidate.skills,
-                    Candidate.it_skills,
-                    Candidate.erp,
-                    Candidate.salary,
-                    Candidate.notice_period,
-                    Candidate.willingness_to_change,
-                    Candidate.desired_positions,
-                    Candidate.key_activities,
-                    Candidate.preferred_industries,
-                    Candidate.avoided_industries,
-                    Candidate.commute_max,
-                    Candidate.employment_type,
-                    Candidate.call_summary,
-                    Candidate.city.label("candidate_city"),
-                    Candidate.postal_code.label("candidate_plz"),
-                    Candidate.hotlist_job_title.label("candidate_role"),
-                    Candidate.current_position.label("candidate_position"),
-                    cand_lat,
-                    cand_lng,
-                    Job.id.label("job_id"),
-                    Job.position,
-                    Job.company_name,
-                    Job.city.label("job_city"),
-                    Job.job_text,
-                    Job.company_size,
-                    Job.employment_type.label("job_employment_type"),
-                    Job.industry,
-                    Job.work_arrangement,
-                    Job.postal_code.label("job_plz"),
-                    job_lat,
-                    job_lng,
-                    distance_expr,
+                # Lat/Lng
+                cand_lat = func.ST_Y(func.ST_GeomFromWKB(Candidate.address_coords)).label("cand_lat")
+                cand_lng = func.ST_X(func.ST_GeomFromWKB(Candidate.address_coords)).label("cand_lng")
+                job_lat = func.ST_Y(func.ST_GeomFromWKB(Job.location_coords)).label("job_lat")
+                job_lng = func.ST_X(func.ST_GeomFromWKB(Job.location_coords)).label("job_lng")
+
+                # Geo-Kaskade: PLZ gleich ODER Stadt gleich ODER ≤40km
+                geo_condition = or_(
+                    # PLZ gleich (beide muessen PLZ haben)
+                    and_(
+                        Candidate.postal_code.isnot(None),
+                        Job.postal_code.isnot(None),
+                        Candidate.postal_code == Job.postal_code,
+                    ),
+                    # Stadt gleich (beide muessen Stadt haben)
+                    and_(
+                        Candidate.city.isnot(None),
+                        or_(Job.city.isnot(None), Job.work_location_city.isnot(None)),
+                        or_(
+                            func.lower(Candidate.city) == func.lower(Job.city),
+                            func.lower(Candidate.city) == func.lower(Job.work_location_city),
+                        ),
+                    ),
+                    # ≤40km Luftlinie (beide muessen Koordinaten haben)
+                    and_(
+                        Candidate.address_coords.isnot(None),
+                        Job.location_coords.isnot(None),
+                        func.ST_DWithin(
+                            Candidate.address_coords,
+                            Job.location_coords,
+                            MAX_DISTANCE_M,
+                        ),
+                    ),
                 )
-                .where(and_(*claude_conditions))
-                .order_by(distance_expr.asc())
-                .limit(2000)
+
+                # Vollstaendige Daten noetig fuer Claude
+                data_conditions = [
+                    *cand_conditions,
+                    *job_conditions,
+                    (Candidate.work_history.isnot(None)) | (Candidate.cv_text.isnot(None)),
+                    Job.job_text.isnot(None),
+                    func.length(Job.job_text) > 50,
+                    geo_condition,
+                    ~existing_match,
+                ]
+
+                claude_query = (
+                    select(
+                        Candidate.id.label("candidate_id"),
+                        Candidate.first_name.label("candidate_first_name"),
+                        Candidate.last_name.label("candidate_last_name"),
+                        Candidate.work_history,
+                        Candidate.cv_text,
+                        Candidate.education,
+                        Candidate.further_education,
+                        Candidate.skills,
+                        Candidate.it_skills,
+                        Candidate.erp,
+                        Candidate.salary,
+                        Candidate.notice_period,
+                        Candidate.willingness_to_change,
+                        Candidate.desired_positions,
+                        Candidate.key_activities,
+                        Candidate.preferred_industries,
+                        Candidate.avoided_industries,
+                        Candidate.commute_max,
+                        Candidate.employment_type,
+                        Candidate.call_summary,
+                        Candidate.city.label("candidate_city"),
+                        Candidate.postal_code.label("candidate_plz"),
+                        Candidate.hotlist_job_title.label("candidate_role"),
+                        Candidate.current_position.label("candidate_position"),
+                        cand_lat,
+                        cand_lng,
+                        Job.id.label("job_id"),
+                        Job.position,
+                        Job.company_name,
+                        Job.city.label("job_city"),
+                        Job.job_text,
+                        Job.job_tasks,
+                        Job.company_size,
+                        Job.employment_type.label("job_employment_type"),
+                        Job.industry,
+                        Job.work_arrangement,
+                        Job.postal_code.label("job_plz"),
+                        job_lat,
+                        job_lng,
+                        distance_expr,
+                    )
+                    .where(and_(*data_conditions))
+                )
+
+                rows = await db.execute(claude_query)
+                geo_pairs = [dict(row._mapping) for row in rows.all()]
+
+                # ── Naehe-Matches (ohne Claude, unvollstaendige Daten, <10km) ──
+                proximity_conditions = [
+                    *cand_conditions,
+                    *job_conditions,
+                    (
+                        (Candidate.work_history.is_(None) & Candidate.cv_text.is_(None))
+                        | Job.job_text.is_(None)
+                        | (func.length(func.coalesce(Job.job_text, "")) <= 50)
+                    ),
+                    func.ST_DWithin(
+                        Candidate.address_coords,
+                        Job.location_coords,
+                        PROXIMITY_DISTANCE_M,
+                    ),
+                    ~existing_match,
+                ]
+
+                proximity_query = (
+                    select(
+                        Candidate.id.label("candidate_id"),
+                        Candidate.first_name.label("candidate_first_name"),
+                        Candidate.last_name.label("candidate_last_name"),
+                        Candidate.city.label("candidate_city"),
+                        Candidate.postal_code.label("candidate_plz"),
+                        Candidate.hotlist_job_title.label("candidate_role"),
+                        Candidate.classification_data.label("cand_classification"),
+                        cand_lat,
+                        cand_lng,
+                        Job.id.label("job_id"),
+                        Job.position,
+                        Job.company_name,
+                        Job.city.label("job_city"),
+                        Job.postal_code.label("job_plz"),
+                        job_lat,
+                        job_lng,
+                        distance_expr,
+                    )
+                    .where(and_(*proximity_conditions))
+                    .order_by(distance_expr.asc())
+                    .limit(500)
+                )
+
+                rows = await db.execute(proximity_query)
+                proximity_pairs = [dict(row._mapping) for row in rows.all()]
+
+            # DB-Session GESCHLOSSEN!
+
+            total_geo = len(geo_pairs)
+            _matching_status["progress"]["total_geo_pairs"] = total_geo
+            _matching_status["progress"]["vorfilter_total"] = total_geo
+            logger.info(f"Geo-Kaskade: {total_geo} Paare gefunden, {len(proximity_pairs)} Naehe-Paare")
+
+            if total_geo == 0:
+                # Keine Paare → Session erstellen mit leeren Daten
+                _matching_sessions[session_id] = {
+                    "session_id": session_id,
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                    "current_stufe": 0,
+                    "claude_pairs": [],
+                    "proximity_pairs": proximity_pairs,
+                    "excluded_pairs": set(),
+                    "passed_pairs": [],
+                    "failed_pairs": [],
+                    "deep_results": [],
+                    "matches_saved": 0,
+                    "tokens_in": 0,
+                    "tokens_out": 0,
+                }
+                _matching_status["progress"]["stufe"] = "stufe_0_fertig"
+                _matching_status["progress"]["phase"] = "fertig"
+                _matching_status["running"] = False
+                return
+
+            # ── Schritt 2: LLM-Vorfilter (Claude Haiku) ──
+            _matching_status["progress"]["phase"] = "llm_vorfilter"
+            logger.info(f"Stufe 0, Schritt 2: LLM-Vorfilter fuer {total_geo} Paare...")
+
+            if not settings.anthropic_api_key:
+                logger.error("ANTHROPIC_API_KEY nicht konfiguriert — Vorfilter uebersprungen")
+                passed_pairs = geo_pairs  # Alle durchlassen wenn kein API Key
+            else:
+                client = Anthropic(api_key=settings.anthropic_api_key)
+                semaphore = asyncio.Semaphore(SEMAPHORE_LIMIT)
+                passed_pairs = []
+                total_cost = 0.0
+
+                async def _vorfilter_one(pair: dict) -> bool:
+                    """LLM-Vorfilter fuer ein Paar. Gibt True zurueck wenn >= 70%."""
+                    try:
+                        # Aktuelle Position + Taetigkeiten extrahieren
+                        work_history = pair.get("work_history") or []
+                        current_position = pair.get("candidate_position") or ""
+                        current_activities = ""
+
+                        if work_history and isinstance(work_history, list) and len(work_history) > 0:
+                            first_entry = work_history[0]
+                            if isinstance(first_entry, dict):
+                                if not current_position:
+                                    current_position = first_entry.get("position", "")
+                                current_activities = (first_entry.get("description") or "")[:300]
+
+                        # Job Tasks (aus neuem Feld, Fallback: job_text[:300])
+                        job_tasks = pair.get("job_tasks") or ""
+                        if not job_tasks:
+                            job_tasks = (pair.get("job_text") or "")[:300]
+
+                        if not current_position and not current_activities:
+                            # Kein Werdegang → durchlassen (Stufe 1 entscheidet)
+                            return True
+
+                        user_msg = VORFILTER_USER.format(
+                            current_position=current_position or "Nicht angegeben",
+                            current_activities=current_activities or "Nicht angegeben",
+                            job_position=pair.get("position") or "Unbekannt",
+                            job_tasks=job_tasks or "Nicht angegeben",
+                        )
+
+                        async with semaphore:
+                            response = await asyncio.to_thread(
+                                client.messages.create,
+                                model=DEFAULT_MODEL_QUICK,
+                                max_tokens=10,
+                                system=VORFILTER_SYSTEM,
+                                messages=[{"role": "user", "content": user_msg}],
+                            )
+                            text = response.content[0].text.strip()
+                            in_tokens = response.usage.input_tokens
+                            out_tokens = response.usage.output_tokens
+
+                            # Kosten tracken
+                            cost = (in_tokens * 0.80 + out_tokens * 4.0) / 1_000_000
+                            nonlocal total_cost
+                            total_cost += cost
+
+                            # Prozentzahl parsen
+                            # Manchmal antwortet Haiku mit "75%" oder "75" oder "ca. 75"
+                            import re
+                            match = re.search(r"(\d+)", text)
+                            if match:
+                                score = int(match.group(1))
+                                return score >= VORFILTER_MIN_SCORE
+                            else:
+                                logger.warning(f"Vorfilter: Konnte keine Zahl parsen aus '{text}'")
+                                return True  # Im Zweifel durchlassen
+
+                    except Exception as e:
+                        logger.error(f"Vorfilter-Fehler: {e}")
+                        _matching_status["progress"]["errors"] += 1
+                        return True  # Im Fehlerfall durchlassen
+
+                # In Chunks von 20 verarbeiten (Semaphore(3) = max 3 parallel)
+                for i in range(0, total_geo, 20):
+                    chunk = geo_pairs[i:i + 20]
+                    results = await asyncio.gather(*[_vorfilter_one(p) for p in chunk])
+                    for p, passed in zip(chunk, results):
+                        if passed:
+                            passed_pairs.append(p)
+                            _matching_status["progress"]["vorfilter_passed"] += 1
+                        else:
+                            _matching_status["progress"]["vorfilter_failed"] += 1
+                    _matching_status["progress"]["vorfilter_done"] = min(i + 20, total_geo)
+                    _matching_status["progress"]["cost_estimate_usd"] = round(total_cost, 4)
+
+                    done = _matching_status["progress"]["vorfilter_done"]
+                    passed_count = _matching_status["progress"]["vorfilter_passed"]
+                    logger.info(f"Vorfilter: {done}/{total_geo} — {passed_count} bestanden (${total_cost:.4f})")
+
+                    await asyncio.sleep(1)  # RPM-Schonung
+
+            # ── Session erstellen mit gefilterten Paaren ──
+            _matching_sessions[session_id] = {
+                "session_id": session_id,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "current_stufe": 0,
+                "claude_pairs": passed_pairs,
+                "proximity_pairs": proximity_pairs,
+                "excluded_pairs": set(),
+                "passed_pairs": [],
+                "failed_pairs": [],
+                "deep_results": [],
+                "matches_saved": 0,
+                "tokens_in": 0,
+                "tokens_out": 0,
+                "vorfilter_stats": {
+                    "total_geo_pairs": total_geo,
+                    "passed": len(passed_pairs),
+                    "failed": total_geo - len(passed_pairs),
+                    "pass_rate": round(len(passed_pairs) / total_geo * 100, 1) if total_geo > 0 else 0,
+                },
+            }
+
+            # Paare fuer Anzeige aufbereiten
+            display_pairs = []
+            for p in passed_pairs:
+                distance_m = p.get("distance_m")
+                fn = p.get("candidate_first_name") or ""
+                ln = p.get("candidate_last_name") or ""
+                display_pairs.append({
+                    "candidate_id": str(p["candidate_id"]),
+                    "job_id": str(p["job_id"]),
+                    "candidate_name": f"{fn} {ln}".strip() or "Unbekannt",
+                    "candidate_role": p.get("candidate_role") or "Unbekannt",
+                    "candidate_position": p.get("candidate_position") or "",
+                    "candidate_city": p.get("candidate_city") or "Unbekannt",
+                    "job_position": p.get("position") or "Unbekannt",
+                    "job_company": p.get("company_name") or "Unbekannt",
+                    "job_city": p.get("job_city") or "Unbekannt",
+                    "distance_km": round(distance_m / 1000, 1) if distance_m else None,
+                })
+
+            _matching_sessions[session_id]["display_pairs"] = display_pairs
+
+            display_proximity = []
+            for p in proximity_pairs:
+                distance_m = p.get("distance_m")
+                fn = p.get("candidate_first_name") or ""
+                ln = p.get("candidate_last_name") or ""
+                display_proximity.append({
+                    "candidate_id": str(p["candidate_id"]),
+                    "job_id": str(p["job_id"]),
+                    "candidate_name": f"{fn} {ln}".strip() or "Unbekannt",
+                    "candidate_role": p.get("candidate_role") or "Unbekannt",
+                    "candidate_city": p.get("candidate_city") or "Unbekannt",
+                    "job_position": p.get("position") or "Unbekannt",
+                    "job_company": p.get("company_name") or "Unbekannt",
+                    "job_city": p.get("job_city") or "Unbekannt",
+                    "distance_km": round(distance_m / 1000, 1) if distance_m else None,
+                })
+
+            _matching_sessions[session_id]["display_proximity"] = display_proximity
+
+            _matching_status["progress"]["stufe"] = "stufe_0_fertig"
+            _matching_status["progress"]["phase"] = "fertig"
+
+            logger.info(
+                f"Stufe 0 fertig: {total_geo} Geo-Paare → {len(passed_pairs)} nach Vorfilter, "
+                f"{len(proximity_pairs)} Naehe-Paare — Session {session_id}"
             )
 
-            rows = await db.execute(claude_query)
-            claude_pairs = [dict(row._mapping) for row in rows.all()]
+        except Exception as e:
+            logger.error(f"Stufe 0 fehlgeschlagen: {e}", exc_info=True)
+            _matching_status["progress"]["phase"] = "error"
+            _matching_status["progress"]["error_message"] = str(e)
+        finally:
+            _matching_status["running"] = False
 
-            # ── Kategorie B: Naehe-Matches (ohne Claude, <10km) ──
-            proximity_conditions = [
-                *cand_conditions,
-                *job_conditions,
-                (
-                    (Candidate.work_history.is_(None) & Candidate.cv_text.is_(None))
-                    | Job.job_text.is_(None)
-                    | (func.length(func.coalesce(Job.job_text, "")) <= 50)
-                ),
-                func.ST_DWithin(
-                    Candidate.address_coords,
-                    Job.location_coords,
-                    PROXIMITY_DISTANCE_M,
-                ),
-                ~existing_match,
-            ]
+    asyncio.create_task(_run_stufe_0_background())
 
-            proximity_query = (
-                select(
-                    Candidate.id.label("candidate_id"),
-                    Candidate.first_name.label("candidate_first_name"),
-                    Candidate.last_name.label("candidate_last_name"),
-                    Candidate.city.label("candidate_city"),
-                    Candidate.postal_code.label("candidate_plz"),
-                    Candidate.hotlist_job_title.label("candidate_role"),
-                    Candidate.classification_data.label("cand_classification"),
-                    cand_lat,
-                    cand_lng,
-                    Job.id.label("job_id"),
-                    Job.position,
-                    Job.company_name,
-                    Job.city.label("job_city"),
-                    Job.postal_code.label("job_plz"),
-                    job_lat,
-                    job_lng,
-                    distance_expr,
-                )
-                .where(and_(*proximity_conditions))
-                .order_by(distance_expr.asc())
-                .limit(500)
-            )
-
-            rows = await db.execute(proximity_query)
-            proximity_pairs = [dict(row._mapping) for row in rows.all()]
-
-        # DB-Session GESCHLOSSEN!
-
-        # Session erstellen
-        session_id = str(uuid.uuid4())[:8]
-        _matching_sessions[session_id] = {
-            "session_id": session_id,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "current_stufe": 0,
-            "claude_pairs": claude_pairs,
-            "proximity_pairs": proximity_pairs,
-            "excluded_pairs": set(),
-            "passed_pairs": [],
-            "failed_pairs": [],
-            "deep_results": [],
-            "matches_saved": 0,
-            "tokens_in": 0,
-            "tokens_out": 0,
-        }
-
-        # Paare fuer die Anzeige aufbereiten (keine vollen Daten, nur Eckdaten)
-        display_pairs = []
-        for p in claude_pairs:
-            distance_m = p.get("distance_m")
-            fn = p.get("candidate_first_name") or ""
-            ln = p.get("candidate_last_name") or ""
-            display_pairs.append({
-                "candidate_id": str(p["candidate_id"]),
-                "job_id": str(p["job_id"]),
-                "candidate_name": f"{fn} {ln}".strip() or "Unbekannt",
-                "candidate_role": p.get("candidate_role") or "Unbekannt",
-                "candidate_position": p.get("candidate_position") or "",
-                "candidate_city": p.get("candidate_city") or "Unbekannt",
-                "job_position": p.get("position") or "Unbekannt",
-                "job_company": p.get("company_name") or "Unbekannt",
-                "job_city": p.get("job_city") or "Unbekannt",
-                "distance_km": round(distance_m / 1000, 1) if distance_m else None,
-            })
-
-        display_proximity = []
-        for p in proximity_pairs:
-            distance_m = p.get("distance_m")
-            fn = p.get("candidate_first_name") or ""
-            ln = p.get("candidate_last_name") or ""
-            display_proximity.append({
-                "candidate_id": str(p["candidate_id"]),
-                "job_id": str(p["job_id"]),
-                "candidate_name": f"{fn} {ln}".strip() or "Unbekannt",
-                "candidate_role": p.get("candidate_role") or "Unbekannt",
-                "candidate_city": p.get("candidate_city") or "Unbekannt",
-                "job_position": p.get("position") or "Unbekannt",
-                "job_company": p.get("company_name") or "Unbekannt",
-                "job_city": p.get("job_city") or "Unbekannt",
-                "distance_km": round(distance_m / 1000, 1) if distance_m else None,
-            })
-
-        cost_stufe_1 = _estimate_cost(len(claude_pairs), "stufe_1")
-
-        logger.info(
-            f"Stufe 0 fertig: {len(claude_pairs)} Claude-Paare, "
-            f"{len(proximity_pairs)} Naehe-Paare — Session {session_id}"
-        )
-
-        return {
-            "status": "ok",
-            "session_id": session_id,
-            "claude_pairs": display_pairs,
-            "proximity_pairs": display_proximity,
-            "total_claude_pairs": len(claude_pairs),
-            "total_proximity_pairs": len(proximity_pairs),
-            "cost_stufe_1": cost_stufe_1,
-            "message": f"{len(claude_pairs)} Paare gefunden. Pruefe und schliesse Paare aus, dann starte Stufe 1.",
-        }
-
-    except Exception as e:
-        logger.error(f"Stufe 0 fehlgeschlagen: {e}", exc_info=True)
-        return {"status": "error", "message": str(e)}
+    return {
+        "status": "running",
+        "session_id": session_id,
+        "message": "Stufe 0 laeuft im Hintergrund (Geo-Kaskade + LLM-Vorfilter). Fortschritt via Status-Endpoint.",
+    }
 
 
 async def run_stufe_1(

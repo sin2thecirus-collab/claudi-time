@@ -73,13 +73,52 @@
     <!-- KONTROLLIERTES MATCHING — Stufen-Ansicht      -->
     <!-- ══════════════════════════════════════════════ -->
 
+    <!-- STUFE 0: Loading (Geo-Kaskade + LLM-Vorfilter laeuft) -->
+    <div x-show="stufenView === 'stufe_0_loading'" x-transition style="margin-bottom:32px;">
+        <div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:12px;padding:32px;text-align:center;">
+            <div style="font-size:24px;margin-bottom:12px;">&#9881;</div>
+            <h2 style="font-size:16px;font-weight:700;color:var(--pp-text);margin-bottom:8px;">
+                Stufe 0 laeuft...
+            </h2>
+            <p style="font-size:13px;color:var(--pp-textMuted);margin-bottom:16px;" x-text="
+                progress.phase === 'geo_kaskade' ? 'Geo-Kaskade: Paare werden gebildet (PLZ / Stadt / 40km)...' :
+                progress.phase === 'llm_vorfilter' ? 'LLM-Vorfilter: Claude Haiku prueft Passung...' :
+                'Wird vorbereitet...'
+            "></p>
+            <template x-if="progress.phase === 'llm_vorfilter'">
+                <div>
+                    <div style="display:flex;justify-content:center;gap:24px;margin-bottom:12px;">
+                        <div style="font-size:13px;color:var(--pp-textMuted);">
+                            Geo-Paare: <span style="font-weight:600;color:var(--pp-text);" x-text="progress.total_geo_pairs || 0"></span>
+                        </div>
+                        <div style="font-size:13px;color:var(--pp-textMuted);">
+                            Geprueft: <span style="font-weight:600;color:var(--pp-text);" x-text="(progress.vorfilter_done || 0) + ' / ' + (progress.vorfilter_total || 0)"></span>
+                        </div>
+                        <div style="font-size:13px;color:#10b981;">
+                            Bestanden: <span style="font-weight:600;" x-text="progress.vorfilter_passed || 0"></span>
+                        </div>
+                        <div style="font-size:13px;color:#ef4444;">
+                            Raus: <span style="font-weight:600;" x-text="progress.vorfilter_failed || 0"></span>
+                        </div>
+                    </div>
+                    <!-- Progress Bar -->
+                    <div style="width:100%;max-width:400px;margin:0 auto;background:var(--pp-border);border-radius:6px;height:6px;overflow:hidden;">
+                        <div style="height:100%;background:var(--pp-accent);border-radius:6px;transition:width 0.3s;"
+                             :style="'width:' + ((progress.vorfilter_done || 0) / Math.max(progress.vorfilter_total || 1, 1) * 100) + '%'"></div>
+                    </div>
+                    <p style="font-size:11px;color:var(--pp-textMuted);margin-top:8px;" x-text="'Kosten: $' + (progress.cost_estimate_usd || 0).toFixed(4)"></p>
+                </div>
+            </template>
+        </div>
+    </div>
+
     <!-- STUFE 0: Paare-Uebersicht -->
     <div x-show="stufenView === 'stufe_0'" x-transition style="margin-bottom:32px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
             <div>
                 <h2 style="font-size:16px;font-weight:700;color:var(--pp-text);">Stufe 0 — Gefundene Paare</h2>
                 <p style="font-size:12px;color:var(--pp-textMuted);margin-top:2px;"
-                   x-text="stufenData.total_claude_pairs + ' Claude-Paare, ' + stufenData.total_proximity_pairs + ' Naehe-Paare'"></p>
+                   x-text="stufenData.total_claude_pairs + ' Paare nach Vorfilter' + (stufenData.vorfilter_stats ? ' (von ' + stufenData.vorfilter_stats.total_geo_pairs + ' Geo-Paaren, ' + stufenData.vorfilter_stats.pass_rate + '% bestanden)' : '')"></p>
             </div>
             <div style="display:flex;gap:8px;align-items:center;">
                 <span style="font-size:11px;color:var(--pp-textDim);"
@@ -604,7 +643,7 @@ function actionBoard() {
         pollInterval: null,
 
         // Kontrolliertes Matching
-        stufenView: '',  // '', 'stufe_0', 'stufe_1', 'stufe_2_done'
+        stufenView: '',  // '', 'stufe_0_loading', 'stufe_0', 'stufe_1', 'stufe_2_done'
         sessionId: null,
         stufenData: {},   // Stufe 0 Daten
         stufe1Data: {},   // Stufe 1 Ergebnisse
@@ -655,6 +694,8 @@ function actionBoard() {
 
         get progressText() {
             if (this.progress.stufe === 'stufe_0') return 'Lade Paare aus DB...';
+            if (this.progress.stufe === 'stufe_0') return 'Vorfilter: ' + (this.progress.vorfilter_done || 0) + '/' + (this.progress.vorfilter_total || '?') + ' (' + (this.progress.vorfilter_passed || 0) + ' bestanden)';
+            if (this.progress.stufe === 'stufe_0_fertig') return 'Vorfilter fertig!';
             if (this.progress.stufe === 'stufe_1') return 'Quick-Check: ' + (this.progress.processed_stufe_1 || 0) + '/' + (this.progress.total_pairs || '?');
             if (this.progress.stufe === 'stufe_2') return 'Deep Assessment: ' + (this.progress.processed_stufe_2 || 0) + '/' + (this.progress.total_pairs || '?');
             if (this.progress.stufe === 'speichern') return 'Speichere Matches...';
@@ -711,13 +752,22 @@ function actionBoard() {
 
                     if (this.matchingRunning) {
                         // Lauf laeuft noch — richtige Polling-Methode starten
-                        if (stufe === 'stufe_1') {
+                        if (stufe === 'stufe_0') {
+                            this.stufenView = 'stufe_0_loading';
+                            this.startPollingStufe0();
+                        } else if (stufe === 'stufe_1') {
                             this.startPollingStufe1();
                         } else if (stufe === 'stufe_2' || stufe === 'speichern' || stufe === 'fahrzeit') {
                             this.startPollingStufe2();
                         } else {
                             this.startPolling();
                         }
+                    } else if (stufe === 'stufe_0_fertig') {
+                        // Stufe 0 fertig — Paare laden
+                        const res2 = await fetch('/api/v4/claude-match/session/' + sid);
+                        const sdata = await res2.json();
+                        this.stufenData = sdata;
+                        this.stufenView = 'stufe_0';
                     } else if (stufe === 'stufe_1_fertig') {
                         // Stufe 1 fertig — Ergebnisse laden
                         await this.loadSessionData();
@@ -750,17 +800,37 @@ function actionBoard() {
             try {
                 const res = await fetch('/api/v4/claude-match/run-stufe-0', {method: 'POST'});
                 const data = await res.json();
-                if (data.status === 'ok') {
+                if (data.status === 'running') {
+                    // Neue async Stufe 0: Session-ID merken, Polling starten
                     this.sessionId = data.session_id;
-                    this.stufenData = data;
-                    this.stufenView = 'stufe_0';
-                } else {
+                    this.matchingRunning = true;
+                    this.stufenView = 'stufe_0_loading';
+                    this.startPollingStufe0();
+                } else if (data.status === 'error') {
                     alert('Stufe 0 Fehler: ' + (data.message || 'Unbekannt'));
                 }
             } catch(e) {
                 console.error('Stufe 0 fehlgeschlagen:', e);
                 alert('Stufe 0 fehlgeschlagen: ' + e.message);
             }
+        },
+
+        startPollingStufe0() {
+            if (this.pollInterval) clearInterval(this.pollInterval);
+            this.pollInterval = setInterval(async () => {
+                await this.loadStatus();
+                const stufe = this.progress.stufe || '';
+                if (stufe === 'stufe_0_fertig') {
+                    clearInterval(this.pollInterval);
+                    this.pollInterval = null;
+                    this.matchingRunning = false;
+                    // Session-Daten laden
+                    const res = await fetch('/api/v4/claude-match/session/' + this.sessionId);
+                    const data = await res.json();
+                    this.stufenData = data;
+                    this.stufenView = 'stufe_0';
+                }
+            }, 2000);
         },
 
         async startStufe1() {
