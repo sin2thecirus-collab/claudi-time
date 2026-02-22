@@ -41,313 +41,66 @@ ALLOWED_ROLES = {
 # SYSTEM PROMPT — Finance-Rollen-Klassifizierung
 # ═══════════════════════════════════════════════════════════════
 
-FINANCE_CLASSIFIER_SYSTEM_PROMPT = """ROLLE DES MODELLS
+FINANCE_CLASSIFIER_SYSTEM_PROMPT = """Du bist ein erfahrener Finance-Recruiter in Deutschland.
 
-Du bist ein sehr erfahrener Recruiter im Finance-Bereich (Deutschland).
-Du klassifizierst Kandidaten in GENAU 6 Buchhaltungs-Rollen — und NUR diese.
-Alles was NICHT Buchhaltung ist, wird NICHT klassifiziert (primary_role = null).
+Schau dir das Kandidatenprofil an und entscheide: Was ist die AKTUELLE tatsaechliche Rolle dieser Person?
+Entscheide NUR anhand der AKTUELLEN/LETZTEN Position und deren Taetigkeiten.
 
-Die 6 Rollen: Bilanzbuchhalter/in, Finanzbuchhalter/in, Kreditorenbuchhalter/in,
-Debitorenbuchhalter/in, Lohnbuchhalter/in, Steuerfachangestellte/r
+Waehle die am besten passende Rolle:
+- Finanzbuchhalter/in (bucht aktiv Kreditoren UND Debitoren, Kontenabstimmung, laufende Buchhaltung)
+- Bilanzbuchhalter/in (erstellt eigenstaendig Jahresabschluesse UND hat eine BiBu-Qualifikation wie z.B. "Bilanzbuchhalter IHK", "geprüfter Bilanzbuchhalter", "Weiterbildung Bilanzbuchhalter", "Zertifikat Bilanzbuchhalter" — egal wo es steht: Ausbildung, Weiterbildung, Zertifikate)
+- Kreditorenbuchhalter/in (bucht hauptsaechlich nur Kreditoren / Eingangsrechnungen)
+- Debitorenbuchhalter/in (bucht hauptsaechlich nur Debitoren / Mahnwesen / Forderungen)
+- Lohnbuchhalter/in (Lohn- und Gehaltsabrechnung, Payroll)
+- Steuerfachangestellte/r (StFA-Ausbildung, Kanzlei, Steuererklaerungen)
+- Financial Controller (Controlling, Reporting, Analyse, Budgetplanung, Forecasting)
+- Leiter Buchhaltung (fuehrt ein Buchhaltungsteam operativ)
+- Head of Finance (Leitung Finanzen, CFO, VP Finance, kaufmaennischer Leiter)
 
-OBERSTE REGEL: NUR AKTUELLE TAETIGKEITEN ZAEHLEN
+Waehle einfach die Rolle die am besten passt. Vertraue deinem Urteil.
 
-Die PRIMARY_ROLE wird AUSSCHLIESSLICH durch die TAETIGKEITEN der AKTUELLEN/LETZTEN Position bestimmt.
-- NICHT durch den Jobtitel (Jobtitel sind oft falsch)
-- NICHT durch fruehere Positionen
-- NICHT durch Qualifikationen oder Zertifikate
-- NICHT durch Skills oder Ausbildung
+AUSGABE (strikt JSON, nichts anderes):
+{"is_leadership": bool, "roles": ["Rolle1", "Rolle2"], "primary_role": "aktuelle Rolle", "sub_level": "senior"/"normal"/null, "reasoning": "2-3 Saetze warum diese Rolle"}
 
-Frage dich: "Was TUT dieser Mensch HEUTE den ganzen Tag?"
-Wenn die Antwort NICHT "Buchungssaetze erfassen / Rechnungen buchen / Konten abstimmen" ist
-→ primary_role = null.
-
-══════════════════════════════════════════════════
-SCHRITT 0: WAS IST BUCHHALTUNG UND WAS NICHT?
-══════════════════════════════════════════════════
-
-BUCHHALTUNG ist das taegliche BUCHEN von Geschaeftsvorfaellen:
-- Eingangsrechnungen pruefen, kontieren, buchen (= Kreditorenbuchhaltung)
-- Ausgangsrechnungen erstellen, buchen, mahnen (= Debitorenbuchhaltung)
-- Bankbuchungen, Zahlungslaeufe durchfuehren
-- Konten abstimmen, Salden pruefen
-- USt-Voranmeldungen erstellen
-- Anlagenbuchhaltung fuehren
-- Monats-/Jahresabschluesse erstellen oder vorbereiten
-
-KEINE BUCHHALTUNG — diese Taetigkeiten fuehren NIEMALS zu einer der 6 Rollen:
-- Analyse von Umsatz, Marge, Performance, KPIs → Controlling
-- Forecasting, Budgetplanung, Soll-Ist-Vergleiche → Controlling
-- Reporting, Praesentation von Ergebnissen → Controlling
-- Business Partner fuer Management → Controlling
-- Unternehmensbewertung, M&A, Due Diligence → Corporate Finance
-- Liquiditaetsplanung, Treasury, Cash Management → Treasury
-- Auditing, Pruefung von Abschluessen → Wirtschaftspruefung
-- Teamfuehrung, Personalverantwortung (OHNE selbst zu buchen) → Management
-- Erstellung von Reports/Dashboards → Controlling/BI
-- Kostenrechnung, Kostenstellenrechnung → Controlling
-- Steuerung, Strategie, Prozessoptimierung → Management
-
-KONKRETE BEISPIELE fuer NICHT klassifizieren (primary_role = null):
-- "Commercial Financial Manager" mit Analyse, Forecasting, Margenanalyse → null (Controlling)
-- "Senior Financial Analyst" mit Business Partner, Forecast → null (Controlling)
-- "Controller" mit Monatsreporting, Soll-Ist, Budgetplanung → null (Controlling)
-- "CFO" / "Director Finance" mit nur Fuehrung und Strategie → null (Management)
-- "Finance Manager" mit Liquiditaet, Treasury, Reporting → null (kein Buchen)
-- "Internal Audit" mit Pruefung und Reporting → null (kein Buchen)
-- Jemand der frueher Buchhalter war, aber jetzt Controller ist → null (AKTUELLE Rolle zaehlt!)
-
-ACHTUNG: "Mitarbeit am Monatsabschluss" in einer FRUEHEREN Position macht jemanden
-NICHT zum Finanzbuchhalter wenn die AKTUELLE Position Controller/Analyst ist!
-
-══════════════════════════════════════════════════
-SCHRITT 1: LEITENDE POSITION ERKENNEN
-══════════════════════════════════════════════════
-
-Als LEITUNG gilt bei Jobtitel: Leiter, Head of, Teamleiter, Abteilungsleiter, Director, CFO,
-Finance Manager, VP Finance
-ODER bei Taetigkeiten: disziplinarische/fachliche Fuehrung, Mitarbeiterverantwortung,
-Budgetverantwortung, Aufbau/Leitung eines Teams
-
-Wenn Leitung erkannt: is_leadership = true. Dann unterscheide:
-A) Teamleiter der AUCH SELBST noch operativ bucht → primary_role SETZEN
-   Beispiel: "Teamleiter FiBu" der selbst Kreditoren bucht und JA vorbereitet → FiBu
-B) Director/CFO/VP/Head of der NUR fuehrt/plant/steuert → primary_role = null
-   Beispiel: "Director Finance" mit Teamfuehrung + Budgetplanung + Reporting → null
-
-══════════════════════════════════════════════════
-SCHRITT 2: JAHRESABSCHLUSS-REGEL (KRITISCHSTE REGEL)
-══════════════════════════════════════════════════
-
-BiBu ERFORDERT BEIDES:
-A) TAETIGKEITEN: "Eigenstaendige Erstellung" von Jahresabschluessen
-B) QUALIFIKATION: "Bilanzbuchhalter IHK" oder "gepruefter Bilanzbuchhalter"
-NUR wenn A UND B → Bilanzbuchhalter/in
-
-KEIN BiBu bei:
-- "Mitarbeit bei Jahresabschluessen" → FiBu (normal)
-- "Mitwirkung bei Monats- und Jahresabschluessen" → FiBu (normal)
-- "Mitwirkung bei Erstellung der Jahresabschluesse" → FiBu (normal) — "Mitwirkung" dominiert!
-- "Vorbereitung von Jahresabschluessen" → FiBu (senior)
-- "Unterstuetzung bei Abschluessen" → FiBu (normal)
-- "Erstellung von Monatsabschluessen" (OHNE Jahres) → FiBu (senior)
-- JA-Erstellung OHNE BiBu-Qualifikation → FiBu (senior)
-
-ACHTUNG: "Mitarbeit", "Mitwirkung", "Vorbereitung", "Unterstuetzung", "Zuarbeit"
-VOR "Erstellung" = KEIN BiBu! Das einschraenkende Wort dominiert immer.
-
-══════════════════════════════════════════════════
-SCHRITT 3: ROLLENDEFINITIONEN
-══════════════════════════════════════════════════
-
-1. Bilanzbuchhalter/in — NUR bei eigenstaendiger JA-Erstellung + BiBu-Zertifikat (s. Schritt 2)
-
-2. Finanzbuchhalter/in — Der Kandidat BUCHT AKTIV und macht mindestens 2 dieser Kern-Taetigkeiten:
-   - Kreditorenbuchhaltung (Eingangsrechnungen pruefen, kontieren, buchen)
-   - Debitorenbuchhaltung (Ausgangsrechnungen, Mahnwesen, Forderungen)
-   - Laufende Buchhaltung / Sachkontenbuchhaltung / Hauptbuchhaltung
-   - Kontenabstimmung / Saldenabstimmung
-   - USt-Voranmeldungen
-   - Anlagenbuchhaltung
-   PLUS optional: Mitarbeit/Vorbereitung bei Abschluessen, Zahlungsverkehr, InterCompany
-
-   WICHTIG: "Analyse", "Reporting", "Forecasting", "Budgetplanung" sind KEINE FiBu-Taetigkeiten!
-   Ein Kandidat der analysiert und reportet ist Controller, KEIN Finanzbuchhalter.
-
-   sub_level = "senior": Anlagenbuchhaltung ODER JA-Vorbereitung ODER USt-Voranmeldung
-   sub_level = "normal": Kredi+Debi+Kontenabstimmung ohne Anlagen/JA/USt
-
-3. Kreditorenbuchhalter/in — NUR Kreditoren, KEINE Debitoren:
-   Eingangsrechnungen, Zahlungsverkehr Lieferanten, Kontierung, Accounts Payable
-
-4. Debitorenbuchhalter/in — NUR Debitoren, KEINE Kreditoren:
-   Fakturierung, Mahnwesen, Forderungsmanagement, Accounts Receivable
-
-5. Lohnbuchhalter/in — Lohn-/Gehaltsabrechnung, Entgeltabrechnung, Payroll, SV-Meldungen
-
-6. Steuerfachangestellte/r — Ausbildung als StFA, Kanzlei-Kontext, Steuererklaerungen
-
-SONDERREGELN:
-- Kreditoren + Debitoren gemeinsam in mind. 2 Positionen → FiBu + KrediBu oder FiBu + DebiBu
-- StFA-Ausbildung → immer StFA + FiBu (bzw. + BiBu wenn BiBu-Qualifikation)
-- NUR Debitoren ODER NUR Kreditoren → KrediBu bzw. DebiBu, NICHT FiBu
-- "Rechnungen vorkontieren + Mahnwesen" OHNE Kreditoren = DebiBu, NICHT FiBu
-
-══════════════════════════════════════════════════
-SCHRITT 4: QUALITAETSKONTROLLE VOR AUSGABE
-══════════════════════════════════════════════════
-
-Bevor du antwortest, pruefe:
-1. Ist die AKTUELLE Position wirklich Buchhaltung? (Bucht die Person?)
-   NEIN → primary_role = null, auch wenn fruehere Positionen Buchhaltung waren
-2. Habe ich eine Rolle zugewiesen nur wegen frueherer Positionen?
-   JA → Korrigiere auf null (nur aktuelle Position zaehlt fuer primary_role)
-3. Habe ich FiBu vergeben obwohl nur 1 Kern-Taetigkeit vorliegt?
-   JA → Pruefe ob KrediBu oder DebiBu passender ist
-4. Habe ich BiBu vergeben ohne BiBu-Zertifikat?
-   JA → Korrigiere auf FiBu senior
-5. Ist der Kandidat eigentlich Controller/Analyst/Manager?
-   JA → primary_role = null
-
-══════════════════════════════════════════════════
-AUSGABEFORMAT (strikt JSON)
-══════════════════════════════════════════════════
-
-{
-  "is_leadership": true/false,
-  "roles": ["Finanzbuchhalter/in"],
-  "primary_role": "Finanzbuchhalter/in",
-  "sub_level": "senior",
-  "reasoning": "Kurze Begruendung (max 2-3 Saetze) mit Bezug auf AKTUELLE Taetigkeiten"
-}
-
-Wenn keine Rolle passt:
-{
-  "is_leadership": false,
-  "roles": [],
-  "primary_role": null,
-  "sub_level": null,
-  "reasoning": "Aktuelle Taetigkeiten sind Controlling/Analyse — kein operatives Buchen."
-}
-
-ERLAUBTE WERTE:
-- roles: "Bilanzbuchhalter/in", "Finanzbuchhalter/in", "Kreditorenbuchhalter/in", "Debitorenbuchhalter/in", "Lohnbuchhalter/in", "Steuerfachangestellte/r"
-- primary_role: eine der obigen ODER null
-- sub_level: "senior", "normal" (nur bei FiBu), null bei allen anderen
-
-roles = vergangene + aktuelle Rollen. primary_role = NUR aktuelle Rolle.
-Wenn is_leadership = true UND Person bucht noch operativ → primary_role setzen.
-Wenn is_leadership = true UND Person NUR fuehrt → primary_role = null.
+Hinweise:
+- roles = alle passenden Rollen aus dem GESAMTEN Werdegang
+- primary_role = die EINE Rolle die JETZT am besten passt
+- sub_level: nur bei Finanzbuchhalter/in ("senior" bei JA-Vorbereitung/Anlagen/USt, sonst "normal"), bei allen anderen null
+- is_leadership = true wenn die Person Fuehrungsverantwortung hat
 """
 
 # ═══════════════════════════════════════════════════════════════
 # JOB CLASSIFIER PROMPT — für Stellenbeschreibungen
 # ═══════════════════════════════════════════════════════════════
 
-FINANCE_JOB_CLASSIFIER_PROMPT = """ROLLE DES MODELLS
+FINANCE_JOB_CLASSIFIER_PROMPT = """Du bist ein erfahrener Finance-Recruiter in Deutschland.
 
-Du bist ein sehr erfahrener Finance-Recruiter (Deutschland). Du klassifizierst Stellenbeschreibungen
-in GENAU 6 Buchhaltungs-Rollen — und NUR diese. Alles was NICHT operatives Buchen beschreibt,
-wird NICHT klassifiziert (primary_role = null).
+Schau dir die Stellenbeschreibung an und entscheide: Was fuer eine Stelle ist das?
 
-Die 6 Rollen: Bilanzbuchhalter/in, Finanzbuchhalter/in, Kreditorenbuchhalter/in,
-Debitorenbuchhalter/in, Lohnbuchhalter/in, Steuerfachangestellte/r
+Waehle die am besten passende Rolle:
+- Finanzbuchhalter/in (operative Buchhaltung: Kreditoren, Debitoren, Kontenabstimmung)
+- Bilanzbuchhalter/in (eigenstaendige JA-Erstellung, BiBu-IHK als MUSS-Qualifikation)
+- Kreditorenbuchhalter/in (hauptsaechlich Kreditoren / Eingangsrechnungen)
+- Debitorenbuchhalter/in (hauptsaechlich Debitoren / Mahnwesen)
+- Lohnbuchhalter/in (Payroll, Entgeltabrechnung)
+- Steuerfachangestellte/r (Kanzlei, Steuererklaerungen)
+- Financial Controller (Controlling, Reporting, Analyse, Budgetplanung)
+- Leiter Buchhaltung (Leitung eines Buchhaltungsteams)
+- Head of Finance (CFO, VP Finance, Leitung Finanzen)
 
-OBERSTE REGEL: BESCHREIBT DER JOB OPERATIVES BUCHEN?
+Waehle einfach die Rolle die am besten passt. Vertraue deinem Urteil.
 
-Frage dich: "Wird die eingestellte Person taeglich Buchungssaetze erfassen, Rechnungen buchen,
-Konten abstimmen?" Wenn NEIN → primary_role = null.
+QUALITY GATE (wie gut ist die Stellenbeschreibung?):
+- "high": 5+ konkrete Aufgaben beschrieben
+- "medium": 2-4 konkrete Aufgaben
+- "low": Kaum Aufgaben, nur Stichworte
 
-BUCHHALTUNG ist: Eingangsrechnungen buchen, Ausgangsrechnungen buchen, Konten abstimmen,
-USt-Voranmeldungen, Anlagenbuchhaltung, Monats-/Jahresabschluesse erstellen/vorbereiten.
+AUSGABE (strikt JSON, nichts anderes):
+{"is_leadership": bool, "roles": [...], "primary_role": "aktuelle Rolle", "sub_level": "senior"/"normal"/null, "quality_score": "high"/"medium"/"low", "quality_reason": "...", "original_title": "Originaltitel", "corrected_title": "korrigiert" oder null, "title_was_corrected": bool, "reasoning": "2-3 Saetze", "job_tasks": "kommaseparierte Aufgaben, max 300 Zeichen"}
 
-KEINE BUCHHALTUNG: Analyse, Reporting, Forecasting, Budgetplanung, Soll-Ist-Vergleiche,
-Controlling, Business Partner, Liquiditaetsplanung, Treasury, Auditing, Strategie,
-Prozessoptimierung, KPI-Monitoring, Kostenrechnung, M&A.
-
-Beispiele fuer NICHT klassifizieren:
-- "Budgetplanung, Soll-Ist-Analysen, Teamfuehrung" → null (Controlling/Management)
-- "Zahlungsmanagement, Plattform-Abrechnung" → null (kein Buchen)
-- "Leitung Rechnungswesen" mit nur Fuehrung → null (Management)
-
-══════════════════════════════════════════════════
-SCHRITT 1: LEITUNGSPOSITIONEN ERKENNEN
-══════════════════════════════════════════════════
-
-Wenn Titel/Aufgaben: Leiter, Head of, Teamleiter, Director, CFO, Leitung, disziplinarische Fuehrung
-→ is_leadership = true. Dann unterscheide:
-A) Job enthaelt AUCH operative Buchhaltungs-Aufgaben → primary_role SETZEN
-B) Job ist REINE Leitung (nur Fuehrung/Planung/Strategie) → primary_role = null
-
-══════════════════════════════════════════════════
-SCHRITT 2: JAHRESABSCHLUSS-REGEL (KRITISCHSTE REGEL)
-══════════════════════════════════════════════════
-
-BiBu ERFORDERT:
-A) TAETIGKEITEN: "Eigenstaendige Erstellung" von Jahresabschluessen
-B) QUALIFIKATION: "Bilanzbuchhalter IHK" als MUSS-Anforderung (nicht "wuenschenswert")
-NUR wenn A UND B → Bilanzbuchhalter/in
-
-KEIN BiBu bei:
-- "Mitarbeit/Mitwirkung/Vorbereitung/Unterstuetzung bei Abschluessen" → FiBu
-- "Erstellung von Monatsabschluessen" (OHNE Jahres) → FiBu (senior)
-- "BiBu-Weiterbildung erwuenscht/von Vorteil" → irrelevant
-
-══════════════════════════════════════════════════
-SCHRITT 3: ROLLENDEFINITIONEN
-══════════════════════════════════════════════════
-
-1. Bilanzbuchhalter/in — Eigenstaendige JA-Erstellung + BiBu als MUSS-Qualifikation (s. Schritt 2)
-
-2. Finanzbuchhalter/in — MUSS mindestens 2 operative Buchhaltungs-Aufgaben enthalten:
-   - Kreditorenbuchhaltung (Eingangsrechnungen kontieren, buchen)
-   - Debitorenbuchhaltung (Ausgangsrechnungen, Mahnwesen)
-   - Laufende Buchhaltung / Sachkontenbuchhaltung / Hauptbuchhaltung
-   - Kontenabstimmung / Saldenabstimmung
-   - USt-Voranmeldungen
-   - Anlagenbuchhaltung
-   WICHTIG: "Analyse", "Reporting", "Forecasting" zaehlen NICHT als Buchhaltungs-Aufgabe!
-   sub_level = "senior": Anlagenbuchhaltung ODER JA-Vorbereitung ODER USt
-   sub_level = "normal": nur Kredi+Debi+Kontenabstimmung
-
-3. Kreditorenbuchhalter/in — NUR Kreditoren, KEINE nennenswerten Debitoren
-
-4. Debitorenbuchhalter/in — NUR Debitoren, KEINE nennenswerten Kreditoren
-
-5. Lohnbuchhalter/in — Lohn-/Gehaltsabrechnung, Payroll, SV-Meldungen
-
-6. Steuerfachangestellte/r — Steuererklaerungen, Mandantenbetreuung, Kanzlei-Kontext
-
-WENN KEINE ROLLE PASST → primary_role = null, roles = []
-
-══════════════════════════════════════════════════
-QUALITY GATE
-══════════════════════════════════════════════════
-
-- "high": 5+ konkrete Buchhaltungs-Aufgaben beschrieben
-- "medium": 2-4 konkrete Aufgaben beschrieben
-- "low": Kaum Aufgaben, nur Stichworte, oder nur Anforderungen/Benefits
-
-══════════════════════════════════════════════════
-AUSGABEFORMAT (strikt JSON)
-══════════════════════════════════════════════════
-
-{
-  "is_leadership": false,
-  "roles": ["Finanzbuchhalter/in"],
-  "primary_role": "Finanzbuchhalter/in",
-  "sub_level": "senior",
-  "quality_score": "high",
-  "quality_reason": "6 konkrete Aufgaben: Kredi, Debi, USt, Anlagen, JA-Vorbereitung, Zahlungsverkehr",
-  "original_title": "Bilanzbuchhalter (m/w/d)",
-  "corrected_title": "Finanzbuchhalter/in",
-  "title_was_corrected": true,
-  "reasoning": "Trotz Titel 'Bilanzbuchhalter' nur 'Mitwirkung bei Abschluessen'. Kernaufgaben: Kredi, Debi, USt, Anlagen = FiBu senior.",
-  "job_tasks": "Kreditoren- und Debitorenbuchhaltung, USt-Voranmeldungen, Anlagenbuchhaltung, Mitwirkung Monats-/Jahresabschluesse"
-}
-
-Wenn keine Rolle passt:
-{
-  "is_leadership": false,
-  "roles": [],
-  "primary_role": null,
-  "sub_level": null,
-  "quality_score": "medium",
-  "quality_reason": "3 Aufgaben beschrieben, aber keine Buchhaltungsrolle",
-  "original_title": "Finance Manager (m/w/d)",
-  "corrected_title": null,
-  "title_was_corrected": false,
-  "reasoning": "Aufgaben sind Controlling und Budgetplanung — kein operatives Buchen.",
-  "job_tasks": "Budgetplanung, Soll-Ist-Analysen, Reporting, Forecasting"
-}
-
-job_tasks: Extrahiere ALLE konkreten Aufgaben als kommaseparierte Liste (max 300 Zeichen).
-Nur Taetigkeiten, keine Anforderungen/Benefits/Soft-Skills.
-
-ERLAUBTE WERTE:
-- roles/primary_role: die 6 Rollen ODER null
-- sub_level: "normal", "senior" (nur bei FiBu), null bei anderen
-- quality_score: "high", "medium", "low"
+Hinweise:
+- sub_level: nur bei Finanzbuchhalter/in ("senior" bei JA-Vorbereitung/Anlagen/USt, sonst "normal"), bei allen anderen null
+- job_tasks: Extrahiere die konkreten Aufgaben als Liste, keine Anforderungen/Benefits
 """
 
 
@@ -413,179 +166,81 @@ _JA_PREP_PHRASES = [
 
 
 def validate_job_classification(gpt_result: dict, job_text: str) -> dict:
-    """Deterministische Regelvalidierung nach GPT-Klassifizierung.
-
-    Korrigiert systematische GPT-Fehler bei:
-    1. JA-Erstellung OHNE Prep-Phrase = BiBu (nicht FiBu)
-    2. JA-Prep-Phrase vorhanden = KEIN BiBu (auch wenn GPT BiBu sagt)
-    3. Nur Kreditoren = KrediBu (nicht FiBu)
-    4. Nur Debitoren = DebiBu (nicht FiBu)
-    """
-    if not job_text:
-        return gpt_result
-
-    # GUARD: Wenn GPT primary_role = null gesetzt hat (z.B. reine Leitung oder
-    # nicht klassifizierbar), NICHT ueberschreiben. GPT hat bewusst entschieden.
-    if gpt_result.get("primary_role") is None:
+    """Minimale Nachkorrektur — nur BiBu-Regel (Prep vs. Creation)."""
+    if not job_text or not gpt_result.get("primary_role"):
         return gpt_result
 
     text_lower = job_text.lower()
-    corrections = []
-
-    # REGEL 1: JA-Erstellung vs. JA-Vorbereitung
-    has_ja_creation = any(p in text_lower for p in _JA_CREATION_PHRASES)
     has_ja_prep = any(p in text_lower for p in _JA_PREP_PHRASES)
 
-    # WICHTIG: Wenn Prep-Phrasen vorhanden sind, hat Creation KEIN Gewicht!
-    # "Mitwirkung bei Erstellung von Monats- und Jahresabschlüssen" → FiBu, NICHT BiBu
-    if has_ja_prep:
-        # Prep-Phrase gefunden → KEIN BiBu, egal was sonst noch im Text steht
-        if gpt_result.get("primary_role") == "Bilanzbuchhalter/in":
-            gpt_result["primary_role"] = "Finanzbuchhalter/in"
-            gpt_result["sub_level"] = "senior"
-            if "Finanzbuchhalter/in" not in gpt_result.get("roles", []):
-                gpt_result.setdefault("roles", []).append("Finanzbuchhalter/in")
-            corrections.append("JA-Prep erkannt (Mitarbeit/Mitwirkung/Vorbereitung) → FiBu senior, NICHT BiBu")
-    elif has_ja_creation and not has_ja_prep:
-        # Echte JA-Erstellung OHNE Prep → BiBu
-        if gpt_result.get("primary_role") != "Bilanzbuchhalter/in":
-            gpt_result["primary_role"] = "Bilanzbuchhalter/in"
-            if "Bilanzbuchhalter/in" not in gpt_result.get("roles", []):
-                gpt_result.setdefault("roles", []).append("Bilanzbuchhalter/in")
-            corrections.append("Eigenstaendige JA-Erstellung erkannt → BiBu")
-
-    # REGEL 2: Nur Kreditoren (ohne Debitoren) = KrediBu
-    has_kredi = "kreditorenbuchhaltung" in text_lower or "accounts payable" in text_lower
-    has_debi = "debitorenbuchhaltung" in text_lower or "accounts receivable" in text_lower
-    # Pruefe ob BEIDES vorkommt (dann ist es FiBu, nicht KrediBu/DebiBu)
-    has_both = has_kredi and has_debi
-
-    if has_kredi and not has_debi and not has_both:
-        if gpt_result.get("primary_role") == "Finanzbuchhalter/in":
-            # Nur korrigieren wenn der Job wirklich NUR Kreditoren beschreibt
-            # und nicht auch "laufende Buchhaltung" o.ae.
-            laufende_bu = any(p in text_lower for p in [
-                "laufende buchhaltung", "laufende finanzbuchhaltung",
-                "finanzbuchhaltung", "general ledger", "hauptbuchhaltung"
-            ])
-            if not laufende_bu:
-                gpt_result["primary_role"] = "Kreditorenbuchhalter/in"
-                if "Kreditorenbuchhalter/in" not in gpt_result.get("roles", []):
-                    gpt_result.setdefault("roles", []).append("Kreditorenbuchhalter/in")
-                corrections.append("Nur Kreditoren → KrediBu")
-
-    # REGEL 3: Nur Debitoren (ohne Kreditoren) = DebiBu
-    if has_debi and not has_kredi and not has_both:
-        if gpt_result.get("primary_role") == "Finanzbuchhalter/in":
-            laufende_bu = any(p in text_lower for p in [
-                "laufende buchhaltung", "laufende finanzbuchhaltung",
-                "finanzbuchhaltung", "general ledger", "hauptbuchhaltung"
-            ])
-            if not laufende_bu:
-                gpt_result["primary_role"] = "Debitorenbuchhalter/in"
-                if "Debitorenbuchhalter/in" not in gpt_result.get("roles", []):
-                    gpt_result.setdefault("roles", []).append("Debitorenbuchhalter/in")
-                corrections.append("Nur Debitoren → DebiBu")
-
-    if corrections:
-        existing_reasoning = gpt_result.get("reasoning", "")
-        gpt_result["reasoning"] = f"{existing_reasoning} [REGELKORREKTUR: {', '.join(corrections)}]"
-        gpt_result["title_was_corrected"] = True
+    if has_ja_prep and gpt_result.get("primary_role") == "Bilanzbuchhalter/in":
+        gpt_result["primary_role"] = "Finanzbuchhalter/in"
+        gpt_result["sub_level"] = "senior"
+        existing = gpt_result.get("reasoning", "")
+        gpt_result["reasoning"] = f"{existing} [KORREKTUR: Nur Mitwirkung bei JA → FiBu senior]"
 
     return gpt_result
 
 
 def validate_candidate_classification(gpt_result: dict, candidate_text: str) -> dict:
-    """Deterministische Regelvalidierung nach GPT-Klassifizierung fuer Kandidaten.
-
-    Korrigiert systematische GPT-Fehler bei:
-    1. JA-Erstellung + BiBu-Qualifikation im Werdegang = BiBu
-    2. JA-Prep (Mitarbeit/Mitwirkung) = KEIN BiBu, auch wenn GPT BiBu sagt
-    3. Nur Kreditoren-Taetigkeit = KrediBu (nicht FiBu)
-    4. Nur Debitoren-Taetigkeit = DebiBu (nicht FiBu)
-    """
-    if not candidate_text:
-        return gpt_result
-
-    # GUARD: Wenn GPT primary_role = null gesetzt hat (z.B. reine Leitung oder
-    # nicht klassifizierbar), NICHT ueberschreiben. GPT hat bewusst entschieden.
-    if gpt_result.get("primary_role") is None:
+    """Minimale Nachkorrektur — nur BiBu-Regel (braucht IHK-Zertifikat)."""
+    if not candidate_text or not gpt_result.get("primary_role"):
         return gpt_result
 
     text_lower = candidate_text.lower()
-    corrections = []
-
-    # REGEL 1: JA-Erstellung vs. JA-Vorbereitung
-    has_ja_creation = any(p in text_lower for p in _JA_CREATION_PHRASES)
     has_ja_prep = any(p in text_lower for p in _JA_PREP_PHRASES)
-
-    # Pruefe ob Kandidat BiBu-Zertifizierung hat
-    has_bibu_cert = any(kw in text_lower for kw in [
-        "bilanzbuchhalter ihk", "bilanzbuchhalter (ihk)",
+    # Alle Schreibweisen fuer BiBu-Zertifikat erkennen:
+    # "Bilanzbuchhalter IHK", "IHK Bilanzbuchhalter", "geprüfter Bilanzbuchhalter",
+    # "Zertifikat Bilanzbuchhalter", einfach "Bilanzbuchhalter" bei Weiterbildung/Zertifikate etc.
+    _bibu_cert_phrases = [
+        # IHK-Varianten
+        "bilanzbuchhalter ihk", "bilanzbuchhalter (ihk)", "bilanzbuchhalter/ihk",
+        "ihk bilanzbuchhalter", "ihk-bilanzbuchhalter",
+        "bilanzbuchhalterin ihk", "bilanzbuchhalterin (ihk)",
+        "ihk bilanzbuchhalterin",
+        # Geprüft-Varianten
         "geprüfter bilanzbuchhalter", "gepruefter bilanzbuchhalter",
+        "geprüfte bilanzbuchhalterin", "geprufte bilanzbuchhalterin",
+        "gepr. bilanzbuchhalter",
+        # Zertifikat/Weiterbildung
+        "zertifikat bilanzbuchhalter", "zertifikat: bilanzbuchhalter",
+        "weiterbildung bilanzbuchhalter", "weiterbildung: bilanzbuchhalter",
+        "weiterbildung zum bilanzbuchhalter", "weiterbildung zur bilanzbuchhalterin",
+        "fortbildung bilanzbuchhalter", "fortbildung zum bilanzbuchhalter",
+        "abschluss bilanzbuchhalter", "abschluss: bilanzbuchhalter",
+        # International
+        "international bilanzbuchhalter",
+        # Einfach "Bilanzbuchhalter" als eigenstaendiges Wort in Ausbildung/Zertifikat-Kontext
         "bilanzbuchhalter-weiterbildung", "bilanzbuchhalter weiterbildung",
-    ])
+        "bilanzbuchhalter-prüfung", "bilanzbuchhalter prüfung",
+        "bilanzbuchhalter-fortbildung",
+        "bilanzbuchhalter-zertifikat",
+        "bilanzbuchhalter-abschluss",
+    ]
+    has_bibu_cert = any(kw in text_lower for kw in _bibu_cert_phrases)
 
-    if has_ja_prep:
-        # Prep-Phrase gefunden → KEIN BiBu, egal was sonst steht
-        if gpt_result.get("primary_role") == "Bilanzbuchhalter/in" and not has_bibu_cert:
+    # Zusaetzlich: Wenn "bilanzbuchhalter" im Bereich Ausbildung/Weiterbildung/Zertifikate steht
+    # (nicht nur als Jobtitel), gilt es auch als Zertifikat
+    if not has_bibu_cert and "bilanzbuchhalter" in text_lower:
+        # Pruefe ob es im Kontext von Ausbildung/Zertifikaten vorkommt
+        for context_kw in ["ausbildung", "weiterbildung", "zertifikat", "fortbildung",
+                           "qualifikation", "abschluss", "prüfung", "pruefung",
+                           "schulung", "lehrgang"]:
+            if context_kw in text_lower:
+                has_bibu_cert = True
+                break
+
+    if gpt_result.get("primary_role") == "Bilanzbuchhalter/in":
+        if has_ja_prep and not has_bibu_cert:
             gpt_result["primary_role"] = "Finanzbuchhalter/in"
             gpt_result["sub_level"] = "senior"
-            if "Finanzbuchhalter/in" not in gpt_result.get("roles", []):
-                gpt_result.setdefault("roles", []).append("Finanzbuchhalter/in")
-            corrections.append("JA-Prep erkannt (Mitarbeit/Mitwirkung) ohne BiBu-Zertifikat → FiBu senior")
-    elif has_ja_creation and has_bibu_cert:
-        # Echte JA-Erstellung + BiBu-Zertifizierung → BiBu
-        if gpt_result.get("primary_role") != "Bilanzbuchhalter/in":
-            gpt_result["primary_role"] = "Bilanzbuchhalter/in"
-            if "Bilanzbuchhalter/in" not in gpt_result.get("roles", []):
-                gpt_result.setdefault("roles", []).append("Bilanzbuchhalter/in")
-            corrections.append("Eigenstaendige JA-Erstellung + BiBu-Zertifikat → BiBu")
-    elif has_ja_creation and not has_bibu_cert:
-        # JA-Erstellung OHNE BiBu-Zertifizierung → FiBu senior (nicht BiBu!)
-        if gpt_result.get("primary_role") == "Bilanzbuchhalter/in":
+            existing = gpt_result.get("reasoning", "")
+            gpt_result["reasoning"] = f"{existing} [KORREKTUR: Nur Mitwirkung bei JA ohne BiBu-Zertifikat → FiBu senior]"
+        elif not has_bibu_cert:
             gpt_result["primary_role"] = "Finanzbuchhalter/in"
             gpt_result["sub_level"] = "senior"
-            if "Finanzbuchhalter/in" not in gpt_result.get("roles", []):
-                gpt_result.setdefault("roles", []).append("Finanzbuchhalter/in")
-            corrections.append("JA-Erstellung aber KEIN BiBu-Zertifikat → FiBu senior")
-
-    # REGEL 2: Nur Kreditoren (ohne Debitoren) = KrediBu
-    has_kredi = any(kw in text_lower for kw in [
-        "kreditorenbuchhaltung", "accounts payable", "kreditoren",
-        "eingangsrechnungen", "rechnungsprüfung", "rechnungspruefung",
-    ])
-    has_debi = any(kw in text_lower for kw in [
-        "debitorenbuchhaltung", "accounts receivable", "debitoren",
-        "mahnwesen", "forderungsmanagement",
-    ])
-    has_both = has_kredi and has_debi
-    # Breite FiBu-Taetigkeiten: Wenn der Kandidat AUCH FiBu macht, nicht korrigieren
-    has_fibu_breadth = any(p in text_lower for p in [
-        "laufende buchhaltung", "laufende finanzbuchhaltung",
-        "finanzbuchhaltung", "hauptbuchhaltung", "sachkontenbuchhaltung",
-        "monatsabschluss", "jahresabschluss", "anlagenbuchhaltung",
-    ])
-
-    if has_kredi and not has_debi and not has_both and not has_fibu_breadth:
-        if gpt_result.get("primary_role") == "Finanzbuchhalter/in":
-            gpt_result["primary_role"] = "Kreditorenbuchhalter/in"
-            if "Kreditorenbuchhalter/in" not in gpt_result.get("roles", []):
-                gpt_result.setdefault("roles", []).append("Kreditorenbuchhalter/in")
-            corrections.append("Nur Kreditoren → KrediBu")
-
-    # REGEL 3: Nur Debitoren (ohne Kreditoren) = DebiBu
-    if has_debi and not has_kredi and not has_both and not has_fibu_breadth:
-        if gpt_result.get("primary_role") == "Finanzbuchhalter/in":
-            gpt_result["primary_role"] = "Debitorenbuchhalter/in"
-            if "Debitorenbuchhalter/in" not in gpt_result.get("roles", []):
-                gpt_result.setdefault("roles", []).append("Debitorenbuchhalter/in")
-            corrections.append("Nur Debitoren → DebiBu")
-
-    if corrections:
-        existing_reasoning = gpt_result.get("reasoning", "")
-        gpt_result["reasoning"] = f"{existing_reasoning} [REGELKORREKTUR: {', '.join(corrections)}]"
-        gpt_result["title_was_corrected"] = True
+            existing = gpt_result.get("reasoning", "")
+            gpt_result["reasoning"] = f"{existing} [KORREKTUR: Kein BiBu-IHK-Zertifikat → FiBu senior]"
 
     return gpt_result
 
