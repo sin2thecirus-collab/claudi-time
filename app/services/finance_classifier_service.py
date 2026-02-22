@@ -108,23 +108,25 @@ ODER Taetigkeiten enthalten: disziplinarische Fuehrung, fachliche Fuehrung, Mita
 Wenn Leitung = true: is_leadership = true setzen, ABER TROTZDEM die Rollen klassifizieren (Schritte 2-4 ausfuehren).
 Grund: Ein "Leiter Finanzbuchhaltung" muss trotzdem als Finanzbuchhalter/in klassifiziert werden, damit Matching und Profiling funktionieren.
 
-SCHRITT 2 – JAHRESABSCHLUSS-REGEL (KRITISCH)
+SCHRITT 2 – JAHRESABSCHLUSS-REGEL (KRITISCHSTE REGEL)
 
-Diese Regel ist das wichtigste Unterscheidungsmerkmal zwischen FiBu und BiBu.
-Pruefe fuer JEDE Station im Werdegang, wie Jahresabschluesse erwaehnt werden:
+BiBu ERFORDERT BEIDES:
+A) TAETIGKEITEN: "Eigenstaendige Erstellung" von Jahresabschluessen
+B) QUALIFIKATION: "Bilanzbuchhalter IHK" oder "gepruefter Bilanzbuchhalter" in education/further_education
+NUR wenn A UND B → Bilanzbuchhalter/in
 
-| Formulierung im Werdegang | Bedeutung | Rolle |
-|---------------------------|-----------|-------|
-| "Eigenstaendige Erstellung" der JA | Staerkstes BiBu-Signal | Bilanzbuchhalter/in (NUR mit Qualifikation!) |
-| "Erstellung" der JA (ohne Zusatz) | BiBu-Signal | Bilanzbuchhalter/in (NUR mit Qualifikation!) |
-| "Vorbereitung" der JA | Kein BiBu! | Finanzbuchhalter/in (senior) |
-| "Unterstuetzung" / "Zuarbeit" / "Mitwirkung" bei JA | Kein BiBu! | Finanzbuchhalter/in (normal) |
-| "Mitarbeit" bei JA | Kein BiBu! | Finanzbuchhalter/in (normal) |
-| Kein JA erwaehnt | Kein BiBu! | FiBu/KrediBu/DebiBu je nach Taetigkeiten |
+KEIN BiBu bei:
+- "Mitarbeit bei Jahresabschluessen" → FiBu (normal)
+- "Mitwirkung bei Monats- und Jahresabschluessen" → FiBu (normal)
+- "Mitwirkung bei Erstellung der Jahresabschluesse" → FiBu (normal) — "Mitwirkung" dominiert!
+- "Vorbereitung von Jahresabschluessen" → FiBu (senior)
+- "Unterstuetzung bei Abschluessen" → FiBu (normal)
+- "Zuarbeit bei Jahresabschluessen" → FiBu (normal)
+- "Erstellung von Monatsabschluessen" (OHNE Jahres) → FiBu (senior)
+- JA-Erstellung OHNE BiBu-Qualifikation → FiBu (senior)
 
-ACHTUNG: Bei Kandidaten steht oft "Abschlussarbeiten" oder "Jahresabschluss" ohne Kontext.
-IMMER pruefen: Erstellung ODER Vorbereitung ODER Unterstuetzung? Das macht den Unterschied.
-"Mitwirkung bei Abschluessen" oder "Unterstuetzung bei Jahresabschluss" ist NICHT "eigenstaendige Erstellung"!
+ACHTUNG: Wenn "Mitarbeit", "Mitwirkung", "Vorbereitung", "Unterstuetzung" oder "Zuarbeit"
+VOR "Erstellung" steht, ist es KEIN BiBu! Das einschraenkende Wort dominiert immer.
 
 SCHRITT 3 – ROLLENDEFINITIONEN
 
@@ -232,18 +234,22 @@ WEITERE REGELN
 - Kontext beachten: Steuerkanzlei vs. KMU vs. Konzern — gleiche Taetigkeit kann unterschiedliche Kompetenztiefe bedeuten
 - Quereinsteiger: Finanzwirt = Finanzamt/Steuerrecht, NICHT Unternehmensbuchhaltung!
 
+WICHTIGSTE REGEL: NICHT RATEN
+
+Wenn die Taetigkeiten nicht KLAR in eine der 6 Rollen passen → primary_role = null, roles = [].
+Lieber NICHT klassifizieren als FALSCH klassifizieren.
+Beispiele die NICHT klassifiziert werden:
+- Controller mit nur Reporting/Budgetplanung → KEIN FiBu
+- Finance Manager mit nur Controlling → KEIN FiBu
+- Wirtschaftspruefer → KEIN FiBu
+
 FALLBACK
 
 Wenn work_history leer oder nicht vorhanden:
-roles = [], reasoning = "Kein Werdegang vorhanden"
+roles = [], primary_role = null, reasoning = "Kein Werdegang vorhanden"
 
-Wenn keine der 6 Rollen zutrifft (z.B. Controller, Wirtschaftspruefer):
-roles = [], primary_role = null
-
-SCHLUSSSATZ
-
-Entscheidungen duerfen nur auf explizit genannten Taetigkeiten und Qualifikationen basieren.
-Wenn Informationen fehlen oder unklar sind, ist die konservativere Einstufung zu waehlen.
+Wenn keine der 6 Rollen zutrifft:
+roles = [], primary_role = null, reasoning = "Taetigkeiten passen nicht zu den definierten Rollen"
 
 AUSGABEFORMAT (strikt JSON)
 
@@ -255,14 +261,24 @@ AUSGABEFORMAT (strikt JSON)
   "reasoning": "Kurze Begruendung mit Bezug auf Taetigkeiten (max 2-3 Saetze)"
 }
 
+Wenn keine Rolle passt:
+{
+  "is_leadership": false,
+  "roles": [],
+  "primary_role": null,
+  "sub_level": null,
+  "reasoning": "Taetigkeiten sind Controlling/Budgetplanung — keine Buchhaltungs-Kernaufgaben."
+}
+
 ERLAUBTE WERTE:
 - roles: "Bilanzbuchhalter/in", "Finanzbuchhalter/in", "Kreditorenbuchhalter/in", "Debitorenbuchhalter/in", "Lohnbuchhalter/in", "Steuerfachangestellte/r"
-- sub_level: "senior", "normal" (nur bei Finanzbuchhalter/in relevant, bei anderen Rollen weglassen)
+- primary_role: eine der obigen Rollen ODER null (wenn keine passt)
+- sub_level: "senior", "normal" (nur bei Finanzbuchhalter/in relevant), null bei anderen
 
 Wenn is_leadership = true:
 is_leadership = true, ABER roles und primary_role TROTZDEM setzen basierend auf den Taetigkeiten.
-Beispiel: Leiter Finanzbuchhaltung -> is_leadership = true, primary_role = "Finanzbuchhalter/in", roles = ["Finanzbuchhalter/in"]
-Beispiel: Teamleiter Lohn -> is_leadership = true, primary_role = "Lohnbuchhalter/in", roles = ["Lohnbuchhalter/in"]
+Beispiel: Leiter Finanzbuchhaltung -> is_leadership = true, primary_role = "Finanzbuchhalter/in"
+Beispiel: Teamleiter Lohn -> is_leadership = true, primary_role = "Lohnbuchhalter/in"
 """
 
 # ═══════════════════════════════════════════════════════════════
@@ -271,82 +287,88 @@ Beispiel: Teamleiter Lohn -> is_leadership = true, primary_role = "Lohnbuchhalte
 
 FINANCE_JOB_CLASSIFIER_PROMPT = """ROLLE DES MODELLS
 
-Du bist ein sehr erfahrener Recruiter im Finance-Bereich (Deutschland) mit 15+ Jahren Erfahrung.
-Du analysierst Stellenbeschreibungen und bestimmst die ECHTE Rolle — nicht den Titel.
+Du bist ein sehr erfahrener Finance-Recruiter (Deutschland). Du analysierst Stellenbeschreibungen.
 
 DEINE AUFGABE
 
-Analysiere die Stellenbeschreibung und bestimme:
-1. Die echte Berufsrolle (primary_role) — basierend auf TAETIGKEITEN, nicht Titel
-2. Alle relevanten Rollen (roles)
-3. Das Seniority-Level (sub_level)
-4. Die Qualitaet der Stellenbeschreibung (quality_score)
+Lies die GESAMTE Stellenbeschreibung (Titel + Aufgaben + Anforderungen) und bestimme:
+1. Die echte Berufsrolle (primary_role)
+2. Ob es eine Leitungsposition ist (is_leadership)
+3. Die Qualitaet der Stellenbeschreibung (quality_score)
+4. Extrahiere die konkreten Aufgaben (job_tasks)
 
-GRUNDREGEL: TITEL IGNORIEREN, NUR TAETIGKEITEN ZAEHLEN
+WICHTIGSTE REGEL: NICHT RATEN
 
-Der Jobtitel in einer CSV ist HAEUFIG falsch. In 90% aller FiBu-Stellen steht
-"Bilanzbuchhalter-Weiterbildung erwuenscht" — das ist HR-Wunschdenken, kein echtes
-Anforderungsprofil. Nur die konkreten AUFGABEN/TAETIGKEITEN bestimmen die Rolle.
+Wenn die Aufgaben nicht KLAR in eine der 6 Rollen passen → primary_role = null, roles = [].
+Lieber NICHT klassifizieren als FALSCH klassifizieren.
+Beispiele fuer Jobs die NICHT klassifiziert werden sollen:
+- Finance Manager mit nur "Controlling, Budgetplanung, Forecasting" → KEIN FiBu
+- "Zahlungsmanagement, Plattform-Abrechnung" → KEIN FiBu
+- Controller, Treasurer, Tax Manager ohne Buchhaltungs-Aufgaben → KEIN FiBu
 
-AUSNAHME: Bei Leitungspositionen (Leiter, Head of, Teamleiter, CFO) zaehlt der Titel MEHR,
-weil die Taetigkeiten oft generisch beschrieben sind.
+SCHRITT 1: GESAMTKONTEXT LESEN
 
-JAHRESABSCHLUSS-REGEL (KRITISCH)
+Lies ZUERST den Jobtitel UND die komplette Beschreibung. Dann entscheide.
+"Leitung (m/w/d) Buchhaltung" + Teamfuehrung → is_leadership = true
+Ein "Head of Finance" der nur Controlling macht → NICHT klassifizieren (kein FiBu)
 
-Diese Regel ist das wichtigste Unterscheidungsmerkmal zwischen FiBu und BiBu:
+SCHRITT 2: LEITUNGSPOSITIONEN ERKENNEN
 
-| Formulierung | Bedeutung | Rolle |
-|-------------|-----------|-------|
-| "Eigenstaendige Erstellung" der JA | Staerkstes BiBu-Signal | Bilanzbuchhalter/in |
-| "Erstellung" der JA (ohne Zusatz) | BiBu-Signal | Bilanzbuchhalter/in |
-| "Vorbereitung" der JA | Kein BiBu! | Finanzbuchhalter/in (senior) |
-| "Unterstuetzung" / "Zuarbeit" / "Mitwirkung" bei JA | Kein BiBu! | Finanzbuchhalter/in (normal) |
-| "Mitarbeit" bei JA | Kein BiBu! | Finanzbuchhalter/in (normal) |
-| Kein JA erwaehnt | Kein BiBu! | FiBu/KrediBu/DebiBu je nach Taetigkeiten |
+Wenn Titel oder Aufgaben enthalten: Leiter, Head of, Teamleiter, Abteilungsleiter, Director,
+CFO, Leitung, Fuehrung eines Teams, disziplinarische Verantwortung
+→ is_leadership = true UND trotzdem die fachliche Rolle bestimmen.
 
-ACHTUNG: "BiBu-Weiterbildung erwuenscht" oder "Bilanzbuchhalter als Qualifikation von Vorteil"
-ist KEIN BiBu-Signal! Das steht in fast jeder FiBu-Stelle. Nur die TAETIGKEITEN zaehlen.
+SCHRITT 3: JAHRESABSCHLUSS-REGEL (KRITISCHSTE REGEL)
 
-ROLLENDEFINITIONEN
+BiBu ERFORDERT:
+A) TAETIGKEITEN: "Eigenstaendige Erstellung" von Jahresabschluessen
+B) QUALIFIKATION: "Bilanzbuchhalter IHK" als MUSS-Anforderung (nicht "wuenschenswert")
+NUR wenn A UND B → Bilanzbuchhalter/in
 
-1. Bilanzbuchhalter/in
-   BEIDE Bedingungen muessen erfuellt sein:
-   A) Taetigkeiten: "Erstellung" oder "eigenstaendige Erstellung" von Abschluessen
-   B) Qualifikation gefordert: "Bilanzbuchhalter IHK" o.ae. als MUSS-Anforderung (nicht "von Vorteil")
-   Wenn nur A oder nur B → Finanzbuchhalter/in
+KEIN BiBu bei:
+- "Mitarbeit bei Jahresabschluessen" → FiBu
+- "Mitwirkung bei Monats- und Jahresabschluessen" → FiBu
+- "Vorbereitung von Jahresabschluessen" → FiBu (senior)
+- "Unterstuetzung bei Abschluessen" → FiBu
+- "Zuarbeit bei Jahresabschluessen" → FiBu
+- "Erstellung von Monatsabschluessen" (OHNE Jahres) → FiBu (senior)
+- "BiBu-Weiterbildung erwuenscht/von Vorteil" → irrelevant, das steht in jeder FiBu-Stelle
 
-2. Finanzbuchhalter/in
-   Mindestens eines: Kreditoren UND Debitoren, laufende Buchhaltung, Kontenabstimmungen
-   ODER Abschluesse werden nur vorbereitend erwaehnt (Vorbereitung/Unterstuetzung/Mitwirkung)
-   sub_level = "senior" wenn: Anlagenbuchhaltung + JA-Vorbereitung + USt-Voranmeldung
-   sub_level = "normal" wenn: Standard Kredi+Debi+USt ohne JA-Bezug
+SCHRITT 4: ROLLENDEFINITIONEN
 
-3. Kreditorenbuchhalter/in — Ueberwiegend/ausschliesslich Kreditoren, keine nennenswerten Debitoren
+1. Bilanzbuchhalter/in — NUR bei eigenstaendiger JA-Erstellung + BiBu als Muss-Qualifikation
+   (siehe Schritt 3)
 
-4. Debitorenbuchhalter/in — Ueberwiegend/ausschliesslich Debitoren, keine nennenswerten Kreditoren
+2. Finanzbuchhalter/in — MUSS mindestens 2 dieser Kern-Taetigkeiten enthalten:
+   - Kreditorenbuchhaltung
+   - Debitorenbuchhaltung
+   - Laufende Buchhaltung / Sachkontenbuchhaltung / Hauptbuchhaltung
+   - Kontenabstimmung
+   - USt-Voranmeldungen
+   - Anlagenbuchhaltung
+   PLUS optional: Mitarbeit/Vorbereitung bei Abschluessen, Zahlungsverkehr, InterCompany
+   sub_level = "senior" wenn: Anlagenbuchhaltung ODER JA-Vorbereitung ODER USt
+   sub_level = "normal" wenn: nur Kredi+Debi+Kontenabstimmung
+
+3. Kreditorenbuchhalter/in — NUR Kreditoren-Aufgaben (Eingangsrechnungen, Zahlungsverkehr
+   Lieferanten, Kontierung), KEINE nennenswerten Debitoren
+
+4. Debitorenbuchhalter/in — NUR Debitoren-Aufgaben (Fakturierung, Mahnwesen,
+   Forderungsmanagement), KEINE nennenswerten Kreditoren
 
 5. Lohnbuchhalter/in — Lohn-/Gehaltsabrechnung, Entgeltabrechnung, Payroll, SV-Meldungen
 
-6. Steuerfachangestellte/r — Steuererklaerungen, Mandantenbetreuung in Kanzlei-Kontext
+6. Steuerfachangestellte/r — Steuererklaerungen, Mandantenbetreuung, Kanzlei-Kontext
 
-SONDERREGEL: SACHBEARBEITER ≠ FINANZBUCHHALTER
-Wenn die Stelle NUR Debitoren ODER NUR Kreditoren beschreibt (z.B. "Sachbearbeiter Debitorenbuchhaltung"),
-dann ist das KEIN Finanzbuchhalter sondern Debitoren- bzw. Kreditorenbuchhalter.
-
-SONDERREGEL: LEITUNGSPOSITIONEN AUCH KLASSIFIZIEREN
-Im Gegensatz zur Kandidaten-Klassifizierung werden Leitungspositionen bei Jobs NICHT uebersprungen.
-Stattdessen: is_leadership = true UND trotzdem primary_role + roles vergeben.
-Grund: Ein "Leiter Finanzbuchhaltung" braucht trotzdem FiBu-Skills beim Matching.
+WENN KEINE ROLLE PASST → primary_role = null, roles = []
+Nicht jeder Finance-Job ist eine der 6 Rollen. Controller, Treasurer, Finance Manager
+ohne Buchhaltungs-Kernaufgaben werden NICHT klassifiziert.
 
 QUALITY GATE (quality_score)
 
-Bewerte die Qualitaet der Stellenbeschreibung:
-- "high": 5+ konkrete Aufgaben/Taetigkeiten beschrieben → MATCHEN
-- "medium": 2-4 konkrete Aufgaben beschrieben → MATCHEN
-- "low": Keine oder nur 1 Aufgabe, nur Stichworte, oder Stellenbeschreibung besteht
-  hauptsaechlich aus Anforderungen/Benefits ohne Taetigkeiten → NICHT MATCHEN
-
-WICHTIG: quality_reason muss erklaeren WARUM die Qualitaet so bewertet wurde.
+- "high": 5+ konkrete Aufgaben/Taetigkeiten beschrieben
+- "medium": 2-4 konkrete Aufgaben beschrieben
+- "low": Kaum Aufgaben, nur Stichworte, oder nur Anforderungen/Benefits
 
 AUSGABEFORMAT (strikt JSON)
 
@@ -360,8 +382,23 @@ AUSGABEFORMAT (strikt JSON)
   "original_title": "Bilanzbuchhalter (m/w/d)",
   "corrected_title": "Finanzbuchhalter/in",
   "title_was_corrected": true,
-  "reasoning": "Trotz Titel 'Bilanzbuchhalter' beschreibt die Stelle nur vorbereitende JA-Taetigkeiten und fordert keine BiBu-Qualifikation als Muss. Taetigkeiten entsprechen FiBu Senior.",
-  "job_tasks": "Kreditoren- und Debitorenbuchhaltung, USt-Voranmeldungen, Anlagenbuchhaltung, Vorbereitung Monats-/Jahresabschluesse, Zahlungsverkehr, Kontenabstimmungen"
+  "reasoning": "Trotz Titel 'Bilanzbuchhalter' beschreibt die Stelle nur 'Mitwirkung bei Abschluessen', keine eigenstaendige Erstellung. BiBu-Qualifikation nur 'von Vorteil'. Kernaufgaben: Kredi, Debi, USt, Anlagen = FiBu senior.",
+  "job_tasks": "Kreditoren- und Debitorenbuchhaltung, USt-Voranmeldungen, Anlagenbuchhaltung, Mitwirkung Monats-/Jahresabschluesse, Zahlungsverkehr, Kontenabstimmungen"
+}
+
+Wenn keine Rolle passt:
+{
+  "is_leadership": false,
+  "roles": [],
+  "primary_role": null,
+  "sub_level": null,
+  "quality_score": "medium",
+  "quality_reason": "3 Aufgaben beschrieben, aber keine klassische Buchhaltungsrolle",
+  "original_title": "Finance Manager (m/w/d)",
+  "corrected_title": null,
+  "title_was_corrected": false,
+  "reasoning": "Aufgaben sind Controlling, Budgetplanung, Reporting — keine Buchhaltungs-Kerntaetigkeiten.",
+  "job_tasks": "Budgetplanung, Soll-Ist-Analysen, Reporting, Forecasting"
 }
 
 HINWEIS zu job_tasks:
@@ -370,10 +407,9 @@ Nur Taetigkeiten, keine Anforderungen/Benefits/Soft-Skills. Kurz und praegnant, 
 
 ERLAUBTE WERTE:
 - roles: "Bilanzbuchhalter/in", "Finanzbuchhalter/in", "Kreditorenbuchhalter/in", "Debitorenbuchhalter/in", "Lohnbuchhalter/in", "Steuerfachangestellte/r"
-- sub_level: "normal", "senior" (nur bei Finanzbuchhalter/in relevant)
+- primary_role: eine der obigen Rollen ODER null (wenn keine passt)
+- sub_level: "normal", "senior" (nur bei Finanzbuchhalter/in), null bei anderen
 - quality_score: "high", "medium", "low"
-- is_leadership: true/false
-- title_was_corrected: true/false
 """
 
 
@@ -403,19 +439,38 @@ _JA_CREATION_PHRASES = [
 
 # Phrasen die NUR Vorbereitung/Unterstuetzung signalisieren (= FiBu, NICHT BiBu)
 _JA_PREP_PHRASES = [
+    # Vorbereitung
     "vorbereitung des jahresabschlusses",
     "vorbereitung von jahresabschlüssen",
     "vorbereitung der jahresabschlüsse",
+    "vorbereitung der monats-",
+    "vorbereitung von monats-",
+    # Unterstützung
     "unterstützung bei jahresabschlüssen",
     "unterstuetzung bei jahresabschlüssen",
-    "mitwirkung bei jahresabschlüssen",
-    "zuarbeit für den jahresabschluss",
-    "zuarbeit fuer den jahresabschluss",
-    "mitarbeit bei monats- und jahresabschlüssen",
     "unterstützung bei der erstellung",
     "unterstuetzung bei der erstellung",
+    "unterstützung bei monats-",
+    "unterstuetzung bei monats-",
+    # Mitwirkung
+    "mitwirkung bei jahresabschlüssen",
     "mitwirkung an der erstellung",
+    "mitwirkung bei der erstellung",
+    "mitwirkung bei monats- und jahresabschlüssen",
+    "mitwirkung bei monats-",
+    # Mitarbeit
+    "mitarbeit bei monats- und jahresabschlüssen",
     "mitarbeit bei jahresabschlüssen",
+    "mitarbeit bei monats-",
+    "mitarbeit an monats-",
+    "mitarbeit an jahresabschlüssen",
+    # Zuarbeit
+    "zuarbeit für den jahresabschluss",
+    "zuarbeit fuer den jahresabschluss",
+    "zuarbeit bei jahresabschlüssen",
+    # Mithilfe
+    "mithilfe bei jahresabschlüssen",
+    "mithilfe bei monats-",
 ]
 
 
@@ -423,9 +478,10 @@ def validate_job_classification(gpt_result: dict, job_text: str) -> dict:
     """Deterministische Regelvalidierung nach GPT-Klassifizierung.
 
     Korrigiert systematische GPT-Fehler bei:
-    1. JA-Erstellung = BiBu (nicht FiBu)
-    2. Nur Kreditoren = KrediBu (nicht FiBu)
-    3. Nur Debitoren = DebiBu (nicht FiBu)
+    1. JA-Erstellung OHNE Prep-Phrase = BiBu (nicht FiBu)
+    2. JA-Prep-Phrase vorhanden = KEIN BiBu (auch wenn GPT BiBu sagt)
+    3. Nur Kreditoren = KrediBu (nicht FiBu)
+    4. Nur Debitoren = DebiBu (nicht FiBu)
     """
     if not job_text:
         return gpt_result
@@ -433,15 +489,27 @@ def validate_job_classification(gpt_result: dict, job_text: str) -> dict:
     text_lower = job_text.lower()
     corrections = []
 
-    # REGEL 1: JA-Erstellung = BiBu
+    # REGEL 1: JA-Erstellung vs. JA-Vorbereitung
     has_ja_creation = any(p in text_lower for p in _JA_CREATION_PHRASES)
-    has_ja_prep_only = any(p in text_lower for p in _JA_PREP_PHRASES) and not has_ja_creation
+    has_ja_prep = any(p in text_lower for p in _JA_PREP_PHRASES)
 
-    if has_ja_creation and gpt_result.get("primary_role") != "Bilanzbuchhalter/in":
-        gpt_result["primary_role"] = "Bilanzbuchhalter/in"
-        if "Bilanzbuchhalter/in" not in gpt_result.get("roles", []):
-            gpt_result.setdefault("roles", []).append("Bilanzbuchhalter/in")
-        corrections.append("JA-Erstellung erkannt → BiBu")
+    # WICHTIG: Wenn Prep-Phrasen vorhanden sind, hat Creation KEIN Gewicht!
+    # "Mitwirkung bei Erstellung von Monats- und Jahresabschlüssen" → FiBu, NICHT BiBu
+    if has_ja_prep:
+        # Prep-Phrase gefunden → KEIN BiBu, egal was sonst noch im Text steht
+        if gpt_result.get("primary_role") == "Bilanzbuchhalter/in":
+            gpt_result["primary_role"] = "Finanzbuchhalter/in"
+            gpt_result["sub_level"] = "senior"
+            if "Finanzbuchhalter/in" not in gpt_result.get("roles", []):
+                gpt_result.setdefault("roles", []).append("Finanzbuchhalter/in")
+            corrections.append("JA-Prep erkannt (Mitarbeit/Mitwirkung/Vorbereitung) → FiBu senior, NICHT BiBu")
+    elif has_ja_creation and not has_ja_prep:
+        # Echte JA-Erstellung OHNE Prep → BiBu
+        if gpt_result.get("primary_role") != "Bilanzbuchhalter/in":
+            gpt_result["primary_role"] = "Bilanzbuchhalter/in"
+            if "Bilanzbuchhalter/in" not in gpt_result.get("roles", []):
+                gpt_result.setdefault("roles", []).append("Bilanzbuchhalter/in")
+            corrections.append("Eigenstaendige JA-Erstellung erkannt → BiBu")
 
     # REGEL 2: Nur Kreditoren (ohne Debitoren) = KrediBu
     has_kredi = "kreditorenbuchhaltung" in text_lower or "accounts payable" in text_lower
@@ -488,9 +556,10 @@ def validate_candidate_classification(gpt_result: dict, candidate_text: str) -> 
     """Deterministische Regelvalidierung nach GPT-Klassifizierung fuer Kandidaten.
 
     Korrigiert systematische GPT-Fehler bei:
-    1. JA-Erstellung im Werdegang = BiBu (nicht FiBu)
-    2. Nur Kreditoren-Taetigkeit = KrediBu (nicht FiBu)
-    3. Nur Debitoren-Taetigkeit = DebiBu (nicht FiBu)
+    1. JA-Erstellung + BiBu-Qualifikation im Werdegang = BiBu
+    2. JA-Prep (Mitarbeit/Mitwirkung) = KEIN BiBu, auch wenn GPT BiBu sagt
+    3. Nur Kreditoren-Taetigkeit = KrediBu (nicht FiBu)
+    4. Nur Debitoren-Taetigkeit = DebiBu (nicht FiBu)
     """
     if not candidate_text:
         return gpt_result
@@ -498,22 +567,40 @@ def validate_candidate_classification(gpt_result: dict, candidate_text: str) -> 
     text_lower = candidate_text.lower()
     corrections = []
 
-    # REGEL 1: JA-Erstellung im Werdegang = BiBu
+    # REGEL 1: JA-Erstellung vs. JA-Vorbereitung
     has_ja_creation = any(p in text_lower for p in _JA_CREATION_PHRASES)
-    has_ja_prep_only = any(p in text_lower for p in _JA_PREP_PHRASES) and not has_ja_creation
+    has_ja_prep = any(p in text_lower for p in _JA_PREP_PHRASES)
 
-    if has_ja_creation and gpt_result.get("primary_role") != "Bilanzbuchhalter/in":
-        # Pruefe ob Kandidat BiBu-Zertifizierung hat (IHK Bilanzbuchhalter)
-        has_bibu_cert = any(kw in text_lower for kw in [
-            "bilanzbuchhalter ihk", "bilanzbuchhalter (ihk)",
-            "geprüfter bilanzbuchhalter", "gepruefter bilanzbuchhalter",
-            "bilanzbuchhalter/in",
-        ])
-        # Auch ohne Zertifizierung: JA-Erstellung in aktueller/letzter Position = BiBu-Erfahrung
-        gpt_result["primary_role"] = "Bilanzbuchhalter/in"
-        if "Bilanzbuchhalter/in" not in gpt_result.get("roles", []):
-            gpt_result.setdefault("roles", []).append("Bilanzbuchhalter/in")
-        corrections.append("JA-Erstellung im Werdegang → BiBu")
+    # Pruefe ob Kandidat BiBu-Zertifizierung hat
+    has_bibu_cert = any(kw in text_lower for kw in [
+        "bilanzbuchhalter ihk", "bilanzbuchhalter (ihk)",
+        "geprüfter bilanzbuchhalter", "gepruefter bilanzbuchhalter",
+        "bilanzbuchhalter-weiterbildung", "bilanzbuchhalter weiterbildung",
+    ])
+
+    if has_ja_prep:
+        # Prep-Phrase gefunden → KEIN BiBu, egal was sonst steht
+        if gpt_result.get("primary_role") == "Bilanzbuchhalter/in" and not has_bibu_cert:
+            gpt_result["primary_role"] = "Finanzbuchhalter/in"
+            gpt_result["sub_level"] = "senior"
+            if "Finanzbuchhalter/in" not in gpt_result.get("roles", []):
+                gpt_result.setdefault("roles", []).append("Finanzbuchhalter/in")
+            corrections.append("JA-Prep erkannt (Mitarbeit/Mitwirkung) ohne BiBu-Zertifikat → FiBu senior")
+    elif has_ja_creation and has_bibu_cert:
+        # Echte JA-Erstellung + BiBu-Zertifizierung → BiBu
+        if gpt_result.get("primary_role") != "Bilanzbuchhalter/in":
+            gpt_result["primary_role"] = "Bilanzbuchhalter/in"
+            if "Bilanzbuchhalter/in" not in gpt_result.get("roles", []):
+                gpt_result.setdefault("roles", []).append("Bilanzbuchhalter/in")
+            corrections.append("Eigenstaendige JA-Erstellung + BiBu-Zertifikat → BiBu")
+    elif has_ja_creation and not has_bibu_cert:
+        # JA-Erstellung OHNE BiBu-Zertifizierung → FiBu senior (nicht BiBu!)
+        if gpt_result.get("primary_role") == "Bilanzbuchhalter/in":
+            gpt_result["primary_role"] = "Finanzbuchhalter/in"
+            gpt_result["sub_level"] = "senior"
+            if "Finanzbuchhalter/in" not in gpt_result.get("roles", []):
+                gpt_result.setdefault("roles", []).append("Finanzbuchhalter/in")
+            corrections.append("JA-Erstellung aber KEIN BiBu-Zertifikat → FiBu senior")
 
     # REGEL 2: Nur Kreditoren (ohne Debitoren) = KrediBu
     has_kredi = any(kw in text_lower for kw in [
