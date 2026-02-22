@@ -163,10 +163,12 @@ Orientierung:
 86-100 = Sehr gute Passung, fast identisches Profil"""
 
 VORFILTER_USER = """KANDIDAT:
+- Rolle: {candidate_role}
 - Position: {current_position}
 - Taetigkeiten: {current_activities}
 
 STELLE:
+- Rolle: {job_role}
 - Titel: {job_position}
 - Aufgaben: {job_tasks}
 
@@ -492,6 +494,7 @@ async def run_stufe_0(candidate_id: str | None = None) -> dict:
                     Candidate.postal_code.label("candidate_plz"),
                     Candidate.hotlist_job_title.label("candidate_role"),
                     Candidate.current_position.label("candidate_position"),
+                    Candidate.classification_data.label("cand_classification"),
                     cand_lat,
                     cand_lng,
                     Job.id.label("job_id"),
@@ -505,6 +508,7 @@ async def run_stufe_0(candidate_id: str | None = None) -> dict:
                     Job.industry,
                     Job.work_arrangement,
                     Job.postal_code.label("job_plz"),
+                    Job.classification_data.label("job_classification"),
                     job_lat,
                     job_lng,
                     distance_expr,
@@ -704,10 +708,56 @@ async def run_stufe_0(candidate_id: str | None = None) -> dict:
 
             # Alle DB-Sessions GESCHLOSSEN!
 
+            total_geo_raw = len(geo_pairs)
+            logger.info(f"Geo-Kaskade: {total_geo_raw} rohe Paare, {len(proximity_pairs)} Naehe-Paare")
+
+            # ── Schritt 1b: Hard-Filter (Rollen-Kompatibilitaet, OHNE LLM) ──
+            _matching_status["progress"]["phase"] = "hard_filter"
+            _matching_status["progress"]["total_geo_pairs"] = total_geo_raw
+
+            # Welche Rollen passen zusammen? (Reihe = Kandidat, Spalte = Job)
+            # FiBu + BiBu sind kompatibel (FiBu kann aufsteigen, BiBu kann FiBu machen)
+            # KrediBu + DebiBu sind kompatibel (verwandt)
+            # FiBu + KrediBu/DebiBu sind kompatibel (FiBu ist generalistischer)
+            # LohnBu + StFA sind kompatibel (verwandt)
+            # LohnBu + FiBu/BiBu = INKOMPATIBEL
+            # StFA + FiBu/BiBu = INKOMPATIBEL
+            ROLE_COMPAT = {
+                "Finanzbuchhalter/in":      {"Finanzbuchhalter/in", "Bilanzbuchhalter/in", "Kreditorenbuchhalter/in", "Debitorenbuchhalter/in"},
+                "Bilanzbuchhalter/in":      {"Finanzbuchhalter/in", "Bilanzbuchhalter/in"},
+                "Kreditorenbuchhalter/in":  {"Kreditorenbuchhalter/in", "Debitorenbuchhalter/in", "Finanzbuchhalter/in"},
+                "Debitorenbuchhalter/in":   {"Debitorenbuchhalter/in", "Kreditorenbuchhalter/in", "Finanzbuchhalter/in"},
+                "Lohnbuchhalter/in":        {"Lohnbuchhalter/in", "Steuerfachangestellte/r"},
+                "Steuerfachangestellte/r":  {"Steuerfachangestellte/r", "Lohnbuchhalter/in"},
+            }
+
+            def _roles_compatible(cand_data: dict | None, job_data: dict | None) -> bool:
+                """Prueft ob Kandidat-Rolle und Job-Rolle kompatibel sind."""
+                if not cand_data or not job_data:
+                    return True  # Keine Daten → durchlassen
+                cand_role = cand_data.get("primary_role") if isinstance(cand_data, dict) else None
+                job_role = job_data.get("primary_role") if isinstance(job_data, dict) else None
+                if not cand_role or not job_role:
+                    return True  # Keine Rolle → durchlassen
+                compatible = ROLE_COMPAT.get(cand_role)
+                if compatible is None:
+                    return True  # Unbekannte Rolle → durchlassen
+                return job_role in compatible
+
+            filtered_pairs = []
+            hard_filtered = 0
+            for pair in geo_pairs:
+                if _roles_compatible(pair.get("cand_classification"), pair.get("job_classification")):
+                    filtered_pairs.append(pair)
+                else:
+                    hard_filtered += 1
+            geo_pairs = filtered_pairs
+
             total_geo = len(geo_pairs)
+            logger.info(f"Hard-Filter: {hard_filtered} Paare rausgefiltert (Rollen inkompatibel), {total_geo} bleiben")
             _matching_status["progress"]["total_geo_pairs"] = total_geo
             _matching_status["progress"]["vorfilter_total"] = total_geo
-            logger.info(f"Geo-Kaskade: {total_geo} Paare gefunden, {len(proximity_pairs)} Naehe-Paare")
+            _matching_status["progress"]["hard_filtered"] = hard_filtered
 
             if total_geo == 0:
                 # Keine Paare → Session erstellen mit leeren Daten
@@ -767,9 +817,17 @@ async def run_stufe_0(candidate_id: str | None = None) -> dict:
                             # Kein Werdegang → durchlassen (Stufe 1 entscheidet)
                             return True
 
+                        # Rollen aus classification_data
+                        cand_cls = pair.get("cand_classification") or {}
+                        job_cls = pair.get("job_classification") or {}
+                        candidate_role = cand_cls.get("primary_role", "") if isinstance(cand_cls, dict) else ""
+                        job_role = job_cls.get("primary_role", "") if isinstance(job_cls, dict) else ""
+
                         user_msg = VORFILTER_USER.format(
+                            candidate_role=candidate_role or "Unbekannt",
                             current_position=current_position or "Nicht angegeben",
                             current_activities=current_activities or "Nicht angegeben",
+                            job_role=job_role or "Unbekannt",
                             job_position=pair.get("position") or "Unbekannt",
                             job_tasks=job_tasks or "Nicht angegeben",
                         )
