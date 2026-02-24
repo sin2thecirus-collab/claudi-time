@@ -110,89 +110,264 @@
     </div>
     {% endif %}
 
-    <!-- Job + Kandidat Side by Side -->
+    <!-- ═══ Job + Kandidat Side by Side ═══ -->
     <div class="grid grid-cols-2 gap-4 mb-6">
-        <!-- Job -->
+
+        <!-- ─── JOB ─── -->
         {% if data.job %}
-        <div class="p-4 rounded-lg" style="border: 1px solid var(--pp-border);">
-            <div class="text-xs uppercase tracking-wider font-medium mb-2" style="color: var(--pp-accent);">Job</div>
-            <div class="text-sm font-semibold" style="color: var(--pp-text);">{{ data.job.position }}</div>
-            <div class="text-xs mt-0.5" style="color: var(--pp-textMuted);">{{ data.job.company_name }}</div>
-            <div class="text-xs mt-0.5" style="color: var(--pp-textDim);">
-                {{ data.job.city }}
+        <div class="p-4 rounded-lg overflow-y-auto" style="border: 1px solid var(--pp-border); max-height: 70vh;">
+            <div class="text-xs uppercase tracking-wider font-medium mb-3" style="color: var(--pp-accent);">Job</div>
+
+            <!-- Kopf -->
+            <div class="text-base font-semibold" style="color: var(--pp-text);">{{ data.job.position }}</div>
+            <div class="text-sm mt-0.5" style="color: var(--pp-textMuted);">{{ data.job.company_name }}</div>
+            <div class="text-xs mt-1" style="color: var(--pp-textDim);">
+                {% if data.job.street_address %}{{ data.job.street_address }}, {% endif %}{% if data.job.postal_code %}{{ data.job.postal_code }} {% endif %}{{ data.job.city }}
+            </div>
+            <div class="text-xs mt-0.5 flex items-center gap-2" style="color: var(--pp-textDim);">
                 {% if data.job.work_arrangement %}
-                <span class="ml-1 px-1 py-0.5 rounded"
+                <span class="px-1.5 py-0.5 rounded text-[10px]"
                       style="background: var(--pp-surfaceHover);">{{ data.job.work_arrangement }}</span>
                 {% endif %}
+                {% if data.job.employment_type %}
+                <span class="px-1.5 py-0.5 rounded text-[10px]"
+                      style="background: var(--pp-surfaceHover);">{{ data.job.employment_type }}</span>
+                {% endif %}
             </div>
-            {% if data.job.classification_data %}
-            <div class="text-[10px] mt-1 px-1.5 py-0.5 rounded inline-block"
-                 style="background: var(--pp-accentSoft); color: var(--pp-accent);">
-                {{ data.job.classification_data.get('primary_role', '') }}
+
+            <!-- Rolle & Branche -->
+            <div class="flex items-center gap-2 mt-2">
+                {% if data.job.classification_data %}
+                <span class="text-[10px] px-1.5 py-0.5 rounded"
+                      style="background: var(--pp-accentSoft); color: var(--pp-accent);">
+                    {{ data.job.classification_data.get('primary_role', '') }}
+                </span>
+                {% endif %}
+                {% if data.job.industry %}
+                <span class="text-[10px] px-1.5 py-0.5 rounded"
+                      style="background: var(--pp-surfaceHover); color: var(--pp-textDim);">
+                    {{ data.job.industry }}
+                </span>
+                {% endif %}
             </div>
-            {% endif %}
+
+            <!-- Aufgaben -->
             {% if data.job.job_tasks %}
-            <div class="mt-2 text-xs leading-relaxed" style="color: var(--pp-textMuted);">
-                <span class="font-medium" style="color: var(--pp-textDim);">Aufgaben:</span>
-                {{ data.job.job_tasks[:300] }}
+            <div class="mt-4">
+                <div class="text-xs font-semibold mb-1" style="color: var(--pp-textDim);">Aufgaben</div>
+                <div class="text-xs leading-relaxed" style="color: var(--pp-text);">{{ data.job.job_tasks }}</div>
             </div>
             {% endif %}
+
+            <!-- Vollstaendige Stellenbeschreibung -->
             {% if data.job.job_text %}
-            <details class="mt-2">
-                <summary class="text-xs cursor-pointer" style="color: var(--pp-accent);">Volle Stellenbeschreibung</summary>
-                <div class="mt-1 text-xs leading-relaxed max-h-60 overflow-y-auto" style="color: var(--pp-textMuted);">
-                    {{ data.job.job_text[:2000] }}
-                </div>
-            </details>
+            <div class="mt-4">
+                <div class="text-xs font-semibold mb-1" style="color: var(--pp-textDim);">Stellenbeschreibung</div>
+                <div class="text-xs leading-relaxed whitespace-pre-line" style="color: var(--pp-textMuted);">{{ data.job.job_text }}</div>
+            </div>
             {% endif %}
         </div>
         {% endif %}
 
-        <!-- Kandidat -->
+        <!-- ─── KANDIDAT ─── -->
         {% if data.candidate %}
-        <div class="p-4 rounded-lg" style="border: 1px solid var(--pp-border);">
-            <div class="text-xs uppercase tracking-wider font-medium mb-2" style="color: var(--pp-green);">Kandidat</div>
-            <div class="text-sm font-semibold" style="color: var(--pp-text);">{{ data.candidate.current_position or '—' }}</div>
-            <div class="text-xs mt-0.5" style="color: var(--pp-textMuted);">{{ data.candidate.city or '—' }}</div>
+        <div class="p-4 rounded-lg overflow-y-auto" style="border: 1px solid var(--pp-border); max-height: 70vh;">
+            <div class="text-xs uppercase tracking-wider font-medium mb-3" style="color: var(--pp-green);">Kandidat</div>
+
+            <!-- Kopf -->
+            {% if data.candidate.first_name or data.candidate.last_name %}
+            <div class="text-base font-bold" style="color: var(--pp-text);">
+                {{ data.candidate.first_name or '' }} {{ data.candidate.last_name or '' }}
+            </div>
+            {% endif %}
+            <div class="text-sm font-semibold{% if data.candidate.first_name or data.candidate.last_name %} mt-0.5{% endif %}" style="color: var(--pp-text);">{{ data.candidate.current_position or '—' }}</div>
+            {% if data.candidate.current_company %}
+            <div class="text-sm mt-0.5" style="color: var(--pp-textMuted);">{{ data.candidate.current_company }}</div>
+            {% endif %}
+            <div class="text-xs mt-1" style="color: var(--pp-textDim);">
+                {% if data.candidate.street_address %}{{ data.candidate.street_address }}, {% endif %}{% if data.candidate.postal_code %}{{ data.candidate.postal_code }} {% endif %}{{ data.candidate.city or '—' }}
+            </div>
             {% if data.candidate.classification_data %}
             <div class="text-[10px] mt-1 px-1.5 py-0.5 rounded inline-block"
                  style="background: var(--pp-accentSoft); color: var(--pp-accent);">
                 {{ data.candidate.classification_data.get('primary_role', '') }}
             </div>
             {% endif %}
-            {% if data.candidate.skills %}
-            <div class="mt-2 text-xs" style="color: var(--pp-textDim);">
-                <span class="font-medium">Skills:</span> {{ data.candidate.skills[:5]|join(', ') }}
-            </div>
-            {% endif %}
-            {% if data.candidate.it_skills %}
-            <div class="mt-1 text-xs" style="color: var(--pp-textDim);">
-                <span class="font-medium">IT/ERP:</span> {{ data.candidate.it_skills[:5]|join(', ') }}
-            </div>
-            {% endif %}
-            {% if data.candidate.work_history %}
-            <details class="mt-2">
-                <summary class="text-xs cursor-pointer" style="color: var(--pp-accent);">Berufserfahrung</summary>
-                <div class="mt-1 text-xs leading-relaxed max-h-60 overflow-y-auto" style="color: var(--pp-textMuted);">
-                    {% if data.candidate.work_history is mapping %}
-                        {% for key, val in data.candidate.work_history.items() %}
-                        <div class="mb-1"><strong>{{ key }}:</strong> {{ val }}</div>
-                        {% endfor %}
-                    {% elif data.candidate.work_history is iterable %}
-                        {% for pos in data.candidate.work_history[:5] %}
-                        {% if pos is mapping %}
-                        <div class="mb-1">
-                            <strong>{{ pos.get('position', '') }}</strong> bei {{ pos.get('company', '') }}
-                            ({{ pos.get('period', '') }})
-                            {% if pos.get('activities') %}
-                            <div class="ml-2 mt-0.5" style="color: var(--pp-textDim);">{{ pos.activities[:200] }}</div>
-                            {% endif %}
-                        </div>
-                        {% endif %}
-                        {% endfor %}
+
+            <!-- Kerndaten -->
+            {% set has_kerndaten = data.candidate.salary or data.candidate.notice_period or data.candidate.willingness_to_change or data.candidate.home_office_days or data.candidate.commute_max %}
+            {% if has_kerndaten %}
+            <div class="mt-4 p-3 rounded-lg" style="background: var(--pp-surfaceHover);">
+                <div class="text-xs font-semibold mb-2" style="color: var(--pp-textDim);">Kerndaten</div>
+                <div class="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                    {% if data.candidate.salary %}
+                    <div class="text-xs"><span style="color: var(--pp-textDim);">Gehalt:</span> <span style="color: var(--pp-text);">{{ data.candidate.salary }}</span></div>
+                    {% endif %}
+                    {% if data.candidate.notice_period %}
+                    <div class="text-xs"><span style="color: var(--pp-textDim);">Kuendigungsfrist:</span> <span style="color: var(--pp-text);">{{ data.candidate.notice_period }}</span></div>
+                    {% endif %}
+                    {% if data.candidate.willingness_to_change %}
+                    <div class="text-xs"><span style="color: var(--pp-textDim);">Wechselbereitschaft:</span> <span style="color: var(--pp-text);">{{ data.candidate.willingness_to_change }}</span></div>
+                    {% endif %}
+                    {% if data.candidate.home_office_days %}
+                    <div class="text-xs"><span style="color: var(--pp-textDim);">Home-Office:</span> <span style="color: var(--pp-text);">{{ data.candidate.home_office_days }}</span></div>
+                    {% endif %}
+                    {% if data.candidate.commute_max %}
+                    <div class="text-xs"><span style="color: var(--pp-textDim);">Max. Pendelweg:</span> <span style="color: var(--pp-text);">{{ data.candidate.commute_max }}</span></div>
+                    {% endif %}
+                    {% if data.candidate.desired_positions %}
+                    <div class="text-xs col-span-2"><span style="color: var(--pp-textDim);">Wunschpositionen:</span> <span style="color: var(--pp-text);">{{ data.candidate.desired_positions }}</span></div>
                     {% endif %}
                 </div>
-            </details>
+            </div>
+            {% endif %}
+
+            <!-- Kerntaetigkeiten -->
+            {% if data.candidate.key_activities %}
+            <div class="mt-3">
+                <div class="text-xs font-semibold mb-1" style="color: var(--pp-textDim);">Kerntaetigkeiten</div>
+                <div class="text-xs leading-relaxed" style="color: var(--pp-text);">{{ data.candidate.key_activities }}</div>
+            </div>
+            {% endif %}
+
+            <!-- Skills -->
+            {% if data.candidate.skills %}
+            <div class="mt-3">
+                <div class="text-xs font-semibold mb-1" style="color: var(--pp-textDim);">Skills</div>
+                <div class="flex flex-wrap gap-1">
+                    {% for s in data.candidate.skills %}
+                    <span class="text-[10px] px-1.5 py-0.5 rounded" style="background: var(--pp-surfaceHover); color: var(--pp-text);">{{ s }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- IT / ERP -->
+            {% if data.candidate.it_skills or data.candidate.erp %}
+            <div class="mt-3">
+                <div class="text-xs font-semibold mb-1" style="color: var(--pp-textDim);">
+                    IT / ERP
+                    {% if data.candidate.erp_main %}
+                    <span class="ml-1 font-normal" style="color: var(--pp-accent);">(Haupt-ERP: {{ data.candidate.erp_main }})</span>
+                    {% endif %}
+                </div>
+                <div class="flex flex-wrap gap-1">
+                    {% for s in (data.candidate.it_skills or []) %}
+                    <span class="text-[10px] px-1.5 py-0.5 rounded" style="background: rgba(99,102,241,0.08); color: var(--pp-accent);">{{ s }}</span>
+                    {% endfor %}
+                    {% for s in (data.candidate.erp or []) %}
+                    {% if s not in (data.candidate.it_skills or []) %}
+                    <span class="text-[10px] px-1.5 py-0.5 rounded" style="background: rgba(99,102,241,0.08); color: var(--pp-accent);">{{ s }}</span>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Berufserfahrung -->
+            {% if data.candidate.work_history %}
+            <div class="mt-4">
+                <div class="text-xs font-semibold mb-2" style="color: var(--pp-textDim);">Berufserfahrung</div>
+                {% if data.candidate.work_history is mapping %}
+                    {% for key, val in data.candidate.work_history.items() %}
+                    <div class="mb-2 text-xs"><strong>{{ key }}:</strong> {{ val }}</div>
+                    {% endfor %}
+                {% elif data.candidate.work_history is iterable %}
+                    {% for pos in data.candidate.work_history %}
+                    {% if pos is mapping %}
+                    <div class="mb-3 pb-2" style="{% if not loop.last %}border-bottom: 1px solid var(--pp-border);{% endif %}">
+                        <div class="text-xs font-medium" style="color: var(--pp-text);">{{ pos.get('position', '') }}</div>
+                        {% if pos.get('company') %}
+                        <div class="text-[10px] mt-0.5" style="color: var(--pp-textMuted);">{{ pos.get('company', '') }}</div>
+                        {% endif %}
+                        {% if pos.get('start_date') or pos.get('end_date') or pos.get('period') %}
+                        <div class="text-[10px] mt-0.5" style="color: var(--pp-textDim);">
+                            {% if pos.get('period') %}{{ pos.period }}{% else %}{{ pos.get('start_date', '') }} – {{ pos.get('end_date', 'heute') }}{% endif %}
+                        </div>
+                        {% endif %}
+                        {% if pos.get('activities') %}
+                        <div class="text-[10px] mt-1 leading-relaxed whitespace-pre-line" style="color: var(--pp-textMuted);">{{ pos.activities }}</div>
+                        {% endif %}
+                        {% if pos.get('description') %}
+                        <div class="text-[10px] mt-1 leading-relaxed whitespace-pre-line" style="color: var(--pp-textMuted);">{{ pos.description }}</div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- Ausbildung -->
+            {% if data.candidate.education %}
+            <div class="mt-4">
+                <div class="text-xs font-semibold mb-2" style="color: var(--pp-textDim);">Ausbildung</div>
+                {% if data.candidate.education is iterable %}
+                    {% for edu in data.candidate.education %}
+                    {% if edu is mapping %}
+                    <div class="mb-2">
+                        <div class="text-xs font-medium" style="color: var(--pp-text);">{{ edu.get('degree', '') }}</div>
+                        {% if edu.get('field_of_study') %}
+                        <div class="text-[10px] mt-0.5" style="color: var(--pp-textMuted);">{{ edu.field_of_study }}</div>
+                        {% endif %}
+                        {% if edu.get('institution') %}
+                        <div class="text-[10px] mt-0.5" style="color: var(--pp-textDim);">{{ edu.institution }}</div>
+                        {% endif %}
+                        {% if edu.get('start_date') or edu.get('end_date') %}
+                        <div class="text-[10px] mt-0.5" style="color: var(--pp-textDim);">{{ edu.get('start_date', '') }} – {{ edu.get('end_date', '') }}</div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- Weiterbildungen & Zertifikate -->
+            {% if data.candidate.further_education %}
+            <div class="mt-4">
+                <div class="text-xs font-semibold mb-2" style="color: var(--pp-textDim);">Weiterbildungen & Zertifikate</div>
+                {% if data.candidate.further_education is iterable %}
+                    {% for fe in data.candidate.further_education %}
+                    {% if fe is mapping %}
+                    <div class="mb-1.5 text-xs flex items-start gap-1">
+                        <span style="color: var(--pp-accent);">&#8226;</span>
+                        <span style="color: var(--pp-text);">
+                            {{ fe.get('name', '') or fe.get('title', '') }}
+                            {% if fe.get('institution') %}<span style="color: var(--pp-textDim);"> — {{ fe.institution }}</span>{% endif %}
+                            {% if fe.get('end_date') %}<span style="color: var(--pp-textDim);"> ({{ fe.end_date }})</span>{% endif %}
+                        </span>
+                    </div>
+                    {% elif fe is string %}
+                    <div class="mb-1 text-xs" style="color: var(--pp-text);">&#8226; {{ fe }}</div>
+                    {% endif %}
+                    {% endfor %}
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- Sprachen -->
+            {% if data.candidate.languages %}
+            <div class="mt-4">
+                <div class="text-xs font-semibold mb-1" style="color: var(--pp-textDim);">Sprachen</div>
+                <div class="text-xs" style="color: var(--pp-text);">
+                    {% if data.candidate.languages is mapping %}
+                        {% for lang, level in data.candidate.languages.items() %}
+                        <span>{{ lang }}{% if level %} ({{ level }}){% endif %}{% if not loop.last %}, {% endif %}</span>
+                        {% endfor %}
+                    {% elif data.candidate.languages is iterable %}
+                        {{ data.candidate.languages|join(', ') }}
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Notizen -->
+            {% if data.candidate.candidate_notes %}
+            <div class="mt-4 p-3 rounded-lg" style="background: rgba(234,179,8,0.06); border: 1px solid rgba(234,179,8,0.15);">
+                <div class="text-xs font-semibold mb-1" style="color: var(--pp-orange);">Notizen</div>
+                <div class="text-xs leading-relaxed whitespace-pre-line" style="color: var(--pp-text);">{{ data.candidate.candidate_notes }}</div>
+            </div>
             {% endif %}
         </div>
         {% endif %}
