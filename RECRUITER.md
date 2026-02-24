@@ -15,6 +15,12 @@ Deine Aufgabe: Kandidaten (FiBu, BiBu, KrediBu, DebiBu, LohnBu, StFA) mit passen
 3. Profile lesen und bewerten
 4. `python claude_match_helper.py --save '...'` → Ergebnis in DB schreiben
 
+### Vorfilter — WER wird gematcht?
+- **NUR Kandidaten mit classification_data** — wer nicht klassifiziert ist, wird ignoriert
+- Die Klassifizierung bestimmt die Rolle (FiBu, BiBu, etc.) anhand der Taetigkeiten
+- Der angezeigte Titel (current_position) ist NICHT die Rolle — ein "Accounting Specialist" kann als "Bilanzbuchhalter/in" klassifiziert sein
+- Kandidaten ohne Klassifizierung sind meistens Nicht-Finance-Leute und werden uebersprungen
+
 ---
 
 ## MATCH-KRITERIEN

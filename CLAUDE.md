@@ -102,6 +102,7 @@ Das MT matcht Finance-Kandidaten (FiBu, BiBu, KrediBu, DebiBu, LohnBu, StFA) aut
 17. **NIEMALS Matches mit Score < 75% speichern** — Unter 75% ist Schrott, keine Fahrzeit, nichts.
 18. **IMMER Google Maps Fahrzeit fuer Matches >= 75% berechnen** — Jedes gespeicherte Match braucht echte Fahrzeit.
 19. **IMMER Luftlinie max 30km als Vorfilter** — 60km Luftlinie kann 100km Fahrweg bedeuten.
+20. **NUR Kandidaten mit classification_data matchen** — Ohne Klassifizierung kein Matching. Nicht-Finance-Leute werden so automatisch ignoriert.
 
 ---
 
