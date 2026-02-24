@@ -187,6 +187,8 @@ def validate_job_classification(gpt_result: dict, job_text: str) -> dict:
 
 def validate_candidate_classification(gpt_result: dict, candidate_text: str) -> dict:
     """Minimale Nachkorrektur — nur BiBu-Regel (braucht IHK-Zertifikat)."""
+    import re
+
     if not candidate_text or not gpt_result.get("primary_role"):
         return gpt_result
 
@@ -201,9 +203,12 @@ def validate_candidate_classification(gpt_result: dict, candidate_text: str) -> 
         "ihk bilanzbuchhalter", "ihk-bilanzbuchhalter",
         "bilanzbuchhalterin ihk", "bilanzbuchhalterin (ihk)",
         "ihk bilanzbuchhalterin",
-        # Geprüft-Varianten
+        # IHK-Varianten mit /in
+        "bilanzbuchhalter/in ihk", "bilanzbuchhalter/in (ihk)",
+        # Geprüft-Varianten (alle Flexionsformen)
         "geprüfter bilanzbuchhalter", "gepruefter bilanzbuchhalter",
         "geprüfte bilanzbuchhalterin", "geprufte bilanzbuchhalterin",
+        "geprüften bilanzbuchhalter", "geprueften bilanzbuchhalter",
         "gepr. bilanzbuchhalter",
         # Zertifikat/Weiterbildung
         "zertifikat bilanzbuchhalter", "zertifikat: bilanzbuchhalter",
@@ -219,14 +224,26 @@ def validate_candidate_classification(gpt_result: dict, candidate_text: str) -> 
         "bilanzbuchhalter-fortbildung",
         "bilanzbuchhalter-zertifikat",
         "bilanzbuchhalter-abschluss",
+        # Fachkaufmann-Variante
+        "fachkaufmann bilanzbuchhalter",
     ]
     has_bibu_cert = any(kw in text_lower for kw in _bibu_cert_phrases)
 
-    # HINWEIS: Keine fuzzy Kontext-Pruefung mehr!
-    # Der alte Code pruefte ob "bilanzbuchhalter" + "ausbildung" irgendwo im Text stehen,
-    # aber "AUSBILDUNG:" ist ein fester Section-Header der IMMER im Text steht.
-    # Dadurch wurde has_bibu_cert faelschlich auf True gesetzt.
-    # Jetzt nur noch explizite Phrasen aus _bibu_cert_phrases.
+    # FIX: Auch "Bilanzbuchhalter/Bilanzbuchhaltung" als Abschluss/Degree in
+    # AUSBILDUNG oder WEITERBILDUNG erkennen. Im Prompt-Format stehen Abschluesse
+    # als Listenpunkte:
+    #   "- Bilanzbuchhalter () — IHK"
+    #   "- Bachelor Professional in Bilanzbuchhaltung () — IHK"
+    #   "- geprüften Bilanzbuchhalter () — None"
+    # Die bisherige Phrasen-Suche findet "bilanzbuchhalter ihk" nicht weil
+    # im Text "bilanzbuchhalter () — ihk" steht (getrennt durch Formatierung).
+    # Wir matchen den Stamm "bilanzbuchhal" um beide Formen zu erkennen.
+    if not has_bibu_cert:
+        has_bibu_cert = bool(re.search(
+            r'^- .{0,60}bilanzbuchhal',
+            text_lower,
+            re.MULTILINE,
+        ))
 
     if gpt_result.get("primary_role") == "Bilanzbuchhalter/in":
         if has_ja_prep and not has_bibu_cert:
