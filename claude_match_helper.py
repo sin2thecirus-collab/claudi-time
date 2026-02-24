@@ -214,7 +214,7 @@ async def cmd_batch(city: str | None, role: str | None, limit: int):
                 print("Keine aktiven Jobs gefunden (mit den angegebenen Filtern).")
                 return
 
-            # Kandidaten laden (verfuegbar, nicht geloescht, mit Koordinaten)
+            # Kandidaten laden — NUR klassifizierte Finance-Leute
             candidates = await conn.fetch(
                 """
                 SELECT c.id, c.city, c.current_position,
@@ -231,6 +231,7 @@ async def cmd_batch(city: str | None, role: str | None, limit: int):
                 WHERE c.hidden = false
                   AND c.deleted_at IS NULL
                   AND c.address_coords IS NOT NULL
+                  AND c.classification_data IS NOT NULL
                   AND (c.availability_status = 'available' OR c.availability_status IS NULL)
                 ORDER BY c.created_at DESC
                 """
