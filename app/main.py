@@ -359,7 +359,6 @@ from app.api.routes_pages import router as pages_router
 from app.api.routes_statistics import router as statistics_router
 from app.api.routes_alerts import router as alerts_router
 from app.api.routes_hotlisten import router as hotlisten_router
-from app.api.routes_match_center import router as match_center_router
 from app.api.routes_companies import router as companies_router
 from app.api.routes_smart_match import router as smart_match_router
 from app.api.routes_titel_zuweisung import router as titel_zuweisung_router
@@ -383,7 +382,6 @@ register_exception_handlers(app)
 # Page Router registrieren (ohne Prefix fuer HTML-Seiten)
 app.include_router(pages_router)
 app.include_router(hotlisten_router)  # Hotlisten-Seiten + API (/hotlisten, /match-bereiche, /deepmatch)
-app.include_router(match_center_router)  # Match Center (/match-center, /api/match-center)
 app.include_router(titel_zuweisung_router)  # Titel-Zuweisung (/titel-zuweisung, /api/titel-zuweisung)
 app.include_router(ats_pages_router)  # ATS Seiten (/ats, /ats/stellen, /ats/todos, /ats/anrufe)
 
@@ -428,7 +426,7 @@ app.include_router(matching_v2_router, prefix="/api/v2")
 from app.api.routes_claude_matching import router as claude_matching_router
 app.include_router(claude_matching_router, prefix="/api/v4")
 
-# Neues Match Center — Claude Code Matching (/new-match-center, /api/new-match-center/...)
+# Match Center — Claude Code Matching (/match-center, /api/match-center/...)
 from app.api.routes_new_match_center import router as new_match_center_router
 app.include_router(new_match_center_router)
 

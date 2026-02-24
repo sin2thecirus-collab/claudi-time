@@ -1,15 +1,15 @@
 """Neues Match Center — Claude Code Matching.
 
 Seiten:
-- GET /new-match-center                → Hauptseite (Dashboard + Match-Karten)
+- GET /match-center                → Hauptseite (Dashboard + Match-Karten)
 
 API:
-- GET  /api/new-match-center/stats      → Dashboard-Statistiken (JSON)
-- GET  /api/new-match-center/matches    → Match-Karten (HTMX partial)
-- GET  /api/new-match-center/match/<id> → Match-Detail (HTMX modal)
-- GET  /api/new-match-center/filters    → Filter-Optionen (JSON)
-- POST /api/new-match-center/status/<id> → Status aendern (JSON)
-- POST /api/new-match-center/feedback/<id> → Feedback speichern (JSON)
+- GET  /api/match-center/stats      → Dashboard-Statistiken (JSON)
+- GET  /api/match-center/matches    → Match-Karten (HTMX partial)
+- GET  /api/match-center/match/<id> → Match-Detail (HTMX modal)
+- GET  /api/match-center/filters    → Filter-Optionen (JSON)
+- POST /api/match-center/status/<id> → Status aendern (JSON)
+- POST /api/match-center/feedback/<id> → Feedback speichern (JSON)
 """
 
 import logging
@@ -34,7 +34,7 @@ router = APIRouter(tags=["New-Match-Center"])
 # ═══════════════════════════════════════════════════════════════
 
 
-@router.get("/new-match-center", response_class=HTMLResponse)
+@router.get("/match-center", response_class=HTMLResponse)
 async def new_match_center_page(
     request: Request,
     db: AsyncSession = Depends(get_db),
@@ -73,7 +73,7 @@ async def new_match_center_page(
 # ═══════════════════════════════════════════════════════════════
 
 
-@router.get("/api/new-match-center/stats")
+@router.get("/api/match-center/stats")
 async def get_stats(
     db: AsyncSession = Depends(get_db),
 ):
@@ -83,7 +83,7 @@ async def get_stats(
     return JSONResponse(stats)
 
 
-@router.get("/api/new-match-center/matches", response_class=HTMLResponse)
+@router.get("/api/match-center/matches", response_class=HTMLResponse)
 async def get_matches(
     request: Request,
     empfehlung: str = Query(None),
@@ -136,7 +136,7 @@ async def get_matches(
     )
 
 
-@router.get("/api/new-match-center/match/{match_id}", response_class=HTMLResponse)
+@router.get("/api/match-center/match/{match_id}", response_class=HTMLResponse)
 async def get_match_detail(
     request: Request,
     match_id: UUID,
@@ -161,7 +161,7 @@ async def get_match_detail(
     )
 
 
-@router.get("/api/new-match-center/filters")
+@router.get("/api/match-center/filters")
 async def get_filters(
     db: AsyncSession = Depends(get_db),
 ):
@@ -171,7 +171,7 @@ async def get_filters(
     return JSONResponse(options)
 
 
-@router.post("/api/new-match-center/status/{match_id}")
+@router.post("/api/match-center/status/{match_id}")
 async def update_status(
     match_id: UUID,
     status: str = Query(...),
@@ -191,7 +191,7 @@ async def update_status(
     return JSONResponse({"status": "ok", "new_status": status})
 
 
-@router.post("/api/new-match-center/feedback/{match_id}")
+@router.post("/api/match-center/feedback/{match_id}")
 async def save_feedback(
     match_id: UUID,
     feedback: str = Query(...),

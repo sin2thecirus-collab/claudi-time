@@ -855,19 +855,7 @@ async def compare_pair(
     )
     match_row = existing_match.scalar_one_or_none()
 
-    if match_row:
-        # Match existiert — normalen Compare-Endpoint verwenden
-        from app.services.match_center_service import MatchCenterService
-        service = MatchCenterService(db)
-        comparison = await service.get_match_comparison(match_row)
-        if comparison:
-            return {
-                "has_match": True,
-                "match_id": str(match_row),
-                "data": comparison.__dict__ if hasattr(comparison, "__dict__") else comparison,
-            }
-
-    # Kein Match — Daten direkt aus DB laden
+    # Kandidat + Job laden
     candidate = await db.execute(
         select(
             Candidate.id,
@@ -913,9 +901,12 @@ async def compare_pair(
     if cand.last_name:
         name_parts.append(cand.last_name)
 
+    # Match-Daten ergaenzen wenn vorhanden
+    match_obj = await db.get(Match, match_row) if match_row else None
+
     return {
-        "has_match": False,
-        "match_id": None,
+        "has_match": match_row is not None,
+        "match_id": str(match_row) if match_row else None,
         "data": {
             "candidate_id": str(cand.id),
             "candidate_name": " ".join(name_parts) or "Unbekannt",
@@ -939,13 +930,13 @@ async def compare_pair(
             "job_postal_code": j.postal_code or "",
             "job_street_address": j.street_address or "",
             "job_text": j.job_text or "",
-            "ai_score": None,
-            "ai_explanation": None,
-            "ai_strengths": None,
-            "ai_weaknesses": None,
-            "distance_km": None,
-            "drive_time_car_min": None,
-            "drive_time_transit_min": None,
+            "ai_score": match_obj.ai_score if match_obj else None,
+            "ai_explanation": match_obj.ai_explanation if match_obj else None,
+            "ai_strengths": match_obj.ai_strengths if match_obj else None,
+            "ai_weaknesses": match_obj.ai_weaknesses if match_obj else None,
+            "distance_km": match_obj.distance_km if match_obj else None,
+            "drive_time_car_min": match_obj.drive_time_car_min if match_obj else None,
+            "drive_time_transit_min": match_obj.drive_time_transit_min if match_obj else None,
         },
     }
 

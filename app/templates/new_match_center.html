@@ -196,7 +196,7 @@ function matchCenter() {
             params.set('sort_dir', this.filters.sort_dir);
             params.set('page', this.filters.page);
 
-            htmx.ajax('GET', '/api/new-match-center/matches?' + params.toString(), {
+            htmx.ajax('GET', '/api/match-center/matches?' + params.toString(), {
                 target: '#match-cards-container',
                 swap: 'innerHTML',
             });
@@ -209,7 +209,7 @@ function matchCenter() {
 
         openDetail(matchId) {
             this.showDetail = true;
-            htmx.ajax('GET', '/api/new-match-center/match/' + matchId, {
+            htmx.ajax('GET', '/api/match-center/match/' + matchId, {
                 target: '#detail-modal-content',
                 swap: 'innerHTML',
             });
@@ -217,7 +217,7 @@ function matchCenter() {
 
         async updateStatus(matchId, status) {
             const csrf = document.cookie.match(/pp_csrf=([^;]+)/);
-            const resp = await fetch(`/api/new-match-center/status/${matchId}?status=${status}`, {
+            const resp = await fetch(`/api/match-center/status/${matchId}?status=${status}`, {
                 method: 'POST',
                 headers: csrf ? {'X-CSRF-Token': csrf[1]} : {},
             });
@@ -228,7 +228,7 @@ function matchCenter() {
 
         async sendFeedback(matchId, feedback, note) {
             const csrf = document.cookie.match(/pp_csrf=([^;]+)/);
-            let url = `/api/new-match-center/feedback/${matchId}?feedback=${feedback}`;
+            let url = `/api/match-center/feedback/${matchId}?feedback=${feedback}`;
             if (note) url += `&note=${encodeURIComponent(note)}`;
             const resp = await fetch(url, {
                 method: 'POST',
