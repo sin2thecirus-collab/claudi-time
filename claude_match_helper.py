@@ -266,13 +266,17 @@ async def cmd_batch(city: str | None, role: str | None, limit: int):
                         if job["company_name"].lower() in [e.lower() for e in excluded if isinstance(e, str)]:
                             continue
 
-                    # Rollen-Kompatibilitaet (grober Vorfilter)
-                    job_role = (_parse_jsonb(job["classification_data"]) or {}).get("primary_role", "")
-                    cand_roles = (_parse_jsonb(cand["classification_data"]) or {}).get("roles", [])
-                    cand_primary = (_parse_jsonb(cand["classification_data"]) or {}).get("primary_role", "")
+                    # Kandidat muss eine Finance-Rolle haben
+                    cand_cd = _parse_jsonb(cand["classification_data"]) or {}
+                    cand_primary = cand_cd.get("primary_role", "")
+                    cand_roles = cand_cd.get("roles", [])
 
-                    # Rollen-Kompatibilitaet (nur wenn beide klassifiziert sind)
-                    if job_role and cand_primary:
+                    if not cand_primary or cand_primary not in FINANCE_ROLES:
+                        continue  # Kein Finance-Kandidat → ueberspringen
+
+                    # Rollen-Kompatibilitaet mit Job
+                    job_role = (_parse_jsonb(job["classification_data"]) or {}).get("primary_role", "")
+                    if job_role:
                         compatible = _roles_compatible(cand_primary, cand_roles, job_role)
                         if not compatible:
                             continue
@@ -444,10 +448,14 @@ async def cmd_job(job_id: str):
                 if isinstance(excluded, list) and job["company_name"]:
                     if job["company_name"].lower() in [e.lower() for e in excluded if isinstance(e, str)]:
                         continue
-                # Rollen-Check
-                cand_primary = (_parse_jsonb(c["classification_data"]) or {}).get("primary_role", "")
-                cand_roles = (_parse_jsonb(c["classification_data"]) or {}).get("roles", [])
-                if job_role and cand_primary and not _roles_compatible(cand_primary, cand_roles, job_role):
+                # Finance-Rolle Pflicht
+                cand_cd = _parse_jsonb(c["classification_data"]) or {}
+                cand_primary = cand_cd.get("primary_role", "")
+                cand_roles = cand_cd.get("roles", [])
+                if not cand_primary or cand_primary not in FINANCE_ROLES:
+                    continue
+                # Rollen-Kompatibilitaet
+                if job_role and not _roles_compatible(cand_primary, cand_roles, job_role):
                     continue
                 result_candidates.append(c)
 
@@ -589,7 +597,7 @@ async def cmd_candidate(candidate_id: str):
                     if j["company_name"].lower() in [e.lower() for e in excluded if isinstance(e, str)]:
                         continue
                 job_role = (_parse_jsonb(j["classification_data"]) or {}).get("primary_role", "")
-                if job_role and cand_primary and not _roles_compatible(cand_primary, cand_roles, job_role):
+                if job_role and not _roles_compatible(cand_primary, cand_roles, job_role):
                     continue
                 result_jobs.append(j)
 
@@ -852,15 +860,145 @@ def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
-# Verwandte Rollen-Matrix
+# Finance-Rollen — NUR diese werden gematcht (alles andere ist kein Finance-Kandidat)
+FINANCE_ROLES = {
+    "Finanzbuchhalter/in",
+    "Senior Finanzbuchhalter/in",
+    "Bilanzbuchhalter/in",
+    "Senior Bilanzbuchhalter/in",
+    "Kreditorenbuchhalter/in",
+    "Senior Debitorenbuchhalter/in",
+    "Debitorenbuchhalter/in",
+    "Lohnbuchhalter/in",
+    "Steuerfachangestellte/r / Finanzbuchhalter/in",
+    "Head of Finance",
+    "Financial Controller",
+    "Senior Financial Controller",
+    "Leiter Buchhaltung",
+    "Leiter Rechnungswesen",
+    "Leiter Lohnbuchhaltung",
+    "Leiter Debitorenbuchhaltung",
+    "Leiter Finanz- und Anlagenbuchhaltung",
+    "Teamleiter Finanzbuchhaltung",
+    "Teamleiter Kreditorenbuchhaltung",
+    "Teamleiter Debitorenbuchhaltung",
+    "Teamleiter Lohnbuchhaltung",
+    "Teamleiter Rechnungswesen",
+    "Teamleiter Buchhaltung",
+    "Teamleiter Accounting",
+    "Teamleiter Finanzen und Verwaltung",
+    "Abteilungsleiter Finanzbuchhaltung",
+    "Stv. Abteilungsleiter Finanzbuchhaltung",
+    "Abteilungsleiterin Finanzen/Buchhaltung",
+    "Stellv. Leitung Buchhaltung",
+    "Stellv. Leitung Finanzbuchhaltung",
+    "Stellvertretende Leiterin Finance",
+    "Hauptbuchhalter/in",
+    "Hauptbuchhalterin",
+    "Alleinbuchhalterin",
+    "Alleinbuchhalter",
+    "Anlagenbuchhalterin",
+    "Steuerberater/in",
+    "Steuerberaterin",
+    "Steuerberater",
+    "Steuerfachwirtin",
+    "Buchhalterin",
+    "Selbstständiger Buchhalter",
+    "Junior-Buchhalter/in",
+    "Group Accountant",
+    "Senior Group Accountant",
+    "Accountant",
+    "Accounting Manager",
+    "Manager Accounting",
+    "Manager Group Accounting",
+    "Financial Accountant",
+    "Referent Finanzen und Steuern",
+    "Steuerreferentin",
+    "Tax Specialist",
+    "Tax Officer",
+}
+
+# Verwandte Rollen-Matrix — mit echten DB-Rollennamen
 ROLE_COMPAT = {
-    "FiBu": {"FiBu", "BiBu", "Senior FiBu"},
-    "BiBu": {"BiBu", "FiBu", "Senior FiBu"},
-    "Senior FiBu": {"Senior FiBu", "FiBu", "BiBu"},
-    "KrediBu": {"KrediBu", "FiBu", "BiBu"},
-    "DebiBu": {"DebiBu", "KrediBu", "FiBu"},
-    "LohnBu": {"LohnBu", "StFA"},
-    "StFA": {"StFA", "LohnBu"},
+    # Finanzbuchhaltung
+    "Finanzbuchhalter/in": {
+        "Finanzbuchhalter/in", "Senior Finanzbuchhalter/in", "Bilanzbuchhalter/in",
+        "Steuerfachangestellte/r / Finanzbuchhalter/in",
+    },
+    "Senior Finanzbuchhalter/in": {
+        "Senior Finanzbuchhalter/in", "Finanzbuchhalter/in", "Bilanzbuchhalter/in",
+        "Steuerfachangestellte/r / Finanzbuchhalter/in",
+    },
+    # Bilanzbuchhaltung
+    "Bilanzbuchhalter/in": {
+        "Bilanzbuchhalter/in", "Senior Finanzbuchhalter/in", "Finanzbuchhalter/in",
+        "Steuerfachangestellte/r / Finanzbuchhalter/in", "Leiter Buchhaltung",
+    },
+    "Senior Bilanzbuchhalter/in": {
+        "Senior Bilanzbuchhalter/in", "Bilanzbuchhalter/in",
+        "Senior Finanzbuchhalter/in", "Leiter Buchhaltung",
+    },
+    # Kreditoren
+    "Kreditorenbuchhalter/in": {
+        "Kreditorenbuchhalter/in", "Finanzbuchhalter/in", "Debitorenbuchhalter/in",
+    },
+    # Debitoren
+    "Debitorenbuchhalter/in": {
+        "Debitorenbuchhalter/in", "Kreditorenbuchhalter/in", "Finanzbuchhalter/in",
+    },
+    # Lohn
+    "Lohnbuchhalter/in": {
+        "Lohnbuchhalter/in", "Steuerfachangestellte/r / Finanzbuchhalter/in",
+    },
+    # StFA
+    "Steuerfachangestellte/r / Finanzbuchhalter/in": {
+        "Steuerfachangestellte/r / Finanzbuchhalter/in", "Finanzbuchhalter/in",
+        "Senior Finanzbuchhalter/in", "Bilanzbuchhalter/in", "Lohnbuchhalter/in",
+    },
+    # Controller
+    "Financial Controller": {
+        "Financial Controller", "Senior Finanzbuchhalter/in",
+        "Bilanzbuchhalter/in", "Head of Finance",
+    },
+    "Senior Financial Controller": {
+        "Senior Financial Controller", "Financial Controller",
+        "Head of Finance", "Bilanzbuchhalter/in",
+    },
+    # Head of Finance / Leitung
+    "Head of Finance": {
+        "Head of Finance", "Leiter Buchhaltung", "Bilanzbuchhalter/in",
+        "Financial Controller", "Senior Finanzbuchhalter/in",
+    },
+    "Leiter Buchhaltung": {
+        "Leiter Buchhaltung", "Head of Finance", "Bilanzbuchhalter/in",
+        "Senior Finanzbuchhalter/in", "Teamleiter Finanzbuchhaltung",
+    },
+    # Teamleiter
+    "Teamleiter Finanzbuchhaltung": {
+        "Teamleiter Finanzbuchhaltung", "Senior Finanzbuchhalter/in",
+        "Bilanzbuchhalter/in", "Leiter Buchhaltung",
+    },
+    "Teamleiter Kreditorenbuchhaltung": {
+        "Teamleiter Kreditorenbuchhaltung", "Kreditorenbuchhalter/in",
+    },
+    "Teamleiter Debitorenbuchhaltung": {
+        "Teamleiter Debitorenbuchhaltung", "Debitorenbuchhalter/in",
+    },
+    "Teamleiter Lohnbuchhaltung": {
+        "Teamleiter Lohnbuchhaltung", "Lohnbuchhalter/in",
+    },
+    # Steuerberater
+    "Steuerberater/in": {
+        "Steuerberater/in", "Steuerfachangestellte/r / Finanzbuchhalter/in",
+        "Bilanzbuchhalter/in",
+    },
+    # Allgemeine Buchhaltung
+    "Accountant": {
+        "Accountant", "Finanzbuchhalter/in", "Bilanzbuchhalter/in",
+    },
+    "Group Accountant": {
+        "Group Accountant", "Bilanzbuchhalter/in", "Senior Finanzbuchhalter/in",
+    },
 }
 
 

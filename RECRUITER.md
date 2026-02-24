@@ -89,20 +89,23 @@ Deine Aufgabe: Kandidaten (FiBu, BiBu, KrediBu, DebiBu, LohnBu, StFA) mit passen
 - Kernkompetenzen fehlen
 - Seniority-Gap > 2 Level
 
-### Rollen-Kompatibilitaet (Faustregel)
+### Rollen-Kompatibilitaet (echte DB-Rollennamen)
 
 | Kandidat → Job | Kompatibel? |
 |----------------|-------------|
-| FiBu → FiBu | Ja (100%) |
-| BiBu → FiBu | Ja (90%) |
-| FiBu → BiBu | Ja (90%) |
-| Senior FiBu → FiBu | Ja (wenn Level passt) |
-| KrediBu → FiBu | Bedingt (70-80%) |
-| DebiBu → FiBu | Bedingt (70%) |
-| StFA → FiBu | Bedingt (75%) |
-| LohnBu → FiBu | Nein (<60%) |
-| StFA → LohnBu | Ja (85%) |
-| StFA → StFA | Ja (100%) |
+| Finanzbuchhalter/in → Finanzbuchhalter/in | Ja (100%) |
+| Bilanzbuchhalter/in → Finanzbuchhalter/in | Ja (90%) |
+| Finanzbuchhalter/in → Bilanzbuchhalter/in | Ja (90%) |
+| Senior Finanzbuchhalter/in → Finanzbuchhalter/in | Ja (wenn Level passt) |
+| Kreditorenbuchhalter/in → Finanzbuchhalter/in | Bedingt (70-80%) |
+| Debitorenbuchhalter/in → Finanzbuchhalter/in | Bedingt (70%) |
+| Steuerfachangestellte/r → Finanzbuchhalter/in | Bedingt (75%) |
+| Lohnbuchhalter/in → Finanzbuchhalter/in | Nein (<60%) |
+| Steuerfachangestellte/r → Lohnbuchhalter/in | Ja (85%) |
+| Financial Controller → Head of Finance | Ja (85%) |
+| Leiter Buchhaltung → Bilanzbuchhalter/in | Ja (90%) |
+
+**WICHTIG:** Die ROLE_COMPAT Tabelle in `claude_match_helper.py` verwendet die vollen DB-Rollennamen (NICHT Abkuerzungen wie FiBu/BiBu). Nur Kandidaten mit einer Finance-Rolle aus der FINANCE_ROLES Liste werden gematcht.
 
 ---
 
