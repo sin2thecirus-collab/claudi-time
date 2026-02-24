@@ -20,10 +20,10 @@ Stattdessen bewertet Claude (Opus 4.6) persoenlich jedes Kandidat-Job-Paar.
 **Match Center:** `/match-center` (zeigt nur Claude-Code-Matches)
 
 **Regeln:**
-- Score < 70% → Match wird NICHT gespeichert (Schrott)
-- Score >= 75% → Google Maps Fahrzeit wird berechnet
-- Score 70-74% → Gespeichert OHNE Fahrzeit
+- Score < 75% → Match wird NICHT gespeichert, KEINE Fahrzeit — Schrott
+- Score >= 75% → Speichern + Google Maps Fahrzeit berechnen
 - Luftlinie max 30km (PostGIS Vorfilter)
+- Kein taegliches Limit — alle guten Matches auf einmal
 
 **DB-Verbindung:** `postgres://postgres:aG4ddfAgdAbGg3bDBFD12f3GdDGAgcFD@shuttle.proxy.rlwy.net:43640/railway`
 
@@ -99,8 +99,8 @@ Das MT matcht Finance-Kandidaten (FiBu, BiBu, KrediBu, DebiBu, LohnBu, StFA) aut
 14. **IMMER Claude-JSON validieren** — json.loads in try/except, Score clampen 0-100, Empfehlung validieren.
 15. **NIEMALS zweiten Matching-Lauf starten wenn einer laeuft** — `get_status()["running"]` pruefen vor Start.
 16. **IMMER prompt_version in v2_score_breakdown speichern** — Fuer Nachvollziehbarkeit welcher Prompt welches Ergebnis erzeugt hat.
-17. **NIEMALS Matches mit Score < 70% speichern** — Das ist Schrott und ueberfordert den Recruiter.
-18. **NIEMALS Google Maps Fahrzeit fuer Matches < 75% berechnen** — Spart API-Kosten, diese Matches sind grenzwertig.
+17. **NIEMALS Matches mit Score < 75% speichern** — Unter 75% ist Schrott, keine Fahrzeit, nichts.
+18. **IMMER Google Maps Fahrzeit fuer Matches >= 75% berechnen** — Jedes gespeicherte Match braucht echte Fahrzeit.
 19. **IMMER Luftlinie max 30km als Vorfilter** — 60km Luftlinie kann 100km Fahrweg bedeuten.
 
 ---

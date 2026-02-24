@@ -109,9 +109,9 @@ Deine Aufgabe: Kandidaten (FiBu, BiBu, KrediBu, DebiBu, LohnBu, StFA) mit passen
 - **Remote-Jobs:** Kein Entfernungsfilter
 
 ### Speicher-Regeln
-- **Score < 70%:** Match wird NICHT gespeichert — das ist Schrott
-- **Score 70-74%:** Match wird gespeichert als "beobachten", aber OHNE Fahrzeit
-- **Score >= 75%:** Match wird gespeichert MIT Google Maps Fahrzeit-Berechnung
+- **Score < 75%:** Match wird NICHT gespeichert — Schrott, keine Fahrzeit, nichts
+- **Score >= 75%:** Match wird gespeichert + Google Maps Fahrzeit wird berechnet
+- **Kein Limit:** Alle guten Matches werden auf einmal gespeichert
 
 ### WICHTIG
 - NICHT nach Stadtnamen filtern (Graefelfing ≈ Muenchen, Harburg ≈ Hamburg)
