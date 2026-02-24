@@ -52,6 +52,12 @@ ASYNCPG_URL = DB_URL.replace("postgresql+asyncpg://", "postgresql://").replace(
 # Max Luftlinie in Metern fuer PostGIS-Vorfilter
 MAX_LUFTLINIE_M = 30_000  # 30 km
 
+# Minimum-Score: Matches unter diesem Wert werden NICHT gespeichert
+MIN_SCORE_SAVE = 70  # Unter 70% = Schrott, nicht speichern
+
+# Fahrzeit-Berechnung nur fuer Matches ab diesem Score
+MIN_SCORE_DRIVE_TIME = 75  # Google Maps API nur fuer >=75%
+
 
 def _parse_jsonb(val) -> dict | list | None:
     """Parst JSONB-Felder die als String oder Dict zurueckkommen."""
@@ -653,9 +659,9 @@ async def cmd_save(json_str: str):
                 if empfehlung not in valid_empfehlungen:
                     empfehlung = "nicht_passend"
 
-                # Nicht_passend mit Score < 40 nicht speichern (Platzverbrauch)
-                if empfehlung == "nicht_passend" and score < 40:
-                    print(f"  SKIP: {job_id[:8]}...x{candidate_id[:8]}... Score {score} < 40 + nicht_passend")
+                # Matches unter MIN_SCORE_SAVE (70%) NICHT speichern — Schrott
+                if score < MIN_SCORE_SAVE:
+                    print(f"  SKIP: {job_id[:8]}...x{candidate_id[:8]}... Score {score} < {MIN_SCORE_SAVE}% Minimum")
                     skipped += 1
                     continue
 

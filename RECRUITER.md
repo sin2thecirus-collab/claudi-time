@@ -103,9 +103,15 @@ Deine Aufgabe: Kandidaten (FiBu, BiBu, KrediBu, DebiBu, LohnBu, StFA) mit passen
 ## FAHRZEITEN
 
 ### Berechnung
-- **Vorfilter:** PostGIS Luftlinie ~60km → alles darueber wird uebersprungen (spart API-Calls)
-- **Danach:** Google Maps Distance Matrix API fuer echte Auto- und Bahn-Fahrzeit
+- **Vorfilter:** PostGIS Luftlinie max 30km → alles darueber wird uebersprungen
+- **Echte Fahrzeit:** Google Maps Distance Matrix API — NUR fuer Matches mit Score >= 75%
+- **Unter 75%:** Keine Fahrzeit-Berechnung (spart API-Kosten, Matches sind eh grenzwertig)
 - **Remote-Jobs:** Kein Entfernungsfilter
+
+### Speicher-Regeln
+- **Score < 70%:** Match wird NICHT gespeichert — das ist Schrott
+- **Score 70-74%:** Match wird gespeichert als "beobachten", aber OHNE Fahrzeit
+- **Score >= 75%:** Match wird gespeichert MIT Google Maps Fahrzeit-Berechnung
 
 ### WICHTIG
 - NICHT nach Stadtnamen filtern (Graefelfing ≈ Muenchen, Harburg ≈ Hamburg)
