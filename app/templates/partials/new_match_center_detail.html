@@ -119,8 +119,14 @@
             <div class="text-xs uppercase tracking-wider font-medium mb-3" style="color: var(--pp-accent);">Job</div>
 
             <!-- Kopf -->
-            <div class="text-base font-semibold" style="color: var(--pp-text);">{{ data.job.position }}</div>
+            <a href="/jobs/{{ data.job.id }}" target="_blank"
+               class="text-base font-semibold hover:underline" style="color: var(--pp-text);">{{ data.job.position }}</a>
+            {% if data.job.company_id %}
+            <a href="/unternehmen/{{ data.job.company_id }}" target="_blank"
+               class="text-sm mt-0.5 block hover:underline" style="color: var(--pp-textMuted);">{{ data.job.company_name }}</a>
+            {% else %}
             <div class="text-sm mt-0.5" style="color: var(--pp-textMuted);">{{ data.job.company_name }}</div>
+            {% endif %}
             <div class="text-xs mt-1" style="color: var(--pp-textDim);">
                 {% if data.job.street_address %}{{ data.job.street_address }}, {% endif %}{% if data.job.postal_code %}{{ data.job.postal_code }} {% endif %}{{ data.job.city }}
             </div>
@@ -176,9 +182,10 @@
 
             <!-- Kopf -->
             {% if data.candidate.first_name or data.candidate.last_name %}
-            <div class="text-base font-bold" style="color: var(--pp-text);">
+            <a href="/kandidaten/{{ data.candidate.id }}" target="_blank"
+               class="text-base font-bold hover:underline block" style="color: var(--pp-text);">
                 {{ data.candidate.first_name or '' }} {{ data.candidate.last_name or '' }}
-            </div>
+            </a>
             {% endif %}
             <div class="text-sm font-semibold{% if data.candidate.first_name or data.candidate.last_name %} mt-0.5{% endif %}" style="color: var(--pp-text);">{{ data.candidate.current_position or '—' }}</div>
             {% if data.candidate.current_company %}

@@ -305,6 +305,7 @@ class NewMatchCenterService:
                 "employment_type": j.employment_type if j else None,
                 "industry": j.industry if j else None,
                 "company_size": j.company_size if j else None,
+                "company_id": str(j.company_id) if j and j.company_id else None,
             } if j else None,
             "candidate": {
                 "id": str(c.id) if c else None,
