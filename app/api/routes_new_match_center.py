@@ -26,6 +26,20 @@ from app.services.new_match_center_service import NewMatchCenterService
 logger = logging.getLogger(__name__)
 templates = Jinja2Templates(directory="app/templates")
 
+# Jinja2-Filter: UTC → Europe/Berlin
+from zoneinfo import ZoneInfo
+
+def _to_berlin(dt_value):
+    if dt_value is None:
+        return dt_value
+    berlin = ZoneInfo("Europe/Berlin")
+    if dt_value.tzinfo is None:
+        from datetime import timezone
+        dt_value = dt_value.replace(tzinfo=timezone.utc)
+    return dt_value.astimezone(berlin)
+
+templates.env.filters["to_berlin"] = _to_berlin
+
 router = APIRouter(tags=["New-Match-Center"])
 
 
