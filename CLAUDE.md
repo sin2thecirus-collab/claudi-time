@@ -1,6 +1,25 @@
 # Pulspoint CRM — Matching Tool
 
-> **Stand: 20.02.2026, 18:00 Uhr — v4.0 Claude Matching DEPLOYED + Phase 6 Features KOMPLETT**
+> **Stand: 24.02.2026 — v5.0 Claude Code Matching (NEU) + v4.0 Legacy**
+
+---
+
+## NEUES MATCHING-SYSTEM (v5.0 — Claude Code)
+
+**Fuer Matching-Aufgaben: Lies `RECRUITER.md` im Projekt-Root.**
+
+Das neue System ersetzt alle bisherigen Matching-Versionen (V2-V20, Formeln, Scores, ML).
+Stattdessen bewertet Claude (Opus 4.6) persoenlich jedes Kandidat-Job-Paar.
+
+**Workflow:**
+1. `python claude_match_helper.py --status` → Uebersicht
+2. `python claude_match_helper.py --batch` → Unbewertete Paare holen
+3. Profile lesen und bewerten
+4. `python claude_match_helper.py --save '...'` → In DB schreiben
+
+**Neues Match Center:** `/new-match-center` (zeigt nur Claude-Code-Matches)
+
+**DB-Verbindung:** `postgres://postgres:aG4ddfAgdAbGg3bDBFD12f3GdDGAgcFD@shuttle.proxy.rlwy.net:43640/railway`
 
 ---
 

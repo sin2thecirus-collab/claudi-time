@@ -428,5 +428,9 @@ app.include_router(matching_v2_router, prefix="/api/v2")
 from app.api.routes_claude_matching import router as claude_matching_router
 app.include_router(claude_matching_router, prefix="/api/v4")
 
+# Neues Match Center — Claude Code Matching (/new-match-center, /api/new-match-center/...)
+from app.api.routes_new_match_center import router as new_match_center_router
+app.include_router(new_match_center_router)
+
 # Status & Query API (/api/status/overview, /api/status/geodaten, /api/status/profiling, ...)
 app.include_router(status_router, prefix="/api")

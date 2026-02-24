@@ -41,6 +41,7 @@ class MatchingMethod(str, enum.Enum):
     DEEP_MATCH = "deep_match"
     SMART_MATCH = "smart_match"
     MANUAL = "manual"
+    CLAUDE_CODE = "claude_code"
 
 
 class Match(Base):

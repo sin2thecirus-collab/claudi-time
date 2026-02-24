@@ -1144,6 +1144,9 @@ async def init_db() -> None:
         ("candidates", "contact_status", "VARCHAR(50)"),
         # ── Job-Stelle Sync: Manual Overrides Tracking ──
         ("ats_jobs", "manual_overrides", "JSONB"),
+        # ── Claude Code Matching: Verfuegbarkeits-Status + Excluded Companies ──
+        ("candidates", "availability_status", "VARCHAR(30) DEFAULT 'available'"),
+        ("candidates", "excluded_companies", "JSONB DEFAULT '[]'"),
     ]
     for table_name, col_name, col_type in migrations:
         try:

@@ -155,6 +155,10 @@ class Candidate(Base):
     hidden: Mapped[bool] = mapped_column(Boolean, default=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
+    # Verfuegbarkeits-Status fuer Matching (Claude Code)
+    availability_status: Mapped[str] = mapped_column(String(30), server_default="available")  # available/placed/paused/not_interested
+    excluded_companies: Mapped[dict] = mapped_column(JSONB, server_default="[]")  # Firmen die nie gematcht werden sollen
+
     # E-Mail-Automatisierung: Kontakt-Status fuer Sequenz-Tracking
     contact_status: Mapped[str | None] = mapped_column(String(50))  # email_sequenz_aktiv / sequenz_abgeschlossen / kein_interesse / geantwortet / rundmail_gesendet / etc.
 

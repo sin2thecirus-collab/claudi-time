@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+
+{% block title %}Match Center — Claude Matching{% endblock %}
+
+{% block content %}
+<div x-data="matchCenter()" x-init="init()" class="min-h-screen" style="padding: 24px;">
+
+    <!-- ═══════ HEADER ═══════ -->
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-bold" style="color: var(--pp-text);">Match Center</h1>
+            <p class="text-sm mt-1" style="color: var(--pp-textDim);">
+                Claude Code Matching —
+                {% if stats.last_match_at %}
+                    Letzter Lauf: {{ stats.last_match_at|to_berlin|default('—') }}
+                {% else %}
+                    Noch kein Matching durchgefuehrt
+                {% endif %}
+            </p>
+        </div>
+    </div>
+
+    <!-- ═══════ STATS CARDS ═══════ -->
+    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
+        <!-- Total Matches -->
+        <div class="rounded-lg p-4" style="background: var(--pp-surface); border: 1px solid var(--pp-border);">
+            <div class="text-xs font-medium uppercase tracking-wide" style="color: var(--pp-textDim);">Matches</div>
+            <div class="text-2xl font-bold mt-1" style="color: var(--pp-text);">{{ stats.total_matches }}</div>
+        </div>
+        <!-- Vorstellen -->
+        <div class="rounded-lg p-4" style="background: var(--pp-greenSoft); border: 1px solid rgba(34,197,94,0.2);">
+            <div class="text-xs font-medium uppercase tracking-wide" style="color: var(--pp-green);">Vorstellen</div>
+            <div class="text-2xl font-bold mt-1" style="color: var(--pp-green);">{{ stats.vorstellen }}</div>
+        </div>
+        <!-- Beobachten -->
+        <div class="rounded-lg p-4" style="background: var(--pp-orangeSoft); border: 1px solid rgba(234,179,8,0.2);">
+            <div class="text-xs font-medium uppercase tracking-wide" style="color: var(--pp-orange);">Beobachten</div>
+            <div class="text-2xl font-bold mt-1" style="color: var(--pp-orange);">{{ stats.beobachten }}</div>
+        </div>
+        <!-- WOW -->
+        <div class="rounded-lg p-4" style="background: var(--pp-purpleSoft); border: 1px solid rgba(167,139,250,0.2);">
+            <div class="text-xs font-medium uppercase tracking-wide" style="color: var(--pp-purple);">WOW</div>
+            <div class="text-2xl font-bold mt-1" style="color: var(--pp-purple);">{{ stats.wow_count }}</div>
+        </div>
+        <!-- Schnitt-Score -->
+        <div class="rounded-lg p-4" style="background: var(--pp-accentSoft); border: 1px solid rgba(59,130,246,0.2);">
+            <div class="text-xs font-medium uppercase tracking-wide" style="color: var(--pp-accent);">Schnitt</div>
+            <div class="text-2xl font-bold mt-1" style="color: var(--pp-accent);">{{ stats.avg_score }}%</div>
+        </div>
+        <!-- Stale -->
+        <div class="rounded-lg p-4" style="background: var(--pp-surface); border: 1px solid var(--pp-border);">
+            <div class="text-xs font-medium uppercase tracking-wide" style="color: var(--pp-textDim);">
+                {% if stats.stale_count > 0 %}
+                    <span style="color: var(--pp-red);">Veraltet</span>
+                {% else %}
+                    Veraltet
+                {% endif %}
+            </div>
+            <div class="text-2xl font-bold mt-1" style="color: {% if stats.stale_count > 0 %}var(--pp-red){% else %}var(--pp-text){% endif %};">{{ stats.stale_count }}</div>
+        </div>
+    </div>
+
+    <!-- ═══════ FILTER BAR ═══════ -->
+    <div class="rounded-lg p-4 mb-4 flex flex-wrap items-center gap-3"
+         style="background: var(--pp-surface); border: 1px solid var(--pp-border);">
+
+        <!-- Empfehlung Tabs -->
+        <div class="flex rounded-md overflow-hidden" style="border: 1px solid var(--pp-border);">
+            <button @click="setFilter('empfehlung', null)"
+                    :class="{'active': !filters.empfehlung}"
+                    class="pp-nav-item px-3 py-1.5 text-xs"
+                    :style="!filters.empfehlung ? 'background: var(--pp-accent); color: white;' : ''">
+                Alle
+            </button>
+            <button @click="setFilter('empfehlung', 'vorstellen')"
+                    :class="{'active': filters.empfehlung === 'vorstellen'}"
+                    class="pp-nav-item px-3 py-1.5 text-xs"
+                    :style="filters.empfehlung === 'vorstellen' ? 'background: rgba(34,197,94,0.2); color: var(--pp-green);' : ''">
+                Vorstellen
+            </button>
+            <button @click="setFilter('empfehlung', 'beobachten')"
+                    :class="{'active': filters.empfehlung === 'beobachten'}"
+                    class="pp-nav-item px-3 py-1.5 text-xs"
+                    :style="filters.empfehlung === 'beobachten' ? 'background: rgba(234,179,8,0.2); color: var(--pp-orange);' : ''">
+                Beobachten
+            </button>
+            <button @click="setFilter('empfehlung', 'nicht_passend')"
+                    :class="{'active': filters.empfehlung === 'nicht_passend'}"
+                    class="pp-nav-item px-3 py-1.5 text-xs"
+                    :style="filters.empfehlung === 'nicht_passend' ? 'background: rgba(239,68,68,0.1); color: var(--pp-red);' : ''">
+                Nicht passend
+            </button>
+        </div>
+
+        <!-- WOW Toggle -->
+        <label class="flex items-center gap-1.5 cursor-pointer text-xs" style="color: var(--pp-textMuted);">
+            <input type="checkbox" x-model="filters.wow_only" @change="loadMatches()" class="rounded">
+            <span style="color: var(--pp-purple);">Nur WOW</span>
+        </label>
+
+        <!-- Stadt -->
+        <select x-model="filters.city" @change="loadMatches()"
+                class="rounded-md px-2 py-1.5 text-xs"
+                style="background: var(--pp-surfaceHover); border: 1px solid var(--pp-border); color: var(--pp-text);">
+            <option value="">Alle Staedte</option>
+            {% for city in filters.cities %}
+            <option value="{{ city }}">{{ city }}</option>
+            {% endfor %}
+        </select>
+
+        <!-- Rolle -->
+        <select x-model="filters.role" @change="loadMatches()"
+                class="rounded-md px-2 py-1.5 text-xs"
+                style="background: var(--pp-surfaceHover); border: 1px solid var(--pp-border); color: var(--pp-text);">
+            <option value="">Alle Rollen</option>
+            {% for role in filters.roles %}
+            <option value="{{ role }}">{{ role }}</option>
+            {% endfor %}
+        </select>
+
+        <!-- Sort -->
+        <select x-model="filters.sort_by" @change="loadMatches()"
+                class="rounded-md px-2 py-1.5 text-xs"
+                style="background: var(--pp-surfaceHover); border: 1px solid var(--pp-border); color: var(--pp-text);">
+            <option value="score">Score (hoch→niedrig)</option>
+            <option value="created">Neueste zuerst</option>
+            <option value="drive_car">Fahrzeit Auto</option>
+            <option value="company">Firma A-Z</option>
+        </select>
+
+        <!-- Count -->
+        <div class="ml-auto text-xs" style="color: var(--pp-textDim);" x-text="total + ' Matches'"></div>
+    </div>
+
+    <!-- ═══════ MATCH CARDS ═══════ -->
+    <div id="match-cards-container">
+        {% include "partials/new_match_center_cards.html" %}
+    </div>
+
+    <!-- ═══════ DETAIL MODAL ═══════ -->
+    <div x-show="showDetail" x-cloak
+         class="fixed inset-0 z-50 flex items-center justify-center"
+         @keydown.escape.window="showDetail = false"
+         style="background: rgba(0,0,0,0.6);"
+         @click.self="showDetail = false">
+        <div class="w-full max-w-4xl max-h-[85vh] overflow-y-auto rounded-xl modal-enter"
+             style="background: var(--pp-surface); border: 1px solid var(--pp-border);"
+             id="detail-modal-content">
+            <!-- Wird per HTMX geladen -->
+            <div class="p-8 text-center" style="color: var(--pp-textDim);">Lade Details...</div>
+        </div>
+    </div>
+</div>
+
+<script>
+function matchCenter() {
+    return {
+        filters: {
+            empfehlung: 'vorstellen',
+            city: '',
+            role: '',
+            wow_only: false,
+            sort_by: 'score',
+            sort_dir: 'desc',
+            page: 1,
+        },
+        total: {{ total }},
+        pages: {{ pages }},
+        showDetail: false,
+        loading: false,
+
+        init() {
+            // HTMX Events
+            document.body.addEventListener('htmx:afterSwap', (e) => {
+                if (e.detail.target.id === 'match-cards-container') {
+                    this.loading = false;
+                }
+            });
+        },
+
+        setFilter(key, value) {
+            this.filters[key] = value;
+            this.filters.page = 1;
+            this.loadMatches();
+        },
+
+        loadMatches() {
+            this.loading = true;
+            const params = new URLSearchParams();
+
+            if (this.filters.empfehlung) params.set('empfehlung', this.filters.empfehlung);
+            if (this.filters.city) params.set('city', this.filters.city);
+            if (this.filters.role) params.set('role', this.filters.role);
+            if (this.filters.wow_only) params.set('wow_only', 'true');
+            params.set('sort_by', this.filters.sort_by);
+            params.set('sort_dir', this.filters.sort_dir);
+            params.set('page', this.filters.page);
+
+            htmx.ajax('GET', '/api/new-match-center/matches?' + params.toString(), {
+                target: '#match-cards-container',
+                swap: 'innerHTML',
+            });
+        },
+
+        goToPage(page) {
+            this.filters.page = page;
+            this.loadMatches();
+        },
+
+        openDetail(matchId) {
+            this.showDetail = true;
+            htmx.ajax('GET', '/api/new-match-center/match/' + matchId, {
+                target: '#detail-modal-content',
+                swap: 'innerHTML',
+            });
+        },
+
+        async updateStatus(matchId, status) {
+            const csrf = document.cookie.match(/pp_csrf=([^;]+)/);
+            const resp = await fetch(`/api/new-match-center/status/${matchId}?status=${status}`, {
+                method: 'POST',
+                headers: csrf ? {'X-CSRF-Token': csrf[1]} : {},
+            });
+            if (resp.ok) {
+                this.loadMatches();
+            }
+        },
+
+        async sendFeedback(matchId, feedback, note) {
+            const csrf = document.cookie.match(/pp_csrf=([^;]+)/);
+            let url = `/api/new-match-center/feedback/${matchId}?feedback=${feedback}`;
+            if (note) url += `&note=${encodeURIComponent(note)}`;
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: csrf ? {'X-CSRF-Token': csrf[1]} : {},
+            });
+            if (resp.ok) {
+                this.loadMatches();
+                this.showDetail = false;
+            }
+        }
+    }
+}
+</script>
+{% endblock %}

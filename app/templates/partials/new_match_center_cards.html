@@ -1,0 +1,184 @@
+<!-- Match-Karten Grid -->
+{% if matches %}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+    {% for m in matches %}
+    <div class="rounded-lg overflow-hidden transition-all hover:scale-[1.01]"
+         style="background: var(--pp-surface); border: 1px solid var(--pp-border); cursor: pointer;"
+         @click="openDetail('{{ m.id }}')">
+
+        <!-- Header: Score + Empfehlung + WOW -->
+        <div class="flex items-center justify-between px-4 py-2.5"
+             style="border-bottom: 1px solid var(--pp-borderLight);
+                    {% if m.empfehlung == 'vorstellen' %}background: rgba(34,197,94,0.04);
+                    {% elif m.empfehlung == 'beobachten' %}background: rgba(234,179,8,0.04);
+                    {% else %}background: rgba(239,68,68,0.03);{% endif %}">
+            <!-- Score Badge -->
+            <div class="flex items-center gap-2">
+                <div class="text-lg font-bold px-2 py-0.5 rounded"
+                     style="{% if m.score and m.score >= 85 %}color: var(--pp-green); background: var(--pp-greenSoft);
+                            {% elif m.score and m.score >= 70 %}color: var(--pp-orange); background: var(--pp-orangeSoft);
+                            {% else %}color: var(--pp-textMuted); background: var(--pp-surfaceHover);{% endif %}">
+                    {{ m.score|default(0)|int }}%
+                </div>
+                <!-- Empfehlung -->
+                <span class="text-xs px-2 py-0.5 rounded-full font-medium"
+                      style="{% if m.empfehlung == 'vorstellen' %}background: rgba(34,197,94,0.15); color: var(--pp-green);
+                             {% elif m.empfehlung == 'beobachten' %}background: rgba(234,179,8,0.15); color: var(--pp-orange);
+                             {% else %}background: rgba(239,68,68,0.1); color: var(--pp-red);{% endif %}">
+                    {% if m.empfehlung == 'vorstellen' %}Vorstellen
+                    {% elif m.empfehlung == 'beobachten' %}Beobachten
+                    {% else %}Nicht passend{% endif %}
+                </span>
+                <!-- WOW Badge -->
+                {% if m.wow_faktor %}
+                <span class="text-xs px-2 py-0.5 rounded-full font-bold"
+                      style="background: var(--pp-purpleSoft); color: var(--pp-purple);">
+                    WOW
+                </span>
+                {% endif %}
+                <!-- Stale -->
+                {% if m.stale %}
+                <span class="text-xs px-1.5 py-0.5 rounded-full"
+                      style="background: var(--pp-redSoft); color: var(--pp-red);">Veraltet</span>
+                {% endif %}
+            </div>
+            <!-- Fahrzeit -->
+            <div class="flex items-center gap-2 text-xs" style="color: var(--pp-textDim);">
+                {% if m.drive_time_car_min is not none %}
+                <span style="{% if m.drive_time_car_min <= 20 %}color: var(--pp-green);
+                             {% elif m.drive_time_car_min <= 40 %}color: var(--pp-orange);
+                             {% else %}color: var(--pp-textDim);{% endif %}">
+                    {{ m.drive_time_car_min }} min Auto
+                </span>
+                {% endif %}
+                {% if m.drive_time_transit_min is not none %}
+                <span style="color: var(--pp-textDim);">{{ m.drive_time_transit_min }} min Bahn</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Body: Job + Kandidat -->
+        <div class="px-4 py-3">
+            <div class="grid grid-cols-2 gap-4">
+                <!-- Job -->
+                <div>
+                    <div class="text-[10px] uppercase tracking-wider font-medium mb-1" style="color: var(--pp-textDim);">Job</div>
+                    <div class="text-sm font-semibold truncate" style="color: var(--pp-text);">{{ m.job_position or '—' }}</div>
+                    <div class="text-xs truncate mt-0.5" style="color: var(--pp-textMuted);">{{ m.job_company or '—' }}</div>
+                    <div class="text-xs mt-0.5" style="color: var(--pp-textDim);">
+                        {{ m.job_city or '—' }}
+                        {% if m.job_arrangement %}
+                        <span class="ml-1 px-1 py-0.5 rounded text-[10px]"
+                              style="background: var(--pp-surfaceHover); color: var(--pp-textMuted);">
+                            {{ m.job_arrangement }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    {% if m.job_role %}
+                    <div class="text-[10px] mt-1 px-1.5 py-0.5 rounded inline-block"
+                         style="background: var(--pp-accentSoft); color: var(--pp-accent);">{{ m.job_role }}</div>
+                    {% endif %}
+                </div>
+                <!-- Kandidat -->
+                <div>
+                    <div class="text-[10px] uppercase tracking-wider font-medium mb-1" style="color: var(--pp-textDim);">Kandidat</div>
+                    <div class="text-sm font-semibold truncate" style="color: var(--pp-text);">{{ m.cand_position or '—' }}</div>
+                    <div class="text-xs truncate mt-0.5" style="color: var(--pp-textMuted);">{{ m.cand_city or '—' }}</div>
+                    {% if m.cand_role %}
+                    <div class="text-[10px] mt-1 px-1.5 py-0.5 rounded inline-block"
+                         style="background: var(--pp-accentSoft); color: var(--pp-accent);">{{ m.cand_role }}</div>
+                    {% endif %}
+                    {% if m.cand_it_skills %}
+                    <div class="text-[10px] mt-1 truncate" style="color: var(--pp-textDim);">
+                        {{ m.cand_it_skills[:3]|join(', ') }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Begruendung -->
+            {% if m.ai_explanation %}
+            <div class="mt-2 text-xs leading-relaxed line-clamp-2"
+                 style="color: var(--pp-textMuted);">
+                {{ m.ai_explanation }}
+            </div>
+            {% endif %}
+
+            <!-- WOW Grund -->
+            {% if m.wow_faktor and m.wow_grund %}
+            <div class="mt-1.5 text-xs px-2 py-1 rounded"
+                 style="background: var(--pp-purpleSoft); color: var(--pp-purple);">
+                {{ m.wow_grund }}
+            </div>
+            {% endif %}
+
+            <!-- Staerken/Schwaechen Badges -->
+            {% if m.ai_strengths %}
+            <div class="flex flex-wrap gap-1 mt-2">
+                {% for s in m.ai_strengths[:3] %}
+                <span class="text-[10px] px-1.5 py-0.5 rounded"
+                      style="background: var(--pp-greenSoft); color: var(--pp-green);">{{ s }}</span>
+                {% endfor %}
+                {% for w in m.ai_weaknesses[:2] %}
+                <span class="text-[10px] px-1.5 py-0.5 rounded"
+                      style="background: var(--pp-redSoft); color: var(--pp-red);">{{ w }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Footer: Actions -->
+        <div class="flex items-center justify-between px-4 py-2"
+             style="border-top: 1px solid var(--pp-borderLight);">
+            <div class="flex items-center gap-1.5">
+                <button @click.stop="updateStatus('{{ m.id }}', 'presented')"
+                        class="text-[10px] px-2 py-1 rounded font-medium transition-colors"
+                        style="background: rgba(34,197,94,0.1); color: var(--pp-green);"
+                        title="Vorstellen">
+                    Vorstellen
+                </button>
+                <button @click.stop="updateStatus('{{ m.id }}', 'rejected')"
+                        class="text-[10px] px-2 py-1 rounded font-medium transition-colors"
+                        style="background: rgba(239,68,68,0.06); color: var(--pp-textDim);"
+                        title="Ablehnen">
+                    Ablehnen
+                </button>
+            </div>
+            <div class="text-[10px]" style="color: var(--pp-text4);">
+                {{ m.status }}
+                {% if m.user_feedback %}
+                 | FB: {{ m.user_feedback }}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Pagination -->
+{% if pages > 1 %}
+<div class="flex items-center justify-center gap-2 mt-4">
+    {% for p in range(1, pages + 1) %}
+    {% if p <= 5 or p == pages or (p >= page - 1 and p <= page + 1) %}
+    <button @click="goToPage({{ p }})"
+            class="px-3 py-1 rounded text-xs font-medium"
+            style="{% if p == page %}background: var(--pp-accent); color: white;{% else %}background: var(--pp-surfaceHover); color: var(--pp-textMuted);{% endif %}">
+        {{ p }}
+    </button>
+    {% elif p == 6 or p == pages - 1 %}
+    <span class="text-xs" style="color: var(--pp-textDim);">...</span>
+    {% endif %}
+    {% endfor %}
+</div>
+{% endif %}
+
+{% else %}
+<!-- Keine Matches -->
+<div class="text-center py-16 rounded-lg" style="background: var(--pp-surface); border: 1px solid var(--pp-border);">
+    <div class="text-4xl mb-3">&#128270;</div>
+    <div class="text-lg font-medium" style="color: var(--pp-textMuted);">Keine Matches gefunden</div>
+    <div class="text-sm mt-1" style="color: var(--pp-textDim);">
+        Aendere die Filter oder starte ein neues Matching mit dem Helper-Script.
+    </div>
+</div>
+{% endif %}
