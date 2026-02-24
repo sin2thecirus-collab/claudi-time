@@ -57,7 +57,7 @@ MAX_LUFTLINIE_M = 30_000  # 30 km
 MIN_SCORE = 75  # Unter 75% = nicht speichern, keine Fahrzeit, nichts
 
 # Fahrzeit-Limits (in Minuten)
-MAX_DRIVE_TIME_DEFAULT = 80   # Standard: >80 Min Auto UND OEPNV → nicht speichern
+MAX_DRIVE_TIME_DEFAULT = 70   # Standard: >70 Min Auto UND OEPNV → nicht speichern
 MAX_DRIVE_TIME_HOMEOFFICE = 90  # Mit >=2 Tage Home-Office: bis 90 Min erlaubt
 
 # Google Maps API
@@ -251,7 +251,7 @@ async def cmd_batch(city: str | None, role: str | None, limit: int):
                        c.classification_data,
                        c.hotlist_job_titles, c.hotlist_job_title,
                        c.desired_positions, c.key_activities,
-                       c.excluded_companies,
+                       c.excluded_companies, c.current_company,
                        ST_Y(c.address_coords::geometry) as lat,
                        ST_X(c.address_coords::geometry) as lng,
                        c.postal_code
@@ -293,6 +293,12 @@ async def cmd_batch(city: str | None, role: str | None, limit: int):
                     if _is_company_excluded(job["company_name"], excluded):
                         continue
 
+                    # Aktueller Arbeitgeber = NICHT matchen
+                    cand_company = (cand.get("current_company") or "").strip().lower()
+                    job_company = (job["company_name"] or "").strip().lower()
+                    if cand_company and job_company and (cand_company in job_company or job_company in cand_company):
+                        continue
+
                     # Kandidat muss eine Finance-Rolle haben
                     cand_cd = _parse_jsonb(cand["classification_data"]) or {}
                     cand_primary = cand_cd.get("primary_role", "")
@@ -317,9 +323,9 @@ async def cmd_batch(city: str | None, role: str | None, limit: int):
 
                     pairs.append({"job": job, "candidate": cand})
 
-                    if len(pairs) >= limit:
+                    if limit > 0 and len(pairs) >= limit:
                         break
-                if len(pairs) >= limit:
+                if limit > 0 and len(pairs) >= limit:
                     break
 
             if not pairs:
@@ -485,6 +491,11 @@ async def cmd_job(job_id: str):
                 excluded = _parse_jsonb(c["excluded_companies"]) or []
                 if _is_company_excluded(job["company_name"], excluded):
                     continue
+                # Aktueller Arbeitgeber = NICHT matchen
+                cand_company = (c.get("current_company") or "").strip().lower()
+                job_company_name = (job["company_name"] or "").strip().lower()
+                if cand_company and job_company_name and (cand_company in job_company_name or job_company_name in cand_company):
+                    continue
                 # Finance-Rolle Pflicht
                 cand_cd = _parse_jsonb(c["classification_data"]) or {}
                 cand_primary = cand_cd.get("primary_role", "")
@@ -649,6 +660,11 @@ async def cmd_candidate(candidate_id: str):
                 if (j["quality_score"] or "").lower() == "low":
                     continue
                 if _is_company_excluded(j["company_name"], excluded):
+                    continue
+                # Aktueller Arbeitgeber = NICHT matchen
+                cand_company = (cand.get("current_company") or "").strip().lower()
+                job_company = (j["company_name"] or "").strip().lower()
+                if cand_company and job_company and (cand_company in job_company or job_company in cand_company):
                     continue
                 job_role = (_parse_jsonb(j["classification_data"]) or {}).get("primary_role", "")
                 if job_role and not _roles_compatible(cand_primary, job_role):
@@ -1273,7 +1289,7 @@ def main():
     # Batch-Filter
     parser.add_argument("--city", type=str, help="Filter: Stadt")
     parser.add_argument("--role", type=str, help="Filter: Rolle (z.B. FiBu, BiBu, StFA)")
-    parser.add_argument("--limit", type=int, default=10, help="Max Paare pro Batch (default: 10)")
+    parser.add_argument("--limit", type=int, default=0, help="Max Paare pro Batch (0 = kein Limit)")
 
     args = parser.parse_args()
 
