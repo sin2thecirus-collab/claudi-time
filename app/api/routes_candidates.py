@@ -1426,13 +1426,17 @@ async def cv_preview_proxy(
 async def generate_profile_pdf(
     candidate_id: UUID,
     regenerate: bool = False,
+    smart: bool = False,
     db: AsyncSession = Depends(get_db),
 ):
     """
     Liefert das Kandidaten-Profil-PDF.
 
-    1. Wenn ein gespeichertes PDF in R2 existiert UND regenerate=false → R2-Version laden
-    2. Sonst → Neu generieren mit WeasyPrint, in R2 speichern, am Kandidaten verknuepfen
+    Modi:
+    - Default: Gespeichertes PDF aus R2 laden (wenn vorhanden)
+    - regenerate=true: Immer neu generieren (Cache ignorieren)
+    - smart=true: Automatisch neu generieren wenn Kandidaten-Daten neuer als PDF sind
+      (Fuer Automatisierungen — garantiert immer das aktuellste Profil)
     """
     import re
     from datetime import datetime, timezone
@@ -1445,6 +1449,26 @@ async def generate_profile_pdf(
     candidate = await db.get(Candidate, candidate_id)
     if not candidate:
         raise NotFoundException(message=f"Kandidat {candidate_id} nicht gefunden")
+
+    # Smart-Modus: Pruefen ob Kandidaten-Daten neuer als das gespeicherte PDF sind
+    if smart and not regenerate:
+        if candidate.profile_pdf_generated_at and candidate.updated_at:
+            if candidate.updated_at > candidate.profile_pdf_generated_at:
+                logger.info(
+                    f"Smart-Modus: Kandidat {candidate_id} wurde aktualisiert "
+                    f"(updated_at={candidate.updated_at} > pdf_generated_at={candidate.profile_pdf_generated_at}) "
+                    f"→ PDF wird neu generiert"
+                )
+                regenerate = True
+            else:
+                logger.info(
+                    f"Smart-Modus: PDF fuer {candidate_id} ist aktuell "
+                    f"(pdf_generated_at={candidate.profile_pdf_generated_at} >= updated_at={candidate.updated_at})"
+                )
+        elif not candidate.profile_pdf_generated_at:
+            # Noch nie generiert → muss generiert werden
+            logger.info(f"Smart-Modus: Kein PDF vorhanden fuer {candidate_id} → wird generiert")
+            regenerate = True
 
     # Versuch 1: Gespeichertes PDF aus R2 laden
     if not regenerate and candidate.profile_pdf_r2_key:
@@ -1460,6 +1484,8 @@ async def generate_profile_pdf(
                         headers={
                             "Content-Disposition": "inline",
                             "Cache-Control": "private, max-age=300",
+                            "X-Profile-Source": "cache",
+                            "X-Profile-Generated-At": str(candidate.profile_pdf_generated_at or ""),
                         },
                     )
         except Exception as e:
@@ -1496,6 +1522,8 @@ async def generate_profile_pdf(
         headers={
             "Content-Disposition": "inline",
             "Cache-Control": "private, max-age=60",
+            "X-Profile-Source": "generated",
+            "X-Profile-Generated-At": datetime.now(timezone.utc).isoformat(),
         },
     )
 
