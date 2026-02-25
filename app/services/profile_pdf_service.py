@@ -178,11 +178,21 @@ class ProfilePdfService:
             # Asset-Pfade (absolute Pfade für WeasyPrint)
             "logo_path": os.path.join(static_dir, "images", "sincirus_logo.png"),
             "logo_komplett_path": os.path.join(static_dir, "images", "sincirus_logo_komplett.png"),
-            "logo_white_path": os.path.join(static_dir, "images", "sincirus_logo_komplett_white.png"),
-            "logo_transparent_path": os.path.join(static_dir, "images", "sincirus_logo_komplett_transparent.png"),
+            "logo_white_path": self._logo_as_data_uri(os.path.join(static_dir, "images", "sincirus_logo_komplett_white.png")),
+            "logo_transparent_path": self._logo_as_data_uri(os.path.join(static_dir, "images", "sincirus_logo_komplett_transparent.png")),
             "photo_path": os.path.join(static_dir, "images", "milad_foto.jpg"),
             "font_dir": os.path.join(static_dir, "fonts"),
         }
+
+    def _logo_as_data_uri(self, path: str) -> str:
+        """Konvertiert ein Logo-Bild in eine Base64 data-URI fuer WeasyPrint-Kompatibilitaet."""
+        import base64
+        try:
+            with open(path, "rb") as f:
+                b64 = base64.b64encode(f.read()).decode()
+            return f"data:image/png;base64,{b64}"
+        except FileNotFoundError:
+            return ""
 
     def _clean_val(self, val: Any) -> str:
         """Bereinigt einen Wert: None, 'None', 'null', 'n/a', '' → leerer String."""
