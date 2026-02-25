@@ -37,7 +37,7 @@
       --blue: #0b89bd;
       --cyan: #0d9dd6;
       --white: #FFFFFF;
-      --bg-subtle: #FDFDFE;
+      --bg-subtle: #FFFFFF;
       --text: #0f172a;
       --text-sec: #334155;
       --text-muted: #64748b;
@@ -306,23 +306,29 @@
       line-height: 1.55;
     }
 
-    /* Skill Tags */
-    .tags-wrap { display: flex; flex-wrap: wrap; gap: 5px; }
+    /* Skill Tags — kompakte Chips ohne Kasten */
+    .tags-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      align-items: flex-start;
+    }
 
     .skill-tag {
-      background: #FFFFFF;
+      background: none;
       border: 1px solid var(--border);
       color: var(--text-sec);
-      font-size: 9.5px;
+      font-size: 9px;
       font-weight: 500;
-      padding: 3px 10px;
-      border-radius: 3px;
-      line-height: 1.3;
+      padding: 2px 8px;
+      border-radius: 2px;
+      line-height: 1.2;
+      display: inline-block;
     }
 
     .skill-tag.highlight {
-      background: #FFFFFF;
-      border-color: rgba(30, 64, 175, 0.22);
+      background: none;
+      border-color: rgba(30, 64, 175, 0.25);
       color: var(--blue-deep);
       font-weight: 700;
     }
