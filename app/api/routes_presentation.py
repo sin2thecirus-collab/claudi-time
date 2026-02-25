@@ -95,6 +95,8 @@ async def _trigger_n8n_workflow(presentation, contact_name: str | None = None) -
     """Triggert den n8n Workflow fuer Kunde-Vorstellen.
 
     Sendet alle relevanten Daten als JSON-Payload an den n8n Webhook.
+    Wenn pdf_attached=True, wird das Kandidaten-PDF generiert und als
+    base64 im Payload mitgesendet (n8n erstellt daraus den Anhang).
 
     Args:
         presentation: ClientPresentation Record
@@ -111,6 +113,32 @@ async def _trigger_n8n_workflow(presentation, contact_name: str | None = None) -
         return False
 
     webhook_url = f"{settings.n8n_webhook_url}/webhook/kunde-vorstellen"
+
+    # PDF generieren wenn angefordert
+    pdf_base64 = None
+    pdf_filename = None
+    if presentation.pdf_attached and presentation.candidate_id:
+        try:
+            import base64
+            from app.database import async_session_maker
+            from app.services.profile_pdf_service import ProfilePdfService
+
+            async with async_session_maker() as pdf_db:
+                pdf_service = ProfilePdfService(pdf_db)
+                pdf_bytes = await pdf_service.generate_profile_pdf(
+                    presentation.candidate_id
+                )
+                pdf_base64 = base64.b64encode(pdf_bytes).decode("utf-8")
+                pdf_filename = "Kandidatenprofil.pdf"
+                logger.info(
+                    f"PDF generiert fuer Presentation {presentation.id} "
+                    f"({len(pdf_bytes)} bytes)"
+                )
+        except Exception as e:
+            logger.warning(
+                f"PDF-Generierung fuer n8n fehlgeschlagen: {e} — "
+                f"E-Mail wird ohne Anhang gesendet"
+            )
 
     payload = {
         "presentation_id": str(presentation.id),
@@ -129,6 +157,8 @@ async def _trigger_n8n_workflow(presentation, contact_name: str | None = None) -
         "pdf_attached": presentation.pdf_attached,
         "presentation_mode": presentation.presentation_mode,
         "contact_name": contact_name,
+        "pdf_base64": pdf_base64,
+        "pdf_filename": pdf_filename,
     }
 
     headers = {}
@@ -136,7 +166,7 @@ async def _trigger_n8n_workflow(presentation, contact_name: str | None = None) -
         headers["Authorization"] = f"Bearer {settings.n8n_api_token}"
 
     try:
-        async with httpx.AsyncClient(timeout=30) as client:
+        async with httpx.AsyncClient(timeout=60) as client:
             resp = await client.post(
                 webhook_url,
                 json=payload,
