@@ -137,6 +137,37 @@
         {% include "partials/new_match_center_cards.html" %}
     </div>
 
+    <!-- ═══════ PAGINATION ═══════ -->
+    <div class="flex items-center justify-center gap-2 mt-4 mb-6" x-show="pages > 1">
+        <button @click="goToPage(filters.page - 1)" :disabled="filters.page <= 1"
+                class="px-3 py-1.5 rounded-md text-xs font-medium transition-colors"
+                :style="filters.page <= 1 ? 'opacity:0.3; cursor:default;' : 'cursor:pointer;'"
+                style="background: var(--pp-surfaceHover); color: var(--pp-text); border: 1px solid var(--pp-border);">
+            &larr; Zurück
+        </button>
+
+        <template x-for="p in Array.from({length: pages}, (_, i) => i + 1)" :key="p">
+            <button @click="goToPage(p)"
+                    class="px-3 py-1.5 rounded-md text-xs font-medium transition-colors"
+                    :style="p === filters.page
+                        ? 'background: var(--pp-accent); color: white; border: 1px solid var(--pp-accent);'
+                        : 'background: var(--pp-surfaceHover); color: var(--pp-text); border: 1px solid var(--pp-border); cursor:pointer;'"
+                    x-text="p">
+            </button>
+        </template>
+
+        <button @click="goToPage(filters.page + 1)" :disabled="filters.page >= pages"
+                class="px-3 py-1.5 rounded-md text-xs font-medium transition-colors"
+                :style="filters.page >= pages ? 'opacity:0.3; cursor:default;' : 'cursor:pointer;'"
+                style="background: var(--pp-surfaceHover); color: var(--pp-text); border: 1px solid var(--pp-border);">
+            Weiter &rarr;
+        </button>
+
+        <span class="text-xs ml-2" style="color: var(--pp-textDim);"
+              x-text="'Seite ' + filters.page + ' von ' + pages">
+        </span>
+    </div>
+
     <!-- ═══════ DETAIL MODAL ═══════ -->
     <div x-show="showDetail" x-cloak
          class="fixed inset-0 z-50 flex items-center justify-center"
