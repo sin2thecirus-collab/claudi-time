@@ -94,6 +94,18 @@
       flex-shrink: 0;
     }
 
+    /* Dezentes Muster im Header */
+    .hero-header::after {
+      content: '';
+      position: absolute;
+      right: -40px;
+      top: -40px;
+      width: 260px;
+      height: 260px;
+      border: 40px solid rgba(255,255,255,0.03);
+      border-radius: 50%;
+    }
+
     .hero-top {
       display: flex;
       justify-content: space-between;
@@ -103,7 +115,7 @@
       z-index: 2;
     }
 
-    /* KEIN filter! WeasyPrint kann das nicht. Stattdessen white PNG */
+    /* WEISSE Logo-Version (kein CSS filter noetig) */
     .hero-logo {
       height: 98px;
       width: auto;
@@ -119,18 +131,18 @@
     .badge-conf {
       font-size: 7.5px;
       font-weight: 700;
-      color: #cce4ef;
+      color: rgba(255,255,255,0.8);
       letter-spacing: 2.5px;
       text-transform: uppercase;
-      background: #0a7dae;
-      border: 1px solid #0d9dd6;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.15);
       padding: 4px 14px;
       border-radius: 4px;
     }
 
     .badge-date {
       font-size: 10px;
-      color: #7fc4de;
+      color: rgba(255,255,255,0.5);
       font-weight: 500;
     }
 
@@ -142,7 +154,7 @@
     .hero-label {
       font-size: 12.5px;
       font-weight: 700;
-      color: #d9eef5;
+      color: rgba(255,255,255,0.85);
       letter-spacing: 5px;
       text-transform: uppercase;
       margin-bottom: 10px;
@@ -152,19 +164,19 @@
       font-family: 'DM Serif Display', serif;
       font-size: 34px;
       font-weight: 400;
-      color: #FFFFFF;
+      color: var(--white);
       line-height: 1.15;
       margin-bottom: 10px;
     }
 
     .hero-meta {
       font-size: 14px;
-      color: #a6d4e8;
+      color: rgba(255,255,255,0.65);
       line-height: 1.5;
     }
 
     .hero-meta strong {
-      color: #FFFFFF;
+      color: var(--white);
       font-weight: 600;
     }
 
@@ -178,10 +190,10 @@
     .hero-ref {
       font-size: 13px;
       font-weight: 700;
-      color: #FFFFFF;
+      color: var(--white);
       letter-spacing: 1px;
-      background: #0a7dae;
-      border: 1px solid #0d9dd6;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.2);
       padding: 5px 16px;
       border-radius: 5px;
     }
@@ -193,9 +205,9 @@
     .hero-dots span {
       width: 6px; height: 6px; border-radius: 50%;
     }
-    .hero-dots span:nth-child(1) { background: #FFFFFF; }
-    .hero-dots span:nth-child(2) { background: #7fc4de; }
-    .hero-dots span:nth-child(3) { background: #4a9ebf; }
+    .hero-dots span:nth-child(1) { background: var(--white); }
+    .hero-dots span:nth-child(2) { background: var(--white); opacity: 0.5; }
+    .hero-dots span:nth-child(3) { background: var(--white); opacity: 0.2; }
 
     /* ── CONTENT BEREICH ── */
     .page-content {
@@ -308,8 +320,8 @@
     }
 
     .skill-tag.highlight {
-      background: #e8f4f8;
-      border-color: #b3dce9;
+      background: rgba(30, 64, 175, 0.06);
+      border-color: rgba(30, 64, 175, 0.18);
       color: var(--blue-deep);
       font-weight: 700;
     }
@@ -330,39 +342,40 @@
 
 
     /* ═══════════════════════════════════════════════ */
-    /*   VISITENKARTE — SCHLANK                        */
+    /*   VISITENKARTE                                  */
     /* ═══════════════════════════════════════════════ */
 
     .vcard-footer {
       margin-top: auto;
-      padding: 6px 48px 14px 48px;
+      padding: 8px 48px 18px 48px;
       flex-shrink: 0;
     }
 
     .vcard {
       background: var(--bg-subtle);
       border: 1px solid var(--border);
-      border-radius: 8px;
+      border-radius: 10px;
       overflow: hidden;
       position: relative;
-      border-top: 2px solid var(--brand);
+      border-top: 3px solid var(--brand);
       page-break-inside: avoid;
     }
 
     .vcard-body {
       display: flex;
-      padding: 12px 20px;
-      gap: 14px;
+      padding: 18px 24px;
+      gap: 18px;
       align-items: center;
     }
 
     .vcard-photo {
       flex-shrink: 0;
-      width: 56px;
-      height: 56px;
+      width: 82px;
+      height: 82px;
       border-radius: 50%;
       overflow: hidden;
-      border: 2px solid var(--brand);
+      border: 2.5px solid var(--brand);
+      box-shadow: 0 0 0 3px rgba(11, 137, 189, 0.12);
       background: var(--border);
       display: flex;
       align-items: center;
@@ -379,7 +392,7 @@
 
     .vcard-sep {
       width: 1px;
-      height: 44px;
+      height: 64px;
       background: var(--border);
       flex-shrink: 0;
     }
@@ -387,40 +400,40 @@
     .vcard-info { flex: 1; min-width: 0; }
 
     .vcard-name {
-      font-size: 13px;
+      font-size: 15px;
       font-weight: 700;
       color: var(--text);
       margin-bottom: 1px;
     }
 
     .vcard-title {
-      font-size: 9px;
+      font-size: 10px;
       color: var(--brand);
       font-weight: 600;
-      margin-bottom: 5px;
+      margin-bottom: 8px;
     }
 
-    .vcard-contact { display: flex; flex-direction: column; gap: 2px; }
+    .vcard-contact { display: flex; flex-direction: column; gap: 3px; }
 
     .vcard-row {
       display: flex;
       align-items: center;
-      gap: 6px;
-      font-size: 9px;
+      gap: 8px;
+      font-size: 10px;
       color: var(--text-muted);
     }
 
     .vcard-icon {
-      font-size: 9px;
-      width: 12px;
+      font-size: 10px;
+      width: 14px;
       text-align: center;
       flex-shrink: 0;
       color: var(--brand);
     }
 
     .vcard-domain {
-      margin-top: 4px;
-      font-size: 9px;
+      margin-top: 6px;
+      font-size: 10px;
       color: var(--brand);
       font-weight: 600;
       letter-spacing: 0.3px;
@@ -432,9 +445,9 @@
       align-items: center;
     }
 
-    /* Transparentes Logo — KEIN weisser Rand */
+    /* Transparentes Logo */
     .vcard-brand img {
-      height: 72px;
+      height: 86px;
       width: auto;
     }
 
@@ -448,7 +461,6 @@
       min-height: 297mm;
       background: var(--white);
       position: relative;
-      /* Padding-top fuer Seitenumbrueche — Inhalt klebt nicht am Rand */
       padding-top: 0;
     }
 
@@ -602,8 +614,8 @@
       display: flex;
       align-items: center;
       gap: 12px;
-      background: #edf5f9;
-      border: 1px solid #c7dfe9;
+      background: rgba(30, 64, 175, 0.04);
+      border: 1px solid rgba(30, 64, 175, 0.1);
       border-radius: 8px;
       padding: 12px 18px;
       margin-bottom: 8px;
@@ -614,7 +626,7 @@
       width: 10px;
       height: 10px;
       border-radius: 50%;
-      background: var(--brand);
+      background: var(--gradient-bar);
       flex-shrink: 0;
     }
 
@@ -629,7 +641,7 @@
       background: var(--white);
       padding: 3px 12px;
       border-radius: 4px;
-      border: 1px solid #c7dfe9;
+      border: 1px solid rgba(30, 64, 175, 0.15);
       letter-spacing: 0.5px;
       flex-shrink: 0;
     }
@@ -638,17 +650,7 @@
     /*   SEITENUMBRUCH-SCHUTZ                          */
     /* ═══════════════════════════════════════════════ */
 
-    /* Wenn WeasyPrint einen Seitenumbruch erzwingt, oben Abstand lassen */
-    @page {
-      size: A4;
-      margin: 0;
-
-      @top-left { content: ''; }
-    }
-
-    /* Fortlaufende CV-Seiten: Padding oben damit Text nicht am Rand klebt */
     .job-card, .edu-card, .cert-card, .cv-section, .cv-body .sh {
-      /* WeasyPrint orphan/widow Kontrolle */
       orphans: 3;
       widows: 3;
     }
