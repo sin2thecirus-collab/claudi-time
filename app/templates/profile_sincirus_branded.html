@@ -88,7 +88,7 @@
     /* ── GRADIENT HEADER ── */
     .hero-header {
       background: var(--gradient-header);
-      padding: 32px 48px 28px 48px;
+      padding: 22px 48px 16px 48px;
       position: relative;
       overflow: hidden;
       flex-shrink: 0;
@@ -121,14 +121,14 @@
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      margin-bottom: 24px;
+      margin-bottom: 14px;
       position: relative;
       z-index: 2;
     }
 
     /* WEISSE Logo-Version (kein CSS filter noetig) */
     .hero-logo {
-      height: 98px;
+      height: 76px;
       width: auto;
     }
 
@@ -163,21 +163,21 @@
     }
 
     .hero-label {
-      font-size: 12.5px;
+      font-size: 11px;
       font-weight: 700;
       color: rgba(255,255,255,0.85);
       letter-spacing: 5px;
       text-transform: uppercase;
-      margin-bottom: 10px;
+      margin-bottom: 5px;
     }
 
     .hero-title {
       font-family: 'DM Serif Display', serif;
-      font-size: 34px;
+      font-size: 28px;
       font-weight: 400;
       color: var(--white);
       line-height: 1.15;
-      margin-bottom: 10px;
+      margin-bottom: 5px;
     }
 
     .hero-meta {
@@ -195,7 +195,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-top: 18px;
+      margin-top: 10px;
     }
 
     .hero-ref {
@@ -226,29 +226,52 @@
       padding: 20px 48px 0 48px;
       display: flex;
       flex-direction: column;
+      position: relative;
     }
 
-    /* Section Headings — prominent */
+    /* Mittlerer Bereich — vertikal zentriert zwischen Eckdaten und Visitenkarte */
+    .mid-center-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    /* Section Headings — Premium Tech */
     .sh {
       font-size: 11px;
       font-weight: 800;
       color: var(--navy);
       letter-spacing: 2.5px;
       text-transform: uppercase;
-      margin-bottom: 10px;
-      padding-bottom: 6px;
-      border-bottom: 2px solid var(--border);
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: none;
       display: flex;
       align-items: center;
       gap: 8px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Gradient-Linie unter Section Headings */
+    .sh::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--brand) 0%, var(--brand-glow) 30%, rgba(16, 181, 240, 0.08) 70%, transparent 100%);
     }
 
     .sh::before {
       content: '';
-      width: 4px;
-      height: 14px;
-      background: var(--gradient-bar);
-      border-radius: 2px;
+      width: 8px;
+      height: 8px;
+      background: var(--brand);
+      border-radius: 50%;
       flex-shrink: 0;
     }
 
@@ -257,31 +280,49 @@
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 8px;
-      margin-bottom: 18px;
+      margin-bottom: 0;
     }
 
     .fact-card {
-      background: var(--bg-subtle);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 10px 14px;
-      border-left: 3px solid var(--cyan);
+      background: var(--white);
+      border: 1px solid rgba(226, 232, 240, 0.7);
+      border-radius: 10px;
+      padding: 14px 16px;
+      position: relative;
+      overflow: hidden;
+      z-index: 1;
+      box-shadow: 0 1px 3px rgba(11, 137, 189, 0.06), 0 4px 16px rgba(0, 0, 0, 0.04), 0 8px 30px rgba(11, 137, 189, 0.03);
+    }
+
+    /* Gradient-Top Akzent */
+    .fact-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--gradient-bar);
     }
 
     .fact-label {
-      font-size: 9px;
+      display: inline-block;
+      font-size: 8px;
       font-weight: 700;
-      color: var(--blue);
-      margin-bottom: 3px;
+      color: var(--brand);
+      background: rgba(11, 137, 189, 0.06);
+      padding: 2px 8px;
+      border-radius: 3px;
+      margin-bottom: 5px;
       text-transform: uppercase;
       letter-spacing: 0.8px;
     }
 
     .fact-value {
-      font-size: 14px;
-      font-weight: 700;
-      color: var(--text);
-      line-height: 1.2;
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--navy);
+      line-height: 1.15;
     }
 
     .fact-detail {
@@ -290,17 +331,60 @@
       margin-top: 2px;
     }
 
-    /* ── KURZPROFIL + ERP/SPRACHEN ── */
+    /* ── KURZPROFIL + SPRACHEN ── */
     .mid-row {
       display: flex;
       gap: 22px;
-      margin-bottom: 16px;
+      margin-bottom: 22px;
     }
 
-    .mid-left { flex: 5.5; }
-    .mid-right { flex: 4.5; }
+    .mid-left {
+      flex: 5.5;
+      background: var(--white);
+      border: 1px solid rgba(226, 232, 240, 0.7);
+      border-radius: 10px;
+      padding: 18px 18px 14px 18px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(11, 137, 189, 0.06), 0 4px 16px rgba(0, 0, 0, 0.04), 0 8px 30px rgba(11, 137, 189, 0.03);
+    }
+    .mid-left::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--gradient-bar);
+    }
+    .mid-right {
+      flex: 4.5;
+      background: var(--white);
+      border: 1px solid rgba(226, 232, 240, 0.7);
+      border-radius: 10px;
+      padding: 18px 18px 14px 18px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(11, 137, 189, 0.06), 0 4px 16px rgba(0, 0, 0, 0.04), 0 8px 30px rgba(11, 137, 189, 0.03);
+    }
+    .mid-right::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--gradient-bar);
+    }
 
-    .kp-item { margin-bottom: 10px; }
+    .kp-item {
+      margin-bottom: 10px;
+      border-left: 3px solid var(--brand);
+      padding-left: 12px;
+      background: linear-gradient(90deg, rgba(11, 137, 189, 0.03) 0%, transparent 100%);
+      padding: 8px 12px;
+      border-radius: 0 6px 6px 0;
+    }
 
     .kp-label {
       font-size: 11px;
@@ -314,69 +398,74 @@
     .kp-text {
       font-size: 13px;
       color: var(--text-sec);
-      line-height: 1.55;
+      line-height: 1.65;
     }
 
     /* Skill Tags — kompakte Chips ohne Kasten */
     .tags-wrap {
       display: flex;
       flex-wrap: wrap;
-      gap: 4px;
+      gap: 6px;
       align-items: flex-start;
     }
 
     .skill-tag {
-      background: none;
-      border: 1px solid var(--border);
+      background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+      border: 1px solid rgba(226, 232, 240, 0.8);
       color: var(--text-sec);
-      font-size: 9px;
+      font-size: 9.5px;
       font-weight: 500;
-      padding: 2px 8px;
-      border-radius: 2px;
+      padding: 4px 10px;
+      border-radius: 4px;
       line-height: 1.2;
       display: inline-block;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
     }
 
     .skill-tag.highlight {
-      background: none;
-      border-color: rgba(30, 64, 175, 0.25);
-      color: var(--blue-deep);
-      font-weight: 700;
+      background: linear-gradient(135deg, var(--brand), var(--brand-light));
+      border-color: var(--brand);
+      color: var(--white);
+      font-weight: 600;
+      box-shadow: 0 1px 4px rgba(11, 137, 189, 0.25);
     }
 
-    /* ERP */
-    .erp-item { padding: 4px 0; }
-    .erp-name { font-size: 10.5px; font-weight: 700; color: var(--text); }
-    .erp-level { font-size: 9px; color: var(--text-muted); }
-    .erp-bar-bg { height: 5px; background: var(--border); border-radius: 3px; margin-top: 3px; overflow: hidden; }
-    .erp-bar-fill { height: 100%; border-radius: 3px; background: var(--gradient-bar); }
-
-    /* Sprachen */
-    .lang-item { display: flex; align-items: center; gap: 6px; padding: 3px 0; }
-    .lang-name { font-size: 10.5px; font-weight: 700; color: var(--text); min-width: 70px; }
-    .lang-bar-bg { flex: 1; height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    /* Sprachen — Dashboard Style */
+    .lang-item { display: flex; align-items: center; gap: 6px; padding: 5px 0; }
+    .lang-name { font-size: 10px; font-weight: 700; color: var(--text); min-width: 65px; }
+    .lang-bar-bg { flex: 1; height: 5px; background: rgba(226, 232, 240, 0.5); border-radius: 3px; overflow: hidden; }
     .lang-bar-fill { height: 100%; background: var(--gradient-bar); border-radius: 3px; }
-    .lang-level { font-size: 8.5px; color: var(--text-muted); min-width: 74px; text-align: right; }
-
+    .lang-level { font-size: 8px; color: var(--brand); font-weight: 600; min-width: 70px; text-align: right; }
 
     /* ═══════════════════════════════════════════════ */
     /*   VISITENKARTE                                  */
     /* ═══════════════════════════════════════════════ */
 
     .vcard-footer {
-      margin-top: auto;
       padding: 20px 48px 18px 48px;
       flex-shrink: 0;
     }
 
     .vcard {
-      background: var(--bg-subtle);
-      border: 1px solid var(--border);
+      background: var(--gradient-header);
+      border: none;
       border-radius: 10px;
       overflow: hidden;
       position: relative;
-      border-top: 3px solid var(--brand);
       page-break-inside: avoid;
+    }
+
+    /* Dezenter Akzent-Ring (wie im Header) */
+    .vcard::after {
+      content: '';
+      position: absolute;
+      right: -20px;
+      bottom: -20px;
+      width: 120px;
+      height: 120px;
+      border: 18px solid rgba(255, 255, 255, 0.06);
+      border-radius: 50%;
+      z-index: 1;
     }
 
     .vcard-body {
@@ -384,6 +473,8 @@
       padding: 18px 24px;
       gap: 18px;
       align-items: center;
+      position: relative;
+      z-index: 2;
     }
 
     .vcard-photo {
@@ -392,9 +483,9 @@
       height: 90px;
       border-radius: 50%;
       overflow: hidden;
-      border: 2.5px solid var(--brand);
-      box-shadow: 0 0 0 3px rgba(11, 137, 189, 0.12);
-      background: var(--border);
+      border: 2.5px solid rgba(255, 255, 255, 0.8);
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.15), 0 4px 20px rgba(0, 0, 0, 0.2);
+      background: rgba(255, 255, 255, 0.1);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -409,9 +500,9 @@
     }
 
     .vcard-sep {
-      width: 1px;
+      width: 1.5px;
       height: 70px;
-      background: var(--border);
+      background: linear-gradient(180deg, rgba(255,255,255,0.4), rgba(255,255,255,0.08));
       flex-shrink: 0;
     }
 
@@ -420,13 +511,13 @@
     .vcard-name {
       font-size: 17px;
       font-weight: 700;
-      color: var(--text);
+      color: var(--white);
       margin-bottom: 1px;
     }
 
     .vcard-title {
       font-size: 12px;
-      color: var(--brand);
+      color: rgba(255, 255, 255, 0.85);
       font-weight: 600;
       margin-bottom: 8px;
     }
@@ -438,7 +529,7 @@
       align-items: center;
       gap: 8px;
       font-size: 12px;
-      color: var(--text-muted);
+      color: rgba(255, 255, 255, 0.7);
       line-height: 1.3;
     }
 
@@ -474,6 +565,20 @@
     .vcard-brand img {
       height: 86px;
       width: auto;
+    }
+
+    /* White icons for dark gradient vcard */
+    .vcard .vcard-icon-email {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-opacity='0.85' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2' y='4' width='20' height='16' rx='2'/%3E%3Cpath d='m2 4 10 8 10-8'/%3E%3C/svg%3E");
+    }
+    .vcard .vcard-icon-phone {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-opacity='0.85' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z'/%3E%3C/svg%3E");
+    }
+    .vcard .vcard-icon-address {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-opacity='0.85' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z'/%3E%3Ccircle cx='12' cy='10' r='3'/%3E%3C/svg%3E");
+    }
+    .vcard .vcard-icon-web {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-opacity='0.85' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z'/%3E%3C/svg%3E");
     }
 
 
@@ -520,9 +625,9 @@
       gap: 14px;
     }
 
-    /* Transparentes Logo fuer CV-Header */
+    /* Icon-Logo fuer CV-Header (nur Symbol, ohne Text) */
     .cv-header-logo {
-      height: 38px;
+      height: 48px;
       width: auto;
     }
 
@@ -551,50 +656,89 @@
 
     .cv-section { margin-top: 20px; }
 
-    /* CV Section Headings */
+    /* CV Section Headings — Premium Pill */
     .cv-body .sh {
       font-size: 11px;
-      background: var(--bg-subtle);
-      border: 1px solid var(--border);
-      border-left: 4px solid var(--blue);
-      border-bottom: 1px solid var(--border);
-      border-radius: 0 6px 6px 0;
-      padding: 8px 16px;
+      background: linear-gradient(180deg, rgba(248, 250, 252, 0.5) 0%, var(--white) 100%);
+      border: 1px solid rgba(226, 232, 240, 0.7);
+      border-radius: 8px;
+      padding: 9px 18px;
       margin-bottom: 12px;
       page-break-after: avoid;
+      box-shadow: 0 1px 3px rgba(11, 137, 189, 0.06), 0 4px 16px rgba(0, 0, 0, 0.04);
+      overflow: hidden;
+      position: relative;
     }
 
-    .cv-body .sh::before { display: none; }
+    /* Gradient-Top Akzent */
+    .cv-body .sh::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--gradient-bar);
+      width: auto;
+      border-radius: 0;
+    }
 
-    /* Job Cards */
+    /* Job Cards — Premium Floating Card */
     .job-card {
-      background: var(--bg-subtle);
-      border: 1px solid var(--border);
-      border-left: 3px solid var(--blue);
-      border-radius: 0 8px 8px 0;
-      padding: 14px 18px;
+      background: linear-gradient(180deg, rgba(248, 250, 252, 0.5) 0%, var(--white) 100%);
+      border: 1px solid rgba(226, 232, 240, 0.7);
+      border-radius: 10px;
+      padding: 16px 20px;
       margin-bottom: 10px;
       page-break-inside: avoid;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(11, 137, 189, 0.06), 0 4px 16px rgba(0, 0, 0, 0.04), 0 8px 30px rgba(11, 137, 189, 0.03);
     }
 
-    .job-card.older { border-left-color: var(--text-subtle); }
+    /* Gradient-Top Akzent (wie Fact Cards) */
+    .job-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--gradient-bar);
+    }
+
+    .job-card.older::before {
+      background: linear-gradient(90deg, #b0bec5, rgba(176, 190, 197, 0.2));
+    }
 
     .job-top {
       display: flex;
       justify-content: space-between;
-      align-items: baseline;
-      margin-bottom: 3px;
+      align-items: center;
+      margin-bottom: 4px;
     }
 
-    .job-title { font-size: 13px; font-weight: 700; color: var(--text); }
+    .job-title { font-size: 13px; font-weight: 700; color: var(--navy); }
 
-    .job-date { font-size: 10px; color: var(--text-muted); font-weight: 600; }
+    .job-date {
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--brand);
+      background: linear-gradient(135deg, rgba(11, 137, 189, 0.08), rgba(13, 157, 214, 0.05));
+      padding: 3px 10px;
+      border-radius: 3px;
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+      border: 1px solid rgba(11, 137, 189, 0.12);
+    }
 
     .job-company {
       font-size: 11px;
       font-weight: 600;
-      color: var(--blue);
-      margin-bottom: 6px;
+      color: var(--brand);
+      margin-bottom: 8px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
     }
 
     .job-bullets { list-style: none; }
@@ -612,7 +756,7 @@
       content: "\25B8";
       position: absolute;
       left: 0;
-      color: var(--cyan);
+      color: var(--brand);
       font-size: 10px;
       top: 1px;
     }
@@ -790,8 +934,11 @@
     </div>
     {% endif %}
 
-    <!-- Kurzprofil (links) + ERP & Sprachen (rechts) -->
-    {% if kurzprofil_items or erp_items or languages %}
+    <!-- Mittlerer Bereich — vertikal zentriert -->
+    <div class="mid-center-area">
+
+    <!-- Kurzprofil (links) + Sprachen (rechts) -->
+    {% if kurzprofil_items or languages %}
     <div class="mid-row">
       {% if kurzprofil_items %}
       <div class="mid-left">
@@ -804,47 +951,33 @@
         {% endfor %}
       </div>
       {% endif %}
-      {% if erp_items or languages %}
+      {% if languages %}
       <div class="mid-right">
-        {% if erp_items %}
-        <div class="sh">ERP &amp; IT</div>
-        {% for erp in erp_items %}
-        <div class="erp-item">
-          <div style="display:flex;justify-content:space-between;align-items:baseline;">
-            <span class="erp-name">{{ erp.name }}</span>
-            {% if erp.level_label %}
-            <span class="erp-level">{{ erp.level_label }}</span>
-            {% endif %}
-          </div>
-          <div class="erp-bar-bg"><div class="erp-bar-fill" style="width:{{ erp.pct }}%;"></div></div>
+        <div class="sh">Sprachen</div>
+        {% for lang in languages %}
+        <div class="lang-item">
+          <span class="lang-name">{{ lang.name }}</span>
+          <div class="lang-bar-bg"><div class="lang-bar-fill" style="width:{{ lang.pct }}%;"></div></div>
+          <span class="lang-level">{{ lang.level_label }}</span>
         </div>
         {% endfor %}
-        {% endif %}
-        {% if languages %}
-        <div style="margin-top:{% if erp_items %}12{% else %}0{% endif %}px;">
-          <div class="sh">Sprachen</div>
-          {% for lang in languages %}
-          <div class="lang-item">
-            <span class="lang-name">{{ lang.name }}</span>
-            <div class="lang-bar-bg"><div class="lang-bar-fill" style="width:{{ lang.pct }}%;"></div></div>
-            <span class="lang-level">{{ lang.level_label }}</span>
-          </div>
-          {% endfor %}
-        </div>
-        {% endif %}
       </div>
       {% endif %}
     </div>
     {% endif %}
 
     {% if skill_tags %}
-    <div class="sh">ERP &amp; IT Kenntnisse</div>
-    <div class="tags-wrap">
-      {% for tag in skill_tags %}
-      <span class="skill-tag{% if tag.highlight %} highlight{% endif %}">{{ tag.name }}</span>
-      {% endfor %}
+    <div style="margin-top: 4px;">
+      <div class="sh">ERP &amp; IT Kenntnisse</div>
+      <div class="tags-wrap">
+        {% for tag in skill_tags %}
+        <span class="skill-tag{% if tag.highlight %} highlight{% endif %}">{{ tag.name }}</span>
+        {% endfor %}
+      </div>
     </div>
     {% endif %}
+
+    </div><!-- /mid-center-area -->
 
   </div>
 
@@ -863,12 +996,12 @@
             <div class="vcard-row"><span class="vcard-icon vcard-icon-email"></span> {{ consultant.email }}</div>
             <div class="vcard-row"><span class="vcard-icon vcard-icon-phone"></span> {{ consultant.phone }}</div>
             <div class="vcard-row"><span class="vcard-icon vcard-icon-address"></span> {{ consultant.address }}</div>
-            <div class="vcard-row"><span class="vcard-icon vcard-icon-web"></span> <span style="color:var(--brand);font-weight:600;">www.sincirus.com</span></div>
+            <div class="vcard-row"><span class="vcard-icon vcard-icon-web"></span> <span style="color:rgba(255,255,255,0.9);font-weight:600;">www.sincirus.com</span></div>
           </div>
         </div>
         <div class="vcard-brand">
-          <!-- TRANSPARENTES Logo — kein weisser Rand -->
-          <img src="{{ logo_transparent_path }}" alt="Sincirus" />
+          <!-- WEISSES Logo fuer dunklen Gradient-Hintergrund -->
+          <img src="{{ logo_white_path }}" alt="Sincirus" />
         </div>
       </div>
     </div>
@@ -886,8 +1019,8 @@
   <!-- Header -->
   <div class="cv-header-strip">
     <div class="cv-header-left">
-      <!-- TRANSPARENTES Logo -->
-      <img class="cv-header-logo" src="{{ logo_transparent_path }}" alt="Sincirus" />
+      <!-- Icon-Logo (nur Symbol, ohne Text) -->
+      <img class="cv-header-logo" src="{{ logo_icon_path }}" alt="Sincirus" />
       <div class="cv-header-divider"></div>
       <div class="cv-header-title">Lebenslauf</div>
     </div>

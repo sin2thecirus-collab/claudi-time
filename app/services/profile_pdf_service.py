@@ -180,6 +180,7 @@ class ProfilePdfService:
             "logo_komplett_path": os.path.join(static_dir, "images", "sincirus_logo_komplett.png"),
             "logo_white_path": self._logo_as_data_uri(os.path.join(static_dir, "images", "sincirus_logo_komplett_white.png")),
             "logo_transparent_path": self._logo_as_data_uri(os.path.join(static_dir, "images", "sincirus_logo_komplett_transparent.png")),
+            "logo_icon_path": self._logo_as_data_uri(os.path.join(static_dir, "images", "sincirus_icon.png")),
             "photo_path": os.path.join(static_dir, "images", "milad_foto.jpg"),
             "font_dir": os.path.join(static_dir, "fonts"),
         }
@@ -297,17 +298,31 @@ class ProfilePdfService:
 
         return facts
 
+    @staticmethod
+    def _truncate_text(text: str, max_chars: int = 250) -> str:
+        """Kürzt Text sauber am letzten vollständigen Satz oder Wort."""
+        if not text or len(text) <= max_chars:
+            return text
+        # Am letzten Satzende vor max_chars schneiden
+        truncated = text[:max_chars]
+        for end in [". ", "! ", "? "]:
+            last = truncated.rfind(end)
+            if last > max_chars * 0.5:  # Mindestens 50% des Platzes nutzen
+                return truncated[: last + 1]
+        # Kein Satzende gefunden → am letzten Leerzeichen schneiden
+        last_space = truncated.rfind(" ")
+        if last_space > max_chars * 0.5:
+            return truncated[:last_space] + " …"
+        return truncated + " …"
+
     def _build_kurzprofil(self, candidate) -> list[dict]:
         """Baut die Kurzprofil-Items (Wechselmotivation, Kernkompetenz)."""
         items = []
 
         notes = self._clean_val(getattr(candidate, "candidate_notes", None))
         if notes:
+            notes = self._truncate_text(notes, max_chars=250)
             items.append({"label": "Wechselmotivation", "text": notes})
-
-        summary = self._clean_val(getattr(candidate, "v2_current_role_summary", None))
-        if summary:
-            items.append({"label": "Kernkompetenz", "text": summary})
 
         return items
 
