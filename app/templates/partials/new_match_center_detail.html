@@ -382,10 +382,10 @@
 
     <!-- Action Buttons -->
     <div class="flex items-center gap-3 pt-4" style="border-top: 1px solid var(--pp-border);">
-        <button @click="updateStatus('{{ data.match.id }}', 'presented'); showDetail = false;"
+        <button @click="showPresentationModal = true; showDetail = false;"
                 class="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
                 style="background: var(--pp-green); color: white;">
-            Vorstellen
+            Kunde vorstellen
         </button>
         <button @click="sendFeedback('{{ data.match.id }}', 'good')"
                 class="px-4 py-2 rounded-lg text-sm font-medium transition-colors"

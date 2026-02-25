@@ -948,6 +948,91 @@ async def _ensure_email_drafts_table() -> None:
         logger.info("email_drafts Tabelle erfolgreich erstellt.")
 
 
+async def _ensure_client_presentation_tables() -> None:
+    """Erstellt client_presentations Tabelle (Kandidaten-Vorstellung an Unternehmen)."""
+
+    async with engine.begin() as conn:
+        result = await conn.execute(
+            text(
+                "SELECT table_name FROM information_schema.tables "
+                "WHERE table_schema = 'public' AND table_name = 'client_presentations'"
+            )
+        )
+        if result.fetchone() is not None:
+            logger.info("client_presentations Tabelle existiert bereits.")
+            return
+
+    logger.info("client_presentations Tabelle wird erstellt...")
+
+    async with engine.begin() as conn:
+        await conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS client_presentations (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                -- Verknuepfungen
+                match_id UUID REFERENCES matches(id) ON DELETE SET NULL,
+                candidate_id UUID REFERENCES candidates(id) ON DELETE SET NULL,
+                job_id UUID REFERENCES jobs(id) ON DELETE SET NULL,
+                company_id UUID REFERENCES companies(id) ON DELETE SET NULL,
+                contact_id UUID REFERENCES company_contacts(id) ON DELETE SET NULL,
+                -- E-Mail-Inhalte
+                email_to VARCHAR(500) NOT NULL,
+                email_from VARCHAR(500) NOT NULL,
+                email_subject VARCHAR(500) NOT NULL,
+                email_body_text TEXT,
+                email_signature_html TEXT,
+                mailbox_used VARCHAR(100),
+                -- Vorstellungsmodus
+                presentation_mode VARCHAR(20) DEFAULT 'ai_generated',
+                -- PDF-Anhang
+                pdf_attached BOOLEAN DEFAULT TRUE,
+                pdf_r2_key VARCHAR(500),
+                -- Sequenz-Tracking
+                status VARCHAR(30) DEFAULT 'sent',
+                sequence_active BOOLEAN DEFAULT TRUE,
+                sequence_step INTEGER DEFAULT 1,
+                -- Zeitstempel
+                sent_at TIMESTAMPTZ,
+                followup1_sent_at TIMESTAMPTZ,
+                followup2_sent_at TIMESTAMPTZ,
+                -- Kunden-Antwort
+                client_response_category VARCHAR(30),
+                client_response_text TEXT,
+                client_response_raw TEXT,
+                responded_at TIMESTAMPTZ,
+                -- Wiedervorlage
+                callback_date TIMESTAMPTZ,
+                -- Auto-Reply
+                auto_reply_sent BOOLEAN DEFAULT FALSE,
+                auto_reply_text TEXT,
+                -- Fallback-Kaskade
+                is_fallback BOOLEAN DEFAULT FALSE,
+                fallback_domain VARCHAR(255),
+                fallback_attempts JSONB,
+                fallback_successful_email VARCHAR(500),
+                -- n8n-Integration
+                n8n_execution_id VARCHAR(255),
+                -- Dokumentation-Links
+                correspondence_id UUID REFERENCES company_correspondence(id) ON DELETE SET NULL,
+                pipeline_entry_id UUID REFERENCES ats_pipeline_entries(id) ON DELETE SET NULL,
+                -- Timestamps
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        """))
+
+        # Indizes
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_client_presentations_match_id ON client_presentations (match_id)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_client_presentations_candidate_id ON client_presentations (candidate_id)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_client_presentations_job_id ON client_presentations (job_id)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_client_presentations_company_id ON client_presentations (company_id)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_client_presentations_contact_id ON client_presentations (contact_id)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_client_presentations_status ON client_presentations (status)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_client_presentations_created_at ON client_presentations (created_at)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_client_presentations_is_fallback ON client_presentations (is_fallback)"))
+
+        logger.info("client_presentations Tabelle erfolgreich erstellt.")
+
+
 async def init_db() -> None:
     """Initialisiert die Datenbankverbindung und führt Migrationen aus."""
     # Schritt 0: Alle haengenden Transaktionen killen (von vorherigen Deployments)
@@ -978,6 +1063,7 @@ async def init_db() -> None:
     await _ensure_candidate_notes_table()
     await _ensure_email_drafts_table()
     await _ensure_email_automation_tables()
+    await _ensure_client_presentation_tables()
 
     # ── pgvector Extension NICHT noetig — Embeddings werden als JSONB gespeichert ──
     # Railway Standard-PostgreSQL hat kein pgvector vorinstalliert.

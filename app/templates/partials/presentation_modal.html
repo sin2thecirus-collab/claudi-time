@@ -1,0 +1,643 @@
+<!-- Presentation Modal — Kunde Vorstellen -->
+<div x-data="presentationModal()"
+     x-effect="if (showPresentationModal && currentMatchId && currentMatchId !== matchId) { matchId = currentMatchId; reinit(); }"
+     class="p-6">
+
+    <!-- ═══════ HEADER ═══════ -->
+    <div class="flex items-center justify-between mb-5">
+        <div>
+            <h2 class="text-lg font-bold" style="color: var(--pp-text);">Kunde vorstellen</h2>
+            <p class="text-xs mt-0.5" style="color: var(--pp-textDim);">
+                <span x-text="headerCandidate">Kandidat</span> &rarr; <span x-text="headerCompany">Unternehmen</span> — <span x-text="headerPosition">Position</span>
+            </p>
+        </div>
+        <button @click="$dispatch('close-presentation')"
+                class="p-2 rounded-lg transition-colors"
+                style="color: var(--pp-textDim);"
+                onmouseover="this.style.background='var(--pp-surfaceHover)'"
+                onmouseout="this.style.background='transparent'">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+        </button>
+    </div>
+
+    <!-- ═══════ ALREADY PRESENTED WARNING ═══════ -->
+    <template x-if="alreadyPresented">
+        <div class="mb-4 px-4 py-3 rounded-lg flex items-center gap-2"
+             style="background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.25);">
+            <svg class="w-4 h-4 flex-shrink-0" style="color: var(--pp-orange);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+            </svg>
+            <span class="text-sm font-medium" style="color: var(--pp-orange);">
+                Dieser Kandidat wurde bereits am <span x-text="presentedAt"></span> an diesen Kunden vorgestellt.
+            </span>
+        </div>
+    </template>
+
+    <!-- ═══════ TAB BAR ═══════ -->
+    <div class="flex rounded-lg overflow-hidden mb-5" style="border: 1px solid var(--pp-border);">
+        <button @click="tab = 'ai'"
+                class="flex-1 px-4 py-2.5 text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                :style="tab === 'ai'
+                    ? 'background: var(--pp-accent); color: white;'
+                    : 'background: transparent; color: var(--pp-textMuted);'"
+                onmouseover="if(!this.style.background.includes('var(--pp-accent)')) this.style.background='var(--pp-surfaceHover)'"
+                onmouseout="if(!this.style.background.includes('var(--pp-accent)')) this.style.background='transparent'">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+            </svg>
+            KI-Vorstellung
+        </button>
+        <button @click="tab = 'custom'"
+                class="flex-1 px-4 py-2.5 text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                :style="tab === 'custom'
+                    ? 'background: var(--pp-accent); color: white;'
+                    : 'background: transparent; color: var(--pp-textMuted);'"
+                onmouseover="if(!this.style.background.includes('var(--pp-accent)')) this.style.background='var(--pp-surfaceHover)'"
+                onmouseout="if(!this.style.background.includes('var(--pp-accent)')) this.style.background='transparent'">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+            </svg>
+            Eigene Nachricht
+        </button>
+    </div>
+
+    <!-- ═══════ TAB 1: KI-VORSTELLUNG ═══════ -->
+    <div x-show="tab === 'ai'" x-cloak>
+
+        <!-- Empfaenger -->
+        <div class="rounded-lg p-4 mb-4" style="background: var(--pp-surfaceHover); border: 1px solid var(--pp-border);">
+            <div class="text-xs uppercase tracking-wider font-medium mb-3" style="color: var(--pp-textDim);">Empfaenger</div>
+
+            <!-- Ansprechpartner Dropdown -->
+            <div class="mb-3">
+                <label class="text-xs font-medium block mb-1.5" style="color: var(--pp-textMuted);">Ansprechpartner</label>
+                <select x-model="selectedContactId"
+                        @change="onContactChange()"
+                        class="w-full rounded-lg px-3 py-2 text-sm transition-colors"
+                        style="background: var(--pp-bg); border: 1px solid var(--pp-border); color: var(--pp-text); outline: none;"
+                        onfocus="this.style.borderColor='var(--pp-accent)'; this.style.boxShadow='0 0 0 2px rgba(59,130,246,0.15)'"
+                        onblur="this.style.borderColor='var(--pp-border)'; this.style.boxShadow='none'">
+                    <option value="">Kein Kontakt (Fallback-Kaskade)</option>
+                    <template x-for="contact in contacts" :key="contact.id">
+                        <option :value="contact.id" x-text="contact.full_name + (contact.position ? ' — ' + contact.position : '')"></option>
+                    </template>
+                </select>
+            </div>
+
+            <!-- E-Mail an -->
+            <div>
+                <label class="text-xs font-medium block mb-1.5" style="color: var(--pp-textMuted);">E-Mail an</label>
+                <input type="email"
+                       x-model="emailTo"
+                       :readonly="selectedContactId !== ''"
+                       class="w-full rounded-lg px-3 py-2 text-sm transition-colors"
+                       :style="selectedContactId !== ''
+                           ? 'background: var(--pp-surface); border: 1px solid var(--pp-border); color: var(--pp-textMuted); outline: none; cursor: not-allowed;'
+                           : 'background: var(--pp-bg); border: 1px solid var(--pp-border); color: var(--pp-text); outline: none;'"
+                       onfocus="if(!this.readOnly) { this.style.borderColor='var(--pp-accent)'; this.style.boxShadow='0 0 0 2px rgba(59,130,246,0.15)'; }"
+                       onblur="this.style.borderColor='var(--pp-border)'; this.style.boxShadow='none';"
+                       placeholder="empfaenger@beispiel.de">
+                <template x-if="!selectedContactId">
+                    <p class="text-xs mt-1.5" style="color: var(--pp-textDim);">
+                        Fallback: bewerber@, karriere@, hr@, info@ — oder direkt eingeben
+                    </p>
+                </template>
+            </div>
+        </div>
+
+        <!-- Absender -->
+        <div class="rounded-lg p-4 mb-4" style="background: var(--pp-surfaceHover); border: 1px solid var(--pp-border);">
+            <div class="text-xs uppercase tracking-wider font-medium mb-3" style="color: var(--pp-textDim);">Absender</div>
+            <div>
+                <label class="text-xs font-medium block mb-1.5" style="color: var(--pp-textMuted);">Mailbox</label>
+                <select x-model="emailFrom"
+                        class="w-full rounded-lg px-3 py-2 text-sm transition-colors"
+                        style="background: var(--pp-bg); border: 1px solid var(--pp-border); color: var(--pp-text); outline: none;"
+                        onfocus="this.style.borderColor='var(--pp-accent)'; this.style.boxShadow='0 0 0 2px rgba(59,130,246,0.15)'"
+                        onblur="this.style.borderColor='var(--pp-border)'; this.style.boxShadow='none'">
+                    <template x-for="mb in mailboxes" :key="mb.email">
+                        <option :value="mb.email" x-text="mb.label + ' (' + mb.email + ')'"></option>
+                    </template>
+                </select>
+            </div>
+        </div>
+
+        <!-- KI-generierte E-Mail -->
+        <div class="rounded-lg p-4 mb-4" style="background: var(--pp-surfaceHover); border: 1px solid var(--pp-border);">
+            <div class="text-xs uppercase tracking-wider font-medium mb-3" style="color: var(--pp-textDim);">KI-generierte E-Mail</div>
+
+            <!-- Betreff -->
+            <div class="mb-3">
+                <label class="text-xs font-medium block mb-1.5" style="color: var(--pp-textMuted);">Betreff</label>
+                <input type="text"
+                       x-model="emailSubject"
+                       class="w-full rounded-lg px-3 py-2 text-sm"
+                       style="background: var(--pp-bg); border: 1px solid var(--pp-border); color: var(--pp-text); outline: none;"
+                       onfocus="this.style.borderColor='var(--pp-accent)'; this.style.boxShadow='0 0 0 2px rgba(59,130,246,0.15)'"
+                       onblur="this.style.borderColor='var(--pp-border)'; this.style.boxShadow='none'"
+                       placeholder="Wird von KI generiert...">
+            </div>
+
+            <!-- Trennlinie -->
+            <div class="mb-3" style="border-top: 1px solid var(--pp-border);"></div>
+
+            <!-- Body -->
+            <div class="mb-3">
+                <label class="text-xs font-medium block mb-1.5" style="color: var(--pp-textMuted);">Nachrichtentext</label>
+                <textarea x-model="emailBody"
+                          rows="10"
+                          class="w-full rounded-lg px-3 py-2.5 text-sm leading-relaxed resize-y"
+                          style="background: var(--pp-bg); border: 1px solid var(--pp-border); color: var(--pp-text); outline: none; min-height: 180px;"
+                          onfocus="this.style.borderColor='var(--pp-accent)'; this.style.boxShadow='0 0 0 2px rgba(59,130,246,0.15)'"
+                          onblur="this.style.borderColor='var(--pp-border)'; this.style.boxShadow='none'"
+                          placeholder="Klicke 'E-Mail generieren' um den Text per KI erstellen zu lassen..."></textarea>
+            </div>
+
+            <!-- Signatur Vorschau -->
+            <template x-if="signatureHtml">
+                <div>
+                    <label class="text-xs font-medium block mb-1.5" style="color: var(--pp-textDim);">Signatur-Vorschau</label>
+                    <div class="rounded-lg px-3 py-2.5 text-sm"
+                         style="background: var(--pp-bg); border: 1px solid var(--pp-border); color: var(--pp-textMuted); pointer-events: none; opacity: 0.8;"
+                         x-html="signatureHtml">
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- PDF Checkbox -->
+        <label class="flex items-center gap-2 mb-5 cursor-pointer px-1">
+            <input type="checkbox" x-model="pdfAttached"
+                   class="rounded"
+                   style="accent-color: var(--pp-accent);">
+            <span class="text-sm" style="color: var(--pp-text);">PDF-Profil anhaengen</span>
+            <span class="text-xs" style="color: var(--pp-textDim);">(Anonymisiertes Kandidatenprofil)</span>
+        </label>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center gap-3">
+            <!-- E-Mail generieren -->
+            <button @click="generateEmail()"
+                    :disabled="generating"
+                    class="px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                    :style="generating
+                        ? 'background: var(--pp-surfaceHover); color: var(--pp-textDim); cursor: wait; border: 1px solid var(--pp-border);'
+                        : 'background: var(--pp-accentSoft); color: var(--pp-accent); border: 1px solid rgba(59,130,246,0.25); cursor: pointer;'"
+                    onmouseover="if(!this.disabled) this.style.background='rgba(59,130,246,0.18)'"
+                    onmouseout="if(!this.disabled) this.style.background='var(--pp-accentSoft)'">
+                <!-- Spinner -->
+                <template x-if="generating">
+                    <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </template>
+                <template x-if="!generating">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                    </svg>
+                </template>
+                <span x-text="generating ? 'KI generiert...' : 'E-Mail generieren'"></span>
+            </button>
+
+            <!-- Senden -->
+            <button @click="sendPresentation()"
+                    :disabled="sending || sent || !emailTo || !emailSubject || !emailBody"
+                    class="px-5 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                    :style="sent
+                        ? 'background: var(--pp-green); color: white; cursor: default; opacity: 0.85;'
+                        : (sending || !emailTo || !emailSubject || !emailBody)
+                            ? 'background: var(--pp-surfaceHover); color: var(--pp-textDim); cursor: not-allowed; border: 1px solid var(--pp-border);'
+                            : 'background: var(--pp-green); color: white; cursor: pointer;'"
+                    onmouseover="if(!this.disabled) this.style.opacity='0.9'"
+                    onmouseout="if(!this.disabled) this.style.opacity='1'">
+                <!-- Spinner -->
+                <template x-if="sending">
+                    <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </template>
+                <!-- Success check -->
+                <template x-if="sent && !sending">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                </template>
+                <!-- Send icon -->
+                <template x-if="!sending && !sent">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                    </svg>
+                </template>
+                <span x-text="sent ? 'Gesendet' : (sending ? 'Sende...' : 'Senden')"></span>
+            </button>
+        </div>
+    </div>
+
+    <!-- ═══════ TAB 2: EIGENE NACHRICHT ═══════ -->
+    <div x-show="tab === 'custom'" x-cloak>
+
+        <!-- Empfaenger -->
+        <div class="rounded-lg p-4 mb-4" style="background: var(--pp-surfaceHover); border: 1px solid var(--pp-border);">
+            <div class="text-xs uppercase tracking-wider font-medium mb-3" style="color: var(--pp-textDim);">Empfaenger</div>
+            <div>
+                <label class="text-xs font-medium block mb-1.5" style="color: var(--pp-textMuted);">E-Mail an</label>
+                <input type="email"
+                       x-model="customEmailTo"
+                       class="w-full rounded-lg px-3 py-2 text-sm"
+                       style="background: var(--pp-bg); border: 1px solid var(--pp-border); color: var(--pp-text); outline: none;"
+                       onfocus="this.style.borderColor='var(--pp-accent)'; this.style.boxShadow='0 0 0 2px rgba(59,130,246,0.15)'"
+                       onblur="this.style.borderColor='var(--pp-border)'; this.style.boxShadow='none'"
+                       placeholder="empfaenger@beispiel.de">
+            </div>
+        </div>
+
+        <!-- Absender -->
+        <div class="rounded-lg p-4 mb-4" style="background: var(--pp-surfaceHover); border: 1px solid var(--pp-border);">
+            <div class="text-xs uppercase tracking-wider font-medium mb-3" style="color: var(--pp-textDim);">Absender</div>
+            <div>
+                <label class="text-xs font-medium block mb-1.5" style="color: var(--pp-textMuted);">Mailbox</label>
+                <select x-model="customEmailFrom"
+                        class="w-full rounded-lg px-3 py-2 text-sm transition-colors"
+                        style="background: var(--pp-bg); border: 1px solid var(--pp-border); color: var(--pp-text); outline: none;"
+                        onfocus="this.style.borderColor='var(--pp-accent)'; this.style.boxShadow='0 0 0 2px rgba(59,130,246,0.15)'"
+                        onblur="this.style.borderColor='var(--pp-border)'; this.style.boxShadow='none'">
+                    <template x-for="mb in mailboxes" :key="mb.email">
+                        <option :value="mb.email" x-text="mb.label + ' (' + mb.email + ')'"></option>
+                    </template>
+                </select>
+            </div>
+        </div>
+
+        <!-- Nachricht -->
+        <div class="rounded-lg p-4 mb-4" style="background: var(--pp-surfaceHover); border: 1px solid var(--pp-border);">
+            <div class="text-xs uppercase tracking-wider font-medium mb-3" style="color: var(--pp-textDim);">Nachricht</div>
+
+            <!-- Betreff -->
+            <div class="mb-3">
+                <label class="text-xs font-medium block mb-1.5" style="color: var(--pp-textMuted);">Betreff</label>
+                <input type="text"
+                       x-model="customSubject"
+                       class="w-full rounded-lg px-3 py-2 text-sm"
+                       style="background: var(--pp-bg); border: 1px solid var(--pp-border); color: var(--pp-text); outline: none;"
+                       onfocus="this.style.borderColor='var(--pp-accent)'; this.style.boxShadow='0 0 0 2px rgba(59,130,246,0.15)'"
+                       onblur="this.style.borderColor='var(--pp-border)'; this.style.boxShadow='none'"
+                       placeholder="Betreff eingeben...">
+            </div>
+
+            <!-- Trennlinie -->
+            <div class="mb-3" style="border-top: 1px solid var(--pp-border);"></div>
+
+            <!-- Body -->
+            <div class="mb-3">
+                <label class="text-xs font-medium block mb-1.5" style="color: var(--pp-textMuted);">Nachrichtentext</label>
+                <textarea x-model="customBody"
+                          rows="10"
+                          class="w-full rounded-lg px-3 py-2.5 text-sm leading-relaxed resize-y"
+                          style="background: var(--pp-bg); border: 1px solid var(--pp-border); color: var(--pp-text); outline: none; min-height: 180px;"
+                          onfocus="this.style.borderColor='var(--pp-accent)'; this.style.boxShadow='0 0 0 2px rgba(59,130,246,0.15)'"
+                          onblur="this.style.borderColor='var(--pp-border)'; this.style.boxShadow='none'"
+                          placeholder="Eigenen Nachrichtentext verfassen..."></textarea>
+            </div>
+
+            <!-- Signatur Vorschau -->
+            <template x-if="signatureHtml">
+                <div>
+                    <label class="text-xs font-medium block mb-1.5" style="color: var(--pp-textDim);">Signatur-Vorschau</label>
+                    <div class="rounded-lg px-3 py-2.5 text-sm"
+                         style="background: var(--pp-bg); border: 1px solid var(--pp-border); color: var(--pp-textMuted); pointer-events: none; opacity: 0.8;"
+                         x-html="signatureHtml">
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- PDF Checkbox -->
+        <label class="flex items-center gap-2 mb-5 cursor-pointer px-1">
+            <input type="checkbox" x-model="customPdfAttached"
+                   class="rounded"
+                   style="accent-color: var(--pp-accent);">
+            <span class="text-sm" style="color: var(--pp-text);">PDF-Profil anhaengen</span>
+            <span class="text-xs" style="color: var(--pp-textDim);">(Anonymisiertes Kandidatenprofil)</span>
+        </label>
+
+        <!-- Action Button -->
+        <div class="flex items-center gap-3">
+            <button @click="sendCustom()"
+                    :disabled="sending || sent || !customEmailTo || !customSubject || !customBody"
+                    class="px-5 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                    :style="sent
+                        ? 'background: var(--pp-green); color: white; cursor: default; opacity: 0.85;'
+                        : (sending || !customEmailTo || !customSubject || !customBody)
+                            ? 'background: var(--pp-surfaceHover); color: var(--pp-textDim); cursor: not-allowed; border: 1px solid var(--pp-border);'
+                            : 'background: var(--pp-green); color: white; cursor: pointer;'"
+                    onmouseover="if(!this.disabled) this.style.opacity='0.9'"
+                    onmouseout="if(!this.disabled) this.style.opacity='1'">
+                <!-- Spinner -->
+                <template x-if="sending">
+                    <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </template>
+                <!-- Success check -->
+                <template x-if="sent && !sending">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                </template>
+                <!-- Send icon -->
+                <template x-if="!sending && !sent">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                    </svg>
+                </template>
+                <span x-text="sent ? 'Gesendet' : (sending ? 'Sende...' : 'Senden')"></span>
+            </button>
+        </div>
+    </div>
+
+    <!-- ═══════ ERROR MESSAGE ═══════ -->
+    <template x-if="error">
+        <div class="mt-4 px-4 py-3 rounded-lg flex items-start gap-2"
+             style="background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25);">
+            <svg class="w-4 h-4 flex-shrink-0 mt-0.5" style="color: var(--pp-red);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <div>
+                <span class="text-sm font-medium" style="color: var(--pp-red);">Fehler</span>
+                <p class="text-xs mt-0.5" style="color: var(--pp-red);" x-text="error"></p>
+            </div>
+            <button @click="error = null" class="ml-auto flex-shrink-0 p-1 rounded" style="color: var(--pp-red);">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+    </template>
+
+    <!-- ═══════ SUCCESS MESSAGE ═══════ -->
+    <template x-if="sent">
+        <div class="mt-4 px-4 py-3 rounded-lg flex items-center gap-2"
+             style="background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.25);">
+            <svg class="w-4 h-4 flex-shrink-0" style="color: var(--pp-green);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+            <span class="text-sm font-medium" style="color: var(--pp-green);">
+                Vorstellung erfolgreich gesendet!
+            </span>
+        </div>
+    </template>
+
+</div>
+
+<script>
+function presentationModal() {
+    return {
+        // State
+        tab: 'ai',
+        loading: false,
+        generating: false,
+        sending: false,
+        sent: false,
+        error: null,
+        alreadyPresented: false,
+        presentedAt: '',
+
+        // Server-Daten
+        matchData: null,
+        contacts: [],
+        mailboxes: [],
+        signatureHtml: '',
+
+        // Tab 1: KI-Vorstellung
+        selectedContactId: '',
+        emailTo: '',
+        emailFrom: 'hamdard@sincirus.com',
+        emailSubject: '',
+        emailBody: '',
+        pdfAttached: true,
+
+        // Tab 2: Eigene Nachricht
+        customEmailTo: '',
+        customEmailFrom: 'hamdard@sincirus.com',
+        customSubject: '',
+        customBody: '',
+        customPdfAttached: true,
+
+        // Match-ID — wird via x-effect von matchCenter().currentMatchId gesetzt
+        matchId: '',
+
+        // Header-Daten (per AJAX geladen)
+        headerCandidate: 'Kandidat',
+        headerCompany: 'Unternehmen',
+        headerPosition: 'Position',
+
+        init() {
+            // Nicht automatisch laden — x-effect triggert reinit() wenn Modal geoeffnet wird
+        },
+
+        async reinit() {
+            // State zuruecksetzen fuer neuen Match
+            this.loading = true;
+            this.error = null;
+            this.sent = false;
+            this.sending = false;
+            this.generating = false;
+            this.emailSubject = '';
+            this.emailBody = '';
+            this.emailTo = '';
+            this.selectedContactId = '';
+            this.customEmailTo = '';
+            this.customSubject = '';
+            this.customBody = '';
+            this.tab = 'ai';
+            this.alreadyPresented = false;
+            this.presentedAt = '';
+
+            if (!this.matchId) { this.loading = false; return; }
+
+            try {
+                const resp = await fetch(`/api/presentations/modal-data/${this.matchId}`);
+                if (!resp.ok) throw new Error('Daten konnten nicht geladen werden');
+                const result = await resp.json();
+
+                this.matchData = result.match || null;
+                this.contacts = result.contacts || [];
+                this.mailboxes = result.mailboxes || [];
+                this.signatureHtml = result.signature_html || '';
+                this.alreadyPresented = result.already_presented || false;
+                this.presentedAt = result.presented_at || '';
+
+                // Header-Daten setzen
+                if (this.matchData) {
+                    this.headerCandidate = this.matchData.candidate_name || 'Kandidat';
+                    this.headerCompany = this.matchData.job_company || 'Unternehmen';
+                    this.headerPosition = this.matchData.job_position || 'Position';
+                }
+
+                // Vorauswahl Mailbox
+                if (this.mailboxes.length > 0) {
+                    this.emailFrom = this.mailboxes[0].email;
+                    this.customEmailFrom = this.mailboxes[0].email;
+                }
+
+                // Vorauswahl Kontakt
+                if (this.contacts.length > 0) {
+                    this.selectedContactId = this.contacts[0].id;
+                    this.emailTo = this.contacts[0].email || '';
+                }
+
+                // Falls ein Fallback-Email da ist
+                if (result.fallback_email && !this.emailTo) {
+                    this.emailTo = result.fallback_email;
+                }
+            } catch (e) {
+                this.error = e.message || 'Fehler beim Laden der Modal-Daten';
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        onContactChange() {
+            if (this.selectedContactId) {
+                const contact = this.contacts.find(c => c.id == this.selectedContactId);
+                this.emailTo = contact ? (contact.email || '') : '';
+            } else {
+                this.emailTo = '';
+            }
+        },
+
+        async generateEmail() {
+            this.generating = true;
+            this.error = null;
+            try {
+                const csrf = document.cookie.match(/pp_csrf=([^;]+)/);
+                const resp = await fetch(`/api/presentations/generate-email/${this.matchId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(csrf ? {'X-CSRF-Token': csrf[1]} : {}),
+                    },
+                    body: JSON.stringify({
+                        contact_id: this.selectedContactId || null,
+                        email_to: this.emailTo,
+                        mailbox: this.emailFrom,
+                    }),
+                });
+                if (!resp.ok) {
+                    const errData = await resp.json().catch(() => ({}));
+                    throw new Error(errData.detail || errData.message || 'KI-Generierung fehlgeschlagen');
+                }
+                const result = await resp.json();
+                this.emailSubject = result.subject || '';
+                this.emailBody = result.body_text || '';
+                if (result.signature_html) {
+                    this.signatureHtml = result.signature_html;
+                }
+            } catch (e) {
+                this.error = e.message || 'Fehler bei der KI-Generierung';
+            } finally {
+                this.generating = false;
+            }
+        },
+
+        async sendPresentation() {
+            if (this.sending || this.sent) return;
+            if (!this.emailTo || !this.emailSubject || !this.emailBody) return;
+            this.sending = true;
+            this.error = null;
+            try {
+                const csrf = document.cookie.match(/pp_csrf=([^;]+)/);
+                const resp = await fetch('/api/presentations/send', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(csrf ? {'X-CSRF-Token': csrf[1]} : {}),
+                    },
+                    body: JSON.stringify({
+                        match_id: this.matchId,
+                        contact_id: this.selectedContactId || null,
+                        email_to: this.emailTo,
+                        email_from: this.emailFrom,
+                        email_subject: this.emailSubject,
+                        email_body_text: this.emailBody,
+                        email_signature_html: this.signatureHtml || null,
+                        mailbox_used: this.emailFrom,
+                        presentation_mode: 'ai_generated',
+                        pdf_attached: this.pdfAttached,
+                    }),
+                });
+                if (!resp.ok) {
+                    const errData = await resp.json().catch(() => ({}));
+                    throw new Error(errData.detail || errData.message || 'Senden fehlgeschlagen');
+                }
+                const result = await resp.json();
+                this.sent = true;
+                if (result.n8n_triggered === false) {
+                    this.error = 'Vorstellung gespeichert, aber E-Mail konnte nicht gesendet werden. Bitte n8n pruefen.';
+                }
+                setTimeout(() => { this.$dispatch('close-presentation'); }, 2500);
+            } catch (e) {
+                this.error = e.message || 'Fehler beim Senden';
+            } finally {
+                this.sending = false;
+            }
+        },
+
+        async sendCustom() {
+            if (this.sending || this.sent) return;
+            if (!this.customEmailTo || !this.customSubject || !this.customBody) return;
+            this.sending = true;
+            this.error = null;
+            try {
+                const csrf = document.cookie.match(/pp_csrf=([^;]+)/);
+                const resp = await fetch('/api/presentations/send', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(csrf ? {'X-CSRF-Token': csrf[1]} : {}),
+                    },
+                    body: JSON.stringify({
+                        match_id: this.matchId,
+                        contact_id: null,
+                        email_to: this.customEmailTo,
+                        email_from: this.customEmailFrom,
+                        email_subject: this.customSubject,
+                        email_body_text: this.customBody,
+                        email_signature_html: this.signatureHtml || null,
+                        mailbox_used: this.customEmailFrom,
+                        presentation_mode: 'custom',
+                        pdf_attached: this.customPdfAttached,
+                    }),
+                });
+                if (!resp.ok) {
+                    const errData = await resp.json().catch(() => ({}));
+                    throw new Error(errData.detail || errData.message || 'Senden fehlgeschlagen');
+                }
+                const result = await resp.json();
+                this.sent = true;
+                if (result.n8n_triggered === false) {
+                    this.error = 'Vorstellung gespeichert, aber E-Mail konnte nicht gesendet werden. Bitte n8n pruefen.';
+                }
+                setTimeout(() => { this.$dispatch('close-presentation'); }, 2500);
+            } catch (e) {
+                this.error = e.message || 'Fehler beim Senden';
+            } finally {
+                this.sending = false;
+            }
+        },
+    }
+}
+</script>
+

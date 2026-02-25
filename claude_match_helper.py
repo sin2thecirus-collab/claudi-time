@@ -31,6 +31,13 @@ from uuid import UUID
 # Projekt-Root zum Path hinzufuegen
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# .env automatisch laden (falls vorhanden)
+try:
+    from dotenv import load_dotenv
+    load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
+except ImportError:
+    pass  # python-dotenv nicht installiert — kein Problem, env vars manuell setzen
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",

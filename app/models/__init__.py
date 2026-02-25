@@ -28,6 +28,12 @@ from app.models.mt_match_memory import MTMatchMemory
 from app.models.mt_training import MTTrainingData
 from app.models.settings import FilterPreset, PriorityCity
 from app.models.statistics import DailyStatistics, FilterUsage
+from app.models.client_presentation import (
+    ClientPresentation,
+    ClientResponseCategory,
+    PresentationMode,
+    PresentationStatus,
+)
 from app.models.unassigned_call import UnassignedCall
 
 __all__ = [
@@ -75,4 +81,8 @@ __all__ = [
     "CandidateTask",
     "OutreachBatch",
     "OutreachItem",
+    "ClientPresentation",
+    "PresentationStatus",
+    "PresentationMode",
+    "ClientResponseCategory",
 ]

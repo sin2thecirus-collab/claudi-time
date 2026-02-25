@@ -150,6 +150,20 @@
             <div class="p-8 text-center" style="color: var(--pp-textDim);">Lade Details...</div>
         </div>
     </div>
+
+    <!-- ═══════ PRESENTATION MODAL (Kunde vorstellen) ═══════ -->
+    <div x-show="showPresentationModal" x-cloak
+         class="fixed inset-0 z-50 flex items-center justify-center"
+         @keydown.escape.window="showPresentationModal = false"
+         @close-presentation.window="showPresentationModal = false; loadMatches();"
+         style="background: rgba(0,0,0,0.6);"
+         @click.self="showPresentationModal = false">
+        <div class="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-xl modal-enter"
+             style="background: var(--pp-surface); border: 1px solid var(--pp-border);"
+             id="presentation-modal-content">
+            {% include "partials/presentation_modal.html" %}
+        </div>
+    </div>
 </div>
 
 <script>
@@ -167,6 +181,8 @@ function matchCenter() {
         total: {{ total }},
         pages: {{ pages }},
         showDetail: false,
+        showPresentationModal: false,
+        currentMatchId: null,
         loading: false,
 
         init() {
@@ -208,6 +224,7 @@ function matchCenter() {
         },
 
         openDetail(matchId) {
+            this.currentMatchId = matchId;
             this.showDetail = true;
             htmx.ajax('GET', '/api/match-center/match/' + matchId, {
                 target: '#detail-modal-content',

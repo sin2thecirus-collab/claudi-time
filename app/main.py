@@ -430,5 +430,9 @@ app.include_router(claude_matching_router, prefix="/api/v4")
 from app.api.routes_new_match_center import router as new_match_center_router
 app.include_router(new_match_center_router)
 
+# Kunde Vorstellen — Presentation API (/api/presentations/...)
+from app.api.routes_presentation import router as presentation_router
+app.include_router(presentation_router)
+
 # Status & Query API (/api/status/overview, /api/status/geodaten, /api/status/profiling, ...)
 app.include_router(status_router, prefix="/api")
