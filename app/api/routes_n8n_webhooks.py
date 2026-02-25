@@ -1627,6 +1627,8 @@ async def _auto_assign_to_candidate(
             "avoided_industries": "avoided_industries",
             "salary": "salary",
             "notice_period": "notice_period",
+            "open_office_ok": "open_office_ok",
+            "other_recruiters": "other_recruiters",
         }
         for src_key, dest_key in field_mappings.items():
             val = ext.get(src_key) or ext.get(f"call_{src_key}")
@@ -1639,6 +1641,17 @@ async def _auto_assign_to_candidate(
                 if hasattr(candidate, dest_key):
                     setattr(candidate, dest_key, val)
                     fields_updated.append(dest_key)
+
+        # Boolean-Felder separat behandeln (nicht zu String konvertieren)
+        whatsapp_val = ext.get("whatsapp_ok")
+        if whatsapp_val is not None:
+            candidate.whatsapp_ok = bool(whatsapp_val)
+            fields_updated.append("whatsapp_ok")
+
+        exclusivity_val = ext.get("exclusivity_agreed")
+        if exclusivity_val is not None:
+            candidate.exclusivity_agreed = bool(exclusivity_val)
+            fields_updated.append("exclusivity_agreed")
 
         # Willingness aus extracted_data
         willingness = ext.get("willingness_to_change") or ext.get("call_willingness_to_change")
