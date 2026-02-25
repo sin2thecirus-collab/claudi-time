@@ -37,7 +37,7 @@
       --blue: #0b89bd;
       --cyan: #0d9dd6;
       --white: #FFFFFF;
-      --bg-subtle: #F8FAFC;
+      --bg-subtle: #FDFDFE;
       --text: #0f172a;
       --text-sec: #334155;
       --text-muted: #64748b;
@@ -274,8 +274,8 @@
     }
 
     .fact-detail {
-      font-size: 8.5px;
-      color: var(--text-subtle);
+      font-size: 10.5px;
+      color: var(--text-muted);
       margin-top: 2px;
     }
 
@@ -292,7 +292,7 @@
     .kp-item { margin-bottom: 10px; }
 
     .kp-label {
-      font-size: 9.5px;
+      font-size: 11px;
       font-weight: 700;
       color: var(--blue-deep);
       letter-spacing: 0.5px;
@@ -301,7 +301,7 @@
     }
 
     .kp-text {
-      font-size: 11px;
+      font-size: 13px;
       color: var(--text-sec);
       line-height: 1.55;
     }
@@ -347,7 +347,7 @@
 
     .vcard-footer {
       margin-top: auto;
-      padding: 8px 48px 18px 48px;
+      padding: 20px 48px 18px 48px;
       flex-shrink: 0;
     }
 
@@ -370,8 +370,8 @@
 
     .vcard-photo {
       flex-shrink: 0;
-      width: 82px;
-      height: 82px;
+      width: 90px;
+      height: 90px;
       border-radius: 50%;
       overflow: hidden;
       border: 2.5px solid var(--brand);
@@ -392,7 +392,7 @@
 
     .vcard-sep {
       width: 1px;
-      height: 64px;
+      height: 70px;
       background: var(--border);
       flex-shrink: 0;
     }
@@ -400,14 +400,14 @@
     .vcard-info { flex: 1; min-width: 0; }
 
     .vcard-name {
-      font-size: 15px;
+      font-size: 17px;
       font-weight: 700;
       color: var(--text);
       margin-bottom: 1px;
     }
 
     .vcard-title {
-      font-size: 10px;
+      font-size: 12px;
       color: var(--brand);
       font-weight: 600;
       margin-bottom: 8px;
@@ -419,13 +419,14 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      font-size: 10px;
+      font-size: 12px;
       color: var(--text-muted);
     }
 
     .vcard-icon {
-      font-size: 10px;
-      width: 14px;
+      font-family: 'DejaVu Sans', 'Noto Sans', 'Noto Sans Symbols', sans-serif;
+      font-size: 12px;
+      width: 16px;
       text-align: center;
       flex-shrink: 0;
       color: var(--brand);
@@ -433,10 +434,11 @@
 
     .vcard-domain {
       margin-top: 6px;
-      font-size: 10px;
+      font-size: 12px;
       color: var(--brand);
       font-weight: 600;
       letter-spacing: 0.3px;
+      padding-left: 24px;
     }
 
     .vcard-brand {
@@ -762,7 +764,7 @@
     {% endif %}
 
     {% if skill_tags %}
-    <div class="sh">Schl&uuml;sselqualifikationen</div>
+    <div class="sh">ERP &amp; IT Kenntnisse</div>
     <div class="tags-wrap">
       {% for tag in skill_tags %}
       <span class="skill-tag{% if tag.highlight %} highlight{% endif %}">{{ tag.name }}</span>
@@ -786,7 +788,7 @@
           <div class="vcard-contact">
             <div class="vcard-row"><span class="vcard-icon">&#9993;</span> {{ consultant.email }}</div>
             <div class="vcard-row"><span class="vcard-icon">&#9742;</span> {{ consultant.phone }}</div>
-            <div class="vcard-row"><span class="vcard-icon">&#9873;</span> {{ consultant.address }}</div>
+            <div class="vcard-row"><span class="vcard-icon">&#8962;</span> {{ consultant.address }}</div>
           </div>
           <div class="vcard-domain">www.sincirus.com</div>
         </div>
