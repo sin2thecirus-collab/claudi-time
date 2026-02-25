@@ -27,31 +27,34 @@
 
     @page {
       size: A4;
-      margin: 14px 0 0 0;
-      background: #0E1B2E;
-    }
-    @page :first {
-      margin-top: 0;
+      margin: 0;
+      background: #FFFFFF;
     }
 
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
-      --navy: #0E1B2E;
-      --navy-mid: #162B47;
-      --navy-light: #1E3A5F;
-      --surface: #132239;
-      --border: #1E3A5F;
-      --border-light: #253D5C;
-      --text: #E8EDF3;
-      --text-body: #C8D3E0;
-      --text-muted: #7E93AD;
-      --text-subtle: #506882;
-      --green: #16825D;
-      --green-light: #1EAA79;
-      --green-bg: rgba(22, 130, 93, 0.12);
-      --green-glow: rgba(30, 170, 121, 0.3);
-      --accent-bg: rgba(22, 130, 93, 0.06);
+      --white: #FFFFFF;
+      --bg-subtle: #F8FAFC;
+      --bg-accent: #EFF6FF;
+      --bg-warm: #F0F9FF;
+      --text: #0f172a;
+      --text-secondary: #334155;
+      --text-muted: #64748b;
+      --text-subtle: #94a3b8;
+      --blue: #3b82f6;
+      --blue-dark: #2563eb;
+      --blue-light: #60a5fa;
+      --cyan: #06b6d4;
+      --cyan-light: #22d3ee;
+      --border: #E2E8F0;
+      --border-light: #F1F5F9;
+      --accent-bg: rgba(59, 130, 246, 0.05);
+      --accent-border: rgba(59, 130, 246, 0.12);
+      --cyan-bg: rgba(6, 182, 212, 0.06);
+      --cyan-border: rgba(6, 182, 212, 0.15);
+      --gradient: linear-gradient(135deg, #06b6d4, #3b82f6);
+      --gradient-h: linear-gradient(90deg, #06b6d4, #3b82f6);
     }
 
     html {
@@ -61,20 +64,20 @@
 
     body {
       font-family: 'DM Sans', -apple-system, sans-serif;
-      font-size: 13px;
+      font-size: 12px;
       line-height: 1.6;
-      color: var(--text-body);
-      background: var(--navy);
+      color: var(--text-secondary);
+      background: var(--white);
     }
 
     /* ============================================= */
-    /*   SEITE 1 — Feste Höhe                        */
+    /*   SEITE 1 — Deckblatt (Feste Hoehe)           */
     /* ============================================= */
 
     .page {
       width: 210mm;
       height: 297mm;
-      background: var(--navy);
+      background: var(--white);
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -83,9 +86,11 @@
     }
     .page:last-child { page-break-after: auto; }
 
+    /* Top Accent Bar — Markenfarben-Gradient */
     .top-accent {
-      height: 3px;
-      background: linear-gradient(90deg, var(--green), var(--green-light), transparent);
+      height: 4px;
+      background: var(--gradient-h);
+      flex-shrink: 0;
     }
 
     /* Header */
@@ -93,97 +98,104 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 22px 44px 18px 44px;
+      padding: 24px 44px 16px 44px;
+      flex-shrink: 0;
     }
 
-    .header img {
-      height: 44px;
+    .header-logo {
+      height: 48px;
       width: auto;
-      filter: brightness(0) invert(1);
     }
 
     .header-right {
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 14px;
     }
 
     .header-date {
-      font-size: 11px;
+      font-size: 10.5px;
       color: var(--text-muted);
+      font-weight: 500;
     }
 
     .header-conf {
       font-size: 8px;
       font-weight: 700;
-      color: var(--green);
-      letter-spacing: 3px;
+      color: var(--blue);
+      letter-spacing: 2.5px;
       text-transform: uppercase;
-      background: var(--green-bg);
+      background: var(--accent-bg);
       padding: 4px 12px;
-      border-radius: 12px;
-      border: 1px solid rgba(22, 130, 93, 0.2);
+      border-radius: 4px;
+      border: 1px solid var(--accent-border);
     }
 
-    /* Hero */
-    .hero {
-      padding: 28px 44px 0 44px;
+    /* Hero Section — leicht getönter Hintergrund */
+    .hero-panel {
+      margin: 0 44px;
+      background: linear-gradient(135deg, rgba(6, 182, 212, 0.03), rgba(59, 130, 246, 0.05));
+      border: 1px solid rgba(59, 130, 246, 0.08);
+      border-radius: 10px;
+      padding: 26px 30px 22px 30px;
+      flex-shrink: 0;
     }
 
     .hero-label {
-      font-size: 13px;
+      font-size: 9.5px;
       font-weight: 700;
-      color: var(--green);
+      color: var(--blue);
       letter-spacing: 4px;
       text-transform: uppercase;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
 
     .hero h1 {
       font-family: 'DM Serif Display', serif;
-      font-size: 36px;
+      font-size: 30px;
       font-weight: 400;
       color: var(--text);
-      line-height: 1.15;
-      margin-bottom: 10px;
+      line-height: 1.2;
+      margin-bottom: 8px;
     }
 
     .hero-meta {
-      font-size: 14px;
+      font-size: 13px;
       color: var(--text-muted);
+      line-height: 1.5;
     }
 
     .hero-meta strong {
-      color: var(--green-light);
+      color: var(--blue-dark);
       font-weight: 600;
     }
 
-    .hero-id {
-      font-size: 11px;
+    .hero-ref {
+      display: inline-block;
+      font-size: 10px;
       color: var(--text-subtle);
-      margin-top: 4px;
+      margin-top: 8px;
       letter-spacing: 0.5px;
+      padding: 2px 10px;
+      background: var(--bg-subtle);
+      border-radius: 4px;
+      border: 1px solid var(--border);
     }
 
-    .pulse-dots {
+    /* Dekorative Punkte */
+    .accent-dots {
       display: flex;
-      gap: 6px;
-      margin-top: 16px;
+      gap: 5px;
+      margin-top: 12px;
     }
-    .pulse-dots span {
-      width: 6px;
-      height: 6px;
+    .accent-dots span {
+      width: 5px;
+      height: 5px;
       border-radius: 50%;
-      background: var(--green);
+      background: var(--blue);
     }
-    .pulse-dots span:nth-child(2) { opacity: 0.6; }
-    .pulse-dots span:nth-child(3) { opacity: 0.3; }
-
-    .hero-divider {
-      height: 1px;
-      background: var(--border);
-      margin: 22px 44px 0 44px;
-    }
+    .accent-dots span:nth-child(2) { background: var(--cyan); opacity: 0.7; }
+    .accent-dots span:nth-child(3) { background: var(--blue-light); opacity: 0.4; }
 
     /* Content-Bereich auf Seite 1 */
     .page-content {
@@ -195,60 +207,14 @@
 
     /* Section Headings */
     .sh {
-      font-size: 11px;
+      font-size: 9.5px;
       font-weight: 700;
-      color: var(--green);
-      letter-spacing: 2.5px;
+      color: var(--blue);
+      letter-spacing: 3px;
       text-transform: uppercase;
-      margin-bottom: 8px;
-      padding-bottom: 5px;
-      border-bottom: 1px solid var(--border);
-    }
-
-    /* Empfehlung */
-    .empfehlung-box {
-      background: var(--accent-bg);
-      border: 1px solid rgba(22, 130, 93, 0.15);
-      border-left: 3px solid var(--green);
-      border-radius: 0 8px 8px 0;
-      padding: 12px 16px;
-      margin-bottom: 16px;
-    }
-
-    .empfehlung-from {
-      font-size: 9px;
-      font-weight: 600;
-      color: var(--green-light);
-      letter-spacing: 0.5px;
-      margin-bottom: 4px;
-    }
-
-    .empfehlung-text {
-      font-size: 12px;
-      color: var(--text-body);
-      line-height: 1.55;
-    }
-
-    .empfehlung-text strong {
-      color: var(--text);
-      font-weight: 600;
-    }
-
-    .kp-item {
       margin-bottom: 10px;
-    }
-
-    .kp-label {
-      font-size: 10px;
-      font-weight: 600;
-      color: var(--green-light);
-      margin-bottom: 2px;
-    }
-
-    .kp-text {
-      font-size: 11.5px;
-      color: var(--text-body);
-      line-height: 1.5;
+      padding-bottom: 6px;
+      border-bottom: 2px solid var(--border);
     }
 
     /* Quick Facts — horizontales 3-Spalten-Grid */
@@ -260,23 +226,24 @@
     }
 
     .fact-card {
-      background: var(--surface);
+      background: var(--bg-subtle);
       border: 1px solid var(--border);
       border-radius: 8px;
       padding: 10px 14px;
+      border-top: 2px solid var(--cyan);
     }
 
     .fact-label {
-      font-size: 9px;
-      font-weight: 500;
+      font-size: 8.5px;
+      font-weight: 600;
       color: var(--text-muted);
-      margin-bottom: 2px;
+      margin-bottom: 3px;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.8px;
     }
 
     .fact-value {
-      font-size: 13px;
+      font-size: 13.5px;
       font-weight: 700;
       color: var(--text);
       line-height: 1.2;
@@ -295,14 +262,29 @@
       margin-bottom: 14px;
     }
 
-    .mid-left {
-      flex: 5.5;
+    .mid-left { flex: 5.5; }
+    .mid-right { flex: 4.5; }
+
+    .kp-item {
+      margin-bottom: 10px;
     }
 
-    .mid-right {
-      flex: 4.5;
+    .kp-label {
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--cyan);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin-bottom: 3px;
     }
 
+    .kp-text {
+      font-size: 11px;
+      color: var(--text-secondary);
+      line-height: 1.55;
+    }
+
+    /* Skill Tags */
     .tags-wrap {
       display: flex;
       flex-wrap: wrap;
@@ -310,19 +292,19 @@
     }
 
     .skill-tag {
-      background: var(--surface);
+      background: var(--bg-subtle);
       border: 1px solid var(--border);
-      color: var(--text-body);
-      font-size: 10px;
+      color: var(--text-secondary);
+      font-size: 9.5px;
       font-weight: 500;
-      padding: 4px 10px;
-      border-radius: 12px;
+      padding: 3px 10px;
+      border-radius: 4px;
     }
 
     .skill-tag.highlight {
-      background: var(--green-bg);
-      border-color: rgba(22, 130, 93, 0.3);
-      color: var(--green-light);
+      background: var(--accent-bg);
+      border-color: var(--accent-border);
+      color: var(--blue);
       font-weight: 600;
     }
 
@@ -330,7 +312,7 @@
     .erp-item { padding: 4px 0; }
 
     .erp-name {
-      font-size: 11px;
+      font-size: 10.5px;
       font-weight: 600;
       color: var(--text);
     }
@@ -351,7 +333,7 @@
     .erp-bar-fill {
       height: 100%;
       border-radius: 2px;
-      background: linear-gradient(90deg, var(--green), var(--green-light));
+      background: var(--gradient-h);
     }
 
     /* Sprachen */
@@ -363,10 +345,10 @@
     }
 
     .lang-name {
-      font-size: 11px;
+      font-size: 10.5px;
       font-weight: 600;
       color: var(--text);
-      min-width: 70px;
+      min-width: 68px;
     }
 
     .lang-bar-bg {
@@ -379,38 +361,145 @@
 
     .lang-bar-fill {
       height: 100%;
-      background: linear-gradient(90deg, var(--green), var(--green-light));
+      background: var(--gradient-h);
       border-radius: 2px;
     }
 
     .lang-level {
-      font-size: 9px;
+      font-size: 8.5px;
       color: var(--text-muted);
-      min-width: 72px;
+      min-width: 70px;
       text-align: right;
     }
 
 
     /* ============================================= */
-    /*   SEITE 2+: LEBENSLAUF — Fließend             */
+    /*   VISITENKARTE — Seite 1 unten                */
+    /* ============================================= */
+
+    .vcard-footer {
+      margin-top: auto;
+      padding: 10px 44px 20px 44px;
+      flex-shrink: 0;
+    }
+
+    .vcard {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border);
+      border-top: 3px solid transparent;
+      border-image: var(--gradient-h) 1;
+      border-image-slice: 1 0 0 0;
+      overflow: hidden;
+      page-break-inside: avoid;
+    }
+
+    .vcard-body {
+      display: flex;
+      padding: 16px 22px;
+      gap: 18px;
+      align-items: center;
+    }
+
+    .vcard-photo {
+      flex-shrink: 0;
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      overflow: hidden;
+      border: 2px solid var(--cyan);
+    }
+
+    .vcard-photo img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center top;
+      display: block;
+    }
+
+    .vcard-sep {
+      width: 1px;
+      height: 50px;
+      background: var(--border);
+      flex-shrink: 0;
+    }
+
+    .vcard-info { flex: 1; min-width: 0; }
+
+    .vcard-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: 0.2px;
+      margin-bottom: 1px;
+    }
+
+    .vcard-title {
+      font-size: 10.5px;
+      color: var(--blue);
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+
+    .vcard-contact {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .vcard-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 10px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    .vcard-icon {
+      font-size: 11px;
+      width: 14px;
+      text-align: center;
+      flex-shrink: 0;
+      color: var(--cyan);
+    }
+
+    .vcard-company {
+      margin-top: 6px;
+      font-size: 8.5px;
+      color: var(--text-subtle);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .vcard-brand {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .vcard-brand img {
+      height: 36px;
+      width: auto;
+      opacity: 0.6;
+    }
+
+
+    /* ============================================= */
+    /*   SEITE 2+: LEBENSLAUF — Fliessend            */
     /* ============================================= */
 
     .cv-pages {
       width: 210mm;
-      background: var(--navy);
+      background: var(--white);
     }
 
-    .cv-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 20px 44px 0 44px;
-    }
-
-    .cv-header img {
-      height: 36px;
-      width: auto;
-      filter: brightness(0) invert(1);
+    .cv-header-bar {
+      text-align: center;
+      padding: 22px 44px 0 44px;
     }
 
     .cv-title {
@@ -421,33 +510,33 @@
     }
 
     .cv-ref {
-      font-size: 10px;
+      font-size: 9.5px;
       color: var(--text-subtle);
       text-align: center;
-      margin-top: 2px;
+      margin-top: 3px;
+      letter-spacing: 0.5px;
     }
 
     .cv-divider {
-      height: 1px;
+      height: 2px;
       background: var(--border);
-      margin: 10px 44px 0 44px;
+      margin: 12px 44px 0 44px;
     }
 
     .cv-body {
-      padding: 14px 44px 20px 44px;
+      padding: 16px 44px 24px 44px;
     }
 
-    /* CV-Sektionen — fließend über Seiten */
     .cv-section {
-      margin-top: 16px;
+      margin-top: 18px;
     }
 
-    /* CV Section Headings — auffälliger */
+    /* CV Section Headings */
     .cv-body .sh {
-      font-size: 12.5px;
-      background: var(--green-bg);
-      border: 1px solid rgba(22, 130, 93, 0.15);
-      border-left: 3px solid var(--green);
+      font-size: 10.5px;
+      background: linear-gradient(135deg, rgba(6, 182, 212, 0.04), rgba(59, 130, 246, 0.06));
+      border: 1px solid rgba(59, 130, 246, 0.08);
+      border-left: 3px solid var(--blue);
       border-bottom: none;
       border-radius: 0 6px 6px 0;
       padding: 8px 16px;
@@ -457,9 +546,9 @@
 
     /* Job Cards */
     .job-card {
-      background: var(--surface);
+      background: var(--bg-subtle);
       border: 1px solid var(--border);
-      border-left: 3px solid var(--green);
+      border-left: 3px solid var(--blue);
       border-radius: 0 8px 8px 0;
       padding: 14px 18px;
       margin-bottom: 10px;
@@ -478,21 +567,21 @@
     }
 
     .job-title {
-      font-size: 13.5px;
-      font-weight: 600;
+      font-size: 12.5px;
+      font-weight: 700;
       color: var(--text);
     }
 
     .job-date {
-      font-size: 10.5px;
+      font-size: 10px;
       color: var(--text-muted);
       font-weight: 500;
     }
 
     .job-company {
-      font-size: 11.5px;
+      font-size: 11px;
       font-weight: 500;
-      color: var(--green-light);
+      color: var(--blue);
       margin-bottom: 6px;
     }
 
@@ -501,8 +590,8 @@
     }
 
     .job-bullets li {
-      font-size: 11.5px;
-      color: var(--text-body);
+      font-size: 11px;
+      color: var(--text-secondary);
       padding-left: 14px;
       position: relative;
       margin-bottom: 2px;
@@ -513,17 +602,17 @@
       content: "\25B8";
       position: absolute;
       left: 0;
-      color: var(--green);
+      color: var(--cyan);
       font-size: 10px;
-      top: 2px;
+      top: 1px;
     }
 
-    /* Education / Cert Cards */
+    /* Education Cards */
     .edu-card {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      background: var(--surface);
+      background: var(--bg-subtle);
       border: 1px solid var(--border);
       border-radius: 8px;
       padding: 12px 18px;
@@ -532,60 +621,75 @@
     }
 
     .edu-name {
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
       color: var(--text);
     }
 
     .edu-inst {
-      font-size: 11px;
+      font-size: 10.5px;
       color: var(--text-muted);
       margin-top: 1px;
     }
 
     .edu-date {
-      font-size: 10.5px;
+      font-size: 10px;
       color: var(--text-muted);
       font-weight: 500;
       white-space: nowrap;
     }
 
+    /* Zertifikats-Cards */
     .cert-card {
       display: flex;
       align-items: center;
       gap: 12px;
-      background: var(--green-bg);
-      border: 1px solid rgba(22, 130, 93, 0.2);
+      background: var(--accent-bg);
+      border: 1px solid var(--accent-border);
       border-radius: 8px;
       padding: 12px 18px;
       margin-bottom: 8px;
       page-break-inside: avoid;
     }
 
-    .cert-icon { font-size: 20px; }
+    .cert-icon {
+      font-size: 14px;
+      color: var(--blue);
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--white);
+      border-radius: 50%;
+      border: 1px solid var(--accent-border);
+      flex-shrink: 0;
+    }
 
     .cert-text {
-      font-size: 12.5px;
+      font-size: 11.5px;
       font-weight: 600;
       color: var(--text);
     }
 
     .cert-inst {
-      font-size: 10.5px;
+      font-size: 10px;
       color: var(--text-muted);
       margin-top: 1px;
     }
 
     .cert-badge {
       margin-left: auto;
-      font-size: 8.5px;
-      font-weight: 600;
-      color: var(--green-light);
-      background: rgba(22, 130, 93, 0.2);
+      font-size: 8px;
+      font-weight: 700;
+      color: var(--blue);
+      background: var(--white);
       padding: 3px 10px;
-      border-radius: 10px;
+      border-radius: 4px;
+      border: 1px solid var(--accent-border);
       text-transform: uppercase;
       letter-spacing: 1px;
+      flex-shrink: 0;
     }
 
     /* IT Skills Tags */
@@ -596,23 +700,23 @@
     }
 
     .it-tag {
-      background: var(--surface);
+      background: var(--bg-subtle);
       border: 1px solid var(--border);
-      color: var(--text-body);
-      font-size: 11px;
+      color: var(--text-secondary);
+      font-size: 10.5px;
       font-weight: 500;
       padding: 5px 14px;
-      border-radius: 14px;
+      border-radius: 4px;
     }
 
     .it-tag.core {
-      background: var(--green-bg);
-      border-color: rgba(22, 130, 93, 0.3);
-      color: var(--green-light);
+      background: var(--accent-bg);
+      border-color: var(--accent-border);
+      color: var(--blue);
       font-weight: 600;
     }
 
-    /* CV Sprachen (auf Lebenslauf-Seite) */
+    /* CV Sprachen */
     .cv-lang-item {
       display: flex;
       align-items: center;
@@ -621,7 +725,7 @@
     }
 
     .cv-lang-name {
-      font-size: 12px;
+      font-size: 11.5px;
       font-weight: 600;
       color: var(--text);
       min-width: 90px;
@@ -631,139 +735,50 @@
       flex: 1;
       height: 5px;
       background: var(--border);
-      border-radius: 2px;
+      border-radius: 3px;
       overflow: hidden;
     }
 
     .cv-lang-bar-fill {
       height: 100%;
-      background: linear-gradient(90deg, var(--green), var(--green-light));
-      border-radius: 2px;
+      background: var(--gradient-h);
+      border-radius: 3px;
     }
 
     .cv-lang-level {
-      font-size: 11px;
+      font-size: 10.5px;
       color: var(--text-muted);
       min-width: 90px;
       text-align: right;
     }
 
-    /* Visitenkarte — auf Seite 1 unten */
-    .vcard-footer {
-      margin-top: auto;
-      padding: 8px 44px 18px 44px;
+    /* Empfehlung */
+    .empfehlung-box {
+      background: linear-gradient(135deg, rgba(6, 182, 212, 0.04), rgba(59, 130, 246, 0.06));
+      border: 1px solid rgba(59, 130, 246, 0.1);
+      border-left: 3px solid var(--blue);
+      border-radius: 0 8px 8px 0;
+      padding: 14px 18px;
     }
 
-    .vcard {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-top: 3px solid var(--green);
-      border-radius: 10px;
-      overflow: hidden;
-      page-break-inside: avoid;
-    }
-
-    .vcard-body {
-      display: flex;
-      padding: 20px 24px;
-      gap: 20px;
-      align-items: center;
-    }
-
-    /* Foto */
-    .vcard-photo {
-      flex-shrink: 0;
-      width: 72px;
-      height: 72px;
-      border-radius: 50%;
-      overflow: hidden;
-      border: 2px solid var(--green);
-      box-shadow: 0 0 0 4px rgba(22, 130, 93, 0.12);
-    }
-
-    .vcard-photo img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      object-position: center top;
-      display: block;
-    }
-
-    /* Trennlinie vertikal */
-    .vcard-sep {
-      width: 1px;
-      height: 60px;
-      background: linear-gradient(180deg, transparent, var(--border), transparent);
-      flex-shrink: 0;
-    }
-
-    /* Info-Block */
-    .vcard-info {
-      flex: 1;
-      min-width: 0;
-    }
-
-    .vcard-name {
-      font-size: 17px;
-      font-weight: 700;
-      color: var(--text);
-      letter-spacing: 0.3px;
-      margin-bottom: 2px;
-    }
-
-    .vcard-title {
-      font-size: 11.5px;
-      color: var(--green-light);
-      font-weight: 500;
-      margin-bottom: 10px;
-    }
-
-    .vcard-contact {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .vcard-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 11px;
-      color: var(--text-muted);
-      line-height: 1.4;
-    }
-
-    .vcard-icon {
-      font-size: 12px;
-      width: 16px;
-      text-align: center;
-      flex-shrink: 0;
-      color: var(--green);
-    }
-
-    .vcard-company {
-      margin-top: 8px;
+    .empfehlung-from {
       font-size: 9px;
-      color: var(--text-subtle);
-      letter-spacing: 1.5px;
+      font-weight: 700;
+      color: var(--blue);
+      letter-spacing: 0.5px;
       text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .empfehlung-text {
+      font-size: 11.5px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    .empfehlung-text strong {
+      color: var(--text);
       font-weight: 600;
-    }
-
-    /* Logo rechts */
-    .vcard-brand {
-      flex-shrink: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .vcard-brand img {
-      height: 38px;
-      width: auto;
-      filter: brightness(0) invert(1);
-      opacity: 0.7;
     }
 
     @media print {
@@ -775,51 +790,51 @@
 </head>
 <body>
 
-<!-- ==================== SEITE 1 ==================== -->
+<!-- ==================== SEITE 1: DECKBLATT ==================== -->
 <div class="page">
 
   <div class="top-accent"></div>
 
   <!-- Header -->
   <div class="header">
-    <img src="{{ logo_path }}" alt="Sincirus Personal" />
+    <img class="header-logo" src="{{ logo_komplett_path }}" alt="Sincirus Personal" />
     <div class="header-right">
       <span class="header-date">{{ today_date }}</span>
       <span class="header-conf">Vertraulich</span>
     </div>
   </div>
 
-  <!-- Hero -->
-  <div class="hero">
+  <!-- Hero Panel -->
+  <div class="hero-panel">
     <div class="hero-label">Kandidatenprofil</div>
     <h1>{{ hero_title }}</h1>
     {% if hero_meta %}
     <div class="hero-meta">{{ hero_meta | safe }}</div>
     {% endif %}
-    <div class="hero-id">{{ candidate_ref }}</div>
-    <div class="pulse-dots">
+    <span class="hero-ref">{{ candidate_ref }}</span>
+    <div class="accent-dots">
       <span></span><span></span><span></span>
     </div>
   </div>
 
-  <div class="hero-divider"></div>
-
   <!-- Content -->
   <div class="page-content">
 
-    <!-- 1) Quick Facts — Karten horizontal -->
+    <!-- 1) Quick Facts -->
     {% if quick_facts %}
-    <div class="sh">Quick Facts</div>
-    <div class="facts-grid">
-      {% for fact in quick_facts %}
-      <div class="fact-card">
-        <div class="fact-label">{{ fact.label }}</div>
-        <div class="fact-value">{{ fact.value }}</div>
-        {% if fact.detail %}
-        <div class="fact-detail">{{ fact.detail }}</div>
-        {% endif %}
+    <div style="margin-top: 16px;">
+      <div class="sh">Quick Facts</div>
+      <div class="facts-grid">
+        {% for fact in quick_facts %}
+        <div class="fact-card">
+          <div class="fact-label">{{ fact.label }}</div>
+          <div class="fact-value">{{ fact.value }}</div>
+          {% if fact.detail %}
+          <div class="fact-detail">{{ fact.detail }}</div>
+          {% endif %}
+        </div>
+        {% endfor %}
       </div>
-      {% endfor %}
     </div>
     {% endif %}
 
@@ -900,7 +915,7 @@
           <div class="vcard-company">sincirus.com</div>
         </div>
         <div class="vcard-brand">
-          <img src="{{ logo_path }}" alt="Sincirus" />
+          <img src="{{ logo_komplett_path }}" alt="Sincirus" />
         </div>
       </div>
     </div>
@@ -909,21 +924,21 @@
 </div>
 
 
-<!-- ==================== SEITE 2+: LEBENSLAUF (Fließend) ==================== -->
+<!-- ==================== SEITE 2+: LEBENSLAUF (Fliessend) ==================== -->
 {% if work_items or edu_items or cert_items or it_tags or cv_languages %}
 <div class="cv-pages">
 
   <div class="top-accent"></div>
 
   <!-- Header -->
-  <div style="text-align: center; padding: 20px 44px 0 44px;">
+  <div class="cv-header-bar">
     <div class="cv-title">Lebenslauf</div>
     <div class="cv-ref">{{ candidate_ref }}</div>
   </div>
 
   <div class="cv-divider"></div>
 
-  <!-- CV Body — fließt automatisch über mehrere Seiten -->
+  <!-- CV Body -->
   <div class="cv-body">
 
     <!-- 1. Berufserfahrung -->
@@ -973,7 +988,7 @@
       <div class="sh">Zertifikate &amp; Weiterbildungen</div>
       {% for cert in cert_items %}
       <div class="cert-card">
-        <span class="cert-icon">&#127942;</span>
+        <div class="cert-icon">&#10003;</div>
         <div>
           <div class="cert-text">{{ cert.name }}</div>
           {% if cert.institution %}
@@ -1014,11 +1029,11 @@
     </div>
     {% endif %}
 
-    <!-- 6. Empfehlung — letzte Sektion -->
+    <!-- 6. Empfehlung -->
     {% if empfehlung_text %}
-    <div class="cv-section" style="padding-top: 16px;">
+    <div class="cv-section" style="padding-top: 14px;">
       <div class="sh">Empfehlung</div>
-      <div class="empfehlung-box" style="margin-bottom: 0;">
+      <div class="empfehlung-box">
         <div class="empfehlung-from">{{ empfehlung_from }}</div>
         <div class="empfehlung-text">{{ empfehlung_text }}</div>
       </div>
