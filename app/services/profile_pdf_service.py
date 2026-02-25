@@ -177,7 +177,7 @@ class ProfilePdfService:
 
             # Asset-Pfade (absolute Pfade für WeasyPrint)
             "logo_path": os.path.join(static_dir, "images", "sincirus_logo.png"),
-            "logo_komplett_path": os.path.join(static_dir, "images", "sincirus_logo_komplett.png"),
+            "logo_komplett_path": self._logo_as_data_uri(os.path.join(static_dir, "images", "sincirus_logo_komplett.png")),
             "logo_white_path": self._logo_as_data_uri(os.path.join(static_dir, "images", "sincirus_logo_komplett_white.png")),
             "logo_transparent_path": self._logo_as_data_uri(os.path.join(static_dir, "images", "sincirus_logo_komplett_transparent.png")),
             "logo_icon_path": self._logo_as_data_uri(os.path.join(static_dir, "images", "sincirus_icon.png")),
