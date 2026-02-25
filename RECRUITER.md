@@ -69,12 +69,68 @@ Du und jeder Subagent bewertet nach diesem Prompt:
 
 ## SUBAGENTEN-STRATEGIE
 
-Bei vielen Paaren (z.B. 100+): Verteile die Paare auf mehrere Subagenten. Jeder Subagent bekommt ein Kontingent das seinen Kontext nicht sprengt (max. ~15-20 Paare pro Subagent). Lieber mehr Subagenten losschicken als einen ueberlasten.
+### KRITISCH: Rate-Limit-Schutz (PFLICHT)
+
+**NIEMALS mehr als 3 Sub-Agenten gleichzeitig starten. "Hit your limit" DARF NICHT VORKOMMEN.**
+
+Am 25.02.2026 wurde das gesamte Stunden-Tokenbudget in unter 10 Minuten verbrannt,
+weil 30-40 Sub-Agenten parallel gestartet wurden. Jeder Sub-Agent ist ein vollstaendiger
+Modell-Call mit eigenem Context Window (~80.000 Tokens). Bei 40 parallelen Agenten =
+3.2 Millionen Tokens in Sekunden → sofortiges Rate Limit.
+
+**Das Ziel ist PRAEVENTION, nicht Reaktion. Das Limit darf nie erreicht werden.**
+
+**Regeln fuer Sub-Agenten-Parallelisierung:**
+
+| Regel | Wert |
+|-------|------|
+| Max. parallele Agenten | **3** (absolutes Maximum, KEINE Ausnahmen) |
+| Welle abwarten | **JA** — neue Welle ERST starten wenn vorherige KOMPLETT fertig |
+| Paare pro Chunk | **25-30** (nicht 15, nicht 50+) |
+| Fortschritts-Check | Nach JEDER Welle: `ls /tmp/match_results/*.json \| wc -l` |
+
+**Warum diese Werte:**
+- 3 Agenten × 80K Tokens = 240K pro Welle → bei 5M/Stunde passen ~20 Wellen rein
+- 30 Paare pro Chunk = ~240 Chunks fuer 7.200 Paare → ~80 Wellen à 3 = ~4 Stunden
+- 15 Paare pro Chunk = 480 Chunks → doppelt so viele Agenten noetig (Verschwendung)
+- 50+ Paare pro Chunk = Risiko "Prompt too long" (Chunk-Dateien werden >150K Tokens)
+
+**Ablauf bei Massen-Matching (>500 Paare):**
+
+```
+1. Chunks generieren: python3 chunk_batch_pairs.py (25-30 Paare pro Chunk)
+2. Welle 1: 3 Agenten starten (Chunk 0, 1, 2)
+3. WARTEN bis alle 3 fertig
+4. Ergebnis-Count pruefen
+5. Welle 2: naechste 3 Chunks
+6. WARTEN bis alle 3 fertig
+7. Wiederholen bis alle Chunks durch
+8. Ergebnisse in DB speichern: python3 claude_match_helper.py --save
+```
+
+**VERBOTEN:**
+- Mehr als 3 Agenten gleichzeitig starten (KEINE Ausnahmen, KEIN "nur dieses eine Mal")
+- Naechste Welle starten bevor vorherige fertig ist
+- Mehrere Wellen in einer einzigen Nachricht abfeuern
+- Das Token-Limit erreichen — wenn es trotzdem passiert: ALLES STOPPEN, Fehler melden
+
+### Chunk-Groessen und Context-Limits
+
+| Paare pro Chunk | Chunk-Groesse (ca.) | Tokens (ca.) | Risiko |
+|----------------|---------------------|--------------|--------|
+| 15 | 70-110 KB | 17-27K | Sicher, aber zu viele Chunks noetig |
+| **25-30** | **120-200 KB** | **30-50K** | **Optimal — sicher + effizient** |
+| 50 | 230-370 KB | 57-90K | Grenzwertig, grosse Chunks koennten scheitern |
+| 100+ | 500+ KB | 120K+ | NICHT MACHEN — sprengt Context Window |
+
+### Sub-Agent-Konfiguration
 
 Jeder Subagent bekommt:
 - Den Bewertungs-Prompt (siehe oben)
-- Sein Kontingent an Paaren
+- Sein Kontingent an Paaren (max. 30)
 - Die Anweisung, JSON-Bewertungen zurueckzugeben
+- **subagent_type: "general-purpose"**
+- **run_in_background: true**
 
 ---
 

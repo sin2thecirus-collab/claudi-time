@@ -33,6 +33,7 @@ class Candidate(Base):
     email: Mapped[str | None] = mapped_column(String(500))
     phone: Mapped[str | None] = mapped_column(String(100))
     birth_date: Mapped[date | None] = mapped_column(Date)
+    age: Mapped[int | None] = mapped_column(Integer)  # Berechnet aus birth_date, vor Matching aktualisieren
 
     # Berufliche Daten
     current_position: Mapped[str | None] = mapped_column(Text)
@@ -209,16 +210,16 @@ class Candidate(Base):
         parts = [self.first_name, self.last_name]
         return " ".join(p for p in parts if p) or "Unbekannt"
 
-    @property
-    def age(self) -> int | None:
-        """Berechnet das Alter aus dem Geburtsdatum."""
+    def recalculate_age(self) -> int | None:
+        """Berechnet das Alter aus dem Geburtsdatum und speichert es im age-Feld."""
         if not self.birth_date:
             return None
         today = date.today()
-        age = today.year - self.birth_date.year
+        calculated = today.year - self.birth_date.year
         if (today.month, today.day) < (self.birth_date.month, self.birth_date.day):
-            age -= 1
-        return age
+            calculated -= 1
+        self.age = calculated
+        return calculated
 
     @property
     def is_active(self) -> bool:
