@@ -8,7 +8,7 @@ from typing import Optional
 from uuid import UUID
 
 import httpx
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -2936,6 +2936,19 @@ class _EmailLogPayload(BaseModel):
     sequence_step: Optional[int] = None
     from_address: Optional[str] = None
     to_address: Optional[str] = None
+
+
+@router.get("/email-sequence/debug-headers")
+async def n8n_debug_headers(request: Request):
+    """TEMP: Debug welche Headers n8n schickt. Wird nach Debugging entfernt."""
+    headers = dict(request.headers)
+    safe = {}
+    for k, v in headers.items():
+        if k.lower() in ("authorization", "x-api-key", "x-n8n-api-key"):
+            safe[k] = f"{v[:8]}...{v[-4:]}" if len(v) > 14 else f"{v[:4]}..."
+        else:
+            safe[k] = v
+    return {"headers": safe}
 
 
 @router.post("/email-sequence/log")
