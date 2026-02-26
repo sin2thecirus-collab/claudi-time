@@ -142,8 +142,7 @@ class ProfilePdfService:
             ).replace("June", "Juni").replace("July", "Juli").replace(
                 "October", "Oktober"
             ).replace("December", "Dezember"),
-            "candidate_ref": self._build_candidate_ref(candidate),
-            "candidate_id_label": self._build_candidate_id_label(candidate),
+            "candidate_ref": self._build_candidate_id_label(candidate),
 
             # Hero
             "hero_title": self._build_hero_title(candidate),
@@ -218,10 +217,10 @@ class ProfilePdfService:
         return "SP-2026-XXXX"
 
     def _build_candidate_id_label(self, candidate) -> str:
-        """Baut das Kandidaten-ID Label (z.B. 'Kandidaten-ID ID 42')."""
+        """Baut das Kandidaten-ID Label (z.B. 'Kandidaten-ID 5054')."""
         num = getattr(candidate, "candidate_number", None)
         if num:
-            return f"Kandidaten-ID ID {num}"
+            return f"Kandidaten-ID {num}"
         return ""
 
     def _build_hero_title(self, candidate) -> str:
