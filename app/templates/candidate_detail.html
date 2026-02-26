@@ -83,6 +83,10 @@
     .kd-quickglance-icon { font-size:26px; flex-shrink:0; }
     .kd-quickglance-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--pp-textMuted); margin-bottom:3px; }
     .kd-quickglance-value { font-size:16px; font-weight:700; white-space:nowrap; }
+    .kd-quickglance-input { font-size:16px; font-weight:700; font-family:inherit; background:transparent; border:1.5px solid transparent; border-radius:6px; padding:2px 6px; margin:-2px -6px; width:100%; outline:none; transition: border-color 0.2s, background 0.2s; }
+    .kd-quickglance-input:hover { background:var(--pp-surfaceHover); }
+    .kd-quickglance-input:focus { background:var(--pp-surface); }
+    .kd-quickglance-input::placeholder { font-weight:400; font-size:13px; opacity:0.4; }
 
     .kd-exp-dot-current { width:12px; height:12px; border-radius:50%; flex-shrink:0; background:var(--pp-accent); border:2px solid var(--pp-accentGlow); }
     .kd-exp-dot-past { width:12px; height:12px; border-radius:50%; flex-shrink:0; background:var(--pp-border); border:2px solid var(--pp-text4); }
@@ -583,34 +587,42 @@
                 {# Qualifizierung content #}
                 <div style="display:flex; flex-direction:column; gap:40px;">
                     
-            {# ── Quick-Glance Bar ── #}
+            {# ── Quick-Glance Bar (editierbar) ── #}
             <div class="kd-quickglance kd-anim" style="animation-delay:50ms;">
                 <div class="kd-quickglance-item">
                     <div class="kd-quickglance-icon">&#x1F4B0;</div>
-                    <div>
+                    <div style="flex:1; min-width:0;">
                         <div class="kd-quickglance-label">Gehalt</div>
-                        <div class="kd-quickglance-value" style="color:var(--pp-green);">{{ candidate.salary or '–' }}</div>
+                        <input type="text" x-model="qf.salary" @blur="saveQField('salary')" placeholder="z.B. 55.000 &euro;"
+                            class="kd-quickglance-input" style="color:var(--pp-green);"
+                            @focus="$el.style.borderColor = 'var(--pp-green)'" @focusout="$el.style.borderColor = 'transparent'">
                     </div>
                 </div>
                 <div class="kd-quickglance-item">
                     <div class="kd-quickglance-icon">&#x23F3;</div>
-                    <div>
+                    <div style="flex:1; min-width:0;">
                         <div class="kd-quickglance-label">K&uuml;ndigungsfrist</div>
-                        <div class="kd-quickglance-value" style="color:var(--pp-orange);">{{ candidate.notice_period or '–' }}</div>
+                        <input type="text" x-model="qf.notice_period" @blur="saveQField('notice_period')" placeholder="z.B. 3 Monate"
+                            class="kd-quickglance-input" style="color:var(--pp-orange);"
+                            @focus="$el.style.borderColor = 'var(--pp-orange)'" @focusout="$el.style.borderColor = 'transparent'">
                     </div>
                 </div>
                 <div class="kd-quickglance-item">
                     <div class="kd-quickglance-icon">&#x1F3E0;</div>
-                    <div>
+                    <div style="flex:1; min-width:0;">
                         <div class="kd-quickglance-label">Home-Office</div>
-                        <div class="kd-quickglance-value" style="color:var(--pp-accent);">{{ candidate.home_office_days or '–' }}</div>
+                        <input type="text" x-model="qf.home_office_days" @blur="saveQField('home_office_days')" placeholder="z.B. 2 Tage"
+                            class="kd-quickglance-input" style="color:var(--pp-accent);"
+                            @focus="$el.style.borderColor = 'var(--pp-accent)'" @focusout="$el.style.borderColor = 'transparent'">
                     </div>
                 </div>
                 <div class="kd-quickglance-item">
                     <div class="kd-quickglance-icon">&#x1F6E3;</div>
-                    <div>
+                    <div style="flex:1; min-width:0;">
                         <div class="kd-quickglance-label">Pendelweg</div>
-                        <div class="kd-quickglance-value" style="color:var(--pp-purple);">{{ candidate.commute_max or '–' }}</div>
+                        <input type="text" x-model="qf.commute_max" @blur="saveQField('commute_max')" placeholder="z.B. 30 min"
+                            class="kd-quickglance-input" style="color:var(--pp-purple);"
+                            @focus="$el.style.borderColor = 'var(--pp-purple)'" @focusout="$el.style.borderColor = 'transparent'">
                     </div>
                 </div>
             </div>
@@ -2328,6 +2340,8 @@ function qualificationFields() {
         ],
         callTypeLabels: { 'qualifizierung': 'Qualifizierungsgespräch', 'kurz': 'Kurzer Call', 'kunde': 'Kundengespräch', 'sonstig': 'Sonstiges' },
         qf: {
+            salary: {{ (candidate.salary or '') | tojson | safe }},
+            notice_period: {{ (candidate.notice_period or '') | tojson | safe }},
             desired_positions: {{ (candidate.desired_positions or '') | tojson | safe }},
             key_activities: {{ (candidate.key_activities or '') | tojson | safe }},
             home_office_days: {{ (candidate.home_office_days or '') | tojson | safe }},
