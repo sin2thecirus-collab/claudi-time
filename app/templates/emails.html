@@ -712,7 +712,7 @@ async function rmSendSelected(btn) {
         });
         const data = await resp.json();
         if (resp.ok) {
-            showToast(data.sent_count + ' Kandidaten an Instantly uebergeben', 'success');
+            showToast(data.approved_count + ' Kandidaten zum Versand freigegeben', 'success');
             // Rundmail-Tab neu laden
             htmx.trigger(document.getElementById('rundmail-content'), 'load-rundmail');
             htmx.trigger(document.getElementById('rundmail-progress'), 'load-rundmail');
