@@ -291,7 +291,7 @@ class ProfilePdfService:
         transport = self._clean_val(getattr(candidate, "commute_transport", None))
         if commute:
             detail = transport if transport else ""
-            facts.append({"label": "Pendel", "value": commute, "detail": detail})
+            facts.append({"label": "Pendelzeit", "value": commute, "detail": detail})
 
         # Großraumbüro
         office = self._clean_val(getattr(candidate, "open_office_ok", None))
