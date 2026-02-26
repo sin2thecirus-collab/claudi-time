@@ -10,7 +10,7 @@ from uuid import UUID
 import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -2886,3 +2886,104 @@ async def n8n_debug_ats_job(
         "created_at": job.created_at.isoformat() if job.created_at else None,
         "updated_at": job.updated_at.isoformat() if job.updated_at else None,
     }
+
+
+# ══════════════════════════════════════════════════════════════════
+# EMAIL-SEQUENZ Proxy-Endpoints (fuer n8n "Nicht erreicht" Workflow)
+#
+# n8n kann /api/n8n/* erreichen (PUBLIC_PREFIXES in auth.py),
+# aber NICHT /api/email-automation/* (braucht JWT/API-Key).
+# Diese Endpoints spiegeln die Logik und nutzen verify_n8n_token.
+# ══════════════════════════════════════════════════════════════════
+
+
+class _EmailLogPayload(BaseModel):
+    """Payload fuer E-Mail-Logging aus n8n."""
+    candidate_id: UUID
+    subject: str
+    body_text: Optional[str] = None
+    body_html: Optional[str] = None
+    direction: str = "outbound"
+    channel: str = "ionos"
+    sequence_type: Optional[str] = "nicht_erreicht"
+    sequence_step: Optional[int] = None
+    from_address: Optional[str] = None
+    to_address: Optional[str] = None
+
+
+@router.post("/email-sequence/log", dependencies=[Depends(verify_n8n_token)])
+async def n8n_log_email(data: _EmailLogPayload, db: AsyncSession = Depends(get_db)):
+    """Loggt eine E-Mail aus der n8n-Sequenz in die DB.
+
+    n8n ruft diesen Endpoint nach jedem E-Mail-Versand auf,
+    damit die Kommunikation in der Kandidaten-Historie sichtbar ist.
+    """
+    from app.models.candidate import Candidate
+    from app.models.candidate_email import CandidateEmail
+
+    candidate = await db.get(Candidate, data.candidate_id)
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Kandidat nicht gefunden")
+
+    email = CandidateEmail(
+        candidate_id=data.candidate_id,
+        subject=data.subject,
+        body_text=data.body_text,
+        body_html=data.body_html,
+        direction=data.direction,
+        channel=data.channel,
+        sequence_type=data.sequence_type,
+        sequence_step=data.sequence_step,
+        from_address=data.from_address,
+        to_address=data.to_address,
+    )
+    db.add(email)
+    await db.flush()
+
+    logger.info(f"n8n E-Mail geloggt: Schritt {data.sequence_step} fuer Kandidat {data.candidate_id}")
+    return {"ok": True, "email_id": str(email.id), "candidate_id": str(data.candidate_id)}
+
+
+@router.get("/email-sequence/has-reply/{candidate_id}", dependencies=[Depends(verify_n8n_token)])
+async def n8n_has_reply(candidate_id: UUID, db: AsyncSession = Depends(get_db)):
+    """Prueft ob der Kandidat auf eine E-Mail geantwortet hat.
+
+    n8n ruft das vor jeder Folge-Mail auf — bei Antwort wird die Sequenz gestoppt.
+    """
+    from app.models.candidate_email import CandidateEmail
+
+    count_q = (
+        select(func.count())
+        .select_from(CandidateEmail)
+        .where(
+            CandidateEmail.candidate_id == candidate_id,
+            CandidateEmail.direction == "inbound",
+        )
+    )
+    count = (await db.execute(count_q)).scalar() or 0
+    return {"has_reply": count > 0, "reply_count": count}
+
+
+@router.patch("/email-sequence/status/{candidate_id}", dependencies=[Depends(verify_n8n_token)])
+async def n8n_update_status(candidate_id: UUID, data: dict, db: AsyncSession = Depends(get_db)):
+    """Aktualisiert den contact_status eines Kandidaten.
+
+    n8n setzt z.B. 'email_sequenz_beendet' wenn alle 3 Mails raus sind
+    oder 'hat_geantwortet' wenn eine Antwort erkannt wurde.
+    """
+    from app.models.candidate import Candidate
+
+    contact_status = data.get("contact_status")
+    if not contact_status:
+        raise HTTPException(status_code=400, detail="contact_status ist erforderlich")
+
+    candidate = await db.get(Candidate, candidate_id)
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Kandidat nicht gefunden")
+
+    old_status = candidate.contact_status
+    candidate.contact_status = contact_status
+    await db.flush()
+
+    logger.info(f"n8n Status-Update: Kandidat {candidate_id} {old_status} -> {contact_status}")
+    return {"ok": True, "candidate_id": str(candidate_id), "previous_status": old_status, "new_status": contact_status}

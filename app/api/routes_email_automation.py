@@ -193,6 +193,7 @@ async def mark_not_reached(candidate_id: UUID, db: AsyncSession = Depends(get_db
         "email": candidate.email,
         "gender": candidate.gender or "",
         "source": candidate.source or "einem Jobportal",
+        "city": candidate.city or "",
     }
     n8n_ok = False
     try:
@@ -559,20 +560,59 @@ async def send_selected(
     data: SendRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    """Markiert ausgewaehlte Items als 'approved' — n8n holt sie dann ab und sendet via Instantly."""
+    """Markiert Items als 'approved' und triggert n8n Webhook fuer Instantly-Versand."""
     approved_count = 0
+    approved_items = []
+
     for item_id in data.item_ids:
         item = await db.get(OutreachItem, item_id)
         if item and item.status == "prepared":
             item.status = "approved"
             approved_count += 1
+            approved_items.append(item)
 
     await db.flush()
     logger.info(f"Outreach: {approved_count} Items als 'approved' markiert")
 
+    # Batch-ID ermitteln (alle Items gehoeren zum selben Batch)
+    batch_id = str(approved_items[0].batch_id) if approved_items else ""
+
+    # Kandidaten-Daten fuer n8n sammeln
+    candidates_payload = []
+    for item in approved_items:
+        cand = item.candidate
+        if cand:
+            candidates_payload.append({
+                "candidate_id": str(cand.id),
+                "email": cand.email,
+                "first_name": cand.first_name or "",
+                "last_name": cand.last_name or "",
+                "gender": cand.gender or "",
+                "source": item.source_override or cand.source or "",
+                "campaign_type": item.campaign_type,
+            })
+
+    # n8n Webhook triggern (async, blockiert nicht den Response)
+    n8n_ok = False
+    if candidates_payload:
+        n8n_webhook_url = "https://n8n-production-aa9c.up.railway.app/webhook/rundmail-senden"
+        webhook_payload = {
+            "batch_id": batch_id,
+            "candidates": candidates_payload,
+        }
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.post(n8n_webhook_url, json=webhook_payload)
+                n8n_ok = resp.status_code < 400
+                if not n8n_ok:
+                    logger.error(f"n8n Rundmail-Webhook fehlgeschlagen: HTTP {resp.status_code} - {resp.text[:200]}")
+        except Exception as exc:
+            logger.error(f"n8n Rundmail-Webhook Fehler: {exc}")
+
     return {
         "approved_count": approved_count,
         "total_requested": len(data.item_ids),
+        "n8n_triggered": n8n_ok,
     }
 
 
@@ -598,6 +638,68 @@ async def skip_daily(db: AsyncSession = Depends(get_db)):
         logger.info(f"Outreach: Tages-Batch {batch.id} uebersprungen")
 
     return {"skipped": True, "batch_date": str(today)}
+
+
+@router.post("/outreach/mark-sent")
+async def mark_batch_sent(
+    data: dict,
+    db: AsyncSession = Depends(get_db),
+):
+    """Markiert Items eines Batches als 'sent' — wird von n8n nach Instantly-Upload aufgerufen.
+
+    Body: {"batch_id": "uuid"}
+    Setzt:
+    - Alle approved Items auf status='sent' + sent_at=now()
+    - Kandidaten contact_status auf 'rundmail_gesendet'
+    - Batch sent_count + status='sent'
+    """
+    batch_id = data.get("batch_id")
+    if not batch_id:
+        return JSONResponse(status_code=400, content={"error": "batch_id fehlt"})
+
+    # Batch laden
+    batch = await db.get(OutreachBatch, batch_id)
+    if not batch:
+        return JSONResponse(status_code=404, content={"error": "Batch nicht gefunden"})
+
+    # Alle approved Items dieses Batches auf 'sent' setzen
+    now = datetime.utcnow()
+    items_result = await db.execute(
+        select(OutreachItem).where(
+            OutreachItem.batch_id == batch.id,
+            OutreachItem.status == "approved",
+        )
+    )
+    items = items_result.scalars().all()
+
+    sent_count = 0
+    candidate_ids = []
+    for item in items:
+        item.status = "sent"
+        item.sent_at = now
+        sent_count += 1
+        candidate_ids.append(item.candidate_id)
+
+    # Kandidaten contact_status auf 'rundmail_gesendet' setzen
+    if candidate_ids:
+        await db.execute(
+            update(Candidate)
+            .where(Candidate.id.in_(candidate_ids))
+            .values(contact_status="rundmail_gesendet")
+        )
+
+    # Batch aktualisieren
+    batch.sent_count = (batch.sent_count or 0) + sent_count
+    batch.status = "sent"
+    await db.flush()
+
+    logger.info(f"Outreach mark-sent: {sent_count} Items als 'sent', {len(candidate_ids)} Kandidaten auf 'rundmail_gesendet'")
+
+    return {
+        "batch_id": str(batch.id),
+        "sent_count": sent_count,
+        "candidates_updated": len(candidate_ids),
+    }
 
 
 # ══════════════════════════════════════════════════════════════════
