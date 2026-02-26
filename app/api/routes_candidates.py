@@ -116,17 +116,21 @@ async def search_candidates_quick(
     from app.models.candidate import Candidate
 
     search_term = f"%{q}%"
+    search_conditions = [
+        Candidate.first_name.ilike(search_term),
+        Candidate.last_name.ilike(search_term),
+        (Candidate.first_name + " " + Candidate.last_name).ilike(search_term),
+    ]
+    # Wenn Suchbegriff eine Zahl ist, auch nach candidate_number suchen
+    if q.strip().isdigit():
+        search_conditions.append(Candidate.candidate_number == int(q.strip()))
 
     result = await db.execute(
         select(Candidate)
         .where(
             Candidate.deleted_at.is_(None),
             Candidate.hidden.is_(False),
-            or_(
-                Candidate.first_name.ilike(search_term),
-                Candidate.last_name.ilike(search_term),
-                (Candidate.first_name + " " + Candidate.last_name).ilike(search_term),
-            )
+            or_(*search_conditions),
         )
         .order_by(Candidate.last_name, Candidate.first_name)
         .limit(limit)
@@ -1450,6 +1454,10 @@ async def generate_profile_pdf(
     if not candidate:
         raise NotFoundException(message=f"Kandidat {candidate_id} nicht gefunden")
 
+    # PDF-Dateiname: "Kandidaten-ID 5054.pdf"
+    cand_num = candidate.candidate_number
+    pdf_filename = f"Kandidaten-ID {cand_num}.pdf" if cand_num else "Kandidatenprofil.pdf"
+
     # Smart-Modus: Pruefen ob Kandidaten-Daten neuer als das gespeicherte PDF sind
     if smart and not regenerate:
         if candidate.profile_pdf_generated_at and candidate.updated_at:
@@ -1482,7 +1490,7 @@ async def generate_profile_pdf(
                         content=pdf_bytes,
                         media_type="application/pdf",
                         headers={
-                            "Content-Disposition": "inline",
+                            "Content-Disposition": f'inline; filename="{pdf_filename}"',
                             "Cache-Control": "private, max-age=300",
                             "X-Profile-Source": "cache",
                             "X-Profile-Generated-At": str(candidate.profile_pdf_generated_at or ""),
@@ -1520,7 +1528,7 @@ async def generate_profile_pdf(
         content=pdf_bytes,
         media_type="application/pdf",
         headers={
-            "Content-Disposition": "inline",
+            "Content-Disposition": f'inline; filename="{pdf_filename}"',
             "Cache-Control": "private, max-age=60",
             "X-Profile-Source": "generated",
             "X-Profile-Generated-At": datetime.now(timezone.utc).isoformat(),

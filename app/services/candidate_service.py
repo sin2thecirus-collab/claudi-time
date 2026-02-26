@@ -555,16 +555,21 @@ class CandidateService:
         # Gelöschte Kandidaten IMMER ausfiltern
         query = query.where(Candidate.deleted_at.is_(None))
 
-        # Name-Suche (auch Vor- + Nachname kombiniert)
+        # Name-Suche (auch Vor- + Nachname kombiniert + Kandidaten-ID)
         if filters.name:
             search_term = f"%{filters.name}%"
-            query = query.where(
-                or_(
-                    Candidate.first_name.ilike(search_term),
-                    Candidate.last_name.ilike(search_term),
-                    (Candidate.first_name + " " + Candidate.last_name).ilike(search_term),
+            name_conditions = [
+                Candidate.first_name.ilike(search_term),
+                Candidate.last_name.ilike(search_term),
+                (Candidate.first_name + " " + Candidate.last_name).ilike(search_term),
+            ]
+            # Wenn Suchbegriff eine Zahl ist, auch nach candidate_number suchen
+            search_stripped = filters.name.strip()
+            if search_stripped.isdigit():
+                name_conditions.append(
+                    Candidate.candidate_number == int(search_stripped)
                 )
-            )
+            query = query.where(or_(*name_conditions))
 
         # Stadt-Filter (exakte Liste)
         if filters.cities:
