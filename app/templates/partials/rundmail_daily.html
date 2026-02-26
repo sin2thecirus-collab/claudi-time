@@ -1,6 +1,4 @@
 {# Partial: Rundmail Tages-Report — Tabelle mit Kandidaten #}
-<div id="rundmail-loaded"></div>
-
 {% if items | length == 0 %}
 <div class="em-empty">
     <div class="em-empty-icon">&#x1F4EE;</div>
@@ -82,9 +80,9 @@
                     <option value="Bestand" {% if src == 'Bestand' %}selected{% endif %}>Bestand</option>
                     <option value="StepStone" {% if src == 'StepStone' %}selected{% endif %}>StepStone</option>
                     <option value="Indeed" {% if src == 'Indeed' %}selected{% endif %}>Indeed</option>
-                    <option value="XING" {% if src == 'XING' %}selected{% endif %}>XING</option>
+                    <option value="Xing" {% if src == 'Xing' %}selected{% endif %}>Xing</option>
                     <option value="LinkedIn" {% if src == 'LinkedIn' %}selected{% endif %}>LinkedIn</option>
-                    <option value="Sonstige" {% if src not in ['Bestand', 'StepStone', 'Indeed', 'XING', 'LinkedIn'] and src %}selected{% endif %}>Sonstige</option>
+                    <option value="Sonstige" {% if src not in ['Bestand', 'StepStone', 'Indeed', 'Xing', 'LinkedIn'] and src %}selected{% endif %}>Sonstige</option>
                 </select>
             </td>
             <td>
@@ -129,6 +127,9 @@
         btn.textContent = count > 0 ? 'Ausgewaehlte senden (' + count + ')' : 'Keine ausgewaehlt';
         btn.disabled = count === 0;
     }
+    // Zaehler aktualisieren
+    const counter = document.getElementById('rm-selected-count');
+    if (counter) counter.textContent = count;
     // Stats aktualisieren
     const el = (id) => document.getElementById(id);
     if (el('rm-count-badge')) el('rm-count-badge').textContent = '{{ items | length }}';

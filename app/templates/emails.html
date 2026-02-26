@@ -652,6 +652,10 @@ function rmToggleAll(masterCb) {
     document.querySelectorAll('.rm-item-cb').forEach(cb => {
         cb.checked = masterCb.checked;
     });
+    // Beide Toggle-Checkboxen (Header + Footer) synchronisieren
+    document.querySelectorAll('.rm-checkbox:not(.rm-item-cb)').forEach(cb => {
+        cb.checked = masterCb.checked;
+    });
     rmUpdateCount();
 }
 
@@ -663,6 +667,8 @@ function rmUpdateCount() {
         btn.textContent = checked > 0 ? 'Ausgewaehlte senden (' + checked + ')' : 'Keine ausgewaehlt';
         btn.disabled = checked === 0;
     }
+    const counter = document.getElementById('rm-selected-count');
+    if (counter) counter.textContent = checked;
 }
 
 // Quelle eines Items per HTMX PATCH speichern
@@ -672,7 +678,7 @@ async function rmUpdateSource(itemId, source) {
         const resp = await fetch('/api/email-automation/outreach/items/' + itemId + '/source', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
-            body: JSON.stringify({ source: source })
+            body: JSON.stringify({ source_override: source })
         });
         if (resp.ok) {
             const data = await resp.json();
@@ -741,6 +747,7 @@ async function rmSkipAll(btn) {
         if (resp.ok) {
             showToast('Tages-Rundmail uebersprungen', 'info');
             htmx.trigger(document.getElementById('rundmail-content'), 'load-rundmail');
+            htmx.trigger(document.getElementById('rundmail-progress'), 'load-rundmail');
         }
     } catch (e) {
         showToast('Fehler', 'error');
