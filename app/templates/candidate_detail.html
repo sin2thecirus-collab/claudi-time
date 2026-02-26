@@ -194,6 +194,12 @@
                     {% endif %}
                 </div>
                 <div style="display:flex; align-items:center; gap:12px; margin-top:4px; flex-wrap:wrap;">
+                    {% if candidate.candidate_number %}
+                    <span class="kd-meta-badge" style="font-weight:700; color:var(--pp-accent);">ID {{ candidate.candidate_number }}</span>
+                    {% endif %}
+                    {% if candidate.classification_data and candidate.classification_data.primary_role %}
+                    <span class="kd-meta-badge" style="background:var(--pp-accentSoft); color:var(--pp-accent); font-weight:700; border:1px solid rgba(99,102,241,0.25);">{{ candidate.classification_data.primary_role }}</span>
+                    {% endif %}
                     {% if candidate.current_position and candidate.current_position not in ['Not Available', 'N/A', 'n/a', 'None', 'null', '', '-'] %}
                     <span class="kd-meta-badge">&#x1F4BC; {{ candidate.current_position }}</span>
                     {% endif %}
