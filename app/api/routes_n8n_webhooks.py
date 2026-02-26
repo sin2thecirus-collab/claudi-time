@@ -2938,7 +2938,7 @@ class _EmailLogPayload(BaseModel):
     to_address: Optional[str] = None
 
 
-@router.post("/email-sequence/log", dependencies=[Depends(_verify_n8n_flexible)])
+@router.post("/email-sequence/log")
 async def n8n_log_email(data: _EmailLogPayload, db: AsyncSession = Depends(get_db)):
     """Loggt eine E-Mail aus der n8n-Sequenz in die DB.
 
