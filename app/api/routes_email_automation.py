@@ -81,6 +81,11 @@ class SourceUpdate(BaseModel):
     source_override: str
 
 
+class BulkSourceUpdate(BaseModel):
+    item_ids: list[UUID]
+    source_override: str
+
+
 class SendRequest(BaseModel):
     item_ids: list[UUID]
     max_per_mailbox: int = 30
@@ -574,6 +579,34 @@ async def update_item_source(
         "source_override": item.source_override,
         "campaign_type": item.campaign_type,
     }
+
+
+@router.patch("/outreach/items/bulk-source")
+async def bulk_update_source(
+    data: BulkSourceUpdate,
+    db: AsyncSession = Depends(get_db),
+):
+    """Quelle fuer mehrere Outreach-Items auf einmal setzen."""
+    from app.models.candidate import Candidate
+
+    campaign_type = "bekannt" if data.source_override.lower() == "bestand" else "erstkontakt"
+    updated = 0
+
+    for item_id in data.item_ids:
+        item = await db.get(OutreachItem, item_id)
+        if not item or item.status == "sent":
+            continue
+        item.source_override = data.source_override
+        item.campaign_type = campaign_type
+        # Auch Kandidaten-Source aktualisieren
+        if item.candidate_id:
+            candidate = await db.get(Candidate, item.candidate_id)
+            if candidate:
+                candidate.source = data.source_override
+        updated += 1
+
+    await db.flush()
+    return {"updated": updated, "source_override": data.source_override, "campaign_type": campaign_type}
 
 
 @router.post("/outreach/send")

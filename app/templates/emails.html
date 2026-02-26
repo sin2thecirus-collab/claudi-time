@@ -697,6 +697,52 @@ async function rmUpdateSource(itemId, source) {
     } catch (e) { /* silent */ }
 }
 
+// Bulk-Quelle fuer alle ausgewaehlten Items setzen
+async function rmBulkSource() {
+    const checked = document.querySelectorAll('.rm-item-cb:checked');
+    if (checked.length === 0) { alert('Keine Kandidaten ausgewaehlt'); return; }
+
+    const source = document.getElementById('rm-bulk-source').value;
+    const itemIds = Array.from(checked).map(cb => cb.dataset.itemId);
+    const statusEl = document.getElementById('rm-bulk-status');
+
+    try {
+        statusEl.textContent = 'Speichere...';
+        const csrf = await emGetCsrf();
+        const resp = await fetch('/api/email-automation/outreach/items/bulk-source', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+            body: JSON.stringify({ item_ids: itemIds, source_override: source })
+        });
+        if (resp.ok) {
+            const data = await resp.json();
+            statusEl.textContent = data.updated + ' aktualisiert';
+            // Alle Dropdowns + Badges der ausgewaehlten Items updaten
+            checked.forEach(cb => {
+                const row = cb.closest('tr');
+                if (!row) return;
+                const sel = row.querySelector('.rm-source-select');
+                if (sel) sel.value = source;
+                const badge = row.querySelector('[id^="rm-type-"]');
+                if (badge) {
+                    if (source === 'Bestand') {
+                        badge.className = 'rm-badge-bekannt';
+                        badge.textContent = 'Bekannt';
+                    } else {
+                        badge.className = 'rm-badge-erst';
+                        badge.textContent = 'Erst.';
+                    }
+                }
+            });
+            setTimeout(() => { statusEl.textContent = ''; }, 3000);
+        } else {
+            statusEl.textContent = 'Fehler!';
+        }
+    } catch (e) {
+        statusEl.textContent = 'Fehler!';
+    }
+}
+
 // Ausgewaehlte Kandidaten senden
 async function rmSendSelected(btn) {
     const checked = document.querySelectorAll('.rm-item-cb:checked');
