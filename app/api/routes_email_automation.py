@@ -460,10 +460,18 @@ async def prepare_daily_batch(
               'rundmail_gesendet', 'abgemeldet', 'bounce'
           ))
           AND id NOT IN (SELECT candidate_id FROM outreach_items)
-          AND LOWER(COALESCE(first_name,'')) NOT IN ('not','n/a','na','none','unknown','test','')
-          AND LOWER(COALESCE(last_name,'')) NOT IN ('available','n/a','na','none','unknown','test','')
+          AND LOWER(COALESCE(first_name,'')) NOT IN ('not','n/a','na','none','unknown','test','testo','')
+          AND LOWER(COALESCE(last_name,'')) NOT IN ('available','n/a','na','none','unknown','test','kandidat','')
           AND LENGTH(COALESCE(first_name,'')) >= 2
           AND LENGTH(COALESCE(last_name,'')) >= 2
+          AND first_name !~ E'[\\t\\n\\r]'
+          AND last_name !~ E'[\\t\\n\\r]'
+          AND LOWER(COALESCE(first_name,'') || ' ' || COALESCE(last_name,''))
+              NOT LIKE '%buchhalter%'
+          AND LOWER(COALESCE(first_name,'') || ' ' || COALESCE(last_name,''))
+              NOT LIKE '%inkl.%'
+          AND (birth_date IS NULL
+               OR birth_date >= (CURRENT_DATE - INTERVAL '58 years'))
         ORDER BY created_at ASC
         LIMIT :max_candidates
     """)
