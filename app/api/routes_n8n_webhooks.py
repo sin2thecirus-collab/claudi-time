@@ -2910,6 +2910,18 @@ class _EmailLogPayload(BaseModel):
     sequence_step: Optional[int] = None
     from_address: Optional[str] = None
     to_address: Optional[str] = None
+    message_id: Optional[str] = None
+    conversation_id: Optional[str] = None
+
+
+class _ReplyPayload(BaseModel):
+    """Payload vom Outlook Inbox Monitor fuer eingehende Antworten."""
+    from_email: str
+    subject: str = ""
+    body_text: Optional[str] = None
+    conversation_id: Optional[str] = None
+    internet_message_id: Optional[str] = None
+    received_at: Optional[str] = None
 
 
 @router.post("/email-sequence/log")
@@ -2944,6 +2956,8 @@ async def n8n_log_email(data: _EmailLogPayload, request: Request, db: AsyncSessi
         sequence_step=data.sequence_step,
         from_address=data.from_address,
         to_address=data.to_address,
+        message_id=data.message_id,
+        conversation_id=data.conversation_id,
     )
     db.add(email)
     await db.flush()
@@ -2953,23 +2967,184 @@ async def n8n_log_email(data: _EmailLogPayload, request: Request, db: AsyncSessi
 
 
 @router.get("/email-sequence/has-reply/{candidate_id}")
-async def n8n_has_reply(candidate_id: UUID, db: AsyncSession = Depends(get_db)):
-    """Prueft ob der Kandidat auf eine E-Mail geantwortet hat.
+async def n8n_has_reply(
+    candidate_id: UUID,
+    sequence_type: str = Query("nicht_erreicht"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Prueft ob der Kandidat auf eine Sequenz-Mail geantwortet hat.
 
-    n8n ruft das vor jeder Folge-Mail auf — bei Antwort wird die Sequenz gestoppt.
+    3-Schichten-Pruefung fuer maximale Zuverlaessigkeit:
+    1. Inbound-Mail mit passendem sequence_type
+    2. Inbound-Mail mit passender conversation_id (Cross-Match zu Outbound)
+    3. contact_status == 'hat_geantwortet' als Fallback
     """
+    from app.models.candidate import Candidate
     from app.models.candidate_email import CandidateEmail
 
-    count_q = (
-        select(func.count())
-        .select_from(CandidateEmail)
-        .where(
+    # Schicht 1: Direkte Inbound-Mail mit passendem sequence_type
+    seq_count = (await db.execute(
+        select(func.count()).select_from(CandidateEmail).where(
             CandidateEmail.candidate_id == candidate_id,
             CandidateEmail.direction == "inbound",
+            CandidateEmail.sequence_type == sequence_type,
         )
+    )).scalar() or 0
+
+    # Schicht 2: conversation_id Cross-Match
+    conv_match = 0
+    if seq_count == 0:
+        outbound_convs = await db.execute(
+            select(CandidateEmail.conversation_id).where(
+                CandidateEmail.candidate_id == candidate_id,
+                CandidateEmail.direction == "outbound",
+                CandidateEmail.sequence_type == sequence_type,
+                CandidateEmail.conversation_id.isnot(None),
+            )
+        )
+        conv_ids = [r[0] for r in outbound_convs.all()]
+
+        if conv_ids:
+            conv_match = (await db.execute(
+                select(func.count()).select_from(CandidateEmail).where(
+                    CandidateEmail.conversation_id.in_(conv_ids),
+                    CandidateEmail.direction == "inbound",
+                )
+            )).scalar() or 0
+
+    # Schicht 3: contact_status Fallback
+    candidate = await db.get(Candidate, candidate_id)
+    status_flag = candidate is not None and candidate.contact_status == "hat_geantwortet"
+
+    has_reply = seq_count > 0 or conv_match > 0 or status_flag
+
+    return {
+        "has_reply": has_reply,
+        "reply_count": seq_count + conv_match,
+        "match_detail": {
+            "sequence_specific": seq_count,
+            "conversation_match": conv_match,
+            "status_flag": status_flag,
+        },
+    }
+
+
+@router.post("/email-sequence/register-reply")
+async def n8n_register_reply(data: _ReplyPayload, db: AsyncSession = Depends(get_db)):
+    """Registriert eine eingehende Antwort vom Outlook Inbox Monitor.
+
+    Matching-Logik (absteigend nach Zuverlaessigkeit):
+    1. conversation_id — Outlook Thread-ID, zuverlaessigste Methode
+    2. from_email — Kandidat ueber E-Mail finden, aktive Sequenz pruefen
+    3. Kein Match — loggen fuer manuelle Pruefung
+    """
+    from app.models.candidate import Candidate
+    from app.models.candidate_email import CandidateEmail
+
+    # Idempotenz: Duplikat-Check ueber internet_message_id
+    if data.internet_message_id:
+        existing = await db.execute(
+            select(CandidateEmail).where(
+                CandidateEmail.message_id == data.internet_message_id,
+                CandidateEmail.direction == "inbound",
+            )
+        )
+        if existing.scalar_one_or_none():
+            logger.info(f"Reply bereits verarbeitet: {data.internet_message_id}")
+            return {"matched": True, "already_processed": True}
+
+    matched_candidate_id = None
+    match_tier = "none"
+    matched_sequence_type = None
+
+    # Tier 1: conversation_id Match
+    if data.conversation_id:
+        outbound = await db.execute(
+            select(CandidateEmail).where(
+                CandidateEmail.conversation_id == data.conversation_id,
+                CandidateEmail.direction == "outbound",
+                CandidateEmail.sequence_type.isnot(None),
+            ).order_by(CandidateEmail.created_at.desc()).limit(1)
+        )
+        outbound_email = outbound.scalar_one_or_none()
+        if outbound_email:
+            matched_candidate_id = outbound_email.candidate_id
+            matched_sequence_type = outbound_email.sequence_type
+            match_tier = "conversation_id"
+            logger.info(
+                f"Reply matched via conversation_id: Kandidat {matched_candidate_id}, "
+                f"Sequenz {matched_sequence_type}"
+            )
+
+    # Tier 2: from_email Match
+    if not matched_candidate_id and data.from_email:
+        candidate_result = await db.execute(
+            select(Candidate).where(
+                func.lower(Candidate.email) == data.from_email.lower()
+            ).limit(1)
+        )
+        candidate = candidate_result.scalar_one_or_none()
+        if candidate:
+            # Pruefe ob aktive Sequenz existiert
+            active_seq = await db.execute(
+                select(CandidateEmail).where(
+                    CandidateEmail.candidate_id == candidate.id,
+                    CandidateEmail.direction == "outbound",
+                    CandidateEmail.sequence_type.isnot(None),
+                ).order_by(CandidateEmail.created_at.desc()).limit(1)
+            )
+            seq_email = active_seq.scalar_one_or_none()
+            if seq_email:
+                matched_candidate_id = candidate.id
+                matched_sequence_type = seq_email.sequence_type
+                match_tier = "from_email"
+                logger.info(
+                    f"Reply matched via from_email: Kandidat {matched_candidate_id}, "
+                    f"Sequenz {matched_sequence_type}"
+                )
+
+    # Inbound-Mail in DB speichern
+    inbound = CandidateEmail(
+        candidate_id=matched_candidate_id,
+        subject=data.subject,
+        body_text=data.body_text[:5000] if data.body_text else None,
+        direction="inbound",
+        channel="microsoft_outlook",
+        sequence_type=matched_sequence_type,
+        message_id=data.internet_message_id,
+        conversation_id=data.conversation_id,
+        from_address=data.from_email,
     )
-    count = (await db.execute(count_q)).scalar() or 0
-    return {"has_reply": count > 0, "reply_count": count}
+
+    if matched_candidate_id:
+        db.add(inbound)
+
+        # contact_status aktualisieren
+        candidate = await db.get(Candidate, matched_candidate_id)
+        if candidate:
+            old_status = candidate.contact_status
+            candidate.contact_status = "hat_geantwortet"
+            logger.info(
+                f"Status-Update: Kandidat {matched_candidate_id} "
+                f"{old_status} -> hat_geantwortet"
+            )
+
+        await db.flush()
+        logger.info(
+            f"Inbound-Mail gespeichert: Kandidat {matched_candidate_id}, "
+            f"Tier={match_tier}, Sequenz={matched_sequence_type}"
+        )
+    else:
+        logger.warning(
+            f"Unzugeordnete Inbound-Mail von {data.from_email}: {data.subject}"
+        )
+
+    return {
+        "matched": matched_candidate_id is not None,
+        "candidate_id": str(matched_candidate_id) if matched_candidate_id else None,
+        "match_tier": match_tier,
+        "sequence_type": matched_sequence_type,
+    }
 
 
 @router.patch("/email-sequence/status/{candidate_id}")

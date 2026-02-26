@@ -59,6 +59,7 @@ class CandidateEmail(Base):
     # Message-IDs (fuer Threading)
     message_id: Mapped[str | None] = mapped_column(String(500))
     in_reply_to: Mapped[str | None] = mapped_column(String(500))
+    conversation_id: Mapped[str | None] = mapped_column(String(500))
 
     # Instantly-Tracking
     instantly_lead_id: Mapped[str | None] = mapped_column(String(255))
