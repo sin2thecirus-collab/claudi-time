@@ -642,6 +642,10 @@ async def create_candidate(
         rundmail_eligible_from=rundmail_eligible,
     )
 
+    # Alter aus Geburtsdatum berechnen
+    if candidate.birth_date:
+        candidate.recalculate_age()
+
     db.add(candidate)
     await db.commit()
     await db.refresh(candidate)
@@ -1146,6 +1150,10 @@ async def _process_cv_after_upload(candidate_id: UUID, pdf_bytes: bytes):
                         f"CV-Processing: Position verifiziert auf "
                         f"'{candidate.hotlist_job_title}' fuer {candidate_id}"
                     )
+
+            # Alter aus Geburtsdatum berechnen (falls CV birth_date geliefert hat)
+            if candidate.birth_date:
+                candidate.recalculate_age()
 
             await db.commit()
             logger.info(f"CV-Processing komplett fuer {candidate_id}")
