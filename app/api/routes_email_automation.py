@@ -83,6 +83,7 @@ class SourceUpdate(BaseModel):
 
 class SendRequest(BaseModel):
     item_ids: list[UUID]
+    max_per_mailbox: int = 30
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -574,8 +575,14 @@ async def send_selected(
     await db.flush()
     logger.info(f"Outreach: {approved_count} Items als 'approved' markiert")
 
-    # Batch-ID ermitteln (alle Items gehoeren zum selben Batch)
+    # Batch-ID ermitteln + approved_count aktualisieren
     batch_id = str(approved_items[0].batch_id) if approved_items else ""
+    if approved_items:
+        batch = await db.get(OutreachBatch, approved_items[0].batch_id)
+        if batch:
+            batch.approved_count = approved_count
+            batch.max_per_mailbox = data.max_per_mailbox
+            await db.flush()
 
     # Kandidaten-Daten fuer n8n sammeln
     candidates_payload = []
@@ -599,6 +606,7 @@ async def send_selected(
         webhook_payload = {
             "batch_id": batch_id,
             "candidates": candidates_payload,
+            "max_per_mailbox": data.max_per_mailbox,
         }
         try:
             async with httpx.AsyncClient(timeout=15.0) as client:
@@ -690,7 +698,16 @@ async def mark_batch_sent(
 
     # Batch aktualisieren
     batch.sent_count = (batch.sent_count or 0) + sent_count
-    batch.status = "sent"
+
+    # Status: "partial" wenn noch prepared Items uebrig, sonst "sent"
+    remaining_result = await db.execute(
+        select(func.count()).where(
+            OutreachItem.batch_id == batch.id,
+            OutreachItem.status == "prepared",
+        )
+    )
+    remaining_prepared = remaining_result.scalar() or 0
+    batch.status = "partial" if remaining_prepared > 0 else "sent"
     await db.flush()
 
     logger.info(f"Outreach mark-sent: {sent_count} Items als 'sent', {len(candidate_ids)} Kandidaten auf 'rundmail_gesendet'")

@@ -3,6 +3,11 @@
 .env.local
 .env.*.local
 railway-token.txt
+railway-login.sh
+
+# MCP / Claude (enthalten API Keys)
+.mcp.json
+.claude/
 
 # Node
 node_modules/
