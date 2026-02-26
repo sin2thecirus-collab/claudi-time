@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
 import httpx
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Query, Request, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -756,6 +756,51 @@ async def update_candidate(
         raise NotFoundException(message="Kandidat nicht gefunden")
 
     return _candidate_to_response(candidate)
+
+
+# ==================== Primary Role Update ====================
+
+@router.patch(
+    "/{candidate_id}/primary-role",
+    summary="Primary Role manuell aendern",
+)
+@rate_limit(RateLimitTier.WRITE)
+async def update_primary_role(
+    candidate_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Korrigiert die Primary Role eines Kandidaten.
+    Aendert classification_data.primary_role UND hotlist_job_title — die ganze Kette wird korrigiert."""
+    from app.models.candidate import Candidate
+
+    body = await request.json()
+    new_role = (body.get("primary_role") or "").strip()
+    if not new_role:
+        raise HTTPException(status_code=400, detail="primary_role darf nicht leer sein")
+
+    candidate = await db.get(Candidate, candidate_id)
+    if not candidate:
+        raise NotFoundException(message="Kandidat nicht gefunden")
+
+    # 1. classification_data.primary_role korrigieren (Quelle der Wahrheit)
+    cd = dict(candidate.classification_data or {})
+    cd["primary_role"] = new_role
+    candidate.classification_data = cd
+
+    # 2. hotlist_job_title synchronisieren (wird vom Matching benutzt)
+    candidate.hotlist_job_title = new_role
+
+    # 3. hotlist_job_titles: neue Rolle an Position 0
+    existing_titles = list(candidate.hotlist_job_titles or [])
+    if new_role not in existing_titles:
+        existing_titles.insert(0, new_role)
+    candidate.hotlist_job_titles = existing_titles
+
+    await db.commit()
+    await db.refresh(candidate)
+
+    return {"ok": True, "primary_role": new_role, "candidate_id": str(candidate_id)}
 
 
 # ==================== Hide/Unhide ====================

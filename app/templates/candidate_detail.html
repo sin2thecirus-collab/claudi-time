@@ -197,9 +197,50 @@
                     {% if candidate.candidate_number %}
                     <span class="kd-meta-badge" style="font-weight:700; color:var(--pp-accent);">ID {{ candidate.candidate_number }}</span>
                     {% endif %}
-                    {% if candidate.classification_data and candidate.classification_data.primary_role %}
-                    <span class="kd-meta-badge" style="background:var(--pp-accentSoft); color:var(--pp-accent); font-weight:700; border:1px solid rgba(99,102,241,0.25);">{{ candidate.classification_data.primary_role }}</span>
-                    {% endif %}
+                    {# ── Primary Role Badge (gruen, klickbar zum Aendern) ── #}
+                    <span class="kd-primary-role-wrapper" style="position:relative; display:inline-flex;">
+                        <span id="primaryRoleBadge"
+                              class="kd-meta-badge"
+                              style="background:rgba(34,197,94,0.13); color:#16a34a; font-weight:700; border:1px solid rgba(34,197,94,0.3); cursor:pointer; user-select:none;"
+                              onclick="togglePrimaryRoleDropdown()"
+                              title="Primary Role — klicken zum Aendern">
+                            {% if candidate.classification_data and candidate.classification_data.primary_role %}{{ candidate.classification_data.primary_role }}{% else %}Keine Rolle{% endif %}
+                        </span>
+                        {# Dropdown mit allen Rollen #}
+                        <div id="primaryRoleDropdown"
+                             style="display:none; position:absolute; top:100%; left:0; margin-top:4px; z-index:999;
+                                    background:var(--pp-cardBg); border:1px solid var(--pp-borderLight); border-radius:10px;
+                                    box-shadow:0 8px 24px rgba(0,0,0,0.25); padding:4px; min-width:260px; max-height:320px; overflow-y:auto;">
+                            {% set all_roles = [
+                                'Finanzbuchhalter/in',
+                                'Senior Finanzbuchhalter/in',
+                                'Bilanzbuchhalter/in',
+                                'Kreditorenbuchhalter/in',
+                                'Debitorenbuchhalter/in',
+                                'Lohnbuchhalter/in',
+                                'Steuerfachangestellte/r / Finanzbuchhalter/in',
+                                'Teamleiter Finanzbuchhaltung',
+                                'Teamleiter Kreditorenbuchhaltung',
+                                'Teamleiter Debitorenbuchhaltung',
+                                'Teamleiter Lohnbuchhaltung',
+                                'Financial Controller',
+                                'Leiter Buchhaltung',
+                                'Head of Finance'
+                            ] %}
+                            {% set current_role = candidate.classification_data.primary_role if candidate.classification_data else None %}
+                            {% for role in all_roles %}
+                            <div class="primary-role-option"
+                                 style="padding:7px 12px; border-radius:7px; cursor:pointer; font-size:12.5px; font-weight:500;
+                                        color:var(--pp-text); transition:background 0.15s;
+                                        {% if role == current_role %}background:rgba(34,197,94,0.15); color:#16a34a; font-weight:700;{% endif %}"
+                                 onmouseenter="this.style.background='var(--pp-hoverBg)'"
+                                 onmouseleave="this.style.background='{% if role == current_role %}rgba(34,197,94,0.15){% else %}transparent{% endif %}'"
+                                 onclick="savePrimaryRole('{{ candidate.id }}', '{{ role }}')">
+                                {% if role == current_role %}&#x2713; {% endif %}{{ role }}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </span>
                     {% if candidate.current_position and candidate.current_position not in ['Not Available', 'N/A', 'n/a', 'None', 'null', '', '-'] %}
                     <span class="kd-meta-badge">&#x1F4BC; {{ candidate.current_position }}</span>
                     {% endif %}
@@ -2544,6 +2585,60 @@ function copyWerdegang() {
     var text = buildFullProfileText(_candidateName, _werdegangData, _itSkillsData, _languagesData, _furtherEducationData, _educationData, _skillsData);
     if (!text) { if (typeof showToast === 'function') showToast('Kein Profil vorhanden', 'warning'); return; }
     copyToClipboard(text, 'Profil');
+}
+
+// ==================== Primary Role Dropdown ====================
+function togglePrimaryRoleDropdown() {
+    var dd = document.getElementById('primaryRoleDropdown');
+    if (dd.style.display === 'none') {
+        dd.style.display = 'block';
+        // Klick ausserhalb schliesst Dropdown
+        setTimeout(function() {
+            document.addEventListener('click', closePrimaryRoleOnOutsideClick);
+        }, 10);
+    } else {
+        dd.style.display = 'none';
+        document.removeEventListener('click', closePrimaryRoleOnOutsideClick);
+    }
+}
+
+function closePrimaryRoleOnOutsideClick(e) {
+    var wrapper = document.querySelector('.kd-primary-role-wrapper');
+    if (wrapper && !wrapper.contains(e.target)) {
+        document.getElementById('primaryRoleDropdown').style.display = 'none';
+        document.removeEventListener('click', closePrimaryRoleOnOutsideClick);
+    }
+}
+
+function savePrimaryRole(candidateId, newRole) {
+    // Dropdown sofort schliessen
+    document.getElementById('primaryRoleDropdown').style.display = 'none';
+    document.removeEventListener('click', closePrimaryRoleOnOutsideClick);
+
+    // Badge sofort aktualisieren (optimistisch)
+    var badge = document.getElementById('primaryRoleBadge');
+    var oldText = badge.textContent.trim();
+    badge.textContent = newRole;
+
+    // An Backend senden
+    fetch('/api/candidates/' + candidateId + '/primary-role', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ primary_role: newRole })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.ok) {
+            if (typeof showToast === 'function') showToast('Primary Role geaendert: ' + newRole, 'success');
+        } else {
+            badge.textContent = oldText;
+            if (typeof showToast === 'function') showToast('Fehler: ' + (data.detail || 'Unbekannt'), 'error');
+        }
+    })
+    .catch(function() {
+        badge.textContent = oldText;
+        if (typeof showToast === 'function') showToast('Netzwerkfehler', 'error');
+    });
 }
 
 // ==================== Inline Edit ====================
