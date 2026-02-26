@@ -2893,8 +2893,35 @@ async def n8n_debug_ats_job(
 #
 # n8n kann /api/n8n/* erreichen (PUBLIC_PREFIXES in auth.py),
 # aber NICHT /api/email-automation/* (braucht JWT/API-Key).
-# Diese Endpoints spiegeln die Logik und nutzen verify_n8n_token.
+# Flexible Auth: akzeptiert Authorization: Bearer ODER X-API-Key.
 # ══════════════════════════════════════════════════════════════════
+
+
+async def _verify_n8n_flexible(
+    authorization: Optional[str] = Header(None),
+    x_api_key: Optional[str] = Header(None),
+):
+    """Flexible Auth fuer n8n Email-Sequenz Endpoints.
+
+    Akzeptiert:
+    1. Authorization: Bearer {n8n_api_token}
+    2. X-API-Key: {api_access_key}
+    3. Authorization: {api_access_key}  (Header Auth mit Name=Authorization)
+    """
+    # 1. Bearer Token (Standard verify_n8n_token)
+    if authorization and settings.n8n_api_token:
+        if authorization == f"Bearer {settings.n8n_api_token}":
+            return
+    # 2. X-API-Key
+    if x_api_key and settings.api_access_key:
+        if x_api_key == settings.api_access_key:
+            return
+    # 3. Authorization Header mit API-Key direkt (ohne Bearer Prefix)
+    if authorization and settings.api_access_key:
+        if authorization == settings.api_access_key:
+            return
+    # Nichts passt
+    raise HTTPException(status_code=401, detail="Ungueltiger Token")
 
 
 class _EmailLogPayload(BaseModel):
@@ -2911,7 +2938,7 @@ class _EmailLogPayload(BaseModel):
     to_address: Optional[str] = None
 
 
-@router.post("/email-sequence/log", dependencies=[Depends(verify_n8n_token)])
+@router.post("/email-sequence/log", dependencies=[Depends(_verify_n8n_flexible)])
 async def n8n_log_email(data: _EmailLogPayload, db: AsyncSession = Depends(get_db)):
     """Loggt eine E-Mail aus der n8n-Sequenz in die DB.
 
@@ -2944,7 +2971,7 @@ async def n8n_log_email(data: _EmailLogPayload, db: AsyncSession = Depends(get_d
     return {"ok": True, "email_id": str(email.id), "candidate_id": str(data.candidate_id)}
 
 
-@router.get("/email-sequence/has-reply/{candidate_id}", dependencies=[Depends(verify_n8n_token)])
+@router.get("/email-sequence/has-reply/{candidate_id}", dependencies=[Depends(_verify_n8n_flexible)])
 async def n8n_has_reply(candidate_id: UUID, db: AsyncSession = Depends(get_db)):
     """Prueft ob der Kandidat auf eine E-Mail geantwortet hat.
 
@@ -2964,7 +2991,7 @@ async def n8n_has_reply(candidate_id: UUID, db: AsyncSession = Depends(get_db)):
     return {"has_reply": count > 0, "reply_count": count}
 
 
-@router.patch("/email-sequence/status/{candidate_id}", dependencies=[Depends(verify_n8n_token)])
+@router.patch("/email-sequence/status/{candidate_id}", dependencies=[Depends(_verify_n8n_flexible)])
 async def n8n_update_status(candidate_id: UUID, data: dict, db: AsyncSession = Depends(get_db)):
     """Aktualisiert den contact_status eines Kandidaten.
 
