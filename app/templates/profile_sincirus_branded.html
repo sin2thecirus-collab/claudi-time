@@ -941,6 +941,9 @@
       {% endif %}
       <div class="hero-bottom">
         <span class="hero-ref">{{ candidate_ref }}</span>
+        {% if candidate_id_label %}
+        <span class="hero-ref" style="margin-left: 12px;">{{ candidate_id_label }}</span>
+        {% endif %}
         <div class="hero-dots">
           <span></span><span></span><span></span>
         </div>
@@ -1101,7 +1104,7 @@
       <div class="cv-header-divider"></div>
       <div class="cv-header-title">Lebenslauf</div>
     </div>
-    <span class="cv-header-ref">{{ candidate_ref }}</span>
+    <span class="cv-header-ref">{{ candidate_ref }}{% if candidate_id_label %} &nbsp;|&nbsp; {{ candidate_id_label }}{% endif %}</span>
   </div>
 
   <div class="cv-body">
