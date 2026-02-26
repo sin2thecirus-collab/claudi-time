@@ -547,6 +547,14 @@ async def update_item_source(
     item.source_override = data.source_override
     # Kampagnen-Typ automatisch ableiten
     item.campaign_type = "bekannt" if data.source_override.lower() == "bestand" else "erstkontakt"
+
+    # Quelle auch auf dem Kandidaten aktualisieren
+    if item.candidate_id:
+        from app.models.candidate import Candidate
+        candidate = await db.get(Candidate, item.candidate_id)
+        if candidate:
+            candidate.source = data.source_override
+
     await db.flush()
 
     return {
