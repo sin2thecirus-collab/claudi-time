@@ -206,9 +206,9 @@
                               title="Primary Role — klicken zum Aendern">
                             {% if candidate.classification_data and candidate.classification_data.primary_role %}{{ candidate.classification_data.primary_role }}{% else %}Keine Rolle{% endif %}
                         </span>
-                        {# Dropdown mit Freitext + Rollen-Auswahl #}
+                        {# Dropdown mit Freitext + Rollen-Auswahl — position:fixed um overflow:hidden zu entkommen #}
                         <div id="primaryRoleDropdown"
-                             style="display:none; position:absolute; top:100%; left:0; margin-top:4px; z-index:999;
+                             style="display:none; position:fixed; z-index:9999;
                                     background:#1e1e2e; border:1px solid #3b3b5c; border-radius:10px;
                                     box-shadow:0 8px 30px rgba(0,0,0,0.5); padding:8px; min-width:280px;">
                             {# Freitext-Eingabe #}
@@ -2602,7 +2602,20 @@ function copyWerdegang() {
 function togglePrimaryRoleDropdown() {
     var dd = document.getElementById('primaryRoleDropdown');
     if (dd.style.display === 'none') {
+        // Dropdown unter dem Badge positionieren (fixed, escaped overflow:hidden)
+        var badge = document.getElementById('primaryRoleBadge');
+        var rect = badge.getBoundingClientRect();
+        dd.style.left = rect.left + 'px';
+        dd.style.top = (rect.bottom + 4) + 'px';
         dd.style.display = 'block';
+        // Falls Dropdown unten aus dem Viewport ragt, nach oben oeffnen
+        var ddRect = dd.getBoundingClientRect();
+        if (ddRect.bottom > window.innerHeight - 10) {
+            dd.style.top = (rect.top - ddRect.height - 4) + 'px';
+        }
+        // Input fokussieren
+        var input = document.getElementById('primaryRoleInput');
+        if (input) { input.focus(); input.select(); }
         // Klick ausserhalb schliesst Dropdown
         setTimeout(function() {
             document.addEventListener('click', closePrimaryRoleOnOutsideClick);
@@ -2615,10 +2628,11 @@ function togglePrimaryRoleDropdown() {
 
 function closePrimaryRoleOnOutsideClick(e) {
     var wrapper = document.querySelector('.kd-primary-role-wrapper');
-    if (wrapper && !wrapper.contains(e.target)) {
-        document.getElementById('primaryRoleDropdown').style.display = 'none';
-        document.removeEventListener('click', closePrimaryRoleOnOutsideClick);
-    }
+    var dd = document.getElementById('primaryRoleDropdown');
+    // Klick auf Badge/Wrapper oder Dropdown selbst -> ignorieren
+    if ((wrapper && wrapper.contains(e.target)) || (dd && dd.contains(e.target))) return;
+    dd.style.display = 'none';
+    document.removeEventListener('click', closePrimaryRoleOnOutsideClick);
 }
 
 function savePrimaryRole(candidateId, newRole) {
