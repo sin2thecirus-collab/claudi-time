@@ -181,7 +181,8 @@ class ProfilePdfService:
             "logo_hell_path": self._logo_as_data_uri(os.path.join(static_dir, "images", "sincirus-logo-hell.png")),
             "logo_white_path": self._logo_as_data_uri(os.path.join(static_dir, "images", "sincirus_logo_komplett_white.png")),
             "logo_transparent_path": self._logo_as_data_uri(os.path.join(static_dir, "images", "sincirus_logo_komplett_transparent.png")),
-            "logo_icon_path": self._logo_as_data_uri(os.path.join(static_dir, "images", "sincirus_icon.png")),
+            "logo_icon_path": self._logo_as_data_uri(os.path.join(static_dir, "images", "sincirus_logo_icon_hell.png")),
+            "logo_vcard_path": self._logo_as_data_uri(os.path.join(static_dir, "images", "sincirus_logo_vcard.svg")),
             "photo_path": os.path.join(static_dir, "images", "milad_foto.jpg"),
             "font_dir": os.path.join(static_dir, "fonts"),
         }
@@ -192,6 +193,9 @@ class ProfilePdfService:
         try:
             with open(path, "rb") as f:
                 b64 = base64.b64encode(f.read()).decode()
+            # SVG oder PNG erkennen
+            if path.lower().endswith(".svg"):
+                return f"data:image/svg+xml;base64,{b64}"
             return f"data:image/png;base64,{b64}"
         except FileNotFoundError:
             return ""

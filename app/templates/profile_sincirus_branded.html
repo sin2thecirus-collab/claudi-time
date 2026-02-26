@@ -455,6 +455,19 @@
       page-break-inside: avoid;
     }
 
+    /* Hochglanz-Effekt — subtiler Lichtschimmer von oben */
+    .vcard::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 50%;
+      background: linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 40%, transparent 100%);
+      border-radius: 10px 10px 0 0;
+      z-index: 1;
+    }
+
     /* Dezenter Akzent-Ring (wie im Header) */
     .vcard::after {
       content: '';
@@ -557,17 +570,46 @@
 
     .vcard-brand {
       flex-shrink: 0;
+      position: relative;
+      width: 120px;
+      height: 120px;
+      background: var(--white);
+      border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 100px;
-      height: 100px;
-      background: radial-gradient(ellipse at center, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.10) 45%, transparent 70%);
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15), 0 0 30px rgba(255, 255, 255, 0.06);
+    }
+
+    /* Offener Arc — Hauptring */
+    .vcard-brand::before {
+      content: '';
+      position: absolute;
+      top: -8px;
+      left: -8px;
+      right: -8px;
+      bottom: -8px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
       border-radius: 50%;
+      border-top-color: transparent;
+    }
+
+    /* Zweiter Arc — feiner Aussenring fuer Tiefe */
+    .vcard-brand::after {
+      content: '';
+      position: absolute;
+      top: -15px;
+      left: -15px;
+      right: -15px;
+      bottom: -15px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 50%;
+      border-bottom-color: transparent;
+      border-left-color: transparent;
     }
 
     .vcard-brand img {
-      height: 82px;
+      height: 84px;
       width: auto;
     }
 
@@ -1004,7 +1046,7 @@
           </div>
         </div>
         <div class="vcard-brand">
-          <!-- Komplettes Sincirus Logo -->
+          <!-- Original-Logo im weissen Kreis mit offenem Arc -->
           <img src="{{ logo_komplett_path }}" alt="Sincirus" />
         </div>
       </div>
