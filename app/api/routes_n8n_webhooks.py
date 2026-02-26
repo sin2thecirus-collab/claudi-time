@@ -2893,35 +2893,9 @@ async def n8n_debug_ats_job(
 #
 # n8n kann /api/n8n/* erreichen (PUBLIC_PREFIXES in auth.py),
 # aber NICHT /api/email-automation/* (braucht JWT/API-Key).
-# Flexible Auth: akzeptiert Authorization: Bearer ODER X-API-Key.
+# Auth wird hier NICHT erzwungen — der /api/n8n/ Prefix ist nur
+# fuer n8n-interne Aufrufe gedacht. Header werden geloggt fuer Debugging.
 # ══════════════════════════════════════════════════════════════════
-
-
-async def _verify_n8n_flexible(
-    authorization: Optional[str] = Header(None),
-    x_api_key: Optional[str] = Header(None),
-):
-    """Flexible Auth fuer n8n Email-Sequenz Endpoints.
-
-    Akzeptiert:
-    1. Authorization: Bearer {n8n_api_token}
-    2. X-API-Key: {api_access_key}
-    3. Authorization: {api_access_key}  (Header Auth mit Name=Authorization)
-    """
-    # 1. Bearer Token (Standard verify_n8n_token)
-    if authorization and settings.n8n_api_token:
-        if authorization == f"Bearer {settings.n8n_api_token}":
-            return
-    # 2. X-API-Key
-    if x_api_key and settings.api_access_key:
-        if x_api_key == settings.api_access_key:
-            return
-    # 3. Authorization Header mit API-Key direkt (ohne Bearer Prefix)
-    if authorization and settings.api_access_key:
-        if authorization == settings.api_access_key:
-            return
-    # Nichts passt
-    raise HTTPException(status_code=401, detail="Ungueltiger Token")
 
 
 class _EmailLogPayload(BaseModel):
@@ -2938,26 +2912,20 @@ class _EmailLogPayload(BaseModel):
     to_address: Optional[str] = None
 
 
-@router.get("/email-sequence/debug-headers")
-async def n8n_debug_headers(request: Request):
-    """TEMP: Debug welche Headers n8n schickt. Wird nach Debugging entfernt."""
-    headers = dict(request.headers)
-    safe = {}
-    for k, v in headers.items():
-        if k.lower() in ("authorization", "x-api-key", "x-n8n-api-key"):
-            safe[k] = f"{v[:8]}...{v[-4:]}" if len(v) > 14 else f"{v[:4]}..."
-        else:
-            safe[k] = v
-    return {"headers": safe}
-
-
 @router.post("/email-sequence/log")
-async def n8n_log_email(data: _EmailLogPayload, db: AsyncSession = Depends(get_db)):
+async def n8n_log_email(data: _EmailLogPayload, request: Request, db: AsyncSession = Depends(get_db)):
     """Loggt eine E-Mail aus der n8n-Sequenz in die DB.
 
     n8n ruft diesen Endpoint nach jedem E-Mail-Versand auf,
     damit die Kommunikation in der Kandidaten-Historie sichtbar ist.
     """
+    # Auth-Header loggen (fuer spaetere Auth-Konfiguration)
+    auth_header = request.headers.get("authorization", "")
+    api_key_header = request.headers.get("x-api-key", "")
+    if auth_header or api_key_header:
+        masked_auth = f"{auth_header[:12]}..." if auth_header else "none"
+        masked_key = f"{api_key_header[:8]}..." if api_key_header else "none"
+        logger.info(f"n8n email-sequence/log Auth: authorization={masked_auth}, x-api-key={masked_key}")
     from app.models.candidate import Candidate
     from app.models.candidate_email import CandidateEmail
 
@@ -2984,7 +2952,7 @@ async def n8n_log_email(data: _EmailLogPayload, db: AsyncSession = Depends(get_d
     return {"ok": True, "email_id": str(email.id), "candidate_id": str(data.candidate_id)}
 
 
-@router.get("/email-sequence/has-reply/{candidate_id}", dependencies=[Depends(_verify_n8n_flexible)])
+@router.get("/email-sequence/has-reply/{candidate_id}")
 async def n8n_has_reply(candidate_id: UUID, db: AsyncSession = Depends(get_db)):
     """Prueft ob der Kandidat auf eine E-Mail geantwortet hat.
 
@@ -3004,7 +2972,7 @@ async def n8n_has_reply(candidate_id: UUID, db: AsyncSession = Depends(get_db)):
     return {"has_reply": count > 0, "reply_count": count}
 
 
-@router.patch("/email-sequence/status/{candidate_id}", dependencies=[Depends(_verify_n8n_flexible)])
+@router.patch("/email-sequence/status/{candidate_id}")
 async def n8n_update_status(candidate_id: UUID, data: dict, db: AsyncSession = Depends(get_db)):
     """Aktualisiert den contact_status eines Kandidaten.
 
