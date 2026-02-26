@@ -206,11 +206,22 @@
                               title="Primary Role — klicken zum Aendern">
                             {% if candidate.classification_data and candidate.classification_data.primary_role %}{{ candidate.classification_data.primary_role }}{% else %}Keine Rolle{% endif %}
                         </span>
-                        {# Dropdown mit allen Rollen #}
+                        {# Dropdown mit Freitext + Rollen-Auswahl #}
                         <div id="primaryRoleDropdown"
                              style="display:none; position:absolute; top:100%; left:0; margin-top:4px; z-index:999;
-                                    background:var(--pp-cardBg); border:1px solid var(--pp-borderLight); border-radius:10px;
-                                    box-shadow:0 8px 24px rgba(0,0,0,0.25); padding:4px; min-width:260px; max-height:320px; overflow-y:auto;">
+                                    background:#1e1e2e; border:1px solid #3b3b5c; border-radius:10px;
+                                    box-shadow:0 8px 30px rgba(0,0,0,0.5); padding:8px; min-width:280px;">
+                            {# Freitext-Eingabe #}
+                            <div style="padding:0 0 6px 0; border-bottom:1px solid #3b3b5c; margin-bottom:6px;">
+                                <input id="primaryRoleInput" type="text" placeholder="Rolle eingeben oder unten waehlen..."
+                                       value="{% if candidate.classification_data and candidate.classification_data.primary_role %}{{ candidate.classification_data.primary_role }}{% endif %}"
+                                       onkeydown="if(event.key==='Enter'){savePrimaryRole('{{ candidate.id }}', this.value.trim()); event.preventDefault();}"
+                                       style="width:100%; padding:8px 10px; border-radius:7px; border:1.5px solid #16a34a; background:#2a2a3e; color:#e0e0e0;
+                                              font-size:13px; font-family:inherit; outline:none; box-sizing:border-box;">
+                                <div style="font-size:10px; color:#888; margin-top:4px; padding-left:2px;">Enter druecken zum Speichern</div>
+                            </div>
+                            {# Vordefinierte Rollen #}
+                            <div style="max-height:250px; overflow-y:auto;">
                             {% set all_roles = [
                                 'Finanzbuchhalter/in',
                                 'Senior Finanzbuchhalter/in',
@@ -229,16 +240,16 @@
                             ] %}
                             {% set current_role = candidate.classification_data.primary_role if candidate.classification_data else None %}
                             {% for role in all_roles %}
-                            <div class="primary-role-option"
-                                 style="padding:7px 12px; border-radius:7px; cursor:pointer; font-size:12.5px; font-weight:500;
-                                        color:var(--pp-text); transition:background 0.15s;
-                                        {% if role == current_role %}background:rgba(34,197,94,0.15); color:#16a34a; font-weight:700;{% endif %}"
-                                 onmouseenter="this.style.background='var(--pp-hoverBg)'"
-                                 onmouseleave="this.style.background='{% if role == current_role %}rgba(34,197,94,0.15){% else %}transparent{% endif %}'"
+                            <div style="padding:7px 10px; border-radius:7px; cursor:pointer; font-size:12.5px; font-weight:500;
+                                        color:#d0d0d0; transition:background 0.15s;
+                                        {% if role == current_role %}background:rgba(34,197,94,0.2); color:#4ade80; font-weight:700;{% endif %}"
+                                 onmouseenter="this.style.background='#333352'"
+                                 onmouseleave="this.style.background='{% if role == current_role %}rgba(34,197,94,0.2){% else %}transparent{% endif %}'"
                                  onclick="savePrimaryRole('{{ candidate.id }}', '{{ role }}')">
                                 {% if role == current_role %}&#x2713; {% endif %}{{ role }}
                             </div>
                             {% endfor %}
+                            </div>
                         </div>
                     </span>
                     {% if candidate.current_position and candidate.current_position not in ['Not Available', 'N/A', 'n/a', 'None', 'null', '', '-'] %}
