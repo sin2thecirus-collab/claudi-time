@@ -477,6 +477,8 @@ async def prepare_daily_batch(
               NOT LIKE '%inkl.%'
           AND (birth_date IS NULL
                OR birth_date >= (CURRENT_DATE - INTERVAL '58 years'))
+          AND (rundmail_eligible_from IS NULL
+               OR rundmail_eligible_from <= CURRENT_DATE)
         ORDER BY created_at ASC
         LIMIT :max_candidates
     """)
@@ -495,9 +497,9 @@ async def prepare_daily_batch(
     db.add(batch)
     await db.flush()
 
-    # Items erstellen
+    # Items erstellen (Default-Quelle: StepStone fuer unbekannte Quellen)
     for row in candidates:
-        source = row.source or ""
+        source = row.source if row.source and row.source.strip() else "StepStone"
         campaign_type = "bekannt" if source.lower() == "bestand" else "erstkontakt"
 
         item = OutreachItem(

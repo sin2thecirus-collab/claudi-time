@@ -162,6 +162,7 @@ class Candidate(Base):
 
     # E-Mail-Automatisierung: Kontakt-Status fuer Sequenz-Tracking
     contact_status: Mapped[str | None] = mapped_column(String(50))  # email_sequenz_aktiv / sequenz_abgeschlossen / kein_interesse / geantwortet / rundmail_gesendet / etc.
+    rundmail_eligible_from: Mapped[date | None] = mapped_column(Date)  # NULL=sofort berechtigt, sonst ab diesem Datum
 
     # Sync-Tracking
     crm_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

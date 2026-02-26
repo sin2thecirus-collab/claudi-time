@@ -612,6 +612,10 @@ async def create_candidate(
     raw_gender = data.get("gender")
     gender_val = raw_gender if raw_gender in ("Herr", "Frau") else None
 
+    # Manuell erstellte Kandidaten: Rundmail erst nach 6 Monaten
+    from dateutil.relativedelta import relativedelta
+    rundmail_eligible = (now + relativedelta(months=6)).date()
+
     candidate = Candidate(
         gender=gender_val,
         first_name=data.get("first_name"),
@@ -635,6 +639,7 @@ async def create_candidate(
         cv_stored_path=data.get("cv_stored_path"),
         cv_text=data.get("cv_text"),
         cv_parsed_at=now if data.get("cv_text") else None,
+        rundmail_eligible_from=rundmail_eligible,
     )
 
     db.add(candidate)
