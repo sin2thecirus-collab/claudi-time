@@ -2584,8 +2584,8 @@ function regenerateProfilePdf(candidateId) {
     btn.style.opacity = '0.6';
     btn.style.cursor = 'not-allowed';
 
-    // Direkt URL oeffnen — Browser zeigt PDF inline an
-    window.location.href = '/api/candidates/' + candidateId + '/profile-pdf?regenerate=true';
+    // PDF in neuem Tab oeffnen — aktuelle Seite bleibt erhalten
+    window.open('/api/candidates/' + candidateId + '/profile-pdf?regenerate=true', '_blank');
 
     // Button nach 5 Sekunden zuruecksetzen
     setTimeout(function() {
