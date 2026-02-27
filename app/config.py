@@ -144,6 +144,12 @@ class Settings(BaseSettings):
         description="Anthropic API Key fuer Claude Matching v4",
     )
 
+    # IONOS SMTP (Akquise-Mailboxen)
+    ionos_smtp_password: str = Field(
+        default="",
+        description="IONOS SMTP-Passwort (shared fuer alle 4 IONOS-Mailboxen)",
+    )
+
     # Google Maps
     google_maps_api_key: str = Field(
         default="",

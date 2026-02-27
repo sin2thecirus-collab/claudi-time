@@ -220,22 +220,35 @@ class AcquisitionEmailService:
 
         try:
             # Thread-Linking: In-Reply-To Header bei Follow-ups
-            headers = {}
+            in_reply_to = None
             if email.parent_email_id:
                 parent = await self.db.get(AcquisitionEmail, email.parent_email_id)
                 if parent and parent.graph_message_id:
-                    headers["In-Reply-To"] = parent.graph_message_id
-                    headers["References"] = parent.graph_message_id
+                    in_reply_to = parent.graph_message_id
 
-            # Via Microsoft Graph senden
-            from app.services.email_service import MicrosoftGraphClient
+            # Routing: IONOS-Domains via SMTP, sincirus.com via Microsoft Graph
+            from app.services.ionos_smtp_client import IonosSmtpClient, is_ionos_mailbox
 
-            result = await MicrosoftGraphClient.send_email(
-                to_email=email.to_email,
-                subject=email.subject,
-                body_html=f"<pre>{email.body_plain}</pre>",  # Plain-Text als Pre-formatted
-                from_email=email.from_email,
-            )
+            if is_ionos_mailbox(email.from_email):
+                # IONOS SMTP Versand
+                from app.config import settings
+                result = await IonosSmtpClient.send_email(
+                    to_email=email.to_email,
+                    subject=email.subject,
+                    body_plain=email.body_plain,
+                    from_email=email.from_email,
+                    password=settings.ionos_smtp_password,
+                    in_reply_to=in_reply_to,
+                )
+            else:
+                # Microsoft Graph Versand (sincirus.com)
+                from app.services.email_service import MicrosoftGraphClient
+                result = await MicrosoftGraphClient.send_email(
+                    to_email=email.to_email,
+                    subject=email.subject,
+                    body_html=f"<pre>{email.body_plain}</pre>",
+                    from_email=email.from_email,
+                )
 
             if result.get("success"):
                 email.status = "sent"

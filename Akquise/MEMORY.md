@@ -26,6 +26,7 @@
 | Frontend Rueckruf-Popup | FERTIG | Popup-Template mit Firma/AP/Lead/letzte Disposition |
 | Navigation | FERTIG | /akquise Link in Desktop + Mobile Nav (base.html) |
 | DNS-Check | FERTIG | SPF/DKIM/DMARC fuer alle 3 Domains bestaetigt (sincirus.com, sincirus-karriere.de, jobs-sincirus.com) |
+| Git Push | FERTIG | Commit 8221165, 38 Dateien, 7308 Zeilen, pushed 28.02.2026 |
 | IONOS SMTP Client | OFFEN | Fuer sincirus-karriere.de + jobs-sincirus.com Mailboxes |
 | Mailbox-Config | OFFEN | system_settings: 5 Postfaecher, Tages-Limits, Warmup |
 | n8n-Workflows | OFFEN | 6 Workflows: Wiedervorlagen, Eskalation, Reporting, Reply-Detection, Bounce-Handling, Follow-up-Reminder |
