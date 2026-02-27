@@ -41,6 +41,7 @@ RESETTABLE_STATUSES = {"verloren", "followup_abgeschlossen"}
 STALE_DAYS = 90
 
 # CSV-Spalten-Mapping (advertsdata.com Tab-getrennt)
+# Manche Spalten haben verschiedene Namen je nach Export-Variante
 COL_MAPPING = {
     "company_name": "Unternehmen",
     "street": "Straße und Hausnummer",
@@ -55,6 +56,8 @@ COL_MAPPING = {
     "job_text": "Anzeigen-Text",
     "employment_type": "Beschäftigungsart",
     "company_phone": "Telefon",
+    "company_email": "E-Mail",
+    "anzeigenart": "Anzeigenart",
     "ap_firma_salutation": "Anrede - AP Firma",
     "ap_firma_first_name": "Vorname - AP Firma",
     "ap_firma_last_name": "Nachname - AP Firma",
@@ -74,6 +77,11 @@ COL_MAPPING = {
     "ap_anzeige_email": "E-Mail - AP Anzeige",
 }
 
+# Alternative Spaltennamen (verschiedene advertsdata-Export-Varianten)
+COL_ALTERNATIVES = {
+    "company_phone": ["Firma Telefonnummer", "Telefon"],
+}
+
 # Branche-Keywords fuer Priority
 FINANCE_KEYWORDS = [
     "steuer", "wirtschaftspruef", "buchfuehr", "buchhal", "finanz",
@@ -87,6 +95,64 @@ INDUSTRY_FIBU_KEYWORDS = [
 # Senioritaet-Keywords fuer Priority
 SENIOR_KEYWORDS = ["leiter", "head", "senior", "director", "teamleit", "abteilungsleit", "lead"]
 JUNIOR_KEYWORDS = ["helfer", "praktikant", "werkstudent", "azubi", "auszubildend", "junior"]
+
+# Geschlechts-Suffixe im Jobtitel
+_GENDER_PATTERN = re.compile(r"\([mwfd/:]+\)", re.IGNORECASE)
+
+
+def _extract_position_from_text(anzeigen_text: str | None) -> str | None:
+    """Extrahiert den Jobtitel aus dem Anzeigen-Text.
+
+    advertsdata CSVs haben oft keine separate "Position"-Spalte.
+    Der Jobtitel steht am Anfang des Anzeigen-Texts, z.B.:
+    "Senior Accountant / Buchhalter Hauptbuch (m/w/d) Einleitung Die Vp GmbH..."
+    """
+    if not anzeigen_text or not anzeigen_text.strip():
+        return None
+
+    text = anzeigen_text.strip()
+
+    # LinkedIn-Format: Titel steht nach Trennlinie oft in der URL
+    if text.startswith("---"):
+        # Suche nach bekannten Jobtiteln im Text
+        match = re.search(
+            r"(?:als|position[:\s]|stelle[:\s])\s*([A-ZÄÖÜ][^\n(]{5,60}?\s*\([mwfd/:]+\))",
+            text, re.IGNORECASE,
+        )
+        if match:
+            return match.group(1).strip()
+        # Fallback: aus URL extrahieren
+        url_match = re.search(r"jobs/view/([a-z0-9-]+?)(?:-at-|-\d)", text)
+        if url_match:
+            title = url_match.group(1).replace("-", " ").title()
+            return title[:100]
+
+    # Standard: Jobtitel bis (m/w/d) oder aehnliche Geschlechtsangabe
+    gender_match = _GENDER_PATTERN.search(text[:200])
+    if gender_match:
+        title = text[:gender_match.end()].strip()
+        # Muss kurz genug sein um ein Titel zu sein
+        if len(title) <= 120:
+            return title
+
+    # XING-Format: "Bilanzbuchhalter:in Branche Stadt Vollzeit..."
+    # Nimm den ersten Satz/Abschnitt bis zum ersten bekannten Keyword
+    for marker in [
+        "Informationsdienste", "Art der Beschäftigung", "Vollzeit",
+        "Teilzeit", "Einleitung", "Top Job", "Über uns", "Ihre Aufgaben",
+        "Wir suchen", "Deine Aufgaben",
+    ]:
+        idx = text.find(marker)
+        if 5 < idx < 100:
+            candidate = text[:idx].strip().rstrip(":;,. ")
+            if len(candidate) >= 5:
+                return candidate[:120]
+
+    # Letzer Fallback: erste Zeile (max 120 Zeichen)
+    first_line = text.split("\n")[0].strip()
+    if len(first_line) <= 120:
+        return first_line
+    return first_line[:120].rsplit(" ", 1)[0]
 
 
 def _normalize_phone(raw: str | None) -> str | None:
@@ -202,7 +268,24 @@ def _calculate_priority(
 def _get_field(row: dict[str, str], *keys: str) -> str | None:
     """Holt den ersten nicht-leeren Wert aus der Zeile."""
     for key in keys:
+        if not key:
+            continue
         val = row.get(key, "").strip()
+        if val:
+            return val
+    return None
+
+
+def _get_mapped_field(row: dict[str, str], field_name: str) -> str | None:
+    """Holt Feld mit Fallback auf alternative Spaltennamen."""
+    # Primaerer Spaltenname
+    primary = COL_MAPPING.get(field_name, "")
+    val = row.get(primary, "").strip() if primary else ""
+    if val:
+        return val
+    # Alternative Spaltennamen
+    for alt in COL_ALTERNATIVES.get(field_name, []):
+        val = row.get(alt, "").strip()
         if val:
             return val
     return None
@@ -312,7 +395,11 @@ class AcquisitionImportService:
         if not company_name:
             raise ValueError("Kein Firmenname")
 
+        # Position: Erst aus "Position"-Spalte, dann aus Anzeigen-Text extrahieren
         position = _get_field(row, COL_MAPPING["position"])
+        if not position:
+            job_text_raw = _get_field(row, COL_MAPPING["job_text"])
+            position = _extract_position_from_text(job_text_raw)
         if not position:
             raise ValueError("Keine Position")
 
@@ -371,7 +458,7 @@ class AcquisitionImportService:
                 name=company_name,
                 address=_get_field(row, COL_MAPPING["street"]),
                 city=city,
-                phone=_get_field(row, COL_MAPPING["company_phone"]),
+                phone=_get_mapped_field(row, "company_phone"),
                 domain=_get_field(row, COL_MAPPING["domain"]),
                 employee_count=_get_field(row, COL_MAPPING["company_size"]),
                 industry=_get_field(row, COL_MAPPING["industry"]),
