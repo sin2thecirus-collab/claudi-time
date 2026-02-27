@@ -1,8 +1,10 @@
 # Akquise-Automatisierung — Finaler Implementierungsplan
 
-> **Stand: 27.02.2026**
+> **Stand: 28.02.2026**
 > Basierend auf: 6 Research + 6 Review + 6 Deep-Dive + 1 Vertriebsingenieur + 3 Marketing-Review-Agenten
 > Quellen: RECHERCHE.md, REVIEW-TEAM.md
+>
+> **Implementierungs-Status:** Phase 1-5 FERTIG (Commit 8221165 + 7882872) | Phase 6-9 OFFEN
 
 ---
 
@@ -15,7 +17,7 @@ CSV-Import von Vakanzen → Kaltakquise-Anrufe → Qualifizierung → E-Mail-Fol
 
 ---
 
-## PHASE 1: Datenbank-Migration (032)
+## PHASE 1: Datenbank-Migration (032) ✅ FERTIG (28.02.2026)
 
 ### 1.1 Bestehende Tabellen erweitern
 
@@ -142,7 +144,7 @@ Bei Disposition D6 (nie_wieder):
 
 ---
 
-## PHASE 2: Backend-Services
+## PHASE 2: Backend-Services ✅ FERTIG (28.02.2026)
 
 ### 2.1 AcquisitionImportService (`app/services/acquisition_import_service.py`)
 
@@ -295,7 +297,7 @@ Gespeichert in `Job.akquise_priority` (Integer 0-10), berechnet beim Import + na
 
 ---
 
-## PHASE 3: API-Endpoints
+## PHASE 3: API-Endpoints ✅ FERTIG (28.02.2026)
 
 ### 3.1 Route-Datei: `app/api/routes_acquisition.py`
 
@@ -344,7 +346,7 @@ Gespeichert in `Job.akquise_priority` (Integer 0-10), berechnet beim Import + na
 
 ---
 
-## PHASE 4: Frontend-Templates
+## PHASE 4: Frontend-Templates ✅ FERTIG (28.02.2026)
 
 ### 4.1 Neue Dateien
 
@@ -509,7 +511,7 @@ ORDER BY highest_priority ASC, newest_lead DESC
 
 ---
 
-## PHASE 5: E-Mail-System
+## PHASE 5: E-Mail-System ✅ FERTIG (28.02.2026, inkl. IONOS SMTP + Multi-Mailbox Routing)
 
 ### 5.0 Multi-Mailbox-Konfiguration (5 Postfaecher)
 
@@ -762,7 +764,7 @@ ORDER BY ae.sent_at DESC
 
 ---
 
-## PHASE 6: n8n-Workflows
+## PHASE 6: n8n-Workflows ⏳ OFFEN
 
 ### 6.1 Wiedervorlagen-Reminder (taeglich 08:00)
 
@@ -834,7 +836,7 @@ Cron Trigger (09:00) → HTTP GET /api/akquise/leads?email_followup_due=true
 
 ---
 
-## PHASE 7: Rueckruf-Erkennung
+## PHASE 7: Rueckruf-Erkennung ⏳ OFFEN
 
 ### 7.1 Telefonnummer-Normalisierung
 
@@ -864,7 +866,7 @@ Webex kann Webhooks senden bei eingehenden Anrufen. n8n empfaengt den Webhook, e
 
 ---
 
-## PHASE 8: Qualifizierungs-Checkliste
+## PHASE 8: Qualifizierungs-Checkliste ⏳ OFFEN
 
 ### 8.1 Erstkontakt (5 Fragen, Cold-Call)
 
@@ -897,7 +899,7 @@ Gespeichert als JSONB in `acquisition_calls.qualification_data`.
 
 ---
 
-## PHASE 9: E2E-Testmodus (ohne echte Kunden)
+## PHASE 9: E2E-Testmodus (ohne echte Kunden) ⏳ OFFEN
 
 ### 9.1 Konzept
 

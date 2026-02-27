@@ -105,18 +105,18 @@ def upgrade():
         "idx_contacts_phone_norm", "company_contacts", ["phone_normalized"],
         postgresql_where=sa.text("phone_normalized IS NOT NULL"),
     )
-    # Calls: Call-Historie pro Job
+    # Calls: Call-Historie pro Job (job_id + created_at, PostgreSQL scannt DESC automatisch)
     op.create_index(
-        "idx_acq_calls_job", "acquisition_calls", ["job_id", sa.text("created_at DESC")],
+        "idx_acq_calls_job", "acquisition_calls", ["job_id", "created_at"],
     )
     # Calls: Wiedervorlagen
     op.create_index(
         "idx_acq_calls_followup", "acquisition_calls", ["follow_up_date"],
         postgresql_where=sa.text("follow_up_date IS NOT NULL"),
     )
-    # Emails: E-Mail-Historie pro Lead
+    # Emails: E-Mail-Historie pro Lead (job_id + created_at, PostgreSQL scannt DESC automatisch)
     op.create_index(
-        "idx_acq_emails_job", "acquisition_emails", ["job_id", sa.text("created_at DESC")],
+        "idx_acq_emails_job", "acquisition_emails", ["job_id", "created_at"],
     )
     # Emails: Thread-Verknuepfung
     op.create_index(

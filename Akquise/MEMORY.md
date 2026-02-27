@@ -27,8 +27,9 @@
 | Navigation | FERTIG | /akquise Link in Desktop + Mobile Nav (base.html) |
 | DNS-Check | FERTIG | SPF/DKIM/DMARC fuer alle 3 Domains bestaetigt (sincirus.com, sincirus-karriere.de, jobs-sincirus.com) |
 | Git Push | FERTIG | Commit 8221165, 38 Dateien, 7308 Zeilen, pushed 28.02.2026 |
-| IONOS SMTP Client | OFFEN | Fuer sincirus-karriere.de + jobs-sincirus.com Mailboxes |
-| Mailbox-Config | OFFEN | system_settings: 5 Postfaecher, Tages-Limits, Warmup |
+| IONOS SMTP Client | FERTIG | ionos_smtp_client.py (aiosmtplib, STARTTLS 587), Routing in acquisition_email_service.py |
+| Mailbox-Config | FERTIG | config.py: ionos_smtp_password ENV, Email-Routing: IONOS-Domains→SMTP, sincirus.com→Graph |
+| Test-CSV | FERTIG | app/testdata/akquise_test_data.csv (10 Firmen, 29 Spalten, Duplikat/Blacklist/Quali-Szenarien) |
 | n8n-Workflows | OFFEN | 6 Workflows: Wiedervorlagen, Eskalation, Reporting, Reply-Detection, Bounce-Handling, Follow-up-Reminder |
 | Testen + Deploy | OFFEN | Migration ausfuehren, Test-CSV, E2E-Test, Railway Deploy |
 
