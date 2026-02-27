@@ -1,0 +1,22 @@
+{# Tab "Wiedervorlagen" — Geplante Wiedervorlagen #}
+
+{% if groups and groups | length > 0 %}
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+    <span style="font-size:22px;font-weight:700;color:var(--pp-text);">{{ total }}</span>
+    <span style="font-size:13px;color:var(--pp-textMuted);">Wiedervorlagen in {{ groups | length }} Firmen</span>
+</div>
+
+{% for group in groups %}
+{% include 'partials/akquise/company_group.html' %}
+{% endfor %}
+
+{% if pages > 1 %}
+{% include 'partials/akquise/pagination.html' %}
+{% endif %}
+
+{% else %}
+<div style="text-align:center;padding:60px 0;">
+    <p style="font-size:15px;font-weight:500;color:var(--pp-textMuted);margin:0;">Keine Wiedervorlagen</p>
+    <p style="font-size:13px;color:var(--pp-textDim);margin:6px 0 0;">Wiedervorlagen werden automatisch aus Dispositionen erstellt</p>
+</div>
+{% endif %}

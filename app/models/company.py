@@ -61,6 +61,11 @@ class Company(Base):
         default=CompanyStatus.ACTIVE,
     )
 
+    # ── Akquise (Migration 032) ──
+    acquisition_status: Mapped[str | None] = mapped_column(
+        String(20), server_default="prospect",
+    )  # prospect/active_lead/customer/blacklist
+
     # Notizen
     notes: Mapped[str | None] = mapped_column(Text)
 

@@ -1,5 +1,7 @@
 """SQLAlchemy Models für das Matching-Tool."""
 
+from app.models.acquisition_call import AcquisitionCall
+from app.models.acquisition_email import AcquisitionEmail
 from app.models.alert import Alert
 from app.models.ats_activity import ATSActivity, ActivityType
 from app.models.ats_call_note import ATSCallNote, CallType
@@ -85,4 +87,6 @@ __all__ = [
     "PresentationStatus",
     "PresentationMode",
     "ClientResponseCategory",
+    "AcquisitionCall",
+    "AcquisitionEmail",
 ]

@@ -1,0 +1,593 @@
+"""AcquisitionImportService — CSV-Import von advertsdata.com.
+
+Parst Tab-getrennte CSV, erstellt Jobs mit acquisition_source="advertsdata",
+verwaltet Duplikate via anzeigen_id, berechnet Prioritaet.
+"""
+
+import csv
+import hashlib
+import io
+import logging
+import re
+import uuid
+from datetime import datetime, timedelta, timezone
+from urllib.parse import parse_qs, urlparse
+
+from sqlalchemy import func, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.company import Company
+from app.models.company_contact import CompanyContact
+from app.models.job import Job
+from app.services.company_service import CompanyService
+
+logger = logging.getLogger(__name__)
+
+# Batch-Size fuer Railway (30s idle-in-transaction Timeout)
+BATCH_SIZE = 50
+
+# Re-Import-Schutz: Diese Status werden bei Duplikat NICHT zurueckgesetzt
+PROTECTED_STATUSES = {
+    "blacklist_hart",   # Nie wieder → absolut geschuetzt
+    "blacklist_weich",  # Nur last_seen_at auffrischen
+    "qualifiziert",     # In Bearbeitung → nicht zuruecksetzen
+    "stelle_erstellt",  # Bereits konvertiert
+}
+
+# Status die bei Re-Import auf "neu" zurueckgesetzt werden duerfen
+RESETTABLE_STATUSES = {"verloren", "followup_abgeschlossen"}
+
+# Zeitfenster: Wenn anzeigen_id >90 Tage nicht gesehen → neuer Import
+STALE_DAYS = 90
+
+# CSV-Spalten-Mapping (advertsdata.com Tab-getrennt)
+COL_MAPPING = {
+    "company_name": "Unternehmen",
+    "street": "Straße und Hausnummer",
+    "plz": "PLZ",
+    "city": "Ort",
+    "domain": "Internet",
+    "industry": "Branche",
+    "company_size": "Mitarbeiter (MA) / Unternehmensgröße",
+    "position": "Position",
+    "job_url": "Anzeigenlink",
+    "einsatzort": "Einsatzort",
+    "job_text": "Anzeigen-Text",
+    "employment_type": "Beschäftigungsart",
+    "company_phone": "Telefon",
+    "ap_firma_salutation": "Anrede - AP Firma",
+    "ap_firma_first_name": "Vorname - AP Firma",
+    "ap_firma_last_name": "Nachname - AP Firma",
+    "ap_firma_function": "Funktion - AP Firma",
+    "ap_firma_phone": "Telefon - AP Firma",
+    "ap_firma_email": "E-Mail - AP Firma",
+    # Optionale Spalten (nur in 29-Spalten-Exporten vorhanden)
+    "position_id_col": "Position-ID",
+    "anzeigen_id_col": "Anzeigen-ID",
+    # Optionale AP-Anzeige-Spalten (nicht in allen CSVs vorhanden)
+    "ap_anzeige_salutation": "Anrede - AP Anzeige",
+    "ap_anzeige_title": "Titel - AP Anzeige",
+    "ap_anzeige_first_name": "Vorname - AP Anzeige",
+    "ap_anzeige_last_name": "Nachname - AP Anzeige",
+    "ap_anzeige_function": "Funktion - AP Anzeige",
+    "ap_anzeige_phone": "Telefon - AP Anzeige",
+    "ap_anzeige_email": "E-Mail - AP Anzeige",
+}
+
+# Branche-Keywords fuer Priority
+FINANCE_KEYWORDS = [
+    "steuer", "wirtschaftspruef", "buchfuehr", "buchhal", "finanz",
+    "rechnungswesen", "controlling", "audit", "treuhand", "bank",
+]
+INDUSTRY_FIBU_KEYWORDS = [
+    "industrie", "produktion", "fertigung", "maschinenbau", "automobil",
+    "chemie", "pharma", "logistik", "handel",
+]
+
+# Senioritaet-Keywords fuer Priority
+SENIOR_KEYWORDS = ["leiter", "head", "senior", "director", "teamleit", "abteilungsleit", "lead"]
+JUNIOR_KEYWORDS = ["helfer", "praktikant", "werkstudent", "azubi", "auszubildend", "junior"]
+
+
+def _normalize_phone(raw: str | None) -> str | None:
+    """Normalisiert Telefonnummer in E.164 Format (+49...)."""
+    if not raw or not raw.strip():
+        return None
+    phone = re.sub(r"[^0-9+]", "", raw.strip())
+    if not phone:
+        return None
+    # Deutsche Nummern: 0xxx -> +49xxx
+    if phone.startswith("0") and not phone.startswith("00"):
+        phone = "+49" + phone[1:]
+    elif phone.startswith("00"):
+        phone = "+" + phone[2:]
+    elif not phone.startswith("+"):
+        phone = "+49" + phone
+    # Validierung: mindestens 10 Ziffern
+    digits = re.sub(r"[^0-9]", "", phone)
+    if len(digits) < 10:
+        return None
+    return phone[:20]  # Max 20 Zeichen (DB-Feld)
+
+
+def _extract_anzeigen_id(url: str | None) -> str | None:
+    """Extrahiert die Anzeigen-ID aus der advertsdata URL."""
+    if not url or not url.strip():
+        return None
+    try:
+        parsed = urlparse(url.strip())
+        params = parse_qs(parsed.query)
+        if "id" in params:
+            return params["id"][0][:50]  # Max 50 Zeichen
+    except Exception:
+        pass
+    # Fallback: Hash der URL
+    return hashlib.md5(url.strip().encode()).hexdigest()[:50]
+
+
+def _parse_company_size(raw: str | None) -> int | None:
+    """Extrahiert ungefaehre Mitarbeiterzahl aus String."""
+    if not raw:
+        return None
+    raw_lower = raw.lower()
+    # Versuche Zahlen zu extrahieren
+    numbers = re.findall(r"\d+", raw)
+    if numbers:
+        # Nimm den hoechsten Wert als Obergrenze
+        return max(int(n) for n in numbers)
+    # Text-basiert
+    if "klein" in raw_lower:
+        return 25
+    if "mittel" in raw_lower:
+        return 250
+    if "groß" in raw_lower or "gross" in raw_lower:
+        return 1000
+    return None
+
+
+def _calculate_priority(
+    row: dict[str, str],
+    company_exists: bool,
+    ap_has_phone: bool,
+    ap_has_name: bool,
+) -> int:
+    """Berechnet Akquise-Prioritaet (0-10, hoeher = besser).
+
+    P = Branche(0-2) + AP(0-2) + Groesse(0-2) + Alter(0-1) + Senioritaet(0-2) + Bekannt(0-1)
+    """
+    score = 0
+    position = (row.get(COL_MAPPING["position"]) or "").lower()
+    industry = (row.get(COL_MAPPING["industry"]) or "").lower()
+    job_text = (row.get(COL_MAPPING["job_text"]) or "").lower()
+    combined = position + " " + job_text
+
+    # Branche (0-2)
+    if any(kw in industry for kw in FINANCE_KEYWORDS) or any(kw in combined for kw in FINANCE_KEYWORDS):
+        score += 2
+    elif any(kw in industry for kw in INDUSTRY_FIBU_KEYWORDS):
+        score += 1
+
+    # AP vorhanden (0-2)
+    if ap_has_phone and ap_has_name:
+        score += 2
+    elif ap_has_name:
+        score += 1
+
+    # Firmengroesse (0-2)
+    size = _parse_company_size(row.get(COL_MAPPING["company_size"]))
+    if size is not None:
+        if 50 <= size <= 500:
+            score += 2
+        elif size > 500:
+            score += 1
+
+    # Anzeigen-Alter (0-1): Immer 1 bei neuem Import
+    score += 1
+
+    # Senioritaet (0-2)
+    if any(kw in position for kw in SENIOR_KEYWORDS):
+        score += 2
+    elif any(kw in position for kw in JUNIOR_KEYWORDS):
+        score += 0
+    elif position:
+        score += 1  # Normaler Buchhalter
+
+    # Bekannte Firma (0-1)
+    if company_exists:
+        score += 1
+
+    return min(score, 10)
+
+
+def _get_field(row: dict[str, str], *keys: str) -> str | None:
+    """Holt den ersten nicht-leeren Wert aus der Zeile."""
+    for key in keys:
+        val = row.get(key, "").strip()
+        if val:
+            return val
+    return None
+
+
+class AcquisitionImportService:
+    """Importiert Akquise-CSVs von advertsdata.com."""
+
+    def __init__(self, db: AsyncSession):
+        self.db = db
+        self.company_service = CompanyService(db)
+
+    async def import_csv(
+        self,
+        content: bytes,
+        filename: str = "vakanzen.csv",
+    ) -> dict:
+        """Importiert CSV und gibt Statistiken zurueck.
+
+        Returns:
+            {
+                "batch_id": UUID,
+                "total_rows": int,
+                "imported": int,
+                "duplicates_refreshed": int,
+                "blacklisted_skipped": int,
+                "errors": int,
+                "error_details": list[str],
+            }
+        """
+        batch_id = uuid.uuid4()
+        now = datetime.now(timezone.utc)
+
+        # Encoding-Detection
+        text_content = self._decode_csv(content)
+        reader = csv.DictReader(io.StringIO(text_content), delimiter="\t")
+
+        # Bestehende anzeigen_ids laden (fuer Duplikat-Check)
+        existing_jobs = await self._load_existing_anzeigen_ids()
+
+        # Company-Cache fuer Performance
+        company_cache: dict[str, Company | None] = {}
+
+        stats = {
+            "batch_id": str(batch_id),
+            "total_rows": 0,
+            "imported": 0,
+            "duplicates_refreshed": 0,
+            "blacklisted_skipped": 0,
+            "protected_skipped": 0,
+            "errors": 0,
+            "error_details": [],
+        }
+
+        batch: list[Job] = []
+
+        for row_num, row in enumerate(reader, start=2):
+            stats["total_rows"] += 1
+
+            try:
+                result = await self._process_row(
+                    row, row_num, batch_id, now, existing_jobs, company_cache,
+                )
+
+                if result == "imported":
+                    stats["imported"] += 1
+                elif result == "refreshed":
+                    stats["duplicates_refreshed"] += 1
+                elif result == "blacklisted":
+                    stats["blacklisted_skipped"] += 1
+                elif result == "protected":
+                    stats["protected_skipped"] += 1
+
+            except Exception as e:
+                stats["errors"] += 1
+                if len(stats["error_details"]) < 50:
+                    stats["error_details"].append(f"Zeile {row_num}: {str(e)[:200]}")
+                logger.warning(f"Import-Fehler Zeile {row_num}: {e}")
+
+            # Batch-Commit alle BATCH_SIZE Zeilen
+            if stats["imported"] > 0 and stats["imported"] % BATCH_SIZE == 0:
+                await self.db.commit()
+
+        # Letzter Batch
+        await self.db.commit()
+
+        logger.info(
+            f"Akquise-Import abgeschlossen: {stats['imported']} importiert, "
+            f"{stats['duplicates_refreshed']} aufgefrischt, "
+            f"{stats['blacklisted_skipped']} Blacklist-Skip, "
+            f"{stats['errors']} Fehler"
+        )
+
+        return stats
+
+    async def _process_row(
+        self,
+        row: dict[str, str],
+        row_num: int,
+        batch_id: uuid.UUID,
+        now: datetime,
+        existing_jobs: dict[str, dict],
+        company_cache: dict[str, Company | None],
+    ) -> str:
+        """Verarbeitet eine CSV-Zeile. Gibt Status zurueck."""
+        company_name = _get_field(row, COL_MAPPING["company_name"])
+        if not company_name:
+            raise ValueError("Kein Firmenname")
+
+        position = _get_field(row, COL_MAPPING["position"])
+        if not position:
+            raise ValueError("Keine Position")
+
+        # Anzeigen-ID: direkt aus Spalte oder aus URL extrahieren
+        job_url = _get_field(row, COL_MAPPING["job_url"])
+        anzeigen_id = _get_field(row, COL_MAPPING.get("anzeigen_id_col", "")) or _extract_anzeigen_id(job_url)
+        position_id = _get_field(row, COL_MAPPING.get("position_id_col", ""))
+
+        # ── Duplikat-Check via anzeigen_id ──
+        if anzeigen_id and anzeigen_id in existing_jobs:
+            existing = existing_jobs[anzeigen_id]
+            status = existing.get("akquise_status")
+
+            # Blacklist-hart: komplett skippen
+            if status == "blacklist_hart":
+                return "blacklisted"
+
+            # Geschuetzte Status: nur last_seen_at auffrischen
+            if status in PROTECTED_STATUSES:
+                await self.db.execute(
+                    update(Job)
+                    .where(Job.id == existing["id"])
+                    .values(last_seen_at=now)
+                )
+                return "protected"
+
+            # Stale-Check: >90 Tage nicht gesehen → neuer Import
+            last_seen = existing.get("last_seen_at")
+            if last_seen and (now - last_seen).days > STALE_DAYS:
+                # Als neuen Job importieren (anzeigen_id wird neu vergeben)
+                anzeigen_id = f"{anzeigen_id}_reimport_{now.strftime('%Y%m%d')}"
+            else:
+                # Duplikat auffrischen
+                update_values = {
+                    "last_seen_at": now,
+                    "expires_at": now + timedelta(days=30),
+                }
+                # Resettable Status → auf "neu" zuruecksetzen
+                if status in RESETTABLE_STATUSES:
+                    update_values["akquise_status"] = "neu"
+                    update_values["akquise_status_changed_at"] = now
+
+                await self.db.execute(
+                    update(Job)
+                    .where(Job.id == existing["id"])
+                    .values(**update_values)
+                )
+                return "refreshed"
+
+        # ── Company get_or_create ──
+        city = _get_field(row, COL_MAPPING["city"])
+        cache_key = f"{company_name.lower()}_{(city or '').lower()}"
+
+        if cache_key not in company_cache:
+            company = await self.company_service.get_or_create_by_name(
+                name=company_name,
+                address=_get_field(row, COL_MAPPING["street"]),
+                city=city,
+                phone=_get_field(row, COL_MAPPING["company_phone"]),
+                domain=_get_field(row, COL_MAPPING["domain"]),
+                employee_count=_get_field(row, COL_MAPPING["company_size"]),
+                industry=_get_field(row, COL_MAPPING["industry"]),
+            )
+            company_cache[cache_key] = company
+        else:
+            company = company_cache[cache_key]
+
+        if company is None:
+            return "blacklisted"
+
+        # Pruefen ob Company vorher schon Jobs hatte (fuer Priority)
+        company_has_jobs = cache_key in existing_jobs or bool(company.jobs)
+
+        # ── Contact AP Firma ──
+        ap_firma_first = _get_field(row, COL_MAPPING["ap_firma_first_name"])
+        ap_firma_last = _get_field(row, COL_MAPPING["ap_firma_last_name"])
+        ap_firma_phone = _get_field(row, COL_MAPPING["ap_firma_phone"])
+        ap_firma_contact = None
+
+        if ap_firma_first or ap_firma_last:
+            ap_firma_contact = await self.company_service.get_or_create_contact(
+                company_id=company.id,
+                first_name=ap_firma_first,
+                last_name=ap_firma_last,
+                salutation=_get_field(row, COL_MAPPING["ap_firma_salutation"]),
+                position=_get_field(row, COL_MAPPING["ap_firma_function"]),
+                phone=ap_firma_phone,
+                email=_get_field(row, COL_MAPPING["ap_firma_email"]),
+            )
+            # Phone normalisieren und auf Contact speichern
+            if ap_firma_contact and ap_firma_phone:
+                normalized = _normalize_phone(ap_firma_phone)
+                if normalized and not ap_firma_contact.phone_normalized:
+                    ap_firma_contact.phone_normalized = normalized
+                    ap_firma_contact.source = "advertsdata"
+                    ap_firma_contact.contact_role = "firma"
+
+        # ── Contact AP Anzeige (optional) ──
+        ap_anzeige_first = _get_field(row, COL_MAPPING.get("ap_anzeige_first_name", ""))
+        ap_anzeige_last = _get_field(row, COL_MAPPING.get("ap_anzeige_last_name", ""))
+        ap_anzeige_phone = _get_field(row, COL_MAPPING.get("ap_anzeige_phone", ""))
+
+        if ap_anzeige_first or ap_anzeige_last:
+            ap_anzeige_contact = await self.company_service.get_or_create_contact(
+                company_id=company.id,
+                first_name=ap_anzeige_first,
+                last_name=ap_anzeige_last,
+                salutation=_get_field(row, COL_MAPPING.get("ap_anzeige_salutation", "")),
+                position=_get_field(row, COL_MAPPING.get("ap_anzeige_function", "")),
+                phone=ap_anzeige_phone,
+                email=_get_field(row, COL_MAPPING.get("ap_anzeige_email", "")),
+            )
+            if ap_anzeige_contact and ap_anzeige_phone:
+                normalized = _normalize_phone(ap_anzeige_phone)
+                if normalized and not ap_anzeige_contact.phone_normalized:
+                    ap_anzeige_contact.phone_normalized = normalized
+                    ap_anzeige_contact.source = "advertsdata"
+                    ap_anzeige_contact.contact_role = "anzeige"
+
+        # ── Priority berechnen ──
+        priority = _calculate_priority(
+            row,
+            company_exists=company_has_jobs,
+            ap_has_phone=bool(ap_firma_phone),
+            ap_has_name=bool(ap_firma_first or ap_firma_last),
+        )
+
+        # ── Job erstellen ──
+        einsatzort = _get_field(row, COL_MAPPING["einsatzort"])
+        # Einsatzort aufteilen: "18055 Rostock Mecklenburg-Vorpommern" → PLZ + Stadt
+        einsatz_plz = None
+        einsatz_city = einsatzort
+        if einsatzort:
+            plz_match = re.match(r"^(\d{5})\s+(.+?)(?:\s+\w+-\w+)?$", einsatzort)
+            if plz_match:
+                einsatz_plz = plz_match.group(1)
+                einsatz_city = plz_match.group(2).strip()
+
+        job = Job(
+            company_name=company_name,
+            company_id=company.id,
+            position=position,
+            street_address=_get_field(row, COL_MAPPING["street"]),
+            postal_code=einsatz_plz or _get_field(row, COL_MAPPING["plz"]),
+            city=einsatz_city or city,
+            work_location_city=einsatz_city,
+            job_url=job_url,
+            job_text=_get_field(row, COL_MAPPING["job_text"]),
+            employment_type=_get_field(row, COL_MAPPING["employment_type"]),
+            industry=_get_field(row, COL_MAPPING["industry"]),
+            company_size=_get_field(row, COL_MAPPING["company_size"]),
+            # Akquise-Felder
+            acquisition_source="advertsdata",
+            position_id=position_id,
+            anzeigen_id=anzeigen_id,
+            akquise_status="neu",
+            akquise_status_changed_at=now,
+            akquise_priority=priority,
+            first_seen_at=now,
+            last_seen_at=now,
+            import_batch_id=batch_id,
+            # Lifecycle
+            expires_at=now + timedelta(days=30),
+        )
+        self.db.add(job)
+        return "imported"
+
+    async def _load_existing_anzeigen_ids(self) -> dict[str, dict]:
+        """Laedt alle bestehenden Akquise-Jobs mit anzeigen_id."""
+        result = await self.db.execute(
+            select(
+                Job.id,
+                Job.anzeigen_id,
+                Job.akquise_status,
+                Job.last_seen_at,
+            ).where(
+                Job.acquisition_source.isnot(None),
+                Job.anzeigen_id.isnot(None),
+            )
+        )
+        return {
+            row.anzeigen_id: {
+                "id": row.id,
+                "akquise_status": row.akquise_status,
+                "last_seen_at": row.last_seen_at,
+            }
+            for row in result.all()
+        }
+
+    async def preview_csv(self, content: bytes) -> dict:
+        """Analysiert CSV ohne Import (Duplikate, bekannte Firmen, Blacklist)."""
+        text_content = self._decode_csv(content)
+        reader = csv.DictReader(io.StringIO(text_content), delimiter="\t")
+
+        existing_jobs = await self._load_existing_anzeigen_ids()
+
+        stats = {
+            "total_rows": 0,
+            "new_leads": 0,
+            "duplicates": 0,
+            "blacklisted": 0,
+            "known_companies": 0,
+            "cities": {},
+            "industries": {},
+        }
+
+        seen_companies: set[str] = set()
+
+        for row in reader:
+            stats["total_rows"] += 1
+            job_url = _get_field(row, COL_MAPPING["job_url"])
+            anzeigen_id = _extract_anzeigen_id(job_url)
+
+            if anzeigen_id and anzeigen_id in existing_jobs:
+                existing = existing_jobs[anzeigen_id]
+                if existing.get("akquise_status") == "blacklist_hart":
+                    stats["blacklisted"] += 1
+                else:
+                    stats["duplicates"] += 1
+            else:
+                stats["new_leads"] += 1
+
+            # Stadt-Statistik
+            city = _get_field(row, COL_MAPPING["city"]) or "Unbekannt"
+            stats["cities"][city] = stats["cities"].get(city, 0) + 1
+
+            # Branche-Statistik
+            industry = _get_field(row, COL_MAPPING["industry"]) or "Unbekannt"
+            stats["industries"][industry] = stats["industries"].get(industry, 0) + 1
+
+            # Bekannte Firmen
+            company_name = _get_field(row, COL_MAPPING["company_name"])
+            if company_name and company_name.lower() not in seen_companies:
+                seen_companies.add(company_name.lower())
+                existing_company = await self.db.execute(
+                    select(Company.id).where(
+                        func.lower(Company.name) == company_name.lower()
+                    ).limit(1)
+                )
+                if existing_company.scalar_one_or_none():
+                    stats["known_companies"] += 1
+
+        return stats
+
+    async def rollback_batch(self, batch_id: uuid.UUID) -> dict:
+        """Macht einen fehlerhaften Import rueckgaengig (nur Status='neu')."""
+        # Nur Jobs loeschen die noch Status "neu" haben (nicht bearbeitet)
+        result = await self.db.execute(
+            select(func.count(Job.id)).where(
+                Job.import_batch_id == batch_id,
+                Job.akquise_status == "neu",
+            )
+        )
+        count = result.scalar_one()
+
+        if count == 0:
+            return {"deleted": 0, "message": "Keine unbearbeiteten Jobs in diesem Batch"}
+
+        await self.db.execute(
+            update(Job)
+            .where(
+                Job.import_batch_id == batch_id,
+                Job.akquise_status == "neu",
+            )
+            .values(deleted_at=datetime.now(timezone.utc))
+        )
+        await self.db.commit()
+
+        return {"deleted": count, "message": f"{count} Jobs als geloescht markiert"}
+
+    def _decode_csv(self, content: bytes) -> str:
+        """Versucht verschiedene Encodings."""
+        for encoding in ["utf-8", "utf-8-sig", "latin-1", "cp1252"]:
+            try:
+                return content.decode(encoding)
+            except (UnicodeDecodeError, UnicodeError):
+                continue
+        return content.decode("utf-8", errors="replace")

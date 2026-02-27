@@ -1,0 +1,177 @@
+{# E-Mail-Modal — GPT-Vorschau + Mailbox-Dropdown + Editieren + Senden #}
+{# Erwartet: job, contacts, mailboxes, draft (optional, wenn schon generiert) #}
+
+<div x-data="emailModal()" x-init="init()" style="display:flex;flex-direction:column;max-height:85vh;">
+    {# Header #}
+    <div style="padding:16px 20px;border-bottom:1px solid var(--pp-border);display:flex;align-items:center;justify-content:space-between;">
+        <h3 style="font-size:15px;font-weight:600;color:var(--pp-text);margin:0;">Akquise-E-Mail</h3>
+        <button @click="Alpine.$data(document.querySelector('[x-data]')).emailModalVisible = false"
+                style="background:none;border:none;color:var(--pp-textDim);cursor:pointer;font-size:18px;">&times;</button>
+    </div>
+
+    {# Body #}
+    <div style="padding:20px;overflow-y:auto;flex:1;">
+        {# Mailbox-Dropdown #}
+        <div style="margin-bottom:14px;">
+            <label style="font-size:11px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;display:block;margin-bottom:4px;">Von</label>
+            <select x-model="fromEmail" style="width:100%;padding:8px 10px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;">
+                {% for mb in mailboxes %}
+                <option value="{{ mb.email }}" {% if mb.remaining <= 0 %}disabled{% endif %}>
+                    {{ mb.email }} ({{ mb.purpose }}) — {{ mb.remaining }}/{{ mb.daily_limit }} verbleibend
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        {# Empfaenger #}
+        <div style="margin-bottom:14px;">
+            <label style="font-size:11px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;display:block;margin-bottom:4px;">An</label>
+            <select x-model="toContactId" style="width:100%;padding:8px 10px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;">
+                {% for contact in contacts %}
+                {% if contact.email %}
+                <option value="{{ contact.id }}">{{ contact.name }} &lt;{{ contact.email }}&gt;</option>
+                {% endif %}
+                {% endfor %}
+            </select>
+        </div>
+
+        {# E-Mail-Typ #}
+        <div style="margin-bottom:14px;">
+            <label style="font-size:11px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;display:block;margin-bottom:4px;">Typ</label>
+            <div style="display:flex;gap:6px;">
+                <button @click="emailType = 'initial'" :style="emailType === 'initial' ? 'background:var(--pp-accent);color:#fff;border-color:var(--pp-accent);' : ''"
+                        style="padding:5px 12px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:12px;cursor:pointer;">
+                    Erst-Mail
+                </button>
+                <button @click="emailType = 'follow_up'" :style="emailType === 'follow_up' ? 'background:var(--pp-accent);color:#fff;border-color:var(--pp-accent);' : ''"
+                        style="padding:5px 12px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:12px;cursor:pointer;">
+                    Follow-up
+                </button>
+                <button @click="emailType = 'break_up'" :style="emailType === 'break_up' ? 'background:var(--pp-accent);color:#fff;border-color:var(--pp-accent);' : ''"
+                        style="padding:5px 12px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:12px;cursor:pointer;">
+                    Break-up
+                </button>
+            </div>
+        </div>
+
+        {# Generieren Button (wenn noch kein Draft) #}
+        <div x-show="!draft">
+            <button @click="generateDraft()" :disabled="generating"
+                    style="width:100%;padding:10px;background:var(--pp-accent);border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;"
+                    :style="generating ? 'opacity:0.5;cursor:wait;' : ''">
+                <span x-show="!generating">E-Mail per GPT generieren</span>
+                <span x-show="generating">Wird generiert...</span>
+            </button>
+        </div>
+
+        {# Draft Vorschau + Editieren #}
+        <div x-show="draft" style="margin-top:14px;">
+            <label style="font-size:11px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;display:block;margin-bottom:4px;">Betreff</label>
+            <input type="text" x-model="subject"
+                   style="width:100%;padding:8px 10px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:13px;margin-bottom:12px;box-sizing:border-box;">
+
+            <label style="font-size:11px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;display:block;margin-bottom:4px;">Text</label>
+            <textarea x-model="bodyPlain"
+                      style="width:100%;height:280px;padding:10px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;font-family:var(--pp-ff);line-height:1.6;resize:vertical;box-sizing:border-box;"></textarea>
+
+            {% if draft and draft.candidate_fiction %}
+            <div style="margin-top:10px;padding:10px;background:var(--pp-surface3);border-radius:6px;">
+                <p style="font-size:10px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;margin:0 0 4px;">Fiktiver Kandidat (nur intern)</p>
+                <p style="font-size:11px;color:var(--pp-textMuted);margin:0;" x-text="JSON.stringify(candidateFiction, null, 2)"></p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {# Footer #}
+    <div style="padding:14px 20px;border-top:1px solid var(--pp-border);display:flex;justify-content:flex-end;gap:10px;">
+        <button @click="Alpine.$data(document.querySelector('[x-data]')).emailModalVisible = false"
+                style="padding:8px 16px;background:var(--pp-surface3);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-textMuted);font-size:13px;cursor:pointer;">
+            Abbrechen
+        </button>
+        <button x-show="draft" @click="sendEmail()" :disabled="sending"
+                style="padding:8px 16px;background:var(--pp-green);border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;"
+                :style="sending ? 'opacity:0.5;cursor:wait;' : ''">
+            <span x-show="!sending">Senden</span>
+            <span x-show="sending">Wird gesendet...</span>
+        </button>
+    </div>
+</div>
+
+<script>
+function emailModal() {
+    return {
+        fromEmail: '{{ mailboxes[0].email if mailboxes else "" }}',
+        toContactId: '{{ contacts[0].id if contacts else "" }}',
+        emailType: 'initial',
+        draft: {{ 'true' if draft else 'false' }},
+        emailId: '{{ draft.email_id if draft else "" }}',
+        subject: '{{ draft.subject if draft else "" }}',
+        bodyPlain: {{ draft.body_plain | tojson if draft and draft.body_plain else '""' }},
+        candidateFiction: {{ draft.candidate_fiction | tojson if draft and draft.candidate_fiction else '{}' }},
+        generating: false,
+        sending: false,
+
+        init() {},
+
+        async generateDraft() {
+            this.generating = true;
+            try {
+                const resp = await fetch('/api/akquise/leads/{{ job.id }}/email/draft', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contact_id: this.toContactId,
+                        email_type: this.emailType,
+                        from_email: this.fromEmail,
+                    }),
+                });
+                if (resp.ok) {
+                    const data = await resp.json();
+                    this.draft = true;
+                    this.emailId = data.email_id;
+                    this.subject = data.subject;
+                    this.bodyPlain = data.body_plain;
+                    this.candidateFiction = data.candidate_fiction || {};
+                } else {
+                    const err = await resp.json();
+                    if (typeof showToast === 'function') showToast(err.detail || 'Fehler bei Generierung', 'error');
+                }
+            } catch (e) {
+                if (typeof showToast === 'function') showToast('Netzwerkfehler', 'error');
+            }
+            this.generating = false;
+        },
+
+        async sendEmail() {
+            this.sending = true;
+            // Erst Draft updaten (falls bearbeitet)
+            if (this.emailId) {
+                await fetch('/api/akquise/leads/{{ job.id }}/email/' + this.emailId, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ subject: this.subject, body_plain: this.bodyPlain }),
+                });
+            }
+            // Dann senden
+            try {
+                const resp = await fetch('/api/akquise/leads/{{ job.id }}/email/' + this.emailId + '/send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ from_email: this.fromEmail }),
+                });
+                const result = await resp.json();
+                if (result.success) {
+                    if (typeof showToast === 'function') showToast('E-Mail gesendet!', 'success');
+                    Alpine.$data(document.querySelector('[x-data]')).emailModalVisible = false;
+                } else {
+                    if (typeof showToast === 'function') showToast(result.message || 'Sendefehler', 'error');
+                }
+            } catch (e) {
+                if (typeof showToast === 'function') showToast('Netzwerkfehler', 'error');
+            }
+            this.sending = false;
+        },
+    };
+}
+</script>

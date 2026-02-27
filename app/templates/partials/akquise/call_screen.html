@@ -1,0 +1,344 @@
+{# Call-Screen — 3-Spalten Layout (Stellentext | Qualifizierung | Aktionen) #}
+{# Erwartet: job, company, contacts, call_history, email_history, other_jobs #}
+
+<div x-data="callScreen()" x-init="init()" style="height:100vh;display:flex;flex-direction:column;background:var(--pp-bg);">
+
+    {# ── Call-Bar (oben, fixed) ── #}
+    <div style="padding:10px 20px;background:var(--pp-surface);border-bottom:1px solid var(--pp-border);display:flex;align-items:center;justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:12px;">
+            <button @click="Alpine.$data(document.querySelector('[x-data]')).closeCallScreen()"
+                    style="background:none;border:none;color:var(--pp-textMuted);cursor:pointer;padding:4px;"
+                    title="Zurueck">
+                <svg style="width:18px;height:18px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
+            </button>
+            <div>
+                <span style="font-size:15px;font-weight:600;color:var(--pp-text);">{{ job.company_name }}</span>
+                <span style="font-size:13px;color:var(--pp-textMuted);margin-left:8px;">{{ job.position }}</span>
+            </div>
+            {% set status_colors = {
+                'neu': 'background:rgba(59,130,246,0.12);color:var(--pp-accent);',
+                'angerufen': 'background:rgba(234,179,8,0.12);color:var(--pp-orange);',
+                'kontaktiert': 'background:rgba(34,197,94,0.12);color:var(--pp-green);',
+                'wiedervorlage': 'background:rgba(167,139,250,0.12);color:var(--pp-purple);',
+                'email_gesendet': 'background:rgba(96,165,250,0.12);color:#60a5fa;',
+                'qualifiziert': 'background:rgba(16,185,129,0.12);color:#10b981;',
+            } %}
+            <span style="padding:3px 10px;border-radius:6px;font-size:11px;font-weight:600;{{ status_colors.get(job.akquise_status, 'background:var(--pp-surface3);color:var(--pp-textDim);') }}">
+                {{ job.akquise_status or 'neu' }}
+            </span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+            {# Timer #}
+            <div x-show="callActive" style="display:flex;align-items:center;gap:6px;">
+                <span style="width:8px;height:8px;border-radius:50%;background:var(--pp-green);animation:pulse 1.5s infinite;"></span>
+                <span style="font-size:13px;font-weight:600;color:var(--pp-green);font-variant-numeric:tabular-nums;" x-text="callTimer"></span>
+            </div>
+            {# Anrufen Button #}
+            {% if contacts and contacts | length > 0 %}
+            {% set primary_contact = contacts[0] %}
+            {% set phone = primary_contact.mobile or primary_contact.phone %}
+            {% if phone %}
+            <a href="tel:{{ phone }}" @click="startCall()"
+               style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:var(--pp-green);border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;text-decoration:none;cursor:pointer;">
+                <svg style="width:14px;height:14px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"/></svg>
+                {{ phone }}
+            </a>
+            {% endif %}
+            {% endif %}
+        </div>
+    </div>
+
+    {# ── Bestandskunden/Weitere-Stellen Banner ── #}
+    {% if company and company.acquisition_status == 'customer' %}
+    <div style="padding:8px 20px;background:rgba(234,179,8,0.08);border-bottom:1px solid rgba(234,179,8,0.2);display:flex;align-items:center;gap:8px;">
+        <span style="font-size:12px;font-weight:600;color:var(--pp-orange);">BESTANDSKUNDE</span>
+        <span style="font-size:12px;color:var(--pp-textMuted);">Diese Firma ist bereits im System</span>
+    </div>
+    {% endif %}
+    {% if other_jobs and other_jobs | length > 0 %}
+    <div style="padding:8px 20px;background:var(--pp-surface);border-bottom:1px solid var(--pp-border);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span style="font-size:12px;color:var(--pp-textMuted);">{{ other_jobs | length }} weitere Stelle{{ 'n' if other_jobs | length > 1 else '' }}:</span>
+        {% for oj in other_jobs %}
+        <button onclick="Alpine.$data(document.querySelector('[x-data]')).openCallScreen('{{ oj.id }}')"
+                style="padding:2px 8px;background:var(--pp-surface3);border:1px solid var(--pp-border);border-radius:4px;color:var(--pp-textMuted);font-size:11px;cursor:pointer;">
+            {{ oj.position }}
+        </button>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {# ── 3-Spalten Content ── #}
+    <div style="flex:1;display:grid;grid-template-columns:35% 35% 30%;overflow:hidden;">
+
+        {# ── Spalte 1: Stellenausschreibung ── #}
+        <div style="padding:16px 20px;overflow-y:auto;border-right:1px solid var(--pp-border);">
+            <h3 style="font-size:14px;font-weight:600;color:var(--pp-text);margin:0 0 4px;">{{ job.position }}</h3>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+                <span style="font-size:12px;color:var(--pp-textMuted);">{{ job.company_name }}</span>
+                {% if job.city %}<span style="font-size:12px;color:var(--pp-textDim);">{{ job.city }}</span>{% endif %}
+                {% if job.employment_type %}<span style="font-size:11px;color:var(--pp-textDim);padding:1px 6px;background:var(--pp-surface3);border-radius:4px;">{{ job.employment_type }}</span>{% endif %}
+            </div>
+            {% if job.industry or company %}
+            <div style="display:flex;gap:12px;margin-bottom:12px;font-size:11px;color:var(--pp-textDim);">
+                {% if job.industry %}<span>{{ job.industry }}</span>{% endif %}
+                {% if company and company.domain %}<span>{{ company.domain }}</span>{% endif %}
+            </div>
+            {% endif %}
+            <div style="font-size:13px;color:var(--pp-textMuted);line-height:1.6;white-space:pre-wrap;">{{ job.job_text or 'Kein Stellentext vorhanden' }}</div>
+            {% if job.job_url %}
+            <a href="{{ job.job_url }}" target="_blank" style="display:inline-block;margin-top:12px;font-size:12px;color:var(--pp-accent);text-decoration:none;">Originalanzeige &rarr;</a>
+            {% endif %}
+        </div>
+
+        {# ── Spalte 2: Qualifizierung + Kontakt ── #}
+        <div style="padding:16px 20px;overflow-y:auto;border-right:1px solid var(--pp-border);">
+            {# Kontakt-Card #}
+            <h4 style="font-size:12px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.5px;margin:0 0 10px;">Ansprechpartner</h4>
+            {% if contacts and contacts | length > 0 %}
+            {% for contact in contacts %}
+            <div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:8px;padding:10px 14px;margin-bottom:8px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;">
+                    <span style="font-size:13px;font-weight:500;color:var(--pp-text);">{{ contact.name }}</span>
+                    {% if contact.contact_role %}
+                    <span style="font-size:10px;color:var(--pp-textDim);padding:1px 6px;background:var(--pp-surface3);border-radius:4px;">{{ contact.contact_role }}</span>
+                    {% endif %}
+                </div>
+                {% if contact.position %}
+                <p style="font-size:12px;color:var(--pp-textMuted);margin:2px 0 0;">{{ contact.position }}</p>
+                {% endif %}
+                <div style="margin-top:8px;display:flex;flex-direction:column;gap:4px;">
+                    {% if contact.phone %}
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        <a href="tel:{{ contact.phone }}" style="font-size:12px;color:var(--pp-accent);text-decoration:none;">{{ contact.phone }}</a>
+                        <button onclick="navigator.clipboard.writeText('{{ contact.phone }}');if(typeof showToast==='function')showToast('Kopiert','success')"
+                                style="background:none;border:none;color:var(--pp-textDim);cursor:pointer;font-size:11px;padding:2px;">&#128203;</button>
+                    </div>
+                    {% endif %}
+                    {% if contact.mobile and contact.mobile != contact.phone %}
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        <a href="tel:{{ contact.mobile }}" style="font-size:12px;color:var(--pp-accent);text-decoration:none;">{{ contact.mobile }} (Mobil)</a>
+                        <button onclick="navigator.clipboard.writeText('{{ contact.mobile }}');if(typeof showToast==='function')showToast('Kopiert','success')"
+                                style="background:none;border:none;color:var(--pp-textDim);cursor:pointer;font-size:11px;padding:2px;">&#128203;</button>
+                    </div>
+                    {% endif %}
+                    {% if contact.email %}
+                    <span style="font-size:12px;color:var(--pp-textMuted);">{{ contact.email }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+            {% else %}
+            <p style="font-size:12px;color:var(--pp-textDim);margin:0 0 8px;">Kein Ansprechpartner hinterlegt</p>
+            {% endif %}
+            <button onclick="document.getElementById('new-contact-form').style.display = document.getElementById('new-contact-form').style.display === 'none' ? 'block' : 'none'"
+                    style="padding:4px 10px;background:none;border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:11px;cursor:pointer;margin-bottom:16px;">
+                + Neuer AP
+            </button>
+            <div id="new-contact-form" style="display:none;">
+                {% include 'partials/akquise/new_contact_form.html' %}
+            </div>
+
+            {# Qualifizierungsfragen #}
+            <h4 style="font-size:12px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 10px;">Qualifizierung (Erstkontakt)</h4>
+            {% set fragen = [
+                ("stelle_offen", "Stelle noch offen?"),
+                ("besetzung_vorgehen", "Wie besetzen Sie aktuell?"),
+                ("herausforderung", "Groesste Herausforderung bei der Besetzung?"),
+                ("timeline", "Wann soll die Stelle besetzt sein?"),
+                ("profile_senden", "Darf ich passende Profile senden?"),
+            ] %}
+            {% for key, label in fragen %}
+            <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;">
+                <input type="checkbox" :checked="quali['{{ key }}']" @change="quali['{{ key }}'] = $event.target.checked"
+                       style="width:15px;height:15px;margin-top:2px;border-radius:3px;cursor:pointer;flex-shrink:0;">
+                <span style="font-size:12px;color:var(--pp-textMuted);">{{ label }}</span>
+            </div>
+            {% endfor %}
+
+            <h4 style="font-size:12px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 10px;">Qualifizierung (Zweitkontakt)</h4>
+            {% set fragen2 = [
+                ("budget", "Budget/Gehaltsspanne?"),
+                ("teamgroesse", "Teamgroesse und Struktur?"),
+                ("home_office", "Home-Office-Tage?"),
+                ("arbeitszeiten", "Arbeitszeiten, Gleitzeit?"),
+                ("software", "Software (DATEV, SAP, etc.)?"),
+                ("aeltere_kandidaten", "Aeltere Kandidaten willkommen?"),
+                ("vakanzgrund", "Warum ist die Position vakant?"),
+                ("bewerbungsprozess", "Bewerbungsprozess?"),
+                ("entscheider", "Wer entscheidet?"),
+            ] %}
+            {% for key, label in fragen2 %}
+            <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;">
+                <input type="checkbox" :checked="quali['{{ key }}']" @change="quali['{{ key }}'] = $event.target.checked"
+                       style="width:15px;height:15px;margin-top:2px;border-radius:3px;cursor:pointer;flex-shrink:0;">
+                <span style="font-size:12px;color:var(--pp-textMuted);">{{ label }}</span>
+            </div>
+            {% endfor %}
+
+            <button onclick="document.getElementById('new-job-draft-form').style.display = document.getElementById('new-job-draft-form').style.display === 'none' ? 'block' : 'none'"
+                    style="margin-top:16px;padding:4px 10px;background:none;border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:11px;cursor:pointer;">
+                + Neue Stelle aus Gespraech
+            </button>
+            <div id="new-job-draft-form" style="display:none;margin-top:8px;">
+                {% include 'partials/akquise/new_job_draft_form.html' %}
+            </div>
+        </div>
+
+        {# ── Spalte 3: Aktionen ── #}
+        <div style="padding:16px 20px;overflow-y:auto;">
+            {# Call-History #}
+            <h4 style="font-size:12px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.5px;margin:0 0 10px;">Letzte Anrufe</h4>
+            {% if call_history and call_history | length > 0 %}
+            {% for call in call_history[:3] %}
+            <div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;padding:8px 10px;margin-bottom:6px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;">
+                    <span style="font-size:11px;color:var(--pp-textDim);">{{ call.created_at[:10] if call.created_at else '?' }}</span>
+                    <span style="font-size:11px;font-weight:600;color:var(--pp-textMuted);">{{ call.disposition }}</span>
+                </div>
+                {% if call.notes %}
+                <p style="font-size:11px;color:var(--pp-textDim);margin:4px 0 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ call.notes }}</p>
+                {% endif %}
+            </div>
+            {% endfor %}
+            {% else %}
+            <p style="font-size:12px;color:var(--pp-textDim);margin:0 0 12px;">Noch keine Anrufe</p>
+            {% endif %}
+
+            {# Notizen #}
+            <h4 style="font-size:12px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.5px;margin:16px 0 8px;">Notizen</h4>
+            <textarea x-model="notes" @input.debounce.2000ms="autoSaveNotes()"
+                      style="width:100%;height:120px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:8px;padding:10px;color:var(--pp-text);font-size:12px;font-family:var(--pp-ff);resize:vertical;box-sizing:border-box;"
+                      placeholder="Notizen zum Anruf..."></textarea>
+
+            {# Textbausteine #}
+            <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;">
+                {% set bausteine = [
+                    ("AB besprochen", "AB besprochen am " ~ now_date ~ ". "),
+                    ("Sekretariat", "Sekretariat erreicht. "),
+                    ("Termin", "Termin vereinbart: "),
+                    ("Im Urlaub", "AP im Urlaub bis "),
+                    ("Keine DW", "Keine Durchwahl verfuegbar. "),
+                ] %}
+                {% for label, text in bausteine %}
+                <button @click="notes += '{{ text }}'"
+                        style="padding:3px 8px;background:var(--pp-surface3);border:1px solid var(--pp-border);border-radius:4px;color:var(--pp-textDim);font-size:10px;cursor:pointer;">
+                    {{ label }}
+                </button>
+                {% endfor %}
+            </div>
+
+            {# Disposition #}
+            <h4 style="font-size:12px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 8px;">Disposition</h4>
+            {% include 'partials/akquise/disposition_buttons.html' %}
+
+            {# E-Mail senden #}
+            {% if contacts and contacts | length > 0 and contacts[0].email %}
+            <button @click="Alpine.$data(document.querySelector('[x-data]')).openEmailModal('{{ job.id }}', '{{ contacts[0].id }}')"
+                    style="width:100%;margin-top:12px;padding:8px;background:var(--pp-accentSoft);border:1px solid rgba(59,130,246,0.3);border-radius:8px;color:var(--pp-accent);font-size:12px;font-weight:600;cursor:pointer;text-align:center;">
+                E-Mail senden
+            </button>
+            {% endif %}
+
+            {# Zurueck / Weiter Buttons #}
+            <div style="display:flex;gap:8px;margin-top:16px;">
+                <button @click="Alpine.$data(document.querySelector('[x-data]')).closeCallScreen()"
+                        style="flex:1;padding:8px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-textMuted);font-size:12px;cursor:pointer;text-align:center;">
+                    Zurueck zur Liste
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+</style>
+
+<script>
+function callScreen() {
+    return {
+        callActive: false,
+        callStartedAt: null,
+        callTimer: '00:00',
+        timerInterval: null,
+        notes: '',
+        quali: {},
+        selectedDisposition: null,
+        followUpDate: '',
+        followUpTime: '',
+        followUpNote: '',
+
+        init() {
+            // Lade existierende Notizen/Quali aus dem letzten Call falls vorhanden
+        },
+
+        startCall() {
+            this.callActive = true;
+            this.callStartedAt = Date.now();
+            this.timerInterval = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - this.callStartedAt) / 1000);
+                const min = String(Math.floor(elapsed / 60)).padStart(2, '0');
+                const sec = String(elapsed % 60).padStart(2, '0');
+                this.callTimer = min + ':' + sec;
+            }, 1000);
+        },
+
+        stopCall() {
+            this.callActive = false;
+            if (this.timerInterval) clearInterval(this.timerInterval);
+            return this.callStartedAt ? Math.floor((Date.now() - this.callStartedAt) / 1000) : 0;
+        },
+
+        async submitDisposition(disposition) {
+            const duration = this.stopCall();
+            this.selectedDisposition = disposition;
+
+            // Wiedervorlage-Pflichtfelder bei interesse_spaeter und qualifiziert_erst
+            if ((disposition === 'interesse_spaeter' || disposition === 'qualifiziert_erst') && !this.followUpDate) {
+                if (typeof showToast === 'function') showToast('Bitte Wiedervorlage-Datum angeben', 'warning');
+                return;
+            }
+
+            const body = {
+                disposition: disposition,
+                call_type: '{{ "wiedervorlage" if job.akquise_status == "wiedervorlage" else "erstanruf" }}',
+                notes: this.notes || null,
+                qualification_data: Object.keys(this.quali).length > 0 ? this.quali : null,
+                duration_seconds: duration || null,
+                follow_up_date: this.followUpDate ? this.followUpDate + (this.followUpTime ? 'T' + this.followUpTime : 'T09:00') + ':00' : null,
+                follow_up_note: this.followUpNote || null,
+                {% if contacts and contacts | length > 0 %}
+                contact_id: '{{ contacts[0].id }}',
+                {% endif %}
+            };
+
+            try {
+                const resp = await fetch('/api/akquise/leads/{{ job.id }}/call', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+                if (resp.ok) {
+                    const result = await resp.json();
+                    if (typeof showToast === 'function') {
+                        showToast('{{ job.company_name }} — ' + disposition + ' gespeichert', 'success');
+                    }
+                    // Auto-advance zum naechsten Lead
+                    setTimeout(() => {
+                        Alpine.$data(document.querySelector('[x-data]')).advanceToNextLead();
+                    }, 600);
+                } else {
+                    const err = await resp.json();
+                    if (typeof showToast === 'function') showToast(err.detail || 'Fehler', 'error');
+                }
+            } catch (e) {
+                if (typeof showToast === 'function') showToast('Netzwerkfehler', 'error');
+            }
+        },
+
+        async autoSaveNotes() {
+            // Autosave Notizen via Debounce (wird durch Alpine @input.debounce getriggert)
+        },
+    };
+}
+</script>

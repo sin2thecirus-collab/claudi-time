@@ -1,0 +1,51 @@
+{# Neue Stelle aus Gespraech — D12 Andere Stelle offen #}
+{# Erstellt einen neuen Akquise-Job fuer die gleiche Firma #}
+
+<div x-data="{ saving: false }" style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:8px;padding:12px;">
+    <p style="font-size:12px;font-weight:600;color:var(--pp-text);margin:0 0 10px;">Neue Stelle erfassen</p>
+    <form @submit.prevent="
+        saving = true;
+        fetch('/api/akquise/leads/{{ job.id }}/call', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                disposition: 'andere_stelle_offen',
+                notes: 'Neue Stelle: ' + $refs.nj_position.value + ' — ' + $refs.nj_notes.value,
+                extra_data: {
+                    new_position: $refs.nj_position.value,
+                    new_employment_type: $refs.nj_type.value,
+                    new_notes: $refs.nj_notes.value,
+                }
+            })
+        }).then(r => {
+            if (r.ok) {
+                if (typeof showToast === 'function') showToast('Neue Stelle angelegt', 'success');
+                document.getElementById('new-job-draft-form').style.display = 'none';
+            } else {
+                if (typeof showToast === 'function') showToast('Fehler', 'error');
+            }
+            saving = false;
+        }).catch(() => { saving = false; })
+    ">
+        <input x-ref="nj_position" type="text" placeholder="Position (z.B. Bilanzbuchhalter/in)" required
+               style="width:100%;padding:6px 8px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;margin-bottom:8px;box-sizing:border-box;">
+        <select x-ref="nj_type"
+                style="width:100%;padding:6px 8px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;margin-bottom:8px;">
+            <option value="Vollzeit">Vollzeit</option>
+            <option value="Teilzeit">Teilzeit</option>
+            <option value="Vollzeit/Teilzeit">Vollzeit/Teilzeit</option>
+        </select>
+        <textarea x-ref="nj_notes" placeholder="Grobe Details aus dem Gespraech..."
+                  style="width:100%;height:80px;padding:6px 8px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;resize:vertical;margin-bottom:8px;box-sizing:border-box;"></textarea>
+        <div style="display:flex;gap:8px;">
+            <button type="button" onclick="document.getElementById('new-job-draft-form').style.display='none'"
+                    style="flex:1;padding:6px;background:var(--pp-surface3);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:11px;cursor:pointer;">
+                Abbrechen
+            </button>
+            <button type="submit" :disabled="saving"
+                    style="flex:1;padding:6px;background:var(--pp-accent);border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:600;cursor:pointer;">
+                Anlegen
+            </button>
+        </div>
+    </form>
+</div>

@@ -2243,6 +2243,7 @@ class MatchingEngineV2:
                 .where(
                     Job.v2_profile_created_at.isnot(None),
                     Job.deleted_at.is_(None),
+                    Job.acquisition_source.is_(None),  # Akquise-Jobs NICHT matchen
                     Job.hotlist_category == "FINANCE",
                 )
             )
@@ -2395,6 +2396,7 @@ class EmbeddingGenerationService:
                 Job.v2_profile_created_at.isnot(None),
                 Job.v2_embedding.is_(None),
                 Job.deleted_at.is_(None),
+                Job.acquisition_source.is_(None),  # Akquise-Jobs NICHT matchen
                 Job.hotlist_category == "FINANCE",
             )
             .order_by(Job.created_at.asc())

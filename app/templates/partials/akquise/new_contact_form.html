@@ -1,0 +1,55 @@
+{# Neuer Ansprechpartner — Inline-Formular im Call-Screen #}
+{# Wird bei D13 (Weiterverbunden) oder manuell geoeffnet #}
+
+<div x-data="{ saving: false }" style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:8px;padding:12px;margin-bottom:12px;">
+    <p style="font-size:12px;font-weight:600;color:var(--pp-text);margin:0 0 10px;">Neuen AP erfassen</p>
+    <form @submit.prevent="
+        saving = true;
+        fetch('/api/companies/{{ company.id if company else '' }}/contacts', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                first_name: $refs.nc_first.value,
+                last_name: $refs.nc_last.value,
+                position: $refs.nc_position.value,
+                phone: $refs.nc_phone.value,
+                email: $refs.nc_email.value,
+                source: 'manual',
+                contact_role: 'empfehlung',
+            })
+        }).then(r => {
+            if (r.ok) {
+                if (typeof showToast === 'function') showToast('AP gespeichert', 'success');
+                document.getElementById('new-contact-form').style.display = 'none';
+            } else {
+                if (typeof showToast === 'function') showToast('Fehler beim Speichern', 'error');
+            }
+            saving = false;
+        }).catch(() => { saving = false; })
+    ">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+            <input x-ref="nc_first" type="text" placeholder="Vorname" required
+                   style="padding:6px 8px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;">
+            <input x-ref="nc_last" type="text" placeholder="Nachname" required
+                   style="padding:6px 8px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;">
+        </div>
+        <input x-ref="nc_position" type="text" placeholder="Funktion (z.B. Personalleitung)"
+               style="width:100%;padding:6px 8px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;margin-bottom:8px;box-sizing:border-box;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+            <input x-ref="nc_phone" type="tel" placeholder="Telefon"
+                   style="padding:6px 8px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;">
+            <input x-ref="nc_email" type="email" placeholder="E-Mail"
+                   style="padding:6px 8px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;">
+        </div>
+        <div style="display:flex;gap:8px;">
+            <button type="button" onclick="document.getElementById('new-contact-form').style.display='none'"
+                    style="flex:1;padding:6px;background:var(--pp-surface3);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:11px;cursor:pointer;">
+                Abbrechen
+            </button>
+            <button type="submit" :disabled="saving"
+                    style="flex:1;padding:6px;background:var(--pp-accent);border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:600;cursor:pointer;">
+                Speichern
+            </button>
+        </div>
+    </form>
+</div>

@@ -435,6 +435,7 @@ async def run_matching(
                 ]
                 base_job = [
                     Job.deleted_at.is_(None),
+                    Job.acquisition_source.is_(None),  # Akquise-Jobs NICHT matchen
                     Job.quality_score.in_(["high", "medium"]),
                     Job.classification_data.isnot(None),
                     (Job.expires_at.is_(None)) | (Job.expires_at > func.now()),

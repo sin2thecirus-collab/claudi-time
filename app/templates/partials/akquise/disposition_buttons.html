@@ -1,0 +1,122 @@
+{# Disposition-Buttons — 13 Dispositionen mit Farbcodierung #}
+{# Wird im Call-Screen eingebettet, nutzt callScreen() Alpine-Scope #}
+
+<div style="display:flex;flex-direction:column;gap:4px;">
+    {# ── Nicht erreicht ── #}
+    <div style="font-size:10px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.5px;margin:4px 0 2px;">Nicht erreicht</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
+        <button @click="submitDisposition('nicht_erreicht')"
+                :style="selectedDisposition === 'nicht_erreicht' ? 'background:var(--pp-orange);color:#000;border-color:var(--pp-orange);' : ''"
+                style="padding:6px 8px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:11px;cursor:pointer;text-align:left;transition:all .1s;">
+            D1a Nicht erreicht
+        </button>
+        <button @click="submitDisposition('mailbox_besprochen')"
+                :style="selectedDisposition === 'mailbox_besprochen' ? 'background:var(--pp-orange);color:#000;border-color:var(--pp-orange);' : ''"
+                style="padding:6px 8px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:11px;cursor:pointer;text-align:left;transition:all .1s;">
+            D1b AB besprochen
+        </button>
+        <button @click="submitDisposition('besetzt')"
+                :style="selectedDisposition === 'besetzt' ? 'background:var(--pp-orange);color:#000;border-color:var(--pp-orange);' : ''"
+                style="padding:6px 8px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:11px;cursor:pointer;text-align:left;transition:all .1s;">
+            D2 Besetzt
+        </button>
+        <button @click="submitDisposition('falsche_nummer')"
+                :style="selectedDisposition === 'falsche_nummer' ? 'background:var(--pp-red);color:#fff;border-color:var(--pp-red);' : ''"
+                style="padding:6px 8px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:11px;cursor:pointer;text-align:left;transition:all .1s;">
+            D3 Falsche Nummer
+        </button>
+        <button @click="submitDisposition('sekretariat')"
+                :style="selectedDisposition === 'sekretariat' ? 'background:var(--pp-orange);color:#000;border-color:var(--pp-orange);' : ''"
+                style="padding:6px 8px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:11px;cursor:pointer;text-align:left;transition:all .1s;">
+            D4 Sekretariat
+        </button>
+    </div>
+
+    {# ── Erreicht — Negativ ── #}
+    <div style="font-size:10px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.5px;margin:8px 0 2px;">Erreicht — Ablehnung</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
+        <button @click="submitDisposition('kein_bedarf')"
+                :style="selectedDisposition === 'kein_bedarf' ? 'background:var(--pp-red);color:#fff;border-color:var(--pp-red);' : ''"
+                style="padding:6px 8px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:11px;cursor:pointer;text-align:left;transition:all .1s;">
+            D5 Kein Bedarf
+        </button>
+        <button @click="if(confirm('Firma DAUERHAFT auf Blacklist setzen?')) submitDisposition('nie_wieder')"
+                :style="selectedDisposition === 'nie_wieder' ? 'background:var(--pp-red);color:#fff;border-color:var(--pp-red);' : ''"
+                style="padding:6px 8px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:6px;color:var(--pp-red);font-size:11px;cursor:pointer;text-align:left;transition:all .1s;">
+            D6 Nie wieder
+        </button>
+    </div>
+
+    {# ── Erreicht — Positiv ── #}
+    <div style="font-size:10px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.5px;margin:8px 0 2px;">Erreicht — Interesse</div>
+    <div style="display:flex;flex-direction:column;gap:4px;">
+        <button @click="showFollowUp = true; pendingDisposition = 'interesse_spaeter'"
+                :style="selectedDisposition === 'interesse_spaeter' ? 'background:var(--pp-green);color:#fff;border-color:var(--pp-green);' : ''"
+                style="padding:6px 8px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:11px;cursor:pointer;text-align:left;transition:all .1s;">
+            D7 Interesse — spaeter
+        </button>
+        <button @click="submitDisposition('will_infos')"
+                :style="selectedDisposition === 'will_infos' ? 'background:var(--pp-accent);color:#fff;border-color:var(--pp-accent);' : ''"
+                style="padding:6px 8px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:11px;cursor:pointer;text-align:left;transition:all .1s;">
+            D8 Will Infos (E-Mail)
+        </button>
+        <button @click="showFollowUp = true; pendingDisposition = 'qualifiziert_erst'"
+                :style="selectedDisposition === 'qualifiziert_erst' ? 'background:var(--pp-green);color:#fff;border-color:var(--pp-green);' : ''"
+                style="padding:6px 8px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:6px;color:var(--pp-green);font-size:11px;cursor:pointer;text-align:left;transition:all .1s;">
+            D9 Qualifiziert (Zweitkontakt)
+        </button>
+        <button @click="submitDisposition('voll_qualifiziert')"
+                :style="selectedDisposition === 'voll_qualifiziert' ? 'background:var(--pp-green);color:#fff;border-color:var(--pp-green);' : ''"
+                style="padding:6px 8px;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.3);border-radius:6px;color:var(--pp-green);font-size:11px;font-weight:600;cursor:pointer;text-align:left;transition:all .1s;">
+            D10 Voll qualifiziert (ATS)
+        </button>
+    </div>
+
+    {# ── Sonderfaelle ── #}
+    <div style="font-size:10px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.5px;margin:8px 0 2px;">Sonderfaelle</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
+        <button @click="submitDisposition('ap_nicht_mehr_da')"
+                style="padding:6px 8px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:11px;cursor:pointer;text-align:left;transition:all .1s;">
+            D11 AP nicht mehr da
+        </button>
+        <button @click="submitDisposition('andere_stelle_offen')"
+                style="padding:6px 8px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:11px;cursor:pointer;text-align:left;transition:all .1s;">
+            D12 Andere Stelle offen
+        </button>
+        <button @click="submitDisposition('weiterverbunden')"
+                style="padding:6px 8px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:11px;cursor:pointer;text-align:left;transition:all .1s;">
+            D13 Weiterverbunden
+        </button>
+    </div>
+
+    {# ── Wiedervorlage Datum/Uhrzeit (zeigt sich bei D7, D9) ── #}
+    <div x-data="{ showFollowUp: false, pendingDisposition: '' }">
+        <div x-show="showFollowUp" style="margin-top:10px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:8px;padding:12px;">
+            <p style="font-size:12px;font-weight:500;color:var(--pp-text);margin:0 0 8px;">Wiedervorlage</p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <div>
+                    <label style="font-size:10px;color:var(--pp-textDim);display:block;margin-bottom:4px;">Datum *</label>
+                    <input type="date" x-model="$parent.followUpDate"
+                           style="width:100%;padding:6px 8px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;box-sizing:border-box;">
+                </div>
+                <div>
+                    <label style="font-size:10px;color:var(--pp-textDim);display:block;margin-bottom:4px;">Uhrzeit *</label>
+                    <input type="time" x-model="$parent.followUpTime" value="09:00"
+                           style="width:100%;padding:6px 8px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;box-sizing:border-box;">
+                </div>
+            </div>
+            <input type="text" x-model="$parent.followUpNote" placeholder="Grund/Notiz..."
+                   style="width:100%;margin-top:8px;padding:6px 8px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;box-sizing:border-box;">
+            <div style="display:flex;gap:8px;margin-top:8px;">
+                <button @click="showFollowUp = false"
+                        style="flex:1;padding:6px;background:var(--pp-surface3);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:11px;cursor:pointer;">
+                    Abbrechen
+                </button>
+                <button @click="$parent.submitDisposition(pendingDisposition); showFollowUp = false"
+                        style="flex:1;padding:6px;background:var(--pp-green);border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:600;cursor:pointer;">
+                    Speichern
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

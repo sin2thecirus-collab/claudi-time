@@ -1,0 +1,318 @@
+{% extends "base.html" %}
+
+{% block title %}Akquise - Pulspoint{% endblock %}
+
+{% block content %}
+<div x-data="akquisePage()" x-init="init()" style="padding:24px;">
+
+    {# ── Header ── #}
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+        <div>
+            <h1 style="font-size:22px;font-weight:700;color:var(--pp-text);margin:0;">Akquise</h1>
+            <p style="font-size:13px;color:var(--pp-textMuted);margin:4px 0 0;">CSV-Import &middot; Anrufe &middot; E-Mails &middot; Qualifizierung</p>
+        </div>
+        <div style="display:flex;gap:10px;">
+            <button @click="showImport = true"
+                    style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;font-weight:500;cursor:pointer;transition:all .1s;"
+                    onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='var(--pp-surface)'">
+                <svg style="width:16px;height:16px;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
+                CSV importieren
+            </button>
+            <button @click="startCalling()"
+                    style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:var(--pp-green);border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:opacity .1s;"
+                    onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+                <svg style="width:16px;height:16px;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"/></svg>
+                Abtelefonieren
+            </button>
+        </div>
+    </div>
+
+    {# ── Tages-KPIs ── #}
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:24px;">
+        <div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:10px;padding:14px 16px;">
+            <p style="font-size:11px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.5px;margin:0;">Anrufe heute</p>
+            <p style="font-size:24px;font-weight:700;color:var(--pp-text);margin:6px 0 0;" x-text="stats.calls_today || 0"></p>
+        </div>
+        <div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:10px;padding:14px 16px;">
+            <p style="font-size:11px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.5px;margin:0;">Erreicht</p>
+            <p style="font-size:24px;font-weight:700;color:var(--pp-green);margin:6px 0 0;" x-text="stats.reached_today || 0"></p>
+        </div>
+        <div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:10px;padding:14px 16px;">
+            <p style="font-size:11px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.5px;margin:0;">Qualifiziert</p>
+            <p style="font-size:24px;font-weight:700;color:var(--pp-accent);margin:6px 0 0;" x-text="stats.qualified_today || 0"></p>
+        </div>
+        <div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:10px;padding:14px 16px;">
+            <p style="font-size:11px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.5px;margin:0;">E-Mails</p>
+            <p style="font-size:24px;font-weight:700;color:#60a5fa;margin:6px 0 0;" x-text="stats.emails_today || 0"></p>
+        </div>
+        <div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:10px;padding:14px 16px;">
+            <p style="font-size:11px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.5px;margin:0;">Offene Leads</p>
+            <p style="font-size:24px;font-weight:700;color:var(--pp-orange);margin:6px 0 0;" x-text="stats.open_leads || 0"></p>
+        </div>
+    </div>
+
+    {# ── Tab-Navigation ── #}
+    <div style="border-bottom:1px solid var(--pp-border);margin-bottom:20px;">
+        <nav style="display:flex;gap:0;overflow-x:auto;">
+            {% set tabs = [
+                ("heute", "Heute anrufen"),
+                ("neu", "Neue Leads"),
+                ("wiedervorlagen", "Wiedervorlagen"),
+                ("nicht_erreicht", "Nicht erreicht"),
+                ("qualifiziert", "Qualifiziert"),
+                ("archiv", "Archiv"),
+            ] %}
+            {% for tab_id, tab_label in tabs %}
+            <button @click="switchTab('{{ tab_id }}')"
+                    :style="activeTab === '{{ tab_id }}'
+                        ? 'border-bottom:2px solid var(--pp-accent);color:var(--pp-text);'
+                        : 'border-bottom:2px solid transparent;color:var(--pp-textMuted);'"
+                    style="padding:10px 16px;font-size:13px;font-weight:500;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;transition:all .1s;"
+                    onmouseover="if(this.style.borderBottomColor==='transparent')this.style.color='var(--pp-text)'"
+                    onmouseout="if(this.style.borderBottomColor==='transparent')this.style.color='var(--pp-textMuted)'">
+                {{ tab_label }}
+                {% if tab_counts.get(tab_id, 0) > 0 %}
+                <span :style="activeTab === '{{ tab_id }}'
+                          ? 'background:var(--pp-accentSoft);color:var(--pp-accent);'
+                          : 'background:var(--pp-surface3);color:var(--pp-textDim);'"
+                      style="margin-left:6px;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:600;">{{ tab_counts[tab_id] }}</span>
+                {% endif %}
+            </button>
+            {% endfor %}
+        </nav>
+    </div>
+
+    {# ── Tab-Inhalt (HTMX) ── #}
+    <div id="akquise-tab-content" style="min-height:400px;">
+        <div x-show="loading" style="display:flex;align-items:center;justify-content:center;padding:80px 0;">
+            <div style="width:28px;height:28px;border:3px solid var(--pp-border);border-top-color:var(--pp-accent);border-radius:50%;animation:spin 0.6s linear infinite;"></div>
+        </div>
+        <div x-show="!loading" id="akquise-tab-inner"></div>
+    </div>
+
+    {# ── CSV-Import Modal ── #}
+    <div x-show="showImport" x-cloak style="position:fixed;inset:0;z-index:150;">
+        <div style="position:fixed;inset:0;background:rgba(0,0,0,0.6);" @click="showImport = false"></div>
+        <div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:14px;width:480px;max-width:90vw;z-index:151;box-shadow:0 20px 60px rgba(0,0,0,0.5);">
+            <div style="padding:20px 24px;border-bottom:1px solid var(--pp-border);">
+                <h3 style="font-size:16px;font-weight:600;color:var(--pp-text);margin:0;">CSV-Import (advertsdata.com)</h3>
+            </div>
+            <form @submit.prevent="uploadCsv()" style="padding:20px 24px;">
+                <div style="border:2px dashed var(--pp-border);border-radius:10px;padding:32px;text-align:center;transition:all .15s;cursor:pointer;"
+                     :style="dragOver ? 'border-color:var(--pp-accent);background:var(--pp-accentSoft);' : ''"
+                     @dragover.prevent="dragOver = true"
+                     @dragleave="dragOver = false"
+                     @drop.prevent="handleDrop($event)"
+                     @click="$refs.csvFile.click()">
+                    <input type="file" accept=".csv" x-ref="csvFile" style="display:none;"
+                           @change="csvFileName = $refs.csvFile.files[0]?.name">
+                    <svg style="width:36px;height:36px;color:var(--pp-textDim);margin:0 auto 8px;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+                    <p style="font-size:13px;color:var(--pp-textMuted);margin:0;" x-text="csvFileName || 'CSV-Datei hierhin ziehen oder klicken'"></p>
+                </div>
+
+                <label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:13px;color:var(--pp-textMuted);cursor:pointer;">
+                    <input type="checkbox" x-model="previewOnly" style="width:16px;height:16px;border-radius:4px;cursor:pointer;">
+                    Nur Vorschau (kein Import)
+                </label>
+
+                <div x-show="importResult" style="margin-top:14px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;padding:14px;">
+                    <template x-if="importResult">
+                        <div style="font-size:13px;">
+                            <p style="font-weight:600;color:var(--pp-text);margin:0 0 6px;" x-text="'Gesamt: ' + importResult.total_rows + ' Zeilen'"></p>
+                            <p style="color:var(--pp-green);margin:2px 0;" x-text="'Importiert: ' + (importResult.imported || importResult.new_leads || 0)"></p>
+                            <p style="color:var(--pp-accent);margin:2px 0;" x-text="'Duplikate: ' + (importResult.duplicates_refreshed || importResult.duplicates || 0)"></p>
+                            <p style="color:var(--pp-red);margin:2px 0;" x-text="'Blacklist: ' + (importResult.blacklisted_skipped || importResult.blacklisted || 0)"></p>
+                            <p x-show="importResult.errors > 0" style="color:var(--pp-orange);margin:2px 0;" x-text="'Fehler: ' + importResult.errors"></p>
+                        </div>
+                    </template>
+                </div>
+
+                <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px;">
+                    <button type="button" @click="showImport = false"
+                            style="padding:8px 16px;background:var(--pp-surface3);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-textMuted);font-size:13px;font-weight:500;cursor:pointer;">
+                        Abbrechen
+                    </button>
+                    <button type="submit" :disabled="uploading"
+                            style="padding:8px 16px;background:var(--pp-accent);border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;opacity:1;"
+                            :style="uploading ? 'opacity:0.5;cursor:not-allowed;' : ''">
+                        <span x-show="!uploading" x-text="previewOnly ? 'Vorschau' : 'Importieren'"></span>
+                        <span x-show="uploading">Wird verarbeitet...</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {# ── Call-Screen Fullscreen Overlay ── #}
+    <div x-show="callScreenVisible" x-cloak
+         style="position:fixed;inset:0;z-index:100;background:var(--pp-bg);overflow:hidden;"
+         @keydown.escape.window="closeCallScreen()">
+        <div id="call-screen-content" style="height:100%;overflow:auto;">
+            <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--pp-textDim);font-size:14px;">
+                Call-Screen wird geladen...
+            </div>
+        </div>
+    </div>
+
+    {# ── E-Mail Modal ── #}
+    <div x-show="emailModalVisible" x-cloak style="position:fixed;inset:0;z-index:150;">
+        <div style="position:fixed;inset:0;background:rgba(0,0,0,0.6);" @click="emailModalVisible = false"></div>
+        <div id="email-modal-content" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:14px;width:640px;max-width:90vw;max-height:85vh;overflow:auto;z-index:151;box-shadow:0 20px 60px rgba(0,0,0,0.5);">
+            <div style="padding:40px;text-align:center;color:var(--pp-textDim);">E-Mail wird geladen...</div>
+        </div>
+    </div>
+
+    {# ── Rueckruf-Popup ── #}
+    <div x-show="rueckrufVisible" x-cloak x-transition
+         style="position:fixed;top:70px;right:20px;z-index:200;width:360px;background:var(--pp-surface);border:1px solid var(--pp-accent);border-radius:12px;box-shadow:0 12px 40px rgba(59,130,246,0.3);overflow:hidden;">
+        <div style="padding:12px 16px;background:var(--pp-accentSoft);border-bottom:1px solid var(--pp-border);display:flex;align-items:center;justify-content:space-between;">
+            <span style="font-size:13px;font-weight:600;color:var(--pp-accent);">Rueckruf erkannt</span>
+            <button @click="rueckrufVisible = false" style="background:none;border:none;color:var(--pp-textDim);cursor:pointer;font-size:16px;">&times;</button>
+        </div>
+        <div id="rueckruf-content" style="padding:14px 16px;">
+            <p style="color:var(--pp-textDim);font-size:13px;margin:0;">Keine Daten</p>
+        </div>
+    </div>
+
+</div>
+
+<script>
+function akquisePage() {
+    return {
+        activeTab: '{{ active_tab }}',
+        loading: false,
+        stats: {},
+        showImport: false,
+        csvFileName: '',
+        previewOnly: false,
+        uploading: false,
+        importResult: null,
+        dragOver: false,
+        callScreenVisible: false,
+        emailModalVisible: false,
+        rueckrufVisible: false,
+        currentLeadId: null,
+
+        init() {
+            // KPIs laden
+            fetch('/api/akquise/stats').then(r => r.json()).then(d => this.stats = d).catch(() => {});
+            // Ersten Tab laden
+            this.loadTab(this.activeTab);
+            // localStorage: Letzten Lead merken
+            const lastId = localStorage.getItem('akquise_last_lead_id');
+            if (lastId) this.currentLeadId = lastId;
+        },
+
+        switchTab(tab) {
+            if (this.activeTab === tab) return;
+            this.activeTab = tab;
+            this.loadTab(tab);
+        },
+
+        loadTab(tab) {
+            this.loading = true;
+            htmx.ajax('GET', '/akquise/partials/tab/' + tab, {
+                target: '#akquise-tab-inner',
+                swap: 'innerHTML'
+            }).then(() => {
+                this.loading = false;
+            }).catch(() => {
+                document.getElementById('akquise-tab-inner').innerHTML =
+                    '<p style="text-align:center;padding:60px 0;color:var(--pp-red);font-size:13px;">Fehler beim Laden</p>';
+                this.loading = false;
+            });
+        },
+
+        openCallScreen(jobId) {
+            this.currentLeadId = jobId;
+            localStorage.setItem('akquise_last_lead_id', jobId);
+            this.callScreenVisible = true;
+            htmx.ajax('GET', '/akquise/partials/call-screen/' + jobId, {
+                target: '#call-screen-content',
+                swap: 'innerHTML'
+            });
+        },
+
+        closeCallScreen() {
+            this.callScreenVisible = false;
+            // Tab neu laden fuer aktualisierten Status
+            this.loadTab(this.activeTab);
+            // KPIs aktualisieren
+            fetch('/api/akquise/stats').then(r => r.json()).then(d => this.stats = d).catch(() => {});
+        },
+
+        openEmailModal(jobId, contactId) {
+            this.emailModalVisible = true;
+            htmx.ajax('GET', '/akquise/partials/email-modal/' + jobId + '?contact_id=' + contactId, {
+                target: '#email-modal-content',
+                swap: 'innerHTML'
+            });
+        },
+
+        advanceToNextLead() {
+            // Naechsten Lead im Tab laden
+            const rows = document.querySelectorAll('[data-lead-id]');
+            let found = false;
+            for (const row of rows) {
+                if (found) {
+                    this.openCallScreen(row.dataset.leadId);
+                    return;
+                }
+                if (row.dataset.leadId === this.currentLeadId) found = true;
+            }
+            // Kein naechster Lead — Call-Screen schliessen
+            this.closeCallScreen();
+            if (typeof showToast === 'function') showToast('Alle Leads in diesem Tab abgearbeitet', 'success');
+        },
+
+        startCalling() {
+            this.activeTab = 'heute';
+            this.loading = true;
+            htmx.ajax('GET', '/akquise/partials/tab/heute', {
+                target: '#akquise-tab-inner',
+                swap: 'innerHTML'
+            }).then(() => {
+                this.loading = false;
+                // Ersten Lead oeffnen
+                const first = document.querySelector('[data-lead-id]');
+                if (first) {
+                    this.openCallScreen(first.dataset.leadId);
+                } else {
+                    if (typeof showToast === 'function') showToast('Keine Leads zum Anrufen vorhanden', 'warning');
+                }
+            });
+        },
+
+        async uploadCsv() {
+            const fileInput = this.$refs.csvFile;
+            if (!fileInput.files.length) return;
+            this.uploading = true;
+            this.importResult = null;
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            const endpoint = this.previewOnly ? '/api/akquise/import/preview' : '/api/akquise/import';
+            try {
+                const resp = await fetch(endpoint, { method: 'POST', body: formData });
+                this.importResult = await resp.json();
+                if (!this.previewOnly) {
+                    this.loadTab(this.activeTab);
+                    fetch('/api/akquise/stats').then(r => r.json()).then(d => this.stats = d);
+                }
+            } catch (e) {
+                this.importResult = { errors: 1, error_details: [e.message] };
+            }
+            this.uploading = false;
+        },
+
+        handleDrop(event) {
+            this.dragOver = false;
+            const files = event.dataTransfer.files;
+            if (files.length) {
+                this.$refs.csvFile.files = files;
+                this.csvFileName = files[0].name;
+            }
+        },
+    };
+}
+</script>
+{% endblock %}

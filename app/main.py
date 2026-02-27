@@ -436,3 +436,9 @@ app.include_router(presentation_router)
 
 # Status & Query API (/api/status/overview, /api/status/geodaten, /api/status/profiling, ...)
 app.include_router(status_router, prefix="/api")
+
+# Akquise-Automatisierung (/api/akquise/..., /akquise)
+from app.api.routes_acquisition import router as acquisition_router
+from app.api.routes_acquisition_pages import router as acquisition_pages_router
+app.include_router(acquisition_router, prefix="/api")  # API: /api/akquise/...
+app.include_router(acquisition_pages_router)  # Pages: /akquise

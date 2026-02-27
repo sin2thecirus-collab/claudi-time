@@ -1,0 +1,44 @@
+{# Rueckruf-Popup — Zeigt Firma/AP/Lead bei erkanntem Rueckruf #}
+{# Erwartet: contact, company, jobs, last_call #}
+
+<div style="display:flex;flex-direction:column;gap:8px;">
+    {% if company %}
+    <div>
+        <span style="font-size:14px;font-weight:600;color:var(--pp-text);">{{ company.name }}</span>
+        {% if company.city %}
+        <span style="font-size:12px;color:var(--pp-textDim);margin-left:6px;">{{ company.city }}</span>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if contact %}
+    <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:13px;color:var(--pp-textMuted);">{{ contact.name }}</span>
+        {% if contact.position %}
+        <span style="font-size:11px;color:var(--pp-textDim);">{{ contact.position }}</span>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if last_call %}
+    <div style="background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:6px;padding:8px 10px;font-size:11px;">
+        <span style="color:var(--pp-textDim);">Letzter Anruf: {{ last_call.date }}</span>
+        <span style="color:var(--pp-textMuted);margin-left:8px;">{{ last_call.disposition }}</span>
+        {% if last_call.notes %}
+        <p style="color:var(--pp-textDim);margin:4px 0 0;font-size:11px;">{{ last_call.notes[:100] }}</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if jobs and jobs | length > 0 %}
+    <div style="display:flex;flex-direction:column;gap:4px;">
+        {% for job in jobs %}
+        <button onclick="Alpine.$data(document.querySelector('[x-data]')).openCallScreen('{{ job.id }}'); Alpine.$data(document.querySelector('[x-data]')).rueckrufVisible = false;"
+                style="padding:6px 10px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;cursor:pointer;text-align:left;transition:background .1s;"
+                onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='var(--pp-surface)'">
+            {{ job.position }} <span style="color:var(--pp-textDim);">({{ job.akquise_status }})</span>
+        </button>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>

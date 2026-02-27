@@ -116,6 +116,7 @@ PUBLIC_PREFIXES = (
     "/static/",
     "/api/n8n/",  # n8n Webhooks haben eigene Bearer-Token Auth
     "/api/telegram/",  # Telegram Webhook hat eigene Secret-Token Auth
+    "/api/akquise/unsubscribe/",  # Abmelde-Links aus Akquise-E-Mails (oeffentlich)
 )
 
 

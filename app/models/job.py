@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 
 from geoalchemy2 import Geography
-from sqlalchemy import ARRAY, Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, String, Text, func
+from sqlalchemy import ARRAY, Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, String, Text, func, text
 from sqlalchemy.dialects.postgresql import JSONB as JobJSONB
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -78,6 +78,17 @@ class Job(Base):
     quality_score: Mapped[str | None] = mapped_column(String(20))  # high / medium / low — Quality Gate
     job_tasks: Mapped[str | None] = mapped_column(Text)  # Extrahierte Taetigkeiten aus job_text (fuer Stufe-0 LLM-Vorfilter)
 
+    # ── Akquise-Felder (Migration 032) ──
+    acquisition_source: Mapped[str | None] = mapped_column(String(20))  # "advertsdata" oder NULL
+    position_id: Mapped[str | None] = mapped_column(String(50))  # Externe Position-ID
+    anzeigen_id: Mapped[str | None] = mapped_column(String(50))  # Externe Anzeigen-ID (Dedup)
+    akquise_status: Mapped[str | None] = mapped_column(String(30))  # neu/angerufen/kontaktiert/...
+    akquise_status_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    akquise_priority: Mapped[int | None] = mapped_column(Integer)  # 0 (hoechste) bis 10
+    first_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    import_batch_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+
     # Duplikaterkennung
     content_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
 
@@ -115,6 +126,12 @@ class Job(Base):
         back_populates="job",
         cascade="all, delete-orphan",
     )
+    acquisition_calls: Mapped[list["AcquisitionCall"]] = relationship(
+        "AcquisitionCall", back_populates="job",
+    )
+    acquisition_emails: Mapped[list["AcquisitionEmail"]] = relationship(
+        "AcquisitionEmail", back_populates="job",
+    )
 
     # Indizes
     __table_args__ = (
@@ -132,6 +149,10 @@ class Job(Base):
         Index("ix_jobs_imported_at", "imported_at"),
         Index("ix_jobs_last_updated_at", "last_updated_at"),
         Index("ix_jobs_quality_score", "quality_score"),
+        # Akquise-Indizes (Migration 032)
+        Index("idx_jobs_anzeigen_id", "anzeigen_id", postgresql_where=text("anzeigen_id IS NOT NULL")),
+        Index("idx_jobs_akquise_status", "acquisition_source", "akquise_status", "akquise_priority"),
+        Index("idx_jobs_batch_id", "import_batch_id", postgresql_where=text("import_batch_id IS NOT NULL")),
     )
 
     @property

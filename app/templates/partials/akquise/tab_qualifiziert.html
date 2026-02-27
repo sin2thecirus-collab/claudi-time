@@ -1,0 +1,70 @@
+{# Tab "Qualifiziert" — Qualifizierte + erstellte Stellen #}
+
+{% if groups and groups | length > 0 %}
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+    <span style="font-size:22px;font-weight:700;color:var(--pp-text);">{{ total }}</span>
+    <span style="font-size:13px;color:var(--pp-textMuted);">qualifizierte Leads</span>
+</div>
+
+{% for group in groups %}
+<div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:10px;margin-bottom:10px;overflow:hidden;">
+    <div style="padding:12px 16px;background:var(--pp-bg);border-bottom:1px solid var(--pp-border);display:flex;align-items:center;justify-content:space-between;cursor:pointer;"
+         onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'">
+        <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:14px;font-weight:600;color:var(--pp-text);">{{ group.company_name }}</span>
+            <span style="font-size:12px;color:var(--pp-textDim);">{{ group.city or '' }}</span>
+        </div>
+        <svg style="width:14px;height:14px;color:var(--pp-textDim);" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+    </div>
+    <div>
+        {% for job in group.jobs %}
+        <div data-lead-id="{{ job.id }}" style="padding:12px 16px;border-bottom:1px solid var(--pp-border);display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:background .1s;"
+             onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='transparent'"
+             onclick="Alpine.$data(document.querySelector('[x-data]')).openCallScreen('{{ job.id }}')">
+            <div style="display:flex;align-items:center;gap:10px;">
+                {% if job.akquise_status == 'stelle_erstellt' %}
+                <span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:rgba(34,197,94,0.15);color:var(--pp-green);">Stelle erstellt</span>
+                {% else %}
+                <span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:rgba(16,185,129,0.15);color:#10b981;">Qualifiziert</span>
+                {% endif %}
+                <span style="font-size:13px;font-weight:500;color:var(--pp-text);">{{ job.position }}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;">
+                {% if job.akquise_status == 'qualifiziert' %}
+                <button onclick="event.stopPropagation(); qualifyLead('{{ job.id }}')"
+                        style="padding:4px 10px;background:var(--pp-green);border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:600;cursor:pointer;">
+                    ATS-Stelle erstellen
+                </button>
+                {% endif %}
+                <span style="font-size:11px;color:var(--pp-textDim);">Prio {{ job.akquise_priority or '-' }}</span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endfor %}
+
+{% else %}
+<div style="text-align:center;padding:60px 0;">
+    <p style="font-size:15px;font-weight:500;color:var(--pp-textMuted);margin:0;">Keine qualifizierten Leads</p>
+    <p style="font-size:13px;color:var(--pp-textDim);margin:6px 0 0;">Qualifizierte Leads aus Anrufen erscheinen hier</p>
+</div>
+{% endif %}
+
+<script>
+async function qualifyLead(jobId) {
+    if (!confirm('Lead in ATS-Stelle konvertieren?')) return;
+    try {
+        const resp = await fetch('/api/akquise/leads/' + jobId + '/qualify', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}' });
+        if (resp.ok) {
+            if (typeof showToast === 'function') showToast('ATS-Stelle erfolgreich erstellt', 'success');
+            Alpine.$data(document.querySelector('[x-data]')).loadTab('qualifiziert');
+        } else {
+            const err = await resp.json();
+            if (typeof showToast === 'function') showToast(err.detail || 'Fehler', 'error');
+        }
+    } catch (e) {
+        if (typeof showToast === 'function') showToast('Netzwerkfehler', 'error');
+    }
+}
+</script>

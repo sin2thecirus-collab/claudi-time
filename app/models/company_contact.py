@@ -40,6 +40,11 @@ class CompanyContact(Base):
     )
     city: Mapped[str | None] = mapped_column(String(255))
 
+    # ── Akquise (Migration 032) ──
+    source: Mapped[str | None] = mapped_column(String(20))  # "advertsdata" / "manual"
+    contact_role: Mapped[str | None] = mapped_column(String(20))  # "firma" / "anzeige"
+    phone_normalized: Mapped[str | None] = mapped_column(String(20))  # E.164 (+491701234567)
+
     # Notizen
     notes: Mapped[str | None] = mapped_column(Text)
 
@@ -57,9 +62,18 @@ class CompanyContact(Base):
     # Relationship
     company: Mapped["Company"] = relationship("Company", back_populates="contacts")
 
+    # Akquise-Relationships
+    acquisition_calls: Mapped[list["AcquisitionCall"]] = relationship(
+        "AcquisitionCall", back_populates="contact",
+    )
+    acquisition_emails: Mapped[list["AcquisitionEmail"]] = relationship(
+        "AcquisitionEmail", back_populates="contact",
+    )
+
     __table_args__ = (
         Index("ix_company_contacts_company_id", "company_id"),
         Index("ix_company_contacts_last_name", "last_name"),
+        Index("idx_contacts_phone_norm", "phone_normalized", postgresql_where=text("phone_normalized IS NOT NULL")),
     )
 
     @property

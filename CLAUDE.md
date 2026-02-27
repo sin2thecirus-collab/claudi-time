@@ -43,6 +43,17 @@ Diese Datei enthaelt:
 
 **Aktualisiere die Datei SOFORT nach jedem abgeschlossenen Schritt.**
 
+### PFLICHT NACH JEDER KONTEXT-KOMPRIMIERUNG
+
+**Wenn der Chat komprimiert wurde (erkennbar an "continued from a previous conversation" oder fehlender Erinnerung an vorherige Schritte), MUESSEN SOFORT diese Dateien gelesen werden BEVOR irgendeine Arbeit fortgesetzt wird:**
+
+1. `Akquise/MEMORY.md` — Projekt-Status, Architektur-Entscheidungen, Key-Findings
+2. `Akquise/PLAN.md` — Aktueller Implementierungsplan (9 Phasen)
+3. `Akquise/RECHERCHE.md` — Research + Deep-Dive Ergebnisse
+4. `Akquise/REVIEW-TEAM.md` — Review-Team Ergebnisse
+
+**ERST LESEN, DANN ARBEITEN. Keine Ausnahme. Kein "ich erinnere mich noch". Lesen.**
+
 ---
 
 ## STATUS-UEBERSICHT (20.02.2026)
