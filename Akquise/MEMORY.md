@@ -35,7 +35,8 @@
 | CSV-Import | DEPLOYED + GETESTET | Erster echter Import erfolgreich (advertsdata.com CSV). 6 Bugs gefixt (siehe unten). |
 | /akquise Seite | LIVE | Migration 032 deployed, /akquise Seite funktioniert auf Railway, Leads sichtbar |
 | SSE Event-Bus | FERTIG (lokal) | acquisition_event_bus.py + SSE-Endpoint + Webhook + Frontend EventSource |
-| n8n-Workflows | OFFEN | 6 Workflows: Wiedervorlagen, Eskalation, Reporting, Reply-Detection, Bounce-Handling, Follow-up-Reminder |
+| n8n-Workflows | FERTIG (inaktiv) | 6 Workflows erstellt: Morgen-Briefing (BqjDn57PWwVHDpNy), Abend-Report (VazlvT2vuvqLXX9i), Wiedervorlagen-Alarm (CUIhgzyqDpuOQGZq), Follow-up-Erinnerung (nXsYnVBWy9q0Vh7J), Eskalation (YhLwBZewTiKu7qEU), Reply&Bounce Monitor (DIq76xuoQ0QqQMxJ) |
+| n8n-Backend-Endpoints | FERTIG | 5 neue Endpoints: /n8n/followup-due, /n8n/eskalation-due, /n8n/check-inbox, /n8n/process-reply, /n8n/process-bounce |
 
 ---
 
@@ -71,6 +72,25 @@
 - **Webhook:** `POST /api/akquise/events/incoming-call` in routes_acquisition.py — n8n/Webex ruft auf, macht Phone-Lookup, pusht an alle SSE-Clients
 - **Frontend:** EventSource in `akquisePage().init()`, `_handleIncomingCall()` zeigt Rueckruf-Popup mit pulsierendem Punkt
 - **Refactoring:** `_renderRueckrufPopup()` — gemeinsame Methode fuer manuellen Lookup und SSE-Event (DOM statt innerHTML)
+
+### Phase 6: n8n-Workflows (28.02.2026)
+- **6 komplett neue Workflows**, unabhaengig von bestehenden n8n-Automationen
+- Alle Workflows INAKTIV erstellt — muessen manuell in n8n aktiviert werden
+- **5 neue Backend-Endpoints** in routes_acquisition.py fuer n8n:
+  - `GET /api/akquise/n8n/followup-due` — Follow-up/Break-up faellige Leads
+  - `GET /api/akquise/n8n/eskalation-due?apply=true` — Eskalierte Leads + Auto-Update
+  - `POST /api/akquise/n8n/check-inbox?minutes=15` — Inbox-Check via Graph API
+  - `POST /api/akquise/n8n/process-reply` — Reply manuell verarbeiten
+  - `POST /api/akquise/n8n/process-bounce` — Bounce manuell verarbeiten
+
+| # | Workflow | n8n ID | Zeitplan | Endpoint |
+|---|----------|--------|----------|----------|
+| 1 | Morgen-Briefing | BqjDn57PWwVHDpNy | 08:00 | wiedervorlagen + stats |
+| 2 | Abend-Report | VazlvT2vuvqLXX9i | 19:00 | stats |
+| 3 | Wiedervorlagen-Alarm | CUIhgzyqDpuOQGZq | 10/12/14/16 | wiedervorlagen |
+| 4 | Follow-up-Erinnerung | nXsYnVBWy9q0Vh7J | 09:00 | n8n/followup-due |
+| 5 | Eskalation | YhLwBZewTiKu7qEU | 18:00 | n8n/eskalation-due?apply=true |
+| 6 | Reply & Bounce Monitor | DIq76xuoQ0QqQMxJ | */15 | n8n/check-inbox |
 
 ### Offen (Phase 7.4)
 - Webex-Integration: Webex CDR/Webhook → n8n → POST /api/akquise/events/incoming-call

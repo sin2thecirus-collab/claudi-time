@@ -4,8 +4,8 @@
 > Basierend auf: 6 Research + 6 Review + 6 Deep-Dive + 1 Vertriebsingenieur + 3 Marketing-Review-Agenten
 > Quellen: RECHERCHE.md, REVIEW-TEAM.md
 >
-> **Implementierungs-Status:** Phase 1-5 FERTIG + DEPLOYED + 4 Frontend-Bugfixes + Phase 7.1-7.3 + Phase 8 FERTIG (lokal) | Phase 6, 7.4, 9 OFFEN
-> **Deploy-Status (28.02.):** Migration 032 deployed, CSV-Import funktioniert (6 Bugfixes), /akquise LIVE, Bugfixes + Phase 7+8 lokal (noch nicht deployed)
+> **Implementierungs-Status:** Phase 1-6 FERTIG + Phase 7.1-7.3 + Phase 8 FERTIG | Phase 7.4, 9 OFFEN
+> **Deploy-Status (28.02.):** Migration 032 deployed, CSV-Import funktioniert, /akquise LIVE | Phase 6 n8n-Workflows erstellt (inaktiv), Backend-Endpoints deployed
 
 ---
 
@@ -767,75 +767,88 @@ ORDER BY ae.sent_at DESC
 
 ---
 
-## PHASE 6: n8n-Workflows ⏳ OFFEN
+## PHASE 6: n8n-Workflows ✅ FERTIG (28.02.2026)
 
-### 6.1 Wiedervorlagen-Reminder (taeglich 08:00)
+> **6 komplett neue Workflows**, unabhaengig von bestehenden n8n-Automationen.
+> Alle Workflows inaktiv erstellt — muessen manuell aktiviert werden.
 
-```
-Cron Trigger (08:00) → HTTP GET /api/akquise/wiedervorlagen
-→ Filter: Nur faellige fuer heute
-→ Telegram: "Du hast X Wiedervorlagen heute: [Liste mit Firma + Job]"
-```
-
-### 6.2 Eskalations-Logik (taeglich 18:00)
+### 6.1 Morgen-Briefing (08:00) — n8n ID: `BqjDn57PWwVHDpNy`
 
 ```
-Cron Trigger (18:00) → HTTP GET /api/akquise/leads?status=email_gesendet&post_email_attempts>=3
-→ Filter: Leads mit E-Mail + 3 Anrufversuche danach ohne Erreichen
-→ Auto-Aktion: Status → followup_abgeschlossen (NICHT blacklist!)
-→ Telegram: "X Leads nach E-Mail + 3 Versuchen abgeschlossen. Reaktivierbar bei neuem Import."
+Schedule Trigger (08:00)
+  → Parallel: GET /api/akquise/wiedervorlagen + GET /api/akquise/stats
+  → Code: Briefing formatieren (Stats + Wiedervorlagen-Liste)
+  → Telegram: Zusammenfassung + Link zur Akquise-Seite
 ```
 
-**WICHTIG:** Blacklist NUR bei expliziter Ablehnung (D5 kein_bedarf, D6 nie_wieder).
-Nicht-Erreichen = KEIN Interesse-Signal, nur Pech. Lead wird nach 30 Tagen bei neuem CSV-Import reaktiviert.
-
-### 6.3 Tages-Reporting (taeglich 19:00)
+### 6.2 Abend-Report (19:00) — n8n ID: `VazlvT2vuvqLXX9i`
 
 ```
-Cron Trigger (19:00) → HTTP GET /api/akquise/stats
-→ Telegram: "Akquise heute: X Anrufe, Y erreicht, Z qualifiziert, W E-Mails"
+Schedule Trigger (19:00)
+  → GET /api/akquise/stats
+  → Code: Tages-Performance mit Emoji-Ampel + Tagesziel-Check
+  → Telegram: Tages-KPIs + Motivations-Feedback
 ```
 
-### 6.4 E-Mail-Versand (Event-getriggert)
+### 6.3 Wiedervorlagen-Alarm (10/12/14/16 Uhr) — n8n ID: `CUIhgzyqDpuOQGZq`
 
 ```
-Webhook von MT → E-Mail-Daten empfangen
-→ Microsoft Graph API: E-Mail senden
-→ HTTP PATCH /api/akquise/leads/{id} → email_sent=true
-→ Bei Fehler: Retry 3x → Telegram-Alert
+Schedule Trigger (alle 2h, 10-16 Uhr)
+  → GET /api/akquise/wiedervorlagen
+  → Code: Ueberfaellige + kommende 2h filtern
+  → IF: skip=true → Stopp, skip=false → Telegram
+  → Telegram: Nur wenn ueberfaellige oder kommende Wiedervorlagen existieren
 ```
 
-### 6.5 Reply-Detection (alle 15 Min — NEU)
+### 6.4 Follow-up-Erinnerung (09:00) — n8n ID: `nXsYnVBWy9q0Vh7J`
 
 ```
-Cron Trigger (*/15 * * * *) → Microsoft Graph: Inbox-Check fuer alle 5 Mailboxes
-→ Neue Mails filtern: Subject enthalt Akquise-Keywords ODER In-Reply-To matched
-→ Match in acquisition_emails gefunden:
-  → HTTP PATCH acquisition_emails.status = "replied"
-  → HTTP PATCH Job.akquise_status = "kontaktiert"
-  → Telegram: "📬 Antwort von [Firma] auf Akquise-Mail! Lead: [Link]"
+Schedule Trigger (09:00)
+  → GET /api/akquise/n8n/followup-due (NEUER Endpoint)
+  → Code: Follow-up-faellig (5-7 Tage) + Break-up-faellig (7-10 Tage) formatieren
+  → Telegram: Liste mit Firma/Position/Tage seit Erst-Mail
 ```
 
-### 6.6 Bounce-Handling (alle 30 Min — NEU)
+**Neuer Backend-Endpoint:** `GET /api/akquise/n8n/followup-due`
+- Sucht Erst-Mails gesendet vor 5-7 Tagen OHNE Follow-up OHNE Reply
+- Sucht Follow-up-Mails gesendet vor 7-10 Tagen OHNE Break-up OHNE Reply
+
+### 6.5 Eskalation (18:00) — n8n ID: `YhLwBZewTiKu7qEU`
 
 ```
-Cron Trigger (*/30 * * * *) → Microsoft Graph: NDR-Mails (Non-Delivery-Reports) pruefen
-→ Bounce-Mail parsen: Original-Empfaenger extrahieren
-→ Match in acquisition_emails gefunden:
-  → acquisition_emails.status = "bounced"
-  → Contact.email als ungueltig markieren (neues Feld: email_valid = false)
-  → Telegram: "⚠️ Bounce bei [Firma]: [email] ungueltig"
+Schedule Trigger (18:00)
+  → GET /api/akquise/n8n/eskalation-due?apply=true (NEUER Endpoint)
+  → Code: Eskalierte Leads formatieren
+  → Telegram: Liste mit Firma/Position/Anzahl Versuche
 ```
 
-### 6.7 Follow-up-Reminder (taeglich 09:00 — erweitert)
+**Neuer Backend-Endpoint:** `GET /api/akquise/n8n/eskalation-due?apply=true/false`
+- Sucht Jobs mit Status email_gesendet/email_followup + 3 Anrufe danach ohne Erreichen
+- Mit `apply=true`: Setzt Status automatisch auf followup_abgeschlossen
+- **WICHTIG:** Blacklist NUR bei expliziter Ablehnung (D5/D6), NICHT bei Nicht-Erreichen
+
+### 6.6 Reply & Bounce Monitor (alle 15 Min) — n8n ID: `DIq76xuoQ0QqQMxJ`
 
 ```
-Cron Trigger (09:00) → HTTP GET /api/akquise/leads?email_followup_due=true
-→ Filter: Erst-Mail gesendet vor 5-7 Tagen UND kein Follow-up UND kein Reply
-→ Telegram: "X Leads warten auf Follow-up-E-Mail"
-→ Filter 2: Follow-up gesendet vor 7-10 Tagen UND kein Break-up UND kein Reply
-→ Telegram: "Y Leads warten auf Break-up-E-Mail"
+Schedule Trigger (*/15)
+  → POST /api/akquise/n8n/check-inbox?minutes=15 (NEUER Endpoint)
+  → Code: Replies + Bounces formatieren (nur wenn > 0)
+  → Telegram: Antworten + Bounces mit Firma/E-Mail/Postfach
 ```
+
+**Neuer Backend-Endpoint:** `POST /api/akquise/n8n/check-inbox?minutes=15`
+- Nutzt MicrosoftGraphClient Token (Backend hat Credentials, n8n nicht)
+- Prueft alle 5 Akquise-Mailboxen via Microsoft Graph API
+- Reply-Detection: Matcht Absender gegen gesendete acquisition_emails
+- Bounce-Detection: Erkennt NDR/MAILER-DAEMON, extrahiert Original-Empfaenger
+- Updates: email.status → replied/bounced, job.akquise_status → kontaktiert
+
+### Weitere n8n-Endpoints (Hilfsfunktionen)
+
+| Methode | Pfad | Beschreibung |
+|---------|------|------------|
+| POST | `/api/akquise/n8n/process-reply` | Einzelne Reply manuell verarbeiten |
+| POST | `/api/akquise/n8n/process-bounce` | Einzelnen Bounce manuell verarbeiten |
 
 ---
 

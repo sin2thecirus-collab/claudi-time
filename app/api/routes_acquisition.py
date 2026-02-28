@@ -649,6 +649,18 @@ class IncomingCallEvent(BaseModel):
     caller_name: str | None = None
 
 
+class ProcessReplyRequest(BaseModel):
+    from_email: str  # Wer hat geantwortet
+    to_email: str  # An welches Postfach
+    subject: str | None = None
+    in_reply_to: str | None = None  # Graph Message-ID der Original-Mail
+
+
+class ProcessBounceRequest(BaseModel):
+    original_to_email: str  # Empfaenger der gebouncten Mail
+    bounce_reason: str | None = None
+
+
 @router.post("/events/incoming-call")
 async def trigger_incoming_call(
     body: IncomingCallEvent,
@@ -678,6 +690,459 @@ async def trigger_incoming_call(
         "event": "incoming-call",
         "delivered_to": delivered,
         "found": lookup_result is not None,
+    }
+
+
+# ── n8n-Endpoints (fuer Workflow-Automation) ──
+
+
+@router.get("/n8n/followup-due")
+async def get_followup_due(
+    db: AsyncSession = Depends(get_db),
+):
+    """Leads die Follow-up oder Break-up E-Mail brauchen.
+
+    Follow-up faellig: Erst-Mail gesendet vor 5-7 Tagen, kein Follow-up, kein Reply.
+    Break-up faellig: Follow-up gesendet vor 7-10 Tagen, kein Break-up, kein Reply.
+    """
+    from datetime import timedelta
+
+    now = datetime.now(timezone.utc)
+
+    # --- Follow-up faellig ---
+    followup_window_start = now - timedelta(days=7)
+    followup_window_end = now - timedelta(days=5)
+
+    result = await db.execute(
+        select(AcquisitionEmail)
+        .where(
+            AcquisitionEmail.email_type == "initial",
+            AcquisitionEmail.status == "sent",
+            AcquisitionEmail.sent_at >= followup_window_start,
+            AcquisitionEmail.sent_at <= followup_window_end,
+        )
+        .options(
+            selectinload(AcquisitionEmail.job),
+            selectinload(AcquisitionEmail.contact),
+        )
+    )
+    initial_emails = result.scalars().all()
+
+    followup_due = []
+    for email in initial_emails:
+        # Skip wenn Follow-up bereits existiert
+        existing = await db.execute(
+            select(func.count(AcquisitionEmail.id)).where(
+                AcquisitionEmail.parent_email_id == email.id,
+                AcquisitionEmail.email_type == "follow_up",
+            )
+        )
+        if existing.scalar_one() > 0:
+            continue
+
+        followup_due.append({
+            "email_id": str(email.id),
+            "job_id": str(email.job_id) if email.job_id else None,
+            "company_name": email.job.company_name if email.job else None,
+            "position": email.job.position if email.job else None,
+            "contact_name": email.contact.full_name if email.contact else None,
+            "to_email": email.to_email,
+            "sent_at": email.sent_at.isoformat() if email.sent_at else None,
+            "days_since_sent": (now - email.sent_at).days if email.sent_at else None,
+        })
+
+    # --- Break-up faellig ---
+    breakup_window_start = now - timedelta(days=10)
+    breakup_window_end = now - timedelta(days=7)
+
+    result2 = await db.execute(
+        select(AcquisitionEmail)
+        .where(
+            AcquisitionEmail.email_type == "follow_up",
+            AcquisitionEmail.status == "sent",
+            AcquisitionEmail.sent_at >= breakup_window_start,
+            AcquisitionEmail.sent_at <= breakup_window_end,
+        )
+        .options(
+            selectinload(AcquisitionEmail.job),
+            selectinload(AcquisitionEmail.contact),
+        )
+    )
+    followup_emails = result2.scalars().all()
+
+    breakup_due = []
+    for email in followup_emails:
+        # Skip wenn Break-up bereits existiert fuer diesen Job
+        existing2 = await db.execute(
+            select(func.count(AcquisitionEmail.id)).where(
+                AcquisitionEmail.job_id == email.job_id,
+                AcquisitionEmail.email_type == "break_up",
+            )
+        )
+        if existing2.scalar_one() > 0:
+            continue
+
+        breakup_due.append({
+            "email_id": str(email.id),
+            "job_id": str(email.job_id) if email.job_id else None,
+            "company_name": email.job.company_name if email.job else None,
+            "position": email.job.position if email.job else None,
+            "contact_name": email.contact.full_name if email.contact else None,
+            "to_email": email.to_email,
+            "sent_at": email.sent_at.isoformat() if email.sent_at else None,
+            "days_since_sent": (now - email.sent_at).days if email.sent_at else None,
+        })
+
+    return {
+        "followup_due": followup_due,
+        "followup_count": len(followup_due),
+        "breakup_due": breakup_due,
+        "breakup_count": len(breakup_due),
+    }
+
+
+@router.get("/n8n/eskalation-due")
+async def get_eskalation_due(
+    apply: bool = Query(False, description="Wenn true, Status auf followup_abgeschlossen setzen"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Leads mit E-Mail + 3 Anrufversuche danach ohne Erreichen.
+
+    Kriterien:
+    - Job-Status ist email_gesendet oder email_followup
+    - Nach der letzten E-Mail wurden 3+ Anrufe gemacht
+    - Alle Anrufe ohne Erreichen (nicht_erreicht, besetzt, mailbox, sekretariat)
+    """
+    jobs_result = await db.execute(
+        select(Job)
+        .where(
+            Job.acquisition_source.isnot(None),
+            Job.akquise_status.in_(["email_gesendet", "email_followup"]),
+            Job.deleted_at.is_(None),
+        )
+    )
+    jobs = jobs_result.scalars().all()
+
+    eskalation_due = []
+    now = datetime.now(timezone.utc)
+
+    for job in jobs:
+        # Letzte E-Mail fuer diesen Job
+        last_email = await db.execute(
+            select(AcquisitionEmail.sent_at)
+            .where(
+                AcquisitionEmail.job_id == job.id,
+                AcquisitionEmail.status == "sent",
+            )
+            .order_by(AcquisitionEmail.sent_at.desc())
+            .limit(1)
+        )
+        email_sent_at = last_email.scalar_one_or_none()
+        if not email_sent_at:
+            continue
+
+        # Anrufe NACH der E-Mail zaehlen (nur nicht-erreicht Dispositionen)
+        calls_after = await db.execute(
+            select(func.count(AcquisitionCall.id))
+            .where(
+                AcquisitionCall.job_id == job.id,
+                AcquisitionCall.created_at > email_sent_at,
+                AcquisitionCall.disposition.in_([
+                    "nicht_erreicht", "besetzt", "mailbox_besprochen", "sekretariat",
+                ]),
+            )
+        )
+        call_count = calls_after.scalar_one()
+
+        if call_count >= 3:
+            eskalation_due.append({
+                "job_id": str(job.id),
+                "company_name": job.company_name,
+                "position": job.position,
+                "city": job.city,
+                "email_sent_at": email_sent_at.isoformat(),
+                "call_attempts_after_email": call_count,
+                "current_status": job.akquise_status,
+            })
+
+            if apply:
+                job.akquise_status = "followup_abgeschlossen"
+                job.akquise_status_changed_at = now
+
+    if apply and eskalation_due:
+        await db.commit()
+
+    return {
+        "eskalation_due": eskalation_due,
+        "count": len(eskalation_due),
+        "applied": apply,
+    }
+
+
+@router.post("/n8n/process-reply")
+async def process_reply(
+    body: ProcessReplyRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Reply auf Akquise-E-Mail verarbeiten (von n8n aufgerufen).
+
+    n8n checkt die Inbox via Microsoft Graph, findet Antworten,
+    und ruft diesen Endpoint auf. Backend matched und updated Status.
+    """
+    # Match ueber to_email (unser Postfach = from_email der Original-Mail)
+    query = select(AcquisitionEmail).where(
+        AcquisitionEmail.status == "sent",
+        AcquisitionEmail.to_email == body.from_email,
+    )
+
+    # Wenn in_reply_to vorhanden, praeziser matchen
+    if body.in_reply_to:
+        query = query.where(AcquisitionEmail.graph_message_id == body.in_reply_to)
+
+    query = query.order_by(AcquisitionEmail.sent_at.desc()).limit(1)
+    query = query.options(selectinload(AcquisitionEmail.job))
+
+    result = await db.execute(query)
+    email = result.scalar_one_or_none()
+
+    if not email:
+        return {"matched": False, "reason": "Keine passende gesendete E-Mail gefunden"}
+
+    # E-Mail-Status auf replied setzen
+    email.status = "replied"
+
+    # Job-Status auf kontaktiert setzen (wenn noch im E-Mail-Flow)
+    if email.job and email.job.akquise_status in ("email_gesendet", "email_followup"):
+        email.job.akquise_status = "kontaktiert"
+        email.job.akquise_status_changed_at = datetime.now(timezone.utc)
+
+    await db.commit()
+
+    return {
+        "matched": True,
+        "email_id": str(email.id),
+        "job_id": str(email.job_id) if email.job_id else None,
+        "company_name": email.job.company_name if email.job else None,
+        "new_job_status": email.job.akquise_status if email.job else None,
+    }
+
+
+@router.post("/n8n/check-inbox")
+async def check_inbox(
+    minutes: int = Query(15, description="Zeitfenster in Minuten"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Inbox aller Akquise-Mailboxen pruefen (Reply + Bounce Detection).
+
+    Wird von n8n alle 15 Min aufgerufen.
+    Nutzt Microsoft Graph API um neue Nachrichten zu lesen.
+    Matched Replies/Bounces gegen gesendete acquisition_emails.
+    """
+    import httpx
+    from app.config import settings
+
+    # Graph-Token holen (selbe Methode wie Email-Versand)
+    try:
+        from app.services.email_service import MicrosoftGraphClient
+        token = await MicrosoftGraphClient._get_access_token()
+    except Exception:
+        # Fallback: Token direkt holen
+        tenant_id = settings.microsoft_tenant_id
+        client_id = settings.microsoft_client_id
+        client_secret = settings.microsoft_client_secret
+
+        if not all([tenant_id, client_id, client_secret]):
+            return {"error": "Microsoft Graph nicht konfiguriert", "replies": [], "bounces": []}
+
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(
+                f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token",
+                data={
+                    "grant_type": "client_credentials",
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                    "scope": "https://graph.microsoft.com/.default",
+                },
+            )
+            if resp.status_code != 200:
+                return {"error": f"Token-Fehler: {resp.status_code}", "replies": [], "bounces": []}
+            token = resp.json()["access_token"]
+
+    from datetime import timedelta
+
+    now = datetime.now(timezone.utc)
+    since = (now - timedelta(minutes=minutes)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    # Alle Akquise-Mailboxen
+    mailboxes = [
+        settings.microsoft_sender_email,
+        "hamdard@sincirus-karriere.de",
+        "m.hamdard@sincirus-karriere.de",
+        "m.hamdard@jobs-sincirus.com",
+        "hamdard@jobs-sincirus.com",
+    ]
+    mailboxes = [m for m in mailboxes if m]
+
+    replies_found = []
+    bounces_found = []
+
+    async with httpx.AsyncClient(timeout=30.0) as http:
+        for mailbox in mailboxes:
+            try:
+                # Neue Nachrichten der letzten X Minuten laden
+                resp = await http.get(
+                    f"https://graph.microsoft.com/v1.0/users/{mailbox}/messages",
+                    params={
+                        "$filter": f"receivedDateTime ge {since}",
+                        "$select": "from,subject,body,internetMessageHeaders,receivedDateTime",
+                        "$top": "50",
+                        "$orderby": "receivedDateTime desc",
+                    },
+                    headers={"Authorization": f"Bearer {token}"},
+                )
+
+                if resp.status_code != 200:
+                    continue
+
+                messages = resp.json().get("value", [])
+
+                for msg in messages:
+                    from_addr = msg.get("from", {}).get("emailAddress", {}).get("address", "")
+                    subject = msg.get("subject", "")
+
+                    # NDR/Bounce erkennen (Non-Delivery Report)
+                    is_bounce = (
+                        "MAILER-DAEMON" in from_addr.upper()
+                        or "postmaster" in from_addr.lower()
+                        or subject.startswith("Undeliverable:")
+                        or subject.startswith("Delivery Status Notification")
+                        or "Mail Delivery" in subject
+                    )
+
+                    if is_bounce:
+                        # Original-Empfaenger aus Body extrahieren
+                        body_content = msg.get("body", {}).get("content", "")
+                        import re
+                        email_match = re.search(r'[\w.+-]+@[\w.-]+\.\w+', body_content)
+                        original_to = email_match.group(0) if email_match else None
+
+                        if original_to:
+                            # Match in DB
+                            bounce_email = await db.execute(
+                                select(AcquisitionEmail)
+                                .where(
+                                    AcquisitionEmail.status == "sent",
+                                    AcquisitionEmail.to_email == original_to,
+                                )
+                                .options(selectinload(AcquisitionEmail.contact))
+                                .order_by(AcquisitionEmail.sent_at.desc())
+                                .limit(1)
+                            )
+                            acq_email = bounce_email.scalar_one_or_none()
+
+                            if acq_email:
+                                acq_email.status = "bounced"
+                                if acq_email.contact:
+                                    acq_email.contact.notes = (
+                                        (acq_email.contact.notes or "")
+                                        + f"\nE-Mail bounced ({now.strftime('%d.%m.%Y')})"
+                                    )
+                                bounces_found.append({
+                                    "email": original_to,
+                                    "mailbox": mailbox,
+                                })
+                    else:
+                        # Reply erkennen — matchen gegen gesendete E-Mails
+                        reply_email = await db.execute(
+                            select(AcquisitionEmail)
+                            .where(
+                                AcquisitionEmail.status == "sent",
+                                AcquisitionEmail.to_email == from_addr,
+                            )
+                            .options(selectinload(AcquisitionEmail.job))
+                            .order_by(AcquisitionEmail.sent_at.desc())
+                            .limit(1)
+                        )
+                        acq_email = reply_email.scalar_one_or_none()
+
+                        if acq_email:
+                            acq_email.status = "replied"
+
+                            if acq_email.job and acq_email.job.akquise_status in (
+                                "email_gesendet", "email_followup",
+                            ):
+                                acq_email.job.akquise_status = "kontaktiert"
+                                acq_email.job.akquise_status_changed_at = now
+
+                            replies_found.append({
+                                "from": from_addr,
+                                "subject": subject,
+                                "company_name": acq_email.job.company_name if acq_email.job else None,
+                                "mailbox": mailbox,
+                            })
+
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning(f"Inbox-Check {mailbox}: {e}")
+                continue
+
+    if replies_found or bounces_found:
+        await db.commit()
+
+    return {
+        "checked_mailboxes": len(mailboxes),
+        "replies": replies_found,
+        "reply_count": len(replies_found),
+        "bounces": bounces_found,
+        "bounce_count": len(bounces_found),
+        "since": since,
+    }
+
+
+@router.post("/n8n/process-bounce")
+async def process_bounce(
+    body: ProcessBounceRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Bounce einer Akquise-E-Mail verarbeiten (von n8n aufgerufen).
+
+    n8n findet NDR (Non-Delivery-Report) in Inbox und ruft diesen Endpoint auf.
+    Backend markiert E-Mail als bounced und Contact-E-Mail als ungueltig.
+    """
+    # Match ueber original_to_email
+    result = await db.execute(
+        select(AcquisitionEmail)
+        .where(
+            AcquisitionEmail.status == "sent",
+            AcquisitionEmail.to_email == body.original_to_email,
+        )
+        .options(selectinload(AcquisitionEmail.contact))
+        .order_by(AcquisitionEmail.sent_at.desc())
+        .limit(1)
+    )
+    email = result.scalar_one_or_none()
+
+    if not email:
+        return {"matched": False, "reason": "Keine passende gesendete E-Mail gefunden"}
+
+    # E-Mail-Status auf bounced setzen
+    email.status = "bounced"
+
+    # Contact-E-Mail als ungueltig markieren (Notes-Feld)
+    if email.contact and email.contact.email:
+        email.contact.notes = (
+            (email.contact.notes or "")
+            + f"\nE-Mail bounced ({datetime.now(timezone.utc).strftime('%d.%m.%Y')})"
+            + (f": {body.bounce_reason}" if body.bounce_reason else "")
+        )
+
+    await db.commit()
+
+    return {
+        "matched": True,
+        "email_id": str(email.id),
+        "contact_email": body.original_to_email,
+        "bounce_reason": body.bounce_reason,
     }
 
 
