@@ -10,7 +10,7 @@ import secrets
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.acquisition_email import AcquisitionEmail
@@ -73,15 +73,14 @@ Dies ist die 3. und letzte E-Mail. Tonfall: Verstaendnisvoll, tueroffnend.
 - Abmelde-Hinweis am Ende
 """
 
-# Signatur-Template
+# Signatur-Template (Plain-Text, konsistent mit bestehenden Signaturen)
 EMAIL_SIGNATURE = """
 --
 Milad Hamdard
-Personalberater | Finance & Accounting
-sincirus GmbH
-Tel: +49 (0) 40 XXX XXX XX
-E-Mail: {from_email}
-Web: www.sincirus.com
+Senior Personalberater · Rechnungswesen & Controlling
++49 40 874 060 88 | +49 176 8000 47 41
+{from_email}
+www.sincirus.com | Ballindamm 3, 20095 Hamburg
 """
 
 # Abmelde-Hinweis
@@ -194,6 +193,28 @@ class AcquisitionEmailService:
             "to_email": contact.email,
         }
 
+    async def _check_daily_limit(self, from_email: str) -> tuple[int, int]:
+        """Prueft Tages-Limit fuer eine Mailbox. Returns (sent_today, daily_limit)."""
+        today_start = datetime.now(timezone.utc).replace(
+            hour=0, minute=0, second=0, microsecond=0,
+        )
+        result = await self.db.execute(
+            select(func.count(AcquisitionEmail.id)).where(
+                AcquisitionEmail.from_email == from_email,
+                AcquisitionEmail.sent_at >= today_start,
+                AcquisitionEmail.status == "sent",
+            )
+        )
+        sent_today = result.scalar() or 0
+
+        # IONOS-Domains: 20/Tag (Warmup), M365: 100/Tag
+        if "sincirus-karriere.de" in from_email or "jobs-sincirus.com" in from_email:
+            daily_limit = 20
+        else:
+            daily_limit = 100
+
+        return sent_today, daily_limit
+
     async def send_email(
         self,
         email_id: uuid.UUID,
@@ -217,6 +238,27 @@ class AcquisitionEmailService:
         # From-Email aktualisieren falls uebergeben
         if from_email:
             email.from_email = from_email
+
+        # Tages-Limit pruefen (Backend-Sperre, nicht nur Frontend)
+        sent_today, daily_limit = await self._check_daily_limit(email.from_email)
+        if sent_today >= daily_limit:
+            raise ValueError(
+                f"Tages-Limit fuer {email.from_email} erreicht: {sent_today}/{daily_limit}"
+            )
+
+        # Test-Modus: E-Mail an Test-Adresse umleiten
+        from app.services.acquisition_test_helpers import (
+            is_test_mode,
+            get_test_email,
+            override_email_if_test,
+        )
+        test_mode = await is_test_mode(self.db)
+        if test_mode:
+            test_email_addr = await get_test_email(self.db)
+            email.to_email, email.subject = override_email_if_test(
+                email.to_email, email.subject, test_mode, test_email_addr,
+            )
+            logger.info(f"TEST-MODUS: E-Mail umgeleitet an {email.to_email}")
 
         try:
             # Thread-Linking: In-Reply-To Header bei Follow-ups

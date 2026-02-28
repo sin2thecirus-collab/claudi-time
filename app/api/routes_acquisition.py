@@ -1186,3 +1186,133 @@ async def unsubscribe(
             "</body></html>",
             status_code=404,
         )
+
+
+# ── Test-Modus Endpoints ──
+
+
+class SimulateCallRequest(BaseModel):
+    scenario: str  # nicht_erreicht, besetzt, sekretariat, kein_bedarf, interesse, qualifiziert, falsche_nummer, nie_wieder
+    duration_seconds: int | None = None
+
+
+@router.post("/test/simulate-call/{job_id}")
+async def simulate_call(
+    job_id: uuid.UUID,
+    body: SimulateCallRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Simuliert einen Anruf im Test-Modus (kein echter Anruf).
+
+    Erstellt einen acquisition_calls Eintrag mit simulierter Dauer.
+    Nur im Test-Modus verfuegbar.
+    """
+    from app.services.acquisition_test_helpers import is_test_mode
+
+    if not await is_test_mode(db):
+        raise HTTPException(403, "Nur im Test-Modus verfuegbar")
+
+    # Szenario → Disposition + Dauer
+    scenarios = {
+        "nicht_erreicht": ("nicht_erreicht", 15),
+        "besetzt": ("besetzt_mailbox", 5),
+        "sekretariat": ("sekretariat", 45),
+        "kein_bedarf": ("erreicht_kein_bedarf", 120),
+        "interesse": ("erreicht_interesse", 180),
+        "qualifiziert": ("erreicht_qualifiziert", 300),
+        "falsche_nummer": ("falsche_nummer", 3),
+        "nie_wieder": ("nie_wieder", 30),
+    }
+
+    if body.scenario not in scenarios:
+        raise HTTPException(400, f"Unbekanntes Szenario: {body.scenario}")
+
+    disposition, default_duration = scenarios[body.scenario]
+    duration = body.duration_seconds or default_duration
+
+    # Job pruefen
+    job = await db.get(Job, job_id)
+    if not job:
+        raise HTTPException(404, "Job nicht gefunden")
+
+    return {
+        "simulated": True,
+        "disposition": disposition,
+        "duration_seconds": duration,
+        "message": f"Anruf simuliert: {body.scenario} ({duration}s)",
+    }
+
+
+@router.post("/test/simulate-callback")
+async def simulate_callback(
+    phone: str = Query(..., description="Telefonnummer fuer Rueckruf-Simulation"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Simuliert einen eingehenden Rueckruf im Test-Modus.
+
+    Loest das gleiche SSE-Event aus wie ein echter Rueckruf.
+    Nur im Test-Modus verfuegbar.
+    """
+    from app.services.acquisition_test_helpers import is_test_mode
+
+    if not await is_test_mode(db):
+        raise HTTPException(403, "Nur im Test-Modus verfuegbar")
+
+    # Phone-Lookup (gleiche Logik wie Rueckruf-Endpoint)
+    from app.models.company_contact import CompanyContact
+
+    result = await db.execute(
+        select(CompanyContact)
+        .where(CompanyContact.phone_normalized == phone)
+        .limit(1)
+    )
+    contact = result.scalar_one_or_none()
+
+    callback_data = {
+        "phone": phone,
+        "simulated": True,
+    }
+
+    if contact:
+        # Company + offene Jobs laden
+        company = await db.get(Company, contact.company_id) if contact.company_id else None
+        jobs_result = await db.execute(
+            select(Job)
+            .where(
+                Job.company_id == contact.company_id,
+                Job.acquisition_source.isnot(None),
+                Job.akquise_status.notin_(["verloren", "blacklist_hart"]),
+            )
+            .limit(5)
+        )
+        jobs = jobs_result.scalars().all()
+
+        callback_data.update({
+            "contact_name": contact.full_name,
+            "company_name": company.name if company else None,
+            "jobs": [{"id": str(j.id), "position": j.position} for j in jobs],
+        })
+
+    # SSE-Event pushen
+    from app.services.acquisition_event_bus import publish
+
+    await publish({
+        "event": "incoming_call",
+        "data": callback_data,
+    })
+
+    return callback_data
+
+
+@router.get("/test/status")
+async def test_mode_status(db: AsyncSession = Depends(get_db)):
+    """Gibt den aktuellen Test-Modus-Status zurueck."""
+    from app.services.acquisition_test_helpers import is_test_mode, get_test_email
+
+    mode = await is_test_mode(db)
+    email = await get_test_email(db) if mode else None
+
+    return {
+        "test_mode": mode,
+        "test_email": email,
+    }

@@ -56,12 +56,17 @@ async def akquise_page(
         )
         counts[tab] = result.scalar_one()
 
+    # Test-Modus pruefen
+    from app.services.acquisition_test_helpers import is_test_mode
+    test_mode = await is_test_mode(db)
+
     return templates.TemplateResponse(
         "akquise/akquise_page.html",
         {
             "request": request,
             "tab_counts": counts,
             "active_tab": "heute",
+            "test_mode": test_mode,
         },
     )
 
@@ -267,6 +272,10 @@ async def call_screen_partial(
             for j in other_result.scalars().all()
         ]
 
+    # Test-Modus pruefen
+    from app.services.acquisition_test_helpers import is_test_mode
+    test_mode = await is_test_mode(db)
+
     return templates.TemplateResponse(
         "partials/akquise/call_screen.html",
         {
@@ -278,6 +287,7 @@ async def call_screen_partial(
             "email_history": email_history,
             "other_jobs": other_jobs,
             "now_date": datetime.now(timezone.utc).strftime("%d.%m.%Y"),
+            "test_mode": test_mode,
         },
     )
 

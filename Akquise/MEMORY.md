@@ -1,6 +1,6 @@
 # Akquise-Automatisierung — Memory (Kontexterhaltung)
 
-> **Letzte Aktualisierung: 28.02.2026 (spaet — Frontend-Audit + 4 Bugfixes)**
+> **Letzte Aktualisierung: 28.02.2026 (n8n-Workflows AKTIV + DB-Session-Fix)**
 > Diese Datei wird nach JEDER erledigten Aufgabe aktualisiert.
 
 ---
@@ -27,7 +27,7 @@
 | Frontend autoSaveNotes | FERTIG | Notizen werden in localStorage gespeichert, bei Disposition an Server gesendet, nach Erfolg geloescht |
 | Navigation | FERTIG | /akquise Link in Desktop + Mobile Nav (base.html) |
 | DNS-Check | FERTIG | SPF/DKIM/DMARC fuer alle 3 Domains bestaetigt (sincirus.com, sincirus-karriere.de, jobs-sincirus.com) |
-| Git Push | FERTIG | Commits: 8221165 (Phase 1-5), 7882872 (IONOS SMTP), 92ca795 (Migration-Fix) + 6 Bugfix-Commits |
+| Git Push | FERTIG | Commits: 8221165 (Phase 1-5), 7882872 (IONOS SMTP), 92ca795 (Migration-Fix), bc7204f (n8n Endpoints), 06b9632 (DB-Session-Fix) + 6 Bugfix-Commits |
 | IONOS SMTP Client | FERTIG | ionos_smtp_client.py (aiosmtplib, STARTTLS 587), Routing in acquisition_email_service.py |
 | Mailbox-Config | FERTIG | config.py: ionos_smtp_password ENV, Email-Routing: IONOS-Domains→SMTP, sincirus.com→Graph |
 | Test-CSV | FERTIG | app/testdata/akquise_test_data.csv (10 Firmen, 29 Spalten, Duplikat/Blacklist/Quali-Szenarien) |
@@ -35,8 +35,8 @@
 | CSV-Import | DEPLOYED + GETESTET | Erster echter Import erfolgreich (advertsdata.com CSV). 6 Bugs gefixt (siehe unten). |
 | /akquise Seite | LIVE | Migration 032 deployed, /akquise Seite funktioniert auf Railway, Leads sichtbar |
 | SSE Event-Bus | FERTIG (lokal) | acquisition_event_bus.py + SSE-Endpoint + Webhook + Frontend EventSource |
-| n8n-Workflows | FERTIG (inaktiv) | 6 Workflows erstellt: Morgen-Briefing (BqjDn57PWwVHDpNy), Abend-Report (VazlvT2vuvqLXX9i), Wiedervorlagen-Alarm (CUIhgzyqDpuOQGZq), Follow-up-Erinnerung (nXsYnVBWy9q0Vh7J), Eskalation (YhLwBZewTiKu7qEU), Reply&Bounce Monitor (DIq76xuoQ0QqQMxJ) |
-| n8n-Backend-Endpoints | FERTIG | 5 neue Endpoints: /n8n/followup-due, /n8n/eskalation-due, /n8n/check-inbox, /n8n/process-reply, /n8n/process-bounce |
+| n8n-Workflows | AKTIV | 6 Workflows erstellt + AKTIVIERT: Morgen-Briefing (BqjDn57PWwVHDpNy), Abend-Report (VazlvT2vuvqLXX9i), Wiedervorlagen-Alarm (CUIhgzyqDpuOQGZq), Follow-up-Erinnerung (nXsYnVBWy9q0Vh7J), Eskalation (YhLwBZewTiKu7qEU), Reply&Bounce Monitor (DIq76xuoQ0QqQMxJ) |
+| n8n-Backend-Endpoints | DEPLOYED | 5 Endpoints + DB-Session-Fix (check-inbox 3-Phasen): /n8n/followup-due, /n8n/eskalation-due, /n8n/check-inbox, /n8n/process-reply, /n8n/process-bounce |
 
 ---
 
@@ -73,9 +73,11 @@
 - **Frontend:** EventSource in `akquisePage().init()`, `_handleIncomingCall()` zeigt Rueckruf-Popup mit pulsierendem Punkt
 - **Refactoring:** `_renderRueckrufPopup()` — gemeinsame Methode fuer manuellen Lookup und SSE-Event (DOM statt innerHTML)
 
-### Phase 6: n8n-Workflows (28.02.2026)
+### Phase 6: n8n-Workflows (28.02.2026) — KOMPLETT + AKTIV
 - **6 komplett neue Workflows**, unabhaengig von bestehenden n8n-Automationen
-- Alle Workflows INAKTIV erstellt — muessen manuell in n8n aktiviert werden
+- Alle 6 Workflows **AKTIVIERT** am 28.02.2026 — Backend-Endpoints getestet (alle 200 OK), Telegram getestet
+- **DB-Session-Fix:** check-inbox Endpoint refactored (3-Phasen: Token→Graph→DB), Commit 06b9632
+- **Commits:** bc7204f (5 Endpoints + Doku), 06b9632 (DB-Session-Fix)
 - **5 neue Backend-Endpoints** in routes_acquisition.py fuer n8n:
   - `GET /api/akquise/n8n/followup-due` — Follow-up/Break-up faellige Leads
   - `GET /api/akquise/n8n/eskalation-due?apply=true` — Eskalierte Leads + Auto-Update
@@ -92,8 +94,32 @@
 | 5 | Eskalation | YhLwBZewTiKu7qEU | 18:00 | n8n/eskalation-due?apply=true |
 | 6 | Reply & Bounce Monitor | DIq76xuoQ0QqQMxJ | */15 | n8n/check-inbox |
 
-### Offen (Phase 7.4)
-- Webex-Integration: Webex CDR/Webhook → n8n → POST /api/akquise/events/incoming-call
+### Bug-Analyse: Rundmail-Fixes (28.02.2026)
+Drei Bugs aus der Rundmail-Automatisierung gegen Akquise-Workflows geprueft:
+1. **DB Pool Exhaustion** — Bereits gefixt fuer check-inbox (06b9632). Andere Endpoints sind reine DB-Ops.
+2. **Parallele Pfade** — Morgen-Briefing hat parallele GETs, aber kein shared Resource (kein Callback).
+3. **IF-Node typeValidation** — Wiedervorlagen-Alarm IF-Node ist sicher (`skip` immer explizit gesetzt).
+**Ergebnis:** Kein Handlungsbedarf.
+
+### Security-Fixes (01.03.2026)
+1. **Signatur korrigiert:** `EMAIL_SIGNATURE` in acquisition_email_service.py — echte Kontaktdaten, kein "GmbH", konsistent mit bestehenden Signaturen
+2. **Tages-Limit Backend-Sperre:** `_check_daily_limit()` in acquisition_email_service.py — 20/Tag IONOS, 100/Tag M365, prueft VOR Versand (nicht nur Frontend)
+
+### Phase 9: E2E-Testmodus (01.03.2026) — FERTIG
+- **Test-Helper:** `app/services/acquisition_test_helpers.py` — `is_test_mode()`, `get_test_email()`, `override_email_if_test()`
+- **E-Mail-Umleitung:** In `send_email()` — Test-Modus leitet alle E-Mails an Test-Adresse um, fuegt [TEST] Prefix zum Betreff
+- **Simulations-Endpoints:** 3 neue Endpoints in routes_acquisition.py:
+  - `POST /api/akquise/test/simulate-call/{job_id}` — 8 Szenarien (nicht_erreicht, besetzt, sekretariat, kein_bedarf, interesse, qualifiziert, falsche_nummer, nie_wieder)
+  - `POST /api/akquise/test/simulate-callback?phone=...` — Simuliert Rueckruf mit Phone-Lookup + SSE-Event
+  - `GET /api/akquise/test/status` — Aktueller Test-Modus-Status
+- **Frontend akquise_page.html:** Gelber Test-Modus-Banner + Rueckruf-Simulationsbutton + `testMode` Alpine-Property
+- **Frontend call_screen.html:** tel:-Links deaktiviert (durchgestrichen), Simulations-Dropdown mit 8 Szenarien statt echtem Anruf-Button, `simulateCall()` Methode
+- **Konfiguration:** `system_settings` Keys `acquisition_test_mode` + `acquisition_test_email`
+
+### Offen
+- Phase 7.4: Webex-Integration (Webex CDR/Webhook → n8n → POST /api/akquise/events/incoming-call)
+- Domain-Warmup (2 Wochen IONOS-Domains vor Go-Live)
+- Audit-Log (P2 — nach Go-Live)
 
 ---
 

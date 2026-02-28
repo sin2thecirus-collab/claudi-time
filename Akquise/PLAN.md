@@ -1,11 +1,11 @@
 # Akquise-Automatisierung — Finaler Implementierungsplan
 
-> **Stand: 28.02.2026 (spaet)**
+> **Stand: 01.03.2026**
 > Basierend auf: 6 Research + 6 Review + 6 Deep-Dive + 1 Vertriebsingenieur + 3 Marketing-Review-Agenten
 > Quellen: RECHERCHE.md, REVIEW-TEAM.md
 >
-> **Implementierungs-Status:** Phase 1-6 FERTIG + Phase 7.1-7.3 + Phase 8 FERTIG | Phase 7.4, 9 OFFEN
-> **Deploy-Status (28.02.):** Migration 032 deployed, CSV-Import funktioniert, /akquise LIVE | Phase 6 n8n-Workflows erstellt (inaktiv), Backend-Endpoints deployed
+> **Implementierungs-Status:** Phase 1-9 FERTIG (ausser 7.4 Webex) | Phase 7.4 OFFEN
+> **Deploy-Status (01.03.):** Migration 032 deployed, CSV-Import funktioniert, /akquise LIVE | Phase 6 n8n-Workflows AKTIV (6/6), Backend-Endpoints deployed + DB-Session-Fix
 
 ---
 
@@ -767,10 +767,12 @@ ORDER BY ae.sent_at DESC
 
 ---
 
-## PHASE 6: n8n-Workflows ✅ FERTIG (28.02.2026)
+## PHASE 6: n8n-Workflows ✅ FERTIG + AKTIV (01.03.2026)
 
 > **6 komplett neue Workflows**, unabhaengig von bestehenden n8n-Automationen.
-> Alle Workflows inaktiv erstellt — muessen manuell aktiviert werden.
+> Alle 6 Workflows **AKTIVIERT** am 28.02.2026. Backend-Endpoints getestet (alle 200 OK), Telegram getestet.
+> **Commits:** bc7204f (5 Endpoints + Doku), 06b9632 (DB-Session-Fix fuer check-inbox)
+> **DB-Session-Fix:** check-inbox refactored zu 3-Phasen-Architektur (Token→Graph→DB) — verhindert Railway 30s Timeout.
 
 ### 6.1 Morgen-Briefing (08:00) — n8n ID: `BqjDn57PWwVHDpNy`
 
@@ -919,7 +921,7 @@ Gespeichert als JSONB in `acquisition_calls.qualification_data`.
 
 ---
 
-## PHASE 9: E2E-Testmodus (ohne echte Kunden) ⏳ OFFEN
+## PHASE 9: E2E-Testmodus (ohne echte Kunden) ✅ FERTIG (01.03.2026)
 
 ### 9.1 Konzept
 
@@ -1177,20 +1179,20 @@ def override_email_if_test(to_email: str, test_mode: bool, test_email: str) -> t
 
 ## SICHERHEITS-CHECKLISTE
 
-- [ ] SPF/DKIM/DMARC fuer sincirus.com, sincirus-karriere.de, jobs-sincirus.com
+- [x] SPF/DKIM/DMARC fuer sincirus.com, sincirus-karriere.de, jobs-sincirus.com ✅ (28.02.2026)
 - [ ] Domain-Warmup 2 Wochen vor Go-Live (IONOS-Domains)
-- [ ] Abmelde-Link in JEDER E-Mail (oeffentlicher Endpoint, kein Auth)
-- [ ] Impressum in E-Mail-Signatur (§ 5 TMG)
-- [ ] Phone-Normalisierung E.164 bei jedem Import
-- [ ] Blacklist-Check VOR jedem Anruf und jeder E-Mail
-- [ ] Blacklist-Cascade: nie_wieder → ALLE Stellen der Firma schliessen
-- [ ] State-Machine-Validierung: Nur erlaubte Status-Uebergaenge
-- [ ] Re-Import-Schutz: blacklist_hart darf NICHT reaktiviert werden
-- [ ] Akquise-Job-Guard: acquisition_source IS NULL im Matching-Filter
-- [ ] Tages-Limit pro Mailbox (20/Tag fuer IONOS, 100/Tag fuer M365)
-- [ ] Audit-Log: Import, Calls, E-Mails, Loeschungen, Widersprueche
-- [ ] Import-Batch-ID fuer Rollback bei fehlerhaftem Import
-- [ ] recording_consent Default = false (Aufzeichnung ist Ausnahme)
+- [x] Abmelde-Link in JEDER E-Mail (oeffentlicher Endpoint, kein Auth) ✅
+- [x] Impressum in E-Mail-Signatur ✅ (01.03.2026 — Signatur korrigiert, konsistent mit bestehenden)
+- [x] Phone-Normalisierung E.164 bei jedem Import ✅
+- [x] Blacklist-Check VOR jedem Anruf und jeder E-Mail ✅
+- [x] Blacklist-Cascade: nie_wieder → ALLE Stellen der Firma schliessen ✅
+- [x] State-Machine-Validierung: Nur erlaubte Status-Uebergaenge ✅
+- [x] Re-Import-Schutz: blacklist_hart darf NICHT reaktiviert werden ✅
+- [x] Akquise-Job-Guard: acquisition_source IS NULL im Matching-Filter ✅
+- [x] Tages-Limit pro Mailbox (20/Tag fuer IONOS, 100/Tag fuer M365) ✅ (01.03.2026 — Backend-Sperre in send_email())
+- [ ] Audit-Log: Import, Calls, E-Mails, Loeschungen, Widersprueche (P2 — spaeter)
+- [x] Import-Batch-ID fuer Rollback bei fehlerhaftem Import ✅
+- [x] recording_consent Default = false (Aufzeichnung ist Ausnahme) ✅
 
 **Hinweis:** E-Mail-Versand und Anrufaufzeichnung haben KEINE Consent-Gates. Milad entscheidet operativ selbst.
 

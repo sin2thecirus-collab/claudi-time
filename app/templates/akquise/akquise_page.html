@@ -5,6 +5,17 @@
 {% block content %}
 <div x-data="akquisePage()" x-init="init()" style="padding:24px;">
 
+    {# ── Test-Modus Banner ── #}
+    {% if test_mode %}
+    <div style="background:#fbbf24;color:#78350f;padding:10px 20px;border-radius:8px;margin-bottom:16px;display:flex;align-items:center;gap:10px;font-weight:600;font-size:13px;">
+        <svg style="width:18px;height:18px;flex-shrink:0;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
+        TEST-MODUS &mdash; Keine echten Anrufe oder E-Mails an Kunden. E-Mails gehen an deine Test-Adresse.
+        <button @click="simulateCallback()" style="margin-left:auto;padding:4px 12px;background:#78350f;color:#fbbf24;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">
+            Rueckruf simulieren
+        </button>
+    </div>
+    {% endif %}
+
     {# ── Header ── #}
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
         <div>
@@ -198,6 +209,7 @@
 function akquisePage() {
     return {
         activeTab: '{{ active_tab }}',
+        testMode: {{ 'true' if test_mode else 'false' }},
         loading: false,
         stats: {},
         showImport: false,
@@ -443,6 +455,25 @@ function akquisePage() {
                     if (typeof showToast === 'function') showToast('Keine Firma zu dieser Nummer gefunden', 'warning');
                 } else {
                     if (typeof showToast === 'function') showToast('Fehler bei der Suche', 'error');
+                }
+            } catch (e) {
+                if (typeof showToast === 'function') showToast('Netzwerkfehler', 'error');
+            }
+        },
+
+        async simulateCallback() {
+            if (!this.testMode) return;
+            const phone = prompt('Telefonnummer fuer Rueckruf-Simulation eingeben (E.164, z.B. +491701234567):');
+            if (!phone) return;
+            try {
+                const resp = await fetch('/api/akquise/test/simulate-callback?phone=' + encodeURIComponent(phone), {method: 'POST'});
+                if (resp.ok) {
+                    const data = await resp.json();
+                    if (typeof showToast === 'function') showToast('Rueckruf simuliert — Popup sollte erscheinen', 'success');
+                } else if (resp.status === 403) {
+                    if (typeof showToast === 'function') showToast('Nur im Test-Modus verfuegbar', 'warning');
+                } else {
+                    if (typeof showToast === 'function') showToast('Fehler bei Simulation', 'error');
                 }
             } catch (e) {
                 if (typeof showToast === 'function') showToast('Netzwerkfehler', 'error');

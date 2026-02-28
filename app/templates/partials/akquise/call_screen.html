@@ -38,11 +38,43 @@
             {% set primary_contact = contacts[0] %}
             {% set phone = primary_contact.mobile or primary_contact.phone %}
             {% if phone %}
+            {% if test_mode %}
+            {# Test-Modus: Simulations-Dropdown statt echtem tel:-Link #}
+            <div style="position:relative;" x-data="{ simOpen: false }">
+                <button @click="simOpen = !simOpen; if(!callActive) startCall()"
+                        style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:var(--pp-orange);border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;">
+                    <svg style="width:14px;height:14px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"/></svg>
+                    Simulieren ▾
+                </button>
+                <div x-show="simOpen" @click.away="simOpen = false"
+                     style="position:absolute;right:0;top:100%;margin-top:4px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.3);min-width:200px;z-index:50;overflow:hidden;">
+                    {% set szenarien = [
+                        ("nicht_erreicht", "Nicht erreicht", "30s"),
+                        ("besetzt", "Besetzt", "5s"),
+                        ("sekretariat", "Sekretariat", "45s"),
+                        ("kein_bedarf", "Kein Bedarf", "60s"),
+                        ("interesse", "Interesse", "120s"),
+                        ("qualifiziert", "Qualifiziert", "180s"),
+                        ("falsche_nummer", "Falsche Nummer", "10s"),
+                        ("nie_wieder", "Nie wieder", "40s"),
+                    ] %}
+                    {% for key, label, dauer in szenarien %}
+                    <button @click="simOpen = false; simulateCall('{{ key }}')"
+                            style="display:flex;justify-content:space-between;align-items:center;width:100%;padding:8px 14px;background:none;border:none;border-bottom:1px solid var(--pp-border);color:var(--pp-text);font-size:12px;cursor:pointer;text-align:left;"
+                            onmouseover="this.style.background='var(--pp-surface3)'" onmouseout="this.style.background='none'">
+                        <span>{{ label }}</span>
+                        <span style="font-size:10px;color:var(--pp-textDim);">{{ dauer }}</span>
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+            {% else %}
             <a href="tel:{{ phone }}" @click="startCall()"
                style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:var(--pp-green);border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;text-decoration:none;cursor:pointer;">
                 <svg style="width:14px;height:14px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"/></svg>
                 {{ phone }}
             </a>
+            {% endif %}
             {% endif %}
             {% endif %}
         </div>
@@ -109,14 +141,22 @@
                 <div style="margin-top:8px;display:flex;flex-direction:column;gap:4px;">
                     {% if contact.phone %}
                     <div style="display:flex;align-items:center;gap:6px;">
+                        {% if test_mode %}
+                        <span style="font-size:12px;color:var(--pp-textDim);text-decoration:line-through;" title="tel: deaktiviert im Test-Modus">{{ contact.phone }}</span>
+                        {% else %}
                         <a href="tel:{{ contact.phone }}" style="font-size:12px;color:var(--pp-accent);text-decoration:none;">{{ contact.phone }}</a>
+                        {% endif %}
                         <button onclick="navigator.clipboard.writeText('{{ contact.phone }}');if(typeof showToast==='function')showToast('Kopiert','success')"
                                 style="background:none;border:none;color:var(--pp-textDim);cursor:pointer;font-size:11px;padding:2px;">&#128203;</button>
                     </div>
                     {% endif %}
                     {% if contact.mobile and contact.mobile != contact.phone %}
                     <div style="display:flex;align-items:center;gap:6px;">
+                        {% if test_mode %}
+                        <span style="font-size:12px;color:var(--pp-textDim);text-decoration:line-through;" title="tel: deaktiviert im Test-Modus">{{ contact.mobile }} (Mobil)</span>
+                        {% else %}
                         <a href="tel:{{ contact.mobile }}" style="font-size:12px;color:var(--pp-accent);text-decoration:none;">{{ contact.mobile }} (Mobil)</a>
+                        {% endif %}
                         <button onclick="navigator.clipboard.writeText('{{ contact.mobile }}');if(typeof showToast==='function')showToast('Kopiert','success')"
                                 style="background:none;border:none;color:var(--pp-textDim);cursor:pointer;font-size:11px;padding:2px;">&#128203;</button>
                     </div>
@@ -352,6 +392,32 @@ function callScreen() {
             // Speichert Notizen in localStorage damit sie beim Schliessen/Oeffnen nicht verloren gehen
             // Die Notizen werden mit der Disposition an den Server gesendet
             localStorage.setItem('akquise_notes_{{ job.id }}', this.notes);
+        },
+
+        async simulateCall(scenario) {
+            if (!this.callActive) this.startCall();
+            try {
+                const resp = await fetch('/api/akquise/test/simulate-call/{{ job.id }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ scenario: scenario }),
+                });
+                if (resp.ok) {
+                    const result = await resp.json();
+                    this.stopCall();
+                    if (typeof showToast === 'function') {
+                        showToast('[SIM] ' + result.disposition + ' — ' + result.duration + 's', 'info');
+                    }
+                    this.notes += '[SIM ' + scenario + '] ' + (result.notes || '') + '\n';
+                } else {
+                    const err = await resp.json();
+                    this.stopCall();
+                    if (typeof showToast === 'function') showToast(err.detail || 'Simulation fehlgeschlagen', 'error');
+                }
+            } catch (e) {
+                this.stopCall();
+                if (typeof showToast === 'function') showToast('Netzwerkfehler bei Simulation', 'error');
+            }
         },
 
         async submitD12WithJob() {
