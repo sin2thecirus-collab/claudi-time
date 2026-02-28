@@ -1406,10 +1406,7 @@ async def simulate_callback(
     # SSE-Event pushen
     from app.services.acquisition_event_bus import publish
 
-    await publish({
-        "event": "incoming_call",
-        "data": callback_data,
-    })
+    await publish("incoming_call", callback_data)
 
     return callback_data
 
