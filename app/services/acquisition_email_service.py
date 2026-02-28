@@ -24,16 +24,19 @@ AKQUISE_EMAIL_SYSTEM = """Du bist ein erfahrener Personalberater im Finance-Bere
 Du schreibst persoenliche, kurze Kaltakquise-E-Mails an Personaler.
 
 REGELN:
-- PLAIN-TEXT, kein HTML, keine Formatierung
+- PLAIN-TEXT, kein HTML, keine Formatierung, KEINE Links/URLs
 - Max 150 Woerter (kurz und knackig)
+- IMMER SIEZEN ("Sie", "Ihnen", "Ihr") — NIEMALS duzen! Das ist Geschaeftskommunikation mit unbekannten Personen in Deutschland.
 - Du erfindest einen FIKTIVEN Kandidaten der EXAKT auf die Stelle passt
 - Der Kandidat "muss wechseln" (nicht "will wechseln" — Dringlichkeit!)
 - Beziehe dich auf KONKRETE Anforderungen aus der Stellenausschreibung
 - Nenne spezifische Skills (ERP-System, Branche, Weiterbildung)
+- KEINE Annahmen ueber das Unternehmen treffen (z.B. NICHT "wachsendes Unternehmen", "dynamisches Team" etc.) — wir wissen NICHTS ueber die Firma ausser dem Stellentext
 - Call-to-Action: "Unter welchen Voraussetzungen waere ein Austausch moeglich?"
 - Erreichbarkeit 9-18 Uhr, Terminvorschlag
-- Tonfall: Professionell aber nicht steif, direkt, kein Marketing-Sprech
-- KEIN "Sehr geehrte Damen und Herren" — immer persoenlich mit Name
+- Tonfall: Professionell, respektvoll, direkt, kein Marketing-Sprech
+- Anrede: "Sehr geehrte/r Frau/Herr [Nachname]" oder "Guten Tag Frau/Herr [Nachname]"
+- KEINE Links, KEINE URLs, KEINE Webseiten-Verweise im E-Mail-Text
 """
 
 AKQUISE_EMAIL_USER = """Erstelle eine Kaltakquise-E-Mail fuer folgende Vakanz:
@@ -58,19 +61,22 @@ Antwort als JSON:
 # ── Follow-up Prompt ──
 FOLLOWUP_EMAIL_SYSTEM = """Du schreibst eine kurze Follow-up-E-Mail (Plain-Text, max 80 Woerter).
 Die Erst-E-Mail wurde vor 5-7 Tagen gesendet, keine Antwort kam.
+IMMER SIEZEN ("Sie", "Ihnen", "Ihr") — NIEMALS duzen!
+KEINE Links, KEINE URLs im Text.
 Beziehe dich auf die Erst-E-Mail und erhoehe die Dringlichkeit:
 - "Der Kandidat ist aktuell noch in Gespraechen..."
 - "Wollte Ihnen die Gelegenheit nicht vorenthalten..."
-- Kurz, knapp, persoenlich, kein Vorwurf
+- Kurz, knapp, respektvoll, kein Vorwurf
 """
 
 # ── Break-up Prompt ──
 BREAKUP_EMAIL_SYSTEM = """Du schreibst eine letzte, freundliche Abschluss-E-Mail (Plain-Text, max 60 Woerter).
 Dies ist die 3. und letzte E-Mail. Tonfall: Verstaendnisvoll, tueroffnend.
+IMMER SIEZEN ("Sie", "Ihnen", "Ihr") — NIEMALS duzen!
+KEINE Links, KEINE URLs im Text.
 - "Ich verstehe, dass es gerade nicht passt..."
 - "Sollte sich die Situation aendern, melden Sie sich gerne"
 - Keine Vorwuerfe, kein Druck
-- Abmelde-Hinweis am Ende
 """
 
 # Signatur-Template (Plain-Text, konsistent mit bestehenden Signaturen)
@@ -152,14 +158,8 @@ class AcquisitionEmailService:
         # Unsubscribe-Token generieren
         unsubscribe_token = secrets.token_urlsafe(48)[:64]
 
-        # Abmelde-Link anfuegen
-        from app.config import settings
-        base_url = getattr(settings, "app_url", "https://claudi-time-production-46a5.up.railway.app")
-        unsubscribe_url = f"{base_url}/api/akquise/unsubscribe/{unsubscribe_token}"
-        body_with_footer = body + UNSUBSCRIBE_FOOTER.format(unsubscribe_url=unsubscribe_url)
-
-        # Signatur anfuegen
-        body_with_sig = body_with_footer + EMAIL_SIGNATURE.format(from_email=from_email)
+        # Signatur anfuegen (KEIN Abmelde-Link in der E-Mail — Milad-Entscheidung)
+        body_with_sig = body + EMAIL_SIGNATURE.format(from_email=from_email)
 
         # Sequence-Position bestimmen
         seq_map = {"initial": 1, "follow_up": 2, "break_up": 3}
