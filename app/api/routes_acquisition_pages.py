@@ -60,12 +60,20 @@ async def akquise_page(
     from app.services.acquisition_test_helpers import is_test_mode
     test_mode = await is_test_mode(db)
 
+    # Intelligenter Default-Tab: Wenn "Heute" leer, zum ersten nicht-leeren Tab
+    active_tab = "heute"
+    if counts.get("heute", 0) == 0:
+        for fallback_tab in ["neu", "wiedervorlagen", "nicht_erreicht", "qualifiziert"]:
+            if counts.get(fallback_tab, 0) > 0:
+                active_tab = fallback_tab
+                break
+
     return templates.TemplateResponse(
         "akquise/akquise_page.html",
         {
             "request": request,
             "tab_counts": counts,
-            "active_tab": "heute",
+            "active_tab": active_tab,
             "test_mode": test_mode,
         },
     )

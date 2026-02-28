@@ -316,6 +316,7 @@ function callScreen() {
         newJobPosition: '',
         newJobType: '',
         newJobNotes: '',
+        otherJobIds: [{% for oj in other_jobs %}'{{ oj.id }}'{{ ',' if not loop.last }}{% endfor %}],
 
         init() {
             // Lade Notizen aus localStorage falls vorhanden
@@ -374,6 +375,30 @@ function callScreen() {
                     localStorage.removeItem('akquise_notes_{{ job.id }}');
                     if (typeof showToast === 'function') {
                         showToast('{{ job.company_name }} — ' + disposition + ' gespeichert', 'success');
+                    }
+                    // Batch-Disposition: Andere Stellen der gleichen Firma?
+                    const batchDispositions = ['nicht_erreicht','mailbox_besprochen','besetzt','falsche_nummer','sekretariat','kein_bedarf','nie_wieder'];
+                    if (this.otherJobIds.length > 0 && batchDispositions.includes(disposition)) {
+                        const applyAll = confirm(
+                            'Gleiche Disposition (' + disposition + ') auch fuer '
+                            + this.otherJobIds.length + ' weitere Stelle'
+                            + (this.otherJobIds.length > 1 ? 'n' : '')
+                            + ' dieser Firma anwenden?'
+                        );
+                        if (applyAll) {
+                            try {
+                                await fetch('/api/akquise/leads/batch-status', {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ job_ids: this.otherJobIds, status: result.new_status }),
+                                });
+                                if (typeof showToast === 'function') {
+                                    showToast(this.otherJobIds.length + ' weitere Stellen aktualisiert', 'success');
+                                }
+                            } catch (batchErr) {
+                                if (typeof showToast === 'function') showToast('Batch-Update fehlgeschlagen', 'error');
+                            }
+                        }
                     }
                     // Auto-advance zum naechsten Lead
                     setTimeout(() => {

@@ -144,6 +144,31 @@ class AcquisitionCallService:
         if auto_follow_up and not call.follow_up_date:
             call.follow_up_date = auto_follow_up
 
+        # ── D10: ATS-Konvertierung automatisch triggern ──
+        ats_result = None
+        if disposition == "voll_qualifiziert":
+            try:
+                from app.services.acquisition_qualify_service import AcquisitionQualifyService
+
+                qualify_svc = AcquisitionQualifyService(self.db)
+                ats_result = await qualify_svc.convert_to_ats(job_id, qualification_data)
+                actions.append(f"ATSJob {ats_result['ats_job_id']} erstellt")
+                actions.append(
+                    f"Dossier: {ats_result['calls_transferred']} Calls, "
+                    f"{ats_result['emails_transferred']} Emails uebertragen"
+                )
+                # convert_to_ats setzt Status + committed (inkl. Call-Record)
+                return {
+                    "call_id": call.id,
+                    "new_status": job.akquise_status,
+                    "actions": actions,
+                    "ats_conversion": ats_result,
+                }
+            except Exception as e:
+                logger.error(f"ATS-Konvertierung fehlgeschlagen fuer Job {job_id}: {e}")
+                actions.append(f"WARNUNG: ATS-Konvertierung fehlgeschlagen: {str(e)}")
+                # Bei Fehler: Call trotzdem speichern, Status normal weitersetzen
+
         # Status aktualisieren (mit State-Machine-Validierung)
         if new_status and new_status != job.akquise_status:
             self._validate_transition(job.akquise_status, new_status)

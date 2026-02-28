@@ -8,7 +8,7 @@ sendet via Microsoft Graph (M365) oder IONOS SMTP.
 import logging
 import secrets
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -221,17 +221,20 @@ class AcquisitionEmailService:
         email_id: uuid.UUID,
         from_email: str | None = None,
     ) -> dict:
-        """Sendet einen vorbereiteten E-Mail-Draft.
+        """Sendet oder plant einen vorbereiteten E-Mail-Draft.
+
+        Im Test-Modus: sofort senden (an Test-Adresse).
+        Im Produktionsmodus: mit 2h Delay schedulen (n8n Cron sendet).
 
         Returns:
-            {"success": bool, "message": str, "graph_message_id": str | None}
+            {"success": bool, "message": str, "graph_message_id": str | None, "scheduled": bool}
         """
         email = await self.db.get(AcquisitionEmail, email_id)
         if not email:
             raise ValueError(f"Email {email_id} nicht gefunden")
 
-        if email.status != "draft":
-            raise ValueError(f"Email hat Status '{email.status}', kann nur Drafts senden")
+        if email.status not in ("draft", "scheduled"):
+            raise ValueError(f"Email hat Status '{email.status}', kann nur Drafts/Scheduled senden")
 
         if not email.to_email:
             raise ValueError("Keine Empfaenger-Adresse")
@@ -247,20 +250,47 @@ class AcquisitionEmailService:
                 f"Tages-Limit fuer {email.from_email} erreicht: {sent_today}/{daily_limit}"
             )
 
-        # Test-Modus: E-Mail an Test-Adresse umleiten
+        # Test-Modus pruefen
         from app.services.acquisition_test_helpers import (
             is_test_mode,
             get_test_email,
             override_email_if_test,
         )
         test_mode = await is_test_mode(self.db)
+
         if test_mode:
+            # Test-Modus: Sofort senden an Test-Adresse (kein Delay)
             test_email_addr = await get_test_email(self.db)
             email.to_email, email.subject = override_email_if_test(
                 email.to_email, email.subject, test_mode, test_email_addr,
             )
             logger.info(f"TEST-MODUS: E-Mail umgeleitet an {email.to_email}")
+            return await self._do_send(email)
 
+        # Produktionsmodus: Mit Delay schedulen (wenn noch nicht scheduled)
+        if email.status == "draft":
+            delay_minutes = await self._get_email_delay_minutes()
+            if delay_minutes > 0:
+                email.status = "scheduled"
+                email.scheduled_send_at = datetime.now(timezone.utc) + timedelta(minutes=delay_minutes)
+                await self.db.commit()
+                logger.info(
+                    f"E-Mail {email_id} geplant fuer {email.scheduled_send_at} "
+                    f"(Delay: {delay_minutes} Min)"
+                )
+                return {
+                    "success": True,
+                    "message": f"E-Mail wird in {delay_minutes} Minuten gesendet",
+                    "graph_message_id": None,
+                    "scheduled": True,
+                    "scheduled_send_at": email.scheduled_send_at.isoformat(),
+                }
+
+        # Sofort senden (Delay=0 oder bereits scheduled und jetzt faellig)
+        return await self._do_send(email)
+
+    async def _do_send(self, email: AcquisitionEmail) -> dict:
+        """Fuehrt den tatsaechlichen E-Mail-Versand durch (SMTP/Graph)."""
         try:
             # Thread-Linking: In-Reply-To Header bei Follow-ups
             in_reply_to = None
@@ -302,6 +332,7 @@ class AcquisitionEmailService:
                     "success": True,
                     "message": f"E-Mail an {email.to_email} gesendet",
                     "graph_message_id": result.get("message_id"),
+                    "scheduled": False,
                 }
             else:
                 email.status = "failed"
@@ -310,6 +341,7 @@ class AcquisitionEmailService:
                     "success": False,
                     "message": f"Fehler: {result.get('error', 'Unbekannt')}",
                     "graph_message_id": None,
+                    "scheduled": False,
                 }
 
         except Exception as e:
@@ -320,7 +352,54 @@ class AcquisitionEmailService:
                 "success": False,
                 "message": str(e),
                 "graph_message_id": None,
+                "scheduled": False,
             }
+
+    async def _get_email_delay_minutes(self) -> int:
+        """Liest den E-Mail-Delay aus system_settings (Default: 120 Min = 2h)."""
+        from app.models.settings import SystemSetting
+        result = await self.db.execute(
+            select(SystemSetting.value).where(
+                SystemSetting.key == "acquisition_email_delay_minutes"
+            )
+        )
+        val = result.scalar_one_or_none()
+        try:
+            return int(val) if val else 120
+        except (ValueError, TypeError):
+            return 120
+
+    async def send_scheduled_emails(self) -> dict:
+        """Sendet alle faelligen geplanten E-Mails (aufgerufen von n8n Cron).
+
+        Returns:
+            {"sent": int, "failed": int, "details": list}
+        """
+        now = datetime.now(timezone.utc)
+        result = await self.db.execute(
+            select(AcquisitionEmail).where(
+                AcquisitionEmail.status == "scheduled",
+                AcquisitionEmail.scheduled_send_at.isnot(None),
+                AcquisitionEmail.scheduled_send_at <= now,
+            ).order_by(AcquisitionEmail.scheduled_send_at.asc())
+            .limit(20)  # Max 20 pro Durchlauf (Tages-Limits beachten)
+        )
+        emails = result.scalars().all()
+
+        sent = 0
+        failed = 0
+        details = []
+
+        for email in emails:
+            send_result = await self._do_send(email)
+            if send_result.get("success"):
+                sent += 1
+                details.append({"id": str(email.id), "status": "sent", "to": email.to_email})
+            else:
+                failed += 1
+                details.append({"id": str(email.id), "status": "failed", "error": send_result.get("message")})
+
+        return {"sent": sent, "failed": failed, "details": details}
 
     async def update_draft(
         self,

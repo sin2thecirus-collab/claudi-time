@@ -696,6 +696,20 @@ async def trigger_incoming_call(
 # ── n8n-Endpoints (fuer Workflow-Automation) ──
 
 
+@router.post("/n8n/send-scheduled-emails")
+async def send_scheduled_emails(
+    db: AsyncSession = Depends(get_db),
+):
+    """Sendet alle faelligen geplanten E-Mails (n8n Cron alle 15 Min).
+
+    Prueft acquisition_emails WHERE status='scheduled' AND scheduled_send_at <= NOW().
+    """
+    from app.services.acquisition_email_service import AcquisitionEmailService
+
+    service = AcquisitionEmailService(db)
+    return await service.send_scheduled_emails()
+
+
 @router.get("/n8n/followup-due")
 async def get_followup_due(
     db: AsyncSession = Depends(get_db),
@@ -798,6 +812,102 @@ async def get_followup_due(
         "followup_count": len(followup_due),
         "breakup_due": breakup_due,
         "breakup_count": len(breakup_due),
+    }
+
+
+@router.post("/n8n/auto-followup")
+async def auto_followup(
+    db: AsyncSession = Depends(get_db),
+):
+    """Generiert und plant Follow-up/Break-up E-Mails automatisch (n8n Cron taeglich 09:00).
+
+    1. Ruft intern followup-due Logik auf
+    2. Generiert GPT-Draft fuer jeden faelligen Lead
+    3. Scheduled den Versand (2h Delay via send_email)
+    """
+    from app.services.acquisition_email_service import AcquisitionEmailService
+    from datetime import timedelta as td
+
+    service = AcquisitionEmailService(db)
+    now = datetime.now(timezone.utc)
+    generated = 0
+    errors = []
+
+    # Follow-ups faellig (5-7 Tage nach Initial)
+    fu_start = now - td(days=7)
+    fu_end = now - td(days=5)
+
+    result = await db.execute(
+        select(AcquisitionEmail)
+        .where(
+            AcquisitionEmail.email_type == "initial",
+            AcquisitionEmail.status == "sent",
+            AcquisitionEmail.sent_at >= fu_start,
+            AcquisitionEmail.sent_at <= fu_end,
+        )
+    )
+    for email in result.scalars().all():
+        # Skip wenn Follow-up bereits existiert
+        existing = await db.execute(
+            select(func.count(AcquisitionEmail.id)).where(
+                AcquisitionEmail.parent_email_id == email.id,
+                AcquisitionEmail.email_type == "follow_up",
+            )
+        )
+        if existing.scalar_one() > 0:
+            continue
+        try:
+            draft = await service.generate_draft(
+                job_id=email.job_id,
+                contact_id=email.contact_id,
+                email_type="follow_up",
+                from_email=email.from_email,
+            )
+            if draft.get("email_id"):
+                await service.send_email(uuid.UUID(draft["email_id"]), email.from_email)
+                generated += 1
+        except Exception as e:
+            errors.append({"job_id": str(email.job_id), "error": str(e), "type": "follow_up"})
+
+    # Break-ups faellig (7-10 Tage nach Follow-up)
+    bu_start = now - td(days=10)
+    bu_end = now - td(days=7)
+
+    result2 = await db.execute(
+        select(AcquisitionEmail)
+        .where(
+            AcquisitionEmail.email_type == "follow_up",
+            AcquisitionEmail.status == "sent",
+            AcquisitionEmail.sent_at >= bu_start,
+            AcquisitionEmail.sent_at <= bu_end,
+        )
+    )
+    for email in result2.scalars().all():
+        existing2 = await db.execute(
+            select(func.count(AcquisitionEmail.id)).where(
+                AcquisitionEmail.job_id == email.job_id,
+                AcquisitionEmail.email_type == "break_up",
+            )
+        )
+        if existing2.scalar_one() > 0:
+            continue
+        try:
+            draft = await service.generate_draft(
+                job_id=email.job_id,
+                contact_id=email.contact_id,
+                email_type="break_up",
+                from_email=email.from_email,
+            )
+            if draft.get("email_id"):
+                await service.send_email(uuid.UUID(draft["email_id"]), email.from_email)
+                generated += 1
+        except Exception as e:
+            errors.append({"job_id": str(email.job_id), "error": str(e), "type": "break_up"})
+
+    return {
+        "generated": generated,
+        "errors": len(errors),
+        "error_details": errors[:10],
     }
 
 

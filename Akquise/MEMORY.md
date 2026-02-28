@@ -1,6 +1,6 @@
 # Akquise-Automatisierung — Memory (Kontexterhaltung)
 
-> **Letzte Aktualisierung: 01.03.2026 (E2E-Test BESTANDEN, alle 4 IONOS-Mailboxen bestaetigt)**
+> **Letzte Aktualisierung: 01.03.2026 (Session 2: 7 Gap-Fixes + 3 n8n-Workflows + Migration 033)**
 > Diese Datei wird nach JEDER erledigten Aufgabe aktualisiert.
 
 ---
@@ -144,9 +144,49 @@ Drei Bugs aus der Rundmail-Automatisierung gegen Akquise-Workflows geprueft:
   - m.hamdard@jobs-sincirus.com → ZUGESTELLT
   - hamdard@jobs-sincirus.com → ZUGESTELLT
 
+### Gap-Analyse + Fixes (01.03.2026 — Session 2)
+
+Systematische Analyse aller Akquise-Dateien deckte 7 Luecken auf. Alle gefixt:
+
+**Fix 1: D10 → ATS-Konvertierung** (KRITISCH)
+- **Problem:** Frontend rief nie `/qualify` Endpoint — D10 setzte nur Status, kein ATSJob
+- **Fix:** In `acquisition_call_service.py` → `record_call()`: Wenn `disposition == "voll_qualifiziert"`, wird automatisch `AcquisitionQualifyService.convert_to_ats()` aufgerufen. Early-Return bei Erfolg, Graceful Fallback bei Fehler.
+
+**Fix 2: Intelligenter Default-Tab**
+- **Problem:** Wenn "Heute anrufen" leer war, sah der User eine leere Liste
+- **Fix:** In `routes_acquisition_pages.py` → `akquise_page()`: Fallback-Logik durch alle Tabs (neu → wiedervorlagen → nicht_erreicht → qualifiziert)
+
+**Fix 3: Batch-Disposition UI**
+- **Problem:** Backend-Endpoint existierte, aber kein Frontend-Trigger
+- **Fix:** In `call_screen.html`: Nach erfolgreicher Disposition zeigt `confirm()` Dialog fuer "Gleiche Disposition fuer X weitere Stellen?". Ruft `PATCH /api/akquise/leads/batch-status`. Nur fuer Nicht-Erreicht-Typen (nicht_erreicht, mailbox_besprochen, besetzt, etc.)
+
+**Fix 4: E-Mail 2h Delay** (KOMPLEX)
+- **Problem:** E-Mails gingen sofort raus statt mit 2h Verzögerung
+- **Migration 033:** `scheduled_send_at` Feld + Partial Index auf `acquisition_emails`
+- **Model:** `acquisition_email.py` — Status "scheduled" + `scheduled_send_at` DateTime
+- **Service-Refactor:** `acquisition_email_service.py`:
+  - `send_email()` scheduled jetzt mit Delay (Test-Modus: sofort)
+  - `_do_send()` — extrahierte Sende-Logik
+  - `_get_email_delay_minutes()` — liest aus system_settings (Default: 120 Min)
+  - `send_scheduled_emails()` — verarbeitet bis zu 20 faellige E-Mails (fuer n8n Cron)
+- **2 neue API-Endpoints** in `routes_acquisition.py`:
+  - `POST /api/akquise/n8n/send-scheduled-emails` — n8n Cron alle 15 Min
+  - `POST /api/akquise/n8n/auto-followup` — n8n Cron taeglich 09:00
+
+**Fix 5-6: n8n Cron-Workflows** (AKTIV)
+- `DAbRL5iwkrJfucDD` — "Akquise: Geplante E-Mails versenden" (alle 15 Min) → **AKTIV**
+- `InyfM8n9VF3hejgH` — "Akquise: Auto Follow-up + Break-up" (taeglich 09:00) → **AKTIV**
+- Telegram-Nodes entfernt (fehlende Credentials), Workflows aktiviert
+
+**Fix 7: Webex n8n-Workflow** (erstellt, INAKTIV)
+- `V8rGRTK0gCkqhWvV` — "Akquise: Webex Eingehender Anruf" (Webhook → Backend)
+- Bleibt inaktiv bis Webex-Webhook konfiguriert wird (manuell in n8n UI)
+
 ### Offen
-- **E2E-Test (Phase 9 Checkliste):** Alle UI-Tests noch NICHT durchgefuehrt — Call-Screen, Disposition (13 Szenarien), Fliessband-Modus, Tab-Navigation, Wiedervorlagen, Rueckruf-Popup, Qualifizierung→ATS, E-Mail-Modal etc. (manuell im Browser durch Milad)
-- Phase 7.4: Webex-Integration (Webex CDR/Webhook → n8n → POST /api/akquise/events/incoming-call)
+- **Playwright E2E-Tests:** Test-Datei existiert (Akquise/playwright_e2e_tests.py), braucht PULSPOINT_EMAIL + PULSPOINT_PASSWORD
+- **Migration 033 deployen:** `scheduled_send_at` auf Railway (nach Git Push)
+- **system_settings:** `acquisition_email_delay_minutes = 120` auf Railway setzen
+- Phase 7.4: Webex n8n-Workflow aktivieren (braucht Webex-Webhook-URL)
 - Audit-Log (P2 — nach Go-Live)
 
 ---
@@ -361,3 +401,33 @@ Drei Bugs aus der Rundmail-Automatisierung gegen Akquise-Workflows geprueft:
 5. Webex Click-to-Call — kein SDK noetig, `tel:` reicht
 6. Rueckruf-Popup SLA: 2s in 80%, 5s in 95%
 7. Phone-Normalisierung (E.164) ist PFLICHT fuer Rueckruf-Lookup
+
+---
+
+## PFLICHT-REGELN (UNANTASTBAR — VERSTOSS = VERBOTEN)
+
+### Regel 1: Nach Kontext-Komprimierung (SOFORT, KEINE AUSNAHME)
+- Nach JEDER Komprimierung MUESSEN ALLE folgenden Dateien gelesen werden BEVOR irgendeine Arbeit stattfindet:
+  1. `Akquise/MEMORY.md` (diese Datei)
+  2. `Akquise/PLAN.md`
+  3. `Akquise/RECHERCHE.md`
+  4. `Akquise/REVIEW-TEAM.md`
+  5. `Akquise/E2E-TEST.md`
+  6. Persistente Memory (`~/.claude/projects/.../memory/MEMORY.md`)
+- Danach: Aktuelle Aufgabe identifizieren, letzten Stand verstehen, offene Punkte lesen
+- ERST wenn der gesamte Kontext zu 100% verstanden ist, darf weitergearbeitet werden
+- Diese Regel darf unter GAR KEINEN Umstaenden umgangen werden
+
+### Regel 2: Nach JEDER erledigten Aufgabe (SOFORT aktualisieren)
+- ALLE Dateien aktualisieren: Akquise/MEMORY.md + Akquise/PLAN.md + Akquise/E2E-TEST.md + persistente Memory
+- Fortschritt festhalten BEVOR mit der naechsten Aufgabe begonnen wird
+- Nicht batchen, nicht vergessen — NACH JEDER einzelnen Aufgabe!
+- Diese Regel darf unter GAR KEINEN Umstaenden umgangen werden
+
+### Regel 3: 15-Minuten-Regel bei Problemen (STOPP-PFLICHT)
+- Wenn ein Problem laenger als 15 Minuten zur Loesung braucht: SOFORT STOPPEN
+- Alle Dateien erneut lesen (Regel 1 komplett wiederholen)
+- In allen Dateien nach Loesungen/Hinweisen fuer das Problem suchen
+- Kontext vollstaendig wiederherstellen
+- ERST DANN am Problem weiterarbeiten
+- Diese Regel darf unter GAR KEINEN Umstaenden umgangen werden

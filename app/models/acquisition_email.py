@@ -59,9 +59,10 @@ class AcquisitionEmail(Base):
     # Status
     status: Mapped[str] = mapped_column(
         String(20), server_default=text("'draft'"), nullable=False,
-    )  # draft/sent/failed/bounced/replied
+    )  # draft/scheduled/sent/failed/bounced/replied
 
     # Versand-Details
+    scheduled_send_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # Wann soll gesendet werden (2h Delay)
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     graph_message_id: Mapped[str | None] = mapped_column(String(255))  # Microsoft Graph Message-ID
     unsubscribe_token: Mapped[str | None] = mapped_column(String(64), unique=True)  # Abmelde-Link

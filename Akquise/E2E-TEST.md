@@ -30,7 +30,25 @@
 | Backend-Test (API-Endpoints) | BESTANDEN | 01.03.2026 |
 | IONOS SMTP (alle 4 Mailboxen) | BESTANDEN | 01.03.2026 |
 | Test-Modus Redirect | BESTANDEN | 01.03.2026 |
-| UI-Test (Phase 9 Checkliste) | OFFEN | — |
+| Dispositionen (alle 13) | BESTANDEN | 01.03.2026 |
+| Auto-Wiedervorlage | BESTANDEN (nach Fix) | 01.03.2026 |
+| State-Machine | BESTANDEN (nach Fix) | 01.03.2026 |
+| E-Mail-Flow (Draft+Send) | BESTANDEN | 01.03.2026 |
+| E-Mail-Prompt Fix (Siezen) | BESTANDEN (nach Fix) | 01.03.2026 |
+| D10→ATS Auto-Trigger | IMPLEMENTIERT | 01.03.2026 |
+| Intelligenter Default-Tab | IMPLEMENTIERT | 01.03.2026 |
+| Batch-Disposition UI | IMPLEMENTIERT | 01.03.2026 |
+| E-Mail 2h Delay (Scheduled Send) | IMPLEMENTIERT | 01.03.2026 |
+| n8n: Scheduled-Emails Cron | AKTIV | 01.03.2026 |
+| n8n: Auto Follow-up/Break-up Cron | AKTIV | 01.03.2026 |
+| n8n: Webex Webhook | ERSTELLT (inaktiv) | 01.03.2026 |
+| Migration 033 (scheduled_send_at) | LOKAL | 01.03.2026 |
+| Playwright Browser-Tests | BEREIT (braucht Credentials) | 01.03.2026 |
+| Tab-Navigation | OFFEN | — |
+| Wiedervorlagen | OFFEN | — |
+| Rueckruf | OFFEN | — |
+| Qualifizierung→ATS | OFFEN | — |
+| UI-Test (Browser, manuell) | OFFEN | — |
 
 ---
 
@@ -146,6 +164,93 @@ Spam-Ordner pruefen. Spaetere E-Mails (nach Domain-Warmup) kamen korrekt an.
 - Erste E-Mails von neuen Domains landen fast immer im Spam
 - IONOS-Domains brauchen Warmup (SPF/DKIM/DMARC waren korrekt gesetzt)
 - Wenn Server-Logs "delivered" zeigen aber User nichts sieht → Spam pruefen
+
+---
+
+### Problem 6: Auto-Wiedervorlage wurde NICHT in DB gesetzt (KRITISCH)
+
+**Symptom:**
+Call-Endpoint gab `"Wiedervorlage morgen"` als Action zurueck, aber `follow_up_date` auf dem Call-Objekt war `None`. Wiedervorlagen-Tab blieb leer.
+
+**Ursache:**
+`_process_disposition()` gab nur 2-Tuple zurueck (status, actions). Das `follow_up_date` wurde NICHT automatisch auf dem Call gesetzt — es kam nur vom Client-Request.
+
+**Loesung:**
+Return-Signatur auf 3-Tuple erweitert: `(new_status, actions, auto_follow_up_date)`. Nach `_process_disposition` wird das auto_follow_up_date auf `call.follow_up_date` gesetzt (wenn Client keins mitschickt).
+
+Auto-Daten pro Disposition:
+- nicht_erreicht / mailbox / besetzt / sekretariat → morgen (+1 Tag)
+- kein_bedarf → +180 Tage
+- will_infos → +3 Tage (Nachfass-Anruf)
+- interesse_spaeter / qualifiziert_erst → User-Datum (Pflichtfeld)
+
+**Commit:** `1129608`
+**Lesson Learned:** Wiedervorlagen MUESSEN im Backend gesetzt werden, nicht nur als Text-Label zurueckgegeben. Client kann zusaetzliches Datum mitgeben, aber Backend setzt Default.
+
+---
+
+### Problem 7: State-Machine blockierte valide Uebergaenge
+
+**Symptom:**
+- D3 (falsche_nummer): `"Status-Uebergang 'neu' → 'kontakt_fehlt' nicht erlaubt"`
+- D9 (qualifiziert_erst): `"Status-Uebergang 'angerufen' → 'qualifiziert' nicht erlaubt"`
+
+**Ursache:**
+`ALLOWED_TRANSITIONS` war zu restriktiv:
+- `neu` erlaubte nur → `angerufen, verloren` (fehlte: `kontakt_fehlt`)
+- `angerufen` erlaubte nur → `kontaktiert, wiedervorlage, ...` (fehlte: `qualifiziert`)
+
+**Loesung:**
+```python
+"neu": {"angerufen", "verloren", "kontakt_fehlt"},  # D3: Erstanruf + falsche Nummer
+"angerufen": {..., "qualifiziert"},  # D9: Erstanruf kann direkt qualifizieren
+```
+
+**Commit:** `da5890b`
+**Lesson Learned:** State-Machine nach ALLEN 13 Dispositionen validieren. Jede Disposition muss von ihrem realistischen Ausgangsstatus erreichbar sein.
+
+---
+
+### Problem 8: E-Mail duzt statt siezt + macht Annahmen ueber Firma
+
+**Symptom:**
+GPT-generierte E-Mail nutzte "du" statt "Sie", machte Annahmen wie "wachsendes Unternehmen", fuegt Link zum Tool ein, und Abmelde-Link war in E-Mail.
+
+**Ursache:**
+GPT-Prompt hatte KEINE explizite Siez-Anweisung. Im deutschen Kaltakquise-Kontext MUSS gesiezt werden. Prompt erlaubte Annahmen und verbot Links nicht explizit. Abmelde-Footer (`UNSUBSCRIBE_FOOTER`) wurde automatisch angehaengt.
+
+**Loesung:**
+- Prompt: `IMMER SIEZEN ("Sie", "Ihnen", "Ihr") — NIEMALS duzen!`
+- Prompt: `KEINE Annahmen ueber das Unternehmen treffen`
+- Prompt: `KEINE Links, KEINE URLs im E-Mail-Text`
+- Prompt: `Beende mit "Mit freundlichen Gruessen" OHNE Signatur — Signatur wird automatisch angehaengt`
+- Anrede: `"Sehr geehrte/r Frau/Herr [Nachname]"` statt `KEIN "Sehr geehrte Damen und Herren"`
+- Abmelde-Footer komplett entfernt (Milad-Entscheidung)
+- Follow-up + Break-up Prompts ebenfalls mit Siez-Pflicht
+
+**Commits:** `2bfe4c7`, `86460d0`, `e95b373`, `af00978`
+**Lesson Learned:** Deutsche Geschaefts-E-Mails MUESSEN siezen. GPT-Prompts brauchen explizite kulturelle Regeln. Abmelde-Link ist fuer Kaltakquise-Mails nicht gewuenscht. Anrede (Herr/Frau) muss aus DB an GPT uebergeben werden — GPT soll bei fehlendem Geschlecht den Vornamen gendern.
+
+---
+
+### Disposition-Test Ergebnisse (01.03.2026)
+
+| # | Disposition | Test-Lead | Status-Ergebnis | Follow-up | Bugs |
+|---|-----------|-----------|-----------------|-----------|------|
+| D1a | nicht_erreicht | Beta AG | angerufen | morgen | Bug 6 (gefixt) |
+| D1b | mailbox_besprochen | Iota e.K. | angerufen | morgen | — |
+| D2 | besetzt | Theta GmbH | angerufen | morgen | — |
+| D3 | falsche_nummer | Kappa GmbH | kontakt_fehlt | — | Bug 7 (gefixt) |
+| D4 | sekretariat | Eta AG | angerufen | morgen | + Durchwahl gespeichert |
+| D5 | kein_bedarf | Epsilon UG | blacklist_weich | +180 Tage | — |
+| D6 | nie_wieder | Alpha GmbH | blacklist_hart | — | + Cascade OK |
+| D7 | interesse_spaeter | Eta AG | wiedervorlage | 05.03. 10:00 | — |
+| D8 | will_infos | Beta AG | email_gesendet | +3 Tage | — |
+| D9 | qualifiziert_erst | Zeta GmbH | qualifiziert | 07.03. 14:00 | Bug 7 (gefixt) |
+| D10 | voll_qualifiziert | Zeta GmbH | stelle_erstellt | — | — |
+| D11 | ap_nicht_mehr_da | Gamma KG | (bleibt) | — | + Contact markiert |
+| D12 | andere_stelle_offen | Gamma KG | (bleibt) | — | + neuer Job |
+| D13 | weiterverbunden | Gamma KG | kontaktiert | — | + neuer Contact |
 
 ---
 
