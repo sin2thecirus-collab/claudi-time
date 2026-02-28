@@ -321,9 +321,20 @@ def _trunc(value: str | None, field: str) -> str | None:
 class AcquisitionImportService:
     """Importiert Akquise-CSVs von advertsdata.com."""
 
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, progress: dict | None = None):
         self.db = db
         self.company_service = CompanyService(db)
+        self._progress = progress  # Optionales Status-Dict fuer Live-Fortschritt
+
+    def _report(self, stats: dict, current_row: int = 0) -> None:
+        """Aktualisiert das Progress-Dict fuer Live-Polling."""
+        if self._progress is None:
+            return
+        self._progress["current_row"] = current_row
+        self._progress["imported"] = stats["imported"]
+        self._progress["duplicates_refreshed"] = stats["duplicates_refreshed"]
+        self._progress["blacklisted_skipped"] = stats["blacklisted_skipped"]
+        self._progress["errors"] = stats["errors"]
 
     async def import_csv(
         self,
@@ -350,6 +361,12 @@ class AcquisitionImportService:
         text_content = self._decode_csv(content)
         reader = csv.DictReader(io.StringIO(text_content), delimiter="\t")
 
+        # Zeilen vorab zaehlen fuer Fortschrittsanzeige
+        all_rows = list(reader)
+        total_rows = len(all_rows)
+        if self._progress is not None:
+            self._progress["total_rows"] = total_rows
+
         # Bestehende anzeigen_ids laden (fuer Duplikat-Check)
         existing_jobs = await self._load_existing_anzeigen_ids()
 
@@ -358,7 +375,7 @@ class AcquisitionImportService:
 
         stats = {
             "batch_id": str(batch_id),
-            "total_rows": 0,
+            "total_rows": total_rows,
             "imported": 0,
             "duplicates_refreshed": 0,
             "blacklisted_skipped": 0,
@@ -367,10 +384,8 @@ class AcquisitionImportService:
             "error_details": [],
         }
 
-        batch: list[Job] = []
-
-        for row_num, row in enumerate(reader, start=2):
-            stats["total_rows"] += 1
+        for row_num, row in enumerate(all_rows, start=2):
+            self._report(stats, current_row=row_num - 1)
 
             try:
                 result = await self._process_row(
@@ -404,6 +419,9 @@ class AcquisitionImportService:
 
         # Letzter Batch
         await self.db.commit()
+
+        # Finaler Fortschritt
+        self._report(stats, current_row=total_rows)
 
         logger.info(
             f"Akquise-Import abgeschlossen: {stats['imported']} importiert, "
