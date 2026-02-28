@@ -184,9 +184,9 @@ class CompanyService:
             conditions.append(Company.city.is_(None))
 
         result = await self.db.execute(
-            select(Company).where(and_(*conditions))
+            select(Company).where(and_(*conditions)).limit(1)
         )
-        company = result.scalar_one_or_none()
+        company = result.scalars().first()
 
         # Fallback: Wenn kein Match mit Stadt, suche ohne Stadt
         # (fuer bestehende Daten ohne Stadt-Info)
@@ -195,9 +195,9 @@ class CompanyService:
                 select(Company).where(
                     func.lower(Company.name) == normalized.lower(),
                     Company.city.is_(None),
-                )
+                ).limit(1)
             )
-            company = result.scalar_one_or_none()
+            company = result.scalars().first()
             # Wenn gefunden und keine Stadt hatte → Stadt nachfuellen
             if company and city_normalized:
                 company.city = city.strip()
@@ -259,8 +259,8 @@ class CompanyService:
         if last_name:
             query = query.where(func.lower(CompanyContact.last_name) == last_name.strip().lower())
 
-        result = await self.db.execute(query)
-        contact = result.scalar_one_or_none()
+        result = await self.db.execute(query.limit(1))
+        contact = result.scalars().first()
 
         if contact:
             return contact
