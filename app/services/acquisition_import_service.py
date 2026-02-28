@@ -291,6 +291,33 @@ def _get_mapped_field(row: dict[str, str], field_name: str) -> str | None:
     return None
 
 
+# Maximale Feldlaengen (aus den SQLAlchemy Models)
+_FIELD_LIMITS = {
+    "company_name": 255,
+    "position": 255,
+    "street_address": 255,
+    "postal_code": 10,
+    "city": 100,
+    "work_location_city": 100,
+    "job_url": 500,
+    "employment_type": 100,
+    "industry": 100,
+    "company_size": 50,
+    "position_id": 50,
+    "anzeigen_id": 50,
+    "domain": 255,
+    "phone": 50,
+}
+
+
+def _trunc(value: str | None, field: str) -> str | None:
+    """Kuerzt Wert auf die maximale DB-Feldlaenge."""
+    if not value:
+        return value
+    limit = _FIELD_LIMITS.get(field, 255)
+    return value[:limit] if len(value) > limit else value
+
+
 class AcquisitionImportService:
     """Importiert Akquise-CSVs von advertsdata.com."""
 
@@ -364,6 +391,12 @@ class AcquisitionImportService:
                 if len(stats["error_details"]) < 50:
                     stats["error_details"].append(f"Zeile {row_num}: {str(e)[:200]}")
                 logger.warning(f"Import-Fehler Zeile {row_num}: {e}")
+                # Session-Rollback nach DB-Fehler (z.B. Truncation)
+                # damit die naechsten Zeilen nicht auch scheitern
+                try:
+                    await self.db.rollback()
+                except Exception:
+                    pass
 
             # Batch-Commit alle BATCH_SIZE Zeilen
             if stats["imported"] > 0 and stats["imported"] % BATCH_SIZE == 0:
@@ -455,13 +488,13 @@ class AcquisitionImportService:
 
         if cache_key not in company_cache:
             company = await self.company_service.get_or_create_by_name(
-                name=company_name,
-                address=_get_field(row, COL_MAPPING["street"]),
-                city=city,
-                phone=_get_mapped_field(row, "company_phone"),
-                domain=_get_field(row, COL_MAPPING["domain"]),
-                employee_count=_get_field(row, COL_MAPPING["company_size"]),
-                industry=_get_field(row, COL_MAPPING["industry"]),
+                name=_trunc(company_name, "company_name"),
+                address=_trunc(_get_field(row, COL_MAPPING["street"]), "street_address"),
+                city=_trunc(city, "city"),
+                phone=_trunc(_get_mapped_field(row, "company_phone"), "phone"),
+                domain=_trunc(_get_field(row, COL_MAPPING["domain"]), "domain"),
+                employee_count=_trunc(_get_field(row, COL_MAPPING["company_size"]), "company_size"),
+                industry=_trunc(_get_field(row, COL_MAPPING["industry"]), "industry"),
             )
             company_cache[cache_key] = company
         else:
@@ -539,22 +572,22 @@ class AcquisitionImportService:
                 einsatz_city = plz_match.group(2).strip()
 
         job = Job(
-            company_name=company_name,
+            company_name=_trunc(company_name, "company_name"),
             company_id=company.id,
-            position=position,
-            street_address=_get_field(row, COL_MAPPING["street"]),
-            postal_code=einsatz_plz or _get_field(row, COL_MAPPING["plz"]),
-            city=einsatz_city or city,
-            work_location_city=einsatz_city,
-            job_url=job_url,
+            position=_trunc(position, "position"),
+            street_address=_trunc(_get_field(row, COL_MAPPING["street"]), "street_address"),
+            postal_code=_trunc(einsatz_plz or _get_field(row, COL_MAPPING["plz"]), "postal_code"),
+            city=_trunc(einsatz_city or city, "city"),
+            work_location_city=_trunc(einsatz_city, "city"),
+            job_url=_trunc(job_url, "job_url"),
             job_text=_get_field(row, COL_MAPPING["job_text"]),
-            employment_type=_get_field(row, COL_MAPPING["employment_type"]),
-            industry=_get_field(row, COL_MAPPING["industry"]),
-            company_size=_get_field(row, COL_MAPPING["company_size"]),
+            employment_type=_trunc(_get_field(row, COL_MAPPING["employment_type"]), "employment_type"),
+            industry=_trunc(_get_field(row, COL_MAPPING["industry"]), "industry"),
+            company_size=_trunc(_get_field(row, COL_MAPPING["company_size"]), "company_size"),
             # Akquise-Felder
             acquisition_source="advertsdata",
-            position_id=position_id,
-            anzeigen_id=anzeigen_id,
+            position_id=_trunc(position_id, "position_id"),
+            anzeigen_id=_trunc(anzeigen_id, "anzeigen_id"),
             akquise_status="neu",
             akquise_status_changed_at=now,
             akquise_priority=priority,
