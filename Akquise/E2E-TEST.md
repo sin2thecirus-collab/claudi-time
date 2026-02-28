@@ -44,7 +44,9 @@
 | n8n: Webex Webhook | ERSTELLT (inaktiv) | 01.03.2026 |
 | Migration 033 (scheduled_send_at) | DEPLOYED | 28.02.2026 |
 | system_settings (email_delay 120min) | GESETZT | 28.02.2026 |
-| Playwright Browser-Tests (57/57) | BESTANDEN | 28.02.2026 |
+| Playwright Smoke-Tests (57/57) | BESTANDEN | 28.02.2026 |
+| Playwright Deep-Integration (17/17) | BESTANDEN | 28.02.2026 |
+| Playwright Gesamt (74/74) | BESTANDEN | 28.02.2026 |
 | Tab-Navigation (6 Tabs) | BESTANDEN (Playwright) | 28.02.2026 |
 | Wiedervorlagen-Formular (D7) | BESTANDEN (Playwright) | 28.02.2026 |
 | Rueckruf-Suche | BESTANDEN (Playwright) | 28.02.2026 |
@@ -331,9 +333,11 @@ conn.commit()
 
 ## TEIL 2B: PLAYWRIGHT BROWSER-TEST PROTOKOLL (28.02.2026)
 
-### Ergebnis: 57/57 BESTANDEN
+### Ergebnis: 74/74 BESTANDEN (57 Smoke + 17 Deep Integration)
 
-**10 Phasen, alle GRUEN:**
+**18 Phasen, alle GRUEN:**
+
+#### Smoke Tests (Phase 1-10):
 
 | Phase | Tests | Ergebnis |
 |-------|-------|----------|
@@ -348,6 +352,19 @@ conn.commit()
 | 9: Navigation | 2 | Call-Screen schliessen, Lead-Liste sichtbar |
 | 10: Sonderfunktionen | 3 | Rueckruf-Input, Suche ausloesen, Abtelefonieren-Button |
 
+#### Deep Integration Tests (Phase 11-18):
+
+| Phase | Tests | Ergebnis |
+|-------|-------|----------|
+| 11: Anruf-Simulation | 2 | API-Call simulate-call + UI-Status sichtbar |
+| 12: Disposition absenden (D1a) | 3 | POST /call → Status=angerufen, Auto-Wiedervorlage gesetzt, DB-Persistenz |
+| 13: Notizen Persistenz | 2 | Notiz schreiben + Autosave → nach Schliessen/Oeffnen erhalten |
+| 14: E-Mail Draft (GPT) | 4 | Contact-ID Lookup → GPT-Draft (Betreff, Body, Siez-Pflicht, keine Links) |
+| 15: KPI Verifizierung | 2 | API-Stats → Frontend-KPI-Match |
+| 16: Rueckruf-Simulation | 1 | API-Call simulate-callback (match/no-match) |
+| 17: Abtelefonieren-Flow | 1 | Erster Lead automatisch geoeffnet |
+| 18: Tab-Zustand | 2 | 6/6 Tabs mit Daten + Badge-Zaehler korrekt |
+
 ### Technische Loesungen (Playwright-spezifisch):
 
 1. **SSE `networkidle` Problem:** `/akquise` Seite hat EventSource (SSE), daher nie `networkidle`. Fix: `wait_until="domcontentloaded"`
@@ -356,9 +373,16 @@ conn.commit()
 4. **Modal-Overlay blockiert Klicks:** E-Mail-Modal-Overlay blockierte "Zurueck"-Button. Fix: Alpine-State per JS zuruecksetzen
 5. **Simulate-Button matched vor D7:** `button:has-text("Interesse")` matcht Test-Modus-Simulate-Button. Fix: `#call-screen-content button:has-text("D7")`
 6. **Textbaustein Alpine x-model:** `fill()` triggert kein Alpine-Model-Update. Fix: `dispatchEvent(new Event('input'))` nach fill
+7. **Deep Tests: UI vs. API:** Fuer Deep-Tests `page.evaluate(fetch(...))` statt UI-Klicks (zuverlaessiger, da Overlays nicht blockieren)
+8. **EmailDraftRequest contact_id:** Lead-Detail per API abrufen → Contact-ID extrahieren → Draft mit contact_id aufrufen
+9. **publish() Bug in simulate-callback:** `publish({dict})` → `publish(event_type, data)` (Backend-Fix)
+10. **GPT-Draft body_plain:** API gibt `body_plain` zurueck, nicht `body` — Feldnamen-Mapping im Test
+
+### Backend-Bug gefixt waehrend Deep-Tests:
+- **simulate-callback publish():** `await publish({"event": ..., "data": ...})` → `await publish("incoming_call", callback_data)` (HTTP 500 behoben)
 
 ### Test-Datei:
-- `Akquise/playwright_e2e_tests.py` (1004 Zeilen, 10 Phasen, 57 Tests)
+- `Akquise/playwright_e2e_tests.py` (~1500 Zeilen, 18 Phasen, 74 Tests)
 - Ausfuehren: `python Akquise/playwright_e2e_tests.py`
 - Credentials: `.env` (PULSPOINT_EMAIL + PULSPOINT_PASSWORD)
 
