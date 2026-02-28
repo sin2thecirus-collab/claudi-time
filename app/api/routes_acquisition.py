@@ -1423,3 +1423,154 @@ async def test_mode_status(db: AsyncSession = Depends(get_db)):
         "test_mode": mode,
         "test_email": email,
     }
+
+
+# ── Unassigned Calls (Webex Recording ohne zugeordneten Kontakt) ──
+
+
+class UnassignedCallCreate(BaseModel):
+    phone_number: str | None = None
+    direction: str | None = "inbound"
+    call_date: datetime | None = None
+    duration_seconds: int | None = None
+    transcript: str | None = None
+    call_summary: str | None = None
+    extracted_data: dict | None = None
+    recording_topic: str | None = None
+    webex_recording_id: str | None = None
+    mt_payload: dict | None = None
+
+
+@router.post("/unassigned-calls")
+async def create_unassigned_call(
+    body: UnassignedCallCreate,
+    db: AsyncSession = Depends(get_db),
+):
+    """Speichert einen Webex-Anruf ohne zugeordneten Kontakt.
+
+    Wird vom n8n Recording-Workflow aufgerufen wenn keine candidate_id
+    im Webhook-Payload gefunden wurde.
+    """
+    from app.models.unassigned_call import UnassignedCall
+
+    call = UnassignedCall(
+        phone_number=body.phone_number,
+        direction=body.direction,
+        call_date=body.call_date or datetime.now(timezone.utc),
+        duration_seconds=body.duration_seconds,
+        transcript=body.transcript,
+        call_summary=body.call_summary,
+        extracted_data=body.extracted_data,
+        recording_topic=body.recording_topic,
+        webex_recording_id=body.webex_recording_id,
+        mt_payload=body.mt_payload,
+    )
+    db.add(call)
+    await db.commit()
+    await db.refresh(call)
+
+    return {
+        "id": str(call.id),
+        "phone_number": call.phone_number,
+        "call_summary": call.call_summary,
+        "created_at": call.created_at.isoformat() if call.created_at else None,
+    }
+
+
+@router.get("/unassigned-calls")
+async def list_unassigned_calls(
+    assigned: bool = False,
+    limit: int = Query(default=50, le=100),
+    db: AsyncSession = Depends(get_db),
+):
+    """Listet unzugeordnete Anrufe auf (fuer manuelle Zuordnung)."""
+    from app.models.unassigned_call import UnassignedCall
+
+    result = await db.execute(
+        select(UnassignedCall)
+        .where(UnassignedCall.assigned == assigned)
+        .order_by(UnassignedCall.created_at.desc())
+        .limit(limit)
+    )
+    calls = result.scalars().all()
+
+    return {
+        "count": len(calls),
+        "calls": [
+            {
+                "id": str(c.id),
+                "phone_number": c.phone_number,
+                "direction": c.direction,
+                "call_date": c.call_date.isoformat() if c.call_date else None,
+                "duration_seconds": c.duration_seconds,
+                "call_summary": c.call_summary,
+                "recording_topic": c.recording_topic,
+                "extracted_data": c.extracted_data,
+                "assigned": c.assigned,
+                "created_at": c.created_at.isoformat() if c.created_at else None,
+            }
+            for c in calls
+        ],
+    }
+
+
+class AssignCallRequest(BaseModel):
+    assigned_to_type: str  # "contact" / "company"
+    assigned_to_id: uuid.UUID
+
+
+@router.patch("/unassigned-calls/{call_id}/assign")
+async def assign_unassigned_call(
+    call_id: uuid.UUID,
+    body: AssignCallRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Ordnet einen unzugeordneten Anruf manuell einem Kontakt/Unternehmen zu."""
+    from app.models.unassigned_call import UnassignedCall
+
+    result = await db.execute(
+        select(UnassignedCall).where(UnassignedCall.id == call_id)
+    )
+    call = result.scalar_one_or_none()
+
+    if not call:
+        raise HTTPException(404, "Anruf nicht gefunden")
+
+    if call.assigned:
+        raise HTTPException(400, "Anruf ist bereits zugeordnet")
+
+    call.assigned = True
+    call.assigned_to_type = body.assigned_to_type
+    call.assigned_to_id = body.assigned_to_id
+    call.assigned_at = datetime.now(timezone.utc)
+
+    await db.commit()
+
+    return {
+        "id": str(call.id),
+        "assigned": True,
+        "assigned_to_type": call.assigned_to_type,
+        "assigned_to_id": str(call.assigned_to_id),
+    }
+
+
+@router.delete("/unassigned-calls/{call_id}")
+async def delete_unassigned_call(
+    call_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Loescht einen unzugeordneten Anruf."""
+    from app.models.unassigned_call import UnassignedCall
+
+    result = await db.execute(
+        select(UnassignedCall).where(UnassignedCall.id == call_id)
+    )
+    call = result.scalar_one_or_none()
+
+    if not call:
+        raise HTTPException(404, "Anruf nicht gefunden")
+
+    await db.delete(call)
+    await db.commit()
+
+    return {"deleted": True, "id": str(call_id)}

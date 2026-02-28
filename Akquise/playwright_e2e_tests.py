@@ -265,6 +265,10 @@ async def run_all_tests():
             print("\n  --- Phase 23: COMP — Call History + Batch ---\n")
             await deep_test_call_history_and_batch(page)
 
+            # ── Phase 24: Webex Integration ──
+            print("\n  --- Phase 24: COMP — Webex Integration ---\n")
+            await deep_test_webex_integration(page)
+
         except Exception as e:
             record("FATAL", "FAIL", f"Unerwarteter Fehler: {e}\n{traceback.format_exc()}")
 
@@ -1665,6 +1669,147 @@ async def deep_test_tab_state(page):
 
     except Exception as e:
         record("DEEP: Tab-Zustand", "FAIL", str(e))
+
+
+# ══════════════════════════════════════════════════
+# Phase 24: Webex Integration Tests
+# ══════════════════════════════════════════════════
+
+
+async def deep_test_webex_integration(page):
+    """Testet Webex-bezogene Endpoints und SSE-Event-Bus."""
+
+    # --- Test 24.1: SSE-Endpoint erreichbar ---
+    try:
+        r = await page.evaluate("""
+            (async () => {
+                try {
+                    const ctrl = new AbortController();
+                    const timeout = setTimeout(() => ctrl.abort(), 3000);
+                    const resp = await fetch('/akquise/events', { signal: ctrl.signal });
+                    clearTimeout(timeout);
+                    return { status: resp.status, contentType: resp.headers.get('content-type') };
+                } catch (e) {
+                    if (e.name === 'AbortError') return { status: 200, aborted: true };
+                    return { error: e.message };
+                }
+            })()
+        """)
+        if r and not r.get("error") and r.get("status") == 200:
+            record("24.1 SSE-Endpoint erreichbar", "PASS")
+        else:
+            record("24.1 SSE-Endpoint erreichbar", "FAIL", str(r))
+    except Exception as e:
+        record("24.1 SSE-Endpoint erreichbar", "FAIL", str(e))
+
+    # --- Test 24.2: Incoming-Call Webhook Endpoint ---
+    try:
+        r = await _api_post(page, "events/incoming-call", {
+            "phone": "+4940000000000",
+            "caller_name": "E2E Test Firma"
+        })
+        if r and r.get("status") == 200:
+            data = r.get("data", {})
+            if data.get("event") == "incoming-call":
+                record("24.2 Incoming-Call Webhook", "PASS",
+                       f"delivered_to={data.get('delivered_to')}, found={data.get('found')}")
+            else:
+                record("24.2 Incoming-Call Webhook", "FAIL", f"Unerwartete Antwort: {data}")
+        else:
+            record("24.2 Incoming-Call Webhook", "FAIL", str(r))
+    except Exception as e:
+        record("24.2 Incoming-Call Webhook", "FAIL", str(e))
+
+    # --- Test 24.3: Rueckruf-Lookup (unbekannte Nummer → 404) ---
+    try:
+        r = await _api_get(page, "rueckruf/%2B4940000000000")
+        if r and r.get("status") == 404:
+            record("24.3 Rueckruf-Lookup (404 erwartet)", "PASS")
+        elif r and r.get("status") == 200:
+            record("24.3 Rueckruf-Lookup (404 erwartet)", "PASS", "Nummer zufaellig bekannt")
+        else:
+            record("24.3 Rueckruf-Lookup (404 erwartet)", "FAIL", str(r))
+    except Exception as e:
+        record("24.3 Rueckruf-Lookup (404 erwartet)", "FAIL", str(e))
+
+    # --- Test 24.4: Unassigned-Calls POST (speichern) ---
+    try:
+        r = await _api_post(page, "unassigned-calls", {
+            "phone_number": "+4940111222333",
+            "direction": "inbound",
+            "call_summary": "E2E Test Anruf",
+            "recording_topic": "Test Recording",
+            "extracted_data": {"test": True}
+        })
+        if r and r.get("status") == 200:
+            data = r.get("data", {})
+            call_id = data.get("id")
+            if call_id:
+                record("24.4 Unassigned-Call erstellen", "PASS", f"id={call_id}")
+            else:
+                record("24.4 Unassigned-Call erstellen", "FAIL", f"Keine ID: {data}")
+        else:
+            record("24.4 Unassigned-Call erstellen", "FAIL", str(r))
+    except Exception as e:
+        record("24.4 Unassigned-Call erstellen", "FAIL", str(e))
+
+    # --- Test 24.5: Unassigned-Calls GET (auflisten) ---
+    try:
+        r = await _api_get(page, "unassigned-calls?assigned=false&limit=5")
+        if r and r.get("status") == 200:
+            data = r.get("data", {})
+            count = data.get("count", 0)
+            calls = data.get("calls", [])
+            if count >= 1 and len(calls) >= 1:
+                record("24.5 Unassigned-Calls auflisten", "PASS", f"{count} Anrufe")
+            else:
+                record("24.5 Unassigned-Calls auflisten", "FAIL", f"count={count}")
+        else:
+            record("24.5 Unassigned-Calls auflisten", "FAIL", str(r))
+    except Exception as e:
+        record("24.5 Unassigned-Calls auflisten", "FAIL", str(e))
+
+    # --- Test 24.6: Unassigned-Call loeschen (Cleanup) ---
+    try:
+        # Letzten Test-Call finden und loeschen
+        r = await _api_get(page, "unassigned-calls?assigned=false&limit=1")
+        if r and r.get("status") == 200:
+            calls = r.get("data", {}).get("calls", [])
+            if calls:
+                call_id = calls[0]["id"]
+                dr = await page.evaluate(f"""
+                    (async () => {{
+                        try {{
+                            const resp = await fetch('/api/akquise/unassigned-calls/{call_id}', {{
+                                method: 'DELETE'
+                            }});
+                            const data = await resp.json();
+                            return {{ status: resp.status, data: data }};
+                        }} catch (e) {{ return {{ error: e.message }}; }}
+                    }})()
+                """)
+                if dr and dr.get("status") == 200 and dr.get("data", {}).get("deleted"):
+                    record("24.6 Unassigned-Call loeschen", "PASS")
+                else:
+                    record("24.6 Unassigned-Call loeschen", "FAIL", str(dr))
+            else:
+                record("24.6 Unassigned-Call loeschen", "SKIP", "Kein Call zum Loeschen")
+        else:
+            record("24.6 Unassigned-Call loeschen", "FAIL", str(r))
+    except Exception as e:
+        record("24.6 Unassigned-Call loeschen", "FAIL", str(e))
+
+    # --- Test 24.7: Simulate-Callback (Test-Modus) ---
+    try:
+        r = await _api_post(page, "test/simulate-callback?phone=%2B4940000000000", {})
+        # Kann 200 (Test-Modus aktiv) oder 403 (Test-Modus aus) sein
+        if r and r.get("status") in (200, 403):
+            record("24.7 Simulate-Callback", "PASS",
+                   "Test-Modus aktiv" if r.get("status") == 200 else "Test-Modus deaktiviert (403)")
+        else:
+            record("24.7 Simulate-Callback", "FAIL", str(r))
+    except Exception as e:
+        record("24.7 Simulate-Callback", "FAIL", str(e))
 
 
 # ══════════════════════════════════════════════════

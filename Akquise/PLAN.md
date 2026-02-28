@@ -4,7 +4,7 @@
 > Basierend auf: 6 Research + 6 Review + 6 Deep-Dive + 1 Vertriebsingenieur + 3 Marketing-Review-Agenten
 > Quellen: RECHERCHE.md, REVIEW-TEAM.md
 >
-> **Implementierungs-Status:** Phase 1-9 FERTIG (ausser 7.4 Webex) | 7 Gap-Fixes implementiert | Phase 7.4 OFFEN
+> **Implementierungs-Status:** Phase 1-9 FERTIG | 7 Gap-Fixes implementiert | Phase 7.4 Webex TEILWEISE FERTIG (Incoming-Call AKTIV, Recording braucht OAuth)
 > **Deploy-Status (01.03.):** Migration 032 deployed, CSV-Import funktioniert, /akquise LIVE | Phase 6 n8n-Workflows AKTIV (6/6 + 3 neue), Backend-Endpoints deployed + DB-Session-Fix
 > **Gap-Fixes (01.03. Session 2):** D10→ATS auto-trigger, Intelligenter Default-Tab, Batch-Disposition UI, E-Mail 2h Delay (Migration 033), 3 n8n-Workflows (Webex, Scheduled-Emails, Auto-Followup)
 > **Backend-Test (01.03.):** API-Endpoints + IONOS-Mailboxen getestet + bestaetigt | E2E-Checkliste (UI-Tests) noch OFFEN
@@ -884,9 +884,27 @@ Implementiert in: `acquisition_call_service.py` → `_normalize_phone_simple()`
 - **Frontend:** EventSource in akquisePage().init(), `_handleIncomingCall()` zeigt Popup mit pulsierendem Punkt
 - **Refactoring:** `_renderRueckrufPopup()` — gemeinsame DOM-basierte Methode fuer manuellen Lookup und SSE-Event
 
-### 7.4 Webex-Integration (spaetere Phase)
+### 7.4 Webex-Integration ✅ TEILWEISE FERTIG (01.03.2026 Session 3)
 
-Webex kann Webhooks senden bei eingehenden Anrufen. n8n empfaengt den Webhook, extrahiert die Caller-ID, ruft `/api/akquise/rueckruf/{phone}` auf, und sendet SSE-Event an den Browser.
+**Incoming-Call-Workflow (V8rGRTK0gCkqhWvV) — AKTIV + GETESTET:**
+- Webhook → Set (Phone/Name extrahieren) → Code (Filter <4 Zeichen) → HTTP Request (Backend SSE)
+- Webhook-URL: `https://n8n-production-aa9c.up.railway.app/webhook/webex-incoming-call`
+- End-to-End getestet: Execution #1040 SUCCESS (200 OK, delivered_to: 3)
+- Fixes: webhookId Property, If→Code-Node ersetzt, X-API-Key Header
+
+**Recording-Workflow (w5LTbRw1bFSCIKNP) — DEPLOYED, INAKTIV:**
+- 12 Nodes: Webhook → OAuth → Get Recording → Download → Whisper → GPT Extract → If → MT/Unassigned
+- Security: process.env in Code-Nodes (keine hardcodierten Keys)
+- Braucht: WEBEX_CLIENT_ID, WEBEX_CLIENT_SECRET, WEBEX_REFRESH_TOKEN, OPENAI_API_KEY in n8n ENV
+
+**Backend-Endpoints (unassigned_calls):**
+- POST /api/akquise/unassigned-calls — Neuen unassigned Call erstellen
+- GET /api/akquise/unassigned-calls — Liste (filter: assigned=true/false)
+- PATCH /api/akquise/unassigned-calls/{id}/assign — Zuordnen zu Contact/Company
+- DELETE /api/akquise/unassigned-calls/{id} — Loeschen
+
+**Setup-Anleitung:** `Akquise/WEBEX-SETUP.md` (Milad muss OAuth + Webhook manuell einrichten)
+**E2E-Tests:** Phase 24 (7 Tests) in playwright_e2e_tests.py
 
 ---
 

@@ -48,6 +48,10 @@
 | Playwright Deep-Integration (17/17) | BESTANDEN | 28.02.2026 |
 | Playwright Comprehensive (27/27) | BESTANDEN | 28.02.2026 |
 | Playwright Gesamt (101/101) | BESTANDEN | 28.02.2026 |
+| Webex Incoming-Call n8n | AKTIV + GETESTET | 01.03.2026 |
+| Webex Recording n8n | DEPLOYED (inaktiv) | 01.03.2026 |
+| Unassigned-Calls Endpoints | IMPLEMENTIERT | 01.03.2026 |
+| Playwright Webex (Phase 24, 7 Tests) | IMPLEMENTIERT (noch nicht gelaufen) | 01.03.2026 |
 | Tab-Navigation (6 Tabs) | BESTANDEN (Playwright) | 28.02.2026 |
 | Wiedervorlagen-Formular (D7) | BESTANDEN (Playwright) | 28.02.2026 |
 | Rueckruf-Suche | BESTANDEN (Playwright) | 28.02.2026 |
@@ -237,6 +241,60 @@ GPT-Prompt hatte KEINE explizite Siez-Anweisung. Im deutschen Kaltakquise-Kontex
 
 ---
 
+### Problem 9: n8n Webhook 404 trotz aktivem Workflow
+
+**Symptom:**
+Incoming-Call-Workflow war aktiv, aber Webhook-URL gab 404 zurueck.
+
+**Ursache:**
+Webhook-Node fehlte die `webhookId` Property. Ohne diese registriert n8n den Webhook nicht korrekt fuer Production.
+
+**Loesung:**
+`webhookId: "a1b2c3d4-webex-incoming-call"` zum Webhook-Node hinzugefuegt.
+
+**Lesson Learned:** n8n Production-Webhooks brauchen IMMER eine `webhookId` Property.
+
+---
+
+### Problem 10: n8n If-Node routet falsch (FALSE statt TRUE)
+
+**Symptom:**
+If-Node "Telefonnummer vorhanden?" routete IMMER auf FALSE, obwohl Phone-String nicht leer war.
+
+**Ursache:**
+If-Node v2 `isNotEmpty` Operator ist unzuverlaessig. Verschiedene Fixes (typeValidation, options cleanup) halfen nicht.
+
+**Loesung:**
+If-Node komplett durch Code-Node ersetzt:
+```javascript
+const phone = $json.phone || '';
+if (phone.length < 4) return [];
+return [$input.first()];
+```
+
+**Lesson Learned:** n8n If-Node v2 ist fuer String-Checks unzuverlaessig — Code-Node ist stabiler.
+
+---
+
+### Problem 11: process.env nicht in n8n-Expressions verfuegbar
+
+**Symptom:**
+`{{ process.env.OPENAI_API_KEY }}` in httpRequest Authorization-Header war leer/undefined.
+
+**Ursache:**
+`process.env` ist NUR in Code-Nodes verfuegbar, NICHT in n8n Expression-Feldern ({{ }}).
+
+**Loesung:**
+Alle Env-Vars im ersten Code-Node lesen und als Daten-Properties weiterreichen:
+```javascript
+return [{ json: { openai_key: process.env.OPENAI_API_KEY, ... } }];
+```
+Downstream-Nodes referenzieren dann: `{{ $('Code Node').first().json.openai_key }}`
+
+**Lesson Learned:** In n8n muessen Environment-Variablen ueber Code-Nodes in den Datenfluss eingespeist werden.
+
+---
+
 ### Disposition-Test Ergebnisse (01.03.2026)
 
 | # | Disposition | Test-Lead | Status-Ergebnis | Follow-up | Bugs |
@@ -398,8 +456,22 @@ conn.commit()
 12. **_get_test_leads_via_api Page-Fallback:** Fuer `status=neu` Seite 2 bevorzugen (Konflikt mit frueheren Phasen), fuer andere Status direkt Seite 1 (wenige Leads).
 13. **_api_post JSON-Escaping:** `json.dumps()` + `replace("\\", "\\\\").replace("'", "\\'")` fuer sichere Einbettung in JS-Strings.
 
+#### Webex Integration Tests (Phase 24):
+
+| Phase | Tests | Ergebnis |
+|-------|-------|----------|
+| 24: Webex Integration | 7 | NOCH NICHT GELAUFEN (braucht deployed Backend) |
+
+**24.1:** SSE-Endpoint erreichbar (GET /akquise/events)
+**24.2:** Incoming-Call Webhook (POST /events/incoming-call)
+**24.3:** Rueckruf-Lookup (404 erwartet fuer unbekannte Nummer)
+**24.4:** Unassigned-Call erstellen (POST /unassigned-calls)
+**24.5:** Unassigned-Calls auflisten (GET /unassigned-calls)
+**24.6:** Unassigned-Call loeschen (DELETE /unassigned-calls/{id})
+**24.7:** Simulate-Callback (POST /test/simulate-callback)
+
 ### Test-Datei:
-- `Akquise/playwright_e2e_tests.py` (~2230 Zeilen, 23 Phasen, 101 Tests)
+- `Akquise/playwright_e2e_tests.py` (~2350 Zeilen, 24 Phasen, 108 Tests)
 - Ausfuehren: `python Akquise/playwright_e2e_tests.py`
 - Credentials: `.env` (PULSPOINT_EMAIL + PULSPOINT_PASSWORD)
 

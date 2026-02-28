@@ -1,6 +1,6 @@
 # Akquise-Automatisierung — Memory (Kontexterhaltung)
 
-> **Letzte Aktualisierung: 01.03.2026 (Session 2: 7 Gap-Fixes + 3 n8n-Workflows + Migration 033)**
+> **Letzte Aktualisierung: 01.03.2026 (Session 3: Webex-Integration + 4 neue Endpoints + 2 n8n-Workflows)**
 > Diese Datei wird nach JEDER erledigten Aufgabe aktualisiert.
 
 ---
@@ -37,6 +37,11 @@
 | SSE Event-Bus | FERTIG (lokal) | acquisition_event_bus.py + SSE-Endpoint + Webhook + Frontend EventSource |
 | n8n-Workflows | AKTIV | 6 Workflows erstellt + AKTIVIERT: Morgen-Briefing (BqjDn57PWwVHDpNy), Abend-Report (VazlvT2vuvqLXX9i), Wiedervorlagen-Alarm (CUIhgzyqDpuOQGZq), Follow-up-Erinnerung (nXsYnVBWy9q0Vh7J), Eskalation (YhLwBZewTiKu7qEU), Reply&Bounce Monitor (DIq76xuoQ0QqQMxJ) |
 | n8n-Backend-Endpoints | DEPLOYED | 5 Endpoints + DB-Session-Fix (check-inbox 3-Phasen): /n8n/followup-due, /n8n/eskalation-due, /n8n/check-inbox, /n8n/process-reply, /n8n/process-bounce |
+| Webex Eingehender Anruf | AKTIV + KOMPLETT | n8n V8rGRTK0gCkqhWvV — Telephony-Webhook bei Webex REGISTRIERT (28.02.2026 18:32) |
+| Webex Recording (BESTEHEND) | AKTIV + PRODUKTIV | n8n TIZR3L_9arwlI4O69wTMY — OAuth FERTIG, Recording-Webhook registriert, 10+ Recordings/Tag verarbeitet |
+| Webex Recording (Akquise-Kopie) | UEBERFLUESSIG | n8n w5LTbRw1bFSCIKNP — bestehender Workflow deckt Akquise bereits ab (call_type: "akquise") |
+| Unassigned-Calls Endpoints | DEPLOYED | 4 Endpoints: POST/GET/PATCH/DELETE /unassigned-calls |
+| Webex-Setup-Anleitung | ERSTELLT | Akquise/WEBEX-SETUP.md — Schritt-fuer-Schritt fuer Milad |
 
 ---
 
@@ -93,6 +98,10 @@
 | 4 | Follow-up-Erinnerung | nXsYnVBWy9q0Vh7J | 09:00 | n8n/followup-due |
 | 5 | Eskalation | YhLwBZewTiKu7qEU | 18:00 | n8n/eskalation-due?apply=true |
 | 6 | Reply & Bounce Monitor | DIq76xuoQ0QqQMxJ | */15 | n8n/check-inbox |
+| 7 | Geplante E-Mails senden | DAbRL5iwkrJfucDD | */15 | n8n/send-scheduled-emails |
+| 8 | Auto Follow-up/Break-up | InyfM8n9VF3hejgH | 09:00 | n8n/auto-followup |
+| 9 | Webex Eingehender Anruf | V8rGRTK0gCkqhWvV | Webhook | /events/incoming-call → SSE |
+| 10 | Webex Recording→Whisper→GPT | TIZR3L_9arwlI4O69wTMY | Webhook | AKTIV (Token aktualisiert 28.02.) |
 
 ### Bug-Analyse: Rundmail-Fixes (28.02.2026)
 Drei Bugs aus der Rundmail-Automatisierung gegen Akquise-Workflows geprueft:
@@ -197,10 +206,46 @@ Systematische Analyse aller Akquise-Dateien deckte 7 Luecken auf. Alle gefixt:
 - **system_settings:** `acquisition_email_delay_minutes = 120` gesetzt
 - **Git Commit:** `3c67346` (11 Dateien, +1428 Zeilen) + Playwright-Fixes (noch zu committen)
 
+### Webex-Integration (28.02.2026 — Session 3+6+7) — KOMPLETT
+
+**BESTEHENDER Recording-Workflow (TIZR3L_9arwlI4O69wTMY) — AKTIV + PRODUKTIV:**
+- OAuth FERTIG — Refresh Token am 28.02.2026 aktualisiert (neuer Token mit `recordings_write` Scope)
+- Scopes: `spark:recordings_read spark:recordings_write spark:people_read spark:calls_read`
+- Recording-Webhook bei Webex REGISTRIERT (Webex sendet direkt an n8n)
+- 10+ Recordings am 27.02. erfolgreich verarbeitet (Whisper + GPT + Backend)
+- Klassifiziert: `qualifizierung` / `kurzer_call` / `akquise` / `sonstiges`
+- Sendet an `/api/n8n/call/store-or-assign` (Kandidaten-Update + ATS-Integration)
+- DSGVO: Loescht Webex-Aufnahme nach Verarbeitung (DELETE jetzt moeglich dank `recordings_write`)
+
+**Incoming-Call-Workflow (V8rGRTK0gCkqhWvV) — KOMPLETT + AKTIV:**
+- n8n-Seite: AKTIV + getestet (Execution #1040)
+- Webex-Seite: Telephony-Webhook REGISTRIERT am 28.02.2026 18:32 (automatisch via n8n Temp-Workflow)
+- Webhook-URL: `https://n8n-production-aa9c.up.railway.app/webhook/webex-incoming-call`
+- Bei eingehendem Anruf: Browser-Popup auf /akquise Seite
+
+**Geloeschte Workflows (28.02.2026 Cleanup):**
+- w5LTbRw1bFSCIKNP (Akquise Recording-Kopie) — GELOESCHT (redundant)
+- g7ZNmN7U3QcX0NBi (TEMP: OAuth Callback) — GELOESCHT
+- EHlLdm8ojIZpbq1X (TEMP: Test Old Token) — GELOESCHT
+
+**Backend-Endpoints:**
+- 4 unassigned_calls Endpoints in routes_acquisition.py (POST/GET/PATCH/DELETE)
+- Webex-Setup-Anleitung: `Akquise/WEBEX-SETUP.md`
+- 7 Playwright E2E-Tests (Phase 24)
+
+**n8n Learnings (WICHTIG fuer zukuenftige Workflows):**
+- `process.env` funktioniert NUR in Code-Nodes, NICHT in Expression-Feldern
+- `fetch` ist NICHT verfuegbar in Code-Nodes (Task-Runner Sandbox) → HTTP Request Nodes nutzen
+- Optional Chaining (`?.`) nicht unterstuetzt in n8n-Expressions
+- Production-Webhooks brauchen `webhookId` Property
+- If-Node v2 `isNotEmpty` ist unzuverlaessig → Code-Node als Alternative
+- n8n Partial-Update API: `updates` Key (nicht `properties`), `nodeId` fuer Sonderzeichen
+- Webex OAuth Re-Auth invalidiert NICHT bestehende Refresh-Tokens (beide bleiben gueltig)
+
 ### Offen
-- Phase 7.4: Webex n8n-Workflow aktivieren (braucht Webex-Webhook-URL)
 - Manueller UI-Test durch Milad (E2E-TEST.md Teil 3, Checkliste)
-- Audit-Log (P2 — nach Go-Live)
+- Git Push: Session-3-Aenderungen (unassigned_calls Endpoints) noch NICHT committed/pushed
+- Audit-Log (P2, nach Go-Live)
 
 ---
 
