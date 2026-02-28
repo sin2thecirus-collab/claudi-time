@@ -1,6 +1,6 @@
 # Akquise-Automatisierung — Memory (Kontexterhaltung)
 
-> **Letzte Aktualisierung: 28.02.2026**
+> **Letzte Aktualisierung: 28.02.2026 (spaet — Frontend-Audit + 4 Bugfixes)**
 > Diese Datei wird nach JEDER erledigten Aufgabe aktualisiert.
 
 ---
@@ -11,27 +11,69 @@
 |-------|--------|--------------|
 | Recherche | FERTIG | 6 Research + 6 Review + 6 Deep-Dive + 1 Vertriebsingenieur + 3 Marketing abgeschlossen (22 Agenten total) |
 | Planung | FERTIG | Plan in PLAN.md (9 Phasen, nach Vertriebs-Review aktualisiert) |
-| Migration 032 | FERTIG | `migrations/versions/032_add_acquisition_fields.py` — Job +9, Company +1, Contact +3, acquisition_calls, acquisition_emails, 9 Indizes |
+| Migration 032 | DEPLOYED | Manuell auf Railway ausgefuehrt (alembic_version war '033', korrigiert auf '031', dann SQL manuell). Alle Tabellen, Spalten, Indizes bestaetigt. |
 | SQLAlchemy Models | FERTIG | job.py, company.py, company_contact.py erweitert + acquisition_call.py, acquisition_email.py neu |
 | Akquise-Job-Guard | FERTIG | `acquisition_source IS NULL` in v5_matching_service.py (Z.438) + matching_engine_v2.py (Z.2245, Z.2398) |
-| Backend-Services | FERTIG | AcquisitionImportService, CallService, EmailService, QualifyService |
+| Backend-Services | FERTIG + 6 BUGFIXES | AcquisitionImportService (6 Bugs gefixt, siehe unten), CallService, EmailService, QualifyService |
 | API-Endpoints | FERTIG | routes_acquisition.py (19 Endpoints), routes_acquisition_pages.py (4 HTMX-Routes) |
 | Auth-Whitelist | FERTIG | `/api/akquise/unsubscribe/` als PUBLIC_PREFIX in auth.py |
 | Frontend Hauptseite | FERTIG | akquise_page.html (Dark-Theme, Tabs, KPIs, CSV-Import-Modal, E-Mail-Modal, Call-Screen-Overlay, Rueckruf-Popup) |
 | Frontend Tab-Partials | FERTIG | 6 Tab-Templates (heute, neu, wiedervorlagen, nicht_erreicht, qualifiziert, archiv) + company_group + pagination |
 | Frontend Call-Screen | FERTIG | 3-Spalten-Layout (Stellentext, Qualifizierung/Kontakt, Aktionen) mit Timer, Textbausteinen, Auto-Advance |
-| Frontend Disposition | FERTIG | 13 Dispositionen (D1a-D13) mit Farbcodierung, Wiedervorlage-Datum/Uhrzeit, Confirm bei nie_wieder |
+| Frontend Disposition | FERTIG + 2 BUGFIXES | 13 Dispositionen — Scoping-Bug bei D7/D9 gefixt (Follow-up-Datum ging als null), D12 jetzt mit Inline-Formular |
 | Frontend E-Mail-Modal | FERTIG | GPT-Generierung, Mailbox-Dropdown (5 Postfaecher), Betreff+Text editierbar, Senden |
-| Frontend Formulare | FERTIG | Neuer-AP-Formular (D13), Neue-Stelle-Formular (D12) |
-| Frontend Rueckruf-Popup | FERTIG | Popup-Template mit Firma/AP/Lead/letzte Disposition |
+| Frontend Formulare | FERTIG + FELDNAMEN-FIX | Neuer-AP-Formular (D13), Neue-Stelle-Formular (D12) — extra_data Feldnamen an Backend angepasst |
+| Frontend Rueckruf-Popup | FERTIG + MANUELL-TRIGGER | Popup-Template + manueller Telefonnummer-Lookup im Header (SSE fuer Auto-Erkennung noch offen) |
+| Frontend autoSaveNotes | FERTIG | Notizen werden in localStorage gespeichert, bei Disposition an Server gesendet, nach Erfolg geloescht |
 | Navigation | FERTIG | /akquise Link in Desktop + Mobile Nav (base.html) |
 | DNS-Check | FERTIG | SPF/DKIM/DMARC fuer alle 3 Domains bestaetigt (sincirus.com, sincirus-karriere.de, jobs-sincirus.com) |
-| Git Push | FERTIG | Commit 8221165, 38 Dateien, 7308 Zeilen, pushed 28.02.2026 |
+| Git Push | FERTIG | Commits: 8221165 (Phase 1-5), 7882872 (IONOS SMTP), 92ca795 (Migration-Fix) + 6 Bugfix-Commits |
 | IONOS SMTP Client | FERTIG | ionos_smtp_client.py (aiosmtplib, STARTTLS 587), Routing in acquisition_email_service.py |
 | Mailbox-Config | FERTIG | config.py: ionos_smtp_password ENV, Email-Routing: IONOS-Domains→SMTP, sincirus.com→Graph |
 | Test-CSV | FERTIG | app/testdata/akquise_test_data.csv (10 Firmen, 29 Spalten, Duplikat/Blacklist/Quali-Szenarien) |
+| Railway ENV | FERTIG | IONOS_SMTP_PASSWORD auf Claudi-Time Service gesetzt |
+| CSV-Import | DEPLOYED + GETESTET | Erster echter Import erfolgreich (advertsdata.com CSV). 6 Bugs gefixt (siehe unten). |
+| /akquise Seite | LIVE | Migration 032 deployed, /akquise Seite funktioniert auf Railway, Leads sichtbar |
+| SSE Event-Bus | FERTIG (lokal) | acquisition_event_bus.py + SSE-Endpoint + Webhook + Frontend EventSource |
 | n8n-Workflows | OFFEN | 6 Workflows: Wiedervorlagen, Eskalation, Reporting, Reply-Detection, Bounce-Handling, Follow-up-Reminder |
-| Testen + Deploy | OFFEN | Migration ausfuehren, Test-CSV, E2E-Test, Railway Deploy |
+
+---
+
+## Frontend-Audit + Bugfixes (28.02.2026 spaet)
+
+### Systematischer Audit (Backend 100%, Frontend 85%)
+- Backend: Alle 4 Services, 19 REST-Endpoints, 4 HTMX-Routes — vollstaendig, keine Stubs, keine TODOs
+- Frontend: 5 Probleme gefunden und 4 davon gefixt
+
+### Bugfix 1: Disposition Scoping (KRITISCH)
+- **Problem:** D7/D9 Wiedervorlage-Datum ging als `null` an den Server — verschachtelter `x-data` Scope in disposition_buttons.html war isoliert vom `callScreen()` Scope
+- **Fix:** `showFollowUp` + `pendingDisposition` in callScreen() verschoben, verschachtelten x-data entfernt, `x-model` direkt auf callScreen-Properties
+- **Dateien:** disposition_buttons.html, call_screen.html
+
+### Bugfix 2: D12 Button + Feldnamen
+- **Problem:** D12 rief direkt `submitDisposition()` statt Formular anzuzeigen. Beide Formulare (Inline + Standalone) hatten falsche `extra_data` Feldnamen (`new_position` statt `position`)
+- **Fix:** D12 zeigt jetzt Inline-Formular in disposition_buttons.html. Feldnamen in beiden Formularen auf Backend-Erwartung (`position`, `employment_type`, `notes`) korrigiert. Backend um employment_type + job_text erweitert.
+- **Dateien:** disposition_buttons.html, call_screen.html, new_job_draft_form.html, acquisition_call_service.py
+
+### Bugfix 3: autoSaveNotes() war leer
+- **Problem:** Notizen gingen verloren beim Schliessen des Call-Screens
+- **Fix:** localStorage-basiertes Autosave (Debounce 2s), Load beim Init, Clear nach erfolgreicher Disposition
+- **Dateien:** call_screen.html
+
+### Bugfix 4: Rueckruf-Popup Trigger
+- **Problem:** Popup-Template existierte aber wurde nie angezeigt (kein Trigger)
+- **Fix:** Telefonnummer-Suchfeld im Header, ruft `/api/akquise/rueckruf/{phone}` auf, zeigt Popup mit Firma/AP/Jobs
+- **Dateien:** akquise_page.html
+
+### Phase 7.3: SSE-Endpoint (28.02.2026 spaet)
+- **Event-Bus:** `app/services/acquisition_event_bus.py` — In-Memory Pub-Sub mit asyncio.Queue
+- **SSE-Stream:** `GET /akquise/events` in routes_acquisition_pages.py — Heartbeat 30s, Auto-Cleanup
+- **Webhook:** `POST /api/akquise/events/incoming-call` in routes_acquisition.py — n8n/Webex ruft auf, macht Phone-Lookup, pusht an alle SSE-Clients
+- **Frontend:** EventSource in `akquisePage().init()`, `_handleIncomingCall()` zeigt Rueckruf-Popup mit pulsierendem Punkt
+- **Refactoring:** `_renderRueckrufPopup()` — gemeinsame Methode fuer manuellen Lookup und SSE-Event (DOM statt innerHTML)
+
+### Offen (Phase 7.4)
+- Webex-Integration: Webex CDR/Webhook → n8n → POST /api/akquise/events/incoming-call
 
 ---
 
@@ -89,6 +131,46 @@
 - Abmelde-Link in jeder E-Mail (oeffentlicher Endpoint, kein Auth)
 - Import-Batch-ID fuer Rollback
 - Audit-Log revisionssicher
+
+---
+
+## Deploy + CSV-Import Bugfixes (28.02.2026 abends)
+
+### Migration 032 auf Railway
+- Problem: `alembic_version` war '033', aber keine Migration 033 existiert. Migration 032 wurde nie ausgefuehrt.
+- Fix: alembic_version auf '031' zurueckgesetzt, Migration 032 SQL manuell ausgefuehrt, Version auf '032' gesetzt.
+- Ergebnis: Alle Tabellen (acquisition_calls, acquisition_emails), Spalten (+9 Job, +1 Company, +3 Contact), 9 Indizes bestaetigt.
+
+### CSV-Import — 6 Bugs gefixt:
+
+1. **Keine "Position"-Spalte** (363 Fehler): advertsdata CSV hat keine separate "Position"-Spalte. Jobtitel steht im "Anzeigen-Text".
+   - Fix: `_extract_position_from_text()` hinzugefuegt (erkennt (m/w/d), LinkedIn URLs, XING-Marker)
+   - Datei: `acquisition_import_service.py`
+
+2. **VARCHAR Truncation** ("value too long for character varying(100)" auf companies.industry): CSV-Werte laenger als DB-Felder.
+   - Fix: `_trunc()` Funktion + `_FIELD_LIMITS` Dict fuer alle String-Felder
+   - Datei: `acquisition_import_service.py`
+
+3. **greenlet_spawn Error**: `bool(company.jobs)` loest Lazy-Load im Async-Kontext aus.
+   - Fix: Ersetzt durch `cache_key in company_cache`
+   - Datei: `acquisition_import_service.py`
+
+4. **UniqueViolation auf anzeigen_id**: Zwei Indizes existierten (UNIQUE `ix_jobs_anzeigen_id` + non-unique `idx_jobs_anzeigen_id`). CSV hat Duplikate.
+   - Fix: UNIQUE Index auf Railway gedroppt, `existing_jobs` Dict nach jedem Insert aktualisiert
+   - Datei: `acquisition_import_service.py` + Railway SQL
+
+5. **"Multiple rows were found"**: `scalar_one_or_none()` in company_service crasht bei mehreren Firmen mit gleichem Namen+Stadt.
+   - Fix: `.limit(1).scalars().first()` statt `scalar_one_or_none()`
+   - Datei: `app/services/company_service.py` (get_or_create_by_name + get_or_create_contact)
+
+6. **Session-Rollback nach DB-Fehler**: Nachfolgende Zeilen scheiterten nach einem DB-Fehler.
+   - Fix: `await self.db.rollback()` im except-Handler nach jedem Fehler
+   - Datei: `acquisition_import_service.py`
+
+### Weitere Fixes:
+- `COL_ALTERNATIVES` fuer "Firma Telefonnummer" → "company_phone" Mapping
+- Error-Details im Frontend angezeigt (erste 10 Fehler sichtbar)
+- Import/Preview Endpoints mit try/except umhuellt (kein 500 mehr, stattdessen error_details)
 
 ---
 

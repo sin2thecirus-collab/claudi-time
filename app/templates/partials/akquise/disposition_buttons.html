@@ -79,7 +79,8 @@
                 style="padding:6px 8px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:11px;cursor:pointer;text-align:left;transition:all .1s;">
             D11 AP nicht mehr da
         </button>
-        <button @click="submitDisposition('andere_stelle_offen')"
+        <button @click="showNewJobForm = true"
+                :style="selectedDisposition === 'andere_stelle_offen' ? 'background:var(--pp-accent);color:#fff;border-color:var(--pp-accent);' : ''"
                 style="padding:6px 8px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:11px;cursor:pointer;text-align:left;transition:all .1s;">
             D12 Andere Stelle offen
         </button>
@@ -90,33 +91,57 @@
     </div>
 
     {# ── Wiedervorlage Datum/Uhrzeit (zeigt sich bei D7, D9) ── #}
-    <div x-data="{ showFollowUp: false, pendingDisposition: '' }">
-        <div x-show="showFollowUp" style="margin-top:10px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:8px;padding:12px;">
-            <p style="font-size:12px;font-weight:500;color:var(--pp-text);margin:0 0 8px;">Wiedervorlage</p>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                <div>
-                    <label style="font-size:10px;color:var(--pp-textDim);display:block;margin-bottom:4px;">Datum *</label>
-                    <input type="date" x-model="$parent.followUpDate"
-                           style="width:100%;padding:6px 8px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;box-sizing:border-box;">
-                </div>
-                <div>
-                    <label style="font-size:10px;color:var(--pp-textDim);display:block;margin-bottom:4px;">Uhrzeit *</label>
-                    <input type="time" x-model="$parent.followUpTime" value="09:00"
-                           style="width:100%;padding:6px 8px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;box-sizing:border-box;">
-                </div>
+    <div x-show="showFollowUp" x-transition style="margin-top:10px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:8px;padding:12px;">
+        <p style="font-size:12px;font-weight:500;color:var(--pp-text);margin:0 0 8px;">Wiedervorlage</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div>
+                <label style="font-size:10px;color:var(--pp-textDim);display:block;margin-bottom:4px;">Datum *</label>
+                <input type="date" x-model="followUpDate"
+                       style="width:100%;padding:6px 8px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;box-sizing:border-box;">
             </div>
-            <input type="text" x-model="$parent.followUpNote" placeholder="Grund/Notiz..."
-                   style="width:100%;margin-top:8px;padding:6px 8px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;box-sizing:border-box;">
-            <div style="display:flex;gap:8px;margin-top:8px;">
-                <button @click="showFollowUp = false"
-                        style="flex:1;padding:6px;background:var(--pp-surface3);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:11px;cursor:pointer;">
-                    Abbrechen
-                </button>
-                <button @click="$parent.submitDisposition(pendingDisposition); showFollowUp = false"
-                        style="flex:1;padding:6px;background:var(--pp-green);border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:600;cursor:pointer;">
-                    Speichern
-                </button>
+            <div>
+                <label style="font-size:10px;color:var(--pp-textDim);display:block;margin-bottom:4px;">Uhrzeit</label>
+                <input type="time" x-model="followUpTime"
+                       style="width:100%;padding:6px 8px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;box-sizing:border-box;">
             </div>
+        </div>
+        <input type="text" x-model="followUpNote" placeholder="Grund/Notiz..."
+               style="width:100%;margin-top:8px;padding:6px 8px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;box-sizing:border-box;">
+        <div style="display:flex;gap:8px;margin-top:8px;">
+            <button @click="showFollowUp = false; pendingDisposition = ''"
+                    style="flex:1;padding:6px;background:var(--pp-surface3);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:11px;cursor:pointer;">
+                Abbrechen
+            </button>
+            <button @click="submitDisposition(pendingDisposition); showFollowUp = false"
+                    style="flex:1;padding:6px;background:var(--pp-green);border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:600;cursor:pointer;">
+                Speichern
+            </button>
+        </div>
+    </div>
+
+    {# ── Neue Stelle Formular (zeigt sich bei D12) ── #}
+    <div x-show="showNewJobForm" x-transition style="margin-top:10px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:8px;padding:12px;">
+        <p style="font-size:12px;font-weight:500;color:var(--pp-text);margin:0 0 8px;">Neue Stelle anlegen</p>
+        <input type="text" x-model="newJobPosition" placeholder="Position / Jobtitel *"
+               style="width:100%;padding:6px 8px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;box-sizing:border-box;margin-bottom:8px;">
+        <select x-model="newJobType"
+                style="width:100%;padding:6px 8px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;box-sizing:border-box;margin-bottom:8px;">
+            <option value="">Art der Stelle</option>
+            <option value="Vollzeit">Vollzeit</option>
+            <option value="Teilzeit">Teilzeit</option>
+            <option value="Freelance">Freelance</option>
+        </select>
+        <textarea x-model="newJobNotes" placeholder="Notizen zur Stelle..."
+                  style="width:100%;height:60px;padding:6px 8px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;resize:vertical;box-sizing:border-box;margin-bottom:8px;"></textarea>
+        <div style="display:flex;gap:8px;">
+            <button @click="showNewJobForm = false"
+                    style="flex:1;padding:6px;background:var(--pp-surface3);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:11px;cursor:pointer;">
+                Abbrechen
+            </button>
+            <button @click="submitD12WithJob()"
+                    style="flex:1;padding:6px;background:var(--pp-accent);border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:600;cursor:pointer;">
+                Anlegen + Disposition
+            </button>
         </div>
     </div>
 </div>

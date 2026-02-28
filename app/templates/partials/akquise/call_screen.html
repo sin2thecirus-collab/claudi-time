@@ -160,12 +160,15 @@
                 ("budget", "Budget/Gehaltsspanne?"),
                 ("teamgroesse", "Teamgroesse und Struktur?"),
                 ("home_office", "Home-Office-Tage?"),
-                ("arbeitszeiten", "Arbeitszeiten, Gleitzeit?"),
+                ("arbeitszeiten", "Arbeitszeiten, Gleitzeit, Kernzeiten?"),
+                ("ueberstunden", "Ueberstunden-Handling?"),
                 ("software", "Software (DATEV, SAP, etc.)?"),
+                ("software_erfahrung", "Erfahrung mit der Software?"),
                 ("aeltere_kandidaten", "Aeltere Kandidaten willkommen?"),
                 ("vakanzgrund", "Warum ist die Position vakant?"),
                 ("bewerbungsprozess", "Bewerbungsprozess?"),
                 ("entscheider", "Wer entscheidet?"),
+                ("englisch", "Englisch noetig? Wie eingesetzt?"),
             ] %}
             {% for key, label in fragen2 %}
             <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;">
@@ -264,12 +267,20 @@ function callScreen() {
         notes: '',
         quali: {},
         selectedDisposition: null,
+        showFollowUp: false,
+        pendingDisposition: '',
         followUpDate: '',
-        followUpTime: '',
+        followUpTime: '09:00',
         followUpNote: '',
+        showNewJobForm: false,
+        newJobPosition: '',
+        newJobType: '',
+        newJobNotes: '',
 
         init() {
-            // Lade existierende Notizen/Quali aus dem letzten Call falls vorhanden
+            // Lade Notizen aus localStorage falls vorhanden
+            const saved = localStorage.getItem('akquise_notes_{{ job.id }}');
+            if (saved) this.notes = saved;
         },
 
         startCall() {
@@ -320,6 +331,7 @@ function callScreen() {
                 });
                 if (resp.ok) {
                     const result = await resp.json();
+                    localStorage.removeItem('akquise_notes_{{ job.id }}');
                     if (typeof showToast === 'function') {
                         showToast('{{ job.company_name }} — ' + disposition + ' gespeichert', 'success');
                     }
@@ -336,8 +348,57 @@ function callScreen() {
             }
         },
 
-        async autoSaveNotes() {
-            // Autosave Notizen via Debounce (wird durch Alpine @input.debounce getriggert)
+        autoSaveNotes() {
+            // Speichert Notizen in localStorage damit sie beim Schliessen/Oeffnen nicht verloren gehen
+            // Die Notizen werden mit der Disposition an den Server gesendet
+            localStorage.setItem('akquise_notes_{{ job.id }}', this.notes);
+        },
+
+        async submitD12WithJob() {
+            if (!this.newJobPosition.trim()) {
+                if (typeof showToast === 'function') showToast('Bitte Position angeben', 'warning');
+                return;
+            }
+            // Erst Disposition setzen (D12 erstellt neue Stelle im Backend)
+            const duration = this.stopCall();
+            this.selectedDisposition = 'andere_stelle_offen';
+
+            const body = {
+                disposition: 'andere_stelle_offen',
+                call_type: '{{ "wiedervorlage" if job.akquise_status == "wiedervorlage" else "erstanruf" }}',
+                notes: this.notes || null,
+                duration_seconds: duration || null,
+                extra_data: {
+                    position: this.newJobPosition,
+                    employment_type: this.newJobType || null,
+                    notes: this.newJobNotes || null,
+                },
+                {% if contacts and contacts | length > 0 %}
+                contact_id: '{{ contacts[0].id }}',
+                {% endif %}
+            };
+
+            try {
+                const resp = await fetch('/api/akquise/leads/{{ job.id }}/call', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+                if (resp.ok) {
+                    this.showNewJobForm = false;
+                    if (typeof showToast === 'function') {
+                        showToast('Neue Stelle "' + this.newJobPosition + '" angelegt', 'success');
+                    }
+                    setTimeout(() => {
+                        Alpine.$data(document.querySelector('[x-data]')).advanceToNextLead();
+                    }, 600);
+                } else {
+                    const err = await resp.json();
+                    if (typeof showToast === 'function') showToast(err.detail || 'Fehler', 'error');
+                }
+            } catch (e) {
+                if (typeof showToast === 'function') showToast('Netzwerkfehler', 'error');
+            }
         },
     };
 }

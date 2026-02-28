@@ -1,10 +1,11 @@
 # Akquise-Automatisierung — Finaler Implementierungsplan
 
-> **Stand: 28.02.2026**
+> **Stand: 28.02.2026 (spaet)**
 > Basierend auf: 6 Research + 6 Review + 6 Deep-Dive + 1 Vertriebsingenieur + 3 Marketing-Review-Agenten
 > Quellen: RECHERCHE.md, REVIEW-TEAM.md
 >
-> **Implementierungs-Status:** Phase 1-5 FERTIG (Commit 8221165 + 7882872) | Phase 6-9 OFFEN
+> **Implementierungs-Status:** Phase 1-5 FERTIG + DEPLOYED + 4 Frontend-Bugfixes + Phase 7.1-7.3 + Phase 8 FERTIG (lokal) | Phase 6, 7.4, 9 OFFEN
+> **Deploy-Status (28.02.):** Migration 032 deployed, CSV-Import funktioniert (6 Bugfixes), /akquise LIVE, Bugfixes + Phase 7+8 lokal (noch nicht deployed)
 
 ---
 
@@ -17,7 +18,8 @@ CSV-Import von Vakanzen → Kaltakquise-Anrufe → Qualifizierung → E-Mail-Fol
 
 ---
 
-## PHASE 1: Datenbank-Migration (032) ✅ FERTIG (28.02.2026)
+## PHASE 1: Datenbank-Migration (032) ✅ FERTIG + DEPLOYED (28.02.2026)
+> **Deploy-Hinweis:** alembic_version war falsch auf '033'. Fix: Version auf '031' zurueckgesetzt, SQL manuell ausgefuehrt. UNIQUE Index `ix_jobs_anzeigen_id` gedroppt (CSV hat Duplikat-anzeigen_ids).
 
 ### 1.1 Bestehende Tabellen erweitern
 
@@ -144,7 +146,8 @@ Bei Disposition D6 (nie_wieder):
 
 ---
 
-## PHASE 2: Backend-Services ✅ FERTIG (28.02.2026)
+## PHASE 2: Backend-Services ✅ FERTIG + 6 BUGFIXES (28.02.2026)
+> **Bugfixes beim echten CSV-Import:** (1) _extract_position_from_text(), (2) _trunc() VARCHAR-Limits, (3) greenlet_spawn Fix, (4) Duplikat-Handling, (5) company_service .first(), (6) Session-Rollback. Details in Akquise/MEMORY.md.
 
 ### 2.1 AcquisitionImportService (`app/services/acquisition_import_service.py`)
 
@@ -836,9 +839,9 @@ Cron Trigger (09:00) → HTTP GET /api/akquise/leads?email_followup_due=true
 
 ---
 
-## PHASE 7: Rueckruf-Erkennung ⏳ OFFEN
+## PHASE 7: Rueckruf-Erkennung ⏳ TEILWEISE FERTIG (7.1 + 7.2 + 7.3 done)
 
-### 7.1 Telefonnummer-Normalisierung
+### 7.1 Telefonnummer-Normalisierung ✅ FERTIG
 
 Alle Telefonnummern bei Import in E.164 Format umwandeln:
 - "0170 888 8310" → "+491708888310"
@@ -846,19 +849,23 @@ Alle Telefonnummern bei Import in E.164 Format umwandeln:
 - "01718141112" → "+491718141112"
 
 Gespeichert in `CompanyContact.phone_normalized` (indexed).
+Implementiert in: `acquisition_call_service.py` → `_normalize_phone_simple()`
 
-### 7.2 Lookup-Endpoint
+### 7.2 Lookup-Endpoint ✅ FERTIG + manueller Frontend-Trigger
 
 `GET /api/akquise/rueckruf/{phone}` (phone als E.164)
 - Query: `SELECT * FROM company_contacts WHERE phone_normalized = :phone`
 - Join: Company + Jobs (WHERE akquise_status NOT IN ('verloren', 'blacklist_hart'))
-- Response: `{contact, company, jobs[], last_disposition, last_call_date}`
+- Response: `{contact, company, open_jobs[]}`
+- **Frontend:** Suchfeld im Header (akquise_page.html), Popup zeigt Firma/AP/offene Stellen
 
-### 7.3 SSE-Endpoint fuer Browser-Popup
+### 7.3 SSE-Endpoint fuer Browser-Popup ✅ FERTIG
 
-`GET /api/akquise/events` (StreamingResponse)
-- Prueft alle 30s ob neue Rueckruf-Events vorliegen
-- HTMX SSE-Extension empfaengt und zeigt Popup
+- **Event-Bus:** `app/services/acquisition_event_bus.py` — In-Memory asyncio.Queue Pub-Sub
+- **SSE-Stream:** `GET /akquise/events` (StreamingResponse, 30s Heartbeat)
+- **Webhook:** `POST /api/akquise/events/incoming-call` — n8n/Webex ruft auf, macht Phone-Lookup, pusht SSE-Event
+- **Frontend:** EventSource in akquisePage().init(), `_handleIncomingCall()` zeigt Popup mit pulsierendem Punkt
+- **Refactoring:** `_renderRueckrufPopup()` — gemeinsame DOM-basierte Methode fuer manuellen Lookup und SSE-Event
 
 ### 7.4 Webex-Integration (spaetere Phase)
 
@@ -866,7 +873,7 @@ Webex kann Webhooks senden bei eingehenden Anrufen. n8n empfaengt den Webhook, e
 
 ---
 
-## PHASE 8: Qualifizierungs-Checkliste ⏳ OFFEN
+## PHASE 8: Qualifizierungs-Checkliste ✅ GROESSTENTEILS FERTIG
 
 ### 8.1 Erstkontakt (5 Fragen, Cold-Call)
 

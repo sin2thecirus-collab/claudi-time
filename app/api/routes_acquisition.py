@@ -641,6 +641,46 @@ async def get_mailboxes(
     return {"mailboxes": mailboxes}
 
 
+# ── SSE Event-Trigger (fuer n8n / Webex) ──
+
+
+class IncomingCallEvent(BaseModel):
+    phone: str
+    caller_name: str | None = None
+
+
+@router.post("/events/incoming-call")
+async def trigger_incoming_call(
+    body: IncomingCallEvent,
+    db: AsyncSession = Depends(get_db),
+):
+    """Eingehenden Anruf melden → SSE-Event an Browser.
+
+    Wird von n8n oder Webex-Webhook aufgerufen.
+    Macht Phone-Lookup und pusht Ergebnis an alle SSE-Clients.
+    """
+    from app.services.acquisition_call_service import AcquisitionCallService
+    from app.services.acquisition_event_bus import publish
+
+    service = AcquisitionCallService(db)
+    lookup_result = await service.lookup_phone(body.phone)
+
+    event_data = {
+        "phone": body.phone,
+        "caller_name": body.caller_name,
+        "found": lookup_result is not None,
+        "lookup": lookup_result,
+    }
+
+    delivered = await publish("incoming-call", event_data)
+
+    return {
+        "event": "incoming-call",
+        "delivered_to": delivered,
+        "found": lookup_result is not None,
+    }
+
+
 # ── Oeffentlicher Endpoint (kein Auth!) ──
 
 @router.get("/unsubscribe/{token}", response_class=HTMLResponse)

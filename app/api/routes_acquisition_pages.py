@@ -6,11 +6,13 @@ GET /akquise/partials/call-screen/{job_id} → Call-Screen Panel (HTMX)
 GET /akquise/partials/email-modal/{job_id} → E-Mail Modal (HTMX)
 """
 
+import asyncio
+import json
 import uuid
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Query, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -356,6 +358,45 @@ async def email_modal_partial(
             "contacts": contacts,
             "mailboxes": mailboxes,
             "draft": None,
+        },
+    )
+
+
+# ── SSE Events ──
+
+
+@router.get("/akquise/events")
+async def sse_events(request: Request):
+    """SSE-Stream fuer Echtzeit-Events (Rueckruf-Popup, Benachrichtigungen)."""
+    from app.services.acquisition_event_bus import subscribe, unsubscribe
+
+    queue = subscribe()
+
+    async def event_generator():
+        try:
+            while True:
+                # Client-Disconnect pruefen
+                if await request.is_disconnected():
+                    break
+
+                try:
+                    event = await asyncio.wait_for(queue.get(), timeout=30.0)
+                    event_type = event.get("event", "message")
+                    data = json.dumps(event.get("data", {}), ensure_ascii=False)
+                    yield f"event: {event_type}\ndata: {data}\n\n"
+                except asyncio.TimeoutError:
+                    # Heartbeat alle 30s (haelt Connection offen)
+                    yield ": heartbeat\n\n"
+        finally:
+            unsubscribe(queue)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
         },
     )
 

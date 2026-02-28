@@ -11,7 +11,17 @@
             <h1 style="font-size:22px;font-weight:700;color:var(--pp-text);margin:0;">Akquise</h1>
             <p style="font-size:13px;color:var(--pp-textMuted);margin:4px 0 0;">CSV-Import &middot; Anrufe &middot; E-Mails &middot; Qualifizierung</p>
         </div>
-        <div style="display:flex;gap:10px;">
+        <div style="display:flex;gap:10px;align-items:center;">
+            {# Rueckruf-Suche #}
+            <div style="position:relative;display:flex;align-items:center;">
+                <input type="tel" x-model="rueckrufPhone" placeholder="Rueckruf-Nr. suchen..."
+                       @keydown.enter="lookupPhone()"
+                       style="padding:6px 12px;width:170px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:12px;">
+                <button @click="lookupPhone()" title="Nummer suchen"
+                        style="position:absolute;right:4px;background:none;border:none;color:var(--pp-textDim);cursor:pointer;padding:4px;">
+                    <svg style="width:14px;height:14px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
+                </button>
+            </div>
             <button @click="showImport = true"
                     style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;font-weight:500;cursor:pointer;transition:all .1s;"
                     onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='var(--pp-surface)'">
@@ -199,6 +209,7 @@ function akquisePage() {
         callScreenVisible: false,
         emailModalVisible: false,
         rueckrufVisible: false,
+        rueckrufPhone: '',
         currentLeadId: null,
 
         init() {
@@ -209,6 +220,103 @@ function akquisePage() {
             // localStorage: Letzten Lead merken
             const lastId = localStorage.getItem('akquise_last_lead_id');
             if (lastId) this.currentLeadId = lastId;
+            // SSE: Echtzeit-Events (Rueckruf-Popup)
+            this._connectSSE();
+        },
+
+        _connectSSE() {
+            const self = this;
+            const es = new EventSource('/akquise/events');
+
+            es.addEventListener('incoming-call', function(e) {
+                try {
+                    const data = JSON.parse(e.data);
+                    self._handleIncomingCall(data);
+                } catch (err) {
+                    console.error('SSE parse error:', err);
+                }
+            });
+
+            es.onerror = function() {
+                // Auto-Reconnect nach 5s (EventSource reconnected automatisch,
+                // aber bei permanentem Fehler schliessen wir manuell)
+                if (es.readyState === EventSource.CLOSED) {
+                    setTimeout(() => self._connectSSE(), 5000);
+                }
+            };
+
+            // Cleanup bei Seitenwechsel
+            window.addEventListener('beforeunload', () => es.close());
+        },
+
+        _handleIncomingCall(data) {
+            if (!data.found || !data.lookup) {
+                if (typeof showToast === 'function')
+                    showToast('Eingehender Anruf: ' + (data.phone || 'Unbekannt') + ' — nicht zugeordnet', 'warning');
+                return;
+            }
+
+            const lookup = data.lookup;
+            const jobs = lookup.open_jobs || [];
+            this._renderRueckrufPopup(lookup, jobs, data.phone, true);
+            this.rueckrufVisible = true;
+        },
+
+        _renderRueckrufPopup(lookup, jobs, phone, isIncoming) {
+            const container = document.getElementById('rueckruf-content');
+            container.innerHTML = '';
+
+            const wrapper = document.createElement('div');
+            wrapper.style.cssText = 'display:flex;flex-direction:column;gap:8px;';
+
+            if (isIncoming) {
+                const pulse = document.createElement('div');
+                pulse.style.cssText = 'display:flex;align-items:center;gap:8px;';
+                pulse.innerHTML = '<span style="width:10px;height:10px;background:var(--pp-green);border-radius:50%;animation:pulse 1.5s infinite;"></span><span style="font-size:11px;color:var(--pp-green);font-weight:600;">Eingehender Anruf</span>';
+                wrapper.appendChild(pulse);
+            }
+
+            const companyEl = document.createElement('div');
+            companyEl.innerHTML = '<span style="font-size:14px;font-weight:600;color:var(--pp-text);">' + (lookup.company?.name || 'Unbekannt') + '</span>';
+            wrapper.appendChild(companyEl);
+
+            if (lookup.contact) {
+                const contactEl = document.createElement('div');
+                contactEl.style.cssText = 'font-size:13px;color:var(--pp-textMuted);';
+                contactEl.textContent = lookup.contact.name + (lookup.contact.position ? ' — ' + lookup.contact.position : '');
+                wrapper.appendChild(contactEl);
+            }
+
+            if (phone) {
+                const phoneEl = document.createElement('div');
+                phoneEl.style.cssText = 'font-size:12px;color:var(--pp-textDim);';
+                phoneEl.textContent = phone;
+                wrapper.appendChild(phoneEl);
+            }
+
+            if (jobs.length) {
+                const jobsDiv = document.createElement('div');
+                jobsDiv.style.cssText = 'display:flex;flex-direction:column;gap:4px;margin-top:4px;';
+                const self = this;
+                jobs.forEach(function(j) {
+                    const btn = document.createElement('button');
+                    btn.style.cssText = 'padding:6px 10px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;cursor:pointer;text-align:left;';
+                    btn.innerHTML = j.position + ' <span style="color:var(--pp-textDim);">(' + (j.status || '') + ')</span>';
+                    btn.addEventListener('click', function() {
+                        self.openCallScreen(j.id);
+                        self.rueckrufVisible = false;
+                    });
+                    jobsDiv.appendChild(btn);
+                });
+                wrapper.appendChild(jobsDiv);
+            } else {
+                const noJobs = document.createElement('p');
+                noJobs.style.cssText = 'font-size:12px;color:var(--pp-textDim);margin:0;';
+                noJobs.textContent = 'Keine offenen Stellen';
+                wrapper.appendChild(noJobs);
+            }
+
+            container.appendChild(wrapper);
         },
 
         switchTab(tab) {
@@ -318,6 +426,26 @@ function akquisePage() {
             if (files.length) {
                 this.$refs.csvFile.files = files;
                 this.csvFileName = files[0].name;
+            }
+        },
+
+        async lookupPhone() {
+            if (!this.rueckrufPhone.trim()) return;
+            try {
+                const phone = this.rueckrufPhone.trim();
+                const resp = await fetch('/api/akquise/rueckruf/' + encodeURIComponent(phone));
+                if (resp.ok) {
+                    const data = await resp.json();
+                    this._renderRueckrufPopup(data, data.open_jobs || [], phone, false);
+                    this.rueckrufVisible = true;
+                    this.rueckrufPhone = '';
+                } else if (resp.status === 404) {
+                    if (typeof showToast === 'function') showToast('Keine Firma zu dieser Nummer gefunden', 'warning');
+                } else {
+                    if (typeof showToast === 'function') showToast('Fehler bei der Suche', 'error');
+                }
+            } catch (e) {
+                if (typeof showToast === 'function') showToast('Netzwerkfehler', 'error');
             }
         },
     };

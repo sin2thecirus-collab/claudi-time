@@ -252,6 +252,8 @@ class AcquisitionCallService:
                 position=new_position,
                 city=job.city,
                 postal_code=job.postal_code,
+                employment_type=extra_data.get("employment_type") or job.employment_type,
+                job_text=extra_data.get("notes", ""),
                 acquisition_source="manual",
                 akquise_status="neu",
                 akquise_status_changed_at=now,

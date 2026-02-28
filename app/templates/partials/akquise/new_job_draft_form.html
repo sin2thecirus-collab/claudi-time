@@ -12,9 +12,9 @@
                 disposition: 'andere_stelle_offen',
                 notes: 'Neue Stelle: ' + $refs.nj_position.value + ' — ' + $refs.nj_notes.value,
                 extra_data: {
-                    new_position: $refs.nj_position.value,
-                    new_employment_type: $refs.nj_type.value,
-                    new_notes: $refs.nj_notes.value,
+                    position: $refs.nj_position.value,
+                    employment_type: $refs.nj_type.value,
+                    notes: $refs.nj_notes.value,
                 }
             })
         }).then(r => {
