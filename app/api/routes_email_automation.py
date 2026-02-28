@@ -639,7 +639,7 @@ async def send_selected(
             batch.max_per_mailbox = data.max_per_mailbox
             await db.flush()
 
-    # Kandidaten-Daten fuer n8n sammeln
+    # Kandidaten-Daten fuer n8n sammeln (BEVOR DB-Session geschlossen wird)
     candidates_payload = []
     for item in approved_items:
         cand = item.candidate
@@ -654,7 +654,14 @@ async def send_selected(
                 "campaign_type": item.campaign_type,
             })
 
-    # n8n Webhook triggern (async, blockiert nicht den Response)
+    # WICHTIG: DB-Transaktion COMMITTEN bevor n8n aufgerufen wird!
+    # Grund: n8n ruft mark-sent zurueck, das braucht eine eigene DB-Session.
+    # Wenn send_selected die Session offen haelt waehrend des n8n-Calls,
+    # blockiert das den Connection-Pool → mark-sent bekommt keine Connection → 503.
+    await db.commit()
+    logger.info(f"Outreach: DB-Transaktion committed, {approved_count} Items approved")
+
+    # n8n Webhook triggern (DB-Session ist jetzt frei fuer mark-sent Callback)
     n8n_ok = False
     if candidates_payload:
         n8n_webhook_url = "https://n8n-production-aa9c.up.railway.app/webhook/rundmail-senden"
@@ -664,7 +671,7 @@ async def send_selected(
             "max_per_mailbox": data.max_per_mailbox,
         }
         try:
-            async with httpx.AsyncClient(timeout=15.0) as client:
+            async with httpx.AsyncClient(timeout=30.0) as client:
                 resp = await client.post(n8n_webhook_url, json=webhook_payload)
                 n8n_ok = resp.status_code < 400
                 if not n8n_ok:
