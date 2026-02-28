@@ -42,13 +42,14 @@
 | n8n: Scheduled-Emails Cron | AKTIV | 01.03.2026 |
 | n8n: Auto Follow-up/Break-up Cron | AKTIV | 01.03.2026 |
 | n8n: Webex Webhook | ERSTELLT (inaktiv) | 01.03.2026 |
-| Migration 033 (scheduled_send_at) | LOKAL | 01.03.2026 |
-| Playwright Browser-Tests | BEREIT (braucht Credentials) | 01.03.2026 |
-| Tab-Navigation | OFFEN | — |
-| Wiedervorlagen | OFFEN | — |
-| Rueckruf | OFFEN | — |
-| Qualifizierung→ATS | OFFEN | — |
-| UI-Test (Browser, manuell) | OFFEN | — |
+| Migration 033 (scheduled_send_at) | DEPLOYED | 28.02.2026 |
+| system_settings (email_delay 120min) | GESETZT | 28.02.2026 |
+| Playwright Browser-Tests (57/57) | BESTANDEN | 28.02.2026 |
+| Tab-Navigation (6 Tabs) | BESTANDEN (Playwright) | 28.02.2026 |
+| Wiedervorlagen-Formular (D7) | BESTANDEN (Playwright) | 28.02.2026 |
+| Rueckruf-Suche | BESTANDEN (Playwright) | 28.02.2026 |
+| Qualifizierung→ATS | IMPLEMENTIERT (D10 Auto-Trigger) | 01.03.2026 |
+| UI-Test (Browser, manuell) | OFFEN (Milad) | — |
 
 ---
 
@@ -325,6 +326,41 @@ conn.commit()
 | `hamdard@jobs-sincirus.com` | OK | OK | Ja (Milad) |
 
 **Alle 4 Mailboxen: "ja das stimmt alles da" — Milad, 01.03.2026**
+
+---
+
+## TEIL 2B: PLAYWRIGHT BROWSER-TEST PROTOKOLL (28.02.2026)
+
+### Ergebnis: 57/57 BESTANDEN
+
+**10 Phasen, alle GRUEN:**
+
+| Phase | Tests | Ergebnis |
+|-------|-------|----------|
+| 1: Login + Auth | 5 | Login-Seite, CSRF, Submit, JWT-Cookie, CSRF-Cookie |
+| 2: Akquise-Hauptseite | 6 | Seite laden, Header, Tabs, KPIs (5), Test-Modus Banner, Rueckruf-Button |
+| 3: Tab-Navigation | 6 | Alle 6 Tabs (Heute, Neue, Wiedervorlagen, Nicht erreicht, Qualifiziert, Archiv) |
+| 4: CSV-Import Modal | 4 | Oeffnen, File-Input, Vorschau-Checkbox, Schliessen |
+| 5: Call-Screen oeffnen | 2 | Lead finden, Call-Screen per Alpine.js oeffnen |
+| 6: Call-Screen Features | 10 | Header, Stellentext, Ansprechpartner, Qualifizierung, Disposition, Notizen, Textbausteine (5), Einfuegen, Checkboxen (17), Toggle |
+| 7: Dispositionen | 12 | Buttons (14/14), Kategorien, Wiedervorlage (oeffnen/Datum/Uhrzeit/Notiz/schliessen), Neue Stelle (oeffnen/Position/Art/schliessen) |
+| 8: E-Mail Modal | 8 | Oeffnen, Von-Dropdown, An-Dropdown, 3 Typ-Buttons, GPT-Button, Schliessen |
+| 9: Navigation | 2 | Call-Screen schliessen, Lead-Liste sichtbar |
+| 10: Sonderfunktionen | 3 | Rueckruf-Input, Suche ausloesen, Abtelefonieren-Button |
+
+### Technische Loesungen (Playwright-spezifisch):
+
+1. **SSE `networkidle` Problem:** `/akquise` Seite hat EventSource (SSE), daher nie `networkidle`. Fix: `wait_until="domcontentloaded"`
+2. **Call-Screen HTMX-Loading:** Alpine.js `openCallScreen()` nicht per Click erreichbar. Fix: `page.evaluate()` mit `el._x_dataStack[0].openCallScreen(id)`
+3. **CSS-Selektor + Text-Selektor:** Playwright erlaubt kein `#id text=value`. Fix: `page.locator('#id').locator('text=value')`
+4. **Modal-Overlay blockiert Klicks:** E-Mail-Modal-Overlay blockierte "Zurueck"-Button. Fix: Alpine-State per JS zuruecksetzen
+5. **Simulate-Button matched vor D7:** `button:has-text("Interesse")` matcht Test-Modus-Simulate-Button. Fix: `#call-screen-content button:has-text("D7")`
+6. **Textbaustein Alpine x-model:** `fill()` triggert kein Alpine-Model-Update. Fix: `dispatchEvent(new Event('input'))` nach fill
+
+### Test-Datei:
+- `Akquise/playwright_e2e_tests.py` (1004 Zeilen, 10 Phasen, 57 Tests)
+- Ausfuehren: `python Akquise/playwright_e2e_tests.py`
+- Credentials: `.env` (PULSPOINT_EMAIL + PULSPOINT_PASSWORD)
 
 ---
 

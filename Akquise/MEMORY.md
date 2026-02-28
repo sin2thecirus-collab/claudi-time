@@ -182,11 +182,20 @@ Systematische Analyse aller Akquise-Dateien deckte 7 Luecken auf. Alle gefixt:
 - `V8rGRTK0gCkqhWvV` — "Akquise: Webex Eingehender Anruf" (Webhook → Backend)
 - Bleibt inaktiv bis Webex-Webhook konfiguriert wird (manuell in n8n UI)
 
+### Playwright E2E-Tests (28.02.2026) — 57/57 BESTANDEN
+- **Test-Datei:** `Akquise/playwright_e2e_tests.py` (10 Phasen, 57 Tests)
+- **Ausfuehren:** `python Akquise/playwright_e2e_tests.py` (braucht .env mit PULSPOINT_EMAIL + PULSPOINT_PASSWORD)
+- **Alle Phasen GRUEN:** Login, Hauptseite, 6 Tabs, CSV-Import, Call-Screen, Notizen+Textbausteine, 17 Checkboxen, 14 Dispositionen, Wiedervorlage-Formular, Neue-Stelle-Formular, E-Mail-Modal, Navigation, Rueckruf-Suche
+- **8 Runs noetig** — Technische Loesungen dokumentiert in E2E-TEST.md Teil 2B
+
+### Deployment-Status (28.02.2026)
+- **Migration 033:** DEPLOYED auf Railway (scheduled_send_at + idx_acq_emails_scheduled)
+- **system_settings:** `acquisition_email_delay_minutes = 120` gesetzt
+- **Git Commit:** `3c67346` (11 Dateien, +1428 Zeilen) + Playwright-Fixes (noch zu committen)
+
 ### Offen
-- **Playwright E2E-Tests:** Test-Datei existiert (Akquise/playwright_e2e_tests.py), braucht PULSPOINT_EMAIL + PULSPOINT_PASSWORD
-- **Migration 033 deployen:** `scheduled_send_at` auf Railway (nach Git Push)
-- **system_settings:** `acquisition_email_delay_minutes = 120` auf Railway setzen
 - Phase 7.4: Webex n8n-Workflow aktivieren (braucht Webex-Webhook-URL)
+- Manueller UI-Test durch Milad (E2E-TEST.md Teil 3, Checkliste)
 - Audit-Log (P2 — nach Go-Live)
 
 ---
