@@ -37,6 +37,7 @@ REGELN:
 - Tonfall: Professionell, respektvoll, direkt, kein Marketing-Sprech
 - Anrede: "Sehr geehrte/r Frau/Herr [Nachname]" oder "Guten Tag Frau/Herr [Nachname]"
 - KEINE Links, KEINE URLs, KEINE Webseiten-Verweise im E-Mail-Text
+- Beende den Text mit "Mit freundlichen Gruessen" OHNE Signatur/Name — die Signatur wird automatisch angehaengt
 """
 
 AKQUISE_EMAIL_USER = """Erstelle eine Kaltakquise-E-Mail fuer folgende Vakanz:
