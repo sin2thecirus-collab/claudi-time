@@ -22,10 +22,11 @@ logger = logging.getLogger(__name__)
 
 # ── State-Machine: Erlaubte Uebergaenge ──
 ALLOWED_TRANSITIONS: dict[str, set[str]] = {
-    "neu": {"angerufen", "verloren"},
+    "neu": {"angerufen", "verloren", "kontakt_fehlt"},
     "angerufen": {
         "kontaktiert", "wiedervorlage", "email_gesendet",
         "kontakt_fehlt", "blacklist_weich", "blacklist_hart", "verloren",
+        "qualifiziert",  # D9: Erstanruf kann direkt zur Qualifizierung fuehren
     },
     "kontaktiert": {
         "qualifiziert", "wiedervorlage", "email_gesendet",
