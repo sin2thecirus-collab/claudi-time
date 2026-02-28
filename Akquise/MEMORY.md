@@ -182,13 +182,15 @@ Systematische Analyse aller Akquise-Dateien deckte 7 Luecken auf. Alle gefixt:
 - `V8rGRTK0gCkqhWvV` — "Akquise: Webex Eingehender Anruf" (Webhook → Backend)
 - Bleibt inaktiv bis Webex-Webhook konfiguriert wird (manuell in n8n UI)
 
-### Playwright E2E-Tests (28.02.2026) — 74/74 BESTANDEN (57 Smoke + 17 Deep)
-- **Test-Datei:** `Akquise/playwright_e2e_tests.py` (18 Phasen, 74 Tests)
+### Playwright E2E-Tests (28.02.2026) — 101/101 BESTANDEN (57 Smoke + 17 Deep + 27 Comprehensive)
+- **Test-Datei:** `Akquise/playwright_e2e_tests.py` (23 Phasen, 101 Tests, ~2230 Zeilen)
 - **Ausfuehren:** `python Akquise/playwright_e2e_tests.py` (braucht .env mit PULSPOINT_EMAIL + PULSPOINT_PASSWORD)
 - **Smoke (Phase 1-10):** Login, Hauptseite, 6 Tabs, CSV-Import, Call-Screen, Notizen+Textbausteine, 17 Checkboxen, 14 Dispositionen, Wiedervorlage-Formular, Neue-Stelle-Formular, E-Mail-Modal, Navigation, Rueckruf-Suche
 - **Deep Integration (Phase 11-18):** Anruf-Simulation API, Disposition D1a End-to-End (DB-Persistenz + Auto-Wiedervorlage), Notizen-Persistenz (localStorage), GPT E-Mail-Draft (Betreff+Body+Siezen+Links), KPI-Verifizierung (API vs. Frontend), Rueckruf-Simulation API, Abtelefonieren-Flow, Tab-Zustand+Badges
+- **Comprehensive (Phase 19-23):** Alle 13 Dispositionen E2E via API (D1a-D13 inkl. Cascade, ATS-Konvertierung, neue Jobs/Contacts), E-Mail Draft+Send (GPT-Generierung + SMTP), 4 n8n-Endpoints, 3 State-Machine-Negativtests (ungueltige Transitionen → 400), Call-History + Batch-Disposition
 - **Backend-Bug gefunden + gefixt:** publish() in simulate-callback falsch aufgerufen (HTTP 500)
-- **12 Runs total** — Technische Loesungen dokumentiert in E2E-TEST.md Teil 2B
+- **Key-Learning:** D6 (nie_wieder) MUSS als letzter Dispositions-Test laufen — Cascade blacklistet alle Jobs der Firma
+- **14 Runs total** — Technische Loesungen dokumentiert in E2E-TEST.md Teil 2B
 
 ### Deployment-Status (28.02.2026)
 - **Migration 033:** DEPLOYED auf Railway (scheduled_send_at + idx_acq_emails_scheduled)

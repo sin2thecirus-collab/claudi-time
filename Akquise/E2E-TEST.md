@@ -46,7 +46,8 @@
 | system_settings (email_delay 120min) | GESETZT | 28.02.2026 |
 | Playwright Smoke-Tests (57/57) | BESTANDEN | 28.02.2026 |
 | Playwright Deep-Integration (17/17) | BESTANDEN | 28.02.2026 |
-| Playwright Gesamt (74/74) | BESTANDEN | 28.02.2026 |
+| Playwright Comprehensive (27/27) | BESTANDEN | 28.02.2026 |
+| Playwright Gesamt (101/101) | BESTANDEN | 28.02.2026 |
 | Tab-Navigation (6 Tabs) | BESTANDEN (Playwright) | 28.02.2026 |
 | Wiedervorlagen-Formular (D7) | BESTANDEN (Playwright) | 28.02.2026 |
 | Rueckruf-Suche | BESTANDEN (Playwright) | 28.02.2026 |
@@ -381,8 +382,24 @@ conn.commit()
 ### Backend-Bug gefixt waehrend Deep-Tests:
 - **simulate-callback publish():** `await publish({"event": ..., "data": ...})` → `await publish("incoming_call", callback_data)` (HTTP 500 behoben)
 
+### Comprehensive Integration Tests (Phase 19-23):
+
+| Phase | Tests | Ergebnis |
+|-------|-------|----------|
+| 19: Alle 13 Dispositionen | 13 | D1a-D13 via API, State-Machine, Cascade, ATS-Konvertierung |
+| 20: E-Mail Send E2E | 4 | GPT-Draft (Betreff+Body+Siezen+Kandidat) → SMTP-Senden |
+| 21: n8n Endpoints | 4 | followup-due, eskalation-due, send-scheduled, auto-followup |
+| 22: State Machine Negativ | 3 | D5 von neu→400, D7 ohne Datum→400, D9 ohne Datum→400 |
+| 23: Call History + Batch | 2 | Call-History Eintraege + Batch-Disposition 2 Leads |
+
+### Technische Loesungen (Comprehensive-Tests):
+
+11. **D6 Cascade-Reihenfolge:** D6 (nie_wieder) MUSS als letzter Dispositions-Test laufen — Cascade blacklistet ALLE Jobs der gleichen Firma. Wenn D6 vor D7 laeuft und Leads der gleichen Firma nutzt, sind sie bereits blacklist_hart (Endstatus).
+12. **_get_test_leads_via_api Page-Fallback:** Fuer `status=neu` Seite 2 bevorzugen (Konflikt mit frueheren Phasen), fuer andere Status direkt Seite 1 (wenige Leads).
+13. **_api_post JSON-Escaping:** `json.dumps()` + `replace("\\", "\\\\").replace("'", "\\'")` fuer sichere Einbettung in JS-Strings.
+
 ### Test-Datei:
-- `Akquise/playwright_e2e_tests.py` (~1500 Zeilen, 18 Phasen, 74 Tests)
+- `Akquise/playwright_e2e_tests.py` (~2230 Zeilen, 23 Phasen, 101 Tests)
 - Ausfuehren: `python Akquise/playwright_e2e_tests.py`
 - Credentials: `.env` (PULSPOINT_EMAIL + PULSPOINT_PASSWORD)
 

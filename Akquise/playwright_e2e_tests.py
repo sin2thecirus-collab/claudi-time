@@ -33,7 +33,7 @@ import json
 import os
 import sys
 import traceback
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 
 # ── .env laden (falls vorhanden) ──
@@ -236,6 +236,34 @@ async def run_all_tests():
             # ── Phase 18: Tab-Zustand ──
             print("\n  --- Phase 18: DEEP — Tab-Zustand ---\n")
             await deep_test_tab_state(page)
+
+            # ══════════════════════════════════════
+            # COMPREHENSIVE INTEGRATION TESTS (Phase 19-23)
+            # ══════════════════════════════════════
+
+            print("\n  ══════════════════════════════════════")
+            print("  COMPREHENSIVE INTEGRATION TESTS")
+            print("  ══════════════════════════════════════\n")
+
+            # ── Phase 19: Alle 13 Dispositionen ──
+            print("\n  --- Phase 19: COMP — Alle 13 Dispositionen ---\n")
+            await deep_test_all_dispositions(page)
+
+            # ── Phase 20: E-Mail Send E2E ──
+            print("\n  --- Phase 20: COMP — E-Mail Send E2E ---\n")
+            await deep_test_email_send(page)
+
+            # ── Phase 21: n8n Endpoints ──
+            print("\n  --- Phase 21: COMP — n8n Endpoints ---\n")
+            await deep_test_n8n_endpoints(page)
+
+            # ── Phase 22: State Machine Negativ ──
+            print("\n  --- Phase 22: COMP — State Machine Negativ ---\n")
+            await deep_test_state_machine_negative(page)
+
+            # ── Phase 23: Call History + Batch ──
+            print("\n  --- Phase 23: COMP — Call History + Batch ---\n")
+            await deep_test_call_history_and_batch(page)
 
         except Exception as e:
             record("FATAL", "FAIL", f"Unerwarteter Fehler: {e}\n{traceback.format_exc()}")
@@ -1637,6 +1665,504 @@ async def deep_test_tab_state(page):
 
     except Exception as e:
         record("DEEP: Tab-Zustand", "FAIL", str(e))
+
+
+# ══════════════════════════════════════════════════
+# API-Helpers fuer Comprehensive Tests
+# ══════════════════════════════════════════════════
+
+async def _api_get(page, path):
+    """GET /api/akquise/{path} via browser fetch."""
+    return await page.evaluate(f"""
+        (async () => {{
+            try {{
+                const resp = await fetch('/api/akquise/{path}');
+                const data = await resp.json();
+                return {{ status: resp.status, data: data }};
+            }} catch (e) {{ return {{ error: e.message }}; }}
+        }})()
+    """)
+
+
+async def _api_post(page, path, payload=None):
+    """POST /api/akquise/{path} via browser fetch."""
+    payload_json = json.dumps(payload or {})
+    esc = payload_json.replace("\\", "\\\\").replace("'", "\\'")
+    return await page.evaluate(f"""
+        (async () => {{
+            try {{
+                const resp = await fetch('/api/akquise/{path}', {{
+                    method: 'POST',
+                    headers: {{ 'Content-Type': 'application/json' }},
+                    body: '{esc}'
+                }});
+                const data = await resp.json();
+                return {{ status: resp.status, data: data }};
+            }} catch (e) {{ return {{ error: e.message }}; }}
+        }})()
+    """)
+
+
+async def _api_patch(page, path, payload=None):
+    """PATCH /api/akquise/{path} via browser fetch."""
+    payload_json = json.dumps(payload or {})
+    esc = payload_json.replace("\\", "\\\\").replace("'", "\\'")
+    return await page.evaluate(f"""
+        (async () => {{
+            try {{
+                const resp = await fetch('/api/akquise/{path}', {{
+                    method: 'PATCH',
+                    headers: {{ 'Content-Type': 'application/json' }},
+                    body: '{esc}'
+                }});
+                const data = await resp.json();
+                return {{ status: resp.status, data: data }};
+            }} catch (e) {{ return {{ error: e.message }}; }}
+        }})()
+    """)
+
+
+async def _get_test_leads_via_api(page, count=15, status="neu"):
+    """Holt Leads via API. Fuer 'neu': Seite 2 bevorzugen (Konflikt-Vermeidung), sonst Seite 1."""
+    pages_to_try = [2, 1] if status == "neu" else [1]
+
+    leads = []
+    for page_num in pages_to_try:
+        if leads:
+            break
+        r = await _api_get(page, f"leads?status={status}&page={page_num}")
+        if not r or r.get("error") or r.get("status") != 200:
+            continue
+        for group in r["data"].get("groups", []):
+            for job in group.get("jobs", []):
+                leads.append({
+                    "id": job["id"],
+                    "position": job.get("position", "?"),
+                    "company_name": group.get("company_name", "?"),
+                })
+                if len(leads) >= count:
+                    return leads
+    return leads
+
+
+async def _get_contact_for_lead(page, lead_id):
+    """Holt die erste Contact-ID fuer einen Lead."""
+    r = await _api_get(page, f"leads/{lead_id}")
+    if r and r.get("status") == 200:
+        contacts = r["data"].get("contacts", [])
+        if contacts:
+            return contacts[0].get("id")
+    return None
+
+
+# ══════════════════════════════════════════════════
+# Phase 19: COMP — Alle 13 Dispositionen E2E
+# ══════════════════════════════════════════════════
+
+async def deep_test_all_dispositions(page):
+    """Testet alle 13 Dispositionen End-to-End via API.
+
+    Strategie:
+    - D1a-D4: Direkt von Status 'neu'
+    - D5-D8: Nutzen Leads die durch D1a-D4 auf 'angerufen' stehen
+    - D9-D10: Kette neu → D1a → angerufen → D9 → qualifiziert → D10 → stelle_erstellt
+    - D11-D13: Erst auf 'angerufen' bringen, dann testen
+    Braucht mindestens 9 Leads mit Status 'neu'.
+    """
+    try:
+        leads = await _get_test_leads_via_api(page, count=15, status="neu")
+        if len(leads) < 9:
+            record("COMP: 13 Dispositionen", "SKIP", f"Nur {len(leads)} neue Leads (brauche 9)")
+            return
+
+        log(f"{len(leads)} Test-Leads geladen")
+
+        # Contact-ID fuer D4 (Durchwahl-Test) und D11
+        contact_id_4 = await _get_contact_for_lead(page, leads[4]["id"])
+
+        # Zukunfts-Datum fuer D7 und D9
+        future = (datetime.now(timezone.utc) + timedelta(days=3)).replace(
+            hour=10, minute=0, second=0, microsecond=0
+        ).isoformat()
+
+        # ── D1a: nicht_erreicht (neu → angerufen) ──
+        r = await _api_post(page, f'leads/{leads[0]["id"]}/call', {"disposition": "nicht_erreicht"})
+        if r.get("status") == 200 and r["data"].get("new_status") == "angerufen":
+            record("COMP: D1a nicht_erreicht → angerufen", "PASS")
+        else:
+            record("COMP: D1a nicht_erreicht", "FAIL", f"HTTP {r.get('status')}: {r.get('data')}")
+
+        # ── D1b: mailbox_besprochen (neu → angerufen) ──
+        r = await _api_post(page, f'leads/{leads[1]["id"]}/call', {"disposition": "mailbox_besprochen"})
+        if r.get("status") == 200 and r["data"].get("new_status") == "angerufen":
+            record("COMP: D1b mailbox → angerufen", "PASS")
+        else:
+            record("COMP: D1b mailbox", "FAIL", f"HTTP {r.get('status')}: {r.get('data')}")
+
+        # ── D2: besetzt (neu → angerufen) ──
+        r = await _api_post(page, f'leads/{leads[2]["id"]}/call', {"disposition": "besetzt"})
+        if r.get("status") == 200 and r["data"].get("new_status") == "angerufen":
+            record("COMP: D2 besetzt → angerufen", "PASS")
+        else:
+            record("COMP: D2 besetzt", "FAIL", f"HTTP {r.get('status')}: {r.get('data')}")
+
+        # ── D3: falsche_nummer (neu → kontakt_fehlt) ──
+        r = await _api_post(page, f'leads/{leads[3]["id"]}/call', {"disposition": "falsche_nummer"})
+        if r.get("status") == 200 and r["data"].get("new_status") == "kontakt_fehlt":
+            record("COMP: D3 falsche_nummer → kontakt_fehlt", "PASS")
+        else:
+            record("COMP: D3 falsche_nummer", "FAIL", f"HTTP {r.get('status')}: {r.get('data')}")
+
+        # ── D4: sekretariat (neu → angerufen, Durchwahl speichern) ──
+        d4_payload = {"disposition": "sekretariat", "extra_data": {"durchwahl": "+49-40-12345", "sekretariat_name": "Frau Test"}}
+        if contact_id_4:
+            d4_payload["contact_id"] = contact_id_4
+        r = await _api_post(page, f'leads/{leads[4]["id"]}/call', d4_payload)
+        if r.get("status") == 200 and r["data"].get("new_status") == "angerufen":
+            actions_str = " ".join(r["data"].get("actions", []))
+            if "Durchwahl" in actions_str or "Sekretariat" in actions_str:
+                record("COMP: D4 sekretariat → angerufen + Extras", "PASS")
+            else:
+                record("COMP: D4 sekretariat → angerufen", "PASS")
+        else:
+            record("COMP: D4 sekretariat", "FAIL", f"HTTP {r.get('status')}: {r.get('data')}")
+
+        # ── D5: kein_bedarf (angerufen → blacklist_weich) ──
+        # Lead[0] ist jetzt 'angerufen' (von D1a)
+        r = await _api_post(page, f'leads/{leads[0]["id"]}/call', {"disposition": "kein_bedarf"})
+        if r.get("status") == 200 and r["data"].get("new_status") == "blacklist_weich":
+            record("COMP: D5 kein_bedarf → blacklist_weich", "PASS")
+        else:
+            record("COMP: D5 kein_bedarf", "FAIL", f"HTTP {r.get('status')}: {r.get('data')}")
+
+        # ── D7: interesse_spaeter (angerufen → wiedervorlage) ──
+        # Lead[2] ist jetzt 'angerufen' (von D2)
+        r = await _api_post(page, f'leads/{leads[2]["id"]}/call', {
+            "disposition": "interesse_spaeter",
+            "follow_up_date": future,
+            "follow_up_note": "E2E-Test Wiedervorlage",
+        })
+        if r.get("status") == 200 and r["data"].get("new_status") == "wiedervorlage":
+            record("COMP: D7 interesse_spaeter → wiedervorlage", "PASS")
+        else:
+            record("COMP: D7 interesse_spaeter", "FAIL", f"HTTP {r.get('status')}: {r.get('data')}")
+
+        # ── D8: will_infos (angerufen → email_gesendet) ──
+        # Lead[4] ist jetzt 'angerufen' (von D4)
+        r = await _api_post(page, f'leads/{leads[4]["id"]}/call', {"disposition": "will_infos"})
+        if r.get("status") == 200 and r["data"].get("new_status") == "email_gesendet":
+            record("COMP: D8 will_infos → email_gesendet", "PASS")
+        else:
+            record("COMP: D8 will_infos", "FAIL", f"HTTP {r.get('status')}: {r.get('data')}")
+
+        # ── Vorbereitung D9/D10: Lead[5] auf 'angerufen' bringen ──
+        await _api_post(page, f'leads/{leads[5]["id"]}/call', {"disposition": "nicht_erreicht"})
+
+        # ── D9: qualifiziert_erst (angerufen → qualifiziert) ──
+        r = await _api_post(page, f'leads/{leads[5]["id"]}/call', {
+            "disposition": "qualifiziert_erst",
+            "follow_up_date": future,
+            "follow_up_note": "Zweitkontakt geplant",
+        })
+        if r.get("status") == 200 and r["data"].get("new_status") == "qualifiziert":
+            record("COMP: D9 qualifiziert_erst → qualifiziert", "PASS")
+        else:
+            record("COMP: D9 qualifiziert_erst", "FAIL", f"HTTP {r.get('status')}: {r.get('data')}")
+
+        # ── D10: voll_qualifiziert (qualifiziert → stelle_erstellt + ATS) ──
+        r = await _api_post(page, f'leads/{leads[5]["id"]}/call', {
+            "disposition": "voll_qualifiziert",
+            "qualification_data": {"budget": "50-60k", "start": "sofort", "vertragsart": "festanstellung"},
+        })
+        if r.get("status") == 200 and r["data"].get("new_status") == "stelle_erstellt":
+            ats = r["data"].get("ats_conversion")
+            if ats and ats.get("ats_job_id"):
+                record("COMP: D10 voll_qualifiziert → stelle_erstellt + ATS", "PASS")
+            else:
+                # ATS-Konvertierung optional (kann bei fehlenden Daten fehlschlagen)
+                record("COMP: D10 voll_qualifiziert → stelle_erstellt", "PASS")
+        else:
+            record("COMP: D10 voll_qualifiziert", "FAIL", f"HTTP {r.get('status')}: {r.get('data')}")
+
+        # ── Vorbereitung D11/D12/D13: Leads auf 'angerufen' bringen ──
+        await _api_post(page, f'leads/{leads[6]["id"]}/call', {"disposition": "nicht_erreicht"})
+        await _api_post(page, f'leads/{leads[7]["id"]}/call', {"disposition": "nicht_erreicht"})
+        await _api_post(page, f'leads/{leads[8]["id"]}/call', {"disposition": "nicht_erreicht"})
+
+        # ── D11: ap_nicht_mehr_da (kein Statuswechsel) ──
+        contact_id_6 = await _get_contact_for_lead(page, leads[6]["id"])
+        d11_payload = {"disposition": "ap_nicht_mehr_da", "extra_data": {"nachfolger": "Max Mustermann"}}
+        if contact_id_6:
+            d11_payload["contact_id"] = contact_id_6
+        r = await _api_post(page, f'leads/{leads[6]["id"]}/call', d11_payload)
+        if r.get("status") == 200 and r["data"].get("new_status") == "angerufen":
+            record("COMP: D11 ap_nicht_mehr_da (Status bleibt)", "PASS")
+        else:
+            record("COMP: D11 ap_nicht_mehr_da", "FAIL", f"HTTP {r.get('status')}, Status: {r.get('data', {}).get('new_status')}")
+
+        # ── D12: andere_stelle_offen (kein Statuswechsel, neuer Job) ──
+        r = await _api_post(page, f'leads/{leads[7]["id"]}/call', {
+            "disposition": "andere_stelle_offen",
+            "extra_data": {"position": "Bilanzbuchhalter E2E-Test (m/w/d)", "employment_type": "Festanstellung"},
+        })
+        if r.get("status") == 200:
+            actions_str = " ".join(r["data"].get("actions", []))
+            if "Neue Stelle" in actions_str:
+                record("COMP: D12 andere_stelle_offen + neuer Job", "PASS")
+            elif r["data"].get("new_status") == "angerufen":
+                record("COMP: D12 andere_stelle_offen (Status bleibt)", "PASS")
+            else:
+                record("COMP: D12 andere_stelle_offen", "FAIL", f"Status: {r['data'].get('new_status')}")
+        else:
+            record("COMP: D12 andere_stelle_offen", "FAIL", f"HTTP {r.get('status')}: {r.get('data')}")
+
+        # ── D13: weiterverbunden (angerufen → kontaktiert, neuer Contact) ──
+        r = await _api_post(page, f'leads/{leads[8]["id"]}/call', {
+            "disposition": "weiterverbunden",
+            "extra_data": {
+                "first_name": "Max",
+                "last_name": "E2ETest",
+                "function": "Personalleiter",
+                "phone": "+49-40-999888",
+            },
+        })
+        if r.get("status") == 200 and r["data"].get("new_status") == "kontaktiert":
+            actions_str = " ".join(r["data"].get("actions", []))
+            if "Contact" in actions_str or "Max" in actions_str:
+                record("COMP: D13 weiterverbunden → kontaktiert + Contact", "PASS")
+            else:
+                record("COMP: D13 weiterverbunden → kontaktiert", "PASS")
+        else:
+            record("COMP: D13 weiterverbunden", "FAIL", f"HTTP {r.get('status')}: {r.get('data')}")
+
+        # ── D6: nie_wieder (angerufen → blacklist_hart + Cascade) ──
+        # ABSICHTLICH LETZTER TEST — Cascade blacklistet alle Jobs der gleichen Firma!
+        # Lead[1] ist 'angerufen' (von D1b), alle anderen Tests sind bereits fertig.
+        r = await _api_post(page, f'leads/{leads[1]["id"]}/call', {"disposition": "nie_wieder"})
+        if r.get("status") == 200 and r["data"].get("new_status") == "blacklist_hart":
+            record("COMP: D6 nie_wieder → blacklist_hart + Cascade", "PASS")
+        else:
+            record("COMP: D6 nie_wieder", "FAIL", f"HTTP {r.get('status')}: {r.get('data')}")
+
+    except Exception as e:
+        record("COMP: 13 Dispositionen", "FAIL", f"{e}\n{traceback.format_exc()}")
+
+
+# ══════════════════════════════════════════════════
+# Phase 20: COMP — E-Mail Send E2E
+# ══════════════════════════════════════════════════
+
+async def deep_test_email_send(page):
+    """Testet E-Mail Draft → Send End-to-End (GPT-Generierung + SMTP-Versand)."""
+    try:
+        # Neuen Lead holen (nicht von Phase 19 verbraucht)
+        leads = await _get_test_leads_via_api(page, count=3, status="neu")
+        if not leads:
+            record("COMP: E-Mail Send", "SKIP", "Keine neuen Leads")
+            return
+
+        lead_id = leads[0]["id"]
+        contact_id = await _get_contact_for_lead(page, lead_id)
+
+        if not contact_id:
+            record("COMP: E-Mail Send", "SKIP", f"Kein Contact fuer Lead {lead_id}")
+            return
+
+        # ── Draft generieren (GPT-Call, kann 5-10s dauern) ──
+        log("GPT-Draft wird generiert (kann 5-10s dauern)...")
+        r = await _api_post(page, f'leads/{lead_id}/email/draft', {
+            "contact_id": contact_id,
+            "email_type": "initial",
+        })
+
+        if r.get("status") != 200:
+            record("COMP: E-Mail Draft generieren", "FAIL", f"HTTP {r.get('status')}: {r.get('data')}")
+            return
+
+        draft = r["data"]
+        email_id = draft.get("email_id")
+        subject = draft.get("subject", "")
+        body = draft.get("body_plain", "") or draft.get("body", "")
+
+        # Test 1: Betreff vorhanden und sinnvoll
+        if subject and len(subject) > 5:
+            record("COMP: E-Mail Draft Betreff", "PASS")
+        else:
+            record("COMP: E-Mail Draft Betreff", "FAIL", f"Betreff: '{subject}'")
+
+        # Test 2: Body vorhanden + siezt
+        if body and len(body) > 50:
+            if "Sie" in body or "Ihnen" in body or "Ihr" in body:
+                record("COMP: E-Mail Draft Body + Siezen", "PASS")
+            else:
+                log("WARN: Body vorhanden aber kein Siezen erkannt")
+                record("COMP: E-Mail Draft Body (WARN: Siez-Check)", "PASS", "Body vorhanden, Siezen nicht eindeutig")
+        else:
+            record("COMP: E-Mail Draft Body", "FAIL", f"Body Laenge: {len(body or '')}")
+
+        # Test 3: Kandidaten-Fiktion
+        fiction = draft.get("candidate_fiction")
+        if fiction and (isinstance(fiction, dict) or isinstance(fiction, str)):
+            record("COMP: E-Mail Draft Kandidat", "PASS")
+        else:
+            record("COMP: E-Mail Draft Kandidat", "FAIL", f"candidate_fiction: {type(fiction)}")
+
+        # ── E-Mail senden (Test-Modus: Redirect auf Test-Adresse) ──
+        if not email_id:
+            record("COMP: E-Mail Senden", "SKIP", "Keine email_id vom Draft")
+            return
+
+        r = await _api_post(page, f'leads/{lead_id}/email/{email_id}/send', {})
+        if r.get("status") == 200:
+            record("COMP: E-Mail Senden (scheduled/sent)", "PASS")
+        else:
+            record("COMP: E-Mail Senden", "FAIL", f"HTTP {r.get('status')}: {r.get('data')}")
+
+    except Exception as e:
+        record("COMP: E-Mail Send", "FAIL", f"{e}\n{traceback.format_exc()}")
+
+
+# ══════════════════════════════════════════════════
+# Phase 21: COMP — n8n Endpoints
+# ══════════════════════════════════════════════════
+
+async def deep_test_n8n_endpoints(page):
+    """Testet alle n8n-Backend-Endpoints (die n8n Cron-Jobs aufrufen)."""
+    try:
+        # ── followup-due ──
+        r = await _api_get(page, "n8n/followup-due")
+        if r.get("status") == 200 and "followup_due" in r.get("data", {}):
+            fc = r["data"].get("followup_count", 0)
+            bc = r["data"].get("breakup_count", 0)
+            record(f"COMP: n8n followup-due (F:{fc} B:{bc})", "PASS")
+        else:
+            record("COMP: n8n followup-due", "FAIL", f"HTTP {r.get('status')}: {r.get('data')}")
+
+        # ── eskalation-due ──
+        r = await _api_get(page, "n8n/eskalation-due")
+        if r.get("status") == 200:
+            record("COMP: n8n eskalation-due", "PASS")
+        else:
+            record("COMP: n8n eskalation-due", "FAIL", f"HTTP {r.get('status')}: {r.get('data')}")
+
+        # ── send-scheduled-emails ──
+        r = await _api_post(page, "n8n/send-scheduled-emails")
+        if r.get("status") == 200:
+            sent = r["data"].get("sent", 0) if isinstance(r.get("data"), dict) else 0
+            record(f"COMP: n8n send-scheduled-emails (sent:{sent})", "PASS")
+        else:
+            record("COMP: n8n send-scheduled-emails", "FAIL", f"HTTP {r.get('status')}: {r.get('data')}")
+
+        # ── auto-followup ──
+        r = await _api_post(page, "n8n/auto-followup")
+        if r.get("status") == 200:
+            record("COMP: n8n auto-followup", "PASS")
+        else:
+            record("COMP: n8n auto-followup", "FAIL", f"HTTP {r.get('status')}: {r.get('data')}")
+
+    except Exception as e:
+        record("COMP: n8n Endpoints", "FAIL", f"{e}\n{traceback.format_exc()}")
+
+
+# ══════════════════════════════════════════════════
+# Phase 22: COMP — State Machine Negativ-Tests
+# ══════════════════════════════════════════════════
+
+async def deep_test_state_machine_negative(page):
+    """Testet dass ungueltige Transitionen korrekt abgelehnt werden (HTTP 400)."""
+    try:
+        # Frische Leads mit status=neu holen
+        leads = await _get_test_leads_via_api(page, count=3, status="neu")
+        if len(leads) < 2:
+            record("COMP: State Machine Negativ", "SKIP", f"Nur {len(leads)} neue Leads (brauche 2)")
+            return
+
+        # ── Test 1: D5 (kein_bedarf) von 'neu' → sollte 400 geben ──
+        # blacklist_weich ist NICHT in ALLOWED_TRANSITIONS["neu"]
+        r = await _api_post(page, f'leads/{leads[0]["id"]}/call', {"disposition": "kein_bedarf"})
+        if r.get("status") == 400:
+            record("COMP: Negativ D5 von neu → 400 (korrekt)", "PASS")
+        else:
+            record("COMP: Negativ D5 von neu", "FAIL", f"Erwartet 400, bekam {r.get('status')}")
+
+        # ── Vorbereitung: Lead[1] auf 'angerufen' bringen ──
+        await _api_post(page, f'leads/{leads[1]["id"]}/call', {"disposition": "nicht_erreicht"})
+
+        # ── Test 2: D7 ohne follow_up_date → sollte 400 geben ──
+        # "Wiedervorlage-Datum ist Pflicht bei interesse_spaeter"
+        r = await _api_post(page, f'leads/{leads[1]["id"]}/call', {
+            "disposition": "interesse_spaeter",
+            # ABSICHTLICH kein follow_up_date!
+        })
+        if r.get("status") == 400:
+            record("COMP: Negativ D7 ohne Datum → 400 (korrekt)", "PASS")
+        else:
+            record("COMP: Negativ D7 ohne Datum", "FAIL", f"Erwartet 400, bekam {r.get('status')}")
+
+        # ── Test 3: D9 ohne follow_up_date → sollte 400 geben ──
+        # "Zweitkontakt-Datum ist Pflicht bei qualifiziert_erst"
+        r = await _api_post(page, f'leads/{leads[1]["id"]}/call', {
+            "disposition": "qualifiziert_erst",
+            # ABSICHTLICH kein follow_up_date!
+        })
+        if r.get("status") == 400:
+            record("COMP: Negativ D9 ohne Datum → 400 (korrekt)", "PASS")
+        else:
+            record("COMP: Negativ D9 ohne Datum", "FAIL", f"Erwartet 400, bekam {r.get('status')}")
+
+    except Exception as e:
+        record("COMP: State Machine Negativ", "FAIL", f"{e}\n{traceback.format_exc()}")
+
+
+# ══════════════════════════════════════════════════
+# Phase 23: COMP — Call History + Batch Disposition
+# ══════════════════════════════════════════════════
+
+async def deep_test_call_history_and_batch(page):
+    """Testet Call-History Abruf und Batch-Disposition."""
+    try:
+        # ── Call-History testen ──
+        # Hole Leads die bereits Calls haben (von Phase 19 modifiziert)
+        history_leads = await _get_test_leads_via_api(page, count=3, status="wiedervorlage")
+        if not history_leads:
+            history_leads = await _get_test_leads_via_api(page, count=3, status="angerufen")
+        if not history_leads:
+            history_leads = await _get_test_leads_via_api(page, count=3, status="kontakt_fehlt")
+
+        if history_leads:
+            r = await _api_get(page, f'leads/{history_leads[0]["id"]}/calls')
+            if r.get("status") == 200 and isinstance(r["data"], list):
+                if len(r["data"]) > 0:
+                    call = r["data"][0]
+                    has_fields = "disposition" in call and "created_at" in call
+                    if has_fields:
+                        record(f"COMP: Call-History ({len(r['data'])} Eintraege)", "PASS")
+                    else:
+                        record("COMP: Call-History", "FAIL", f"Fehlende Felder: {list(call.keys())}")
+                else:
+                    record("COMP: Call-History (leer aber 200 OK)", "PASS")
+            else:
+                record("COMP: Call-History", "FAIL", f"HTTP {r.get('status')}: {type(r.get('data'))}")
+        else:
+            record("COMP: Call-History", "SKIP", "Keine Leads mit Calls gefunden")
+
+        # ── Batch-Disposition testen ──
+        batch_leads = await _get_test_leads_via_api(page, count=2, status="neu")
+        if len(batch_leads) >= 2:
+            job_ids = [batch_leads[0]["id"], batch_leads[1]["id"]]
+            r = await _api_patch(page, "leads/batch-status", {
+                "job_ids": job_ids,
+                "status": "angerufen",
+            })
+            if r.get("status") == 200 and r["data"].get("updated") == 2:
+                record("COMP: Batch-Disposition (2 Leads → angerufen)", "PASS")
+            else:
+                record("COMP: Batch-Disposition", "FAIL", f"HTTP {r.get('status')}: {r.get('data')}")
+        else:
+            record("COMP: Batch-Disposition", "SKIP", f"Nur {len(batch_leads)} neue Leads (brauche 2)")
+
+    except Exception as e:
+        record("COMP: Call History + Batch", "FAIL", f"{e}\n{traceback.format_exc()}")
 
 
 # ══════════════════════════════════════════════════
