@@ -504,7 +504,9 @@ class AcquisitionImportService:
             return "blacklisted"
 
         # Pruefen ob Company vorher schon Jobs hatte (fuer Priority)
-        company_has_jobs = cache_key in existing_jobs or bool(company.jobs)
+        # Nicht company.jobs nutzen (Lazy-Load crasht im Async-Kontext)
+        # Stattdessen: Firma war schon in DB wenn sie im Cache war
+        company_has_jobs = cache_key in company_cache
 
         # ── Contact AP Firma ──
         ap_firma_first = _get_field(row, COL_MAPPING["ap_firma_first_name"])
