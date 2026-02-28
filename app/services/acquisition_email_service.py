@@ -35,7 +35,7 @@ REGELN:
 - Call-to-Action: "Unter welchen Voraussetzungen waere ein Austausch moeglich?"
 - Erreichbarkeit 9-18 Uhr, Terminvorschlag
 - Tonfall: Professionell, respektvoll, direkt, kein Marketing-Sprech
-- Anrede: Nutze die uebergebene Anrede (Herr/Frau) exakt. Z.B. "Sehr geehrter Herr Mueller" oder "Sehr geehrte Frau Schmidt". Falls keine Anrede vorhanden: "Guten Tag [Vorname Nachname]"
+- Anrede: Nutze die uebergebene Anrede (Herr/Frau) exakt. Z.B. "Sehr geehrter Herr Mueller" oder "Sehr geehrte Frau Schmidt". Falls keine Anrede vorhanden: Bestimme das Geschlecht anhand des Vornamens und nutze "Sehr geehrter Herr [Nachname]" oder "Sehr geehrte Frau [Nachname]". Bei nicht eindeutigen Vornamen: "Guten Tag [Vorname Nachname]"
 - KEINE Links, KEINE URLs, KEINE Webseiten-Verweise im E-Mail-Text
 - Beende den Text mit "Mit freundlichen Gruessen" OHNE Signatur/Name — die Signatur wird automatisch angehaengt
 """
