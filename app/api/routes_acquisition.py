@@ -74,6 +74,11 @@ async def import_csv(
     db: AsyncSession = Depends(get_db),
 ):
     """CSV von advertsdata.com hochladen und importieren."""
+    import logging
+    import traceback
+
+    logger = logging.getLogger(__name__)
+
     if not file.filename or not file.filename.endswith(".csv"):
         raise HTTPException(400, "Nur CSV-Dateien erlaubt")
 
@@ -81,11 +86,23 @@ async def import_csv(
     if len(content) > 50 * 1024 * 1024:
         raise HTTPException(400, "Datei zu gross (max 50 MB)")
 
-    from app.services.acquisition_import_service import AcquisitionImportService
+    try:
+        from app.services.acquisition_import_service import AcquisitionImportService
 
-    service = AcquisitionImportService(db)
-    result = await service.import_csv(content, filename=file.filename)
-    return result
+        service = AcquisitionImportService(db)
+        result = await service.import_csv(content, filename=file.filename)
+        return result
+    except Exception as e:
+        logger.error(f"CSV-Import Fehler: {e}\n{traceback.format_exc()}")
+        return {
+            "batch_id": None,
+            "total_rows": 0,
+            "imported": 0,
+            "duplicates_refreshed": 0,
+            "blacklisted_skipped": 0,
+            "errors": 1,
+            "error_details": [f"Server-Fehler: {str(e)[:500]}"],
+        }
 
 
 @router.post("/import/preview")
@@ -94,13 +111,29 @@ async def import_preview(
     db: AsyncSession = Depends(get_db),
 ):
     """CSV analysieren ohne Import (Duplikate, bekannte Firmen)."""
+    import logging
+    import traceback
+
+    logger = logging.getLogger(__name__)
     content = await file.read()
 
-    from app.services.acquisition_import_service import AcquisitionImportService
+    try:
+        from app.services.acquisition_import_service import AcquisitionImportService
 
-    service = AcquisitionImportService(db)
-    result = await service.preview_csv(content)
-    return result
+        service = AcquisitionImportService(db)
+        result = await service.preview_csv(content)
+        return result
+    except Exception as e:
+        logger.error(f"CSV-Preview Fehler: {e}\n{traceback.format_exc()}")
+        return {
+            "total_rows": 0,
+            "new_leads": 0,
+            "duplicates": 0,
+            "blacklisted": 0,
+            "errors": 1,
+            "error_details": [f"Server-Fehler: {str(e)[:500]}"],
+            "known_companies": 0,
+        }
 
 
 @router.post("/import/rollback/{batch_id}")

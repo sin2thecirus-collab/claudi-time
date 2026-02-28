@@ -123,6 +123,14 @@
                             <p style="color:var(--pp-accent);margin:2px 0;" x-text="'Duplikate: ' + (importResult.duplicates_refreshed || importResult.duplicates || 0)"></p>
                             <p style="color:var(--pp-red);margin:2px 0;" x-text="'Blacklist: ' + (importResult.blacklisted_skipped || importResult.blacklisted || 0)"></p>
                             <p x-show="importResult.errors > 0" style="color:var(--pp-orange);margin:2px 0;" x-text="'Fehler: ' + importResult.errors"></p>
+                            <template x-if="importResult.error_details && importResult.error_details.length > 0">
+                                <div style="margin-top:8px;padding:8px;background:var(--pp-surface3);border-radius:6px;font-size:11px;color:var(--pp-textMuted);max-height:120px;overflow-y:auto;">
+                                    <template x-for="detail in importResult.error_details.slice(0, 10)">
+                                        <p style="margin:2px 0;" x-text="detail"></p>
+                                    </template>
+                                </div>
+                            </template>
+                            <p x-show="importResult.error" style="color:var(--pp-red);margin:6px 0;font-size:12px;" x-text="importResult.error + ': ' + (importResult.message || '')"></p>
                         </div>
                     </template>
                 </div>
