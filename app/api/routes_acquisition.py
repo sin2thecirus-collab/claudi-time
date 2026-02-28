@@ -937,11 +937,18 @@ async def check_inbox(
     Wird von n8n alle 15 Min aufgerufen.
     Nutzt Microsoft Graph API um neue Nachrichten zu lesen.
     Matched Replies/Bounces gegen gesendete acquisition_emails.
+
+    WICHTIG: DB-Session wird NICHT offen gehalten waehrend Graph-API-Calls!
+    Railway killt idle-in-transaction Connections nach 30s.
+    Daher: Erst alle Nachrichten per Graph laden, DANN DB-Matching.
     """
     import httpx
+    import re
+    from datetime import timedelta
     from app.config import settings
 
-    # Graph-Token holen (selbe Methode wie Email-Versand)
+    # ── Phase 1: Graph-Token holen (KEINE DB noetig) ──
+
     try:
         from app.services.email_service import MicrosoftGraphClient
         token = await MicrosoftGraphClient._get_access_token()
@@ -968,8 +975,6 @@ async def check_inbox(
                 return {"error": f"Token-Fehler: {resp.status_code}", "replies": [], "bounces": []}
             token = resp.json()["access_token"]
 
-    from datetime import timedelta
-
     now = datetime.now(timezone.utc)
     since = (now - timedelta(minutes=minutes)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -983,13 +988,14 @@ async def check_inbox(
     ]
     mailboxes = [m for m in mailboxes if m]
 
-    replies_found = []
-    bounces_found = []
+    # ── Phase 2: Alle Nachrichten per Graph laden (KEINE DB-Session offen!) ──
+
+    incoming_replies = []  # (from_addr, subject, mailbox)
+    incoming_bounces = []  # (original_to, mailbox)
 
     async with httpx.AsyncClient(timeout=30.0) as http:
         for mailbox in mailboxes:
             try:
-                # Neue Nachrichten der letzten X Minuten laden
                 resp = await http.get(
                     f"https://graph.microsoft.com/v1.0/users/{mailbox}/messages",
                     params={
@@ -1020,71 +1026,77 @@ async def check_inbox(
                     )
 
                     if is_bounce:
-                        # Original-Empfaenger aus Body extrahieren
                         body_content = msg.get("body", {}).get("content", "")
-                        import re
                         email_match = re.search(r'[\w.+-]+@[\w.-]+\.\w+', body_content)
                         original_to = email_match.group(0) if email_match else None
-
                         if original_to:
-                            # Match in DB
-                            bounce_email = await db.execute(
-                                select(AcquisitionEmail)
-                                .where(
-                                    AcquisitionEmail.status == "sent",
-                                    AcquisitionEmail.to_email == original_to,
-                                )
-                                .options(selectinload(AcquisitionEmail.contact))
-                                .order_by(AcquisitionEmail.sent_at.desc())
-                                .limit(1)
-                            )
-                            acq_email = bounce_email.scalar_one_or_none()
-
-                            if acq_email:
-                                acq_email.status = "bounced"
-                                if acq_email.contact:
-                                    acq_email.contact.notes = (
-                                        (acq_email.contact.notes or "")
-                                        + f"\nE-Mail bounced ({now.strftime('%d.%m.%Y')})"
-                                    )
-                                bounces_found.append({
-                                    "email": original_to,
-                                    "mailbox": mailbox,
-                                })
+                            incoming_bounces.append((original_to, mailbox))
                     else:
-                        # Reply erkennen — matchen gegen gesendete E-Mails
-                        reply_email = await db.execute(
-                            select(AcquisitionEmail)
-                            .where(
-                                AcquisitionEmail.status == "sent",
-                                AcquisitionEmail.to_email == from_addr,
-                            )
-                            .options(selectinload(AcquisitionEmail.job))
-                            .order_by(AcquisitionEmail.sent_at.desc())
-                            .limit(1)
-                        )
-                        acq_email = reply_email.scalar_one_or_none()
-
-                        if acq_email:
-                            acq_email.status = "replied"
-
-                            if acq_email.job and acq_email.job.akquise_status in (
-                                "email_gesendet", "email_followup",
-                            ):
-                                acq_email.job.akquise_status = "kontaktiert"
-                                acq_email.job.akquise_status_changed_at = now
-
-                            replies_found.append({
-                                "from": from_addr,
-                                "subject": subject,
-                                "company_name": acq_email.job.company_name if acq_email.job else None,
-                                "mailbox": mailbox,
-                            })
+                        if from_addr:
+                            incoming_replies.append((from_addr, subject, mailbox))
 
             except Exception as e:
                 import logging
                 logging.getLogger(__name__).warning(f"Inbox-Check {mailbox}: {e}")
                 continue
+
+    # ── Phase 3: DB-Matching (kurze DB-Session, KEINE externen Calls mehr) ──
+
+    replies_found = []
+    bounces_found = []
+
+    # Bounces matchen
+    for original_to, mailbox in incoming_bounces:
+        bounce_email = await db.execute(
+            select(AcquisitionEmail)
+            .where(
+                AcquisitionEmail.status == "sent",
+                AcquisitionEmail.to_email == original_to,
+            )
+            .options(selectinload(AcquisitionEmail.contact))
+            .order_by(AcquisitionEmail.sent_at.desc())
+            .limit(1)
+        )
+        acq_email = bounce_email.scalar_one_or_none()
+
+        if acq_email:
+            acq_email.status = "bounced"
+            if acq_email.contact:
+                acq_email.contact.notes = (
+                    (acq_email.contact.notes or "")
+                    + f"\nE-Mail bounced ({now.strftime('%d.%m.%Y')})"
+                )
+            bounces_found.append({"email": original_to, "mailbox": mailbox})
+
+    # Replies matchen
+    for from_addr, subject, mailbox in incoming_replies:
+        reply_email = await db.execute(
+            select(AcquisitionEmail)
+            .where(
+                AcquisitionEmail.status == "sent",
+                AcquisitionEmail.to_email == from_addr,
+            )
+            .options(selectinload(AcquisitionEmail.job))
+            .order_by(AcquisitionEmail.sent_at.desc())
+            .limit(1)
+        )
+        acq_email = reply_email.scalar_one_or_none()
+
+        if acq_email:
+            acq_email.status = "replied"
+
+            if acq_email.job and acq_email.job.akquise_status in (
+                "email_gesendet", "email_followup",
+            ):
+                acq_email.job.akquise_status = "kontaktiert"
+                acq_email.job.akquise_status_changed_at = now
+
+            replies_found.append({
+                "from": from_addr,
+                "subject": subject,
+                "company_name": acq_email.job.company_name if acq_email.job else None,
+                "mailbox": mailbox,
+            })
 
     if replies_found or bounces_found:
         await db.commit()
