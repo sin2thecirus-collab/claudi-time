@@ -600,6 +600,15 @@ class AcquisitionImportService:
             expires_at=now + timedelta(days=30),
         )
         self.db.add(job)
+
+        # existing_jobs aktualisieren damit CSV-interne Duplikate erkannt werden
+        if anzeigen_id:
+            existing_jobs[anzeigen_id] = {
+                "id": job.id,
+                "akquise_status": "neu",
+                "last_seen_at": now,
+            }
+
         return "imported"
 
     async def _load_existing_anzeigen_ids(self) -> dict[str, dict]:
