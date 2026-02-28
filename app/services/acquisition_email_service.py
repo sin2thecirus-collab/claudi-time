@@ -35,7 +35,7 @@ REGELN:
 - Call-to-Action: "Unter welchen Voraussetzungen waere ein Austausch moeglich?"
 - Erreichbarkeit 9-18 Uhr, Terminvorschlag
 - Tonfall: Professionell, respektvoll, direkt, kein Marketing-Sprech
-- Anrede: "Sehr geehrte/r Frau/Herr [Nachname]" oder "Guten Tag Frau/Herr [Nachname]"
+- Anrede: Nutze die uebergebene Anrede (Herr/Frau) exakt. Z.B. "Sehr geehrter Herr Mueller" oder "Sehr geehrte Frau Schmidt". Falls keine Anrede vorhanden: "Guten Tag [Vorname Nachname]"
 - KEINE Links, KEINE URLs, KEINE Webseiten-Verweise im E-Mail-Text
 - Beende den Text mit "Mit freundlichen Gruessen" OHNE Signatur/Name — die Signatur wird automatisch angehaengt
 """
@@ -45,7 +45,7 @@ AKQUISE_EMAIL_USER = """Erstelle eine Kaltakquise-E-Mail fuer folgende Vakanz:
 **Firma:** {company_name}
 **Position:** {position}
 **Branche:** {industry}
-**Ansprechpartner:** {contact_name} ({contact_function})
+**Ansprechpartner:** {contact_salutation} {contact_name} ({contact_function})
 
 **Stellenausschreibung:**
 {job_text_excerpt}
@@ -446,6 +446,7 @@ class AcquisitionEmailService:
         job_text = (job.job_text or "")[:2000]
 
         contact_name = contact.full_name
+        contact_salutation = contact.salutation or ""  # "Herr" / "Frau" aus CSV/DB
         contact_function = contact.position or "Personalverantwortliche/r"
 
         # System-Prompt je nach Typ
@@ -460,6 +461,7 @@ class AcquisitionEmailService:
             company_name=job.company_name,
             position=job.position,
             industry=job.industry or "Unbekannt",
+            contact_salutation=contact_salutation,
             contact_name=contact_name,
             contact_function=contact_function,
             job_text_excerpt=job_text,
