@@ -1180,7 +1180,7 @@ def override_email_if_test(to_email: str, test_mode: bool, test_email: str) -> t
 ## SICHERHEITS-CHECKLISTE
 
 - [x] SPF/DKIM/DMARC fuer sincirus.com, sincirus-karriere.de, jobs-sincirus.com ✅ (28.02.2026)
-- [ ] Domain-Warmup 2 Wochen vor Go-Live (IONOS-Domains)
+- [x] Domain-Warmup 2 Wochen vor Go-Live (IONOS-Domains) ✅ (alle 3 Domains warm gelaufen)
 - [x] Abmelde-Link in JEDER E-Mail (oeffentlicher Endpoint, kein Auth) ✅
 - [x] Impressum in E-Mail-Signatur ✅ (01.03.2026 — Signatur korrigiert, konsistent mit bestehenden)
 - [x] Phone-Normalisierung E.164 bei jedem Import ✅

@@ -116,9 +116,11 @@ Drei Bugs aus der Rundmail-Automatisierung gegen Akquise-Workflows geprueft:
 - **Frontend call_screen.html:** tel:-Links deaktiviert (durchgestrichen), Simulations-Dropdown mit 8 Szenarien statt echtem Anruf-Button, `simulateCall()` Methode
 - **Konfiguration:** `system_settings` Keys `acquisition_test_mode` + `acquisition_test_email`
 
+### Domain-Warmup (01.03.2026) — ERLEDIGT
+- Alle 3 Domains (sincirus.com, sincirus-karriere.de, jobs-sincirus.com) sind warm gelaufen
+
 ### Offen
 - Phase 7.4: Webex-Integration (Webex CDR/Webhook → n8n → POST /api/akquise/events/incoming-call)
-- Domain-Warmup (2 Wochen IONOS-Domains vor Go-Live)
 - Audit-Log (P2 — nach Go-Live)
 
 ---

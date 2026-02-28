@@ -78,7 +78,7 @@ EMAIL_SIGNATURE = """
 --
 Milad Hamdard
 Senior Personalberater · Rechnungswesen & Controlling
-+49 40 874 060 88 | +49 176 8000 47 41
++49 40 238 345 320 | +49 176 8000 47 41
 {from_email}
 www.sincirus.com | Ballindamm 3, 20095 Hamburg
 """
