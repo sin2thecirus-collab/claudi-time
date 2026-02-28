@@ -1,6 +1,6 @@
 # Akquise-Automatisierung — Memory (Kontexterhaltung)
 
-> **Letzte Aktualisierung: 28.02.2026 (n8n-Workflows AKTIV + DB-Session-Fix)**
+> **Letzte Aktualisierung: 01.03.2026 (E2E-Test BESTANDEN, alle 4 IONOS-Mailboxen bestaetigt)**
 > Diese Datei wird nach JEDER erledigten Aufgabe aktualisiert.
 
 ---
@@ -119,7 +119,33 @@ Drei Bugs aus der Rundmail-Automatisierung gegen Akquise-Workflows geprueft:
 ### Domain-Warmup (01.03.2026) — ERLEDIGT
 - Alle 3 Domains (sincirus.com, sincirus-karriere.de, jobs-sincirus.com) sind warm gelaufen
 
+### Backend-Test (01.03.2026) — BESTANDEN (API + E-Mail)
+- **Dependency-Fix:** `aiosmtplib>=3.0.0` fehlte im Root `pyproject.toml` (Commit 8cbb66d)
+- **Signatur-Fix:** Telefonnummer korrigiert auf +49 40 238 345 320 (Commit 373a320)
+- **IONOS_SMTP_PASSWORD:** Auf Railway Claudi-Time Service gesetzt (endet auf ...5765)
+- **system_settings:** `acquisition_test_mode=true`, `acquisition_test_email=hamdard@sincirus.com` angelegt
+- **Test-CSV Import:** 9 neue Leads importiert, 1 Duplikat korrekt erkannt (batch_id: bf81ee3b)
+- **API-Endpoints getestet (alle OK):**
+  - `GET /api/akquise/stats` → 358 offene Leads, KPIs korrekt
+  - `GET /api/akquise/leads?status=neu` → Firmengruppeierung funktioniert
+  - `GET /api/akquise/leads/{id}` → Detail mit Company, Contacts, Job-Text
+  - `GET /api/akquise/wiedervorlagen` → Leer (korrekt, keine faelligen)
+  - `POST /api/akquise/test/simulate-call/{id}` → Simulation funktioniert
+  - `GET /api/akquise/test/status` → test_mode=true, test_email korrekt
+  - `GET /api/akquise/n8n/followup-due` → Leer (korrekt)
+  - `GET /api/akquise/n8n/eskalation-due` → Leer (korrekt)
+- **E-Mail-Flow (End-to-End):**
+  - Draft generiert (GPT-4o-mini): Betreff + Body + fiktiver Kandidat
+  - Versand via IONOS SMTP: ERFOLGREICH
+  - Test-Modus Redirect: E-Mail ging an hamdard@sincirus.com (nicht an Testfirma)
+- **Alle 4 IONOS-Mailboxen einzeln getestet + VON MILAD BESTAETIGT:**
+  - hamdard@sincirus-karriere.de → ZUGESTELLT
+  - m.hamdard@sincirus-karriere.de → ZUGESTELLT
+  - m.hamdard@jobs-sincirus.com → ZUGESTELLT
+  - hamdard@jobs-sincirus.com → ZUGESTELLT
+
 ### Offen
+- **E2E-Test (Phase 9 Checkliste):** Alle UI-Tests noch NICHT durchgefuehrt — Call-Screen, Disposition (13 Szenarien), Fliessband-Modus, Tab-Navigation, Wiedervorlagen, Rueckruf-Popup, Qualifizierung→ATS, E-Mail-Modal etc. (manuell im Browser durch Milad)
 - Phase 7.4: Webex-Integration (Webex CDR/Webhook → n8n → POST /api/akquise/events/incoming-call)
 - Audit-Log (P2 — nach Go-Live)
 

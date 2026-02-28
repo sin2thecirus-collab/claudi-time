@@ -6,6 +6,7 @@
 >
 > **Implementierungs-Status:** Phase 1-9 FERTIG (ausser 7.4 Webex) | Phase 7.4 OFFEN
 > **Deploy-Status (01.03.):** Migration 032 deployed, CSV-Import funktioniert, /akquise LIVE | Phase 6 n8n-Workflows AKTIV (6/6), Backend-Endpoints deployed + DB-Session-Fix
+> **Backend-Test (01.03.):** API-Endpoints + IONOS-Mailboxen getestet + bestaetigt | E2E-Checkliste (UI-Tests) noch OFFEN
 
 ---
 

@@ -126,7 +126,7 @@ class AcquisitionCallService:
         self.db.add(call)
 
         # ── Disposition verarbeiten ──
-        new_status, dispo_actions = await self._process_disposition(
+        new_status, dispo_actions, auto_follow_up = await self._process_disposition(
             job=job,
             company=company,
             contact_id=contact_id,
@@ -138,6 +138,10 @@ class AcquisitionCallService:
         )
 
         actions.extend(dispo_actions)
+
+        # Auto-Wiedervorlage setzen (wenn Disposition automatisches Datum vorgibt)
+        if auto_follow_up and not call.follow_up_date:
+            call.follow_up_date = auto_follow_up
 
         # Status aktualisieren (mit State-Machine-Validierung)
         if new_status and new_status != job.akquise_status:
@@ -164,25 +168,26 @@ class AcquisitionCallService:
         follow_up_note: str | None,
         extra_data: dict,
         now: datetime,
-    ) -> tuple[str | None, list[str]]:
-        """Verarbeitet Disposition und gibt (new_status, actions) zurueck."""
+    ) -> tuple[str | None, list[str], datetime | None]:
+        """Verarbeitet Disposition und gibt (new_status, actions, auto_follow_up_date) zurueck."""
         actions: list[str] = []
+        tomorrow = now + timedelta(days=1)
 
         # D1a: nicht_erreicht
         if disposition == "nicht_erreicht":
-            return "angerufen", ["Wiedervorlage morgen"]
+            return "angerufen", ["Wiedervorlage morgen"], tomorrow
 
         # D1b: mailbox_besprochen
         if disposition == "mailbox_besprochen":
-            return "angerufen", [f"AB besprochen am {now.strftime('%d.%m.%Y')}"]
+            return "angerufen", [f"AB besprochen am {now.strftime('%d.%m.%Y')}", "Wiedervorlage morgen"], tomorrow
 
         # D2: besetzt
         if disposition == "besetzt":
-            return "angerufen", ["Wiedervorlage morgen"]
+            return "angerufen", ["Wiedervorlage morgen"], tomorrow
 
         # D3: falsche_nummer
         if disposition == "falsche_nummer":
-            return "kontakt_fehlt", ["Kontaktdaten falsch — Lead bleibt aktiv"]
+            return "kontakt_fehlt", ["Kontaktdaten falsch — Lead bleibt aktiv"], None
 
         # D4: sekretariat
         if disposition == "sekretariat":
@@ -197,38 +202,40 @@ class AcquisitionCallService:
                         actions.append(f"Durchwahl {durchwahl} gespeichert")
                     if sek_name:
                         actions.append(f"Sekretariat: {sek_name}")
-            return "angerufen", actions + ["Wiedervorlage morgen"]
+            return "angerufen", actions + ["Wiedervorlage morgen"], tomorrow
 
         # D5: kein_bedarf
         if disposition == "kein_bedarf":
-            return "blacklist_weich", ["Blacklist weich — Wiedervorlage in 180 Tagen"]
+            follow_180 = now + timedelta(days=180)
+            return "blacklist_weich", ["Blacklist weich — Wiedervorlage in 180 Tagen"], follow_180
 
         # D6: nie_wieder → Blacklist-Cascade
         if disposition == "nie_wieder":
             cascade_count = await self._blacklist_cascade(job, company, now)
             actions.append(f"Blacklist hart — {cascade_count} weitere Stellen geschlossen")
-            return "blacklist_hart", actions
+            return "blacklist_hart", actions, None
 
         # D7: interesse_spaeter
         if disposition == "interesse_spaeter":
             if not follow_up_date:
                 raise ValueError("Wiedervorlage-Datum ist Pflicht bei interesse_spaeter")
-            return "wiedervorlage", [f"Wiedervorlage am {follow_up_date.strftime('%d.%m.%Y %H:%M')}"]
+            return "wiedervorlage", [f"Wiedervorlage am {follow_up_date.strftime('%d.%m.%Y %H:%M')}"], follow_up_date
 
         # D8: will_infos → E-Mail generieren
         if disposition == "will_infos":
+            follow_3d = now + timedelta(days=3)
             actions.append("E-Mail-Draft wird generiert (2h Delay)")
-            return "email_gesendet", actions
+            return "email_gesendet", actions, follow_3d
 
         # D9: qualifiziert_erst
         if disposition == "qualifiziert_erst":
             if not follow_up_date:
                 raise ValueError("Zweitkontakt-Datum ist Pflicht bei qualifiziert_erst")
-            return "qualifiziert", [f"Zweitkontakt am {follow_up_date.strftime('%d.%m.%Y %H:%M')}"]
+            return "qualifiziert", [f"Zweitkontakt am {follow_up_date.strftime('%d.%m.%Y %H:%M')}"], follow_up_date
 
         # D10: voll_qualifiziert → ATSJob erstellen (wird durch QualifyService gemacht)
         if disposition == "voll_qualifiziert":
-            return "stelle_erstellt", ["ATSJob wird erstellt"]
+            return "stelle_erstellt", ["ATSJob wird erstellt"], None
 
         # D11: ap_nicht_mehr_da
         if disposition == "ap_nicht_mehr_da":
@@ -241,7 +248,7 @@ class AcquisitionCallService:
             if nachfolger:
                 actions.append(f"Nachfolger: {nachfolger}")
             # Status bleibt gleich — Lead ist noch aktiv
-            return None, actions
+            return None, actions, None
 
         # D12: andere_stelle_offen → neuer Job-Draft
         if disposition == "andere_stelle_offen":
@@ -263,7 +270,7 @@ class AcquisitionCallService:
             )
             self.db.add(new_job)
             actions.append(f"Neue Stelle '{new_position}' angelegt")
-            return None, actions
+            return None, actions, None
 
         # D13: weiterverbunden → neuer Contact
         if disposition == "weiterverbunden":
@@ -280,10 +287,10 @@ class AcquisitionCallService:
                 )
                 self.db.add(new_contact)
                 actions.append(f"Neuer Contact: {new_contact.first_name} {new_contact.last_name}")
-            return "kontaktiert", actions
+            return "kontaktiert", actions, None
 
         logger.warning(f"Unbekannte Disposition: {disposition}")
-        return None, []
+        return None, [], None
 
     async def _blacklist_cascade(
         self, job: Job, company: Company | None, now: datetime,
