@@ -344,8 +344,10 @@ class AcquisitionCallService:
         if not company:
             return 0
 
-        # Company auf Blacklist setzen
+        # Company auf Blacklist setzen (beide Felder fuer CSV-Import-Schutz)
         company.acquisition_status = "blacklist"
+        from app.models.company import CompanyStatus
+        company.status = CompanyStatus.BLACKLIST
 
         # Alle offenen Akquise-Jobs dieser Firma auf blacklist_hart
         result = await self.db.execute(

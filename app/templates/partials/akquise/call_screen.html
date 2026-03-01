@@ -43,6 +43,20 @@
             </span>
         </div>
         <div style="display:flex;align-items:center;gap:10px;">
+            {# Skip — Weiter zum naechsten Lead ohne Disposition #}
+            <button @click="Alpine.$data(document.getElementById('akquise-root')).advanceToNextLead()"
+                    style="display:inline-flex;align-items:center;gap:4px;padding:6px 12px;background:var(--pp-surface3);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-textMuted);font-size:12px;font-weight:500;cursor:pointer;"
+                    title="Ohne Disposition zum naechsten Lead">
+                <svg style="width:14px;height:14px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8.689c0-.864.933-1.406 1.683-.977l7.108 4.061a1.125 1.125 0 010 1.954l-7.108 4.061A1.125 1.125 0 013 16.811V8.69zM12.75 8.689c0-.864.933-1.406 1.683-.977l7.108 4.061a1.125 1.125 0 010 1.954l-7.108 4.061a1.125 1.125 0 01-1.683-.977V8.69z"/></svg>
+                Weiter
+            </button>
+            {# Blacklist — Firma dauerhaft sperren #}
+            <button @click="if(confirm('Firma DAUERHAFT auf Blacklist setzen? Alle offenen Stellen dieser Firma werden gesperrt.')) { blacklistCompany() }"
+                    style="display:inline-flex;align-items:center;gap:4px;padding:6px 12px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:8px;color:var(--pp-red);font-size:12px;font-weight:600;cursor:pointer;"
+                    title="Firma auf Blacklist — nie wieder importieren">
+                <svg style="width:14px;height:14px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+                Blacklist
+            </button>
             {# Timer + Auflegen-Button #}
             <div x-show="callActive" style="display:flex;align-items:center;gap:6px;">
                 <span style="width:8px;height:8px;border-radius:50%;background:var(--pp-green);animation:pulse 1.5s infinite;"></span>

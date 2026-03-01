@@ -521,6 +521,10 @@ class AcquisitionImportService:
         if company is None:
             return "blacklisted"
 
+        # Defense-in-Depth: Firma mit acquisition_status blacklist → skippen
+        if company.acquisition_status == "blacklist":
+            return "blacklisted"
+
         # Pruefen ob Company vorher schon Jobs hatte (fuer Priority)
         # Nicht company.jobs nutzen (Lazy-Load crasht im Async-Kontext)
         # Stattdessen: Firma war schon in DB wenn sie im Cache war

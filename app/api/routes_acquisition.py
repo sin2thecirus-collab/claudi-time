@@ -62,6 +62,14 @@ class BatchStatusRequest(BaseModel):
     status: str
 
 
+class BulkDeleteRequest(BaseModel):
+    job_ids: list[uuid.UUID]
+
+
+class BulkBlacklistRequest(BaseModel):
+    job_ids: list[uuid.UUID]
+
+
 class QualifyRequest(BaseModel):
     qualification_data: dict | None = None
 
@@ -391,6 +399,97 @@ async def batch_update_status(
 
     await db.commit()
     return {"updated": updated}
+
+
+@router.post("/leads/{job_id}/blacklist")
+async def blacklist_lead(
+    job_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Blacklistet die Firma dieses Leads (D6-Cascade) ohne Call-Protokoll."""
+    from app.services.acquisition_call_service import AcquisitionCallService
+
+    now = datetime.now(timezone.utc)
+    job = await db.execute(
+        select(Job).where(Job.id == job_id).options(selectinload(Job.company))
+    )
+    job = job.scalar_one_or_none()
+    if not job:
+        raise HTTPException(404, "Lead nicht gefunden")
+
+    # Job selbst auf blacklist_hart
+    job.akquise_status = "blacklist_hart"
+    job.akquise_status_changed_at = now
+
+    # Cascade auf Firma + alle offenen Jobs
+    service = AcquisitionCallService(db)
+    cascaded = await service._blacklist_cascade(job, job.company, now)
+
+    await db.commit()
+    return {
+        "job_id": str(job_id),
+        "company_blacklisted": True,
+        "jobs_cascaded": cascaded,
+    }
+
+
+@router.post("/leads/bulk-delete")
+async def bulk_delete_leads(
+    body: BulkDeleteRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Soft-Delete: Mehrere Leads gleichzeitig als geloescht markieren."""
+    now = datetime.now(timezone.utc)
+    deleted = 0
+
+    for jid in body.job_ids:
+        job = await db.get(Job, jid)
+        if job and job.acquisition_source and job.deleted_at is None:
+            job.deleted_at = now
+            deleted += 1
+
+    await db.commit()
+    return {"deleted": deleted}
+
+
+@router.post("/leads/bulk-blacklist")
+async def bulk_blacklist_leads(
+    body: BulkBlacklistRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Blacklistet alle Firmen der ausgewaehlten Leads (D6-Cascade pro Firma)."""
+    from app.services.acquisition_call_service import AcquisitionCallService
+
+    service = AcquisitionCallService(db)
+    now = datetime.now(timezone.utc)
+
+    processed_companies: set = set()
+    total_cascaded = 0
+
+    for jid in body.job_ids:
+        result = await db.execute(
+            select(Job).where(Job.id == jid).options(selectinload(Job.company))
+        )
+        job = result.scalar_one_or_none()
+        if not job or not job.company_id:
+            continue
+        if job.company_id in processed_companies:
+            continue
+
+        # Job selbst auf blacklist_hart
+        job.akquise_status = "blacklist_hart"
+        job.akquise_status_changed_at = now
+
+        # Cascade
+        cascaded = await service._blacklist_cascade(job, job.company, now)
+        total_cascaded += cascaded
+        processed_companies.add(job.company_id)
+
+    await db.commit()
+    return {
+        "companies_blacklisted": len(processed_companies),
+        "jobs_cascaded": total_cascaded,
+    }
 
 
 # ── Call-Endpoints ──

@@ -127,6 +127,25 @@
         <div x-show="!loading" id="akquise-tab-inner"></div>
     </div>
 
+    {# ── Bulk-Action Bar (schwebt am unteren Rand wenn Jobs ausgewaehlt) ── #}
+    <div x-show="$store.bulkSelect && $store.bulkSelect.selected.length > 0" x-transition x-cloak
+         style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:12px;padding:10px 20px;display:flex;align-items:center;gap:14px;box-shadow:0 8px 30px rgba(0,0,0,0.4);z-index:80;">
+        <span style="font-size:13px;font-weight:600;color:var(--pp-text);"
+              x-text="$store.bulkSelect.selected.length + ' ausgewaehlt'"></span>
+        <button @click="bulkDeleteSelected()"
+                style="padding:6px 14px;background:var(--pp-surface3);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-textMuted);font-size:12px;font-weight:500;cursor:pointer;">
+            Loeschen
+        </button>
+        <button @click="bulkBlacklistSelected()"
+                style="padding:6px 14px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:8px;color:var(--pp-red);font-size:12px;font-weight:600;cursor:pointer;">
+            Blacklist
+        </button>
+        <button @click="$store.bulkSelect.clear()"
+                style="padding:6px 10px;background:none;border:none;color:var(--pp-textDim);font-size:12px;cursor:pointer;">
+            Abbrechen
+        </button>
+    </div>
+
     {# ── CSV-Import Modal ── #}
     <div x-show="showImport" x-cloak style="position:fixed;inset:0;z-index:150;">
         <div style="position:fixed;inset:0;background:rgba(0,0,0,0.6);" @click="showImport = false"></div>
@@ -531,6 +550,29 @@ function callScreen() {
                 if (typeof showToast === 'function') showToast('Netzwerkfehler', 'error');
             }
         },
+
+        async blacklistCompany() {
+            try {
+                const resp = await fetch('/api/akquise/leads/' + this.jobId + '/blacklist', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                });
+                if (resp.ok) {
+                    const result = await resp.json();
+                    if (typeof showToast === 'function') {
+                        showToast(this.companyName + ' auf Blacklist (' + result.jobs_cascaded + ' weitere Stellen gesperrt)', 'success');
+                    }
+                    setTimeout(() => {
+                        Alpine.$data(document.getElementById('akquise-root')).advanceToNextLead();
+                    }, 600);
+                } else {
+                    const err = await resp.json();
+                    if (typeof showToast === 'function') showToast(err.detail || 'Fehler', 'error');
+                }
+            } catch (e) {
+                if (typeof showToast === 'function') showToast('Netzwerkfehler', 'error');
+            }
+        },
     };
 }
 
@@ -611,6 +653,32 @@ function emailModal() {
         },
     };
 }
+
+{# ── Bulk-Select Store (ueberlebt HTMX-Swaps) ── #}
+document.addEventListener('alpine:init', () => {
+    Alpine.store('bulkSelect', {
+        selected: [],
+        toggle(jobId) {
+            const idx = this.selected.indexOf(jobId);
+            if (idx === -1) { this.selected.push(jobId); }
+            else { this.selected.splice(idx, 1); }
+        },
+        toggleCompany(jobIds) {
+            const allIn = jobIds.every(id => this.selected.includes(id));
+            if (allIn) {
+                this.selected = this.selected.filter(id => !jobIds.includes(id));
+            } else {
+                for (const id of jobIds) {
+                    if (!this.selected.includes(id)) this.selected.push(id);
+                }
+            }
+        },
+        allSelected(jobIds) {
+            return jobIds.length > 0 && jobIds.every(id => this.selected.includes(id));
+        },
+        clear() { this.selected = []; },
+    });
+});
 
 {# ── akquisePage() — Hauptseite Alpine-Komponente ── #}
 function akquisePage() {
@@ -825,6 +893,56 @@ function akquisePage() {
                     if (typeof showToast === 'function') showToast('Keine Leads zum Anrufen vorhanden', 'warning');
                 }
             });
+        },
+
+        async bulkDeleteSelected() {
+            const ids = Alpine.store('bulkSelect').selected;
+            if (!ids.length) return;
+            if (!confirm(ids.length + ' Lead' + (ids.length > 1 ? 's' : '') + ' loeschen?')) return;
+            try {
+                const resp = await fetch('/api/akquise/leads/bulk-delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ job_ids: ids }),
+                });
+                if (resp.ok) {
+                    const result = await resp.json();
+                    Alpine.store('bulkSelect').clear();
+                    this.loadTab(this.activeTab);
+                    fetch('/api/akquise/stats').then(r => r.json()).then(d => this.stats = d).catch(() => {});
+                    if (typeof showToast === 'function') showToast(result.deleted + ' Leads geloescht', 'success');
+                } else {
+                    const err = await resp.json();
+                    if (typeof showToast === 'function') showToast(err.detail || 'Fehler', 'error');
+                }
+            } catch (e) {
+                if (typeof showToast === 'function') showToast('Netzwerkfehler', 'error');
+            }
+        },
+
+        async bulkBlacklistSelected() {
+            const ids = Alpine.store('bulkSelect').selected;
+            if (!ids.length) return;
+            if (!confirm('Firmen von ' + ids.length + ' Lead' + (ids.length > 1 ? 's' : '') + ' DAUERHAFT auf Blacklist setzen?')) return;
+            try {
+                const resp = await fetch('/api/akquise/leads/bulk-blacklist', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ job_ids: ids }),
+                });
+                if (resp.ok) {
+                    const result = await resp.json();
+                    Alpine.store('bulkSelect').clear();
+                    this.loadTab(this.activeTab);
+                    fetch('/api/akquise/stats').then(r => r.json()).then(d => this.stats = d).catch(() => {});
+                    if (typeof showToast === 'function') showToast(result.companies_blacklisted + ' Firmen auf Blacklist (' + result.jobs_cascaded + ' Stellen gesperrt)', 'success');
+                } else {
+                    const err = await resp.json();
+                    if (typeof showToast === 'function') showToast(err.detail || 'Fehler', 'error');
+                }
+            } catch (e) {
+                if (typeof showToast === 'function') showToast('Netzwerkfehler', 'error');
+            }
         },
 
         async uploadCsv() {

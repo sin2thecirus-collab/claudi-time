@@ -2,12 +2,18 @@
 {# Erwartet: group = {company_name, city, company_status, company_id, jobs: [{id, position, akquise_status, akquise_priority, ...}]} #}
 
 {% set job_count = group.jobs | length %}
+{% set job_id_list = group.jobs | map(attribute='id') | map('string') | list %}
 
 <div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:10px;margin-bottom:10px;overflow:hidden;">
     {# Firmen-Header #}
     <div style="padding:12px 16px;background:var(--pp-bg);border-bottom:1px solid var(--pp-border);display:flex;align-items:center;justify-content:space-between;cursor:pointer;"
          onclick="var c=this.nextElementSibling;c.style.display=c.style.display==='none'?'block':'none';this.querySelector('.chevron').style.transform=c.style.display==='none'?'':'rotate(180deg)'">
         <div style="display:flex;align-items:center;gap:8px;">
+            {# Alle-auswaehlen Checkbox #}
+            <input type="checkbox"
+                   @click.stop="$store.bulkSelect.toggleCompany([{% for job in group.jobs %}'{{ job.id }}'{{ ',' if not loop.last }}{% endfor %}])"
+                   :checked="$store.bulkSelect && $store.bulkSelect.allSelected([{% for job in group.jobs %}'{{ job.id }}'{{ ',' if not loop.last }}{% endfor %}])"
+                   style="width:15px;height:15px;border-radius:3px;cursor:pointer;flex-shrink:0;accent-color:var(--pp-accent);">
             <span style="font-size:14px;font-weight:600;color:var(--pp-text);">{{ group.company_name }}</span>
             <span style="font-size:12px;color:var(--pp-textDim);">{{ group.city or '' }}</span>
             <span style="font-size:11px;color:var(--pp-textDim);">({{ job_count }} Stelle{{ 'n' if job_count > 1 else '' }})</span>
@@ -39,6 +45,11 @@
              onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='transparent'"
              onclick="Alpine.$data(document.getElementById('akquise-root')).openCallScreen('{{ job.id }}')">
             <div style="display:flex;align-items:center;gap:10px;">
+                {# Bulk-Select Checkbox #}
+                <input type="checkbox"
+                       :checked="$store.bulkSelect && $store.bulkSelect.selected.includes('{{ job.id }}')"
+                       @click.stop="$store.bulkSelect.toggle('{{ job.id }}')"
+                       style="width:15px;height:15px;border-radius:3px;cursor:pointer;flex-shrink:0;accent-color:var(--pp-accent);">
                 <span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;{{ status_colors.get(job.akquise_status, 'background:var(--pp-surface3);color:var(--pp-textDim);') }}">
                     {{ job.akquise_status or 'neu' }}
                 </span>

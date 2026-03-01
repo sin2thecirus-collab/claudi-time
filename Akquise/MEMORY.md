@@ -42,6 +42,84 @@
 | Webex Recording (Akquise-Kopie) | UEBERFLUESSIG | n8n w5LTbRw1bFSCIKNP — bestehender Workflow deckt Akquise bereits ab (call_type: "akquise") |
 | Unassigned-Calls Endpoints | DEPLOYED | 4 Endpoints: POST/GET/PATCH/DELETE /unassigned-calls |
 | Webex-Setup-Anleitung | ERSTELLT | Akquise/WEBEX-SETUP.md — Schritt-fuer-Schritt fuer Milad |
+| **Auto-Qualifizierung** | **DEPLOYED** | **Migration 034 + AKQUISE_17Q_PROMPT + TranscriptService + 2 Endpoints + Frontend UI + n8n-Anbindung + Checkbox-Merge (Commit a1d1065)** |
+| **Skip + Blacklist + Bulk** | **IMPLEMENTIERT** | **Skip-Button, Blacklist-Button im Call-Screen + Bulk-Checkboxen + Floating Action-Bar + 3 neue Endpoints + CSV-Import Blacklist-Fix** |
+
+---
+
+## Skip + Blacklist + Bulk-Aktionen (01.03.2026)
+
+### Was es tut
+- **Skip-Button** im Call-Screen: "Weiter" zum naechsten Lead ohne Disposition (kein API-Call)
+- **Blacklist-Button** im Call-Screen: Firma dauerhaft sperren mit confirm() → Cascade → advanceToNextLead
+- **Bulk-Checkboxen** in der Listen-Ansicht: Checkbox pro Job + "Alle auswaehlen" pro Firma
+- **Floating Action-Bar**: Erscheint wenn Jobs ausgewaehlt → Loeschen (soft delete) oder Blacklist (D6-Cascade)
+- **CSV-Import Blacklist-Fix**: Blacklisted Firmen werden bei neuen Importen automatisch uebersprungen
+
+### Geaenderte Dateien
+| Datei | Aenderung |
+|-------|-----------|
+| `app/api/routes_acquisition.py` | 3 neue Endpoints: POST /leads/{id}/blacklist, POST /leads/bulk-delete, POST /leads/bulk-blacklist + 2 Pydantic Models |
+| `app/services/acquisition_call_service.py` | +1 Zeile in _blacklist_cascade(): company.status = CompanyStatus.BLACKLIST |
+| `app/services/acquisition_import_service.py` | +3 Zeilen Defense-in-Depth: acquisition_status == "blacklist" Check |
+| `app/templates/akquise/akquise_page.html` | Alpine.store('bulkSelect') + blacklistCompany() + bulkDeleteSelected() + bulkBlacklistSelected() + Floating Action-Bar HTML |
+| `app/templates/partials/akquise/call_screen.html` | Skip + Blacklist Buttons in Top-Bar |
+| `app/templates/partials/akquise/company_group.html` | Checkboxen pro Job + pro Firma |
+
+### Architektur-Entscheidungen
+- **Alpine.store statt Component-State:** Bulk-Selection ueberlebt HTMX Tab-Swaps (Store persistiert, Component-State wird destroyed)
+- **@click.stop auf Checkboxen:** Verhindert dass openCallScreen() oder Toggle-Collapse getriggert wird
+- **Soft-Delete statt Hard-Delete:** job.deleted_at = now (alle Tab-Queries filtern bereits auf deleted_at IS NULL)
+- **CSV-Import Doppel-Schutz:** _blacklist_cascade() setzt BEIDE Felder (acquisition_status + company.status), Import-Service prueft BEIDE
+
+---
+
+## Auto-Qualifizierung aus Webex-Transkripten (01.03.2026)
+
+### Was es tut
+- Webex-Transkripte werden automatisch dem Akquise-Job zugeordnet
+- GPT extrahiert Antworten auf 17 Qualifizierungsfragen aus dem Gespraech
+- Ergebnisse erscheinen live unter den Checkboxen im Call-Screen (KI-Badge + Antwort-Text)
+- Manuell gesetzte Checkboxen werden NIE von KI ueberschrieben (additiver Merge)
+
+### Neue Dateien
+| Datei | Was |
+|-------|-----|
+| `migrations/versions/034_add_transcript_and_qualification_answers.py` | transcript + qualification_answers Felder |
+| `app/services/acquisition_transcript_service.py` | Phone-Lookup → Call-Match → GPT → JSONB-Merge → SSE |
+
+### Geaenderte Dateien
+| Datei | Aenderung |
+|-------|-----------|
+| `app/models/acquisition_call.py` | +4 Felder: transcript, call_summary, transcript_processed_at, webex_recording_id |
+| `app/models/job.py` | +2 Felder: qualification_answers (JSONB), qualification_updated_at |
+| `app/services/call_transcription_service.py` | +AKQUISE_17Q_PROMPT + extract_17_questions() Methode |
+| `app/api/routes_acquisition.py` | +POST /process-transcript + GET /leads/{id}/qualification |
+| `app/api/routes_n8n_webhooks.py` | _auto_assign_to_contact_or_company() ruft TranscriptService auf |
+| `app/services/acquisition_call_service.py` | Checkbox→qualification_answers Merge in record_call() |
+| `app/templates/akquise/akquise_page.html` | +qualiAnswers State, loadQualification(), SSE-Listener |
+| `app/templates/partials/akquise/call_screen.html` | KI-Badge, Checkbox+Antwort UI, Transkript-Panel |
+
+### API-Endpoints
+| Methode | Pfad | Zweck |
+|---------|------|-------|
+| POST | /api/akquise/process-transcript | n8n sendet Transkript, eigene DB-Sessions |
+| GET | /api/akquise/leads/{job_id}/qualification | Frontend holt Quali-Daten + Transkript |
+
+### JSONB-Schema (Job.qualification_answers)
+```json
+{
+  "budget": {"asked": true, "answer": "55.000-65.000 EUR", "source": "auto"},
+  "teamgroesse": {"asked": false, "answer": null, "source": null},
+  "stelle_offen": {"asked": true, "answer": "Ja, seit 3 Monaten offen", "source": "manual+auto"}
+}
+```
+
+### Merge-Logik
+- `source: "auto"` — KI-extrahiert aus Transkript
+- `source: "manual"` — Checkbox manuell geklickt
+- `source: "manual+auto"` — Manuell gesetzt + KI hat Antwort ergaenzt
+- Manuelle Antworten werden NIEMALS von KI ueberschrieben
 
 ---
 
@@ -113,6 +191,14 @@ Drei Bugs aus der Rundmail-Automatisierung gegen Akquise-Workflows geprueft:
 ### Security-Fixes (01.03.2026)
 1. **Signatur korrigiert:** `EMAIL_SIGNATURE` in acquisition_email_service.py — echte Kontaktdaten, kein "GmbH", konsistent mit bestehenden Signaturen
 2. **Tages-Limit Backend-Sperre:** `_check_daily_limit()` in acquisition_email_service.py — 20/Tag IONOS, 100/Tag M365, prueft VOR Versand (nicht nur Frontend)
+
+### Reparatur 6: Alpine/HTMX Timing-Bug — Architekturelle Loesung (01.03.2026) — FERTIG
+- **Commit:** 693e043 (gepusht auf main, Railway deployed)
+- **Problem:** HTMX innerHTML-Swap fuehrt `<script>` Tags nicht aus. Alpine's MutationObserver verbraucht Direktiven beim ersten Durchlauf — kein `destroyTree/initTree` kann sie nochmal binden.
+- **5 gescheiterte Ansaetze:** destroyTree+initTree, manual cleanup, deferMutations, mutateDom, createContextualFragment
+- **Loesung:** `callScreen()` + `emailModal()` Funktionen ins Parent-Page (akquise_page.html) verschoben. Jinja-Variablen via `<script type="application/json">` Daten-Bloecke an Partials uebergeben. Alle destroyTree/initTree Workarounds entfernt.
+- **Geaenderte Dateien:** akquise_page.html (~+250 Zeilen), call_screen.html (-195 Zeilen), email_modal.html (-76 Zeilen)
+- **Regel fuer Zukunft:** Alpine-Funktionsdefinitionen IMMER in Hauptseite, NIE in HTMX-Partials
 
 ### Phase 9: E2E-Testmodus (01.03.2026) — FERTIG
 - **Test-Helper:** `app/services/acquisition_test_helpers.py` — `is_test_mode()`, `get_test_email()`, `override_email_if_test()`
