@@ -88,6 +88,10 @@ class ManualLeadRequest(BaseModel):
     notes: str | None = None
 
 
+class ExtractLeadRequest(BaseModel):
+    text: str
+
+
 # ── Import-Endpoints ──
 
 @router.post("/import")
@@ -507,6 +511,97 @@ async def bulk_blacklist_leads(
 
 
 # ── Manual Lead Creation ──
+
+@router.post("/leads/extract")
+async def extract_lead_from_text(body: ExtractLeadRequest):
+    """Extrahiert Lead-Daten aus Freitext (E-Mail, Stellenanzeige etc.) via GPT."""
+    import json
+    import logging
+    import httpx
+    from app.config import settings
+
+    logger = logging.getLogger(__name__)
+
+    raw_text = body.text.strip()
+    if not raw_text or len(raw_text) < 10:
+        raise HTTPException(400, "Text zu kurz — bitte vollstaendigen Text einfuegen")
+
+    system_prompt = """Du bist ein Daten-Extraktor fuer ein Recruiting-CRM.
+Extrahiere aus dem folgenden Text alle relevanten Informationen fuer einen neuen Lead.
+
+Antworte IMMER als JSON mit genau diesen Feldern (leere Felder als null):
+{
+  "company_name": "Firmenname (PFLICHT)",
+  "position": "Jobtitel / gesuchte Position (PFLICHT)",
+  "city": "Stadt/Ort",
+  "postal_code": "PLZ",
+  "contact_salutation": "Herr oder Frau",
+  "contact_first_name": "Vorname des Ansprechpartners",
+  "contact_last_name": "Nachname des Ansprechpartners",
+  "contact_position": "Funktion/Rolle des Ansprechpartners (z.B. Personalleitung, GF)",
+  "contact_email": "E-Mail-Adresse",
+  "contact_phone": "Telefonnummer",
+  "notes": "Zusammenfassung / wichtige Details die nicht in andere Felder passen"
+}
+
+Regeln:
+- Extrahiere NUR was im Text steht, erfinde NICHTS
+- Wenn ein Feld nicht im Text vorkommt, setze null
+- Bei Telefonnummern: Originalformat beibehalten
+- Bei E-Mails aus Signaturen: vollstaendige Adresse extrahieren
+- "position" ist die ZU BESETZENDE Stelle, nicht die Funktion des Ansprechpartners
+- Wenn der Text eine E-Mail ist, extrahiere Absender-Infos als Ansprechpartner
+- Wenn mehrere Positionen erwaehnt werden, nimm die wichtigste/erste"""
+
+    user_prompt = f"Extrahiere die Lead-Daten aus diesem Text:\n\n{raw_text[:3000]}"
+
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {settings.openai_api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": "gpt-4o-mini",
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    "temperature": 0.1,
+                    "response_format": {"type": "json_object"},
+                },
+            )
+            response.raise_for_status()
+            data = response.json()
+            content = data["choices"][0]["message"]["content"]
+
+        parsed = json.loads(content)
+
+        # Sicherstellen dass Pflichtfelder vorhanden
+        result = {
+            "company_name": parsed.get("company_name") or "",
+            "position": parsed.get("position") or "",
+            "city": parsed.get("city"),
+            "postal_code": parsed.get("postal_code"),
+            "contact_salutation": parsed.get("contact_salutation"),
+            "contact_first_name": parsed.get("contact_first_name"),
+            "contact_last_name": parsed.get("contact_last_name"),
+            "contact_position": parsed.get("contact_position"),
+            "contact_email": parsed.get("contact_email"),
+            "contact_phone": parsed.get("contact_phone"),
+            "notes": parsed.get("notes"),
+        }
+        return result
+
+    except httpx.HTTPStatusError as e:
+        logger.error(f"OpenAI API Fehler bei Lead-Extraktion: {e.response.status_code}")
+        raise HTTPException(502, "KI-Extraktion fehlgeschlagen — bitte manuell ausfuellen")
+    except Exception as e:
+        logger.error(f"Lead-Extraktion fehlgeschlagen: {e}")
+        raise HTTPException(500, "Extraktion fehlgeschlagen — bitte manuell ausfuellen")
+
 
 @router.post("/leads/manual")
 async def create_manual_lead(
