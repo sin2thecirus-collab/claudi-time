@@ -42,10 +42,21 @@
             </span>
         </div>
         <div style="display:flex;align-items:center;gap:10px;">
-            {# Timer #}
+            {# Timer + Auflegen-Button #}
             <div x-show="callActive" style="display:flex;align-items:center;gap:6px;">
                 <span style="width:8px;height:8px;border-radius:50%;background:var(--pp-green);animation:pulse 1.5s infinite;"></span>
                 <span style="font-size:13px;font-weight:600;color:var(--pp-green);font-variant-numeric:tabular-nums;" x-text="callTimer"></span>
+                <button @click="stopCall()"
+                        style="margin-left:4px;display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:var(--pp-red);border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:600;cursor:pointer;"
+                        title="Anruf beenden">
+                    <svg style="width:12px;height:12px;" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    Auflegen
+                </button>
+            </div>
+            {# Gestoppte Dauer anzeigen (nach Auflegen, vor Disposition) #}
+            <div x-show="!callActive && callDuration > 0" style="display:flex;align-items:center;gap:6px;">
+                <span style="font-size:13px;font-weight:600;color:var(--pp-textMuted);font-variant-numeric:tabular-nums;" x-text="callTimer"></span>
+                <span style="font-size:10px;color:var(--pp-textDim);">beendet</span>
             </div>
             {# Anrufen Button #}
             {% if contacts and contacts | length > 0 %}

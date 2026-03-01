@@ -219,6 +219,7 @@ function callScreen() {
         callActive: false,
         callStartedAt: null,
         callTimer: '00:00',
+        callDuration: 0,
         timerInterval: null,
         notes: '',
         quali: {},
@@ -250,9 +251,12 @@ function callScreen() {
         },
 
         stopCall() {
-            this.callActive = false;
-            if (this.timerInterval) clearInterval(this.timerInterval);
-            return this.callStartedAt ? Math.floor((Date.now() - this.callStartedAt) / 1000) : 0;
+            if (this.callActive) {
+                this.callDuration = this.callStartedAt ? Math.floor((Date.now() - this.callStartedAt) / 1000) : 0;
+                this.callActive = false;
+                if (this.timerInterval) clearInterval(this.timerInterval);
+            }
+            return this.callDuration;
         },
 
         async submitDisposition(disposition) {
