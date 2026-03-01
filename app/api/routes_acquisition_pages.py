@@ -509,7 +509,10 @@ def _group_by_company(jobs: list) -> list[dict]:
             "akquise_status": job.akquise_status,
             "akquise_priority": job.akquise_priority,
             "city": job.city,
+            "postal_code": job.postal_code,
             "employment_type": job.employment_type,
+            "created_at": job.created_at,
+            "acquisition_source": job.acquisition_source,
             "first_seen_at": job.first_seen_at.isoformat() if job.first_seen_at else None,
         })
     return list(groups.values())
