@@ -96,32 +96,39 @@ Antwort als JSON:
 # ── GPT-Prompt fuer Kontaktdaten-E-Mail (Selbstpraesentation) ──
 KONTAKTDATEN_EMAIL_SYSTEM = """Du schreibst eine kurze, selbstbewusste E-Mail nach einem Telefonat. Der Kunde hat gesagt "Schicken Sie mir Ihre Kontaktdaten."
 
-TONFALL: Selbstbewusst, auf Augenhoehe. Du bist ein gefragter Spezialist, kein Bittsteller. Schreibe so, als wuerdest du einem Geschaeftspartner schreiben — nicht einem potenziellen Arbeitgeber. KURZ. DIREKT. KEIN Aufzaehlen wie ein Lebenslauf.
+TONFALL: Selbstbewusst, auf Augenhoehe — wie ein Fachmann der einem anderen Fachmann schreibt. KURZ. DIREKT.
 
 REGELN:
 - PLAIN-TEXT, kein HTML, KEINE Links/URLs
-- 100-130 Woerter (KURZ! Das ist keine Bewerbung)
+- 80-110 Woerter (KURZ!)
 - IMMER SIEZEN
 - Anrede: Uebergebene Anrede (Herr/Frau) nutzen. Bei nicht eindeutigen Vornamen: "Guten Tag [Vorname Nachname]"
 
-BRANCHE: Lies den Stellentext und erkenne die ECHTE Branche der Firma (DB-Feld kann falsch sein). Erwaehne die Branche wenn passend, aber NICHT als "auch in der XY-Branche" — das klingt nach Prahlerei.
-
 TEXT-AUFBAU (3 kurze Absaetze, NICHT mehr):
-1. Danke fuer das Telefonat + "wie besprochen meine Kontaktdaten"
-2. WER ICH BIN (2-3 Saetze, NICHT mehr): Seit 6 Jahren auf Finance-Positionen spezialisiert (FiBu, BiBu, Lohn, Controlling, StFA). Finanz-Studium — verstehe die Positionen fachlich. Arbeite mit CFOs und Leitern Rechnungswesen.
-3. WAS SIE BEKOMMEN (1-2 Saetze): Keine Massenprofile — jeder Kandidat wird vorher persoenlich qualifiziert. Gehalt, Kuendigungsfrist und Fachkenntnisse klaere ich im Vorfeld.
 
-ABSCHLUSS: "Melden Sie sich gerne, wenn Bedarf besteht." + "Mit freundlichen Gruessen" OHNE Signatur
+1. EINSTIEG (1 Satz): Danke fuer das Gespraech + "hier wie besprochen meine Kontaktdaten"
+
+2. VORSTELLUNG (3-4 Saetze, das ist der Kern):
+   - "Ich komme selbst aus dem Finanzbereich — BWL-Studium mit Schwerpunkt Finance — und bin vor sechs Jahren in die Personalberatung gewechselt."
+   - "Seitdem vermittle ich ausschliesslich Fach- und Fuehrungskraefte im Rechnungswesen und Controlling, vom Mittelstand bis zum Konzern."
+   - DANN der entscheidende Satz (DAS ist die Alleinstellung, variiere die Formulierung leicht aber behalte den Kern):
+     "Der Vorteil fuer Sie: Wenn ich mit einem Kandidaten spreche, erkenne ich fachlich, ob jemand wirklich auf dem Niveau arbeitet, das Sie brauchen — nicht erst im Vorstellungsgespraech bei Ihnen."
+   - Dieser Satz MUSS sinngemäss in jeder Mail vorkommen. Er darf leicht variiert werden, aber die Kernaussage bleibt: ICH erkenne fachlich ob ein Kandidat passt, BEVOR er beim Kunden sitzt.
+
+3. ABSCHLUSS (1 Satz): "Wenn eine Position zu besetzen ist, melden Sie sich gerne." + "Mit freundlichen Gruessen" OHNE Signatur
 
 VERBOTEN:
-- Aufzaehlungen wie ein Lebenslauf (NICHT 7 Bullet-Points ueber sich selbst)
-- Unterwuerfig klingen ("ich wuerde mich freuen wenn", "sollte der ideale Kandidat nicht verfuegbar sein")
-- "Erfolgreiche Vermittlungen", "zahlreiche", "langjaerig" — zeig es statt es zu sagen
+- "Ich qualifiziere Kandidaten vor" / "vorqualifiziert" — das sagt JEDER Personalberater
+- "Massenprofile" / "keine Massenprofile" — klingt nach Werbung
+- Aufzaehlungen (Bullet-Points, Lebenslauf-Stil)
+- Unterwuerfig ("ich wuerde mich freuen", "bei Interesse")
+- "Erfolgreiche Vermittlungen", "zahlreiche", "langjaerig"
+- Gehalt/Kuendigungsfrist/Rahmenbedingungen erwaehnen — das ist selbstverstaendlich, nicht besonders
 - Links, URLs
-- Mehr als 130 Woerter
+- Mehr als 110 Woerter
 """
 
-KONTAKTDATEN_EMAIL_USER = """Erstelle eine kurze Vorstellungs-E-Mail nach Telefonat:
+KONTAKTDATEN_EMAIL_USER = """Erstelle eine Kontaktdaten-E-Mail nach Telefonat:
 
 **Firma:** {company_name}
 **Branche laut Datenbank:** {industry} (ACHTUNG: kann falsch/ungenau sein — lies den Stellentext!)
@@ -130,14 +137,11 @@ KONTAKTDATEN_EMAIL_USER = """Erstelle eine kurze Vorstellungs-E-Mail nach Telefo
 **Stellentext (lies genau — hieraus erkennst du die ECHTE Branche):**
 {job_text_excerpt}
 
-AUFGABE:
-1. Lies den Stellentext und erkenne was die Firma WIRKLICH macht
-2. Schreibe 3 kurze Absaetze (100-130 Woerter GESAMT), selbstbewusst, auf Augenhoehe
-3. KEIN Lebenslauf-Aufzaehlen, KEINE unterwuerfige Sprache
+AUFGABE: Schreibe die E-Mail EXAKT nach dem System-Prompt. Der Kern-Satz ueber die fachliche Einschaetzung von Kandidaten MUSS vorkommen (leicht variiert ist ok). 80-110 Woerter.
 
 Erstelle:
-1. E-Mail-Betreff (max 60 Zeichen, z.B. "Kontaktdaten — Personalberatung Finance")
-2. E-Mail-Text (Plain-Text, 100-130 Woerter, selbstbewusster Geschaeftston)
+1. E-Mail-Betreff (max 60 Zeichen, sachlich)
+2. E-Mail-Text (Plain-Text, 80-110 Woerter)
 
 Antwort als JSON:
 {{"subject": "...", "body": "..."}}
