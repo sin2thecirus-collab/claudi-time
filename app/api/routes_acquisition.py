@@ -4,7 +4,7 @@ Prefix: /api/akquise (registriert in main.py)
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -72,6 +72,20 @@ class BulkBlacklistRequest(BaseModel):
 
 class QualifyRequest(BaseModel):
     qualification_data: dict | None = None
+
+
+class ManualLeadRequest(BaseModel):
+    company_name: str
+    position: str
+    city: str | None = None
+    postal_code: str | None = None
+    contact_salutation: str | None = None
+    contact_first_name: str | None = None
+    contact_last_name: str | None = None
+    contact_position: str | None = None
+    contact_email: str | None = None
+    contact_phone: str | None = None
+    notes: str | None = None
 
 
 # ── Import-Endpoints ──
@@ -489,6 +503,98 @@ async def bulk_blacklist_leads(
     return {
         "companies_blacklisted": len(processed_companies),
         "jobs_cascaded": total_cascaded,
+    }
+
+
+# ── Manual Lead Creation ──
+
+@router.post("/leads/manual")
+async def create_manual_lead(
+    body: ManualLeadRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Einzelnen Lead manuell anlegen (ohne CSV-Import).
+
+    Erstellt Company (oder nutzt bestehende), optionalen Ansprechpartner und Job.
+    Der Job landet mit akquise_status='neu' im Akquise-Workflow.
+    """
+    import re
+    from app.services.company_service import CompanyService
+
+    now = datetime.now(timezone.utc)
+    company_service = CompanyService(db)
+
+    # 1. Company finden oder erstellen (Blacklist-Check inbegriffen)
+    company = await company_service.get_or_create_by_name(
+        body.company_name,
+        city=body.city,
+    )
+    if company is None:
+        raise HTTPException(
+            409,
+            f"Firma '{body.company_name}' ist auf der Blacklist und kann nicht hinzugefuegt werden.",
+        )
+
+    # 2. Ansprechpartner erstellen (wenn Name angegeben)
+    contact_id = None
+    if body.contact_first_name or body.contact_last_name:
+        # Phone normalisieren (gleiche Logik wie import_service)
+        phone_normalized = None
+        raw_phone = body.contact_phone
+        if raw_phone and raw_phone.strip():
+            phone = re.sub(r"[^0-9+]", "", raw_phone.strip())
+            if phone:
+                if phone.startswith("0") and not phone.startswith("00"):
+                    phone = "+49" + phone[1:]
+                elif phone.startswith("00"):
+                    phone = "+" + phone[2:]
+                elif not phone.startswith("+"):
+                    phone = "+49" + phone
+                phone_normalized = phone[:20]
+
+        contact = await company_service.get_or_create_contact(
+            company_id=company.id,
+            first_name=body.contact_first_name,
+            last_name=body.contact_last_name,
+            salutation=body.contact_salutation,
+            position=body.contact_position,
+            email=body.contact_email,
+            phone=body.contact_phone,
+            phone_normalized=phone_normalized,
+            source="manual",
+            contact_role="firma",
+        )
+        contact_id = str(contact.id)
+
+    # 3. Job erstellen
+    job = Job(
+        company_id=company.id,
+        company_name=company.name,
+        position=body.position.strip(),
+        city=body.city.strip() if body.city else company.city,
+        postal_code=body.postal_code.strip() if body.postal_code else None,
+        acquisition_source="manual",
+        akquise_status="neu",
+        akquise_status_changed_at=now,
+        akquise_priority=5,  # Mittlere Prioritaet fuer manuelle Leads
+        first_seen_at=now,
+        last_seen_at=now,
+        expires_at=now + timedelta(days=90),  # 90 Tage (laenger als CSV)
+    )
+    if body.notes:
+        job.job_text = body.notes.strip()
+    db.add(job)
+    await db.flush()
+
+    await db.commit()
+    return {
+        "job_id": str(job.id),
+        "company_id": str(company.id),
+        "contact_id": contact_id,
+        "company_name": company.name,
+        "position": job.position,
+        "status": "neu",
+        "message": "Lead erfolgreich erstellt",
     }
 
 

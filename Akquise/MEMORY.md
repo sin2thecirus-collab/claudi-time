@@ -44,6 +44,7 @@
 | Webex-Setup-Anleitung | ERSTELLT | Akquise/WEBEX-SETUP.md — Schritt-fuer-Schritt fuer Milad |
 | **Auto-Qualifizierung** | **DEPLOYED** | **Migration 034 + AKQUISE_17Q_PROMPT + TranscriptService + 2 Endpoints + Frontend UI + n8n-Anbindung + Checkbox-Merge (Commit a1d1065)** |
 | **Skip + Blacklist + Bulk** | **IMPLEMENTIERT** | **Skip-Button, Blacklist-Button im Call-Screen + Bulk-Checkboxen + Floating Action-Bar + 3 neue Endpoints + CSV-Import Blacklist-Fix** |
+| **Manuelles Lead-Anlegen** | **IMPLEMENTIERT** | **"Lead anlegen" Button + Modal-Formular + POST /leads/manual Endpoint — fuer E-Mail-Marketing-Antworten** |
 
 ---
 
@@ -71,6 +72,35 @@
 - **@click.stop auf Checkboxen:** Verhindert dass openCallScreen() oder Toggle-Collapse getriggert wird
 - **Soft-Delete statt Hard-Delete:** job.deleted_at = now (alle Tab-Queries filtern bereits auf deleted_at IS NULL)
 - **CSV-Import Doppel-Schutz:** _blacklist_cascade() setzt BEIDE Felder (acquisition_status + company.status), Import-Service prueft BEIDE
+
+---
+
+## Manuelles Lead-Anlegen (01.03.2026)
+
+### Use-Case
+- E-Mail-Marketing-Antworten: Firma meldet sich zurueck und will ueber Besetzung sprechen
+- Einzelne Leads ohne CSV-Import hinzufuegen
+- Lead geht sofort in den vollen Akquise-Workflow (Call-Screen → Webex → Auto-Qualifizierung → Dispositionen)
+
+### Was es tut
+- **"Lead anlegen" Button** im Header neben CSV-Import
+- **Modal-Formular** mit: Firma (Name + Stadt), Stelle (Position + PLZ), Ansprechpartner (Anrede/Vor-/Nachname/Tel/E-Mail/Funktion), Notizen
+- **Backend Endpoint:** POST /api/akquise/leads/manual
+  - Company: get_or_create_by_name() (Multi-Standort-Support, Blacklist-Check)
+  - Contact: get_or_create_contact() mit Phone-Normalisierung (E.164)
+  - Job: acquisition_source="manual", akquise_status="neu", akquise_priority=5, expires_at=90 Tage
+
+### Geaenderte Dateien
+| Datei | Aenderung |
+|-------|-----------|
+| `app/api/routes_acquisition.py` | +ManualLeadRequest Pydantic Model + POST /leads/manual Endpoint |
+| `app/templates/akquise/akquise_page.html` | +"Lead anlegen" Button + Modal HTML + Alpine-State (ml*-Variablen) + createManualLead() Methode |
+
+### Architektur-Entscheidungen
+- **Gleiche Company/Contact-Logik wie CSV-Import:** Nutzt CompanyService.get_or_create_by_name() und get_or_create_contact() — Duplikat-Erkennung, Multi-Standort, Blacklist-Schutz gratis
+- **acquisition_source="manual":** Unterscheidbar von CSV-Imports ("advertsdata")
+- **90 Tage statt 30 Tage:** Manuelle Leads haben laengere Laufzeit (bewusster angelegt als Massen-Import)
+- **Prioritaet 5 (mittel):** Manuelle Leads sind weder Top-Prio noch unwichtig
 
 ---
 

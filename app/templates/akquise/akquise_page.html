@@ -33,6 +33,12 @@
                     <svg style="width:14px;height:14px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
                 </button>
             </div>
+            <button @click="showManualLead = true"
+                    style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;font-weight:500;cursor:pointer;transition:all .1s;"
+                    onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='var(--pp-surface)'">
+                <svg style="width:16px;height:16px;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                Lead anlegen
+            </button>
             <button @click="showImport = true"
                     style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;font-weight:500;cursor:pointer;transition:all .1s;"
                     onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='var(--pp-surface)'">
@@ -201,6 +207,119 @@
                             :style="uploading ? 'opacity:0.5;cursor:not-allowed;' : ''">
                         <span x-show="!uploading" x-text="previewOnly ? 'Vorschau' : 'Importieren'"></span>
                         <span x-show="uploading">Wird verarbeitet...</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {# ── Manual Lead Modal ── #}
+    <div x-show="showManualLead" x-cloak style="position:fixed;inset:0;z-index:150;">
+        <div style="position:fixed;inset:0;background:rgba(0,0,0,0.6);" @click="showManualLead = false"></div>
+        <div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:14px;width:520px;max-width:90vw;max-height:85vh;overflow:auto;z-index:151;box-shadow:0 20px 60px rgba(0,0,0,0.5);">
+            <div style="padding:20px 24px;border-bottom:1px solid var(--pp-border);display:flex;align-items:center;justify-content:space-between;">
+                <h3 style="font-size:16px;font-weight:600;color:var(--pp-text);margin:0;">Lead manuell anlegen</h3>
+                <button @click="showManualLead = false" style="background:none;border:none;color:var(--pp-textDim);cursor:pointer;font-size:18px;">&times;</button>
+            </div>
+            <form @submit.prevent="createManualLead()" style="padding:20px 24px;">
+                {# Firma #}
+                <p style="font-size:12px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.5px;margin:0 0 10px;">Firma</p>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+                    <div>
+                        <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">Firmenname *</label>
+                        <input type="text" x-model="mlCompanyName" required placeholder="z.B. Mustermann GmbH"
+                               style="width:100%;padding:8px 12px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">Stadt</label>
+                        <input type="text" x-model="mlCity" placeholder="z.B. Hamburg"
+                               style="width:100%;padding:8px 12px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;box-sizing:border-box;">
+                    </div>
+                </div>
+
+                {# Stelle #}
+                <p style="font-size:12px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.5px;margin:0 0 10px;">Stelle</p>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+                    <div>
+                        <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">Position / Jobtitel *</label>
+                        <input type="text" x-model="mlPosition" required placeholder="z.B. Bilanzbuchhalter"
+                               style="width:100%;padding:8px 12px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">PLZ</label>
+                        <input type="text" x-model="mlPostalCode" placeholder="z.B. 20095"
+                               style="width:100%;padding:8px 12px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;box-sizing:border-box;">
+                    </div>
+                </div>
+
+                {# Ansprechpartner #}
+                <p style="font-size:12px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.5px;margin:0 0 10px;">Ansprechpartner</p>
+                <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:10px;margin-bottom:10px;">
+                    <div>
+                        <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">Anrede</label>
+                        <select x-model="mlSalutation"
+                                style="padding:8px 10px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;">
+                            <option value="">—</option>
+                            <option value="Herr">Herr</option>
+                            <option value="Frau">Frau</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">Vorname</label>
+                        <input type="text" x-model="mlFirstName" placeholder="Vorname"
+                               style="width:100%;padding:8px 12px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">Nachname</label>
+                        <input type="text" x-model="mlLastName" placeholder="Nachname"
+                               style="width:100%;padding:8px 12px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;box-sizing:border-box;">
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+                    <div>
+                        <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">Telefon</label>
+                        <input type="tel" x-model="mlPhone" placeholder="z.B. 040 123456"
+                               style="width:100%;padding:8px 12px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">E-Mail</label>
+                        <input type="email" x-model="mlEmail" placeholder="name@firma.de"
+                               style="width:100%;padding:8px 12px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;box-sizing:border-box;">
+                    </div>
+                </div>
+                <div>
+                    <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">Funktion / Position</label>
+                    <input type="text" x-model="mlContactPosition" placeholder="z.B. Personalleitung"
+                           style="width:100%;padding:8px 12px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;box-sizing:border-box;">
+                </div>
+
+                {# Notizen #}
+                <div style="margin-top:14px;">
+                    <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">Notizen</label>
+                    <textarea x-model="mlNotes" rows="3" placeholder="Wie kam der Kontakt zustande? Hintergrund..."
+                              style="width:100%;padding:8px 12px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;resize:vertical;box-sizing:border-box;"></textarea>
+                </div>
+
+                {# Ergebnis #}
+                <div x-show="mlResult" style="margin-top:14px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;padding:12px;">
+                    <template x-if="mlResult && mlResult.job_id">
+                        <p style="color:var(--pp-green);font-size:13px;margin:0;font-weight:500;" x-text="'Lead erstellt: ' + mlResult.company_name + ' — ' + mlResult.position"></p>
+                    </template>
+                    <template x-if="mlResult && mlResult.error">
+                        <p style="color:var(--pp-red);font-size:13px;margin:0;" x-text="mlResult.error"></p>
+                    </template>
+                </div>
+
+                <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px;">
+                    <button type="button" @click="showManualLead = false"
+                            style="padding:8px 16px;background:var(--pp-surface3);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-textMuted);font-size:13px;font-weight:500;cursor:pointer;">
+                        Abbrechen
+                    </button>
+                    <button type="submit" :disabled="mlSaving"
+                            style="padding:8px 16px;background:var(--pp-accent);border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;opacity:1;"
+                            :style="mlSaving ? 'opacity:0.5;cursor:not-allowed;' : ''">
+                        <span x-show="!mlSaving">Lead anlegen</span>
+                        <span x-show="mlSaving">Wird erstellt...</span>
                     </button>
                 </div>
             </form>
@@ -698,6 +817,20 @@ function akquisePage() {
         rueckrufVisible: false,
         rueckrufPhone: '',
         currentLeadId: null,
+        showManualLead: false,
+        mlCompanyName: '',
+        mlCity: '',
+        mlPosition: '',
+        mlPostalCode: '',
+        mlSalutation: '',
+        mlFirstName: '',
+        mlLastName: '',
+        mlPhone: '',
+        mlEmail: '',
+        mlContactPosition: '',
+        mlNotes: '',
+        mlSaving: false,
+        mlResult: null,
 
         init() {
             fetch('/api/akquise/stats').then(r => r.json()).then(d => this.stats = d).catch(() => {});
@@ -943,6 +1076,62 @@ function akquisePage() {
             } catch (e) {
                 if (typeof showToast === 'function') showToast('Netzwerkfehler', 'error');
             }
+        },
+
+        async createManualLead() {
+            if (!this.mlCompanyName.trim() || !this.mlPosition.trim()) {
+                if (typeof showToast === 'function') showToast('Firmenname und Position sind Pflicht', 'warning');
+                return;
+            }
+            this.mlSaving = true;
+            this.mlResult = null;
+            try {
+                const resp = await fetch('/api/akquise/leads/manual', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        company_name: this.mlCompanyName.trim(),
+                        position: this.mlPosition.trim(),
+                        city: this.mlCity.trim() || null,
+                        postal_code: this.mlPostalCode.trim() || null,
+                        contact_salutation: this.mlSalutation || null,
+                        contact_first_name: this.mlFirstName.trim() || null,
+                        contact_last_name: this.mlLastName.trim() || null,
+                        contact_position: this.mlContactPosition.trim() || null,
+                        contact_email: this.mlEmail.trim() || null,
+                        contact_phone: this.mlPhone.trim() || null,
+                        notes: this.mlNotes.trim() || null,
+                    }),
+                });
+                if (resp.ok) {
+                    const data = await resp.json();
+                    this.mlResult = data;
+                    if (typeof showToast === 'function') showToast('Lead erstellt: ' + data.company_name + ' — ' + data.position, 'success');
+                    // Reset form
+                    this.mlCompanyName = '';
+                    this.mlCity = '';
+                    this.mlPosition = '';
+                    this.mlPostalCode = '';
+                    this.mlSalutation = '';
+                    this.mlFirstName = '';
+                    this.mlLastName = '';
+                    this.mlPhone = '';
+                    this.mlEmail = '';
+                    this.mlContactPosition = '';
+                    this.mlNotes = '';
+                    // Refresh
+                    this.loadTab(this.activeTab);
+                    fetch('/api/akquise/stats').then(r => r.json()).then(d => this.stats = d).catch(() => {});
+                    // Modal nach 1.5s schliessen
+                    setTimeout(() => { this.showManualLead = false; this.mlResult = null; }, 1500);
+                } else {
+                    const err = await resp.json();
+                    this.mlResult = { error: err.detail || 'Fehler beim Erstellen' };
+                }
+            } catch (e) {
+                this.mlResult = { error: 'Netzwerkfehler' };
+            }
+            this.mlSaving = false;
         },
 
         async uploadCsv() {
