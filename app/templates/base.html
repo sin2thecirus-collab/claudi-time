@@ -50,35 +50,42 @@
     <!-- Alpine.js -->
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
-    <!-- Inter Font -->
+    <!-- Fonts: Outfit (primary) + Space Mono (mono) + Inter (fallback) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
         :root {
-            --pp-bg: #09090B;
-            --pp-surface: #131316;
-            --pp-surfaceHover: #1A1A1F;
-            --pp-surface3: #222228;
-            --pp-border: #27272A;
-            --pp-borderLight: #1F1F23;
-            --pp-text: #FAFAFA;
-            --pp-textMuted: #A1A1AA;
-            --pp-textDim: #71717A;
-            --pp-text4: #52525B;
-            --pp-accent: #3B82F6;
-            --pp-accentSoft: rgba(59,130,246,0.10);
-            --pp-accentGlow: rgba(59,130,246,0.25);
-            --pp-green: #22C55E;
-            --pp-greenSoft: rgba(34,197,94,0.08);
-            --pp-orange: #EAB308;
-            --pp-orangeSoft: rgba(234,179,8,0.08);
-            --pp-red: #EF4444;
-            --pp-redSoft: rgba(239,68,68,0.08);
+            /* ══ AURORA DESIGN SYSTEM v7 ══ */
+            /* Deep space with blue undertones */
+            --pp-bg: #06070b;
+            --pp-surface: #0e1019;
+            --pp-surfaceHover: #171b28;
+            --pp-surface3: #1e2235;
+            --pp-border: rgba(255,255,255,0.10);
+            --pp-borderLight: rgba(255,255,255,0.05);
+            /* High-contrast text */
+            --pp-text: #F8FAFC;
+            --pp-textMuted: #94A3B8;
+            --pp-textDim: #64748B;
+            --pp-text4: #475569;
+            /* Electric blue accent */
+            --pp-accent: #60A5FA;
+            --pp-accentSoft: rgba(96,165,250,0.12);
+            --pp-accentGlow: rgba(96,165,250,0.25);
+            /* Vivid status colors */
+            --pp-green: #34D399;
+            --pp-greenSoft: rgba(52,211,153,0.10);
+            --pp-orange: #FBBF24;
+            --pp-orangeSoft: rgba(251,191,36,0.10);
+            --pp-red: #F87171;
+            --pp-redSoft: rgba(248,113,113,0.10);
             --pp-purple: #A78BFA;
             --pp-purpleSoft: rgba(167,139,250,0.12);
-            --pp-ff: 'Inter', -apple-system, system-ui, sans-serif;
+            /* Outfit font family */
+            --pp-ff: 'Outfit', 'Inter', -apple-system, system-ui, sans-serif;
+            --pp-mono: 'Space Mono', 'JetBrains Mono', monospace;
         }
 
         * { box-sizing: border-box; }
@@ -86,6 +93,8 @@
 
         html {
             overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
 
         body {
@@ -93,11 +102,60 @@
             color: var(--pp-text);
             font-family: var(--pp-ff);
             font-size: 14px;
-            line-height: 1.5;
+            line-height: 1.6;
             margin: 0;
             padding: 0;
             zoom: 1.15;
             overflow-x: hidden;
+        }
+
+        /* ══ AURORA BACKGROUND — Animated gradient mesh ══ */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            background:
+                radial-gradient(ellipse 80% 60% at 10% 20%, rgba(96,165,250,0.06) 0%, transparent 60%),
+                radial-gradient(ellipse 60% 80% at 85% 70%, rgba(167,139,250,0.05) 0%, transparent 55%),
+                radial-gradient(ellipse 50% 40% at 50% 100%, rgba(20,184,166,0.03) 0%, transparent 50%);
+            animation: auroraShift 20s ease-in-out infinite alternate;
+        }
+        @keyframes auroraShift {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.7; }
+        }
+
+        /* ══ GRAIN OVERLAY — Subtle texture ══ */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 9998;
+            opacity: 0.018;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+            background-repeat: repeat;
+            background-size: 200px;
+        }
+
+        /* ══ GLASS CARD ENHANCEMENT ══ */
+        /* Any card-like surfaces get glass effect */
+        .bg-white, [style*="background:var(--pp-surface)"], [style*="background: var(--pp-surface)"] {
+            backdrop-filter: blur(12px) saturate(1.2) !important;
+            -webkit-backdrop-filter: blur(12px) saturate(1.2) !important;
+        }
+
+        /* ══ TEXTAREA AUTO-GROW — for Qualifizierung fields ══ */
+        textarea {
+            min-height: 72px !important;
+            resize: vertical !important;
+            field-sizing: content;
+        }
+        textarea:focus {
+            min-height: 120px !important;
         }
 
         /* Responsive Zoom: kleinere Screens bekommen weniger Zoom */
@@ -141,10 +199,20 @@
         /* Dark Inputs */
         select option { background: var(--pp-surface); color: var(--pp-text); }
 
-        /* Nav link active */
-        .pp-nav-item { padding: 5px 10px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--pp-textDim); background: transparent; text-decoration: none; display: inline-flex; align-items: center; transition: all 0.1s; border: none; white-space: nowrap; font-family: var(--pp-ff); }
-        .pp-nav-item:hover { color: var(--pp-textMuted); background: var(--pp-surfaceHover); }
-        .pp-nav-item.active { color: var(--pp-text); }
+        /* Nav link active — Aurora style */
+        .pp-nav-item { padding: 5px 10px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--pp-textDim); background: transparent; text-decoration: none; display: inline-flex; align-items: center; transition: all 0.15s ease; border: none; white-space: nowrap; font-family: var(--pp-ff); position: relative; }
+        .pp-nav-item:hover { color: var(--pp-textMuted); background: rgba(255,255,255,0.04); }
+        .pp-nav-item.active { color: var(--pp-accent); }
+        .pp-nav-item.active::after {
+            content: '';
+            position: absolute;
+            bottom: -9px;
+            left: 8px; right: 8px;
+            height: 2px;
+            background: linear-gradient(90deg, #60A5FA, #A78BFA);
+            border-radius: 2px;
+            box-shadow: 0 0 8px rgba(96,165,250,0.3);
+        }
 
         /* ═══════════════════════════════════════════════════ */
         /* ═══ GLOBAL DARK THEME — Tailwind Overrides ═══ */
@@ -208,11 +276,11 @@
             border-color: var(--pp-borderLight) !important;
         }
 
-        /* Shadows — darker for dark theme */
-        .shadow-sm { box-shadow: 0 1px 3px rgba(0,0,0,0.3) !important; }
-        .shadow { box-shadow: 0 2px 6px rgba(0,0,0,0.3) !important; }
-        .shadow-lg { box-shadow: 0 8px 30px rgba(0,0,0,0.35) !important; }
-        .shadow-xl { box-shadow: 0 12px 40px rgba(0,0,0,0.4) !important; }
+        /* Shadows — Aurora layered depth */
+        .shadow-sm { box-shadow: 0 1px 3px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.03) !important; }
+        .shadow { box-shadow: 0 2px 8px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.03) !important; }
+        .shadow-lg { box-shadow: 0 4px 16px rgba(0,0,0,0.3), 0 8px 32px rgba(0,0,0,0.2), 0 0 0 1px rgba(255,255,255,0.04) !important; }
+        .shadow-xl { box-shadow: 0 8px 24px rgba(0,0,0,0.3), 0 16px 48px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.04) !important; }
 
         /* Primary button overrides */
         .bg-primary-600 { background: var(--pp-accent) !important; }
@@ -626,6 +694,62 @@
 
         /* Fieldset spacing inherits fine */
         #quickadd-content fieldset { border: none; padding: 0; }
+
+        /* ══ AURORA NAV ENHANCEMENTS ══ */
+        /* Glass navigation bar */
+        body > nav {
+            background: rgba(6,7,11,0.82) !important;
+            backdrop-filter: blur(16px) saturate(1.5) !important;
+            -webkit-backdrop-filter: blur(16px) saturate(1.5) !important;
+            border-bottom-color: rgba(255,255,255,0.06) !important;
+        }
+
+        /* Monospace font for numbers/IDs/scores */
+        [style*="font-family:monospace"],
+        [style*="font-family: monospace"],
+        .font-mono,
+        code {
+            font-family: var(--pp-mono) !important;
+        }
+
+        /* ══ AURORA CARD ENHANCEMENTS ══ */
+        /* Subtle top-light effect on surfaces */
+        .rounded-lg, .rounded-xl, .rounded-md {
+            position: relative;
+        }
+
+        /* Modal backdrop — frosted glass */
+        .bg-gray-500.bg-opacity-75,
+        .bg-black\/50,
+        [style*="background:rgba(0,0,0"] {
+            backdrop-filter: blur(8px) saturate(1.3) !important;
+            -webkit-backdrop-filter: blur(8px) saturate(1.3) !important;
+        }
+
+        /* Focus ring — aurora glow */
+        input:focus, textarea:focus, select:focus {
+            border-color: var(--pp-accent) !important;
+            box-shadow: 0 0 0 3px rgba(96,165,250,0.15), 0 0 16px rgba(96,165,250,0.08) !important;
+        }
+
+        /* Scrollbar — glass style */
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.08) !important;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255,255,255,0.14) !important;
+        }
+
+        /* Toast notifications — glass */
+        .toast-enter {
+            backdrop-filter: blur(12px) !important;
+        }
+
+        /* Prevent content from being under aurora pseudo-elements */
+        body > * {
+            position: relative;
+            z-index: 1;
+        }
     </style>
 
     {% block head %}{% endblock %}
