@@ -376,6 +376,8 @@ class AcquisitionEmailService:
             if delay_minutes > 0:
                 email.status = "scheduled"
                 email.scheduled_send_at = datetime.now(timezone.utc) + timedelta(minutes=delay_minutes)
+                # Job-Status automatisch auf "email_gesendet" setzen
+                await self._update_job_status_on_email(email.job_id)
                 await self.db.commit()
                 logger.info(
                     f"E-Mail {email_id} geplant fuer {email.scheduled_send_at} "
@@ -430,6 +432,8 @@ class AcquisitionEmailService:
                 email.status = "sent"
                 email.sent_at = datetime.now(timezone.utc)
                 email.graph_message_id = result.get("message_id")
+                # Job-Status automatisch auf "email_gesendet" setzen
+                await self._update_job_status_on_email(email.job_id)
                 await self.db.commit()
                 return {
                     "success": True,
@@ -457,6 +461,25 @@ class AcquisitionEmailService:
                 "graph_message_id": None,
                 "scheduled": False,
             }
+
+    async def _update_job_status_on_email(self, job_id: uuid.UUID | None) -> None:
+        """Setzt akquise_status auf 'email_gesendet' wenn der aktuelle Status es erlaubt.
+
+        Wird automatisch aufgerufen wenn eine E-Mail gesendet oder geplant wird.
+        Nur bei fruehen Status ('offen', 'kontaktiert') — hoeherwertiger Status
+        (wiedervorlage, qualifiziert, stelle_erstellt) wird NICHT ueberschrieben.
+        """
+        if not job_id:
+            return
+        job = await self.db.get(Job, job_id)
+        if not job:
+            return
+        # Nur bei Status der niedriger ist als "email_gesendet"
+        upgradeable = {"offen", "kontaktiert", None, ""}
+        if job.akquise_status in upgradeable:
+            job.akquise_status = "email_gesendet"
+            job.akquise_status_changed_at = datetime.now(timezone.utc)
+            logger.info(f"Job {job_id}: akquise_status -> email_gesendet (durch E-Mail-Versand)")
 
     async def _get_email_delay_minutes(self) -> int:
         """Liest den E-Mail-Delay aus system_settings (Default: 120 Min = 2h)."""

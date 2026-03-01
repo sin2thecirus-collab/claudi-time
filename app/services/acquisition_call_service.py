@@ -247,11 +247,11 @@ class AcquisitionCallService:
                 raise ValueError("Wiedervorlage-Datum ist Pflicht bei interesse_spaeter")
             return "wiedervorlage", [f"Wiedervorlage am {follow_up_date.strftime('%d.%m.%Y %H:%M')}"], follow_up_date
 
-        # D8: will_infos → E-Mail generieren
+        # D8: will_infos — Kunde will Infos (Status-Aenderung passiert beim E-Mail-Versand)
         if disposition == "will_infos":
             follow_3d = now + timedelta(days=3)
-            actions.append("E-Mail-Draft wird generiert (2h Delay)")
-            return "email_gesendet", actions, follow_3d
+            actions.append("Kunde will Infos — bitte E-Mail ueber die E-Mail-Buttons senden")
+            return "kontaktiert", actions, follow_3d
 
         # D9: qualifiziert_erst
         if disposition == "qualifiziert_erst":

@@ -55,9 +55,10 @@
                 style="padding:6px 8px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:11px;cursor:pointer;text-align:left;transition:all .1s;">
             D7 Interesse — spaeter
         </button>
-        <button @click="Alpine.$data(document.getElementById('akquise-root')).openEmailModal(jobId, contactId); if(typeof showToast === 'function') showToast('E-Mail-Typ waehlen und Draft pruefen', 'info')"
+        <button @click="submitDisposition('will_infos')"
+                :style="selectedDisposition === 'will_infos' ? 'background:var(--pp-green);color:#fff;border-color:var(--pp-green);' : ''"
                 style="padding:6px 8px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:11px;cursor:pointer;text-align:left;transition:all .1s;">
-            D8 Will Infos (E-Mail)
+            D8 Will Infos
         </button>
         <button @click="showFollowUp = true; pendingDisposition = 'qualifiziert_erst'"
                 :style="selectedDisposition === 'qualifiziert_erst' ? 'background:var(--pp-green);color:#fff;border-color:var(--pp-green);' : ''"
