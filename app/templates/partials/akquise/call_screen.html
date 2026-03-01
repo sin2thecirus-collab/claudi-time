@@ -226,7 +226,39 @@
                 {% include 'partials/akquise/new_contact_form.html' %}
             </div>
 
-            {# Qualifizierungsfragen #}
+            {# KI-Badge (wenn Qualifizierungsdaten vorhanden) #}
+            <template x-if="qualiLoaded && Object.keys(qualiAnswers).length > 0">
+                <div style="display:flex;align-items:center;gap:8px;margin:16px 0 8px;padding:8px 12px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);border-radius:8px;">
+                    <span style="font-size:14px;">&#129302;</span>
+                    <span style="font-size:11px;font-weight:600;color:#10b981;">KI-Qualifizierung</span>
+                    <span style="font-size:10px;color:var(--pp-textDim);"
+                          x-text="Object.values(qualiAnswers).filter(a => a && a.answer).length + '/' + Object.keys(qualiAnswers).length + ' beantwortet'"></span>
+                    <template x-if="qualiTranscript">
+                        <button @click="showTranscript = !showTranscript"
+                                style="margin-left:auto;padding:2px 8px;background:var(--pp-surface3);border:1px solid var(--pp-border);border-radius:4px;color:var(--pp-textMuted);font-size:10px;cursor:pointer;"
+                                x-text="showTranscript ? 'Transkript verbergen' : 'Transkript anzeigen'">
+                        </button>
+                    </template>
+                </div>
+            </template>
+
+            {# Transkript-Panel (aufklappbar) #}
+            <template x-if="showTranscript && qualiTranscript">
+                <div style="margin-bottom:12px;padding:10px 12px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:8px;max-height:200px;overflow-y:auto;">
+                    <template x-if="qualiTranscript.summary">
+                        <div style="margin-bottom:8px;">
+                            <span style="font-size:10px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;">Zusammenfassung</span>
+                            <p style="font-size:12px;color:var(--pp-textMuted);margin:4px 0 0;line-height:1.5;" x-text="qualiTranscript.summary"></p>
+                        </div>
+                    </template>
+                    <div>
+                        <span style="font-size:10px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;">Transkript</span>
+                        <p style="font-size:11px;color:var(--pp-textDim);margin:4px 0 0;line-height:1.5;white-space:pre-wrap;" x-text="qualiTranscript.text"></p>
+                    </div>
+                </div>
+            </template>
+
+            {# Qualifizierungsfragen (Erstkontakt) #}
             <h4 style="font-size:12px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.5px;margin:20px 0 10px;">Qualifizierung (Erstkontakt)</h4>
             {% set fragen = [
                 ("stelle_offen", "Stelle noch offen?"),
@@ -236,10 +268,19 @@
                 ("profile_senden", "Darf ich passende Profile senden?"),
             ] %}
             {% for key, label in fragen %}
-            <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;">
-                <input type="checkbox" :checked="quali['{{ key }}']" @change="quali['{{ key }}'] = $event.target.checked"
-                       style="width:15px;height:15px;margin-top:2px;border-radius:3px;cursor:pointer;flex-shrink:0;">
-                <span style="font-size:12px;color:var(--pp-textMuted);">{{ label }}</span>
+            <div style="margin-bottom:10px;">
+                <div style="display:flex;align-items:flex-start;gap:8px;">
+                    <input type="checkbox" :checked="quali['{{ key }}']" @change="quali['{{ key }}'] = $event.target.checked"
+                           style="width:15px;height:15px;margin-top:2px;border-radius:3px;cursor:pointer;flex-shrink:0;">
+                    <span style="font-size:12px;color:var(--pp-textMuted);">{{ label }}</span>
+                </div>
+                <template x-if="qualiAnswers['{{ key }}'] && qualiAnswers['{{ key }}'].answer">
+                    <div style="margin-left:23px;margin-top:3px;padding:4px 8px;background:rgba(16,185,129,0.06);border-left:2px solid #10b981;border-radius:0 4px 4px 0;">
+                        <span style="font-size:11px;color:var(--pp-textMuted);line-height:1.4;" x-text="qualiAnswers['{{ key }}'].answer"></span>
+                        <span style="font-size:9px;color:var(--pp-textDim);margin-left:4px;"
+                              x-text="(qualiAnswers['{{ key }}'].source === 'auto' ? '(KI)' : qualiAnswers['{{ key }}'].source === 'manual+auto' ? '(Manuell+KI)' : '')"></span>
+                    </div>
+                </template>
             </div>
             {% endfor %}
 
@@ -259,10 +300,19 @@
                 ("englisch", "Englisch noetig? Wie eingesetzt?"),
             ] %}
             {% for key, label in fragen2 %}
-            <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;">
-                <input type="checkbox" :checked="quali['{{ key }}']" @change="quali['{{ key }}'] = $event.target.checked"
-                       style="width:15px;height:15px;margin-top:2px;border-radius:3px;cursor:pointer;flex-shrink:0;">
-                <span style="font-size:12px;color:var(--pp-textMuted);">{{ label }}</span>
+            <div style="margin-bottom:10px;">
+                <div style="display:flex;align-items:flex-start;gap:8px;">
+                    <input type="checkbox" :checked="quali['{{ key }}']" @change="quali['{{ key }}'] = $event.target.checked"
+                           style="width:15px;height:15px;margin-top:2px;border-radius:3px;cursor:pointer;flex-shrink:0;">
+                    <span style="font-size:12px;color:var(--pp-textMuted);">{{ label }}</span>
+                </div>
+                <template x-if="qualiAnswers['{{ key }}'] && qualiAnswers['{{ key }}'].answer">
+                    <div style="margin-left:23px;margin-top:3px;padding:4px 8px;background:rgba(16,185,129,0.06);border-left:2px solid #10b981;border-radius:0 4px 4px 0;">
+                        <span style="font-size:11px;color:var(--pp-textMuted);line-height:1.4;" x-text="qualiAnswers['{{ key }}'].answer"></span>
+                        <span style="font-size:9px;color:var(--pp-textDim);margin-left:4px;"
+                              x-text="(qualiAnswers['{{ key }}'].source === 'auto' ? '(KI)' : qualiAnswers['{{ key }}'].source === 'manual+auto' ? '(Manuell+KI)' : '')"></span>
+                    </div>
+                </template>
             </div>
             {% endfor %}
 

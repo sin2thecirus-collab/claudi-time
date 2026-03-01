@@ -240,6 +240,10 @@ function callScreen() {
         timerInterval: null,
         notes: '',
         quali: {},
+        qualiAnswers: {},
+        qualiLoaded: false,
+        qualiTranscript: null,
+        showTranscript: false,
         selectedDisposition: null,
         showFollowUp: false,
         pendingDisposition: '',
@@ -261,6 +265,25 @@ function callScreen() {
         init() {
             const saved = localStorage.getItem('akquise_notes_' + this.jobId);
             if (saved) this.notes = saved;
+            this.loadQualification();
+        },
+
+        async loadQualification() {
+            try {
+                const resp = await fetch('/api/akquise/leads/' + this.jobId + '/qualification');
+                if (resp.ok) {
+                    const data = await resp.json();
+                    this.qualiAnswers = data.qualification_answers || {};
+                    this.qualiTranscript = data.transcript || null;
+                    this.qualiLoaded = true;
+                    // Checkboxen aus qualiAnswers vorbelegen
+                    for (const [key, val] of Object.entries(this.qualiAnswers)) {
+                        if (val && val.asked) this.quali[key] = true;
+                    }
+                }
+            } catch (e) {
+                console.warn('Qualification laden fehlgeschlagen:', e);
+            }
         },
 
         startCall() {
@@ -626,6 +649,25 @@ function akquisePage() {
                     self._handleIncomingCall(data);
                 } catch (err) {
                     console.error('SSE parse error:', err);
+                }
+            });
+
+            es.addEventListener('qualification_extracted', function(e) {
+                try {
+                    const data = JSON.parse(e.data);
+                    // Wenn der Call-Screen fuer diesen Job offen ist → Qualifizierung neu laden
+                    const csEl = document.querySelector('[x-data="callScreen()"]');
+                    if (csEl) {
+                        const cs = Alpine.$data(csEl);
+                        if (cs && cs.jobId === data.job_id) {
+                            cs.loadQualification();
+                            if (typeof showToast === 'function') {
+                                showToast('KI-Qualifizierung: ' + data.questions_answered + '/' + data.questions_total + ' Fragen extrahiert', 'success');
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.error('SSE qualification parse error:', err);
                 }
             });
 

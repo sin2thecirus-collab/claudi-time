@@ -1968,6 +1968,28 @@ async def _auto_assign_to_contact_or_company(
             f"fuer {company_name} (staging_id={staging_id})"
         )
 
+        # ── ZUSAETZLICH: Transcript auf Akquise-Job verknuepfen + 17-Fragen extrahieren ──
+        # Nutzt eigene DB-Sessions (Railway 30s Timeout sicher!)
+        if data.transcript and data.phone_number:
+            try:
+                from app.services.acquisition_transcript_service import process_transcript as _process_transcript
+                transcript_result = await _process_transcript(
+                    phone_number=data.phone_number,
+                    transcript=data.transcript,
+                    call_summary=ki_summary,
+                    duration_seconds=data.duration_seconds,
+                    webex_recording_id=data.webex_recording_id,
+                )
+                if transcript_result.get("success"):
+                    logger.info(
+                        f"Transcript verknuepft: Job={transcript_result.get('job_id')}, "
+                        f"Quali={transcript_result.get('questions_answered', 0)}/17"
+                    )
+                else:
+                    logger.info(f"Transcript-Verknuepfung nicht moeglich: {transcript_result.get('error')}")
+            except Exception as e:
+                logger.warning(f"Transcript-Verarbeitung Fehler (nicht kritisch): {e}")
+
     return {
         "success": True,
         "call_note_id": str(call_note.id),

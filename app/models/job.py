@@ -89,6 +89,10 @@ class Job(Base):
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     import_batch_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
 
+    # Qualifizierung (aus Webex-Transkripten extrahiert)
+    qualification_answers: Mapped[dict | None] = mapped_column(JobJSONB)
+    qualification_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
     # Duplikaterkennung
     content_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
 

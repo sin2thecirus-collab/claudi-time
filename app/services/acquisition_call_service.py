@@ -169,6 +169,25 @@ class AcquisitionCallService:
                 actions.append(f"WARNUNG: ATS-Konvertierung fehlgeschlagen: {str(e)}")
                 # Bei Fehler: Call trotzdem speichern, Status normal weitersetzen
 
+        # ── Checkbox → qualification_answers Merge (manuell) ──
+        if qualification_data and isinstance(qualification_data, dict):
+            existing_qa = job.qualification_answers or {}
+            for key, checked in qualification_data.items():
+                if checked:  # Checkbox ist angeklickt
+                    if key not in existing_qa:
+                        existing_qa[key] = {"asked": True, "answer": None, "source": "manual"}
+                    elif existing_qa[key].get("source") == "auto":
+                        existing_qa[key]["source"] = "manual+auto"
+                    else:
+                        existing_qa[key]["asked"] = True
+                elif key in existing_qa and existing_qa[key].get("source") == "manual" and not existing_qa[key].get("answer"):
+                    # Checkbox abgehakt die vorher manuell gesetzt war und keine KI-Antwort hat → entfernen
+                    del existing_qa[key]
+            if existing_qa:
+                job.qualification_answers = existing_qa
+                job.qualification_updated_at = now
+                actions.append("Qualifizierung aktualisiert")
+
         # Status aktualisieren (mit State-Machine-Validierung)
         if new_status and new_status != job.akquise_status:
             self._validate_transition(job.akquise_status, new_status)

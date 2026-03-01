@@ -697,6 +697,14 @@ class IncomingCallEvent(BaseModel):
     caller_name: str | None = None
 
 
+class ProcessTranscriptRequest(BaseModel):
+    phone_number: str
+    transcript: str
+    call_summary: str | None = None
+    duration_seconds: int | None = None
+    webex_recording_id: str | None = None
+
+
 class ProcessReplyRequest(BaseModel):
     from_email: str  # Wer hat geantwortet
     to_email: str  # An welches Postfach
@@ -1622,3 +1630,90 @@ async def delete_unassigned_call(
     await db.commit()
 
     return {"deleted": True, "id": str(call_id)}
+
+
+# ── Transcript / Qualifizierung (Webex → GPT → Job) ──
+
+
+@router.post("/process-transcript")
+async def process_transcript(body: ProcessTranscriptRequest):
+    """Transkript verarbeiten: Phone-Lookup → AcquisitionCall → GPT 17-Fragen → Job.
+
+    Wird von n8n oder direkt aufgerufen. Nutzt EIGENE DB-Sessions
+    (Railway 30s Timeout!), deshalb kein Depends(get_db).
+    """
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        from app.services.acquisition_transcript_service import process_transcript as _process
+    except ImportError as e:
+        logger.exception(f"Import-Fehler: {e}")
+        raise HTTPException(500, f"Import-Fehler: {e}")
+
+    result = await _process(
+        phone_number=body.phone_number,
+        transcript=body.transcript,
+        call_summary=body.call_summary,
+        duration_seconds=body.duration_seconds,
+        webex_recording_id=body.webex_recording_id,
+    )
+
+    if not result.get("success"):
+        return JSONResponse(status_code=404, content=result)
+
+    return result
+
+
+@router.get("/leads/{job_id}/qualification")
+async def get_qualification(
+    job_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Qualifizierungsdaten + letztes Transkript fuer einen Akquise-Job holen.
+
+    Frontend nutzt das fuer die Checkbox+Antwort-Anzeige im Call-Screen.
+    """
+    result = await db.execute(
+        select(
+            Job.qualification_answers,
+            Job.qualification_updated_at,
+            Job.position,
+        ).where(Job.id == job_id)
+    )
+    job_row = result.fetchone()
+    if not job_row:
+        raise HTTPException(404, "Job nicht gefunden")
+
+    # Neuestes Transkript fuer diesen Job holen
+    transcript_result = await db.execute(
+        select(
+            AcquisitionCall.id,
+            AcquisitionCall.transcript,
+            AcquisitionCall.call_summary,
+            AcquisitionCall.transcript_processed_at,
+            AcquisitionCall.created_at,
+        )
+        .where(
+            AcquisitionCall.job_id == job_id,
+            AcquisitionCall.transcript.isnot(None),
+        )
+        .order_by(AcquisitionCall.created_at.desc())
+        .limit(1)
+    )
+    transcript_row = transcript_result.fetchone()
+
+    return {
+        "job_id": str(job_id),
+        "position": job_row[2],
+        "qualification_answers": job_row[0] or {},
+        "qualification_updated_at": job_row[1].isoformat() if job_row[1] else None,
+        "transcript": {
+            "call_id": str(transcript_row[0]),
+            "text": transcript_row[1],
+            "summary": transcript_row[2],
+            "processed_at": transcript_row[3].isoformat() if transcript_row[3] else None,
+            "call_date": transcript_row[4].isoformat() if transcript_row[4] else None,
+        } if transcript_row else None,
+    }

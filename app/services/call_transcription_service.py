@@ -184,6 +184,68 @@ Antworte IMMER als JSON:
 }"""
 
 
+# ── Akquise: 17 Qualifizierungsfragen aus Gespraech extrahieren ──
+AKQUISE_17Q_PROMPT = """Du bist ein Recruiting-Assistent. Du analysierst ein Akquise-Gespraech zwischen einem Personalberater und einem Kunden (Unternehmen) ueber eine offene Stelle.
+
+Extrahiere die Antworten auf genau diese 17 Qualifizierungsfragen:
+
+ERSTKONTAKT (5 Fragen):
+1. stelle_offen — "Ist die Stelle noch offen / aktuell?"
+2. besetzung_vorgehen — "Wie besetzen Sie die Stelle aktuell? Eigene Suche, Headhunter, Stellenboerse?"
+3. herausforderung — "Was ist die groesste Herausforderung bei der Besetzung?"
+4. timeline — "Bis wann soll die Stelle besetzt sein?"
+5. profile_senden — "Darf ich Ihnen passende Profile/Kandidaten zusenden?"
+
+ZWEITKONTAKT (12 Fragen):
+6. budget — "Welches Budget/Gehaltsspanne ist vorgesehen?"
+7. teamgroesse — "Wie gross ist das Team? Wie ist es aufgebaut?"
+8. home_office — "Gibt es Home-Office-Moeglichkeiten? Wie viele Tage?"
+9. arbeitszeiten — "Wie sind die Arbeitszeiten? Gleitzeit? Kernzeiten?"
+10. ueberstunden — "Wie wird mit Ueberstunden umgegangen?"
+11. software — "Welche Software wird eingesetzt (DATEV, SAP, etc.)?"
+12. software_erfahrung — "Wie wichtig ist Erfahrung mit dieser Software?"
+13. aeltere_kandidaten — "Sind auch aeltere Kandidaten (50+) willkommen?"
+14. vakanzgrund — "Warum ist die Position vakant? Nachfolge, Wachstum, Elternzeit?"
+15. bewerbungsprozess — "Wie sieht der Bewerbungsprozess aus? Wie viele Runden?"
+16. entscheider — "Wer trifft die finale Entscheidung?"
+17. englisch — "Sind Englischkenntnisse noetig? Wofuer genau?"
+
+REGELN:
+- Extrahiere NUR was explizit im Gespraech gesagt wird. Erfinde NICHTS.
+- Wenn eine Frage NICHT besprochen wurde: asked=false, answer=null
+- Wenn eine Frage angesprochen wurde aber keine konkrete Antwort: asked=true, answer="Keine konkrete Antwort"
+- Zahlen (Gehalt, Tage, Teamgroesse) als lesbare Strings mit Einheit: "55.000-65.000 EUR", "2 Tage/Woche", "5 Personen"
+
+Antworte NUR als JSON mit genau diesen 17 Schluesseln:
+{
+  "stelle_offen": {"asked": bool, "answer": string|null},
+  "besetzung_vorgehen": {"asked": bool, "answer": string|null},
+  "herausforderung": {"asked": bool, "answer": string|null},
+  "timeline": {"asked": bool, "answer": string|null},
+  "profile_senden": {"asked": bool, "answer": string|null},
+  "budget": {"asked": bool, "answer": string|null},
+  "teamgroesse": {"asked": bool, "answer": string|null},
+  "home_office": {"asked": bool, "answer": string|null},
+  "arbeitszeiten": {"asked": bool, "answer": string|null},
+  "ueberstunden": {"asked": bool, "answer": string|null},
+  "software": {"asked": bool, "answer": string|null},
+  "software_erfahrung": {"asked": bool, "answer": string|null},
+  "aeltere_kandidaten": {"asked": bool, "answer": string|null},
+  "vakanzgrund": {"asked": bool, "answer": string|null},
+  "bewerbungsprozess": {"asked": bool, "answer": string|null},
+  "entscheider": {"asked": bool, "answer": string|null},
+  "englisch": {"asked": bool, "answer": string|null}
+}"""
+
+# Gueltige Fragen-Keys (fuer Validierung)
+_VALID_17Q_KEYS = {
+    "stelle_offen", "besetzung_vorgehen", "herausforderung", "timeline", "profile_senden",
+    "budget", "teamgroesse", "home_office", "arbeitszeiten", "ueberstunden",
+    "software", "software_erfahrung", "aeltere_kandidaten", "vakanzgrund",
+    "bewerbungsprozess", "entscheider", "englisch",
+}
+
+
 class CallTranscriptionService:
     """Transkribiert Audio-Dateien und extrahiert strukturierte Daten."""
 
@@ -594,6 +656,66 @@ class CallTranscriptionService:
             updated.append("notice_period")
 
         return updated
+
+    # ────────────────────────────────────────────────────
+    # Akquise 17-Fragen-Extraktion
+    # ────────────────────────────────────────────────────
+
+    async def extract_17_questions(
+        self,
+        transcript: str,
+        contact_name: str = "Unbekannt",
+        company_name: str = "Unbekannt",
+        job_position: str = "Unbekannt",
+    ) -> dict:
+        """Extrahiert Antworten auf die 17 Akquise-Qualifizierungsfragen aus einem Transkript.
+
+        Returns:
+            Dict mit: success, qualification_answers (17 Keys), cost_usd
+        """
+        if not self.api_key:
+            return {"success": False, "error": "OpenAI API-Key nicht konfiguriert"}
+
+        context = (
+            f"Ansprechpartner: {contact_name}\n"
+            f"Unternehmen: {company_name}\n"
+            f"Stelle: {job_position}"
+        )
+        user_message = f"KONTEXT:\n{context}\n\nTRANSKRIPTION DES GESPRÄCHS:\n{transcript}"
+
+        result = await self._call_gpt(AKQUISE_17Q_PROMPT, user_message, max_tokens=2000)
+        if not result:
+            return {"success": False, "error": "GPT-Extraktion fehlgeschlagen"}
+
+        parsed, cost = result
+
+        # Validieren: nur gueltige Keys behalten, Format normalisieren
+        validated = {}
+        for key in _VALID_17Q_KEYS:
+            val = parsed.get(key)
+            if isinstance(val, dict):
+                validated[key] = {
+                    "asked": bool(val.get("asked", False)),
+                    "answer": str(val["answer"]).strip() if val.get("answer") else None,
+                    "source": "auto",
+                }
+            else:
+                validated[key] = {"asked": False, "answer": None, "source": None}
+
+        questions_answered = sum(1 for v in validated.values() if v.get("answer"))
+
+        logger.info(
+            f"17-Fragen-Extraktion: {questions_answered}/17 beantwortet "
+            f"fuer {company_name} ({job_position}), Kosten=${cost:.4f}"
+        )
+
+        return {
+            "success": True,
+            "qualification_answers": validated,
+            "questions_answered": questions_answered,
+            "questions_total": 17,
+            "cost_usd": round(cost, 4),
+        }
 
     # ────────────────────────────────────────────────────
     # Kontakt-Call Verarbeitung (Akquise/Vertrieb)

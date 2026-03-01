@@ -43,6 +43,12 @@ class AcquisitionCall(Base):
     notes: Mapped[str | None] = mapped_column(Text)
     duration_seconds: Mapped[int | None] = mapped_column(Integer)
 
+    # Transkript (von Webex Recording via n8n + Whisper)
+    transcript: Mapped[str | None] = mapped_column(Text)
+    call_summary: Mapped[str | None] = mapped_column(Text)
+    transcript_processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    webex_recording_id: Mapped[str | None] = mapped_column(String(255))
+
     # Aufzeichnung
     recording_consent: Mapped[bool] = mapped_column(
         Boolean, server_default=text("false"), nullable=False,
