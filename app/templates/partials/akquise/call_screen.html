@@ -324,10 +324,16 @@
 
             {# E-Mail senden #}
             {% if contacts and contacts | length > 0 and contacts[0].email %}
-            <button @click="Alpine.$data(document.getElementById('akquise-root')).openEmailModal('{{ job.id }}', contactId)"
-                    style="width:100%;margin-top:12px;padding:8px;background:var(--pp-accentSoft);border:1px solid rgba(59,130,246,0.3);border-radius:8px;color:var(--pp-accent);font-size:12px;font-weight:600;cursor:pointer;text-align:center;">
-                E-Mail senden
-            </button>
+            <div style="display:flex;gap:8px;margin-top:12px;">
+                <button @click="Alpine.$data(document.getElementById('akquise-root')).openEmailModal('{{ job.id }}', contactId)"
+                        style="flex:1;padding:8px;background:var(--pp-accentSoft);border:1px solid rgba(59,130,246,0.3);border-radius:8px;color:var(--pp-accent);font-size:12px;font-weight:600;cursor:pointer;text-align:center;">
+                    Kandidaten-Pitch
+                </button>
+                <button @click="Alpine.$data(document.getElementById('akquise-root')).openEmailModal('{{ job.id }}', contactId, 'kontaktdaten')"
+                        style="flex:1;padding:8px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:8px;color:var(--pp-green);font-size:12px;font-weight:600;cursor:pointer;text-align:center;">
+                    Kontaktdaten senden
+                </button>
+            </div>
             {% endif %}
 
             {# Zurueck / Weiter Buttons #}

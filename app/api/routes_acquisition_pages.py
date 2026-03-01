@@ -310,6 +310,7 @@ async def email_modal_partial(
     job_id: uuid.UUID,
     request: Request,
     contact_id: uuid.UUID | None = Query(None),
+    email_type: str = Query("initial"),
     db: AsyncSession = Depends(get_db),
 ):
     """HTMX-Partial: E-Mail-Modal mit Mailbox-Dropdown."""
@@ -373,6 +374,11 @@ async def email_modal_partial(
         mb["sent_today"] = sent_counts.get(mb["email"], 0)
         mb["remaining"] = mb["daily_limit"] - mb["sent_today"]
 
+    # email_type validieren
+    valid_types = ("initial", "kontaktdaten", "follow_up", "break_up", "kontaktdaten_followup")
+    if email_type not in valid_types:
+        email_type = "initial"
+
     return templates.TemplateResponse(
         "partials/akquise/email_modal.html",
         {
@@ -381,6 +387,7 @@ async def email_modal_partial(
             "contacts": contacts,
             "mailboxes": mailboxes,
             "draft": None,
+            "default_email_type": email_type,
         },
     )
 

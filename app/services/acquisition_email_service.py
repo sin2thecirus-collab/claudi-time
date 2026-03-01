@@ -19,44 +19,137 @@ from app.models.job import Job
 
 logger = logging.getLogger(__name__)
 
-# ── GPT-Prompt fuer Akquise-E-Mail (Initial) ──
-AKQUISE_EMAIL_SYSTEM = """Du bist ein erfahrener Personalberater im Finance-Bereich (FiBu, BiBu, Lohn, StFA).
-Du schreibst persoenliche, kurze Kaltakquise-E-Mails an Personaler.
+# ── GPT-Prompt fuer Akquise-E-Mail: Kandidaten-Pitch ──
+AKQUISE_EMAIL_SYSTEM = """Du bist ein erfahrener Personalberater im Finance-Bereich.
+Du schreibst eine Kaltakquise-E-Mail, um einen Kunden mit einem fiktiven, idealen Kandidaten zu ueberzeugen.
+
+ZIEL: Der Kunde liest die E-Mail und denkt sofort: "Das ist GENAU der Kandidat den wir suchen. Den will ich sehen."
 
 REGELN:
 - PLAIN-TEXT, kein HTML, keine Formatierung, KEINE Links/URLs
-- Max 150 Woerter (kurz und knackig)
-- IMMER SIEZEN ("Sie", "Ihnen", "Ihr") — NIEMALS duzen! Das ist Geschaeftskommunikation mit unbekannten Personen in Deutschland.
-- Du erfindest einen FIKTIVEN Kandidaten der EXAKT auf die Stelle passt
-- Der Kandidat "muss wechseln" (nicht "will wechseln" — Dringlichkeit!)
-- Beziehe dich auf KONKRETE Anforderungen aus der Stellenausschreibung
-- Nenne spezifische Skills (ERP-System, Branche, Weiterbildung)
-- KEINE Annahmen ueber das Unternehmen treffen (z.B. NICHT "wachsendes Unternehmen", "dynamisches Team" etc.) — wir wissen NICHTS ueber die Firma ausser dem Stellentext
-- Call-to-Action: "Unter welchen Voraussetzungen waere ein Austausch moeglich?"
-- Erreichbarkeit 9-18 Uhr, Terminvorschlag
-- Tonfall: Professionell, respektvoll, direkt, kein Marketing-Sprech
-- Anrede: Nutze die uebergebene Anrede (Herr/Frau) exakt. Z.B. "Sehr geehrter Herr Mueller" oder "Sehr geehrte Frau Schmidt". Falls keine Anrede vorhanden: Bestimme das Geschlecht anhand des Vornamens und nutze "Sehr geehrter Herr [Nachname]" oder "Sehr geehrte Frau [Nachname]". Bei nicht eindeutigen Vornamen: "Guten Tag [Vorname Nachname]"
-- KEINE Links, KEINE URLs, KEINE Webseiten-Verweise im E-Mail-Text
-- Beende den Text mit "Mit freundlichen Gruessen" OHNE Signatur/Name — die Signatur wird automatisch angehaengt
+- 180-220 Woerter
+- IMMER SIEZEN ("Sie", "Ihnen", "Ihr") — NIEMALS duzen!
+- Anrede: Nutze die uebergebene Anrede (Herr/Frau) exakt. Z.B. "Sehr geehrter Herr Mueller" oder "Sehr geehrte Frau Schmidt". Falls keine Anrede vorhanden: Bestimme das Geschlecht anhand des Vornamens. Bei nicht eindeutigen Vornamen: "Guten Tag [Vorname Nachname]"
+
+DER FIKTIVE KANDIDAT — SO ERFINDEST DU IHN:
+- NIEMALS einen Namen nennen — schreibe IMMER "der Kandidat" oder "die Kandidatin"
+- Erfahrungsjahre: Waehle eine Zahl ZWISCHEN 5 und 10 Jahren (NIEMALS weniger als 5)
+- BRANCHENBEZUG (KRITISCH): Der Kandidat MUSS seine Erfahrung IN DER BRANCHE des Unternehmens gesammelt haben. Beispiel: Baufirma → "hat seine Erfahrung in der Bau- und Immobilienbranche gesammelt". Pharmafirma → "bringt mehrjaehrige Erfahrung aus der Pharma- und Life-Sciences-Branche mit"
+- FACHLICHE TIEFE: Beziehe dich auf mindestens 2 KONKRETE Anforderungen aus der Stellenausschreibung (ERP-System, Abschlussarten, Aufgaben)
+- POSITIVER WECHSELGRUND: NIEMALS negative Gruende ("unzufrieden", "Probleme", "schlechtes Arbeitsumfeld"). STATTDESSEN: "befindet sich in einer beruflichen Neuorientierung" oder "moechte den naechsten Karriereschritt gehen" oder "sucht eine neue fachliche Herausforderung"
+- Alter: Zwischen 28 und 42
+
+TEXT-AUFBAU:
+1. Anrede
+2. Einstieg: Direkt zur Sache — du hast einen passenden Kandidaten
+3. Branchen-Bezug: Erwaehne die Branche des Kunden + Erfahrung des Kandidaten in dieser Branche
+4. Kandidaten-Profil: Alter, Erfahrungsjahre (5-10), 2-3 konkrete Staerken passend zur Ausschreibung, relevante Software-Kenntnisse, Branchenerfahrung
+5. Abschluss: "Unter welchen Voraussetzungen darf ich Ihnen das Profil der Kandidatin / des Kandidaten weiterleiten?"
+6. "Fuer Fragen bin ich jederzeit zwischen 9 und 18 Uhr erreichbar."
+7. "Mit freundlichen Gruessen" OHNE Signatur — die Signatur wird automatisch angehaengt
+
+VERBOTEN:
+- Kandidaten-Name (NIEMALS — immer "der Kandidat" / "die Kandidatin")
+- Negative Wechselgruende
+- Weniger als 5 Jahre Erfahrung
+- Annahmen ueber die Firma die NICHT im Stellentext stehen (z.B. NICHT "wachsendes Unternehmen", "dynamisches Team")
+- "Terminvorschlag"
+- Links, URLs, Webseiten-Verweise
+- Marketing-Floskeln ("dynamisches Umfeld", "spannende Aufgabe")
 """
 
 AKQUISE_EMAIL_USER = """Erstelle eine Kaltakquise-E-Mail fuer folgende Vakanz:
 
 **Firma:** {company_name}
+**Branche des Unternehmens:** {industry}
 **Position:** {position}
-**Branche:** {industry}
 **Ansprechpartner:** {contact_salutation} {contact_name} ({contact_function})
 
 **Stellenausschreibung:**
 {job_text_excerpt}
 
+WICHTIG:
+- Der fiktive Kandidat MUSS Erfahrung in der Branche "{industry}" haben
+- Beziehe dich auf mindestens 2 konkrete Anforderungen aus der Stellenausschreibung
+- KEIN Kandidaten-Name im Text — immer "der Kandidat" / "die Kandidatin"
+
 Erstelle:
-1. Einen passenden E-Mail-Betreff (max 60 Zeichen, persoenlich, ohne "Bewerbung")
-2. Den E-Mail-Text (Plain-Text, max 150 Woerter)
-3. Den fiktiven Kandidaten als JSON: {{"name": "...", "alter": ..., "erfahrung_jahre": ..., "aktuelle_position": "...", "branche": "...", "erp": "...", "besonderheit": "..."}}
+1. Einen passenden E-Mail-Betreff (max 60 Zeichen, persoenlich, OHNE "Bewerbung")
+2. Den E-Mail-Text (Plain-Text, 180-220 Woerter)
+3. Fiktiver Kandidat als JSON (OHNE Name!): {{"alter": ..., "erfahrung_jahre": ..., "aktuelle_position": "...", "branche": "...", "erp": "...", "besonderheit": "..."}}
 
 Antwort als JSON:
 {{"subject": "...", "body": "...", "candidate_fiction": {{...}}}}
+"""
+
+# ── GPT-Prompt fuer Kontaktdaten-E-Mail (Selbstpraesentation) ──
+KONTAKTDATEN_EMAIL_SYSTEM = """Du schreibst eine professionelle Vorstellungs-E-Mail eines Personalberaters an einen Kunden, der im Telefonat gesagt hat "Schicken Sie mir Ihre Kontaktdaten, ich melde mich."
+
+ZIEL: Der Kunde soll nach dem Lesen denken: "Das ist ein echter Experte, kein gewoehnlicher Recruiter. Wenn ich jemanden suche, rufe ich den an."
+
+REGELN:
+- PLAIN-TEXT, kein HTML, keine Formatierung, KEINE Links/URLs
+- 200-250 Woerter
+- IMMER SIEZEN ("Sie", "Ihnen", "Ihr") — NIEMALS duzen!
+- Anrede: Nutze die uebergebene Anrede (Herr/Frau) exakt. Bei nicht eindeutigen Vornamen: "Guten Tag [Vorname Nachname]"
+
+TEXT-AUFBAU:
+1. EINSTIEG: Bedanke dich fuer das Telefonat. Beziehe dich darauf, dass der Kunde Kontaktdaten haben wollte.
+
+2. VORSTELLUNG MILAD HAMDARD — folgende Punkte MUESSEN rein:
+   - Seit 6 Jahren spezialisiert auf die Vermittlung von Finanzfachkraeften und Fuehrungskraeften (FiBu, BiBu, Lohn, Controlling, StFA)
+   - Studium im Finanzbereich — versteht Positionen aus fachlicher Sicht, nicht nur als Recruiter
+   - Kann Finanzpositionen tiefgehend verstehen und zwischen den Zeilen lesen
+   - Versteht die Beduerfnisse von Unternehmen und kann Positionen praezise einordnen
+   - Wenn der ideale Kandidat nicht sofort verfuegbar ist, findet er schnell passende Alternativen
+   - Langjaerige Zusammenarbeit mit CFOs, Leitern Rechnungswesen und Personalabteilungen
+   - Viele erfolgreiche Vermittlungen in den letzten Jahren
+
+3. WAS DER KUNDE DAVON HAT:
+   - Keine Flut an unqualifizierten Profilen — keine Massenvorschlaege auf gut Glueck
+   - Jeder Kandidat wird im Vorfeld persoenlich qualifiziert und auf die spezifischen Anforderungen des Kunden abgestimmt
+   - Alle relevanten Daten (Gehalt, Kuendigungsfrist, Verfuegbarkeit, Fachkenntnisse) werden VOR der Vorstellung mit dem Kandidaten abgeklaert
+   - Der Kunde bekommt eine gezielte Vorauswahl, die auf seine Punkte und sein Unternehmen abgestimmt ist
+
+4. ABSCHLUSS:
+   - "Ich freue mich, wenn sich ein Bedarf ergibt — melden Sie sich jederzeit bei mir."
+   - "Fuer Fragen bin ich zwischen 9 und 18 Uhr erreichbar."
+   - "Mit freundlichen Gruessen" OHNE Signatur — die Signatur wird automatisch angehaengt
+
+WENN DIE BRANCHE DES UNTERNEHMENS BEKANNT IST: Erwaehne, dass du bereits erfolgreich Positionen in dieser oder aehnlichen Branchen besetzt hast.
+
+TONFALL: Selbstbewusst aber nicht arrogant. Professionell. Zeige Kompetenz durch konkrete Aussagen, nicht durch leere Floskeln.
+
+VERBOTEN:
+- Links, URLs, Webseiten-Verweise
+- Marketing-Sprech, Floskeln
+- Uebertreibungen ("der beste Recruiter", "garantiert")
+"""
+
+KONTAKTDATEN_EMAIL_USER = """Erstelle eine Vorstellungs-E-Mail fuer folgendes Telefonat:
+
+**Firma:** {company_name}
+**Branche:** {industry}
+**Ansprechpartner:** {contact_salutation} {contact_name} ({contact_function})
+
+Erstelle:
+1. E-Mail-Betreff (max 60 Zeichen, z.B. "Unsere Kontaktdaten — Personalberatung Finance")
+2. E-Mail-Text (Plain-Text, 200-250 Woerter)
+
+Antwort als JSON:
+{{"subject": "...", "body": "..."}}
+"""
+
+# ── Follow-up fuer Kontaktdaten-E-Mail (nach 14 Tagen) ──
+KONTAKTDATEN_FOLLOWUP_SYSTEM = """Du schreibst eine kurze Nachfass-E-Mail (Plain-Text, max 80 Woerter).
+Vor 2 Wochen wurde eine Vorstellungs-E-Mail mit Kontaktdaten gesendet. Keine Antwort kam.
+IMMER SIEZEN ("Sie", "Ihnen", "Ihr") — NIEMALS duzen!
+KEINE Links, KEINE URLs im Text.
+- Beziehe dich auf das Telefonat und die gesendeten Kontaktdaten
+- Nicht vorwurfsvoll, sondern verstaendnisvoll
+- Erwaehne, dass du aktuell gute Kandidaten im Finance-Bereich hast
+- "Sollte sich in Ihrem Haus ein Bedarf ergeben, stehe ich Ihnen jederzeit zur Verfuegung"
+- Kurz, knapp, respektvoll
 """
 
 # ── Follow-up Prompt ──
@@ -138,9 +231,9 @@ class AcquisitionEmailService:
         if not contact:
             raise ValueError(f"Contact {contact_id} nicht gefunden")
 
-        # Bei Follow-up/Break-up: Parent-Email finden
+        # Bei Follow-up/Break-up/Kontaktdaten-Followup: Parent-Email finden
         parent_email = None
-        if email_type in ("follow_up", "break_up"):
+        if email_type in ("follow_up", "break_up", "kontaktdaten_followup"):
             parent_email = await self._find_parent_email(job_id, email_type)
 
         # GPT-Call fuer E-Mail-Generierung
@@ -152,6 +245,9 @@ class AcquisitionEmailService:
         )
 
         # From-Email bestimmen
+        # Bei Kontaktdaten-Followup: GLEICHE Mailbox wie Original-Kontaktdaten-E-Mail
+        if not from_email and email_type == "kontaktdaten_followup" and parent_email:
+            from_email = parent_email.from_email
         if not from_email:
             from app.config import settings
             from_email = settings.microsoft_sender_email
@@ -163,7 +259,7 @@ class AcquisitionEmailService:
         body_with_sig = body + EMAIL_SIGNATURE.format(from_email=from_email)
 
         # Sequence-Position bestimmen
-        seq_map = {"initial": 1, "follow_up": 2, "break_up": 3}
+        seq_map = {"initial": 1, "kontaktdaten": 1, "follow_up": 2, "kontaktdaten_followup": 2, "break_up": 3}
         sequence_position = seq_map.get(email_type, 1)
 
         # Draft in DB speichern
@@ -493,6 +589,9 @@ class AcquisitionEmailService:
         if email_type == "follow_up":
             # Suche letzte Initial-Email
             target_type = "initial"
+        elif email_type == "kontaktdaten_followup":
+            # Suche letzte Kontaktdaten-Email
+            target_type = "kontaktdaten"
         elif email_type == "break_up":
             # Suche letzte Follow-up oder Initial
             target_type = "follow_up"
@@ -529,22 +628,36 @@ class AcquisitionEmailService:
         contact_function = contact.position or "Personalverantwortliche/r"
 
         # System-Prompt je nach Typ
-        if email_type == "follow_up":
+        if email_type == "kontaktdaten":
+            system_prompt = KONTAKTDATEN_EMAIL_SYSTEM
+        elif email_type == "kontaktdaten_followup":
+            system_prompt = KONTAKTDATEN_FOLLOWUP_SYSTEM
+        elif email_type == "follow_up":
             system_prompt = FOLLOWUP_EMAIL_SYSTEM
         elif email_type == "break_up":
             system_prompt = BREAKUP_EMAIL_SYSTEM
         else:
             system_prompt = AKQUISE_EMAIL_SYSTEM
 
-        user_prompt = AKQUISE_EMAIL_USER.format(
-            company_name=job.company_name,
-            position=job.position,
-            industry=job.industry or "Unbekannt",
-            contact_salutation=contact_salutation,
-            contact_name=contact_name,
-            contact_function=contact_function,
-            job_text_excerpt=job_text,
-        )
+        # User-Prompt je nach Typ
+        if email_type in ("kontaktdaten", "kontaktdaten_followup"):
+            user_prompt = KONTAKTDATEN_EMAIL_USER.format(
+                company_name=job.company_name,
+                industry=job.industry or "Unbekannt",
+                contact_salutation=contact_salutation,
+                contact_name=contact_name,
+                contact_function=contact_function,
+            )
+        else:
+            user_prompt = AKQUISE_EMAIL_USER.format(
+                company_name=job.company_name,
+                position=job.position,
+                industry=job.industry or "Unbekannt",
+                contact_salutation=contact_salutation,
+                contact_name=contact_name,
+                contact_function=contact_function,
+                job_text_excerpt=job_text,
+            )
 
         try:
             from app.config import settings

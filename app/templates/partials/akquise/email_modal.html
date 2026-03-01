@@ -7,6 +7,7 @@
     "jobId": "{{ job.id }}",
     "fromEmail": "{{ mailboxes[0].email if mailboxes else '' }}",
     "toContactId": "{{ contacts[0].id if contacts else '' }}",
+    "defaultEmailType": "{{ default_email_type or 'initial' }}",
     "draft": {{ 'true' if draft else 'false' }},
     "emailId": "{{ draft.email_id if draft else '' }}",
     "subject": {{ (draft.subject if draft else '') | tojson }},
@@ -16,9 +17,9 @@
 </script>
 
 <div x-data="emailModal()" x-init="init()" style="display:flex;flex-direction:column;max-height:85vh;">
-    {# Header #}
+    {# Header — dynamisch je nach E-Mail-Typ #}
     <div style="padding:16px 20px;border-bottom:1px solid var(--pp-border);display:flex;align-items:center;justify-content:space-between;">
-        <h3 style="font-size:15px;font-weight:600;color:var(--pp-text);margin:0;">Akquise-E-Mail</h3>
+        <h3 style="font-size:15px;font-weight:600;color:var(--pp-text);margin:0;" x-text="emailType === 'kontaktdaten' || emailType === 'kontaktdaten_followup' ? 'Kontaktdaten senden' : 'Akquise-E-Mail'"></h3>
         <button @click="Alpine.$data(document.getElementById('akquise-root')).emailModalVisible = false"
                 style="background:none;border:none;color:var(--pp-textDim);cursor:pointer;font-size:18px;">&times;</button>
     </div>
@@ -52,28 +53,43 @@
         {# E-Mail-Typ #}
         <div style="margin-bottom:14px;">
             <label style="font-size:11px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;display:block;margin-bottom:4px;">Typ</label>
-            <div style="display:flex;gap:6px;">
-                <button @click="emailType = 'initial'" :style="emailType === 'initial' ? 'background:var(--pp-accent);color:#fff;border-color:var(--pp-accent);' : ''"
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                <button @click="emailType = 'initial'; draft = false;" :style="emailType === 'initial' ? 'background:var(--pp-accent);color:#fff;border-color:var(--pp-accent);' : ''"
                         style="padding:5px 12px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:12px;cursor:pointer;">
-                    Erst-Mail
+                    Kandidaten-Pitch
                 </button>
-                <button @click="emailType = 'follow_up'" :style="emailType === 'follow_up' ? 'background:var(--pp-accent);color:#fff;border-color:var(--pp-accent);' : ''"
+                <button @click="emailType = 'kontaktdaten'; draft = false;" :style="emailType === 'kontaktdaten' ? 'background:var(--pp-green);color:#fff;border-color:var(--pp-green);' : ''"
+                        style="padding:5px 12px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:12px;cursor:pointer;">
+                    Kontaktdaten
+                </button>
+                <button @click="emailType = 'follow_up'; draft = false;" :style="emailType === 'follow_up' ? 'background:var(--pp-accent);color:#fff;border-color:var(--pp-accent);' : ''"
                         style="padding:5px 12px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:12px;cursor:pointer;">
                     Follow-up
                 </button>
-                <button @click="emailType = 'break_up'" :style="emailType === 'break_up' ? 'background:var(--pp-accent);color:#fff;border-color:var(--pp-accent);' : ''"
+                <button @click="emailType = 'break_up'; draft = false;" :style="emailType === 'break_up' ? 'background:var(--pp-accent);color:#fff;border-color:var(--pp-accent);' : ''"
                         style="padding:5px 12px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:12px;cursor:pointer;">
                     Break-up
                 </button>
+                <button @click="emailType = 'kontaktdaten_followup'; draft = false;" :style="emailType === 'kontaktdaten_followup' ? 'background:var(--pp-green);color:#fff;border-color:var(--pp-green);' : ''"
+                        style="padding:5px 12px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:12px;cursor:pointer;">
+                    Kontaktdaten-Nachfass
+                </button>
             </div>
+            {# Hinweis je nach Typ #}
+            <p x-show="emailType === 'kontaktdaten'" style="font-size:11px;color:var(--pp-green);margin:6px 0 0;">
+                Vorstellungs-E-Mail mit deinen Kontaktdaten und Profil
+            </p>
+            <p x-show="emailType === 'kontaktdaten_followup'" style="font-size:11px;color:var(--pp-green);margin:6px 0 0;">
+                Nachfass nach 2 Wochen ohne Antwort auf Kontaktdaten-E-Mail
+            </p>
         </div>
 
         {# Generieren Button (wenn noch kein Draft) #}
         <div x-show="!draft">
             <button @click="generateDraft()" :disabled="generating"
-                    style="width:100%;padding:10px;background:var(--pp-accent);border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;"
-                    :style="generating ? 'opacity:0.5;cursor:wait;' : ''">
-                <span x-show="!generating">E-Mail per GPT generieren</span>
+                    style="width:100%;padding:10px;border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;"
+                    :style="generating ? 'opacity:0.5;cursor:wait;' : (emailType === 'kontaktdaten' || emailType === 'kontaktdaten_followup' ? 'background:var(--pp-green);' : 'background:var(--pp-accent);')">
+                <span x-show="!generating" x-text="emailType === 'kontaktdaten' ? 'Kontaktdaten-E-Mail generieren' : emailType === 'kontaktdaten_followup' ? 'Nachfass-E-Mail generieren' : 'E-Mail per GPT generieren'"></span>
                 <span x-show="generating">Wird generiert...</span>
             </button>
         </div>
@@ -88,12 +104,11 @@
             <textarea x-model="bodyPlain"
                       style="width:100%;height:280px;padding:10px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;font-family:var(--pp-ff);line-height:1.6;resize:vertical;box-sizing:border-box;"></textarea>
 
-            {% if draft and draft.candidate_fiction %}
-            <div style="margin-top:10px;padding:10px;background:var(--pp-surface3);border-radius:6px;">
+            {# Fiktiver Kandidat nur bei Kandidaten-Pitch anzeigen #}
+            <div x-show="emailType === 'initial' && Object.keys(candidateFiction).length > 0" style="margin-top:10px;padding:10px;background:var(--pp-surface3);border-radius:6px;">
                 <p style="font-size:10px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;margin:0 0 4px;">Fiktiver Kandidat (nur intern)</p>
-                <p style="font-size:11px;color:var(--pp-textMuted);margin:0;" x-text="JSON.stringify(candidateFiction, null, 2)"></p>
+                <p style="font-size:11px;color:var(--pp-textMuted);margin:0;white-space:pre-wrap;" x-text="JSON.stringify(candidateFiction, null, 2)"></p>
             </div>
-            {% endif %}
         </div>
     </div>
 

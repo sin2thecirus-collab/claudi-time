@@ -417,7 +417,7 @@ function emailModal() {
         jobId: cfg.jobId || '',
         fromEmail: cfg.fromEmail || '',
         toContactId: cfg.toContactId || '',
-        emailType: 'initial',
+        emailType: cfg.defaultEmailType || 'initial',
         draft: cfg.draft || false,
         emailId: cfg.emailId || '',
         subject: cfg.subject || '',
@@ -642,9 +642,11 @@ function akquisePage() {
             fetch('/api/akquise/stats').then(r => r.json()).then(d => this.stats = d).catch(() => {});
         },
 
-        openEmailModal(jobId, contactId) {
+        openEmailModal(jobId, contactId, emailType) {
             this.emailModalVisible = true;
-            htmx.ajax('GET', '/akquise/partials/email-modal/' + jobId + '?contact_id=' + contactId, {
+            let url = '/akquise/partials/email-modal/' + jobId + '?contact_id=' + contactId;
+            if (emailType) url += '&email_type=' + emailType;
+            htmx.ajax('GET', url, {
                 target: '#email-modal-content',
                 swap: 'innerHTML'
             });
