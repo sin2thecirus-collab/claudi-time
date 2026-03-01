@@ -92,34 +92,46 @@ async def tab_partial(
     if not statuses:
         return HTMLResponse('<p style="color:var(--pp-red);">Unbekannter Tab</p>')
 
-    # Jobs laden
+    # Jobs laden — ALLE ohne Pagination, damit Firmen-Gruppierung korrekt ist
+    base_filter = [
+        Job.acquisition_source.isnot(None),
+        Job.deleted_at.is_(None),
+        Job.akquise_status.in_(statuses),
+    ]
+
+    # Total (Anzahl einzelner Jobs)
+    total_result = await db.execute(
+        select(func.count(Job.id)).where(*base_filter)
+    )
+    total = total_result.scalar_one()
+
+    # Alle Jobs laden und nach Firma clustern, dann nach Prio sortieren
     query = (
         select(Job)
-        .where(
-            Job.acquisition_source.isnot(None),
-            Job.deleted_at.is_(None),
-            Job.akquise_status.in_(statuses),
-        )
+        .where(*base_filter)
         .options(selectinload(Job.company))
         .order_by(
+            Job.company_id.nullslast(),
+            Job.company_name.nullslast(),
             Job.akquise_priority.desc().nullslast(),
             Job.first_seen_at.asc().nullslast(),
         )
     )
-
-    # Total
-    total_result = await db.execute(
-        select(func.count()).select_from(query.subquery())
-    )
-    total = total_result.scalar_one()
-
-    # Pagination
-    query = query.offset((page - 1) * per_page).limit(per_page)
     result = await db.execute(query)
     jobs = result.scalars().all()
 
     # Gruppierung nach Company
-    groups = _group_by_company(jobs)
+    all_groups = _group_by_company(jobs)
+
+    # Gruppen nach hoechster Job-Prioritaet sortieren
+    all_groups.sort(
+        key=lambda g: max((j.get("akquise_priority") or 0) for j in g["jobs"]),
+        reverse=True,
+    )
+
+    # Pagination auf Firmen-Gruppen (nicht auf einzelne Jobs)
+    total_groups = len(all_groups)
+    groups = all_groups[(page - 1) * per_page : page * per_page]
 
     # Wiedervorlagen fuer Tab "heute"
     wiedervorlagen = []
@@ -146,7 +158,7 @@ async def tab_partial(
             "groups": groups,
             "total": total,
             "page": page,
-            "pages": (total + per_page - 1) // per_page,
+            "pages": (total_groups + per_page - 1) // per_page,
             "tab": tab_name,
             "wiedervorlagen": wiedervorlagen,
         },
