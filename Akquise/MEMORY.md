@@ -244,8 +244,8 @@ Systematische Analyse aller Akquise-Dateien deckte 7 Luecken auf. Alle gefixt:
 
 ### Offen
 - Manueller UI-Test durch Milad (E2E-TEST.md Teil 3, Checkliste)
-- Git Push: Session-3-Aenderungen (unassigned_calls Endpoints) noch NICHT committed/pushed
-- Audit-Log (P2, nach Go-Live)
+- ~~Git Push~~ ERLEDIGT (Commit f0febf9, gepusht 28.02.2026)
+- ~~Audit-Log~~ GESTRICHEN (Milad loescht Daten sofort, kein Bedarf)
 
 ---
 

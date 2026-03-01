@@ -206,6 +206,277 @@
 </div>
 
 <script>
+{# ── callScreen() — Logik fuer den Call-Screen (Daten kommen aus #call-screen-init JSON im Partial) ── #}
+function callScreen() {
+    const initEl = document.getElementById('call-screen-init');
+    const cfg = initEl ? JSON.parse(initEl.textContent) : {};
+    return {
+        jobId: cfg.jobId || '',
+        companyName: cfg.companyName || '',
+        callType: cfg.callType || 'erstanruf',
+        contactId: cfg.contactId || '',
+        otherJobIds: cfg.otherJobIds || [],
+        callActive: false,
+        callStartedAt: null,
+        callTimer: '00:00',
+        timerInterval: null,
+        notes: '',
+        quali: {},
+        selectedDisposition: null,
+        showFollowUp: false,
+        pendingDisposition: '',
+        followUpDate: '',
+        followUpTime: '09:00',
+        followUpNote: '',
+        showNewJobForm: false,
+        newJobPosition: '',
+        newJobType: '',
+        newJobNotes: '',
+
+        init() {
+            const saved = localStorage.getItem('akquise_notes_' + this.jobId);
+            if (saved) this.notes = saved;
+        },
+
+        startCall() {
+            this.callActive = true;
+            this.callStartedAt = Date.now();
+            this.timerInterval = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - this.callStartedAt) / 1000);
+                const min = String(Math.floor(elapsed / 60)).padStart(2, '0');
+                const sec = String(elapsed % 60).padStart(2, '0');
+                this.callTimer = min + ':' + sec;
+            }, 1000);
+        },
+
+        stopCall() {
+            this.callActive = false;
+            if (this.timerInterval) clearInterval(this.timerInterval);
+            return this.callStartedAt ? Math.floor((Date.now() - this.callStartedAt) / 1000) : 0;
+        },
+
+        async submitDisposition(disposition) {
+            const duration = this.stopCall();
+            this.selectedDisposition = disposition;
+
+            if ((disposition === 'interesse_spaeter' || disposition === 'qualifiziert_erst') && !this.followUpDate) {
+                if (typeof showToast === 'function') showToast('Bitte Wiedervorlage-Datum angeben', 'warning');
+                return;
+            }
+
+            const body = {
+                disposition: disposition,
+                call_type: this.callType,
+                notes: this.notes || null,
+                qualification_data: Object.keys(this.quali).length > 0 ? this.quali : null,
+                duration_seconds: duration || null,
+                follow_up_date: this.followUpDate ? this.followUpDate + (this.followUpTime ? 'T' + this.followUpTime : 'T09:00') + ':00' : null,
+                follow_up_note: this.followUpNote || null,
+            };
+            if (this.contactId) body.contact_id = this.contactId;
+
+            try {
+                const resp = await fetch('/api/akquise/leads/' + this.jobId + '/call', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+                if (resp.ok) {
+                    const result = await resp.json();
+                    localStorage.removeItem('akquise_notes_' + this.jobId);
+                    if (typeof showToast === 'function') {
+                        showToast(this.companyName + ' \u2014 ' + disposition + ' gespeichert', 'success');
+                    }
+                    const batchDispositions = ['nicht_erreicht','mailbox_besprochen','besetzt','falsche_nummer','sekretariat','kein_bedarf','nie_wieder'];
+                    if (this.otherJobIds.length > 0 && batchDispositions.includes(disposition)) {
+                        const applyAll = confirm(
+                            'Gleiche Disposition (' + disposition + ') auch fuer '
+                            + this.otherJobIds.length + ' weitere Stelle'
+                            + (this.otherJobIds.length > 1 ? 'n' : '')
+                            + ' dieser Firma anwenden?'
+                        );
+                        if (applyAll) {
+                            try {
+                                await fetch('/api/akquise/leads/batch-status', {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ job_ids: this.otherJobIds, status: result.new_status }),
+                                });
+                                if (typeof showToast === 'function') {
+                                    showToast(this.otherJobIds.length + ' weitere Stellen aktualisiert', 'success');
+                                }
+                            } catch (batchErr) {
+                                if (typeof showToast === 'function') showToast('Batch-Update fehlgeschlagen', 'error');
+                            }
+                        }
+                    }
+                    setTimeout(() => {
+                        Alpine.$data(document.getElementById('akquise-root')).advanceToNextLead();
+                    }, 600);
+                } else {
+                    const err = await resp.json();
+                    if (typeof showToast === 'function') showToast(err.detail || 'Fehler', 'error');
+                }
+            } catch (e) {
+                if (typeof showToast === 'function') showToast('Netzwerkfehler', 'error');
+            }
+        },
+
+        autoSaveNotes() {
+            localStorage.setItem('akquise_notes_' + this.jobId, this.notes);
+        },
+
+        async simulateCall(scenario) {
+            if (!this.callActive) this.startCall();
+            try {
+                const resp = await fetch('/api/akquise/test/simulate-call/' + this.jobId, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ scenario: scenario }),
+                });
+                if (resp.ok) {
+                    const result = await resp.json();
+                    this.stopCall();
+                    if (typeof showToast === 'function') {
+                        showToast('[SIM] ' + result.disposition + ' \u2014 ' + result.duration + 's', 'info');
+                    }
+                    this.notes += '[SIM ' + scenario + '] ' + (result.notes || '') + '\n';
+                } else {
+                    const err = await resp.json();
+                    this.stopCall();
+                    if (typeof showToast === 'function') showToast(err.detail || 'Simulation fehlgeschlagen', 'error');
+                }
+            } catch (e) {
+                this.stopCall();
+                if (typeof showToast === 'function') showToast('Netzwerkfehler bei Simulation', 'error');
+            }
+        },
+
+        async submitD12WithJob() {
+            if (!this.newJobPosition.trim()) {
+                if (typeof showToast === 'function') showToast('Bitte Position angeben', 'warning');
+                return;
+            }
+            const duration = this.stopCall();
+            this.selectedDisposition = 'andere_stelle_offen';
+
+            const body = {
+                disposition: 'andere_stelle_offen',
+                call_type: this.callType,
+                notes: this.notes || null,
+                duration_seconds: duration || null,
+                extra_data: {
+                    position: this.newJobPosition,
+                    employment_type: this.newJobType || null,
+                    notes: this.newJobNotes || null,
+                },
+            };
+            if (this.contactId) body.contact_id = this.contactId;
+
+            try {
+                const resp = await fetch('/api/akquise/leads/' + this.jobId + '/call', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+                if (resp.ok) {
+                    this.showNewJobForm = false;
+                    if (typeof showToast === 'function') {
+                        showToast('Neue Stelle "' + this.newJobPosition + '" angelegt', 'success');
+                    }
+                    setTimeout(() => {
+                        Alpine.$data(document.getElementById('akquise-root')).advanceToNextLead();
+                    }, 600);
+                } else {
+                    const err = await resp.json();
+                    if (typeof showToast === 'function') showToast(err.detail || 'Fehler', 'error');
+                }
+            } catch (e) {
+                if (typeof showToast === 'function') showToast('Netzwerkfehler', 'error');
+            }
+        },
+    };
+}
+
+{# ── emailModal() — Logik fuer das E-Mail-Modal (Daten kommen aus #email-modal-init JSON im Partial) ── #}
+function emailModal() {
+    const initEl = document.getElementById('email-modal-init');
+    const cfg = initEl ? JSON.parse(initEl.textContent) : {};
+    return {
+        jobId: cfg.jobId || '',
+        fromEmail: cfg.fromEmail || '',
+        toContactId: cfg.toContactId || '',
+        emailType: 'initial',
+        draft: cfg.draft || false,
+        emailId: cfg.emailId || '',
+        subject: cfg.subject || '',
+        bodyPlain: cfg.bodyPlain || '',
+        candidateFiction: cfg.candidateFiction || {},
+        generating: false,
+        sending: false,
+
+        init() {},
+
+        async generateDraft() {
+            this.generating = true;
+            try {
+                const resp = await fetch('/api/akquise/leads/' + this.jobId + '/email/draft', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contact_id: this.toContactId,
+                        email_type: this.emailType,
+                        from_email: this.fromEmail,
+                    }),
+                });
+                if (resp.ok) {
+                    const data = await resp.json();
+                    this.draft = true;
+                    this.emailId = data.email_id;
+                    this.subject = data.subject;
+                    this.bodyPlain = data.body_plain;
+                    this.candidateFiction = data.candidate_fiction || {};
+                } else {
+                    const err = await resp.json();
+                    if (typeof showToast === 'function') showToast(err.detail || 'Fehler bei Generierung', 'error');
+                }
+            } catch (e) {
+                if (typeof showToast === 'function') showToast('Netzwerkfehler', 'error');
+            }
+            this.generating = false;
+        },
+
+        async sendEmail() {
+            this.sending = true;
+            if (this.emailId) {
+                await fetch('/api/akquise/leads/' + this.jobId + '/email/' + this.emailId, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ subject: this.subject, body_plain: this.bodyPlain }),
+                });
+            }
+            try {
+                const resp = await fetch('/api/akquise/leads/' + this.jobId + '/email/' + this.emailId + '/send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ from_email: this.fromEmail }),
+                });
+                const result = await resp.json();
+                if (result.success) {
+                    if (typeof showToast === 'function') showToast('E-Mail gesendet!', 'success');
+                    Alpine.$data(document.getElementById('akquise-root')).emailModalVisible = false;
+                } else {
+                    if (typeof showToast === 'function') showToast(result.message || 'Sendefehler', 'error');
+                }
+            } catch (e) {
+                if (typeof showToast === 'function') showToast('Netzwerkfehler', 'error');
+            }
+            this.sending = false;
+        },
+    };
+}
+
+{# ── akquisePage() — Hauptseite Alpine-Komponente ── #}
 function akquisePage() {
     return {
         activeTab: '{{ active_tab }}',
@@ -225,14 +496,10 @@ function akquisePage() {
         currentLeadId: null,
 
         init() {
-            // KPIs laden
             fetch('/api/akquise/stats').then(r => r.json()).then(d => this.stats = d).catch(() => {});
-            // Ersten Tab laden
             this.loadTab(this.activeTab);
-            // localStorage: Letzten Lead merken
             const lastId = localStorage.getItem('akquise_last_lead_id');
             if (lastId) this.currentLeadId = lastId;
-            // SSE: Echtzeit-Events (Rueckruf-Popup)
             this._connectSSE();
         },
 
@@ -250,21 +517,18 @@ function akquisePage() {
             });
 
             es.onerror = function() {
-                // Auto-Reconnect nach 5s (EventSource reconnected automatisch,
-                // aber bei permanentem Fehler schliessen wir manuell)
                 if (es.readyState === EventSource.CLOSED) {
                     setTimeout(() => self._connectSSE(), 5000);
                 }
             };
 
-            // Cleanup bei Seitenwechsel
             window.addEventListener('beforeunload', () => es.close());
         },
 
         _handleIncomingCall(data) {
             if (!data.found || !data.lookup) {
                 if (typeof showToast === 'function')
-                    showToast('Eingehender Anruf: ' + (data.phone || 'Unbekannt') + ' — nicht zugeordnet', 'warning');
+                    showToast('Eingehender Anruf: ' + (data.phone || 'Unbekannt') + ' \u2014 nicht zugeordnet', 'warning');
                 return;
             }
 
@@ -295,7 +559,7 @@ function akquisePage() {
             if (lookup.contact) {
                 const contactEl = document.createElement('div');
                 contactEl.style.cssText = 'font-size:13px;color:var(--pp-textMuted);';
-                contactEl.textContent = lookup.contact.name + (lookup.contact.position ? ' — ' + lookup.contact.position : '');
+                contactEl.textContent = lookup.contact.name + (lookup.contact.position ? ' \u2014 ' + lookup.contact.position : '');
                 wrapper.appendChild(contactEl);
             }
 
@@ -344,9 +608,6 @@ function akquisePage() {
                 swap: 'innerHTML'
             }).then(() => {
                 this.loading = false;
-                // Alpine: erst destroy (raumt teilweise Initialisierung auf), dann init
-                const container = document.getElementById('akquise-tab-inner');
-                if (container && window.Alpine) { Alpine.destroyTree(container); Alpine.initTree(container); }
             }).catch(() => {
                 document.getElementById('akquise-tab-inner').innerHTML =
                     '<p style="text-align:center;padding:60px 0;color:var(--pp-red);font-size:13px;">Fehler beim Laden</p>';
@@ -361,18 +622,12 @@ function akquisePage() {
             htmx.ajax('GET', '/akquise/partials/call-screen/' + jobId, {
                 target: '#call-screen-content',
                 swap: 'innerHTML'
-            }).then(() => {
-                // Alpine: erst destroy (raumt teilweise Initialisierung auf), dann init
-                const container = document.getElementById('call-screen-content');
-                if (container && window.Alpine) { Alpine.destroyTree(container); Alpine.initTree(container); }
             });
         },
 
         closeCallScreen() {
             this.callScreenVisible = false;
-            // Tab neu laden fuer aktualisierten Status
             this.loadTab(this.activeTab);
-            // KPIs aktualisieren
             fetch('/api/akquise/stats').then(r => r.json()).then(d => this.stats = d).catch(() => {});
         },
 
@@ -381,15 +636,10 @@ function akquisePage() {
             htmx.ajax('GET', '/akquise/partials/email-modal/' + jobId + '?contact_id=' + contactId, {
                 target: '#email-modal-content',
                 swap: 'innerHTML'
-            }).then(() => {
-                // Alpine: erst destroy (raumt teilweise Initialisierung auf), dann init
-                const container = document.getElementById('email-modal-content');
-                if (container && window.Alpine) { Alpine.destroyTree(container); Alpine.initTree(container); }
             });
         },
 
         advanceToNextLead() {
-            // Naechsten Lead im Tab laden
             const rows = document.querySelectorAll('[data-lead-id]');
             let found = false;
             for (const row of rows) {
@@ -399,7 +649,6 @@ function akquisePage() {
                 }
                 if (row.dataset.leadId === this.currentLeadId) found = true;
             }
-            // Kein naechster Lead — Call-Screen schliessen
             this.closeCallScreen();
             if (typeof showToast === 'function') showToast('Alle Leads in diesem Tab abgearbeitet', 'success');
         },
@@ -412,9 +661,6 @@ function akquisePage() {
                 swap: 'innerHTML'
             }).then(() => {
                 this.loading = false;
-                const container = document.getElementById('akquise-tab-inner');
-                if (container && window.Alpine) { Alpine.destroyTree(container); Alpine.initTree(container); }
-                // Ersten Lead oeffnen
                 const first = document.querySelector('[data-lead-id]');
                 if (first) {
                     this.openCallScreen(first.dataset.leadId);
@@ -482,7 +728,7 @@ function akquisePage() {
                 const resp = await fetch('/api/akquise/test/simulate-callback?phone=' + encodeURIComponent(phone), {method: 'POST'});
                 if (resp.ok) {
                     const data = await resp.json();
-                    if (typeof showToast === 'function') showToast('Rueckruf simuliert — Popup sollte erscheinen', 'success');
+                    if (typeof showToast === 'function') showToast('Rueckruf simuliert \u2014 Popup sollte erscheinen', 'success');
                 } else if (resp.status === 403) {
                     if (typeof showToast === 'function') showToast('Nur im Test-Modus verfuegbar', 'warning');
                 } else {
