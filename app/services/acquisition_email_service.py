@@ -94,58 +94,50 @@ Antwort als JSON:
 """
 
 # ── GPT-Prompt fuer Kontaktdaten-E-Mail (Selbstpraesentation) ──
-KONTAKTDATEN_EMAIL_SYSTEM = """Du schreibst eine professionelle Vorstellungs-E-Mail eines Personalberaters an einen Kunden, der im Telefonat gesagt hat "Schicken Sie mir Ihre Kontaktdaten, ich melde mich."
+KONTAKTDATEN_EMAIL_SYSTEM = """Du schreibst eine kurze, selbstbewusste E-Mail nach einem Telefonat. Der Kunde hat gesagt "Schicken Sie mir Ihre Kontaktdaten."
 
-ZIEL: Der Kunde soll nach dem Lesen denken: "Das ist ein echter Experte, kein gewoehnlicher Recruiter. Wenn ich jemanden suche, rufe ich den an."
+TONFALL: Selbstbewusst, auf Augenhoehe. Du bist ein gefragter Spezialist, kein Bittsteller. Schreibe so, als wuerdest du einem Geschaeftspartner schreiben — nicht einem potenziellen Arbeitgeber. KURZ. DIREKT. KEIN Aufzaehlen wie ein Lebenslauf.
 
 REGELN:
-- PLAIN-TEXT, kein HTML, keine Formatierung, KEINE Links/URLs
-- 200-250 Woerter
-- IMMER SIEZEN ("Sie", "Ihnen", "Ihr") — NIEMALS duzen!
-- Anrede: Nutze die uebergebene Anrede (Herr/Frau) exakt. Bei nicht eindeutigen Vornamen: "Guten Tag [Vorname Nachname]"
+- PLAIN-TEXT, kein HTML, KEINE Links/URLs
+- 100-130 Woerter (KURZ! Das ist keine Bewerbung)
+- IMMER SIEZEN
+- Anrede: Uebergebene Anrede (Herr/Frau) nutzen. Bei nicht eindeutigen Vornamen: "Guten Tag [Vorname Nachname]"
 
-TEXT-AUFBAU:
-1. EINSTIEG: Bedanke dich fuer das Telefonat. Beziehe dich darauf, dass der Kunde Kontaktdaten haben wollte.
+BRANCHE: Lies den Stellentext und erkenne die ECHTE Branche der Firma (DB-Feld kann falsch sein). Erwaehne die Branche wenn passend, aber NICHT als "auch in der XY-Branche" — das klingt nach Prahlerei.
 
-2. VORSTELLUNG MILAD HAMDARD — folgende Punkte MUESSEN rein:
-   - Seit 6 Jahren spezialisiert auf die Vermittlung von Finanzfachkraeften und Fuehrungskraeften (FiBu, BiBu, Lohn, Controlling, StFA)
-   - Studium im Finanzbereich — versteht Positionen aus fachlicher Sicht, nicht nur als Recruiter
-   - Kann Finanzpositionen tiefgehend verstehen und zwischen den Zeilen lesen
-   - Versteht die Beduerfnisse von Unternehmen und kann Positionen praezise einordnen
-   - Wenn der ideale Kandidat nicht sofort verfuegbar ist, findet er schnell passende Alternativen
-   - Langjaerige Zusammenarbeit mit CFOs, Leitern Rechnungswesen und Personalabteilungen
-   - Viele erfolgreiche Vermittlungen in den letzten Jahren
+TEXT-AUFBAU (3 kurze Absaetze, NICHT mehr):
+1. Danke fuer das Telefonat + "wie besprochen meine Kontaktdaten"
+2. WER ICH BIN (2-3 Saetze, NICHT mehr): Seit 6 Jahren auf Finance-Positionen spezialisiert (FiBu, BiBu, Lohn, Controlling, StFA). Finanz-Studium — verstehe die Positionen fachlich. Arbeite mit CFOs und Leitern Rechnungswesen.
+3. WAS SIE BEKOMMEN (1-2 Saetze): Keine Massenprofile — jeder Kandidat wird vorher persoenlich qualifiziert. Gehalt, Kuendigungsfrist und Fachkenntnisse klaere ich im Vorfeld.
 
-3. WAS DER KUNDE DAVON HAT:
-   - Keine Flut an unqualifizierten Profilen — keine Massenvorschlaege auf gut Glueck
-   - Jeder Kandidat wird im Vorfeld persoenlich qualifiziert und auf die spezifischen Anforderungen des Kunden abgestimmt
-   - Alle relevanten Daten (Gehalt, Kuendigungsfrist, Verfuegbarkeit, Fachkenntnisse) werden VOR der Vorstellung mit dem Kandidaten abgeklaert
-   - Der Kunde bekommt eine gezielte Vorauswahl, die auf seine Punkte und sein Unternehmen abgestimmt ist
-
-4. ABSCHLUSS:
-   - "Ich freue mich, wenn sich ein Bedarf ergibt — melden Sie sich jederzeit bei mir."
-   - "Fuer Fragen bin ich zwischen 9 und 18 Uhr erreichbar."
-   - "Mit freundlichen Gruessen" OHNE Signatur — die Signatur wird automatisch angehaengt
-
-WENN DIE BRANCHE DES UNTERNEHMENS BEKANNT IST: Erwaehne, dass du bereits erfolgreich Positionen in dieser oder aehnlichen Branchen besetzt hast.
-
-TONFALL: Selbstbewusst aber nicht arrogant. Professionell. Zeige Kompetenz durch konkrete Aussagen, nicht durch leere Floskeln.
+ABSCHLUSS: "Melden Sie sich gerne, wenn Bedarf besteht." + "Mit freundlichen Gruessen" OHNE Signatur
 
 VERBOTEN:
-- Links, URLs, Webseiten-Verweise
-- Marketing-Sprech, Floskeln
-- Uebertreibungen ("der beste Recruiter", "garantiert")
+- Aufzaehlungen wie ein Lebenslauf (NICHT 7 Bullet-Points ueber sich selbst)
+- Unterwuerfig klingen ("ich wuerde mich freuen wenn", "sollte der ideale Kandidat nicht verfuegbar sein")
+- "Erfolgreiche Vermittlungen", "zahlreiche", "langjaerig" — zeig es statt es zu sagen
+- Links, URLs
+- Mehr als 130 Woerter
 """
 
-KONTAKTDATEN_EMAIL_USER = """Erstelle eine Vorstellungs-E-Mail fuer folgendes Telefonat:
+KONTAKTDATEN_EMAIL_USER = """Erstelle eine kurze Vorstellungs-E-Mail nach Telefonat:
 
 **Firma:** {company_name}
-**Branche:** {industry}
+**Branche laut Datenbank:** {industry} (ACHTUNG: kann falsch/ungenau sein — lies den Stellentext!)
 **Ansprechpartner:** {contact_salutation} {contact_name} ({contact_function})
 
+**Stellentext (lies genau — hieraus erkennst du die ECHTE Branche):**
+{job_text_excerpt}
+
+AUFGABE:
+1. Lies den Stellentext und erkenne was die Firma WIRKLICH macht
+2. Schreibe 3 kurze Absaetze (100-130 Woerter GESAMT), selbstbewusst, auf Augenhoehe
+3. KEIN Lebenslauf-Aufzaehlen, KEINE unterwuerfige Sprache
+
 Erstelle:
-1. E-Mail-Betreff (max 60 Zeichen, z.B. "Unsere Kontaktdaten — Personalberatung Finance")
-2. E-Mail-Text (Plain-Text, 200-250 Woerter)
+1. E-Mail-Betreff (max 60 Zeichen, z.B. "Kontaktdaten — Personalberatung Finance")
+2. E-Mail-Text (Plain-Text, 100-130 Woerter, selbstbewusster Geschaeftston)
 
 Antwort als JSON:
 {{"subject": "...", "body": "..."}}
@@ -658,6 +650,7 @@ class AcquisitionEmailService:
                 contact_salutation=contact_salutation,
                 contact_name=contact_name,
                 contact_function=contact_function,
+                job_text_excerpt=job_text,
             )
         else:
             user_prompt = AKQUISE_EMAIL_USER.format(
