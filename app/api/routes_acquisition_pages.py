@@ -684,16 +684,85 @@ def _parse_line_based(job_text: str) -> list[dict]:
     return sections
 
 
+def _is_mid_sentence(job_text: str, match_start: int, match_end: int) -> bool:
+    """Prüft ob ein Keyword mitten im Satz steht (= kein Header).
+
+    Ein echtes Header-Keyword steht typischerweise:
+    - Am Textanfang
+    - Nach Satzzeichen (. ! ? : ;)
+    - Allein oder gefolgt von Aufzaehlungsinhalten
+
+    False Positives erkennen wir an:
+    1. Vor dem Keyword steht ein Kleinbuchstabe-Wort (Adjektiv/Artikel)
+    2. Nach dem Keyword folgt direkt ein Verb → normaler Satz, kein Header
+    """
+    # Text vor dem Match
+    before = job_text[:match_start].rstrip()
+    if not before:
+        return False  # Textanfang → Header
+
+    last_char = before[-1]
+    # Nach Satzzeichen / Aufzaehlungszeichen → Potentieller Header
+    if last_char in ".!?:;–—•·-)\n":
+        # Aber: Check ob nach dem Keyword ein Verb folgt (= normaler Satz)
+        after = job_text[match_end:match_end + 30].strip().split()
+        if after:
+            first_word_after = after[0].rstrip(".,;:!?-–—").lower()
+            # Typische deutsche Verben die nach einem Subjekt-Keyword stehen
+            sentence_verbs = {
+                "zeichnet", "ist", "hat", "bietet", "sucht", "liegt", "steht",
+                "befindet", "gehört", "verfügt", "wurde", "wird", "kann",
+                "soll", "muss", "darf", "möchte", "arbeitet", "beschäftigt",
+            }
+            if first_word_after in sentence_verbs or first_word_after == "sich":
+                return True
+        return False
+
+    # Letztes Wort davor extrahieren
+    words_before = before.split()
+    if not words_before:
+        return False
+
+    last_word = words_before[-1].rstrip(".,;:!?-–—")
+    if not last_word:
+        return False
+
+    # Wenn letztes Wort mit Kleinbuchstabe beginnt → mid-sentence
+    # (Adjektive, Artikel, Pronomen: "abwechslungsreiche", "familienfreundlichen", "dein")
+    if last_word[0].islower():
+        return True
+
+    return False
+
+
 def _parse_inline(job_text: str) -> list[dict]:
-    """Erkennt Sektions-Header auch inline im Text und splittet dort."""
+    """Erkennt Sektions-Header auch inline im Text und splittet dort.
+
+    Schutzmechanismen gegen False-Positives:
+    1. Mid-sentence-Check: Keyword nach Kleinbuchstabe-Wort wird ignoriert
+    2. Deduplizierung: Nur erstes Vorkommen jedes Sektionstyps zaehlt
+    """
     # Alle Header-Positionen im Text finden
+    seen_types: set[str] = set()
     matches = []
     for m in _INLINE_PATTERN.finditer(job_text):
         header_text = m.group(1).strip()
         classified = _classify_header(header_text)
-        if classified:
-            sec_type, sec_title = classified
-            matches.append((m.start(1), m.end(1), sec_type, sec_title))
+        if not classified:
+            continue
+
+        sec_type, sec_title = classified
+
+        # Filter 1: Mid-sentence → kein Header
+        if _is_mid_sentence(job_text, m.start(1), m.end(1)):
+            continue
+
+        # Filter 2: Sektionstyp schon gesehen → Duplikat ignorieren
+        if sec_type in seen_types:
+            continue
+
+        seen_types.add(sec_type)
+        matches.append((m.start(1), m.end(1), sec_type, sec_title))
 
     if not matches:
         # Kein Header gefunden — gesamten Text als eine Sektion zurueckgeben
