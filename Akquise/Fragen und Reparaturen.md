@@ -247,3 +247,15 @@ akquise_page.html hat callScreen() IMMER definiert (beim Seitenstart geladen)
   - Nach Auflegen: Timer-Wert + "beendet" wird angezeigt (bis Disposition geklickt)
   - `stopCall()` speichert Dauer in `callDuration`, zweiter Aufruf berechnet nicht neu
   - Geaenderte Dateien: `akquise_page.html` (callDuration + stopCall-Logik), `call_screen.html` (Auflegen-Button + beendet-Anzeige)
+- **Reparatur 8** (Kontakt-Auswahl — falscher AP bei mehreren Ansprechpartnern) am 01.03.2026:
+  - Problem: Gruener Button wahlte IMMER contacts[0]. Klick auf andere AP-Nummer startete keinen Timer und aenderte contactId nicht.
+  - Loesung: `selectAndCall(contactId, phone)` — aktualisiert contactId + selectedPhone + startet Timer
+  - Gruener Button zeigt jetzt dynamisch die zuletzt gewaehlte Nummer (Alpine x-text)
+  - Kontaktliste: @click auf Telefonnummer ruft selectAndCall() + tel:-Link oeffnet Webex
+  - E-Mail-Button nutzt jetzt dynamische contactId statt hardcoded contacts[0]
+- **Reparatur 9** (Job-Text unstrukturiert — reiner Text-Blob) am 01.03.2026:
+  - Problem: job_text wurde als weisser Text-Block angezeigt, keine Struktur erkennbar
+  - Loesung: Server-seitiger Parser `_parse_job_sections()` erkennt deutsche Sektions-Header
+  - Erkannte Sektionen: Aufgaben, Anforderungen, Unternehmen, Wir bieten, Kontakt
+  - Jede Sektion bekommt Farbbalken + Titel + Trennlinie
+  - Fallback: Wenn keine Sektionen erkannt, wird Text-Blob wie bisher angezeigt

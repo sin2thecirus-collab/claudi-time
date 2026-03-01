@@ -8,6 +8,7 @@ GET /akquise/partials/email-modal/{job_id} → E-Mail Modal (HTMX)
 
 import asyncio
 import json
+import re
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -284,6 +285,9 @@ async def call_screen_partial(
     from app.services.acquisition_test_helpers import is_test_mode
     test_mode = await is_test_mode(db)
 
+    # Job-Text in Sektionen parsen
+    job_sections = _parse_job_sections(job_data.get("job_text"))
+
     return templates.TemplateResponse(
         "partials/akquise/call_screen.html",
         {
@@ -294,6 +298,7 @@ async def call_screen_partial(
             "call_history": call_history,
             "email_history": email_history,
             "other_jobs": other_jobs,
+            "job_sections": job_sections,
             "now_date": datetime.now(timezone.utc).strftime("%d.%m.%Y"),
             "test_mode": test_mode,
         },
@@ -509,3 +514,76 @@ async def _enrich_email_info(db: AsyncSession, groups: list[dict]) -> list[dict]
                 job["days_since_email"] = None
                 job["contact_id"] = None
     return groups
+
+
+# ── Job-Text Sektionen Parser ──
+
+_SECTION_PATTERNS: list[tuple[str, "re.Pattern[str]", str]] = [
+    ("tasks", re.compile(
+        r"^[\W]*(ihre\s+aufgaben|aufgaben(?:bereich|gebiet)?|das\s+erwartet\s+(?:sie|dich)|"
+        r"t[äa]tigkeiten|(?:ihr\s+)?verantwortungsbereich|was\s+(?:sie|dich)\s+erwartet|"
+        r"the\s+role|responsibilities|job\s*description)[\W]*$", re.IGNORECASE,
+    ), "Aufgaben"),
+    ("requirements", re.compile(
+        r"^[\W]*(ihr\s+profil|anforderung(?:en|sprofil)?|was\s+(?:sie|du)\s+mitbring(?:st|en)|"
+        r"qualifikation(?:en)?|voraussetzung(?:en)?|das\s+bringst?\s+(?:sie|du)\s+mit|"
+        r"das\s+sollten\s+(?:sie|du)|(?:sie|du)\s+bringst?\s+mit|"
+        r"das\s+w[üu]nschen\s+wir\s+uns|requirements?|your\s+profile)[\W]*$", re.IGNORECASE,
+    ), "Anforderungen"),
+    ("company", re.compile(
+        r"^[\W]*([üu]ber\s+uns|(?:das\s+)?unternehmen(?:sprofil)?|"
+        r"wer\s+wir\s+sind|about\s+us|the\s+company)[\W]*$", re.IGNORECASE,
+    ), "Unternehmen"),
+    ("benefits", re.compile(
+        r"^[\W]*(wir\s+bieten|das\s+bieten\s+wir|benefits?|(?:ihre?|deine?)\s+vorteile|"
+        r"was\s+wir\s+(?:(?:ihnen|dir)\s+)?bieten|unser\s+angebot|"
+        r"darauf\s+(?:k[öo]nnen|d[üu]rfen)\s+(?:sie|du)\s+sich\s+freuen|"
+        r"what\s+we\s+offer)[\W]*$", re.IGNORECASE,
+    ), "Wir bieten"),
+    ("contact", re.compile(
+        r"^[\W]*(kontakt|(?:ihre?\s+)?bewerbung|so\s+bewerben\s+(?:sie|du)\s+(?:sich|dich)|"
+        r"ansprechpartner|haben\s+wir\s+(?:ihr|dein)\s+interesse|"
+        r"jetzt\s+bewerben|bewirb\s+dich)[\W]*$", re.IGNORECASE,
+    ), "Kontakt"),
+]
+
+
+def _parse_job_sections(job_text: str | None) -> list[dict]:
+    """Parse job_text into structured sections by detecting common German header patterns."""
+    if not job_text or not job_text.strip():
+        return []
+
+    lines = job_text.split("\n")
+    sections: list[dict] = []
+    current_type = "general"
+    current_title = "Allgemein"
+    current_lines: list[str] = []
+
+    for line in lines:
+        stripped = line.strip()
+
+        # Check if this short line is a section header (not a bullet point)
+        if stripped and len(stripped) < 80 and not stripped[:1] in ("-", "*", "–"):
+            matched = False
+            for sec_type, pattern, sec_title in _SECTION_PATTERNS:
+                if pattern.match(stripped):
+                    # Save current section
+                    content = "\n".join(current_lines).strip()
+                    if content:
+                        sections.append({"type": current_type, "title": current_title, "content": content})
+                    current_type = sec_type
+                    current_title = sec_title
+                    current_lines = []
+                    matched = True
+                    break
+            if matched:
+                continue
+
+        current_lines.append(line)
+
+    # Add last section
+    content = "\n".join(current_lines).strip()
+    if content:
+        sections.append({"type": current_type, "title": current_title, "content": content})
+
+    return sections

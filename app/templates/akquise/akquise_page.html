@@ -215,6 +215,7 @@ function callScreen() {
         companyName: cfg.companyName || '',
         callType: cfg.callType || 'erstanruf',
         contactId: cfg.contactId || '',
+        selectedPhone: cfg.defaultPhone || '',
         otherJobIds: cfg.otherJobIds || [],
         callActive: false,
         callStartedAt: null,
@@ -257,6 +258,12 @@ function callScreen() {
                 if (this.timerInterval) clearInterval(this.timerInterval);
             }
             return this.callDuration;
+        },
+
+        selectAndCall(cId, phone) {
+            this.contactId = cId;
+            this.selectedPhone = phone;
+            if (!this.callActive) this.startCall();
         },
 
         async submitDisposition(disposition) {
