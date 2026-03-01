@@ -107,8 +107,7 @@ async def tab_partial(
         )
         .options(selectinload(Job.company))
         .order_by(
-            Job.akquise_priority.desc().nullslast(),
-            Job.first_seen_at.asc().nullslast(),
+            Job.created_at.desc().nullslast(),
         )
     )
 
