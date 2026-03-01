@@ -582,41 +582,75 @@ async def _enrich_email_info(db: AsyncSession, groups: list[dict]) -> list[dict]
 
 # ── Job-Text Sektionen Parser ──
 
-_SECTION_PATTERNS: list[tuple[str, "re.Pattern[str]", str]] = [
-    ("tasks", re.compile(
-        r"^[\W]*(ihre\s+aufgaben|aufgaben(?:bereich|gebiet)?|das\s+erwartet\s+(?:sie|dich)|"
-        r"t[äa]tigkeiten|(?:ihr\s+)?verantwortungsbereich|was\s+(?:sie|dich)\s+erwartet|"
-        r"the\s+role|responsibilities|job\s*description)[\W]*$", re.IGNORECASE,
-    ), "Aufgaben"),
-    ("requirements", re.compile(
-        r"^[\W]*(ihr\s+profil|anforderung(?:en|sprofil)?|was\s+(?:sie|du)\s+mitbring(?:st|en)|"
-        r"qualifikation(?:en)?|voraussetzung(?:en)?|das\s+bringst?\s+(?:sie|du)\s+mit|"
-        r"das\s+sollten\s+(?:sie|du)|(?:sie|du)\s+bringst?\s+mit|"
-        r"das\s+w[üu]nschen\s+wir\s+uns|requirements?|your\s+profile)[\W]*$", re.IGNORECASE,
-    ), "Anforderungen"),
-    ("company", re.compile(
-        r"^[\W]*([üu]ber\s+uns|(?:das\s+)?unternehmen(?:sprofil)?|"
-        r"wer\s+wir\s+sind|about\s+us|the\s+company)[\W]*$", re.IGNORECASE,
-    ), "Unternehmen"),
-    ("benefits", re.compile(
-        r"^[\W]*(wir\s+bieten|das\s+bieten\s+wir|benefits?|(?:ihre?|deine?)\s+vorteile|"
-        r"was\s+wir\s+(?:(?:ihnen|dir)\s+)?bieten|unser\s+angebot|"
-        r"darauf\s+(?:k[öo]nnen|d[üu]rfen)\s+(?:sie|du)\s+sich\s+freuen|"
-        r"what\s+we\s+offer)[\W]*$", re.IGNORECASE,
-    ), "Wir bieten"),
-    ("contact", re.compile(
-        r"^[\W]*(kontakt|(?:ihre?\s+)?bewerbung|so\s+bewerben\s+(?:sie|du)\s+(?:sich|dich)|"
-        r"ansprechpartner|haben\s+wir\s+(?:ihr|dein)\s+interesse|"
-        r"jetzt\s+bewerben|bewirb\s+dich)[\W]*$", re.IGNORECASE,
-    ), "Kontakt"),
+# Sektions-Definitionen: (type, display_title, regex_keywords)
+# Die Keywords werden sowohl zeilenbasiert als auch inline erkannt.
+_SECTION_DEFS: list[tuple[str, str, str]] = [
+    ("tasks", "Aufgaben",
+     r"ihre\s+aufgaben|aufgaben(?:bereich|gebiet|profil)?|das\s+erwartet\s+(?:sie|dich)|"
+     r"t[äa]tigkeiten|(?:ihr\s+)?verantwortungsbereich|was\s+(?:sie|dich)\s+erwartet|"
+     r"the\s+role|responsibilities|job\s*description"),
+    ("requirements", "Anforderungen",
+     r"ihr\s+profil|anforderung(?:en|sprofil)?|was\s+(?:sie|du)\s+mitbring(?:st|en)|"
+     r"qualifikation(?:en)?|voraussetzung(?:en)?|das\s+bringst?\s+(?:sie|du)\s+mit|"
+     r"das\s+sollten\s+(?:sie|du)|(?:sie|du)\s+bringst?\s+mit|"
+     r"das\s+w[üu]nschen\s+wir\s+uns|requirements?|your\s+profile|profil"),
+    ("company", "Unternehmen",
+     r"[üu]ber\s+uns|(?:das\s+)?unternehmen(?:sprofil)?|wer\s+wir\s+sind|"
+     r"about\s+us|the\s+company|einleitung"),
+    ("benefits", "Wir bieten",
+     r"wir\s+bieten|das\s+bieten\s+wir|benefits?|(?:ihre?|deine?)\s+vorteile|"
+     r"was\s+wir\s+(?:(?:ihnen|dir)\s+)?bieten|unser(?:e)?\s+(?:angebot|leistungen)|"
+     r"darauf\s+(?:k[öo]nnen|d[üu]rfen)\s+(?:sie|du)\s+sich\s+freuen|"
+     r"what\s+we\s+offer"),
+    ("contact", "Kontakt",
+     r"kontakt|(?:ihre?\s+)?bewerbung|so\s+bewerben\s+(?:sie|du)\s+(?:sich|dich)|"
+     r"ansprechpartner|haben\s+wir\s+(?:ihr|dein)\s+interesse|"
+     r"jetzt\s+bewerben|bewirb\s+dich"),
 ]
+
+# Zeilenbasiertes Pattern (Header auf eigener Zeile)
+_LINE_PATTERNS = [
+    (sec_type, re.compile(rf"^[\W]*({kw})[\W]*$", re.IGNORECASE), title)
+    for sec_type, title, kw in _SECTION_DEFS
+]
+
+# Inline-Pattern (Header mitten im Text, gefolgt von Inhalt)
+_INLINE_PATTERN = re.compile(
+    r"(?:^|\s)(" + "|".join(kw for _, _, kw in _SECTION_DEFS) + r")(?:\s|$|:)",
+    re.IGNORECASE,
+)
+
+# Mapping: matched keyword → (type, title)
+def _classify_header(header_text: str) -> tuple[str, str] | None:
+    """Ordnet einen erkannten Header-Text einem Sektionstyp zu."""
+    for sec_type, title, kw in _SECTION_DEFS:
+        if re.match(rf"^(?:{kw})$", header_text.strip(), re.IGNORECASE):
+            return sec_type, title
+    return None
 
 
 def _parse_job_sections(job_text: str | None) -> list[dict]:
-    """Parse job_text into structured sections by detecting common German header patterns."""
+    """Parse job_text into structured sections.
+
+    Strategie:
+    1. Zuerst zeilenbasiert (Header auf eigener Zeile) — das ist der saubere Fall.
+    2. Wenn nur 1 Sektion (= alles 'Allgemein'), dann Inline-Erkennung:
+       Suche Header-Keywords mitten im Text und splitte dort.
+    """
     if not job_text or not job_text.strip():
         return []
 
+    # ── Versuch 1: Zeilenbasiert ──
+    sections = _parse_line_based(job_text)
+    if len(sections) > 1:
+        return sections
+
+    # ── Versuch 2: Inline-Erkennung (CSV-Texte ohne Zeilenumbrueche) ──
+    return _parse_inline(job_text)
+
+
+def _parse_line_based(job_text: str) -> list[dict]:
+    """Parst nach Zeilenumbruechen — Header muss auf eigener Zeile stehen."""
     lines = job_text.split("\n")
     sections: list[dict] = []
     current_type = "general"
@@ -626,12 +660,10 @@ def _parse_job_sections(job_text: str | None) -> list[dict]:
     for line in lines:
         stripped = line.strip()
 
-        # Check if this short line is a section header (not a bullet point)
-        if stripped and len(stripped) < 80 and not stripped[:1] in ("-", "*", "–"):
+        if stripped and len(stripped) < 80 and stripped[:1] not in ("-", "*", "–"):
             matched = False
-            for sec_type, pattern, sec_title in _SECTION_PATTERNS:
+            for sec_type, pattern, sec_title in _LINE_PATTERNS:
                 if pattern.match(stripped):
-                    # Save current section
                     content = "\n".join(current_lines).strip()
                     if content:
                         sections.append({"type": current_type, "title": current_title, "content": content})
@@ -645,9 +677,41 @@ def _parse_job_sections(job_text: str | None) -> list[dict]:
 
         current_lines.append(line)
 
-    # Add last section
     content = "\n".join(current_lines).strip()
     if content:
         sections.append({"type": current_type, "title": current_title, "content": content})
+
+    return sections
+
+
+def _parse_inline(job_text: str) -> list[dict]:
+    """Erkennt Sektions-Header auch inline im Text und splittet dort."""
+    # Alle Header-Positionen im Text finden
+    matches = []
+    for m in _INLINE_PATTERN.finditer(job_text):
+        header_text = m.group(1).strip()
+        classified = _classify_header(header_text)
+        if classified:
+            sec_type, sec_title = classified
+            matches.append((m.start(1), m.end(1), sec_type, sec_title))
+
+    if not matches:
+        # Kein Header gefunden — gesamten Text als eine Sektion zurueckgeben
+        return [{"type": "general", "title": "Stellenbeschreibung", "content": job_text.strip()}]
+
+    sections: list[dict] = []
+
+    # Text vor dem ersten Header
+    before = job_text[:matches[0][0]].strip()
+    if before:
+        sections.append({"type": "general", "title": "Allgemein", "content": before})
+
+    # Sektionen zwischen den Headern
+    for i, (start, end, sec_type, sec_title) in enumerate(matches):
+        # Inhalt: von Ende dieses Headers bis Anfang des naechsten
+        next_start = matches[i + 1][0] if i + 1 < len(matches) else len(job_text)
+        content = job_text[end:next_start].strip()
+        if content:
+            sections.append({"type": sec_type, "title": sec_title, "content": content})
 
     return sections
