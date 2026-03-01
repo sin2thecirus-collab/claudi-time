@@ -1,6 +1,209 @@
 {# Call-Screen — 3-Spalten Layout (Stellentext | Qualifizierung | Aktionen) #}
 {# Erwartet: job, company, contacts, call_history, email_history, other_jobs #}
 
+{# WICHTIG: Script MUSS vor x-data stehen, damit Alpine die Funktion findet (HTMX Timing) #}
+<style>
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+</style>
+
+<script>
+function callScreen() {
+    return {
+        callActive: false,
+        callStartedAt: null,
+        callTimer: '00:00',
+        timerInterval: null,
+        notes: '',
+        quali: {},
+        selectedDisposition: null,
+        showFollowUp: false,
+        pendingDisposition: '',
+        followUpDate: '',
+        followUpTime: '09:00',
+        followUpNote: '',
+        showNewJobForm: false,
+        newJobPosition: '',
+        newJobType: '',
+        newJobNotes: '',
+        otherJobIds: [{% for oj in other_jobs %}'{{ oj.id }}'{{ ',' if not loop.last }}{% endfor %}],
+
+        init() {
+            // Lade Notizen aus localStorage falls vorhanden
+            const saved = localStorage.getItem('akquise_notes_{{ job.id }}');
+            if (saved) this.notes = saved;
+        },
+
+        startCall() {
+            this.callActive = true;
+            this.callStartedAt = Date.now();
+            this.timerInterval = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - this.callStartedAt) / 1000);
+                const min = String(Math.floor(elapsed / 60)).padStart(2, '0');
+                const sec = String(elapsed % 60).padStart(2, '0');
+                this.callTimer = min + ':' + sec;
+            }, 1000);
+        },
+
+        stopCall() {
+            this.callActive = false;
+            if (this.timerInterval) clearInterval(this.timerInterval);
+            return this.callStartedAt ? Math.floor((Date.now() - this.callStartedAt) / 1000) : 0;
+        },
+
+        async submitDisposition(disposition) {
+            const duration = this.stopCall();
+            this.selectedDisposition = disposition;
+
+            // Wiedervorlage-Pflichtfelder bei interesse_spaeter und qualifiziert_erst
+            if ((disposition === 'interesse_spaeter' || disposition === 'qualifiziert_erst') && !this.followUpDate) {
+                if (typeof showToast === 'function') showToast('Bitte Wiedervorlage-Datum angeben', 'warning');
+                return;
+            }
+
+            const body = {
+                disposition: disposition,
+                call_type: '{{ "wiedervorlage" if job.akquise_status == "wiedervorlage" else "erstanruf" }}',
+                notes: this.notes || null,
+                qualification_data: Object.keys(this.quali).length > 0 ? this.quali : null,
+                duration_seconds: duration || null,
+                follow_up_date: this.followUpDate ? this.followUpDate + (this.followUpTime ? 'T' + this.followUpTime : 'T09:00') + ':00' : null,
+                follow_up_note: this.followUpNote || null,
+                {% if contacts and contacts | length > 0 %}
+                contact_id: '{{ contacts[0].id }}',
+                {% endif %}
+            };
+
+            try {
+                const resp = await fetch('/api/akquise/leads/{{ job.id }}/call', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+                if (resp.ok) {
+                    const result = await resp.json();
+                    localStorage.removeItem('akquise_notes_{{ job.id }}');
+                    if (typeof showToast === 'function') {
+                        showToast('{{ job.company_name }} — ' + disposition + ' gespeichert', 'success');
+                    }
+                    // Batch-Disposition: Andere Stellen der gleichen Firma?
+                    const batchDispositions = ['nicht_erreicht','mailbox_besprochen','besetzt','falsche_nummer','sekretariat','kein_bedarf','nie_wieder'];
+                    if (this.otherJobIds.length > 0 && batchDispositions.includes(disposition)) {
+                        const applyAll = confirm(
+                            'Gleiche Disposition (' + disposition + ') auch fuer '
+                            + this.otherJobIds.length + ' weitere Stelle'
+                            + (this.otherJobIds.length > 1 ? 'n' : '')
+                            + ' dieser Firma anwenden?'
+                        );
+                        if (applyAll) {
+                            try {
+                                await fetch('/api/akquise/leads/batch-status', {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ job_ids: this.otherJobIds, status: result.new_status }),
+                                });
+                                if (typeof showToast === 'function') {
+                                    showToast(this.otherJobIds.length + ' weitere Stellen aktualisiert', 'success');
+                                }
+                            } catch (batchErr) {
+                                if (typeof showToast === 'function') showToast('Batch-Update fehlgeschlagen', 'error');
+                            }
+                        }
+                    }
+                    // Auto-advance zum naechsten Lead
+                    setTimeout(() => {
+                        Alpine.$data(document.getElementById('akquise-root')).advanceToNextLead();
+                    }, 600);
+                } else {
+                    const err = await resp.json();
+                    if (typeof showToast === 'function') showToast(err.detail || 'Fehler', 'error');
+                }
+            } catch (e) {
+                if (typeof showToast === 'function') showToast('Netzwerkfehler', 'error');
+            }
+        },
+
+        autoSaveNotes() {
+            // Speichert Notizen in localStorage damit sie beim Schliessen/Oeffnen nicht verloren gehen
+            // Die Notizen werden mit der Disposition an den Server gesendet
+            localStorage.setItem('akquise_notes_{{ job.id }}', this.notes);
+        },
+
+        async simulateCall(scenario) {
+            if (!this.callActive) this.startCall();
+            try {
+                const resp = await fetch('/api/akquise/test/simulate-call/{{ job.id }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ scenario: scenario }),
+                });
+                if (resp.ok) {
+                    const result = await resp.json();
+                    this.stopCall();
+                    if (typeof showToast === 'function') {
+                        showToast('[SIM] ' + result.disposition + ' — ' + result.duration + 's', 'info');
+                    }
+                    this.notes += '[SIM ' + scenario + '] ' + (result.notes || '') + '\n';
+                } else {
+                    const err = await resp.json();
+                    this.stopCall();
+                    if (typeof showToast === 'function') showToast(err.detail || 'Simulation fehlgeschlagen', 'error');
+                }
+            } catch (e) {
+                this.stopCall();
+                if (typeof showToast === 'function') showToast('Netzwerkfehler bei Simulation', 'error');
+            }
+        },
+
+        async submitD12WithJob() {
+            if (!this.newJobPosition.trim()) {
+                if (typeof showToast === 'function') showToast('Bitte Position angeben', 'warning');
+                return;
+            }
+            // Erst Disposition setzen (D12 erstellt neue Stelle im Backend)
+            const duration = this.stopCall();
+            this.selectedDisposition = 'andere_stelle_offen';
+
+            const body = {
+                disposition: 'andere_stelle_offen',
+                call_type: '{{ "wiedervorlage" if job.akquise_status == "wiedervorlage" else "erstanruf" }}',
+                notes: this.notes || null,
+                duration_seconds: duration || null,
+                extra_data: {
+                    position: this.newJobPosition,
+                    employment_type: this.newJobType || null,
+                    notes: this.newJobNotes || null,
+                },
+                {% if contacts and contacts | length > 0 %}
+                contact_id: '{{ contacts[0].id }}',
+                {% endif %}
+            };
+
+            try {
+                const resp = await fetch('/api/akquise/leads/{{ job.id }}/call', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+                if (resp.ok) {
+                    this.showNewJobForm = false;
+                    if (typeof showToast === 'function') {
+                        showToast('Neue Stelle "' + this.newJobPosition + '" angelegt', 'success');
+                    }
+                    setTimeout(() => {
+                        Alpine.$data(document.getElementById('akquise-root')).advanceToNextLead();
+                    }, 600);
+                } else {
+                    const err = await resp.json();
+                    if (typeof showToast === 'function') showToast(err.detail || 'Fehler', 'error');
+                }
+            } catch (e) {
+                if (typeof showToast === 'function') showToast('Netzwerkfehler', 'error');
+            }
+        },
+    };
+}
+</script>
+
 <div x-data="callScreen()" x-init="init()" style="height:100vh;display:flex;flex-direction:column;background:var(--pp-bg);">
 
     {# ── Call-Bar (oben, fixed) ── #}
@@ -292,205 +495,3 @@
         </div>
     </div>
 </div>
-
-<style>
-@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-</style>
-
-<script>
-function callScreen() {
-    return {
-        callActive: false,
-        callStartedAt: null,
-        callTimer: '00:00',
-        timerInterval: null,
-        notes: '',
-        quali: {},
-        selectedDisposition: null,
-        showFollowUp: false,
-        pendingDisposition: '',
-        followUpDate: '',
-        followUpTime: '09:00',
-        followUpNote: '',
-        showNewJobForm: false,
-        newJobPosition: '',
-        newJobType: '',
-        newJobNotes: '',
-        otherJobIds: [{% for oj in other_jobs %}'{{ oj.id }}'{{ ',' if not loop.last }}{% endfor %}],
-
-        init() {
-            // Lade Notizen aus localStorage falls vorhanden
-            const saved = localStorage.getItem('akquise_notes_{{ job.id }}');
-            if (saved) this.notes = saved;
-        },
-
-        startCall() {
-            this.callActive = true;
-            this.callStartedAt = Date.now();
-            this.timerInterval = setInterval(() => {
-                const elapsed = Math.floor((Date.now() - this.callStartedAt) / 1000);
-                const min = String(Math.floor(elapsed / 60)).padStart(2, '0');
-                const sec = String(elapsed % 60).padStart(2, '0');
-                this.callTimer = min + ':' + sec;
-            }, 1000);
-        },
-
-        stopCall() {
-            this.callActive = false;
-            if (this.timerInterval) clearInterval(this.timerInterval);
-            return this.callStartedAt ? Math.floor((Date.now() - this.callStartedAt) / 1000) : 0;
-        },
-
-        async submitDisposition(disposition) {
-            const duration = this.stopCall();
-            this.selectedDisposition = disposition;
-
-            // Wiedervorlage-Pflichtfelder bei interesse_spaeter und qualifiziert_erst
-            if ((disposition === 'interesse_spaeter' || disposition === 'qualifiziert_erst') && !this.followUpDate) {
-                if (typeof showToast === 'function') showToast('Bitte Wiedervorlage-Datum angeben', 'warning');
-                return;
-            }
-
-            const body = {
-                disposition: disposition,
-                call_type: '{{ "wiedervorlage" if job.akquise_status == "wiedervorlage" else "erstanruf" }}',
-                notes: this.notes || null,
-                qualification_data: Object.keys(this.quali).length > 0 ? this.quali : null,
-                duration_seconds: duration || null,
-                follow_up_date: this.followUpDate ? this.followUpDate + (this.followUpTime ? 'T' + this.followUpTime : 'T09:00') + ':00' : null,
-                follow_up_note: this.followUpNote || null,
-                {% if contacts and contacts | length > 0 %}
-                contact_id: '{{ contacts[0].id }}',
-                {% endif %}
-            };
-
-            try {
-                const resp = await fetch('/api/akquise/leads/{{ job.id }}/call', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body),
-                });
-                if (resp.ok) {
-                    const result = await resp.json();
-                    localStorage.removeItem('akquise_notes_{{ job.id }}');
-                    if (typeof showToast === 'function') {
-                        showToast('{{ job.company_name }} — ' + disposition + ' gespeichert', 'success');
-                    }
-                    // Batch-Disposition: Andere Stellen der gleichen Firma?
-                    const batchDispositions = ['nicht_erreicht','mailbox_besprochen','besetzt','falsche_nummer','sekretariat','kein_bedarf','nie_wieder'];
-                    if (this.otherJobIds.length > 0 && batchDispositions.includes(disposition)) {
-                        const applyAll = confirm(
-                            'Gleiche Disposition (' + disposition + ') auch fuer '
-                            + this.otherJobIds.length + ' weitere Stelle'
-                            + (this.otherJobIds.length > 1 ? 'n' : '')
-                            + ' dieser Firma anwenden?'
-                        );
-                        if (applyAll) {
-                            try {
-                                await fetch('/api/akquise/leads/batch-status', {
-                                    method: 'PATCH',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ job_ids: this.otherJobIds, status: result.new_status }),
-                                });
-                                if (typeof showToast === 'function') {
-                                    showToast(this.otherJobIds.length + ' weitere Stellen aktualisiert', 'success');
-                                }
-                            } catch (batchErr) {
-                                if (typeof showToast === 'function') showToast('Batch-Update fehlgeschlagen', 'error');
-                            }
-                        }
-                    }
-                    // Auto-advance zum naechsten Lead
-                    setTimeout(() => {
-                        Alpine.$data(document.getElementById('akquise-root')).advanceToNextLead();
-                    }, 600);
-                } else {
-                    const err = await resp.json();
-                    if (typeof showToast === 'function') showToast(err.detail || 'Fehler', 'error');
-                }
-            } catch (e) {
-                if (typeof showToast === 'function') showToast('Netzwerkfehler', 'error');
-            }
-        },
-
-        autoSaveNotes() {
-            // Speichert Notizen in localStorage damit sie beim Schliessen/Oeffnen nicht verloren gehen
-            // Die Notizen werden mit der Disposition an den Server gesendet
-            localStorage.setItem('akquise_notes_{{ job.id }}', this.notes);
-        },
-
-        async simulateCall(scenario) {
-            if (!this.callActive) this.startCall();
-            try {
-                const resp = await fetch('/api/akquise/test/simulate-call/{{ job.id }}', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ scenario: scenario }),
-                });
-                if (resp.ok) {
-                    const result = await resp.json();
-                    this.stopCall();
-                    if (typeof showToast === 'function') {
-                        showToast('[SIM] ' + result.disposition + ' — ' + result.duration + 's', 'info');
-                    }
-                    this.notes += '[SIM ' + scenario + '] ' + (result.notes || '') + '\n';
-                } else {
-                    const err = await resp.json();
-                    this.stopCall();
-                    if (typeof showToast === 'function') showToast(err.detail || 'Simulation fehlgeschlagen', 'error');
-                }
-            } catch (e) {
-                this.stopCall();
-                if (typeof showToast === 'function') showToast('Netzwerkfehler bei Simulation', 'error');
-            }
-        },
-
-        async submitD12WithJob() {
-            if (!this.newJobPosition.trim()) {
-                if (typeof showToast === 'function') showToast('Bitte Position angeben', 'warning');
-                return;
-            }
-            // Erst Disposition setzen (D12 erstellt neue Stelle im Backend)
-            const duration = this.stopCall();
-            this.selectedDisposition = 'andere_stelle_offen';
-
-            const body = {
-                disposition: 'andere_stelle_offen',
-                call_type: '{{ "wiedervorlage" if job.akquise_status == "wiedervorlage" else "erstanruf" }}',
-                notes: this.notes || null,
-                duration_seconds: duration || null,
-                extra_data: {
-                    position: this.newJobPosition,
-                    employment_type: this.newJobType || null,
-                    notes: this.newJobNotes || null,
-                },
-                {% if contacts and contacts | length > 0 %}
-                contact_id: '{{ contacts[0].id }}',
-                {% endif %}
-            };
-
-            try {
-                const resp = await fetch('/api/akquise/leads/{{ job.id }}/call', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body),
-                });
-                if (resp.ok) {
-                    this.showNewJobForm = false;
-                    if (typeof showToast === 'function') {
-                        showToast('Neue Stelle "' + this.newJobPosition + '" angelegt', 'success');
-                    }
-                    setTimeout(() => {
-                        Alpine.$data(document.getElementById('akquise-root')).advanceToNextLead();
-                    }, 600);
-                } else {
-                    const err = await resp.json();
-                    if (typeof showToast === 'function') showToast(err.detail || 'Fehler', 'error');
-                }
-            } catch (e) {
-                if (typeof showToast === 'function') showToast('Netzwerkfehler', 'error');
-            }
-        },
-    };
-}
-</script>
