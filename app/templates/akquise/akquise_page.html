@@ -234,6 +234,13 @@ function callScreen() {
         newJobPosition: '',
         newJobType: '',
         newJobNotes: '',
+        showD11Form: false,
+        d11Nachfolger: '',
+        showD13Form: false,
+        d13FirstName: '',
+        d13LastName: '',
+        d13Function: '',
+        d13Phone: '',
 
         init() {
             const saved = localStorage.getItem('akquise_notes_' + this.jobId);
@@ -398,6 +405,85 @@ function callScreen() {
                     setTimeout(() => {
                         Alpine.$data(document.getElementById('akquise-root')).advanceToNextLead();
                     }, 600);
+                } else {
+                    const err = await resp.json();
+                    if (typeof showToast === 'function') showToast(err.detail || 'Fehler', 'error');
+                }
+            } catch (e) {
+                if (typeof showToast === 'function') showToast('Netzwerkfehler', 'error');
+            }
+        },
+
+        async submitD11() {
+            const duration = this.stopCall();
+            this.selectedDisposition = 'ap_nicht_mehr_da';
+
+            const body = {
+                disposition: 'ap_nicht_mehr_da',
+                call_type: this.callType,
+                notes: this.notes || null,
+                duration_seconds: duration || null,
+                extra_data: {
+                    nachfolger: this.d11Nachfolger || null,
+                },
+            };
+            if (this.contactId) body.contact_id = this.contactId;
+
+            try {
+                const resp = await fetch('/api/akquise/leads/' + this.jobId + '/call', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+                if (resp.ok) {
+                    this.showD11Form = false;
+                    if (typeof showToast === 'function') {
+                        showToast('AP als inaktiv markiert' + (this.d11Nachfolger ? ' — Nachfolger: ' + this.d11Nachfolger : ''), 'success');
+                    }
+                    // Kein advanceToNextLead — Call-Screen bleibt offen fuer naechsten Schritt
+                } else {
+                    const err = await resp.json();
+                    if (typeof showToast === 'function') showToast(err.detail || 'Fehler', 'error');
+                }
+            } catch (e) {
+                if (typeof showToast === 'function') showToast('Netzwerkfehler', 'error');
+            }
+        },
+
+        async submitD13() {
+            if (!this.d13FirstName.trim() || !this.d13LastName.trim()) {
+                if (typeof showToast === 'function') showToast('Bitte Vor- und Nachname angeben', 'warning');
+                return;
+            }
+            const duration = this.stopCall();
+            this.selectedDisposition = 'weiterverbunden';
+
+            const body = {
+                disposition: 'weiterverbunden',
+                call_type: this.callType,
+                notes: this.notes || null,
+                duration_seconds: duration || null,
+                extra_data: {
+                    first_name: this.d13FirstName,
+                    last_name: this.d13LastName,
+                    function: this.d13Function || null,
+                    phone: this.d13Phone || null,
+                },
+            };
+            if (this.contactId) body.contact_id = this.contactId;
+
+            try {
+                const resp = await fetch('/api/akquise/leads/' + this.jobId + '/call', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+                if (resp.ok) {
+                    this.showD13Form = false;
+                    if (typeof showToast === 'function') {
+                        showToast('Neuer AP: ' + this.d13FirstName + ' ' + this.d13LastName + ' angelegt', 'success');
+                    }
+                    // Kein advanceToNextLead — Call-Screen bleibt offen (Zwischenschritt)
                 } else {
                     const err = await resp.json();
                     if (typeof showToast === 'function') showToast(err.detail || 'Fehler', 'error');

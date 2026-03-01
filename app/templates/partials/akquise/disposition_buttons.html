@@ -55,8 +55,7 @@
                 style="padding:6px 8px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:11px;cursor:pointer;text-align:left;transition:all .1s;">
             D7 Interesse — spaeter
         </button>
-        <button @click="submitDisposition('will_infos')"
-                :style="selectedDisposition === 'will_infos' ? 'background:var(--pp-accent);color:#fff;border-color:var(--pp-accent);' : ''"
+        <button @click="Alpine.$data(document.getElementById('akquise-root')).openEmailModal(jobId, contactId); if(typeof showToast === 'function') showToast('E-Mail-Typ waehlen und Draft pruefen', 'info')"
                 style="padding:6px 8px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:11px;cursor:pointer;text-align:left;transition:all .1s;">
             D8 Will Infos (E-Mail)
         </button>
@@ -75,7 +74,7 @@
     {# ── Sonderfaelle ── #}
     <div style="font-size:10px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.5px;margin:8px 0 2px;">Sonderfaelle</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;">
-        <button @click="submitDisposition('ap_nicht_mehr_da')"
+        <button @click="showD11Form = true"
                 style="padding:6px 8px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:11px;cursor:pointer;text-align:left;transition:all .1s;">
             D11 AP nicht mehr da
         </button>
@@ -84,7 +83,7 @@
                 style="padding:6px 8px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:11px;cursor:pointer;text-align:left;transition:all .1s;">
             D12 Andere Stelle offen
         </button>
-        <button @click="submitDisposition('weiterverbunden')"
+        <button @click="showD13Form = true"
                 style="padding:6px 8px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:11px;cursor:pointer;text-align:left;transition:all .1s;">
             D13 Weiterverbunden
         </button>
@@ -92,7 +91,9 @@
 
     {# ── Wiedervorlage Datum/Uhrzeit (zeigt sich bei D7, D9) ── #}
     <div x-show="showFollowUp" x-transition style="margin-top:10px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:8px;padding:12px;">
-        <p style="font-size:12px;font-weight:500;color:var(--pp-text);margin:0 0 8px;">Wiedervorlage</p>
+        <p style="font-size:12px;font-weight:500;color:var(--pp-text);margin:0 0 4px;">Wiedervorlage</p>
+        <p x-show="pendingDisposition === 'interesse_spaeter'" style="font-size:11px;color:var(--pp-textDim);margin:0 0 8px;">Kunde hat Interesse, aber aktuell kein Bedarf. Wann nachfassen?</p>
+        <p x-show="pendingDisposition === 'qualifiziert_erst'" style="font-size:11px;color:var(--pp-textDim);margin:0 0 8px;">Zweitkontakt vereinbart. Wann anrufen?</p>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
             <div>
                 <label style="font-size:10px;color:var(--pp-textDim);display:block;margin-bottom:4px;">Datum *</label>
@@ -141,6 +142,50 @@
             <button @click="submitD12WithJob()"
                     style="flex:1;padding:6px;background:var(--pp-accent);border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:600;cursor:pointer;">
                 Anlegen + Disposition
+            </button>
+        </div>
+    </div>
+
+    {# ── D11 AP nicht mehr da — Nachfolger-Feld ── #}
+    <div x-show="showD11Form" x-transition style="margin-top:10px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:8px;padding:12px;">
+        <p style="font-size:12px;font-weight:500;color:var(--pp-text);margin:0 0 4px;">AP nicht mehr da</p>
+        <p style="font-size:11px;color:var(--pp-textDim);margin:0 0 8px;">Contact wird als inaktiv markiert. Lead bleibt offen — du kannst danach einen neuen AP hinzufuegen oder weiter anrufen.</p>
+        <input type="text" x-model="d11Nachfolger" placeholder="Nachfolger bekannt? (Name, optional)"
+               style="width:100%;padding:6px 8px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;box-sizing:border-box;margin-bottom:8px;">
+        <div style="display:flex;gap:8px;">
+            <button @click="showD11Form = false"
+                    style="flex:1;padding:6px;background:var(--pp-surface3);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:11px;cursor:pointer;">
+                Abbrechen
+            </button>
+            <button @click="submitD11()"
+                    style="flex:1;padding:6px;background:var(--pp-orange);border:none;border-radius:6px;color:#000;font-size:11px;font-weight:600;cursor:pointer;">
+                Speichern
+            </button>
+        </div>
+    </div>
+
+    {# ── D13 Weiterverbunden — Neuer Contact ── #}
+    <div x-show="showD13Form" x-transition style="margin-top:10px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:8px;padding:12px;">
+        <p style="font-size:12px;font-weight:500;color:var(--pp-text);margin:0 0 4px;">Weiterverbunden</p>
+        <p style="font-size:11px;color:var(--pp-textDim);margin:0 0 8px;">Neuer Ansprechpartner wird an die Firma angehaengt.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+            <input type="text" x-model="d13FirstName" placeholder="Vorname *"
+                   style="width:100%;padding:6px 8px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;box-sizing:border-box;">
+            <input type="text" x-model="d13LastName" placeholder="Nachname *"
+                   style="width:100%;padding:6px 8px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;box-sizing:border-box;">
+        </div>
+        <input type="text" x-model="d13Function" placeholder="Funktion (z.B. Leiter Rechnungswesen)"
+               style="width:100%;padding:6px 8px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;box-sizing:border-box;margin-bottom:8px;">
+        <input type="text" x-model="d13Phone" placeholder="Telefon / Durchwahl"
+               style="width:100%;padding:6px 8px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;box-sizing:border-box;margin-bottom:8px;">
+        <div style="display:flex;gap:8px;">
+            <button @click="showD13Form = false"
+                    style="flex:1;padding:6px;background:var(--pp-surface3);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:11px;cursor:pointer;">
+                Abbrechen
+            </button>
+            <button @click="submitD13()"
+                    style="flex:1;padding:6px;background:var(--pp-accent);border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:600;cursor:pointer;">
+                Contact anlegen
             </button>
         </div>
     </div>
