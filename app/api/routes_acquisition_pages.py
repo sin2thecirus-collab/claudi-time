@@ -585,22 +585,30 @@ async def _enrich_email_info(db: AsyncSession, groups: list[dict]) -> list[dict]
 # Sektions-Definitionen: (type, display_title, regex_keywords)
 # Die Keywords werden sowohl zeilenbasiert als auch inline erkannt.
 _SECTION_DEFS: list[tuple[str, str, str]] = [
+    # WICHTIG: Laengere Phrasen ZUERST — Regex-Alternation ist left-to-right,
+    # damit "Dein neuer Aufgabenbereich" als Ganzes gematcht wird (nicht nur "Aufgabenbereich").
     ("tasks", "Aufgaben",
-     r"ihre\s+aufgaben|aufgaben(?:bereich|gebiet|profil)?|das\s+erwartet\s+(?:sie|dich)|"
-     r"t[äa]tigkeiten|(?:ihr\s+)?verantwortungsbereich|was\s+(?:sie|dich)\s+erwartet|"
+     r"(?:(?:dein(?:e[rn]?)?|ihre?)\s+(?:neue[rn]?\s+)?)?aufgaben(?:bereich|gebiet|profil)?|"
+     r"das\s+erwartet\s+(?:sie|dich)|"
+     r"t[äa]tigkeiten|(?:(?:dein|ihr)\s+(?:neue[rn]?\s+)?)?verantwortungsbereich|"
+     r"was\s+(?:sie|dich)\s+erwartet|"
      r"the\s+role|responsibilities|job\s*description"),
     ("requirements", "Anforderungen",
-     r"ihr\s+profil|anforderung(?:en|sprofil)?|was\s+(?:sie|du)\s+mitbring(?:st|en)|"
+     r"damit\s+[üu]berzeugst\s+(?:du|sie)\s+uns|"
+     r"das\s+zeichnet\s+(?:dich|sie)\s+aus|"
+     r"(?:dein|ihr)\s+profil|anforderung(?:en|sprofil)?|was\s+(?:sie|du)\s+mitbring(?:st|en)|"
      r"qualifikation(?:en)?|voraussetzung(?:en)?|das\s+bringst?\s+(?:sie|du)\s+mit|"
      r"das\s+sollten\s+(?:sie|du)|(?:sie|du)\s+bringst?\s+mit|"
-     r"das\s+w[üu]nschen\s+wir\s+uns|requirements?|your\s+profile|profil"),
+     r"das\s+w[üu]nschen\s+wir\s+uns|(?:so\s+)?erwarten\s+wir|"
+     r"requirements?|your\s+profile|profil"),
     ("company", "Unternehmen",
      r"[üu]ber\s+uns|(?:das\s+)?unternehmen(?:sprofil)?|wer\s+wir\s+sind|"
      r"about\s+us|the\s+company|einleitung"),
     ("benefits", "Wir bieten",
      r"wir\s+bieten|das\s+bieten\s+wir|benefits?|(?:ihre?|deine?)\s+vorteile|"
      r"was\s+wir\s+(?:(?:ihnen|dir)\s+)?bieten|unser(?:e)?\s+(?:angebot|leistungen)|"
-     r"darauf\s+(?:k[öo]nnen|d[üu]rfen)\s+(?:sie|du)\s+sich\s+freuen|"
+     r"darauf\s+(?:k[öo]nnen|d[üu]rfen)\s+(?:sie|du)\s+(?:sich\s+)?freuen|"
+     r"das\s+erwartet\s+(?:sie|dich)\s+bei\s+uns|"
      r"what\s+we\s+offer"),
     ("contact", "Kontakt",
      r"kontakt|(?:ihre?\s+)?bewerbung|so\s+bewerben\s+(?:sie|du)\s+(?:sich|dich)|"
