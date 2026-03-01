@@ -344,6 +344,9 @@ function akquisePage() {
                 swap: 'innerHTML'
             }).then(() => {
                 this.loading = false;
+                // Alpine muss den neuen HTMX-Content explizit initialisieren
+                const container = document.getElementById('akquise-tab-inner');
+                if (container && window.Alpine) Alpine.initTree(container);
             }).catch(() => {
                 document.getElementById('akquise-tab-inner').innerHTML =
                     '<p style="text-align:center;padding:60px 0;color:var(--pp-red);font-size:13px;">Fehler beim Laden</p>';
@@ -358,6 +361,10 @@ function akquisePage() {
             htmx.ajax('GET', '/akquise/partials/call-screen/' + jobId, {
                 target: '#call-screen-content',
                 swap: 'innerHTML'
+            }).then(() => {
+                // Alpine muss den neuen HTMX-Content explizit initialisieren
+                const container = document.getElementById('call-screen-content');
+                if (container && window.Alpine) Alpine.initTree(container);
             });
         },
 
@@ -374,6 +381,10 @@ function akquisePage() {
             htmx.ajax('GET', '/akquise/partials/email-modal/' + jobId + '?contact_id=' + contactId, {
                 target: '#email-modal-content',
                 swap: 'innerHTML'
+            }).then(() => {
+                // Alpine muss den neuen HTMX-Content explizit initialisieren
+                const container = document.getElementById('email-modal-content');
+                if (container && window.Alpine) Alpine.initTree(container);
             });
         },
 
@@ -401,6 +412,8 @@ function akquisePage() {
                 swap: 'innerHTML'
             }).then(() => {
                 this.loading = false;
+                const container = document.getElementById('akquise-tab-inner');
+                if (container && window.Alpine) Alpine.initTree(container);
                 // Ersten Lead oeffnen
                 const first = document.querySelector('[data-lead-id]');
                 if (first) {
