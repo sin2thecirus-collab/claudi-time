@@ -89,6 +89,10 @@ async def tab_partial(
     db: AsyncSession = Depends(get_db),
 ):
     """HTMX-Partial: Tab-Inhalt laden."""
+    # Sonderfall: Unzugeordnete Anrufe (eigene Tabelle, nicht Jobs)
+    if tab_name == "unzugeordnet":
+        return await _tab_unzugeordnet(request, page, per_page, db)
+
     statuses = STATUS_GROUPS.get(tab_name)
     if not statuses:
         return HTMLResponse('<p style="color:var(--pp-red);">Unbekannter Tab</p>')
@@ -432,6 +436,59 @@ async def sse_events(request: Request):
 
 
 # ── Hilfsfunktionen ──
+
+
+async def _tab_unzugeordnet(
+    request: Request,
+    page: int,
+    per_page: int,
+    db: AsyncSession,
+):
+    """Sonderfall-Tab: Unzugeordnete Anrufe aus unassigned_calls Tabelle."""
+    from app.models.unassigned_call import UnassignedCall
+
+    # Total
+    total_result = await db.execute(
+        select(func.count(UnassignedCall.id)).where(UnassignedCall.assigned == False)
+    )
+    total = total_result.scalar_one()
+
+    # Paginiert laden
+    result = await db.execute(
+        select(UnassignedCall)
+        .where(UnassignedCall.assigned == False)
+        .order_by(UnassignedCall.created_at.desc())
+        .offset((page - 1) * per_page)
+        .limit(per_page)
+    )
+    calls = result.scalars().all()
+
+    call_dicts = [
+        {
+            "id": str(c.id),
+            "phone_number": c.phone_number or "Unbekannt",
+            "direction": c.direction or "inbound",
+            "call_date": c.call_date,
+            "duration_seconds": c.duration_seconds,
+            "call_summary": c.call_summary or "",
+            "transcript": c.transcript or "",
+            "recording_topic": c.recording_topic or "",
+            "created_at": c.created_at,
+        }
+        for c in calls
+    ]
+
+    return templates.TemplateResponse(
+        "partials/akquise/tab_unzugeordnet.html",
+        {
+            "request": request,
+            "calls": call_dicts,
+            "total": total,
+            "page": page,
+            "pages": (total + per_page - 1) // per_page,
+            "tab": "unzugeordnet",
+        },
+    )
 
 
 def _group_by_company(jobs: list) -> list[dict]:

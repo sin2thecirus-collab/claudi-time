@@ -575,14 +575,62 @@ async def get_stats(
         )
     )
 
+    # Unzugeordnete Anrufe
+    from app.models.unassigned_call import UnassignedCall
+    unassigned_calls = await db.execute(
+        select(func.count(UnassignedCall.id)).where(
+            UnassignedCall.assigned == False,
+        )
+    )
+
     return {
         "calls_today": calls_today.scalar_one(),
         "reached_today": reached_today.scalar_one(),
         "qualified_today": qualified_today.scalar_one(),
         "emails_today": emails_today.scalar_one(),
         "open_leads": open_leads.scalar_one(),
+        "unassigned_calls": unassigned_calls.scalar_one(),
         "date": today.strftime("%d.%m.%Y"),
     }
+
+
+@router.get("/company-search")
+async def company_search(
+    q: str = Query("", min_length=2, max_length=100),
+    db: AsyncSession = Depends(get_db),
+):
+    """Firmen+Kontakte suchen (fuer Zuordnung unzugeordneter Anrufe)."""
+    search = f"%{q}%"
+
+    # Firmen mit Kontakten suchen
+    result = await db.execute(
+        select(
+            Company.id.label("company_id"),
+            Company.name.label("company_name"),
+            CompanyContact.id.label("contact_id"),
+            CompanyContact.first_name,
+            CompanyContact.last_name,
+        )
+        .outerjoin(CompanyContact, CompanyContact.company_id == Company.id)
+        .where(Company.name.ilike(search))
+        .order_by(Company.name)
+        .limit(20)
+    )
+    rows = result.all()
+
+    results = []
+    for row in rows:
+        contact_name = None
+        if row.first_name or row.last_name:
+            contact_name = f"{row.first_name or ''} {row.last_name or ''}".strip()
+        results.append({
+            "company_id": str(row.company_id),
+            "company_name": row.company_name,
+            "contact_id": str(row.contact_id) if row.contact_id else None,
+            "contact_name": contact_name,
+        })
+
+    return {"results": results, "count": len(results)}
 
 
 @router.get("/rueckruf/{phone}")

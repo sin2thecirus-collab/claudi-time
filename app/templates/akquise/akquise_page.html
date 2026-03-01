@@ -100,6 +100,22 @@
                 {% endif %}
             </button>
             {% endfor %}
+            {# Unzugeordnete Anrufe — separater Tab (Count kommt aus stats, nicht tab_counts) #}
+            <button @click="switchTab('unzugeordnet')"
+                    :style="activeTab === 'unzugeordnet'
+                        ? 'border-bottom:2px solid var(--pp-accent);color:var(--pp-text);'
+                        : 'border-bottom:2px solid transparent;color:var(--pp-textMuted);'"
+                    style="padding:10px 16px;font-size:13px;font-weight:500;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;transition:all .1s;"
+                    onmouseover="if(this.style.borderBottomColor==='transparent')this.style.color='var(--pp-text)'"
+                    onmouseout="if(this.style.borderBottomColor==='transparent')this.style.color='var(--pp-textMuted)'">
+                Unzugeordnet
+                <span x-show="stats.unassigned_calls > 0"
+                      :style="activeTab === 'unzugeordnet'
+                          ? 'background:var(--pp-accentSoft);color:var(--pp-accent);'
+                          : 'background:rgba(239,68,68,0.12);color:var(--pp-red);'"
+                      style="margin-left:6px;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:600;"
+                      x-text="stats.unassigned_calls"></span>
+            </button>
         </nav>
     </div>
 

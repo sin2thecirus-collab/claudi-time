@@ -1,0 +1,127 @@
+{# Tab "Unzugeordnet" — Anrufe die keinem Kontakt zugeordnet werden konnten #}
+
+{% if calls and calls | length > 0 %}
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+    <span style="font-size:22px;font-weight:700;color:var(--pp-text);">{{ total }}</span>
+    <span style="font-size:13px;color:var(--pp-textMuted);">unzugeordnete Anrufe</span>
+</div>
+
+{% for call in calls %}
+<div x-data="{ expanded: false, assigning: false, searchQuery: '', searchResults: [], searching: false }"
+     style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:8px;padding:14px 16px;margin-bottom:8px;">
+
+    {# ── Hauptzeile ── #}
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+        <div style="flex:1;min-width:0;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                <span style="font-size:13px;font-weight:600;color:var(--pp-text);">{{ call.phone_number }}</span>
+                <span style="font-size:10px;padding:2px 6px;border-radius:4px;background:var(--pp-surface3);color:var(--pp-textDim);">{{ call.direction }}</span>
+                {% if call.duration_seconds %}
+                <span style="font-size:11px;color:var(--pp-textDim);">{{ (call.duration_seconds // 60) }}:{{ '%02d' % (call.duration_seconds % 60) }} Min</span>
+                {% endif %}
+            </div>
+            {% if call.call_summary %}
+            <p style="font-size:12px;color:var(--pp-textMuted);margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:500px;">{{ call.call_summary }}</p>
+            {% endif %}
+            <p style="font-size:11px;color:var(--pp-textDim);margin:4px 0 0;">
+                {% if call.call_date %}{{ call.call_date.strftime('%d.%m.%Y %H:%M') }}{% else %}{{ call.created_at.strftime('%d.%m.%Y %H:%M') }}{% endif %}
+                {% if call.recording_topic %} — {{ call.recording_topic }}{% endif %}
+            </p>
+        </div>
+
+        <div style="display:flex;gap:6px;flex-shrink:0;">
+            {% if call.transcript %}
+            <button @click="expanded = !expanded"
+                    style="padding:5px 10px;background:var(--pp-surface3);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:11px;cursor:pointer;"
+                    x-text="expanded ? 'Einklappen' : 'Transcript'"></button>
+            {% endif %}
+            <button @click="assigning = !assigning; searchQuery = ''; searchResults = []"
+                    style="padding:5px 10px;background:var(--pp-accentSoft);border:1px solid var(--pp-accent);border-radius:6px;color:var(--pp-accent);font-size:11px;font-weight:500;cursor:pointer;">
+                Zuordnen
+            </button>
+            <button @click="if(confirm('Anruf loeschen?')) { fetch('/api/akquise/unassigned-calls/{{ call.id }}', {method:'DELETE',headers:{'X-API-Key':'internal'}}).then(()=>{$el.closest('[x-data]').remove(); if(typeof showToast==='function') showToast('Anruf geloescht','success')}) }"
+                    style="padding:5px 10px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:6px;color:var(--pp-red);font-size:11px;cursor:pointer;">
+                &times;
+            </button>
+        </div>
+    </div>
+
+    {# ── Transcript (aufklappbar) ── #}
+    <div x-show="expanded" x-transition style="margin-top:12px;padding:12px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:6px;">
+        <p style="font-size:10px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.5px;margin:0 0 6px;">Transcript</p>
+        <pre style="font-size:12px;color:var(--pp-text);white-space:pre-wrap;word-break:break-word;margin:0;max-height:300px;overflow-y:auto;">{{ call.transcript }}</pre>
+    </div>
+
+    {# ── Zuordnungs-Formular ── #}
+    <div x-show="assigning" x-transition style="margin-top:12px;padding:12px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:6px;">
+        <p style="font-size:12px;font-weight:500;color:var(--pp-text);margin:0 0 8px;">Anruf zuordnen</p>
+
+        {# Firmensuche #}
+        <div style="position:relative;">
+            <input type="text"
+                   x-model="searchQuery"
+                   @input.debounce.300ms="
+                       if(searchQuery.length < 2) { searchResults = []; return; }
+                       searching = true;
+                       fetch('/api/akquise/company-search?q=' + encodeURIComponent(searchQuery))
+                           .then(r => r.json())
+                           .then(d => { searchResults = d.results || []; searching = false; })
+                           .catch(() => { searching = false; })
+                   "
+                   placeholder="Firmenname eingeben..."
+                   style="width:100%;padding:8px 10px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;box-sizing:border-box;">
+
+            {# Suchergebnisse Dropdown #}
+            <div x-show="searchResults.length > 0"
+                 style="position:absolute;top:100%;left:0;right:0;z-index:10;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;margin-top:4px;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.15);">
+                <template x-for="result in searchResults" :key="result.company_id">
+                    <button @click="
+                        fetch('/api/akquise/unassigned-calls/{{ call.id }}/assign', {
+                            method: 'PATCH',
+                            headers: {'Content-Type': 'application/json', 'X-API-Key': 'internal'},
+                            body: JSON.stringify({
+                                assigned_to_type: result.contact_id ? 'contact' : 'company',
+                                assigned_to_id: result.contact_id || result.company_id
+                            })
+                        }).then(r => {
+                            if(r.ok) {
+                                $el.closest('[x-data]').remove();
+                                if(typeof showToast === 'function') showToast('Zugeordnet zu ' + result.company_name, 'success');
+                                fetch('/api/akquise/stats').then(r=>r.json()).then(d=>{
+                                    Alpine.$data(document.getElementById('akquise-root')).stats = d;
+                                });
+                            }
+                        })
+                    "
+                    style="display:block;width:100%;text-align:left;padding:8px 12px;background:none;border:none;border-bottom:1px solid var(--pp-border);cursor:pointer;color:var(--pp-text);font-size:12px;"
+                    onmouseover="this.style.background='var(--pp-surface3)'"
+                    onmouseout="this.style.background='none'">
+                        <span style="font-weight:500;" x-text="result.company_name"></span>
+                        <template x-if="result.contact_name">
+                            <span style="color:var(--pp-textDim);margin-left:6px;" x-text="'— ' + result.contact_name"></span>
+                        </template>
+                    </button>
+                </template>
+            </div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:8px;">
+            <button @click="assigning = false; searchQuery = ''; searchResults = []"
+                    style="padding:5px 10px;background:var(--pp-surface3);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:11px;cursor:pointer;">
+                Abbrechen
+            </button>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+{% if pages > 1 %}
+{% include 'partials/akquise/pagination.html' %}
+{% endif %}
+
+{% else %}
+<div style="text-align:center;padding:60px 0;">
+    <p style="font-size:15px;font-weight:500;color:var(--pp-textMuted);margin:0;">Keine unzugeordneten Anrufe</p>
+    <p style="font-size:13px;color:var(--pp-textDim);margin:6px 0 0;">Wenn Webex einen Anruf nicht zuordnen kann, erscheint er hier</p>
+</div>
+{% endif %}
