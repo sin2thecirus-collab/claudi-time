@@ -33,7 +33,7 @@
     {% if jobs and jobs | length > 0 %}
     <div style="display:flex;flex-direction:column;gap:4px;">
         {% for job in jobs %}
-        <button onclick="Alpine.$data(document.querySelector('[x-data]')).openCallScreen('{{ job.id }}'); Alpine.$data(document.querySelector('[x-data]')).rueckrufVisible = false;"
+        <button onclick="Alpine.$data(document.getElementById('akquise-root')).openCallScreen('{{ job.id }}'); Alpine.$data(document.getElementById('akquise-root')).rueckrufVisible = false;"
                 style="padding:6px 10px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;cursor:pointer;text-align:left;transition:background .1s;"
                 onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='var(--pp-surface)'">
             {{ job.position }} <span style="color:var(--pp-textDim);">({{ job.akquise_status }})</span>

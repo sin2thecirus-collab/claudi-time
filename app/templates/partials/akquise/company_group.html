@@ -37,7 +37,7 @@
         <div data-lead-id="{{ job.id }}"
              style="padding:10px 16px;border-bottom:1px solid var(--pp-border);display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:background .08s;"
              onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='transparent'"
-             onclick="Alpine.$data(document.querySelector('[x-data]')).openCallScreen('{{ job.id }}')">
+             onclick="Alpine.$data(document.getElementById('akquise-root')).openCallScreen('{{ job.id }}')">
             <div style="display:flex;align-items:center;gap:10px;">
                 <span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;{{ status_colors.get(job.akquise_status, 'background:var(--pp-surface3);color:var(--pp-textDim);') }}">
                     {{ job.akquise_status or 'neu' }}

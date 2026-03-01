@@ -3,7 +3,7 @@
 {% block title %}Akquise - Pulspoint{% endblock %}
 
 {% block content %}
-<div x-data="akquisePage()" x-init="init()" style="padding:24px;">
+<div id="akquise-root" x-data="akquisePage()" x-init="init()" style="padding:24px;">
 
     {# ── Test-Modus Banner ── #}
     {% if test_mode %}

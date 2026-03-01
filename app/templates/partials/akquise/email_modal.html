@@ -5,7 +5,7 @@
     {# Header #}
     <div style="padding:16px 20px;border-bottom:1px solid var(--pp-border);display:flex;align-items:center;justify-content:space-between;">
         <h3 style="font-size:15px;font-weight:600;color:var(--pp-text);margin:0;">Akquise-E-Mail</h3>
-        <button @click="Alpine.$data(document.querySelector('[x-data]')).emailModalVisible = false"
+        <button @click="Alpine.$data(document.getElementById('akquise-root')).emailModalVisible = false"
                 style="background:none;border:none;color:var(--pp-textDim);cursor:pointer;font-size:18px;">&times;</button>
     </div>
 
@@ -85,7 +85,7 @@
 
     {# Footer #}
     <div style="padding:14px 20px;border-top:1px solid var(--pp-border);display:flex;justify-content:flex-end;gap:10px;">
-        <button @click="Alpine.$data(document.querySelector('[x-data]')).emailModalVisible = false"
+        <button @click="Alpine.$data(document.getElementById('akquise-root')).emailModalVisible = false"
                 style="padding:8px 16px;background:var(--pp-surface3);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-textMuted);font-size:13px;cursor:pointer;">
             Abbrechen
         </button>
@@ -163,7 +163,7 @@ function emailModal() {
                 const result = await resp.json();
                 if (result.success) {
                     if (typeof showToast === 'function') showToast('E-Mail gesendet!', 'success');
-                    Alpine.$data(document.querySelector('[x-data]')).emailModalVisible = false;
+                    Alpine.$data(document.getElementById('akquise-root')).emailModalVisible = false;
                 } else {
                     if (typeof showToast === 'function') showToast(result.message || 'Sendefehler', 'error');
                 }

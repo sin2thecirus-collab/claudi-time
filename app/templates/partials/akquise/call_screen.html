@@ -6,7 +6,7 @@
     {# ── Call-Bar (oben, fixed) ── #}
     <div style="padding:10px 20px;background:var(--pp-surface);border-bottom:1px solid var(--pp-border);display:flex;align-items:center;justify-content:space-between;">
         <div style="display:flex;align-items:center;gap:12px;">
-            <button @click="Alpine.$data(document.querySelector('[x-data]')).closeCallScreen()"
+            <button @click="Alpine.$data(document.getElementById('akquise-root')).closeCallScreen()"
                     style="background:none;border:none;color:var(--pp-textMuted);cursor:pointer;padding:4px;"
                     title="Zurueck">
                 <svg style="width:18px;height:18px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
@@ -91,7 +91,7 @@
     <div style="padding:8px 20px;background:var(--pp-surface);border-bottom:1px solid var(--pp-border);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
         <span style="font-size:12px;color:var(--pp-textMuted);">{{ other_jobs | length }} weitere Stelle{{ 'n' if other_jobs | length > 1 else '' }}:</span>
         {% for oj in other_jobs %}
-        <button onclick="Alpine.$data(document.querySelector('[x-data]')).openCallScreen('{{ oj.id }}')"
+        <button onclick="Alpine.$data(document.getElementById('akquise-root')).openCallScreen('{{ oj.id }}')"
                 style="padding:2px 8px;background:var(--pp-surface3);border:1px solid var(--pp-border);border-radius:4px;color:var(--pp-textMuted);font-size:11px;cursor:pointer;">
             {{ oj.position }}
         </button>
@@ -276,7 +276,7 @@
 
             {# E-Mail senden #}
             {% if contacts and contacts | length > 0 and contacts[0].email %}
-            <button @click="Alpine.$data(document.querySelector('[x-data]')).openEmailModal('{{ job.id }}', '{{ contacts[0].id }}')"
+            <button @click="Alpine.$data(document.getElementById('akquise-root')).openEmailModal('{{ job.id }}', '{{ contacts[0].id }}')"
                     style="width:100%;margin-top:12px;padding:8px;background:var(--pp-accentSoft);border:1px solid rgba(59,130,246,0.3);border-radius:8px;color:var(--pp-accent);font-size:12px;font-weight:600;cursor:pointer;text-align:center;">
                 E-Mail senden
             </button>
@@ -284,7 +284,7 @@
 
             {# Zurueck / Weiter Buttons #}
             <div style="display:flex;gap:8px;margin-top:16px;">
-                <button @click="Alpine.$data(document.querySelector('[x-data]')).closeCallScreen()"
+                <button @click="Alpine.$data(document.getElementById('akquise-root')).closeCallScreen()"
                         style="flex:1;padding:8px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-textMuted);font-size:12px;cursor:pointer;text-align:center;">
                     Zurueck zur Liste
                 </button>
@@ -402,7 +402,7 @@ function callScreen() {
                     }
                     // Auto-advance zum naechsten Lead
                     setTimeout(() => {
-                        Alpine.$data(document.querySelector('[x-data]')).advanceToNextLead();
+                        Alpine.$data(document.getElementById('akquise-root')).advanceToNextLead();
                     }, 600);
                 } else {
                     const err = await resp.json();
@@ -481,7 +481,7 @@ function callScreen() {
                         showToast('Neue Stelle "' + this.newJobPosition + '" angelegt', 'success');
                     }
                     setTimeout(() => {
-                        Alpine.$data(document.querySelector('[x-data]')).advanceToNextLead();
+                        Alpine.$data(document.getElementById('akquise-root')).advanceToNextLead();
                     }, 600);
                 } else {
                     const err = await resp.json();

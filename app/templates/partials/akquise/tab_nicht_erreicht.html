@@ -23,7 +23,7 @@
         {% for job in group.jobs %}
         <div data-lead-id="{{ job.id }}" style="padding:12px 16px;border-bottom:1px solid var(--pp-border);display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:background .1s;"
              onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='transparent'"
-             onclick="Alpine.$data(document.querySelector('[x-data]')).openCallScreen('{{ job.id }}')">
+             onclick="Alpine.$data(document.getElementById('akquise-root')).openCallScreen('{{ job.id }}')">
             <div style="display:flex;align-items:center;gap:10px;">
                 <span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:rgba(96,165,250,0.15);color:#60a5fa;">{{ job.akquise_status }}</span>
                 <span style="font-size:13px;font-weight:500;color:var(--pp-text);">{{ job.position }}</span>
@@ -36,13 +36,13 @@
                 </span>
                 {% endif %}
                 {% if job.days_since_email and job.days_since_email >= 5 and job.akquise_status == 'email_gesendet' %}
-                <button onclick="event.stopPropagation(); Alpine.$data(document.querySelector('[x-data]')).openEmailModal('{{ job.id }}', '{{ job.contact_id or '' }}')"
+                <button onclick="event.stopPropagation(); Alpine.$data(document.getElementById('akquise-root')).openEmailModal('{{ job.id }}', '{{ job.contact_id or '' }}')"
                         style="padding:4px 10px;background:var(--pp-accentSoft);border:1px solid rgba(59,130,246,0.3);border-radius:6px;color:var(--pp-accent);font-size:11px;font-weight:600;cursor:pointer;">
                     Follow-up
                 </button>
                 {% endif %}
                 {% if job.days_since_email and job.days_since_email >= 14 and job.akquise_status == 'email_followup' %}
-                <button onclick="event.stopPropagation(); Alpine.$data(document.querySelector('[x-data]')).openEmailModal('{{ job.id }}', '{{ job.contact_id or '' }}')"
+                <button onclick="event.stopPropagation(); Alpine.$data(document.getElementById('akquise-root')).openEmailModal('{{ job.id }}', '{{ job.contact_id or '' }}')"
                         style="padding:4px 10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:6px;color:var(--pp-red);font-size:11px;font-weight:600;cursor:pointer;">
                     Break-up
                 </button>
