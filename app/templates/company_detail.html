@@ -369,21 +369,37 @@
                         {% endif %}
                     </div>
                     <div class="cd-meta">
+                        {% set meta_items = [] %}
                         {% if company.city and company.city|string|lower|trim not in invalid_vals %}
-                        <span style="display:flex; align-items:center; gap:5px;">📍 {{ company.city }}</span>
+                            {% set _ = meta_items.append('<span style="display:flex;align-items:center;gap:5px;">📍 ' ~ company.city ~ '</span>') %}
                         {% endif %}
                         {% if company.address and company.address|string|lower|trim not in invalid_vals %}
-                        {% if company.city and company.city|string|lower|trim not in invalid_vals %}<span class="sep">|</span>{% endif %}
-                        <span style="display:flex; align-items:center; gap:5px;">🏠 {{ company.address }}</span>
+                            {% set _ = meta_items.append('<span style="display:flex;align-items:center;gap:5px;">🏠 ' ~ company.address ~ '</span>') %}
+                        {% endif %}
+                        {% if company.phone and company.phone|string|lower|trim not in invalid_vals %}
+                            {% set _ = meta_items.append('<a href="tel:' ~ company.phone ~ '" style="color:var(--pp-accent);text-decoration:none;display:flex;align-items:center;gap:5px;">📞 ' ~ company.phone ~ '</a>') %}
                         {% endif %}
                         {% if company.domain and company.domain|string|lower|trim not in invalid_vals %}
-                        <span class="sep">|</span>
-                        <a href="{% if 'http' in company.domain %}{{ company.domain }}{% else %}https://{{ company.domain }}{% endif %}" target="_blank">🌐 {{ company.domain }}</a>
+                            {% if 'http' in company.domain %}
+                                {% set url = company.domain %}
+                            {% else %}
+                                {% set url = 'https://' ~ company.domain %}
+                            {% endif %}
+                            {% set _ = meta_items.append('<a href="' ~ url ~ '" target="_blank" style="color:var(--pp-accent);text-decoration:none;display:flex;align-items:center;gap:5px;">🌐 ' ~ company.domain ~ '</a>') %}
+                        {% endif %}
+                        {% if company.industry and company.industry|string|lower|trim not in invalid_vals %}
+                            {% set _ = meta_items.append('<span style="display:flex;align-items:center;gap:5px;">🏭 ' ~ company.industry ~ '</span>') %}
+                        {% endif %}
+                        {% if company.employee_count and company.employee_count|string|lower|trim not in invalid_vals %}
+                            {% set _ = meta_items.append('<span style="display:flex;align-items:center;gap:5px;">👥 ' ~ company.employee_count ~ ' MA</span>') %}
                         {% endif %}
                         {% if job_count is defined %}
-                        <span class="sep">|</span>
-                        <span>💼 {{ job_count }} Job{{ 's' if job_count != 1 else '' }}</span>
+                            {% set _ = meta_items.append('<span>💼 ' ~ job_count ~ ' Job' ~ ('s' if job_count != 1 else '') ~ '</span>') %}
                         {% endif %}
+                        {% for item in meta_items %}
+                            {% if not loop.first %}<span class="sep">|</span>{% endif %}
+                            {{ item|safe }}
+                        {% endfor %}
                     </div>
                 </div>
             </div>
