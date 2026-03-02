@@ -3,9 +3,9 @@
 
 {% set job_count = group.jobs | length %}
 
-<div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:10px;margin-bottom:10px;overflow:hidden;">
+<div class="aq-company-group">
     {# ── Firmen-Header ── #}
-    <div style="padding:12px 16px;background:var(--pp-bg);border-bottom:1px solid var(--pp-border);display:flex;align-items:center;justify-content:space-between;cursor:pointer;"
+    <div class="aq-company-header"
          onclick="var c=this.nextElementSibling;c.style.display=c.style.display==='none'?'block':'none';this.querySelector('.chevron').style.transform=c.style.display==='none'?'':'rotate(180deg)'">
         <div style="display:flex;align-items:center;gap:12px;">
             {# Alle-auswaehlen Checkbox #}
@@ -13,8 +13,10 @@
                    @click.stop="$store.bulkSelect.toggleCompany([{% for job in group.jobs %}'{{ job.id }}'{{ ',' if not loop.last }}{% endfor %}])"
                    :checked="$store.bulkSelect && $store.bulkSelect.allSelected([{% for job in group.jobs %}'{{ job.id }}'{{ ',' if not loop.last }}{% endfor %}])"
                    style="width:15px;height:15px;border-radius:3px;cursor:pointer;flex-shrink:0;accent-color:var(--pp-accent);">
-            {# Firmen-Initial Avatar #}
-            <div style="width:32px;height:32px;border-radius:8px;background:var(--pp-surface3);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--pp-textMuted);flex-shrink:0;">{{ group.company_name[:1] | upper }}</div>
+            {# Firmen-Initial Avatar — Gradient Ring #}
+            <div class="aq-company-avatar">
+                <div class="aq-company-avatar-inner">{{ group.company_name[:1] | upper }}</div>
+            </div>
             <div style="display:flex;flex-direction:column;gap:2px;">
                 <div style="display:flex;align-items:center;gap:8px;">
                     <span style="font-size:14px;font-weight:600;color:var(--pp-text);">{{ group.company_name }}</span>
@@ -51,9 +53,7 @@
             'stelle_erstellt': 'background:rgba(34,197,94,0.15);color:var(--pp-green);',
             'kontakt_fehlt': 'background:rgba(234,179,8,0.12);color:var(--pp-orange);',
         } %}
-        <div data-lead-id="{{ job.id }}"
-             style="padding:10px 16px;border-bottom:1px solid var(--pp-border);display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:all .1s;"
-             onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='transparent'"
+        <div data-lead-id="{{ job.id }}" class="aq-job-row"
              onclick="Alpine.$data(document.getElementById('akquise-root')).openCallScreen('{{ job.id }}')">
             <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
                 {# Bulk-Select Checkbox #}
@@ -61,8 +61,8 @@
                        :checked="$store.bulkSelect && $store.bulkSelect.selected.includes('{{ job.id }}')"
                        @click.stop="$store.bulkSelect.toggle('{{ job.id }}')"
                        style="width:15px;height:15px;border-radius:3px;cursor:pointer;flex-shrink:0;accent-color:var(--pp-accent);">
-                {# Status Badge — fixed width for alignment #}
-                <span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;white-space:nowrap;flex-shrink:0;min-width:72px;text-align:center;{{ status_colors.get(job.akquise_status, 'background:var(--pp-surface3);color:var(--pp-textDim);') }}">
+                {# Status Badge #}
+                <span class="aq-status-badge" style="{{ status_colors.get(job.akquise_status, 'background:var(--pp-surface3);color:var(--pp-textDim);') }}">
                     {{ job.akquise_status or 'neu' }}
                 </span>
                 {# Position + Stadt + Datum #}
@@ -86,8 +86,7 @@
                 {% if job.acquisition_source == 'manual' %}
                 <span style="padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;background:rgba(167,139,250,0.12);color:var(--pp-purple);">manuell</span>
                 {% endif %}
-                <div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:background 0.1s;"
-                     onmouseover="this.style.background='rgba(34,197,94,0.12)'" onmouseout="this.style.background='transparent'">
+                <div class="aq-phone-btn">
                     <svg style="width:15px;height:15px;color:var(--pp-green);" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"/></svg>
                 </div>
             </div>

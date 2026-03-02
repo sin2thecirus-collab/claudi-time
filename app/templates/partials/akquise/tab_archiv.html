@@ -2,22 +2,26 @@
 
 {% if groups and groups | length > 0 %}
 <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:16px;">
-    <span style="font-size:28px;font-weight:700;color:var(--pp-text);letter-spacing:-0.5px;">{{ total }}</span>
+    <span style="font-size:28px;font-weight:700;color:var(--pp-text);letter-spacing:-0.5px;font-family:var(--pp-mono);">{{ total }}</span>
     <span style="font-size:14px;color:var(--pp-textMuted);">archivierte Leads</span>
 </div>
 
 {% for group in groups %}
-<div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:10px;margin-bottom:10px;overflow:hidden;opacity:0.7;">
-    <div style="padding:12px 16px;background:var(--pp-bg);border-bottom:1px solid var(--pp-border);display:flex;align-items:center;justify-content:space-between;cursor:pointer;"
+<div class="aq-company-group" style="opacity:0.7;">
+    <div class="aq-company-header"
          onclick="var c=this.nextElementSibling;c.style.display=c.style.display==='none'?'block':'none';this.querySelector('.chevron').style.transform=c.style.display==='none'?'':'rotate(180deg)'">
         <div style="display:flex;align-items:center;gap:10px;">
-            <div style="width:32px;height:32px;border-radius:8px;background:var(--pp-surface3);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--pp-textMuted);flex-shrink:0;{% if group.company_status == 'blacklist' %}background:rgba(239,68,68,0.1);{% endif %}">
-                {% if group.company_status == 'blacklist' %}
-                <svg style="width:14px;height:14px;color:var(--pp-red);" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
-                {% else %}
-                {{ group.company_name[:1] | upper }}
-                {% endif %}
+            {% if group.company_status == 'blacklist' %}
+            <div class="aq-company-avatar" style="background:linear-gradient(135deg, rgba(239,68,68,0.5), rgba(248,113,113,0.5));">
+                <div class="aq-company-avatar-inner" style="color:var(--pp-red);">
+                    <svg style="width:14px;height:14px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+                </div>
             </div>
+            {% else %}
+            <div class="aq-company-avatar">
+                <div class="aq-company-avatar-inner">{{ group.company_name[:1] | upper }}</div>
+            </div>
+            {% endif %}
             <div>
                 <div style="display:flex;align-items:center;gap:8px;">
                     <span style="font-size:14px;font-weight:600;color:var(--pp-text);{% if group.company_status == 'blacklist' %}text-decoration:line-through;text-decoration-color:var(--pp-red);{% endif %}">{{ group.company_name }}</span>
@@ -34,7 +38,7 @@
     </div>
     <div style="display:none;">
         {% for job in group.jobs %}
-        <div style="padding:10px 16px;border-bottom:1px solid var(--pp-border);display:flex;align-items:center;justify-content:space-between;">
+        <div class="aq-job-row" style="cursor:default;">
             <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
                 {% set status_styles = {
                     'blacklist_hart': 'background:rgba(239,68,68,0.15);color:var(--pp-red);',
@@ -42,7 +46,7 @@
                     'verloren': 'background:var(--pp-surface3);color:var(--pp-textDim);',
                     'followup_abgeschlossen': 'background:var(--pp-surface3);color:var(--pp-textDim);',
                 } %}
-                <span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;min-width:72px;text-align:center;flex-shrink:0;{{ status_styles.get(job.akquise_status, 'background:var(--pp-surface3);color:var(--pp-textDim);') }}">
+                <span class="aq-status-badge" style="{{ status_styles.get(job.akquise_status, 'background:var(--pp-surface3);color:var(--pp-textDim);') }}">
                     {{ job.akquise_status }}
                 </span>
                 <span style="font-size:13px;color:var(--pp-textMuted);{% if job.akquise_status in ['blacklist_hart', 'blacklist_weich'] %}text-decoration:line-through;opacity:0.6;{% endif %}white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ job.position }}</span>

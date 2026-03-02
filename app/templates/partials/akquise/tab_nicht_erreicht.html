@@ -2,17 +2,19 @@
 
 {% if groups and groups | length > 0 %}
 <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:16px;">
-    <span style="font-size:28px;font-weight:700;color:var(--pp-text);letter-spacing:-0.5px;">{{ total }}</span>
+    <span style="font-size:28px;font-weight:700;color:var(--pp-text);letter-spacing:-0.5px;font-family:var(--pp-mono);">{{ total }}</span>
     <span style="font-size:14px;color:var(--pp-textMuted);">Leads mit gesendeter E-Mail</span>
 </div>
 
 {% for group in groups %}
-<div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:10px;margin-bottom:10px;overflow:hidden;">
+<div class="aq-company-group">
     {# Firmen-Header #}
-    <div style="padding:12px 16px;background:var(--pp-bg);border-bottom:1px solid var(--pp-border);display:flex;align-items:center;justify-content:space-between;cursor:pointer;"
+    <div class="aq-company-header"
          onclick="var c=this.nextElementSibling;c.style.display=c.style.display==='none'?'block':'none';this.querySelector('.chevron').style.transform=c.style.display==='none'?'':'rotate(180deg)'">
         <div style="display:flex;align-items:center;gap:10px;">
-            <div style="width:32px;height:32px;border-radius:8px;background:var(--pp-surface3);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--pp-textMuted);flex-shrink:0;">{{ group.company_name[:1] | upper }}</div>
+            <div class="aq-company-avatar">
+                <div class="aq-company-avatar-inner">{{ group.company_name[:1] | upper }}</div>
+            </div>
             <div>
                 <span style="font-size:14px;font-weight:600;color:var(--pp-text);">{{ group.company_name }}</span>
                 <div style="display:flex;align-items:center;gap:6px;margin-top:1px;">
@@ -26,11 +28,10 @@
     {# Jobs #}
     <div>
         {% for job in group.jobs %}
-        <div data-lead-id="{{ job.id }}" style="padding:10px 16px;border-bottom:1px solid var(--pp-border);display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:all .1s;"
-             onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='transparent'"
+        <div data-lead-id="{{ job.id }}" class="aq-job-row"
              onclick="Alpine.$data(document.getElementById('akquise-root')).openCallScreen('{{ job.id }}')">
             <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
-                <span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;min-width:72px;text-align:center;flex-shrink:0;background:rgba(96,165,250,0.12);color:#60a5fa;">{{ job.akquise_status }}</span>
+                <span class="aq-status-badge" style="background:rgba(96,165,250,0.12);color:#60a5fa;">{{ job.akquise_status }}</span>
                 <span style="font-size:13px;font-weight:500;color:var(--pp-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ job.position }}</span>
             </div>
             <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;margin-left:12px;">
