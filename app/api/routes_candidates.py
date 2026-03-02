@@ -112,18 +112,31 @@ async def search_candidates_quick(
     Gibt nur ID, Name und Position zurueck (kompakt).
     Wird z.B. beim Hinzufuegen von Kandidaten zur Pipeline verwendet.
     """
-    from sqlalchemy import select, or_
+    from sqlalchemy import cast, func, select, or_, String
     from app.models.candidate import Candidate
 
     search_term = f"%{q}%"
+    search_stripped = q.strip()
     search_conditions = [
         Candidate.first_name.ilike(search_term),
         Candidate.last_name.ilike(search_term),
         (Candidate.first_name + " " + Candidate.last_name).ilike(search_term),
+        Candidate.email.ilike(search_term),
+        Candidate.phone.ilike(search_term),
+        Candidate.city.ilike(search_term),
     ]
-    # Wenn Suchbegriff eine Zahl ist, auch nach candidate_number suchen
-    if q.strip().isdigit():
-        search_conditions.append(Candidate.candidate_number == int(q.strip()))
+    # Kandidatennummer (wenn Zahl)
+    if search_stripped.isdigit():
+        search_conditions.append(Candidate.candidate_number == int(search_stripped))
+    # UUID-Suche (wenn lang genug)
+    if len(search_stripped) >= 8:
+        search_conditions.append(cast(Candidate.id, String).ilike(search_term))
+    # Telefon: reine Ziffern matchen
+    digits_only = "".join(c for c in search_stripped if c.isdigit())
+    if len(digits_only) >= 4:
+        search_conditions.append(
+            func.regexp_replace(Candidate.phone, '[^0-9]', '', 'g').ilike(f"%{digits_only}%")
+        )
 
     result = await db.execute(
         select(Candidate)

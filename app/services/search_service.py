@@ -1,7 +1,7 @@
 """
 Global CRM Search Service — sucht quer ueber alle Entitaeten.
 """
-from sqlalchemy import select, or_
+from sqlalchemy import cast, func, select, or_, String
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -10,21 +10,33 @@ class SearchService:
 
     async def global_search(self, db: AsyncSession, query: str, limit: int = 5) -> dict:
         term = f"%{query}%"
+        search_stripped = query.strip()
         results = {}
 
         # Kandidaten
         from app.models.candidate import Candidate
+        cand_conditions = [
+            Candidate.first_name.ilike(term),
+            Candidate.last_name.ilike(term),
+            (Candidate.first_name + " " + Candidate.last_name).ilike(term),
+            Candidate.email.ilike(term),
+            Candidate.phone.ilike(term),
+            Candidate.city.ilike(term),
+        ]
+        # Telefon: reine Ziffern matchen
+        digits_only = "".join(c for c in search_stripped if c.isdigit())
+        if len(digits_only) >= 4:
+            cand_conditions.append(
+                func.regexp_replace(Candidate.phone, '[^0-9]', '', 'g').ilike(f"%{digits_only}%")
+            )
+        if len(search_stripped) >= 8:
+            cand_conditions.append(cast(Candidate.id, String).ilike(term))
         cand_q = (
             select(Candidate)
             .where(
                 Candidate.deleted_at.is_(None),
                 Candidate.hidden.is_(False),
-                or_(
-                    Candidate.first_name.ilike(term),
-                    Candidate.last_name.ilike(term),
-                    (Candidate.first_name + " " + Candidate.last_name).ilike(term),
-                    Candidate.email.ilike(term),
-                ),
+                or_(*cand_conditions),
             )
             .order_by(Candidate.last_name, Candidate.first_name)
             .limit(limit)
