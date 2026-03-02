@@ -10,6 +10,7 @@ from app.models.ats_job import ATSJob, ATSJobPriority, ATSJobStatus
 from app.models.ats_pipeline import ATSPipelineEntry, PipelineStage
 from app.models.ats_todo import ATSTodo, TodoPriority, TodoStatus
 from app.models.candidate import Candidate
+from app.models.candidate_document import CandidateDocument
 from app.models.candidate_note import CandidateNote
 from app.models.email_draft import EmailDraft, EmailDraftStatus, EmailType
 from app.models.candidate_email import CandidateEmail
@@ -75,6 +76,7 @@ __all__ = [
     "MatchV2LearnedRule",
     "MatchV2ScoringWeight",
     "UnassignedCall",
+    "CandidateDocument",
     "CandidateNote",
     "EmailDraft",
     "EmailDraftStatus",
