@@ -498,15 +498,18 @@ async def prepare_daily_batch(
     await db.flush()
 
     # Items erstellen (Default-Quelle: StepStone fuer unbekannte Quellen)
+    # WICHTIG: "Sonstige" wird wie leer behandelt — darf NICHT in Instantly landen!
+    VALID_SOURCES = {"stepstone", "indeed", "xing", "linkedin", "bestand"}
     for row in candidates:
-        source = row.source if row.source and row.source.strip() else "StepStone"
+        raw_source = (row.source or "").strip()
+        source = raw_source if raw_source and raw_source.lower() in VALID_SOURCES else "StepStone"
         campaign_type = "bekannt" if source.lower() == "bestand" else "erstkontakt"
 
         item = OutreachItem(
             batch_id=batch.id,
             candidate_id=row.id,
             campaign_type=campaign_type,
-            source_override=source if source else None,
+            source_override=source,
         )
         db.add(item)
 
@@ -640,17 +643,21 @@ async def send_selected(
             await db.flush()
 
     # Kandidaten-Daten fuer n8n sammeln (BEVOR DB-Session geschlossen wird)
+    # WICHTIG: "Sonstige" darf NICHT an Instantly gesendet werden → StepStone als Fallback
+    VALID_SOURCES = {"stepstone", "indeed", "xing", "linkedin", "bestand"}
     candidates_payload = []
     for item in approved_items:
         cand = item.candidate
         if cand:
+            raw_source = (item.source_override or cand.source or "").strip()
+            source = raw_source if raw_source and raw_source.lower() in VALID_SOURCES else "StepStone"
             candidates_payload.append({
                 "candidate_id": str(cand.id),
                 "email": cand.email,
                 "first_name": cand.first_name or "",
                 "last_name": cand.last_name or "",
                 "gender": cand.gender or "",
-                "source": item.source_override or cand.source or "",
+                "source": source,
                 "campaign_type": item.campaign_type,
             })
 
