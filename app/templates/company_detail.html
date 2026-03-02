@@ -508,10 +508,23 @@
                 <div class="cd-tab-sec">
                     <div class="cd-tab-sec-h">
                         <span class="cd-tab-sec-t"><span class="icon">👤</span> Alle Kontakte</span>
-                        <button class="cd-btn cd-btn-accent" onclick="toggleContactForm()">+ Hinzufügen</button>
+                        <button class="cd-btn cd-btn-accent" onclick="toggleContactForm('tab')">+ Hinzufügen</button>
+                    </div>
+                    <div id="contact-form-tab" style="display:none" class="cd-iform">
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                            <input type="text" id="cf-first-name-tab" placeholder="Vorname" class="cd-inp">
+                            <input type="text" id="cf-last-name-tab" placeholder="Nachname" class="cd-inp">
+                            <input type="text" id="cf-position-tab" placeholder="Position" class="cd-inp">
+                            <input type="text" id="cf-phone-tab" placeholder="Telefon" class="cd-inp">
+                            <input type="email" id="cf-email-tab" placeholder="E-Mail" class="cd-inp" style="grid-column:span 2;">
+                        </div>
+                        <div style="display:flex; gap:10px; margin-top:14px;">
+                            <button onclick="saveContact('tab')" class="cd-btn cd-btn-primary">Speichern</button>
+                            <button onclick="toggleContactForm('tab')" class="cd-btn">Abbrechen</button>
+                        </div>
                     </div>
                     <div class="cd-tab-sec-b">
-                        <div hx-get="/partials/company-contacts/{{ company.id }}" hx-trigger="load" hx-swap="innerHTML">
+                        <div id="contacts-container-tab" hx-get="/partials/company-contacts/{{ company.id }}" hx-trigger="load" hx-swap="innerHTML">
                             <p class="cd-load">Lade Kontakte...</p>
                         </div>
                     </div>
@@ -775,26 +788,29 @@ function setStatus(status) {
         .catch(() => showToast('Fehler', 'error'));
 }
 
-function toggleContactForm() {
-    const f = document.getElementById('contact-form');
-    f.style.display = f.style.display === 'none' ? 'block' : 'none';
+function toggleContactForm(source) {
+    const suffix = source === 'tab' ? '-tab' : '';
+    const f = document.getElementById('contact-form' + suffix);
+    if (f) f.style.display = f.style.display === 'none' ? 'block' : 'none';
 }
 
-function saveContact() {
+function saveContact(source) {
+    const suffix = source === 'tab' ? '-tab' : '';
     const data = {
-        first_name: document.getElementById('cf-first-name').value || null,
-        last_name: document.getElementById('cf-last-name').value || null,
-        position: document.getElementById('cf-position').value || null,
-        phone: document.getElementById('cf-phone').value || null,
-        email: document.getElementById('cf-email').value || null
+        first_name: document.getElementById('cf-first-name' + suffix).value || null,
+        last_name: document.getElementById('cf-last-name' + suffix).value || null,
+        position: document.getElementById('cf-position' + suffix).value || null,
+        phone: document.getElementById('cf-phone' + suffix).value || null,
+        email: document.getElementById('cf-email' + suffix).value || null
     };
     fetch(`/api/companies/${COMPANY_ID}/contacts`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
         .then(r => r.json())
         .then(() => {
             showToast('Kontakt erstellt', 'success');
-            toggleContactForm();
-            ['cf-first-name','cf-last-name','cf-position','cf-phone','cf-email'].forEach(id => document.getElementById(id).value = '');
+            toggleContactForm(source);
+            ['cf-first-name','cf-last-name','cf-position','cf-phone','cf-email'].forEach(id => document.getElementById(id + suffix).value = '');
             htmx.trigger('#contacts-container', 'load');
+            htmx.trigger('#contacts-container-tab', 'load');
         })
         .catch(() => showToast('Fehler', 'error'));
 }
