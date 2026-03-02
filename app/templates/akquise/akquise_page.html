@@ -2,8 +2,126 @@
 
 {% block title %}Akquise - Pulspoint{% endblock %}
 
+{% block head %}
+<style>
+    /* ── Aurora: Akquise Glass System ── */
+    @keyframes aqFadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+    .aq-wrap { animation: aqFadeUp 0.4s cubic-bezier(0.16,1,0.3,1) forwards; }
+
+    /* KPI cards → glass */
+    .aq-kpis > div {
+        background: rgba(14,16,25,0.65) !important;
+        border: 1px solid rgba(255,255,255,0.07) !important;
+        border-radius: 14px !important;
+        backdrop-filter: blur(16px) saturate(1.3);
+        -webkit-backdrop-filter: blur(16px) saturate(1.3);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.03);
+        transition: border-color 0.3s, box-shadow 0.3s, transform 0.3s !important;
+        position: relative; overflow: hidden;
+    }
+    .aq-kpis > div::before {
+        content:''; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+        background:linear-gradient(135deg, rgba(255,255,255,0.025) 0%, transparent 50%);
+    }
+    .aq-kpis > div:hover {
+        border-color: rgba(96,165,250,0.2) !important;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.3), 0 0 20px rgba(96,165,250,0.06) !important;
+        transform: translateY(-2px);
+    }
+    /* KPI numbers → mono font */
+    .aq-kpis p[style*="font-size:28px"] { font-family: var(--pp-mono) !important; }
+
+    /* Tab navigation → glass */
+    .aq-tabs {
+        background: rgba(14,16,25,0.4);
+        border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 12px;
+        padding: 4px;
+        backdrop-filter: blur(8px);
+    }
+    .aq-tabs button {
+        border-radius: 8px !important;
+        transition: all 0.2s !important;
+        position: relative;
+    }
+    .aq-tabs button:hover {
+        background: rgba(96,165,250,0.06) !important;
+    }
+
+    /* Tab content area → subtle glass */
+    #akquise-tab-inner {
+        border-radius: 14px;
+    }
+
+    /* Header action buttons → glass */
+    .aq-wrap button[style*="background:var(--pp-surface)"] {
+        background: rgba(14,16,25,0.55) !important;
+        border: 1px solid rgba(255,255,255,0.08) !important;
+        backdrop-filter: blur(8px);
+        transition: all 0.25s !important;
+    }
+    .aq-wrap button[style*="background:var(--pp-surface)"]:hover {
+        background: rgba(30,34,53,0.8) !important;
+        border-color: rgba(255,255,255,0.12) !important;
+    }
+
+    /* Abtelefonieren button → gradient */
+    .aq-call-btn {
+        background: linear-gradient(135deg, #34D399, #10B981) !important;
+        box-shadow: 0 2px 8px rgba(52,211,153,0.3) !important;
+    }
+    .aq-call-btn:hover {
+        box-shadow: 0 4px 20px rgba(52,211,153,0.4) !important;
+    }
+
+    /* Search input → glass */
+    .aq-wrap input[type="tel"] {
+        background: rgba(6,7,11,0.5) !important;
+        border: 1px solid rgba(255,255,255,0.08) !important;
+        backdrop-filter: blur(4px);
+        transition: all 0.2s;
+    }
+    .aq-wrap input[type="tel"]:focus {
+        border-color: rgba(96,165,250,0.4) !important;
+        box-shadow: 0 0 0 3px rgba(96,165,250,0.1), 0 0 12px rgba(96,165,250,0.08) !important;
+        outline: none !important;
+    }
+
+    /* Modals → glass backdrop */
+    .aq-modal-bg {
+        backdrop-filter: blur(8px) !important;
+    }
+    .aq-modal-content {
+        background: rgba(14,16,25,0.9) !important;
+        border: 1px solid rgba(255,255,255,0.08) !important;
+        backdrop-filter: blur(20px) saturate(1.4) !important;
+        box-shadow: 0 24px 48px rgba(0,0,0,0.5), 0 0 30px rgba(96,165,250,0.04) !important;
+        border-radius: 16px !important;
+    }
+
+    /* Bulk action bar → glass */
+    .aq-bulk-bar {
+        background: rgba(14,16,25,0.85) !important;
+        border: 1px solid rgba(255,255,255,0.1) !important;
+        backdrop-filter: blur(20px) saturate(1.4) !important;
+        box-shadow: 0 -4px 24px rgba(0,0,0,0.3), 0 0 16px rgba(96,165,250,0.05) !important;
+        border-radius: 14px !important;
+    }
+
+    /* Call screen overlay → glass */
+    .aq-wrap [x-show="callScreenVisible"] > div:first-child {
+        backdrop-filter: blur(8px);
+    }
+
+    /* Scrollbar */
+    .aq-wrap ::-webkit-scrollbar { width: 5px; }
+    .aq-wrap ::-webkit-scrollbar-track { background: transparent; }
+    .aq-wrap ::-webkit-scrollbar-thumb { background: rgba(96,165,250,0.15); border-radius: 3px; }
+</style>
+{% endblock %}
+
 {% block content %}
-<div id="akquise-root" x-data="akquisePage()" x-init="init()" style="padding:24px;">
+<div id="akquise-root" class="aq-wrap" x-data="akquisePage()" x-init="init()" style="padding:24px;">
 
     {# ── Test-Modus Banner ── #}
     {% if test_mode %}
@@ -45,7 +163,7 @@
                 <svg style="width:16px;height:16px;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
                 CSV importieren
             </button>
-            <button @click="startCalling()"
+            <button @click="startCalling()" class="aq-call-btn"
                     style="display:inline-flex;align-items:center;gap:6px;padding:9px 20px;background:var(--pp-green);border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;box-shadow:0 0 16px rgba(34,197,94,0.2);"
                     onmouseover="this.style.opacity='0.9';this.style.boxShadow='0 0 24px rgba(34,197,94,0.35)'" onmouseout="this.style.opacity='1';this.style.boxShadow='0 0 16px rgba(34,197,94,0.2)'"
                 <svg style="width:16px;height:16px;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"/></svg>
@@ -55,7 +173,7 @@
     </div>
 
     {# ── Tages-KPIs ── #}
-    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin-bottom:28px;">
+    <div class="aq-kpis" style="display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin-bottom:28px;">
         <div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-left:3px solid var(--pp-textMuted);border-radius:10px;padding:16px 20px;transition:background 0.15s;"
              onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='var(--pp-surface)'">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
@@ -98,7 +216,7 @@
         </div>
     </div>
     {# ── Tab-Navigation ── #}
-    <div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:12px 12px 0 0;border-bottom:none;margin-bottom:0;padding:6px 8px 0;">
+    <div class="aq-tabs" style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:12px 12px 0 0;border-bottom:none;margin-bottom:0;padding:6px 8px 0;">
         <nav style="display:flex;gap:4px;overflow-x:auto;">
             {% set tabs = [
                 ("heute", "Heute anrufen"),
@@ -155,6 +273,7 @@
 
     {# ── Bulk-Action Bar (schwebt am unteren Rand wenn Jobs ausgewaehlt) ── #}
     <div x-show="$store.bulkSelect && $store.bulkSelect.selected.length > 0" x-transition x-cloak
+         class="aq-bulk-bar"
          style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:12px;padding:10px 20px;display:flex;align-items:center;gap:14px;box-shadow:0 8px 30px rgba(0,0,0,0.5);z-index:80;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);background:rgba(19,19,22,0.85);">
         <span style="font-size:13px;font-weight:600;color:var(--pp-text);"
               x-text="$store.bulkSelect.selected.length + ' ausgewaehlt'"></span>
@@ -174,8 +293,8 @@
 
     {# ── CSV-Import Modal ── #}
     <div x-show="showImport" x-cloak style="position:fixed;inset:0;z-index:150;">
-        <div style="position:fixed;inset:0;background:rgba(0,0,0,0.6);" @click="showImport = false"></div>
-        <div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:14px;width:480px;max-width:90vw;z-index:151;box-shadow:0 20px 60px rgba(0,0,0,0.5);">
+        <div class="aq-modal-bg" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);" @click="showImport = false"></div>
+        <div class="aq-modal-content" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:14px;width:480px;max-width:90vw;z-index:151;box-shadow:0 20px 60px rgba(0,0,0,0.5);">
             <div style="padding:20px 24px;border-bottom:1px solid var(--pp-border);">
                 <h3 style="font-size:16px;font-weight:600;color:var(--pp-text);margin:0;">CSV-Import (advertsdata.com)</h3>
             </div>
@@ -235,8 +354,8 @@
 
     {# ── Manual Lead Modal (2-Step: Paste → Extract → Review → Create) ── #}
     <div x-show="showManualLead" x-cloak style="position:fixed;inset:0;z-index:150;">
-        <div style="position:fixed;inset:0;background:rgba(0,0,0,0.6);" @click="showManualLead = false"></div>
-        <div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:14px;width:560px;max-width:90vw;max-height:85vh;overflow:auto;z-index:151;box-shadow:0 20px 60px rgba(0,0,0,0.5);">
+        <div class="aq-modal-bg" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);" @click="showManualLead = false"></div>
+        <div class="aq-modal-content" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:14px;width:560px;max-width:90vw;max-height:85vh;overflow:auto;z-index:151;box-shadow:0 20px 60px rgba(0,0,0,0.5);">
             <div style="padding:20px 24px;border-bottom:1px solid var(--pp-border);display:flex;align-items:center;justify-content:space-between;">
                 <h3 style="font-size:16px;font-weight:600;color:var(--pp-text);margin:0;">Lead anlegen</h3>
                 <button @click="showManualLead = false; mlStep = 1; mlRawText = ''; mlExtracted = false;" style="background:none;border:none;color:var(--pp-textDim);cursor:pointer;font-size:18px;">&times;</button>

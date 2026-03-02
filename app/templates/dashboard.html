@@ -2,13 +2,115 @@
 
 {% block title %}Dashboard - Matching-Tool{% endblock %}
 
+{% block head %}
+<style>
+    /* ── Aurora: Dashboard Glass System ── */
+    @keyframes dashFadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+
+    .dash-wrap { animation: dashFadeUp 0.4s cubic-bezier(0.16,1,0.3,1) forwards; }
+
+    /* Stats cards → glass morphism */
+    .dash-stats > div {
+        background: rgba(14,16,25,0.65) !important;
+        border: 1px solid rgba(255,255,255,0.07) !important;
+        border-radius: 14px !important;
+        backdrop-filter: blur(16px) saturate(1.3);
+        -webkit-backdrop-filter: blur(16px) saturate(1.3);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.03);
+        transition: border-color 0.3s, box-shadow 0.3s, transform 0.3s;
+        position: relative; overflow: hidden;
+    }
+    .dash-stats > div::before {
+        content:''; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+        background:linear-gradient(135deg, rgba(255,255,255,0.025) 0%, transparent 50%);
+    }
+    .dash-stats > div:hover {
+        border-color: rgba(96,165,250,0.2) !important;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.3), 0 0 20px rgba(96,165,250,0.06);
+        transform: translateY(-2px);
+    }
+    .dash-stats dd {
+        font-family: var(--pp-mono) !important;
+    }
+
+    /* Jobs container → glass */
+    .dash-jobs {
+        background: rgba(14,16,25,0.55) !important;
+        border: 1px solid rgba(255,255,255,0.07) !important;
+        border-radius: 14px !important;
+        backdrop-filter: blur(12px) saturate(1.2);
+        -webkit-backdrop-filter: blur(12px) saturate(1.2);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+        overflow: hidden;
+    }
+
+    /* Batch actions header → glass */
+    .dash-jobs #batch-actions {
+        border-bottom: 1px solid rgba(255,255,255,0.05) !important;
+        background: rgba(14,16,25,0.3);
+    }
+
+    /* Header icon → glow */
+    .dash-wrap .dash-icon {
+        box-shadow: 0 0 12px rgba(96,165,250,0.15);
+        border: 1px solid rgba(96,165,250,0.15);
+    }
+
+    /* Import button → gradient */
+    .dash-import-btn {
+        background: linear-gradient(135deg, #60A5FA, #3B82F6) !important;
+        box-shadow: 0 2px 8px rgba(96,165,250,0.25);
+        transition: all 0.25s !important;
+    }
+    .dash-import-btn:hover {
+        box-shadow: 0 4px 16px rgba(96,165,250,0.35) !important;
+        transform: translateY(-1px);
+    }
+
+    /* Filter panel → glass */
+    #filter-panel > div, #filter-panel > form {
+        background: rgba(14,16,25,0.4);
+        border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 12px;
+        backdrop-filter: blur(8px);
+        padding: 12px 16px;
+    }
+
+    /* Pagination → glass */
+    .dash-jobs [id="job-pagination"] button,
+    .dash-jobs [id="job-pagination"] a {
+        backdrop-filter: blur(4px);
+    }
+
+    /* Select/input inside dashboard → dark glass */
+    .dash-wrap select, .dash-wrap input[type="text"], .dash-wrap input[type="search"] {
+        background: rgba(6,7,11,0.4) !important;
+        border: 1px solid rgba(255,255,255,0.08) !important;
+        color: var(--pp-text) !important;
+        border-radius: 8px !important;
+        transition: all 0.2s;
+    }
+    .dash-wrap select:focus, .dash-wrap input:focus {
+        border-color: rgba(96,165,250,0.4) !important;
+        box-shadow: 0 0 0 3px rgba(96,165,250,0.1), 0 0 12px rgba(96,165,250,0.08) !important;
+        outline: none !important;
+    }
+
+    /* Scrollbar */
+    .dash-wrap ::-webkit-scrollbar { width: 5px; }
+    .dash-wrap ::-webkit-scrollbar-track { background: transparent; }
+    .dash-wrap ::-webkit-scrollbar-thumb { background: rgba(96,165,250,0.15); border-radius: 3px; }
+    .dash-wrap ::-webkit-scrollbar-thumb:hover { background: rgba(96,165,250,0.25); }
+</style>
+{% endblock %}
+
 {% block content %}
-<div style="display:flex;flex-direction:column;gap:24px;">
+<div class="dash-wrap" style="display:flex;flex-direction:column;gap:24px;">
     {# Header #}
     <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;">
         <div>
             <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
-                <div style="width:40px;height:40px;border-radius:10px;background:var(--pp-accentSoft);display:flex;align-items:center;justify-content:center;">
+                <div class="dash-icon" style="width:40px;height:40px;border-radius:10px;background:var(--pp-accentSoft);display:flex;align-items:center;justify-content:center;">
                     <svg style="width:20px;height:20px;color:var(--pp-accent);" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0" />
                     </svg>
@@ -24,8 +126,9 @@
         <div style="display:flex;align-items:center;gap:10px;">
             {# Import Button #}
             <button type="button"
+                    class="dash-import-btn"
                     onclick="openModal('/partials/import-dialog')"
-                    style="display:inline-flex;align-items:center;gap:6px;padding:9px 18px;font-size:13px;font-weight:600;color:#fff;background:var(--pp-accent);border:none;border-radius:10px;cursor:pointer;transition:all 0.2s;"
+                    style="display:inline-flex;align-items:center;gap:6px;padding:9px 18px;font-size:13px;font-weight:600;color:#fff;background:var(--pp-accent);border:none;border-radius:10px;cursor:pointer;transition:all 0.2s;font-family:inherit;"
                     onmouseover="this.style.background='#2563EB'"
                     onmouseout="this.style.background='var(--pp-accent)'">
                 <svg style="width:16px;height:16px;" viewBox="0 0 20 20" fill="currentColor">
@@ -46,7 +149,7 @@
     </div>
 
     {# Statistik-Karten #}
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;">
+    <div class="dash-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;">
         <div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:12px;padding:20px;">
             <div style="display:flex;align-items:center;">
                 <div style="flex-shrink:0;">
@@ -125,7 +228,7 @@
     </div>
 
     {# Jobs Liste #}
-    <div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:12px;">
+    <div class="dash-jobs" style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:12px;">
         {# Batch-Aktionen Header #}
         <div id="batch-actions"
              x-data="{ selectedCount: 0 }"
