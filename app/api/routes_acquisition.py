@@ -555,11 +555,25 @@ Antworte IMMER als JSON mit genau diesen Feldern (leere Felder als null):
 Regeln:
 - Extrahiere NUR was im Text steht, erfinde NICHTS
 - Wenn ein Feld nicht im Text vorkommt, setze null
-- Bei Telefonnummern: Originalformat beibehalten
-- Bei E-Mails aus Signaturen: vollstaendige Adresse extrahieren
 - "position" ist die ZU BESETZENDE Stelle, nicht die Funktion des Ansprechpartners
-- Wenn der Text eine E-Mail ist, extrahiere Absender-Infos als Ansprechpartner
-- Wenn mehrere Positionen erwaehnt werden, nimm die wichtigste/erste"""
+- Wenn mehrere Positionen erwaehnt werden, nimm die wichtigste/erste
+
+KONTAKTDATEN FINDEN — durchsuche den Text gruendlich nach:
+- E-Mail-Signaturen (Name, Titel, Firma, Tel, Email am Ende einer Nachricht)
+- "Ansprechpartner:", "Kontakt:", "Ihr Ansprechpartner", "Bewerbungen an"
+- Zeilen mit Tel/Fon/Phone/Mobil gefolgt von Nummern
+- E-Mail-Adressen (alles mit @)
+- "Frau X" oder "Herr Y" im Fliesstext
+- Absenderzeilen wie "Von:", "From:", oder der Name vor einer E-Mail-Adresse
+- Visitenkarten-Bloecke am Ende (Name / Firma / Tel / Email)
+- LinkedIn-Profile, XING-Profile (Name extrahieren)
+- Bei Stellenanzeigen: der Recruiter/HR-Kontakt steht oft am Ende
+
+TELEFONNUMMERN — suche nach allen Formaten:
+- +49 123 456789, 0123/456789, (0123) 456-789, 0049 123 456789
+- "Tel:", "Fon:", "Phone:", "Mobil:", "Handy:", "M:", "T:", "Telefon:"
+- Nummern die direkt nach einem Namen stehen
+- Originalformat beibehalten"""
 
     user_prompt = f"Extrahiere die Lead-Daten aus diesem Text:\n\n{raw_text[:3000]}"
 
