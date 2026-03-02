@@ -215,6 +215,77 @@
     /* ── Aurora: Scrollbar enhancement ── */
     .kd-wrap ::-webkit-scrollbar-thumb { background: rgba(96,165,250,0.15); }
     .kd-wrap ::-webkit-scrollbar-thumb:hover { background: rgba(96,165,250,0.25); }
+
+    /* ── Aurora: Field Cards ── */
+    .kd-field-cell {
+        padding: 14px 16px;
+        background: rgba(20,25,42,0.55);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 10px;
+        transition: all 250ms ease;
+        position: relative;
+        overflow: hidden;
+    }
+    .kd-field-cell::before {
+        content:''; position:absolute; top:0; left:0; right:0; height:1px;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+        pointer-events: none;
+    }
+    .kd-field-cell:hover {
+        border-color: rgba(96,165,250,0.15);
+        background: rgba(30,38,65,0.5);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    }
+    .kd-field-cell .kd-field-label { margin-bottom: 6px; }
+    .kd-field-cell .detail-edit-display { font-size: 15px !important; font-weight: 500 !important; }
+
+    /* ── Aurora: Section Icons ── */
+    .kd-section-icon {
+        width: 32px; height: 32px; border-radius: 8px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 15px; flex-shrink: 0;
+    }
+    .kd-section-icon.blue { background: rgba(96,165,250,0.12); }
+    .kd-section-icon.violet { background: rgba(167,139,250,0.12); }
+    .kd-section-icon.green { background: rgba(52,211,153,0.12); }
+    .kd-section-icon.gold { background: rgba(251,191,36,0.12); }
+
+    /* ── Aurora: Avatar Ring ── */
+    .kd-avatar-ring {
+        width: 64px; height: 64px; border-radius: 16px; padding: 2px;
+        background: linear-gradient(135deg, var(--pp-accent), var(--pp-purple));
+        flex-shrink: 0;
+        box-shadow: 0 0 20px rgba(96,165,250,0.15), 0 0 60px rgba(96,165,250,0.05);
+    }
+    .kd-avatar-inner {
+        width: 100%; height: 100%; border-radius: 14px;
+        background: var(--pp-surface);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 24px; font-weight: 700; color: var(--pp-accent);
+    }
+
+    /* ── Aurora: Recruit Card ── */
+    .kd-recruit-card {
+        padding: 16px;
+        background: rgba(20,25,42,0.55);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 10px;
+        transition: all 250ms ease;
+    }
+    .kd-recruit-card:hover {
+        border-color: rgba(96,165,250,0.15);
+        background: rgba(30,38,65,0.5);
+    }
+    .kd-recruit-card .kd-field-label { margin-bottom: 8px; }
+
+    /* ── Aurora: Toggle Buttons ── */
+    .kd-toggle-group {
+        display: flex; gap: 2px; background: rgba(14,17,28,0.8);
+        border-radius: 6px; padding: 2px; border: 1px solid rgba(255,255,255,0.06);
+    }
 </style>
 {% endblock %}
 
@@ -263,9 +334,11 @@
 
         {# Row 2: Name + Badges #}
         <div style="display:flex; align-items:center; gap:16px; padding-bottom:8px;">
-            {# Avatar #}
-            <div style="width:56px; height:56px; border-radius:50%; background:var(--pp-accent); display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:700; color:#fff; flex-shrink:0;">
-                {{ display_name[0]|upper if display_name else '?' }}
+            {# Avatar mit Gradient-Ring #}
+            <div class="kd-avatar-ring">
+                <div class="kd-avatar-inner">
+                    {{ display_name[0]|upper if display_name else '?' }}
+                </div>
             </div>
             <div style="flex:1; min-width:0;">
                 <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
@@ -420,12 +493,12 @@
             <div x-show="activeTab === 'uebersicht'" x-cloak style="display:flex; flex-direction:column; gap:40px;">
                 <div class="kd-section kd-section-glow kd-anim" style="animation-delay: 100ms;" id="contact">
                 <div class="kd-section-header">
-                    <div class="kd-section-title"><span>&#x1F4C7;</span> Kontaktdaten</div>
+                    <div class="kd-section-title"><div class="kd-section-icon blue">&#x1F4C7;</div> Kontaktdaten</div>
                 </div>
                 <div class="kd-section-body">
-                    <div style="display: grid; grid-template-columns: 100px 1fr 1fr; gap: 10px;">
+                    <div style="display: grid; grid-template-columns: 100px 1fr 1fr; gap: 12px;">
                         {# Anrede #}
-                        <div>
+                        <div class="kd-field-cell">
                             <div class="kd-field-label">Anrede</div>
                             <select onchange="saveGenderField(this, '{{ candidate.id }}')"
                                     style="font-size: 13px; padding: 4px 8px; border-radius: 8px; border: 1.5px solid var(--pp-border); background: var(--pp-bg); color: var(--pp-text); font-family: inherit; cursor: pointer; width: 100%; min-height: 28px;">
@@ -435,7 +508,7 @@
                             </select>
                         </div>
                         {# Vorname #}
-                        <div>
+                        <div class="kd-field-cell">
                             <div class="kd-field-label">Vorname</div>
                             <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="first_name">
                                 <span class="detail-edit-display" onclick="startDetailEdit(this)" title="Vorname bearbeiten" style="font-size: 13.5px; font-weight: 600; color: {% if first_display %}var(--pp-text){% else %}var(--pp-textDim){% endif %}; {% if not first_display %}font-style: italic;{% endif %} cursor: pointer;">{{ first_display or 'Vorname' }}</span>
@@ -443,7 +516,7 @@
                             </div>
                         </div>
                         {# Nachname #}
-                        <div>
+                        <div class="kd-field-cell">
                             <div class="kd-field-label">Nachname</div>
                             <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="last_name">
                                 <span class="detail-edit-display" onclick="startDetailEdit(this)" title="Nachname bearbeiten" style="font-size: 13.5px; font-weight: 600; color: {% if last_display %}var(--pp-text){% else %}var(--pp-textDim){% endif %}; {% if not last_display %}font-style: italic;{% endif %} cursor: pointer;">{{ last_display or 'Nachname' }}</span>
@@ -451,9 +524,9 @@
                             </div>
                         </div>
                     </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 10px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 12px;">
                         {# Email #}
-                        <div>
+                        <div class="kd-field-cell">
                             <div class="kd-field-label">E-Mail</div>
                             <div style="display: flex; align-items: center; gap: 6px;">
                                 <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="email" style="flex:1; min-width:0;">
@@ -466,7 +539,7 @@
                             </div>
                         </div>
                         {# Phone #}
-                        <div>
+                        <div class="kd-field-cell">
                             <div class="kd-field-label">Telefon</div>
                             <div style="display: flex; align-items: center; gap: 6px;">
                                 <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="phone" style="flex:1; min-width:0;">
@@ -480,7 +553,7 @@
                             </div>
                         </div>
                         {# Position #}
-                        <div>
+                        <div class="kd-field-cell">
                             <div class="kd-field-label">Position</div>
                             <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="current_position">
                                 <span class="detail-edit-display" onclick="startDetailEdit(this)" title="Position bearbeiten" style="font-size: 13.5px; font-weight: 600; color: {% if position_display %}var(--pp-text){% else %}var(--pp-textDim){% endif %}; {% if not position_display %}font-style: italic;{% endif %} cursor: pointer;">{{ position_display or 'Keine Position angegeben' }}</span>
@@ -488,9 +561,9 @@
                             </div>
                         </div>
                     </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 10px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 12px;">
                         {# Strasse #}
-                        <div>
+                        <div class="kd-field-cell">
                             <div class="kd-field-label">Strasse</div>
                             <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="street_address">
                                 <span class="detail-edit-display" onclick="startDetailEdit(this)" title="Strasse bearbeiten" style="font-size: 13.5px; font-weight: 600; color: {% if candidate.street_address %}var(--pp-text){% else %}var(--pp-textDim){% endif %}; {% if not candidate.street_address %}font-style: italic;{% endif %} cursor: pointer;">{{ candidate.street_address or 'Nicht angegeben' }}</span>
@@ -498,7 +571,7 @@
                             </div>
                         </div>
                         {# PLZ #}
-                        <div>
+                        <div class="kd-field-cell">
                             <div class="kd-field-label">PLZ</div>
                             <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="postal_code">
                                 <span class="detail-edit-display" onclick="startDetailEdit(this)" title="PLZ bearbeiten" style="font-size: 13.5px; font-weight: 600; color: {% if candidate.postal_code %}var(--pp-text){% else %}var(--pp-textDim){% endif %}; {% if not candidate.postal_code %}font-style: italic;{% endif %} cursor: pointer;">{{ candidate.postal_code or 'Nicht angegeben' }}</span>
@@ -506,7 +579,7 @@
                             </div>
                         </div>
                         {# Stadt #}
-                        <div>
+                        <div class="kd-field-cell">
                             <div class="kd-field-label">Stadt</div>
                             <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="city">
                                 <span class="detail-edit-display" onclick="startDetailEdit(this)" title="Stadt bearbeiten" style="font-size: 13.5px; font-weight: 600; color: {% if candidate.city %}var(--pp-text){% else %}var(--pp-textDim){% endif %}; {% if not candidate.city %}font-style: italic;{% endif %} cursor: pointer;">{{ candidate.city or 'Nicht angegeben' }}</span>
@@ -514,9 +587,9 @@
                             </div>
                         </div>
                     </div>
-                    <div style="display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 10px;">
+                    <div style="display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 12px;">
                         {# Geburtsdatum #}
-                        <div>
+                        <div class="kd-field-cell">
                             <div class="kd-field-label">Geburtsdatum</div>
                             <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="birth_date">
                                 <span class="detail-edit-display" onclick="startDetailEdit(this)" title="Geburtsdatum bearbeiten" style="font-size: 13.5px; font-weight: 600; color: {% if candidate.birth_date %}var(--pp-text){% else %}var(--pp-textDim){% endif %}; {% if not candidate.birth_date %}font-style: italic;{% endif %} cursor: pointer;">{% if candidate.birth_date %}{{ candidate.birth_date.strftime('%d.%m.%Y') }}{% else %}Nicht angegeben{% endif %}</span>
@@ -530,12 +603,12 @@
                 <div class="kd-section kd-section-glow kd-anim" style="animation-delay: 150ms; overflow: visible;" id="recruiting-data"
                  x-data="recruitingFields()">
                 <div class="kd-section-header">
-                    <div class="kd-section-title"><span>&#x1F50D;</span> Recruiting-Daten</div>
+                    <div class="kd-section-title"><div class="kd-section-icon violet">&#x1F50D;</div> Recruiting-Daten</div>
                 </div>
                 <div class="kd-section-body">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
                         {# Quelle #}
-                        <div>
+                        <div class="kd-recruit-card">
                             <div class="kd-field-label">Quelle</div>
                             <div class="relative" @click.away="showSourceDropdown = false">
                                 <button type="button" @click="showSourceDropdown = !showSourceDropdown"
@@ -562,7 +635,7 @@
                             </div>
                         </div>
                         {# Wechselbereitschaft #}
-                        <div>
+                        <div class="kd-recruit-card">
                             <div class="kd-field-label">Wechselbereitschaft</div>
                             <div class="flex gap-2">
                                 <button type="button" @click="setWillingness('ja')"
@@ -583,7 +656,7 @@
                             </div>
                         </div>
                         {# Letzter Kontakt #}
-                        <div>
+                        <div class="kd-recruit-card">
                             <div class="kd-field-label">Letzter Kontakt</div>
                             <div style="display: flex; align-items: center; gap: 6px;">
                                 <input type="date" x-model="lastContactDate" @change="setLastContact()"
@@ -647,13 +720,13 @@
                 <div class="kd-section kd-section-glow kd-anim" style="animation-delay: 250ms;" id="pipeline-data"
                  x-data="pipelineFields()">
                 <div class="kd-section-header">
-                    <div class="kd-section-title"><span>&#x1F3AF;</span> Pipeline-Daten</div>
+                    <div class="kd-section-title"><div class="kd-section-icon green">&#x1F3AF;</div> Pipeline-Daten</div>
                     <span style="font-size: 10.5px; font-weight: 650; padding: 4px 10px; border-radius: 6px; background: var(--pp-surfaceHover); color: var(--pp-accent); border: 1px solid var(--pp-border);">F&uuml;r Pipeline</span>
                 </div>
                 <div class="kd-section-body">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
                         {# Gehalt #}
-                        <div>
+                        <div class="kd-field-cell">
                             <div class="kd-field-label">Gehaltswunsch</div>
                             <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="salary">
                                 <span class="detail-edit-display" onclick="startDetailEdit(this)" title="Gehalt bearbeiten" style="font-size: 13.5px; font-weight: 600; color: {% if candidate.salary %}var(--pp-text){% else %}var(--pp-textDim){% endif %}; {% if not candidate.salary %}font-style: italic;{% endif %} cursor: pointer;">{{ candidate.salary or 'Nicht angegeben' }}</span>
@@ -661,7 +734,7 @@
                             </div>
                         </div>
                         {# Kuendigungsfrist #}
-                        <div>
+                        <div class="kd-field-cell">
                             <div class="kd-field-label">K&uuml;ndigungsfrist</div>
                             <div class="detail-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="notice_period">
                                 <span class="detail-edit-display" onclick="startDetailEdit(this)" title="K&uuml;ndigungsfrist bearbeiten" style="font-size: 13.5px; font-weight: 600; color: {% if candidate.notice_period %}var(--pp-text){% else %}var(--pp-textDim){% endif %}; {% if not candidate.notice_period %}font-style: italic;{% endif %} cursor: pointer;">{{ candidate.notice_period or 'Nicht angegeben' }}</span>
@@ -669,7 +742,7 @@
                             </div>
                         </div>
                         {# Rating #}
-                        <div>
+                        <div class="kd-field-cell">
                             <div class="kd-field-label">Bewertung</div>
                             <div style="display: flex; align-items: center; gap: 6px;">
                                 <div style="display: flex; gap: 3px;">
