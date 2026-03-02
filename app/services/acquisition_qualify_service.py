@@ -75,6 +75,9 @@ class AcquisitionQualifyService:
             employment_type=job.employment_type,
         )
 
+        # Qualifizierter Lead → sofort in Pipeline sichtbar
+        ats_job.in_pipeline = True
+
         # ── Qualifizierungsdaten uebertragen (JSONB komplett + Feld-Mapping) ──
         # 1. Komplettes JSONB kopieren (17 Fragen + Antworten)
         if job.qualification_answers:
