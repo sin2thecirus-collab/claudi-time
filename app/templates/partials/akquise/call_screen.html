@@ -494,17 +494,23 @@
                         ("profile_senden", "Darf ich passende Profile senden?"),
                     ] %}
                     {% for key, label in fragen %}
-                    <div style="margin-bottom:8px;">
+                    <div style="margin-bottom:10px;">
                         <div style="display:flex;align-items:flex-start;gap:8px;">
-                            <input type="checkbox" :checked="quali['{{ key }}']" @change="quali['{{ key }}'] = $event.target.checked"
+                            <input type="checkbox" :checked="quali['{{ key }}']"
+                                   @change="quali['{{ key }}'] = $event.target.checked; saveQualiField('{{ key }}')"
                                    style="width:14px;height:14px;margin-top:2px;border-radius:3px;cursor:pointer;flex-shrink:0;accent-color:var(--pp-accent);">
                             <span style="font-size:12px;color:var(--pp-textMuted);line-height:1.4;">{{ label }}</span>
                         </div>
-                        <template x-if="qualiAnswers['{{ key }}'] && qualiAnswers['{{ key }}'].answer">
-                            <div style="margin-left:22px;margin-top:3px;padding:4px 8px;background:rgba(16,185,129,0.05);border-left:2px solid #10b981;border-radius:0 4px 4px 0;">
-                                <span style="font-size:11px;color:var(--pp-textMuted);line-height:1.4;" x-text="qualiAnswers['{{ key }}'].answer"></span>
-                                <span style="font-size:9px;color:var(--pp-textDim);margin-left:4px;"
-                                      x-text="(qualiAnswers['{{ key }}'].source === 'auto' ? '(KI)' : qualiAnswers['{{ key }}'].source === 'manual+auto' ? '(Manuell+KI)' : '')"></span>
+                        <div x-show="quali['{{ key }}']" x-transition style="margin-left:22px;margin-top:4px;">
+                            <input type="text" x-model="qualiText['{{ key }}']"
+                                   @input="saveQualiField('{{ key }}')"
+                                   placeholder="Antwort eintragen..."
+                                   style="width:100%;padding:4px 8px;font-size:11px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;background:rgba(255,255,255,0.04);color:var(--pp-text);outline:none;">
+                        </div>
+                        <template x-if="qualiAnswers['{{ key }}'] && qualiAnswers['{{ key }}'].source && qualiAnswers['{{ key }}'].source.includes('auto') && qualiAnswers['{{ key }}'].answer && qualiAnswers['{{ key }}'].answer !== (qualiText['{{ key }}'] || '')">
+                            <div style="margin-left:22px;margin-top:3px;padding:3px 8px;background:rgba(16,185,129,0.05);border-left:2px solid #10b981;border-radius:0 4px 4px 0;">
+                                <span style="font-size:10px;color:var(--pp-textDim);">KI: </span>
+                                <span style="font-size:10px;color:var(--pp-textMuted);" x-text="qualiAnswers['{{ key }}'].answer"></span>
                             </div>
                         </template>
                     </div>
@@ -542,23 +548,51 @@
                         ("englisch", "Englisch noetig? Wie eingesetzt?"),
                     ] %}
                     {% for key, label in fragen2 %}
-                    <div style="margin-bottom:8px;">
+                    <div style="margin-bottom:10px;">
                         <div style="display:flex;align-items:flex-start;gap:8px;">
-                            <input type="checkbox" :checked="quali['{{ key }}']" @change="quali['{{ key }}'] = $event.target.checked"
+                            <input type="checkbox" :checked="quali['{{ key }}']"
+                                   @change="quali['{{ key }}'] = $event.target.checked; saveQualiField('{{ key }}')"
                                    style="width:14px;height:14px;margin-top:2px;border-radius:3px;cursor:pointer;flex-shrink:0;accent-color:var(--pp-purple);">
                             <span style="font-size:12px;color:var(--pp-textMuted);line-height:1.4;">{{ label }}</span>
                         </div>
-                        <template x-if="qualiAnswers['{{ key }}'] && qualiAnswers['{{ key }}'].answer">
-                            <div style="margin-left:22px;margin-top:3px;padding:4px 8px;background:rgba(16,185,129,0.05);border-left:2px solid #10b981;border-radius:0 4px 4px 0;">
-                                <span style="font-size:11px;color:var(--pp-textMuted);line-height:1.4;" x-text="qualiAnswers['{{ key }}'].answer"></span>
-                                <span style="font-size:9px;color:var(--pp-textDim);margin-left:4px;"
-                                      x-text="(qualiAnswers['{{ key }}'].source === 'auto' ? '(KI)' : qualiAnswers['{{ key }}'].source === 'manual+auto' ? '(Manuell+KI)' : '')"></span>
+                        <div x-show="quali['{{ key }}']" x-transition style="margin-left:22px;margin-top:4px;">
+                            <input type="text" x-model="qualiText['{{ key }}']"
+                                   @input="saveQualiField('{{ key }}')"
+                                   placeholder="Antwort eintragen..."
+                                   style="width:100%;padding:4px 8px;font-size:11px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;background:rgba(255,255,255,0.04);color:var(--pp-text);outline:none;">
+                        </div>
+                        <template x-if="qualiAnswers['{{ key }}'] && qualiAnswers['{{ key }}'].source && qualiAnswers['{{ key }}'].source.includes('auto') && qualiAnswers['{{ key }}'].answer && qualiAnswers['{{ key }}'].answer !== (qualiText['{{ key }}'] || '')">
+                            <div style="margin-left:22px;margin-top:3px;padding:3px 8px;background:rgba(16,185,129,0.05);border-left:2px solid #10b981;border-radius:0 4px 4px 0;">
+                                <span style="font-size:10px;color:var(--pp-textDim);">KI: </span>
+                                <span style="font-size:10px;color:var(--pp-textMuted);" x-text="qualiAnswers['{{ key }}'].answer"></span>
                             </div>
                         </template>
                     </div>
                     {% endfor %}
                 </div>
             </div>
+
+            {# ── Als Stelle anlegen Button ── #}
+            <button @click="convertToStelle()"
+                    :disabled="converting"
+                    x-show="Object.values(quali).some(v => v)"
+                    style="margin-top:14px;width:100%;padding:10px 16px;font-size:12px;font-weight:700;color:#fff;background:linear-gradient(135deg,#10b981,#059669);border:none;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s;opacity:1;"
+                    :style="converting ? 'opacity:0.6;cursor:not-allowed;' : ''"
+                    onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 12px rgba(16,185,129,0.3)'"
+                    onmouseout="this.style.transform='';this.style.boxShadow=''">
+                <template x-if="!converting">
+                    <span style="display:flex;align-items:center;gap:6px;">
+                        <svg style="width:16px;height:16px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
+                        Als ATS-Stelle anlegen
+                    </span>
+                </template>
+                <template x-if="converting">
+                    <span style="display:flex;align-items:center;gap:6px;">
+                        <div style="width:14px;height:14px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;"></div>
+                        Wird umgewandelt...
+                    </span>
+                </template>
+            </button>
 
             <button onclick="document.getElementById('new-job-draft-form').style.display = document.getElementById('new-job-draft-form').style.display === 'none' ? 'block' : 'none'"
                     class="cs-textbaustein" style="margin-top:12px;">

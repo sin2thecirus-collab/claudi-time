@@ -138,6 +138,86 @@
                 {% endif %}
             </div>
 
+            {# -- Akquise-Qualifizierung (17 Fragen aus Kundengespraech/E-Mail) -- #}
+            {% if job.qualification_answers %}
+            {% set qa = job.qualification_answers %}
+            {% set erstkontakt_keys = [
+                ("stelle_offen", "Stelle noch offen?"),
+                ("besetzung_vorgehen", "Wie besetzen Sie aktuell?"),
+                ("herausforderung", "Groesste Herausforderung?"),
+                ("timeline", "Wann soll besetzt werden?"),
+                ("profile_senden", "Darf ich Profile senden?"),
+            ] %}
+            {% set zweitkontakt_keys = [
+                ("budget", "Budget/Gehaltsspanne"),
+                ("teamgroesse", "Teamgroesse & Struktur"),
+                ("home_office", "Home-Office"),
+                ("arbeitszeiten", "Arbeitszeiten"),
+                ("ueberstunden", "Ueberstunden"),
+                ("software", "Software/ERP"),
+                ("software_erfahrung", "Software-Erfahrung"),
+                ("aeltere_kandidaten", "Aeltere Kandidaten"),
+                ("vakanzgrund", "Vakanzgrund"),
+                ("bewerbungsprozess", "Bewerbungsprozess"),
+                ("entscheider", "Entscheider"),
+                ("englisch", "Englisch"),
+            ] %}
+            <div class="bg-white rounded-xl border border-gray-200 p-6" style="border-left: 3px solid #10b981;">
+                <div class="flex items-center gap-2 mb-4">
+                    <span class="inline-flex items-center rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-700 ring-1 ring-green-600/20">Akquise</span>
+                    <h3 class="text-sm font-semibold text-gray-900">Qualifizierung aus Kundengespraech</h3>
+                    <span class="text-xs text-gray-400 ml-auto">
+                        {{ qa | selectattr('answer', 'defined') | list | length if qa is mapping else 0 }} Antworten
+                    </span>
+                </div>
+
+                {# Erstkontakt #}
+                {% set has_erst = false %}
+                {% for key, label in erstkontakt_keys %}
+                    {% if qa.get(key) and qa[key].get('answer') %}{% set has_erst = true %}{% endif %}
+                {% endfor %}
+                {% if has_erst %}
+                <div class="mb-4">
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Erstkontakt</p>
+                    <div class="space-y-2">
+                        {% for key, label in erstkontakt_keys %}
+                        {% if qa.get(key) and qa[key].get('answer') %}
+                        <div class="flex items-start gap-2">
+                            <svg class="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+                            <div>
+                                <span class="text-xs text-gray-500">{{ label }}</span>
+                                <p class="text-sm text-gray-900">{{ qa[key].answer }}</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {# Zweitkontakt #}
+                {% set has_zweit = false %}
+                {% for key, label in zweitkontakt_keys %}
+                    {% if qa.get(key) and qa[key].get('answer') %}{% set has_zweit = true %}{% endif %}
+                {% endfor %}
+                {% if has_zweit %}
+                <div>
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Zweitkontakt</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {% for key, label in zweitkontakt_keys %}
+                        {% if qa.get(key) and qa[key].get('answer') %}
+                        <div>
+                            <label class="text-xs text-gray-500">{{ label }}</label>
+                            <p class="text-sm text-gray-900 mt-0.5">{{ qa[key].answer }}</p>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+
             {# -- Stellenprofil aus Kundengespräch (nur wenn Job-Quali-Felder vorhanden) -- #}
             {% set has_jq = job.team_size or job.erp_system or job.home_office_days or job.flextime is not none or job.vacation_days or job.overtime_handling or job.open_office or job.english_requirements or job.hiring_process_steps or job.feedback_timeline or job.digitalization_level or job.older_candidates_ok is not none or job.desired_start_date or job.interviews_started is not none or job.ideal_candidate_description or job.candidate_tasks or job.multiple_entities is not none or job.task_distribution %}
             {% if has_jq %}

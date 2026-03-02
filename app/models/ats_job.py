@@ -112,6 +112,9 @@ class ATSJob(Base):
     multiple_entities: Mapped[bool | None] = mapped_column(Boolean)
     task_distribution: Mapped[str | None] = mapped_column(String(500))
 
+    # Qualifizierungsdaten aus Akquise (17 Fragen + Antworten, JSONB)
+    qualification_answers: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+
     # Sync: Manuell ueberschriebene Felder (z.B. {"title": true, "salary_min": true})
     manual_overrides: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 

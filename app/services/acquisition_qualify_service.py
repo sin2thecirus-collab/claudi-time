@@ -74,19 +74,47 @@ class AcquisitionQualifyService:
             industry=job.industry,
         )
 
-        # Qualifizierungsdaten uebertragen
-        if qualification_data:
-            await ats_service.update_qualification_fields(
-                job_id=ats_job.id,
-                data=qualification_data,
-                overwrite=False,
+        # ── Qualifizierungsdaten uebertragen (JSONB komplett + Feld-Mapping) ──
+        # 1. Komplettes JSONB kopieren (17 Fragen + Antworten)
+        if job.qualification_answers:
+            ats_job.qualification_answers = dict(job.qualification_answers)
+            logger.info(
+                f"Qualification_answers uebertragen: {len(job.qualification_answers)} Eintraege"
             )
+
+            # 2. Zusaetzlich passende ATS-Felder befuellen (Best-Effort)
+            self._map_quali_to_ats_fields(ats_job, job.qualification_answers)
+
+        # Legacy: Wenn qualification_data als Dict uebergeben (von D10 Disposition)
+        if qualification_data:
+            try:
+                await ats_service.update_qualification_fields(
+                    job_id=ats_job.id,
+                    data=qualification_data,
+                    overwrite=False,
+                )
+            except Exception as e:
+                logger.warning(f"Legacy qualification_data Transfer: {e}")
+
+        # Kontakt uebertragen
+        if job.company_id:
+            # Ersten Kontakt des Unternehmens als Ansprechpartner setzen
+            from app.models.company_contact import CompanyContact
+
+            contact_result = await self.db.execute(
+                select(CompanyContact.id)
+                .where(CompanyContact.company_id == job.company_id)
+                .limit(1)
+            )
+            contact_row = contact_result.fetchone()
+            if contact_row:
+                ats_job.contact_id = contact_row[0]
 
         # ── Akquise-Dossier zusammenstellen ──
         dossier = await self._build_dossier(job_id)
 
-        # Dossier in ATSJob internal_notes speichern
-        ats_job.internal_notes = dossier["summary"]
+        # Dossier in Notes speichern
+        ats_job.notes = dossier["summary"]
 
         # ── Calls als ATSCallNotes kopieren ──
         calls_transferred = await self._transfer_calls(job_id, ats_job.id)
@@ -115,6 +143,54 @@ class AcquisitionQualifyService:
             "calls_transferred": calls_transferred,
             "emails_transferred": emails_transferred,
         }
+
+    @staticmethod
+    def _map_quali_to_ats_fields(ats_job, qa: dict) -> None:
+        """Mappt Akquise-Qualifizierungsantworten auf typisierte ATS-Felder (Best-Effort)."""
+        import re
+
+        def _get_answer(key: str) -> str | None:
+            entry = qa.get(key)
+            if entry and isinstance(entry, dict):
+                return entry.get("answer")
+            return None
+
+        # Budget → salary_min / salary_max
+        budget = _get_answer("budget")
+        if budget:
+            # Versuche Zahlen zu extrahieren (z.B. "54.000 bis 60.000€")
+            numbers = re.findall(r"[\d]+[.\d]*", budget.replace(".", "").replace(",", "."))
+            nums = [int(float(n)) for n in numbers if float(n) > 1000]
+            if len(nums) >= 2:
+                ats_job.salary_min = min(nums)
+                ats_job.salary_max = max(nums)
+            elif len(nums) == 1:
+                ats_job.salary_min = nums[0]
+
+        # Direkte Textfeld-Mappings
+        mapping = {
+            "teamgroesse": "team_size",
+            "home_office": "home_office_days",
+            "software": "erp_system",
+            "arbeitszeiten": "core_hours",
+            "ueberstunden": "overtime_handling",
+            "bewerbungsprozess": "hiring_process_steps",
+            "englisch": "english_requirements",
+            "timeline": "desired_start_date",
+        }
+        for qa_key, ats_field in mapping.items():
+            answer = _get_answer(qa_key)
+            if answer and not getattr(ats_job, ats_field, None):
+                setattr(ats_job, ats_field, answer[:500])  # Truncate safety
+
+        # Boolean-Mappings
+        aeltere = _get_answer("aeltere_kandidaten")
+        if aeltere and ats_job.older_candidates_ok is None:
+            lower = aeltere.lower()
+            if "ja" in lower or "willkommen" in lower or "kein problem" in lower:
+                ats_job.older_candidates_ok = True
+            elif "nein" in lower or "unter" in lower or "nicht" in lower:
+                ats_job.older_candidates_ok = False
 
     async def _build_dossier(self, job_id: uuid.UUID) -> dict:
         """Baut das Akquise-Dossier (Timeline-Zusammenfassung)."""

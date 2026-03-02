@@ -38,6 +38,13 @@ class CallRequest(BaseModel):
     extra_data: dict | None = None
 
 
+class QualiFieldUpdate(BaseModel):
+    """Update einer einzelnen Qualifizierungsfrage (Auto-Save)."""
+    key: str
+    checked: bool
+    answer: str | None = None
+
+
 class EmailDraftRequest(BaseModel):
     contact_id: uuid.UUID
     email_type: str = "initial"
@@ -2017,3 +2024,116 @@ async def get_qualification(
             "call_date": transcript_row[4].isoformat() if transcript_row[4] else None,
         } if transcript_row else None,
     }
+
+
+# ── Qualifizierung Auto-Save ──
+
+
+VALID_QUALI_KEYS = {
+    "stelle_offen", "besetzung_vorgehen", "herausforderung", "timeline", "profile_senden",
+    "budget", "teamgroesse", "home_office", "arbeitszeiten", "ueberstunden",
+    "software", "software_erfahrung", "aeltere_kandidaten", "vakanzgrund",
+    "bewerbungsprozess", "entscheider", "englisch",
+}
+
+
+@router.patch("/leads/{job_id}/qualification")
+async def update_qualification_field(
+    job_id: uuid.UUID,
+    body: QualiFieldUpdate,
+    db: AsyncSession = Depends(get_db),
+):
+    """Einzelne Qualifizierungsfrage sofort speichern (Auto-Save).
+
+    Wird bei Checkbox-Klick und Textfeld-Eingabe aufgerufen.
+    """
+    if body.key not in VALID_QUALI_KEYS:
+        raise HTTPException(400, f"Unbekannter Qualifizierungsschluessel: {body.key}")
+
+    job = await db.get(Job, job_id)
+    if not job:
+        raise HTTPException(404, "Job nicht gefunden")
+    if not job.acquisition_source:
+        raise HTTPException(400, "Kein Akquise-Job")
+
+    now = datetime.now(timezone.utc)
+    qa = dict(job.qualification_answers or {})
+
+    if body.checked:
+        existing = qa.get(body.key, {})
+        # Antwort-Text: manuell eingegebener Text hat Vorrang
+        answer = body.answer.strip() if body.answer and body.answer.strip() else existing.get("answer")
+        old_source = existing.get("source", "")
+        if old_source == "auto" and not body.answer:
+            new_source = "manual+auto"
+        elif old_source == "auto" and body.answer:
+            new_source = "manual+auto"
+        elif "auto" in old_source:
+            new_source = "manual+auto"
+        else:
+            new_source = "manual"
+        qa[body.key] = {
+            "asked": True,
+            "answer": answer,
+            "source": new_source,
+        }
+        # Auto-Antwort beibehalten wenn vorhanden
+        if existing.get("auto_answer"):
+            qa[body.key]["auto_answer"] = existing["auto_answer"]
+    else:
+        existing = qa.get(body.key, {})
+        if existing.get("source") in ("auto", "manual+auto") and existing.get("answer"):
+            # KI-Antwort vorhanden → Checkbox abwählen, aber Daten behalten
+            qa[body.key] = {
+                "asked": False,
+                "answer": existing.get("answer"),
+                "source": existing.get("source"),
+            }
+            if existing.get("auto_answer"):
+                qa[body.key]["auto_answer"] = existing["auto_answer"]
+        else:
+            # Rein manueller Eintrag ohne Antwort → loeschen
+            qa.pop(body.key, None)
+
+    # JSONB-Feld direkt setzen (SQLAlchemy JSONB Mutation-Erkennung)
+    from sqlalchemy import text as sa_text
+    import json
+    await db.execute(
+        sa_text(
+            "UPDATE jobs SET qualification_answers = :qa, qualification_updated_at = :now WHERE id = :jid"
+        ),
+        {"qa": json.dumps(qa), "now": now, "jid": job_id},
+    )
+    await db.commit()
+
+    return {"ok": True, "key": body.key, "qualification_answers": qa}
+
+
+# ── Lead → ATS-Stelle Konvertierung ──
+
+
+@router.post("/leads/{job_id}/convert-to-stelle")
+async def convert_lead_to_stelle(
+    job_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Konvertiert einen Akquise-Lead in eine ATS-Stelle.
+
+    Uebertraegt alle Qualifizierungsdaten (17 Fragen + Antworten),
+    Anruf-Historie und E-Mail-Dossier. Lead verschwindet aus Akquise.
+    """
+    try:
+        from app.services.acquisition_qualify_service import AcquisitionQualifyService
+
+        qualify_svc = AcquisitionQualifyService(db)
+        result = await qualify_svc.convert_to_ats(job_id)
+
+        return {
+            "ok": True,
+            "ats_job_id": result["ats_job_id"],
+            "message": f"Stelle erstellt. {result['calls_transferred']} Calls, {result['emails_transferred']} Emails uebertragen.",
+        }
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        raise HTTPException(500, f"Konvertierung fehlgeschlagen: {str(e)}")

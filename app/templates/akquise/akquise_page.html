@@ -679,10 +679,13 @@ function callScreen() {
         timerInterval: null,
         notes: '',
         quali: {},
+        qualiText: {},
+        qualiSaveTimeout: {},
         qualiAnswers: {},
         qualiLoaded: false,
         qualiTranscript: null,
         showTranscript: false,
+        converting: false,
         selectedDisposition: null,
         showFollowUp: false,
         pendingDisposition: '',
@@ -717,13 +720,64 @@ function callScreen() {
                     this.qualiAnswers = data.qualification_answers || {};
                     this.qualiTranscript = data.transcript || null;
                     this.qualiLoaded = true;
-                    // Checkboxen aus qualiAnswers vorbelegen
+                    // Checkboxen + Textfelder aus qualiAnswers vorbelegen
                     for (const [key, val] of Object.entries(this.qualiAnswers)) {
                         if (val && val.asked) this.quali[key] = true;
+                        if (val && val.answer) this.qualiText[key] = val.answer;
                     }
                 }
             } catch (e) {
                 console.warn('Qualification laden fehlgeschlagen:', e);
+            }
+        },
+
+        saveQualiField(key) {
+            clearTimeout(this.qualiSaveTimeout[key]);
+            this.qualiSaveTimeout[key] = setTimeout(async () => {
+                try {
+                    const resp = await fetch('/api/akquise/leads/' + this.jobId + '/qualification', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            key: key,
+                            checked: !!this.quali[key],
+                            answer: this.qualiText[key] || null,
+                        }),
+                    });
+                    if (resp.ok) {
+                        const data = await resp.json();
+                        this.qualiAnswers = data.qualification_answers || this.qualiAnswers;
+                    }
+                } catch (e) {
+                    console.warn('Quali auto-save fehlgeschlagen:', e);
+                }
+            }, 600);
+        },
+
+        async convertToStelle() {
+            if (!confirm('Lead wird in ATS-Stelle umgewandelt und verschwindet aus der Akquise.\n\nAlle Qualifizierungsdaten werden uebertragen.\n\nFortfahren?')) return;
+            this.converting = true;
+            try {
+                const resp = await fetch('/api/akquise/leads/' + this.jobId + '/convert-to-stelle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                });
+                if (resp.ok) {
+                    const data = await resp.json();
+                    if (typeof showToast === 'function') {
+                        showToast('Stelle erstellt! ' + data.message, 'success');
+                    }
+                    setTimeout(() => {
+                        window.location.href = '/ats/stellen/' + data.ats_job_id;
+                    }, 800);
+                } else {
+                    const err = await resp.json();
+                    if (typeof showToast === 'function') showToast(err.detail || 'Fehler', 'error');
+                    this.converting = false;
+                }
+            } catch (e) {
+                if (typeof showToast === 'function') showToast('Netzwerkfehler', 'error');
+                this.converting = false;
             }
         },
 
