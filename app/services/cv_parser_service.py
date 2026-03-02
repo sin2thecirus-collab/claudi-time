@@ -37,6 +37,20 @@ WICHTIGSTE REGEL — NIEMALS DATEN ERFINDEN:
 - NIEMALS Aufgaben, Taetigkeiten, Firmen oder andere Daten ERFINDEN oder VERMUTEN!
 - Lieber null zurueckgeben als etwas zu halluzinieren!
 
+ZWEISPALTEN-LAYOUT ERKENNEN (KRITISCH!):
+Viele CVs haben ein zweispaltiges Layout: Daten LINKS, Positionen/Aufgaben RECHTS.
+Beim Text-Extrahieren werden die Spalten NACHEINANDER gelesen, was zu DIESER Reihenfolge fuehrt:
+  "01/2025 – heute" (Datum Pos 1)
+  "10/2020 – 12/2024" (Datum Pos 2)
+  "Head of Accounting" (Titel Pos 1)
+  "MAURER SE" (Firma Pos 1)
+  "- Fuehrung des Teams..." (Aufgaben Pos 1)
+  "Referent Steuern" (Titel Pos 2)
+  ...
+In diesem Fall: ALLE gelisteten Daten MUESSEN der jeweiligen Position zugeordnet werden!
+Datum 1 gehoert zu Position 1, Datum 2 zu Position 2 usw. — auch wenn die Taetigkeiten
+WEIT UNTERHALB der Daten stehen. NIEMALS description: null setzen wenn Aufgaben im Text stehen!
+
 REGELN:
 - Fehlende Info = null (JSON null, nicht String "null")
 - Datum: "MM/YYYY" oder "YYYY", aktuell = "heute"
@@ -51,7 +65,9 @@ KATEGORIEN:
 
 3. work_history: ALLE Jobs (auch Praktika, Nebenjobs), neueste zuerst
    - {company, position, start_date, end_date, description}
-   - description: NUR Taetigkeiten die EXPLIZIT im CV stehen als Bullets. Wenn KEINE Aufgaben beschrieben → null! NIEMALS Aufgaben erfinden!
+   - description: Taetigkeiten die EXPLIZIT im CV stehen als Bullets. NIEMALS Aufgaben erfinden!
+     ABER: Gruendlich den GESAMTEN Text durchsuchen! Bei Zweispalten-Layouts stehen Aufgaben
+     oft weit unterhalb des zugehoerigen Datums. Erst wenn WIRKLICH nirgends Aufgaben stehen → null.
    - company: NUR wenn ein Firmenname im CV steht. Wenn kein Firmenname → null!
    - NICHT hier: Ausbildungen, Weiterbildungen, IHK, Zertifikate -> education/further_education
 
