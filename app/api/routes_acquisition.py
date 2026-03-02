@@ -93,6 +93,7 @@ class ManualLeadRequest(BaseModel):
     contact_email: str | None = None
     contact_phone: str | None = None
     notes: str | None = None
+    raw_text: str | None = None  # Originaler Rohtext → wird als job_text gespeichert
 
 
 class ExtractLeadRequest(BaseModel):
@@ -683,7 +684,10 @@ async def create_manual_lead(
         last_seen_at=now,
         expires_at=now + timedelta(days=90),  # 90 Tage (laenger als CSV)
     )
-    if body.notes:
+    # Jobtext: Rohtext hat Vorrang (enthält die vollständige Stellenbeschreibung)
+    if body.raw_text:
+        job.job_text = body.raw_text.strip()
+    elif body.notes:
         job.job_text = body.notes.strip()
     db.add(job)
     await db.flush()
