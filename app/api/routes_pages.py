@@ -2,7 +2,7 @@
 
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
@@ -72,8 +72,11 @@ def to_berlin(dt_value):
 
 templates.env.filters["to_berlin"] = to_berlin
 
-# now() Funktion fuer Templates
-templates.env.globals["now"] = datetime.now
+# now() Funktion fuer Templates (timezone-aware fuer Vergleich mit DB-Timestamps)
+def _utcnow():
+    return datetime.now(timezone.utc)
+
+templates.env.globals["now"] = _utcnow
 
 
 # ============================================================================
@@ -109,7 +112,7 @@ async def job_detail(
         {
             "request": request,
             "job": job,
-            "now": datetime.now()
+            "now": datetime.now(timezone.utc)
         }
     )
 
