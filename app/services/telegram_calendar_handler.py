@@ -694,6 +694,17 @@ async def send_tomorrow_reminders() -> dict:
                 if not attendee_email:
                     continue
 
+                # ── Duplikat-Check: Heute bereits gesendet? ──
+                if await _was_reminder_sent_today(attendee_email, subject):
+                    logger.info(f"Erinnerung heute bereits gesendet — uebersprungen: {attendee_email} / '{subject}'")
+                    result["details"].append({
+                        "email": attendee_email,
+                        "name": attendee_name,
+                        "event_subject": subject,
+                        "status": "skipped_duplicate",
+                    })
+                    continue
+
                 try:
                     # ── CRM-Daten laden (Kandidat/Kontakt) ──
                     crm_data = await _find_person_by_email(attendee_email)
@@ -974,3 +985,34 @@ async def _log_reminder_activity(
 
     except Exception as e:
         logger.error(f"Reminder-Activity Logging fehlgeschlagen: {e}")
+
+
+async def _was_reminder_sent_today(attendee_email: str, event_subject: str) -> bool:
+    """Prueft ob heute bereits eine Erinnerung fuer diesen Termin+Person gesendet wurde.
+
+    Verhindert Duplikate bei mehrfachem Aufruf des Reminder-Endpoints (z.B. n8n-Retries).
+    Prueft die ATSActivity-Tabelle auf heutige calendar_reminder Eintraege.
+    """
+    try:
+        from app.database import async_session_maker
+        from app.models.ats_activity import ATSActivity, ActivityType
+        from sqlalchemy import select
+
+        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+
+        async with async_session_maker() as db:
+            result = await db.execute(
+                select(ATSActivity).where(
+                    ATSActivity.created_at >= today_start,
+                    ATSActivity.activity_type == ActivityType.EMAIL_SENT,
+                    ATSActivity.metadata_json["action"].astext == "calendar_reminder",
+                    ATSActivity.metadata_json["to_email"].astext == attendee_email,
+                    ATSActivity.metadata_json["event_subject"].astext == event_subject,
+                ).limit(1)
+            )
+            existing = result.scalar_one_or_none()
+            return existing is not None
+
+    except Exception as e:
+        logger.error(f"Duplikat-Check fehlgeschlagen: {e}")
+        return False  # Im Zweifel senden — lieber einmal zu viel als gar nicht
