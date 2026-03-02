@@ -159,7 +159,11 @@ class Settings(BaseSettings):
     # Telegram Bot
     telegram_bot_token: str = Field(
         default="",
-        description="Telegram Bot Token (@Sincirusbot)",
+        description="Telegram Bot Token (allgemein / neuer Bot)",
+    )
+    telegram_sincirusbot_token: str = Field(
+        default="",
+        description="Telegram Bot Token speziell fuer @Sincirusbot (CRM-Bot). Wird bevorzugt verwendet.",
     )
     telegram_chat_id: str = Field(
         default="",
@@ -169,6 +173,15 @@ class Settings(BaseSettings):
         default="",
         description="Secret fuer Telegram Webhook Verifizierung",
     )
+
+    @property
+    def sincirusbot_token(self) -> str:
+        """Gibt den Token fuer @Sincirusbot zurueck.
+
+        Bevorzugt TELEGRAM_SINCIRUSBOT_TOKEN (neues Feld).
+        Fallback auf TELEGRAM_BOT_TOKEN (altes Feld) fuer Abwaertskompatibilitaet.
+        """
+        return self.telegram_sincirusbot_token or self.telegram_bot_token
 
     # Umgebung
     environment: str = Field(

@@ -44,7 +44,7 @@ async def telegram_webhook(request: Request, background_tasks: BackgroundTasks):
 @router.get("/status")
 async def telegram_status():
     """Prueft den Telegram Bot Status und ob der Webhook registriert ist."""
-    if not settings.telegram_bot_token:
+    if not settings.sincirusbot_token:
         return {
             "status": "not_configured",
             "message": "TELEGRAM_BOT_TOKEN nicht gesetzt",
@@ -53,7 +53,7 @@ async def telegram_status():
     import httpx
 
     try:
-        url = f"https://api.telegram.org/bot{settings.telegram_bot_token}/getWebhookInfo"
+        url = f"https://api.telegram.org/bot{settings.sincirusbot_token}/getWebhookInfo"
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.get(url)
             resp.raise_for_status()
@@ -107,7 +107,7 @@ async def register_webhook() -> bool:
 
     Wird in main.py lifespan() aufgerufen.
     """
-    if not settings.telegram_bot_token:
+    if not settings.sincirusbot_token:
         logger.info("Telegram Bot Token nicht konfiguriert — Webhook-Registrierung uebersprungen")
         return False
 
@@ -123,7 +123,7 @@ async def register_webhook() -> bool:
     import httpx
 
     try:
-        url = f"https://api.telegram.org/bot{settings.telegram_bot_token}/setWebhook"
+        url = f"https://api.telegram.org/bot{settings.sincirusbot_token}/setWebhook"
         payload = {
             "url": webhook_url,
             "allowed_updates": ["message", "callback_query"],

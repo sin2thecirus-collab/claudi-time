@@ -33,7 +33,7 @@ async def send_message(
     parse_mode: str = "HTML",
 ) -> dict | None:
     """Sendet eine Nachricht an einen Telegram Chat."""
-    if not settings.telegram_bot_token:
+    if not settings.sincirusbot_token:
         logger.warning("Telegram Bot Token nicht konfiguriert")
         return None
 
@@ -42,7 +42,7 @@ async def send_message(
         logger.warning("Keine Telegram Chat-ID konfiguriert")
         return None
 
-    url = f"{TELEGRAM_API.format(token=settings.telegram_bot_token)}/sendMessage"
+    url = f"{TELEGRAM_API.format(token=settings.sincirusbot_token)}/sendMessage"
     payload = {
         "chat_id": target_chat,
         "text": text,
@@ -68,11 +68,11 @@ async def send_document(
     caption: str | None = None,
 ) -> dict | None:
     """Sendet ein Dokument (PDF etc.) an einen Telegram Chat."""
-    if not settings.telegram_bot_token:
+    if not settings.sincirusbot_token:
         return None
 
     target_chat = chat_id or settings.telegram_chat_id
-    url = f"{TELEGRAM_API.format(token=settings.telegram_bot_token)}/sendDocument"
+    url = f"{TELEGRAM_API.format(token=settings.sincirusbot_token)}/sendDocument"
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -94,9 +94,9 @@ async def send_document(
 
 async def answer_callback_query(callback_query_id: str, text: str = "") -> None:
     """Beantwortet eine Callback Query (Button-Klick Feedback)."""
-    if not settings.telegram_bot_token:
+    if not settings.sincirusbot_token:
         return
-    url = f"{TELEGRAM_API.format(token=settings.telegram_bot_token)}/answerCallbackQuery"
+    url = f"{TELEGRAM_API.format(token=settings.sincirusbot_token)}/answerCallbackQuery"
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
             await client.post(url, json={
@@ -109,10 +109,10 @@ async def answer_callback_query(callback_query_id: str, text: str = "") -> None:
 
 async def _download_file(file_id: str) -> bytes | None:
     """Laedt eine Datei von Telegram herunter (z.B. Voice-Nachricht)."""
-    if not settings.telegram_bot_token:
+    if not settings.sincirusbot_token:
         return None
 
-    base = TELEGRAM_API.format(token=settings.telegram_bot_token)
+    base = TELEGRAM_API.format(token=settings.sincirusbot_token)
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -122,7 +122,7 @@ async def _download_file(file_id: str) -> bytes | None:
             file_path = info_resp.json()["result"]["file_path"]
 
             # Schritt 2: Datei herunterladen
-            download_url = f"https://api.telegram.org/file/bot{settings.telegram_bot_token}/{file_path}"
+            download_url = f"https://api.telegram.org/file/bot{settings.sincirusbot_token}/{file_path}"
             file_resp = await client.get(download_url)
             file_resp.raise_for_status()
             return file_resp.content
