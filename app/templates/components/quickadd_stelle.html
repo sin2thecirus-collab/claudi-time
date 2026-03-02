@@ -109,7 +109,7 @@
             }
 
             const result = await res.json();
-            showToast('Stelle \"' + (result.title || payload.title) + '\" erstellt!', 'success');
+            showToast('Stelle ' + (result.title || payload.title) + ' erstellt!', 'success');
             closeQuickAdd();
 
             setTimeout(() => {
