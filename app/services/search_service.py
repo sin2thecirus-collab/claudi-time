@@ -13,30 +13,36 @@ class SearchService:
         search_stripped = query.strip()
         results = {}
 
-        # Kandidaten
+        # Kandidaten — intelligente Suche
         from app.models.candidate import Candidate
-        cand_conditions = [
-            Candidate.first_name.ilike(term),
-            Candidate.last_name.ilike(term),
-            (Candidate.first_name + " " + Candidate.last_name).ilike(term),
-            Candidate.email.ilike(term),
-            Candidate.phone.ilike(term),
-            Candidate.city.ilike(term),
-        ]
-        # Telefon: reine Ziffern matchen
         digits_only = "".join(c for c in search_stripped if c.isdigit())
-        if len(digits_only) >= 4:
-            cand_conditions.append(
-                func.regexp_replace(Candidate.phone, '[^0-9]', '', 'g').ilike(f"%{digits_only}%")
-            )
-        if len(search_stripped) >= 8:
-            cand_conditions.append(cast(Candidate.id, String).ilike(term))
+
+        if "@" in search_stripped:
+            cand_filter = func.lower(Candidate.email) == search_stripped.lower()
+        elif len(digits_only) >= 6 and len(digits_only) >= len(search_stripped) * 0.5:
+            cand_filter = func.regexp_replace(Candidate.phone, '[^0-9]', '', 'g').ilike(f"%{digits_only}%")
+        else:
+            cand_conditions = [
+                Candidate.first_name.ilike(term),
+                Candidate.last_name.ilike(term),
+                (Candidate.first_name + " " + Candidate.last_name).ilike(term),
+                Candidate.email.ilike(term),
+                Candidate.phone.ilike(term),
+                Candidate.city.ilike(term),
+            ]
+            if len(digits_only) >= 4:
+                cand_conditions.append(
+                    func.regexp_replace(Candidate.phone, '[^0-9]', '', 'g').ilike(f"%{digits_only}%")
+                )
+            if len(search_stripped) >= 8:
+                cand_conditions.append(cast(Candidate.id, String).ilike(term))
+            cand_filter = or_(*cand_conditions)
         cand_q = (
             select(Candidate)
             .where(
                 Candidate.deleted_at.is_(None),
                 Candidate.hidden.is_(False),
-                or_(*cand_conditions),
+                cand_filter,
             )
             .order_by(Candidate.last_name, Candidate.first_name)
             .limit(limit)

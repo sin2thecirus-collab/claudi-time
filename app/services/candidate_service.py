@@ -555,42 +555,57 @@ class CandidateService:
         # Gelöschte Kandidaten IMMER ausfiltern
         query = query.where(Candidate.deleted_at.is_(None))
 
-        # Universelle Suche (Name, Email, Telefon, ID, Kandidatennummer)
+        # Intelligente Suche — erkennt automatisch was eingegeben wird
         if filters.name:
-            search_term = f"%{filters.name}%"
             search_stripped = filters.name.strip()
-            search_conditions = [
-                # Name (Vor-, Nachname, kombiniert)
-                Candidate.first_name.ilike(search_term),
-                Candidate.last_name.ilike(search_term),
-                (Candidate.first_name + " " + Candidate.last_name).ilike(search_term),
-                # Email
-                Candidate.email.ilike(search_term),
-                # Telefon
-                Candidate.phone.ilike(search_term),
-                # Stadt
-                Candidate.city.ilike(search_term),
-                # Position
-                Candidate.current_position.ilike(search_term),
-            ]
-            # Kandidatennummer (wenn Zahl)
-            if search_stripped.isdigit():
-                search_conditions.append(
-                    Candidate.candidate_number == int(search_stripped)
-                )
-            # UUID-Suche (wenn es wie eine UUID aussieht oder ein UUID-Fragment ist)
-            if len(search_stripped) >= 8:
-                search_conditions.append(
-                    cast(Candidate.id, String).ilike(search_term)
-                )
-            # Telefon-Suche: auch ohne Sonderzeichen matchen (z.B. "017612345" findet "+49 176 12345")
+            search_term = f"%{search_stripped}%"
             digits_only = "".join(c for c in search_stripped if c.isdigit())
-            if len(digits_only) >= 4:
-                # Suche nach den reinen Ziffern im Telefon-Feld
-                search_conditions.append(
+
+            # --- Email erkannt (enthält @) → NUR nach Email suchen ---
+            if "@" in search_stripped:
+                query = query.where(
+                    func.lower(Candidate.email) == search_stripped.lower()
+                )
+
+            # --- Reine Zahl → Kandidatennummer ---
+            elif search_stripped.isdigit():
+                query = query.where(
+                    or_(
+                        Candidate.candidate_number == int(search_stripped),
+                        # Auch als Telefon-Fragment suchen
+                        func.regexp_replace(Candidate.phone, '[^0-9]', '', 'g').ilike(f"%{digits_only}%"),
+                    )
+                )
+
+            # --- Telefonnummer erkannt (>= 6 Ziffern, evtl. mit +/-/Leerzeichen) ---
+            elif len(digits_only) >= 6 and len(digits_only) >= len(search_stripped) * 0.5:
+                query = query.where(
                     func.regexp_replace(Candidate.phone, '[^0-9]', '', 'g').ilike(f"%{digits_only}%")
                 )
-            query = query.where(or_(*search_conditions))
+
+            # --- UUID erkannt (Hex + Bindestriche, mind. 8 Zeichen) ---
+            elif len(search_stripped) >= 8 and all(c in "0123456789abcdef-" for c in search_stripped.lower()):
+                query = query.where(
+                    cast(Candidate.id, String).ilike(search_term)
+                )
+
+            # --- Sonst: Textsuche über alle Felder ---
+            else:
+                search_conditions = [
+                    Candidate.first_name.ilike(search_term),
+                    Candidate.last_name.ilike(search_term),
+                    (Candidate.first_name + " " + Candidate.last_name).ilike(search_term),
+                    Candidate.email.ilike(search_term),
+                    Candidate.phone.ilike(search_term),
+                    Candidate.city.ilike(search_term),
+                    Candidate.current_position.ilike(search_term),
+                ]
+                # Auch Telefon-Ziffern matchen (z.B. "0176" findet "+49 176...")
+                if len(digits_only) >= 4:
+                    search_conditions.append(
+                        func.regexp_replace(Candidate.phone, '[^0-9]', '', 'g').ilike(f"%{digits_only}%")
+                    )
+                query = query.where(or_(*search_conditions))
 
         # Stadt-Filter (exakte Liste)
         if filters.cities:

@@ -115,35 +115,41 @@ async def search_candidates_quick(
     from sqlalchemy import cast, func, select, or_, String
     from app.models.candidate import Candidate
 
-    search_term = f"%{q}%"
     search_stripped = q.strip()
-    search_conditions = [
-        Candidate.first_name.ilike(search_term),
-        Candidate.last_name.ilike(search_term),
-        (Candidate.first_name + " " + Candidate.last_name).ilike(search_term),
-        Candidate.email.ilike(search_term),
-        Candidate.phone.ilike(search_term),
-        Candidate.city.ilike(search_term),
-    ]
-    # Kandidatennummer (wenn Zahl)
-    if search_stripped.isdigit():
-        search_conditions.append(Candidate.candidate_number == int(search_stripped))
-    # UUID-Suche (wenn lang genug)
-    if len(search_stripped) >= 8:
-        search_conditions.append(cast(Candidate.id, String).ilike(search_term))
-    # Telefon: reine Ziffern matchen
+    search_term = f"%{search_stripped}%"
     digits_only = "".join(c for c in search_stripped if c.isdigit())
-    if len(digits_only) >= 4:
-        search_conditions.append(
-            func.regexp_replace(Candidate.phone, '[^0-9]', '', 'g').ilike(f"%{digits_only}%")
+
+    # Intelligente Erkennung: Email → exakte Suche
+    if "@" in search_stripped:
+        search_filter = func.lower(Candidate.email) == search_stripped.lower()
+    elif search_stripped.isdigit():
+        search_filter = or_(
+            Candidate.candidate_number == int(search_stripped),
+            func.regexp_replace(Candidate.phone, '[^0-9]', '', 'g').ilike(f"%{digits_only}%"),
         )
+    elif len(digits_only) >= 6 and len(digits_only) >= len(search_stripped) * 0.5:
+        search_filter = func.regexp_replace(Candidate.phone, '[^0-9]', '', 'g').ilike(f"%{digits_only}%")
+    else:
+        conditions = [
+            Candidate.first_name.ilike(search_term),
+            Candidate.last_name.ilike(search_term),
+            (Candidate.first_name + " " + Candidate.last_name).ilike(search_term),
+            Candidate.email.ilike(search_term),
+            Candidate.phone.ilike(search_term),
+            Candidate.city.ilike(search_term),
+        ]
+        if len(digits_only) >= 4:
+            conditions.append(
+                func.regexp_replace(Candidate.phone, '[^0-9]', '', 'g').ilike(f"%{digits_only}%")
+            )
+        search_filter = or_(*conditions)
 
     result = await db.execute(
         select(Candidate)
         .where(
             Candidate.deleted_at.is_(None),
             Candidate.hidden.is_(False),
-            or_(*search_conditions),
+            search_filter,
         )
         .order_by(Candidate.last_name, Candidate.first_name)
         .limit(limit)
