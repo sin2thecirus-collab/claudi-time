@@ -572,35 +572,36 @@
                 </div>
             </div>
 
-            {# ── Als Stelle anlegen Button ── #}
-            <button @click="convertToStelle()"
-                    :disabled="converting"
-                    x-show="Object.values(quali).some(v => v)"
-                    style="margin-top:14px;width:100%;padding:10px 16px;font-size:12px;font-weight:700;color:#fff;background:linear-gradient(135deg,#10b981,#059669);border:none;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s;opacity:1;"
-                    :style="converting ? 'opacity:0.6;cursor:not-allowed;' : ''"
-                    onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 12px rgba(16,185,129,0.3)'"
-                    onmouseout="this.style.transform='';this.style.boxShadow=''">
-                <template x-if="!converting">
-                    <span style="display:flex;align-items:center;gap:6px;">
-                        <svg style="width:16px;height:16px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
-                        Als ATS-Stelle anlegen
-                    </span>
-                </template>
-                <template x-if="converting">
-                    <span style="display:flex;align-items:center;gap:6px;">
-                        <div style="width:14px;height:14px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;"></div>
-                        Wird umgewandelt...
-                    </span>
-                </template>
-            </button>
-
-            <button onclick="document.getElementById('new-job-draft-form').style.display = document.getElementById('new-job-draft-form').style.display === 'none' ? 'block' : 'none'"
-                    class="cs-textbaustein" style="margin-top:12px;">
-                + Neue Stelle aus Gespraech
-            </button>
-            <div id="new-job-draft-form" style="display:none;margin-top:8px;">
-                {% include 'partials/akquise/new_job_draft_form.html' %}
+            {# ── Als Stelle anlegen Button — EINZIGER Konvertierungs-Button ── #}
+            {# Sichtbar wenn mind. 1 Quali-Checkbox oder Backend qualification_answers existieren #}
+            <div style="margin-top:16px;border-top:1px solid rgba(16,185,129,0.15);padding-top:14px;">
+                <button @click="convertToStelle()"
+                        :disabled="converting"
+                        x-show="Object.values(quali).some(v => v) || Object.keys(qualiAnswers).length > 0"
+                        style="width:100%;padding:12px 16px;font-size:13px;font-weight:700;color:#fff;background:linear-gradient(135deg,#10b981,#059669);border:none;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s;box-shadow:0 2px 8px rgba(16,185,129,0.2);"
+                        :style="converting ? 'opacity:0.6;cursor:not-allowed;' : ''"
+                        onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 14px rgba(16,185,129,0.35)'"
+                        onmouseout="this.style.transform='';this.style.boxShadow='0 2px 8px rgba(16,185,129,0.2)'">
+                    <template x-if="!converting">
+                        <span style="display:flex;align-items:center;gap:8px;">
+                            <svg style="width:16px;height:16px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
+                            Lead → ATS-Stelle umwandeln
+                        </span>
+                    </template>
+                    <template x-if="converting">
+                        <span style="display:flex;align-items:center;gap:8px;">
+                            <div style="width:14px;height:14px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;"></div>
+                            Wird automatisch umgewandelt...
+                        </span>
+                    </template>
+                </button>
+                <p x-show="Object.values(quali).some(v => v) || Object.keys(qualiAnswers).length > 0"
+                   style="margin:6px 0 0;font-size:9px;color:var(--pp-textDim);text-align:center;">
+                    Alle Daten werden automatisch uebertragen — kein erneutes Eintippen noetig
+                </p>
             </div>
+
+            {# "Neue Stelle aus Gespraech" (D12) verschoben in Spalte 3 nach Dispositionen #}
         </div>
 
         {# ══════════════════════════════════════════════════════════════ #}
@@ -663,6 +664,15 @@
             {# Disposition #}
             <h4 class="cs-section-label" style="margin:16px 0 6px;">Disposition</h4>
             {% include 'partials/akquise/disposition_buttons.html' %}
+
+            {# Neue Stelle aus Gespraech (D12 — Kontakt erwaehnt ANDERE offene Stelle) #}
+            <button onclick="document.getElementById('new-job-draft-form').style.display = document.getElementById('new-job-draft-form').style.display === 'none' ? 'block' : 'none'"
+                    class="cs-textbaustein" style="margin-top:8px;width:100%;font-size:10px;color:var(--pp-textDim);">
+                + Weitere Stelle aus Gespraech erfassen
+            </button>
+            <div id="new-job-draft-form" style="display:none;margin-top:6px;">
+                {% include 'partials/akquise/new_job_draft_form.html' %}
+            </div>
 
             {# E-Mail senden #}
             {% if contacts and contacts | length > 0 and contacts[0].email %}

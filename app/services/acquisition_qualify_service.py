@@ -64,14 +64,15 @@ class AcquisitionQualifyService:
 
         ats_service = ATSJobService(self.db)
 
+        # source_job_id = der existierende Akquise-Job (kein neuer Source-Job noetig)
+        # NUR Felder uebergeben die auf ATSJob existieren (KEIN postal_code, KEIN industry)
         ats_job = await ats_service.create_job(
-            title=job.position,
+            title=job.position or "Stelle ohne Titel",
+            source_job_id=job.id,
             company_id=job.company_id,
             location_city=job.city,
-            location_postal_code=job.postal_code,
             description=job.job_text,
             employment_type=job.employment_type,
-            industry=job.industry,
         )
 
         # ── Qualifizierungsdaten uebertragen (JSONB komplett + Feld-Mapping) ──
