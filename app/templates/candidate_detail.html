@@ -325,7 +325,11 @@
                 {% endif %}
                 <a href="/api/candidates/{{ candidate.id }}/profile-pdf" target="_blank" class="kd-quickbtn kd-quickbtn-accent" style="text-decoration:none;" title="{% if candidate.profile_pdf_generated_at %}Zuletzt: {{ candidate.profile_pdf_generated_at.strftime('%d.%m.%Y %H:%M') }}{% else %}Wird beim Klick generiert{% endif %}">&#x1F4CA; Profil-PDF{% if candidate.profile_pdf_r2_key %} &#x2713;{% endif %}</a>
                 <button type="button" onclick="regenerateProfilePdf('{{ candidate.id }}')" class="kd-quickbtn" style="background:linear-gradient(135deg, rgba(11,137,189,0.15), rgba(16,181,240,0.15)); color:#0b89bd; border:1px solid rgba(11,137,189,0.3); font-weight:600;" title="Profil-PDF mit aktuellen Daten neu generieren" id="btn-regenerate-pdf">&#x1F504; Profil neu generieren</button>
+                {% if candidate.contact_status == 'email_sequenz_aktiv' %}
+                <button type="button" onclick="stopEmailSequence('{{ candidate.id }}')" class="kd-quickbtn" style="background:var(--pp-redSoft); color:var(--pp-red); border:1px solid rgba(239,68,68,0.25);" id="btn-stop-sequenz" title="Laufende E-Mail-Sequenz stoppen">&#x23F9; Sequenz stoppen</button>
+                {% else %}
                 <button type="button" onclick="triggerNichtErreicht('{{ candidate.id }}')" class="kd-quickbtn" style="background:var(--pp-orangeSoft); color:var(--pp-orange); border:1px solid rgba(234,179,8,0.25);" id="btn-nicht-erreicht" title="E-Mail-Sequenz starten (3 Emails &uuml;ber 5 Tage)">&#x1F4E7; Nicht erreicht</button>
+                {% endif %}
                 <button type="button" @click="showPipelineModal = true" class="kd-quickbtn kd-quickbtn-primary">&#x1F680; Pipeline</button>
                 <button type="button" onclick="findJobsForCandidate('{{ candidate.id }}')" class="kd-quickbtn" style="background:var(--pp-accentSoft); color:var(--pp-accent); border:1px solid rgba(99,102,241,0.25);" id="btn-jobs-finden" title="Claude Matching: Passende Jobs fuer diesen Kandidaten finden">&#x1F50D; Jobs finden</button>
                 <button type="button" onclick="deleteCandidate('{{ candidate.id }}', '{{ display_name }}')" class="kd-quickbtn kd-quickbtn-danger">&#x1F5D1;</button>
@@ -444,6 +448,9 @@
             {% if seq_emails_json and seq_emails_json | length > 0 %}
             <span style="font-size:11px;font-weight:700;background:var(--pp-accentSoft);color:var(--pp-accent);padding:1px 7px;border-radius:99px;margin-left:4px;">{{ seq_emails_json | length }}</span>
             {% endif %}
+        </button>
+        <button type="button" @click="activeTab = 'dateien'" class="kd-tab-btn" :class="activeTab === 'dateien' ? 'active' : ''">
+            <span>&#x1F4CE;</span> Dateien
         </button>
     </div>
     </div>
@@ -2084,6 +2091,106 @@
                 </template>
             </div>
 
+            {# ═══ TAB: Dateien ═══ #}
+            <div x-show="activeTab === 'dateien'" x-cloak x-data="fileManager()" style="display:flex; flex-direction:column; gap:20px;">
+
+                {# ── Upload-Zone (Drag & Drop) ── #}
+                <div class="kd-section kd-anim" style="animation-delay: 80ms;">
+                    <div class="kd-section-body" style="padding:0;">
+                        <div style="border:2px dashed var(--pp-border); border-radius:12px; padding:40px 24px; text-align:center; cursor:pointer; transition:all 0.2s ease;"
+                             :style="dragover ? 'border-color:var(--pp-accent); background:rgba(99,102,241,0.06);' : uploading ? 'opacity:0.5; pointer-events:none;' : ''"
+                             @dragover.prevent="dragover = true"
+                             @dragenter.prevent="dragover = true"
+                             @dragleave.prevent="dragover = false"
+                             @drop.prevent="dragover = false; uploadFiles($event.dataTransfer.files)"
+                             @click="$refs.fileInput.click()">
+
+                            <input type="file" multiple class="hidden" x-ref="fileInput"
+                                   accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.gif,.webp,.xlsx,.xls,.txt,.csv"
+                                   @change="if ($event.target.files.length) { uploadFiles($event.target.files); $event.target.value = ''; }">
+
+                            <div x-show="!uploading && !dragover" style="display:flex; flex-direction:column; align-items:center; gap:10px;">
+                                <div style="width:52px; height:52px; border-radius:14px; background:var(--pp-accentSoft); display:flex; align-items:center; justify-content:center;">
+                                    <svg style="width:24px; height:24px; color:var(--pp-accent);" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p style="font-size:14px; font-weight:600; color:var(--pp-text); margin:0;">Dateien hochladen</p>
+                                    <p style="font-size:12px; color:var(--pp-textDim); margin:4px 0 0;">Drag &amp; Drop oder klicken &middot; PDF, Word, Bilder, Excel &middot; Max 20 MB</p>
+                                </div>
+                            </div>
+                            <div x-show="dragover" x-cloak style="display:flex; flex-direction:column; align-items:center; gap:8px;">
+                                <div style="font-size:28px;">&#x1F4E5;</div>
+                                <p style="font-size:14px; font-weight:600; color:var(--pp-accent); margin:0;">Hier ablegen</p>
+                            </div>
+                            <div x-show="uploading" x-cloak style="display:flex; flex-direction:column; align-items:center; gap:8px;">
+                                <div style="font-size:28px; animation: spin 1s linear infinite;">&#x23F3;</div>
+                                <p style="font-size:14px; font-weight:600; color:var(--pp-accent); margin:0;">Wird hochgeladen...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {# ── Datei-Liste ── #}
+                <div class="kd-section kd-anim" style="animation-delay: 160ms;">
+                    <div class="kd-section-header">
+                        <div class="kd-section-title">
+                            <span style="font-size:16px;">&#x1F4C1;</span> Dateien
+                            <span x-show="files.length > 0" x-cloak style="font-size:11px; font-weight:700; background:var(--pp-accentSoft); color:var(--pp-accent); padding:2px 8px; border-radius:99px; margin-left:6px;" x-text="files.length"></span>
+                        </div>
+                    </div>
+                    <div class="kd-section-body" style="padding:14px 18px;">
+
+                        {# Leerer Zustand #}
+                        <div x-show="files.length === 0 && !loading" style="text-align:center; padding:24px 0;">
+                            <div style="font-size:32px; opacity:0.3; margin-bottom:8px;">&#x1F4C2;</div>
+                            <p style="font-size:13px; color:var(--pp-textDim); margin:0;">Noch keine Dateien hochgeladen</p>
+                        </div>
+
+                        {# Datei-Grid #}
+                        <div x-show="files.length > 0" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:12px;">
+                            <template x-for="doc in files" :key="doc.id">
+                                <div style="background:var(--pp-surface); border:1px solid var(--pp-border); border-radius:12px; padding:14px; transition:all 0.15s; position:relative;"
+                                     @mouseenter="$el.style.borderColor='var(--pp-borderLight)'; $el.querySelector('.doc-delete').style.opacity='1';"
+                                     @mouseleave="$el.style.borderColor='var(--pp-border)'; $el.querySelector('.doc-delete').style.opacity='0';">
+
+                                    {# Loeschen-Button #}
+                                    <button class="doc-delete" @click.stop="deleteFile(doc)"
+                                            style="position:absolute; top:8px; right:8px; width:24px; height:24px; border-radius:6px; border:none; background:transparent; color:var(--pp-textDim); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:12px; opacity:0; transition:all 0.15s;"
+                                            @mouseenter="this.style.color='var(--pp-red)'; this.style.background='var(--pp-redSoft)';"
+                                            @mouseleave="this.style.color='var(--pp-textDim)'; this.style.background='transparent';"
+                                            title="L&ouml;schen">&#x2715;</button>
+
+                                    {# Datei-Icon + Info #}
+                                    <div style="display:flex; align-items:center; gap:12px; cursor:pointer;" @click="downloadFile(doc)">
+                                        <div style="width:40px; height:40px; border-radius:10px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:18px;"
+                                             :style="'background:' + fileIconBg(doc.mime_type) + '; border:1px solid ' + fileIconBorder(doc.mime_type) + ';'">
+                                            <span x-text="fileIcon(doc.mime_type)"></span>
+                                        </div>
+                                        <div style="min-width:0; flex:1;">
+                                            <p style="font-size:13px; font-weight:600; color:var(--pp-text); margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" x-text="doc.filename" :title="doc.filename"></p>
+                                            <div style="display:flex; align-items:center; gap:8px; margin-top:3px;">
+                                                <span style="font-size:11px; color:var(--pp-textDim);" x-text="formatSize(doc.file_size)"></span>
+                                                <span style="font-size:11px; color:var(--pp-textDim);">&middot;</span>
+                                                <span style="font-size:11px; color:var(--pp-textDim);" x-text="formatDate(doc.created_at)"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {# Kategorie-Badge #}
+                                    <div style="margin-top:10px;">
+                                        <span style="font-size:10px; font-weight:700; padding:2px 8px; border-radius:6px; text-transform:uppercase; letter-spacing:0.04em;"
+                                              :style="'background:' + categoryBg(doc.category) + '; color:' + categoryColor(doc.category) + '; border:1px solid ' + categoryBorder(doc.category) + ';'"
+                                              x-text="categoryLabel(doc.category)"></span>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
 
         {# ── RIGHT SIDEBAR ── #}
@@ -2972,6 +3079,193 @@ function triggerNichtErreicht(candidateId) {
         if (typeof showToast === 'function') showToast('Fehler: ' + err.message, 'error');
         console.error('Nicht-erreicht Fehler:', err);
     });
+}
+
+// ==================== Sequenz stoppen ====================
+function stopEmailSequence(candidateId) {
+    if (!confirm('E-Mail-Sequenz stoppen?\n\nKeine weiteren E-Mails werden versendet.')) return;
+
+    var btn = document.getElementById('btn-stop-sequenz');
+    btn.disabled = true;
+    btn.innerHTML = '&#x23F3; Wird gestoppt...';
+    btn.style.opacity = '0.6';
+    btn.style.cursor = 'not-allowed';
+
+    fetch('/api/email-automation/sequences/' + candidateId + '/stop', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.error) { throw new Error(data.error); }
+        btn.innerHTML = '&#x2705; Gestoppt';
+        btn.style.background = 'var(--pp-greenSoft)';
+        btn.style.color = 'var(--pp-green)';
+        btn.style.borderColor = 'rgba(34,197,94,0.25)';
+        if (typeof showToast === 'function') showToast('E-Mail-Sequenz gestoppt. Keine weiteren E-Mails.', 'success');
+    })
+    .catch(function(err) {
+        btn.disabled = false;
+        btn.innerHTML = '&#x23F9; Sequenz stoppen';
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+        btn.style.background = 'var(--pp-redSoft)';
+        btn.style.color = 'var(--pp-red)';
+        btn.style.borderColor = 'rgba(239,68,68,0.25)';
+        if (typeof showToast === 'function') showToast('Fehler: ' + err.message, 'error');
+        console.error('Sequenz-Stop Fehler:', err);
+    });
+}
+
+// ==================== Dateien-Manager ====================
+function fileManager() {
+    var candidateId = '{{ candidate.id }}';
+    return {
+        files: [],
+        uploading: false,
+        dragover: false,
+        loading: true,
+
+        init() {
+            this.loadFiles();
+        },
+
+        loadFiles() {
+            var self = this;
+            self.loading = true;
+            fetch('/api/candidates/' + candidateId + '/documents')
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    self.files = Array.isArray(data) ? data : [];
+                    self.loading = false;
+                })
+                .catch(function() {
+                    self.files = [];
+                    self.loading = false;
+                });
+        },
+
+        uploadFiles(fileList) {
+            var self = this;
+            if (!fileList || fileList.length === 0) return;
+
+            self.uploading = true;
+            var promises = [];
+            for (var i = 0; i < fileList.length; i++) {
+                var file = fileList[i];
+                if (file.size > 20 * 1024 * 1024) {
+                    if (typeof showToast === 'function') showToast(file.name + ' ist zu gross (max 20 MB)', 'warning');
+                    continue;
+                }
+                var fd = new FormData();
+                fd.append('file', file);
+                promises.push(
+                    fetch('/api/candidates/' + candidateId + '/documents', {
+                        method: 'POST',
+                        body: fd,
+                    }).then(function(r) { return r.json(); })
+                );
+            }
+
+            if (promises.length === 0) {
+                self.uploading = false;
+                return;
+            }
+
+            Promise.all(promises)
+                .then(function(results) {
+                    self.uploading = false;
+                    var ok = results.filter(function(r) { return r.id; }).length;
+                    if (ok > 0) {
+                        if (typeof showToast === 'function') showToast(ok + (ok === 1 ? ' Datei' : ' Dateien') + ' hochgeladen', 'success');
+                    }
+                    self.loadFiles();
+                })
+                .catch(function(err) {
+                    self.uploading = false;
+                    if (typeof showToast === 'function') showToast('Upload fehlgeschlagen: ' + err.message, 'error');
+                });
+        },
+
+        downloadFile(doc) {
+            window.open('/api/candidates/documents/' + doc.id + '/download', '_blank');
+        },
+
+        deleteFile(doc) {
+            if (!confirm('Datei "' + doc.filename + '" wirklich loeschen?')) return;
+            var self = this;
+            fetch('/api/candidates/documents/' + doc.id, {
+                method: 'DELETE',
+            })
+            .then(function(r) { return r.json(); })
+            .then(function() {
+                if (typeof showToast === 'function') showToast('Datei geloescht', 'success');
+                self.loadFiles();
+            })
+            .catch(function(err) {
+                if (typeof showToast === 'function') showToast('Fehler: ' + err.message, 'error');
+            });
+        },
+
+        formatSize(bytes) {
+            if (!bytes) return '—';
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        },
+
+        formatDate(isoStr) {
+            if (!isoStr) return '—';
+            var d = new Date(isoStr);
+            return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        },
+
+        fileIcon(mime) {
+            if (!mime) return '\uD83D\uDCC4';
+            if (mime.indexOf('pdf') !== -1) return '\uD83D\uDCC4';
+            if (mime.indexOf('word') !== -1 || mime.indexOf('document') !== -1) return '\uD83D\uDDD2';
+            if (mime.indexOf('image') !== -1) return '\uD83D\uDDBC';
+            if (mime.indexOf('sheet') !== -1 || mime.indexOf('excel') !== -1) return '\uD83D\uDCCA';
+            return '\uD83D\uDCC4';
+        },
+        fileIconBg(mime) {
+            if (!mime) return 'rgba(148,163,184,0.1)';
+            if (mime.indexOf('pdf') !== -1) return 'rgba(239,68,68,0.1)';
+            if (mime.indexOf('word') !== -1 || mime.indexOf('document') !== -1) return 'rgba(59,130,246,0.1)';
+            if (mime.indexOf('image') !== -1) return 'rgba(34,197,94,0.1)';
+            if (mime.indexOf('sheet') !== -1 || mime.indexOf('excel') !== -1) return 'rgba(34,197,94,0.1)';
+            return 'rgba(148,163,184,0.1)';
+        },
+        fileIconBorder(mime) {
+            if (!mime) return 'rgba(148,163,184,0.2)';
+            if (mime.indexOf('pdf') !== -1) return 'rgba(239,68,68,0.2)';
+            if (mime.indexOf('word') !== -1 || mime.indexOf('document') !== -1) return 'rgba(59,130,246,0.2)';
+            if (mime.indexOf('image') !== -1) return 'rgba(34,197,94,0.2)';
+            if (mime.indexOf('sheet') !== -1 || mime.indexOf('excel') !== -1) return 'rgba(34,197,94,0.2)';
+            return 'rgba(148,163,184,0.2)';
+        },
+
+        categoryLabel(cat) {
+            if (cat === 'lebenslauf') return 'Lebenslauf';
+            if (cat === 'zeugnis') return 'Zeugnis';
+            return 'Sonstiges';
+        },
+        categoryBg(cat) {
+            if (cat === 'lebenslauf') return 'rgba(59,130,246,0.1)';
+            if (cat === 'zeugnis') return 'rgba(34,197,94,0.1)';
+            return 'rgba(148,163,184,0.08)';
+        },
+        categoryColor(cat) {
+            if (cat === 'lebenslauf') return '#60A5FA';
+            if (cat === 'zeugnis') return '#34D399';
+            return '#94A3B8';
+        },
+        categoryBorder(cat) {
+            if (cat === 'lebenslauf') return 'rgba(59,130,246,0.2)';
+            if (cat === 'zeugnis') return 'rgba(34,197,94,0.2)';
+            return 'rgba(148,163,184,0.15)';
+        },
+    };
 }
 
 // ==================== E-Mail-Automatisierung Manager ====================

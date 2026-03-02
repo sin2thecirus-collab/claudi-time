@@ -2466,3 +2466,151 @@ async def save_profile_result(
         "saved": True,
         "seniority_level": c.v2_seniority_level,
     }
+
+
+# ══════════════════════════════════════════════════════════════════
+#  Candidate Documents (Dateien: CV, Zeugnisse, etc.)
+# ══════════════════════════════════════════════════════════════════
+
+
+@router.get("/{candidate_id}/documents")
+async def list_candidate_documents(candidate_id: UUID, db: AsyncSession = Depends(get_db)):
+    """Listet alle Dokumente eines Kandidaten."""
+    from sqlalchemy import select
+    from app.models.candidate_document import CandidateDocument
+
+    result = await db.execute(
+        select(CandidateDocument)
+        .where(CandidateDocument.candidate_id == candidate_id)
+        .order_by(CandidateDocument.created_at.desc())
+    )
+    docs = result.scalars().all()
+    return [
+        {
+            "id": str(d.id),
+            "candidate_id": str(d.candidate_id),
+            "filename": d.filename,
+            "file_path": d.file_path,
+            "file_size": d.file_size,
+            "mime_type": d.mime_type,
+            "category": d.category,
+            "notes": d.notes,
+            "created_at": d.created_at.isoformat() if d.created_at else None,
+        }
+        for d in docs
+    ]
+
+
+@router.post("/{candidate_id}/documents")
+async def upload_candidate_document(
+    candidate_id: UUID,
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+):
+    """Laedt ein Dokument zu einem Kandidaten hoch (R2 Storage)."""
+    from app.models.candidate import Candidate
+    from app.models.candidate_document import CandidateDocument
+
+    candidate = await db.get(Candidate, candidate_id)
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Kandidat nicht gefunden")
+
+    file_bytes = await file.read()
+    if len(file_bytes) > 20 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Datei zu gross (max 20 MB)")
+
+    filename = file.filename or "dokument"
+    mime_type = file.content_type or "application/octet-stream"
+    short_id = str(candidate.id)[:8]
+    r2_key = f"documents/candidate_{short_id}/{filename}"
+
+    # Auto-Kategorie aus Dateiname erkennen
+    fn_lower = filename.lower()
+    if any(kw in fn_lower for kw in ("lebenslauf", "cv", "resume", "curriculum")):
+        category = "lebenslauf"
+    elif any(kw in fn_lower for kw in ("zeugnis", "zertifikat", "certificate", "diplom", "urkunde", "bescheinigung")):
+        category = "zeugnis"
+    else:
+        category = "sonstiges"
+
+    try:
+        from app.services.r2_storage_service import R2StorageService
+        r2 = R2StorageService()
+        r2.upload_file(r2_key, file_bytes, content_type=mime_type)
+    except Exception as e:
+        logger.error(f"R2 Upload fehlgeschlagen fuer Kandidat {candidate_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Upload fehlgeschlagen: {e}")
+
+    doc = CandidateDocument(
+        candidate_id=candidate_id,
+        filename=filename,
+        file_path=r2_key,
+        file_size=len(file_bytes),
+        mime_type=mime_type,
+        category=category,
+    )
+    db.add(doc)
+    await db.commit()
+
+    logger.info(f"Dokument hochgeladen: {filename} ({category}) fuer Kandidat {candidate_id}")
+
+    return {
+        "id": str(doc.id),
+        "filename": doc.filename,
+        "file_size": doc.file_size,
+        "category": doc.category,
+        "message": "Dokument hochgeladen",
+    }
+
+
+@router.get("/documents/{document_id}/download")
+async def download_candidate_document(document_id: UUID, db: AsyncSession = Depends(get_db)):
+    """Laedt ein Kandidaten-Dokument aus R2 herunter."""
+    from app.models.candidate_document import CandidateDocument
+
+    doc = await db.get(CandidateDocument, document_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Dokument nicht gefunden")
+
+    try:
+        from app.services.r2_storage_service import R2StorageService
+        r2 = R2StorageService()
+        content = r2.download_cv(doc.file_path)
+        if not content:
+            raise HTTPException(status_code=404, detail="Datei nicht in R2 gefunden")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"R2 Download fehlgeschlagen fuer Dokument {document_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Download fehlgeschlagen: {e}")
+
+    import io
+    return StreamingResponse(
+        io.BytesIO(content),
+        media_type=doc.mime_type or "application/octet-stream",
+        headers={"Content-Disposition": f'attachment; filename="{doc.filename}"'},
+    )
+
+
+@router.delete("/documents/{document_id}")
+async def delete_candidate_document(document_id: UUID, db: AsyncSession = Depends(get_db)):
+    """Loescht ein Kandidaten-Dokument (DB + R2)."""
+    from app.models.candidate_document import CandidateDocument
+
+    doc = await db.get(CandidateDocument, document_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Dokument nicht gefunden")
+
+    # R2 Cleanup (best-effort)
+    try:
+        from app.services.r2_storage_service import R2StorageService
+        r2 = R2StorageService()
+        r2.delete_file(doc.file_path)
+    except Exception as e:
+        logger.warning(f"R2 Cleanup fehlgeschlagen fuer Dokument {document_id}: {e}")
+
+    await db.delete(doc)
+    await db.commit()
+
+    logger.info(f"Dokument geloescht: {doc.filename} (Kandidat-Dokument {document_id})")
+    return {"message": "Dokument geloescht"}

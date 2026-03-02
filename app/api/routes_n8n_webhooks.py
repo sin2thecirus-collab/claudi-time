@@ -3034,9 +3034,11 @@ async def n8n_has_reply(
                 )
             )).scalar() or 0
 
-    # Schicht 3: contact_status Fallback
+    # Schicht 3: contact_status Fallback (hat_geantwortet ODER manuell gestoppt)
     candidate = await db.get(Candidate, candidate_id)
-    status_flag = candidate is not None and candidate.contact_status == "hat_geantwortet"
+    status_flag = candidate is not None and candidate.contact_status in (
+        "hat_geantwortet", "sequenz_manuell_gestoppt"
+    )
 
     has_reply = seq_count > 0 or conv_match > 0 or status_flag
 

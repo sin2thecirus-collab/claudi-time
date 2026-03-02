@@ -190,6 +190,12 @@ class Candidate(Base):
         cascade="all, delete-orphan",
         order_by="desc(CandidateNote.note_date)",
     )
+    documents: Mapped[list["CandidateDocument"]] = relationship(
+        "CandidateDocument",
+        back_populates="candidate",
+        cascade="all, delete-orphan",
+        order_by="CandidateDocument.created_at.desc()",
+    )
 
     # Indizes
     __table_args__ = (
