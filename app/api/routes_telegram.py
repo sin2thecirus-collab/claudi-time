@@ -122,27 +122,42 @@ async def register_webhook() -> bool:
 
     import httpx
 
-    try:
-        url = f"https://api.telegram.org/bot{settings.sincirusbot_token}/setWebhook"
-        payload = {
-            "url": webhook_url,
-            "allowed_updates": ["message", "callback_query"],
-        }
-        if settings.telegram_webhook_secret:
-            payload["secret_token"] = settings.telegram_webhook_secret
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        # Alten Bot-Webhook deregistrieren falls separater Token konfiguriert
+        # (verhindert Konflikte wenn TELEGRAM_BOT_TOKEN ein anderer Bot ist)
+        if (
+            settings.telegram_sincirusbot_token
+            and settings.telegram_bot_token
+            and settings.telegram_sincirusbot_token != settings.telegram_bot_token
+        ):
+            try:
+                old_url = f"https://api.telegram.org/bot{settings.telegram_bot_token}/deleteWebhook"
+                await client.post(old_url)
+                logger.info("Alter Bot-Webhook (TELEGRAM_BOT_TOKEN) deregistriert")
+            except Exception as e:
+                logger.warning(f"Alter Bot-Webhook konnte nicht deregistriert werden: {e}")
 
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        # Sincirusbot Webhook registrieren
+        try:
+            url = f"https://api.telegram.org/bot{settings.sincirusbot_token}/setWebhook"
+            payload = {
+                "url": webhook_url,
+                "allowed_updates": ["message", "callback_query"],
+            }
+            if settings.telegram_webhook_secret:
+                payload["secret_token"] = settings.telegram_webhook_secret
+
             resp = await client.post(url, json=payload)
             resp.raise_for_status()
             data = resp.json()
 
-        if data.get("ok"):
-            logger.info(f"Telegram Webhook registriert: {webhook_url}")
-            return True
-        else:
-            logger.error(f"Telegram Webhook Registrierung fehlgeschlagen: {data}")
-            return False
+            if data.get("ok"):
+                logger.info(f"Telegram Webhook registriert: {webhook_url}")
+                return True
+            else:
+                logger.error(f"Telegram Webhook Registrierung fehlgeschlagen: {data}")
+                return False
 
-    except Exception as e:
-        logger.error(f"Telegram Webhook Registrierung fehlgeschlagen: {e}")
-        return False
+        except Exception as e:
+            logger.error(f"Telegram Webhook Registrierung fehlgeschlagen: {e}")
+            return False
