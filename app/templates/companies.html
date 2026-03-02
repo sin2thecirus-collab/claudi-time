@@ -2,52 +2,152 @@
 
 {% block title %}Unternehmen - Pulspoint{% endblock %}
 
-{% block content %}
-<div x-data="{ searchTerm: '', showAddCompanyModal: false }">
+{% block head %}
+<style>
+    /* Aurora Companies Page */
+    .co-stat-card {
+        position: relative; padding: 18px 20px;
+        background: rgba(255,255,255,0.02); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255,255,255,0.06); border-radius: 14px;
+        transition: all 0.25s;
+    }
+    .co-stat-card::before {
+        content: ''; position: absolute; top: 0; left: 20px; right: 20px; height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(96,165,250,0.3), transparent);
+    }
+    .co-stat-card:hover { border-color: rgba(255,255,255,0.1); transform: translateY(-1px); }
+    .co-stat-label {
+        font-size: 11px; font-weight: 600; color: var(--pp-textDim);
+        text-transform: uppercase; letter-spacing: 0.06em;
+    }
+    .co-stat-value {
+        font-size: 26px; font-weight: 700; margin-top: 6px;
+        font-family: 'Space Mono', monospace; letter-spacing: -0.02em;
+    }
+    .co-filter-input {
+        padding: 10px 14px; background: rgba(14,17,28,0.8);
+        border: 1px solid rgba(255,255,255,0.08); border-radius: 8px;
+        color: var(--pp-text); font-size: 13px; font-family: var(--pp-ff);
+        transition: all 0.2s; outline: none;
+    }
+    .co-filter-input:focus {
+        border-color: #60A5FA;
+        box-shadow: 0 0 0 3px rgba(96,165,250,0.15), 0 0 16px rgba(96,165,250,0.08);
+    }
+    .co-filter-input::placeholder { color: var(--pp-textDim); }
+    .co-filter-input option { background: #0E111C; color: var(--pp-text); }
 
-    {# -- Header -- #}
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div>
-            <h1 class="text-2xl font-bold text-gray-900">Unternehmen</h1>
-            <p class="text-sm text-gray-500 mt-1">Firmenverwaltung mit Kontakten, Korrespondenz und Blacklist</p>
+    /* Modal — Aurora Dark Glass */
+    .co-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 50; }
+    .co-modal-content {
+        position: relative; width: 100%; max-width: 56rem;
+        background: rgba(14,17,28,0.95); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+        border: 1px solid rgba(255,255,255,0.08); border-radius: 16px;
+        box-shadow: 0 24px 80px rgba(0,0,0,0.5); z-index: 51; margin: 0 16px;
+    }
+    .co-modal-header {
+        padding: 18px 24px; border-bottom: 1px solid rgba(255,255,255,0.06);
+        display: flex; align-items: center; justify-content: space-between;
+    }
+    .co-modal-body { padding: 24px; max-height: 75vh; overflow-y: auto; }
+    .co-modal-footer {
+        padding: 16px 24px; border-top: 1px solid rgba(255,255,255,0.06);
+        display: flex; justify-content: flex-end; gap: 10px;
+    }
+    .co-section-title {
+        font-size: 12px; font-weight: 700; color: var(--pp-textMuted);
+        text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 14px;
+        display: flex; align-items: center; gap: 8px;
+    }
+    .co-section-title svg { width: 16px; height: 16px; color: #60A5FA; }
+    .co-label { display: block; font-size: 12px; font-weight: 500; color: var(--pp-textMuted); margin-bottom: 5px; }
+    .co-input {
+        width: 100%; padding: 10px 14px; background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.08); border-radius: 8px;
+        color: var(--pp-text); font-size: 13px; font-family: var(--pp-ff);
+        transition: all 0.2s; outline: none;
+    }
+    .co-input:focus {
+        border-color: #60A5FA;
+        box-shadow: 0 0 0 2px rgba(96,165,250,0.12);
+    }
+    .co-input::placeholder { color: var(--pp-textDim); }
+    .co-input option { background: #0E111C; color: var(--pp-text); }
+    .co-divider { height: 1px; background: rgba(255,255,255,0.06); margin: 20px 0; }
+    .co-pdf-drop {
+        border: 2px dashed rgba(255,255,255,0.1); border-radius: 12px; padding: 20px;
+        text-align: center; transition: all 0.2s; cursor: pointer;
+    }
+    .co-pdf-drop:hover { border-color: rgba(96,165,250,0.3); }
+    .co-pdf-drop.dragging { border-color: #60A5FA; background: rgba(96,165,250,0.05); }
+    .co-toggle {
+        width: 44px; height: 24px; border-radius: 12px; position: relative;
+        background: rgba(255,255,255,0.08); border: none; cursor: pointer; transition: background 0.2s;
+    }
+    .co-toggle.active { background: rgba(96,165,250,0.4); }
+    .co-toggle::after {
+        content: ''; position: absolute; top: 2px; left: 2px;
+        width: 20px; height: 20px; border-radius: 50%;
+        background: #fff; transition: transform 0.2s;
+    }
+    .co-toggle.active::after { transform: translateX(20px); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div x-data="{ searchTerm: '', showAddCompanyModal: false }" style="max-width:1400px;margin:0 auto;padding:28px 32px;">
+
+    {# ═══ Hero Header — Aurora ═══ #}
+    <div style="margin-bottom:24px;">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:14px;">
+                <div class="aurora-section-icon violet" style="width:40px;height:40px;border-radius:12px;">
+                    <svg style="width:20px;height:20px;" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+                    </svg>
+                </div>
+                <div>
+                    <h1 style="font-size:24px;font-weight:700;color:var(--pp-text);margin:0;letter-spacing:-0.03em;line-height:1.2;">Unternehmen</h1>
+                    <p style="font-size:13px;color:var(--pp-textMuted);margin-top:2px;">Firmenverwaltung mit Kontakten und Korrespondenz</p>
+                </div>
+            </div>
+            <button @click="showAddCompanyModal = true" class="btn-aurora primary sm">
+                <svg style="width:14px;height:14px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Unternehmen hinzufuegen
+            </button>
         </div>
-        <button @click="showAddCompanyModal = true"
-                class="inline-flex items-center gap-2 px-4 py-2.5 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 transition-colors shadow-sm">
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
-            Unternehmen hinzufuegen
-        </button>
     </div>
 
-    {# -- Stats Cards (HTMX geladen) -- #}
+    {# ═══ Stats Cards (HTMX geladen) ═══ #}
     <div id="company-stats"
          hx-get="/api/companies/stats"
          hx-trigger="load"
          hx-swap="innerHTML"
-         class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div class="bg-white rounded-xl border border-gray-200 p-4 animate-skeleton">
-            <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Gesamt</p>
-            <p class="text-2xl font-bold text-gray-300 mt-1">--</p>
+         style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;">
+        <div class="co-stat-card" style="animation:skeletonPulse 1.5s ease-in-out infinite;">
+            <p class="co-stat-label">Gesamt</p>
+            <p class="co-stat-value" style="color:var(--pp-textDim);">--</p>
         </div>
-        <div class="bg-white rounded-xl border border-gray-200 p-4 animate-skeleton">
-            <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Aktiv</p>
-            <p class="text-2xl font-bold text-gray-300 mt-1">--</p>
+        <div class="co-stat-card" style="animation:skeletonPulse 1.5s ease-in-out infinite;animation-delay:0.1s;">
+            <p class="co-stat-label">Aktiv</p>
+            <p class="co-stat-value" style="color:var(--pp-textDim);">--</p>
         </div>
-        <div class="bg-white rounded-xl border border-gray-200 p-4 animate-skeleton">
-            <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Blacklist</p>
-            <p class="text-2xl font-bold text-gray-300 mt-1">--</p>
+        <div class="co-stat-card" style="animation:skeletonPulse 1.5s ease-in-out infinite;animation-delay:0.2s;">
+            <p class="co-stat-label">Blacklist</p>
+            <p class="co-stat-value" style="color:var(--pp-textDim);">--</p>
         </div>
-        <div class="bg-white rounded-xl border border-gray-200 p-4 animate-skeleton">
-            <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Laufende Prozesse</p>
-            <p class="text-2xl font-bold text-gray-300 mt-1">--</p>
+        <div class="co-stat-card" style="animation:skeletonPulse 1.5s ease-in-out infinite;animation-delay:0.3s;">
+            <p class="co-stat-label">Laufende Prozesse</p>
+            <p class="co-stat-value" style="color:var(--pp-textDim);">--</p>
         </div>
     </div>
 
-    {# -- Filter + Suche -- #}
-    <div class="flex flex-col sm:flex-row gap-3 mb-6">
-        <div class="flex-1 relative">
-            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+    {# ═══ Filter + Suche — Aurora Glass ═══ #}
+    <div class="glass" style="padding:14px 18px;margin-bottom:24px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
+        <div style="flex:1;min-width:240px;position:relative;">
+            <svg style="position:absolute;left:12px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--pp-textDim);pointer-events:none;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
             </svg>
             <input type="text"
@@ -57,14 +157,16 @@
                    hx-trigger="keyup changed delay:300ms"
                    hx-target="#companies-table"
                    hx-include="[name='status'],[name='sort_by']"
-                   class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm">
+                   class="co-filter-input"
+                   style="width:100%;padding-left:36px;">
         </div>
         <select name="status"
                 hx-get="/partials/companies-list"
                 hx-trigger="change"
                 hx-target="#companies-table"
                 hx-include="[name='search'],[name='sort_by']"
-                class="px-4 py-3 border border-gray-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-primary-500">
+                class="co-filter-input"
+                style="padding-right:32px;cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 12 12%22><path fill=%22%238B8FA3%22 d=%22M2.5 4.5L6 8l3.5-3.5%22 stroke=%22%238B8FA3%22 stroke-width=%221.5%22 fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/></svg>');background-repeat:no-repeat;background-position:right 10px center;">
             <option value="">Alle Status</option>
             <option value="active">Aktiv</option>
             <option value="blacklist">Blacklist</option>
@@ -75,41 +177,35 @@
                 hx-trigger="change"
                 hx-target="#companies-table"
                 hx-include="[name='search'],[name='status']"
-                class="px-4 py-3 border border-gray-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-primary-500">
+                class="co-filter-input"
+                style="padding-right:32px;cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 12 12%22><path fill=%22%238B8FA3%22 d=%22M2.5 4.5L6 8l3.5-3.5%22 stroke=%22%238B8FA3%22 stroke-width=%221.5%22 fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/></svg>');background-repeat:no-repeat;background-position:right 10px center;">
             <option value="created_at">Kuerzlich hinzugefuegt</option>
             <option value="name">Name A-Z</option>
         </select>
     </div>
 
-    {# -- Tabelle (HTMX geladen) -- #}
+    {# ═══ Tabelle (HTMX geladen) ═══ #}
     <div id="companies-table"
          hx-get="/partials/companies-list?per_page=25"
          hx-trigger="load"
          hx-swap="innerHTML">
-        <div class="bg-white rounded-xl border border-gray-200 p-12 text-center animate-skeleton">
-            <p class="text-gray-400">Lade Unternehmen...</p>
+        <div class="glass" style="padding:48px;text-align:center;animation:skeletonPulse 1.5s ease-in-out infinite;">
+            <p style="color:var(--pp-textDim);font-size:13px;">Lade Unternehmen...</p>
         </div>
     </div>
 
     {# ══════════════════════════════════════════════════════════ #}
-    {# ── Modal: Unternehmen hinzufuegen ─────────────────────── #}
+    {# ── Modal: Unternehmen hinzufuegen — Aurora Dark Glass ─── #}
     {# ══════════════════════════════════════════════════════════ #}
-    <div x-show="showAddCompanyModal" x-cloak
-         class="fixed inset-0 z-50 flex items-start justify-center pt-10 pb-10 overflow-y-auto"
+    <template x-if="showAddCompanyModal">
+    <div style="position:fixed;inset:0;z-50;display:flex;align-items:flex-start;justify-content:center;padding-top:40px;padding-bottom:40px;overflow-y:auto;"
          @keydown.escape.window="showAddCompanyModal = false">
 
         {# Backdrop #}
-        <div class="fixed inset-0 bg-black/50" @click="showAddCompanyModal = false"></div>
+        <div class="co-modal-backdrop" @click="showAddCompanyModal = false"></div>
 
         {# Modal Content #}
-        <div x-show="showAddCompanyModal"
-             x-transition:enter="transition ease-out duration-200"
-             x-transition:enter-start="opacity-0 scale-95"
-             x-transition:enter-end="opacity-100 scale-100"
-             x-transition:leave="transition ease-in duration-150"
-             x-transition:leave-start="opacity-100 scale-100"
-             x-transition:leave-end="opacity-0 scale-95"
-             x-data="{
+        <div x-data="{
                 showJobSection: false,
                 pdfUploading: false,
                 submitting: false,
@@ -201,182 +297,154 @@
                     }
                 }
              }"
-             class="relative w-full max-w-5xl bg-white rounded-xl shadow-xl mx-4">
+             x-show="true"
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0 scale-95"
+             x-transition:enter-end="opacity-100 scale-100"
+             class="co-modal-content">
 
             {# Modal Header #}
-            <div class="px-6 py-4 border-b border-gray-200">
-                <div class="flex items-center justify-between">
-                    <h3 class="text-lg font-semibold text-gray-900">Unternehmen hinzufuegen</h3>
-                    <button @click="showAddCompanyModal = false" class="text-gray-400 hover:text-gray-500">
-                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
+            <div class="co-modal-header">
+                <h3 style="font-size:16px;font-weight:700;color:var(--pp-text);letter-spacing:-0.02em;">Unternehmen hinzufuegen</h3>
+                <button @click="showAddCompanyModal = false" style="background:none;border:none;cursor:pointer;color:var(--pp-textDim);padding:4px;border-radius:6px;transition:color 0.15s;" onmouseover="this.style.color='var(--pp-text)'" onmouseout="this.style.color='var(--pp-textDim)'">
+                    <svg style="width:18px;height:18px;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
             </div>
 
             {# Modal Body #}
-            <div class="px-6 py-5 space-y-6 max-h-[75vh] overflow-y-auto">
+            <div class="co-modal-body" style="display:flex;flex-direction:column;gap:0;">
 
                 {# ── Abschnitt 1: Firmendaten ── #}
                 <div>
-                    <h4 class="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-3 flex items-center gap-2">
-                        <svg class="w-4 h-4 text-primary-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <div class="co-section-title">
+                        <svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
                         </svg>
                         Firmendaten
-                    </h4>
-                    <div class="space-y-3">
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:12px;">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Firmenname *</label>
-                            <input type="text" id="ac-name" required
-                                   class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                   placeholder="z.B. Baader Bank AG">
+                            <label class="co-label">Firmenname *</label>
+                            <input type="text" id="ac-name" required class="co-input" placeholder="z.B. Baader Bank AG">
                         </div>
-                        <div class="grid grid-cols-2 gap-4">
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Domain / Website</label>
-                                <input type="text" id="ac-domain"
-                                       class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                       placeholder="z.B. baaderbank.de">
+                                <label class="co-label">Domain / Website</label>
+                                <input type="text" id="ac-domain" class="co-input" placeholder="z.B. baaderbank.de">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Telefon Zentrale</label>
-                                <input type="text" id="ac-phone"
-                                       class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                       placeholder="z.B. 089 51500">
+                                <label class="co-label">Telefon Zentrale</label>
+                                <input type="text" id="ac-phone" class="co-input" placeholder="z.B. 089 51500">
                             </div>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Adresse</label>
-                            <textarea id="ac-address" rows="2"
-                                      class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                      placeholder="z.B. Musterstr. 1, 80331 Muenchen"></textarea>
+                            <label class="co-label">Adresse</label>
+                            <textarea id="ac-address" rows="2" class="co-input" placeholder="z.B. Musterstr. 1, 80331 Muenchen" style="resize:vertical;"></textarea>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Stadt</label>
-                            <input type="text" id="ac-city"
-                                   class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                   placeholder="Stadt">
+                            <label class="co-label">Stadt</label>
+                            <input type="text" id="ac-city" class="co-input" placeholder="Stadt">
                         </div>
                     </div>
                 </div>
 
-                <hr class="border-gray-200">
+                <div class="co-divider"></div>
 
                 {# ── Abschnitt 2: Ansprechpartner ── #}
                 <div>
-                    <h4 class="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-3 flex items-center gap-2">
-                        <svg class="w-4 h-4 text-primary-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <div class="co-section-title">
+                        <svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
                         </svg>
                         Ansprechpartner
-                    </h4>
-                    <div class="space-y-3">
-                        <div class="grid grid-cols-2 gap-4">
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:12px;">
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Vorname</label>
-                                <input type="text" id="ac-cf"
-                                       class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                       placeholder="Teresa">
+                                <label class="co-label">Vorname</label>
+                                <input type="text" id="ac-cf" class="co-input" placeholder="Teresa">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Nachname</label>
-                                <input type="text" id="ac-cl"
-                                       class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                       placeholder="Geltermeier">
+                                <label class="co-label">Nachname</label>
+                                <input type="text" id="ac-cl" class="co-input" placeholder="Geltermeier">
                             </div>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Position / Titel</label>
-                            <input type="text" id="ac-cp"
-                                   class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                   placeholder="z.B. HR Manager">
+                            <label class="co-label">Position / Titel</label>
+                            <input type="text" id="ac-cp" class="co-input" placeholder="z.B. HR Manager">
                         </div>
-                        <div class="grid grid-cols-2 gap-4">
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Telefon</label>
-                                <input type="text" id="ac-cph"
-                                       class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                       placeholder="08951501027">
+                                <label class="co-label">Telefon</label>
+                                <input type="text" id="ac-cph" class="co-input" placeholder="08951501027">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">E-Mail</label>
-                                <input type="email" id="ac-ce"
-                                       class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                       placeholder="teresa@baaderbank.de">
+                                <label class="co-label">E-Mail</label>
+                                <input type="email" id="ac-ce" class="co-input" placeholder="teresa@baaderbank.de">
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <hr class="border-gray-200">
+                <div class="co-divider"></div>
 
                 {# ── Abschnitt 3: Job (optional) ── #}
                 <div>
-                    <div class="flex items-center justify-between mb-3">
-                        <h4 class="text-sm font-semibold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                            <svg class="w-4 h-4 text-primary-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0M12 12.75h.008v.008H12v-.008z" />
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+                        <div class="co-section-title" style="margin-bottom:0;">
+                            <svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0" />
                             </svg>
                             Stelle hinzufuegen
-                        </h4>
-                        <label class="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" x-model="showJobSection" class="sr-only peer">
-                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-                        </label>
+                        </div>
+                        <button type="button" @click="showJobSection = !showJobSection"
+                                class="co-toggle" :class="showJobSection ? 'active' : ''"></button>
                     </div>
 
                     <div x-show="showJobSection" x-collapse>
-                        <div class="space-y-3 pt-2">
+                        <div style="display:flex;flex-direction:column;gap:12px;padding-top:4px;">
                             {# PDF Upload #}
-                            <div class="border-2 border-dashed rounded-lg p-4 text-center transition-colors"
-                                 :class="pdfUploading ? 'opacity-50 pointer-events-none border-gray-300' : dragging ? 'border-primary-500 bg-primary-50' : 'border-gray-300 hover:border-primary-400'"
+                            <div class="co-pdf-drop"
+                                 :class="dragging ? 'dragging' : ''"
+                                 :style="pdfUploading ? 'opacity:0.5;pointer-events:none;' : ''"
                                  @dragover.prevent="dragging = true"
                                  @dragenter.prevent="dragging = true"
                                  @dragleave.prevent="dragging = false"
                                  @drop.prevent="handleDrop($event)">
-                                <input type="file" id="ac-pdf-input" accept=".pdf" class="hidden" @change="uploadPdf($event)">
-                                <label for="ac-pdf-input" class="cursor-pointer">
-                                    <svg class="w-8 h-8 text-gray-400 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <input type="file" id="ac-pdf-input" accept=".pdf" style="display:none;" @change="uploadPdf($event)">
+                                <label for="ac-pdf-input" style="cursor:pointer;display:block;">
+                                    <svg style="width:32px;height:32px;color:var(--pp-textDim);margin:0 auto 8px;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                                     </svg>
-                                    <p class="text-sm text-gray-600 font-medium" x-show="!pdfUploading && !dragging">PDF hierher ziehen oder klicken</p>
-                                    <p class="text-sm text-primary-600 font-medium" x-show="dragging">PDF hier ablegen</p>
-                                    <p class="text-sm text-primary-600 font-medium" x-show="pdfUploading">Wird analysiert...</p>
-                                    <p class="text-xs text-gray-400 mt-1" x-show="!dragging">PDF wird automatisch ausgelesen und die Felder befuellt</p>
+                                    <p style="font-size:13px;color:var(--pp-textMuted);font-weight:500;" x-show="!pdfUploading && !dragging">PDF hierher ziehen oder klicken</p>
+                                    <p style="font-size:13px;color:#60A5FA;font-weight:500;" x-show="dragging">PDF hier ablegen</p>
+                                    <p style="font-size:13px;color:#60A5FA;font-weight:500;" x-show="pdfUploading">Wird analysiert...</p>
+                                    <p style="font-size:11px;color:var(--pp-textDim);margin-top:4px;" x-show="!dragging">PDF wird automatisch ausgelesen</p>
                                 </label>
                             </div>
 
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Jobtitel *</label>
-                                <input type="text" id="ac-job-title"
-                                       class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                       placeholder="z.B. Senior Accountant / Bilanzbuchhalter">
+                                <label class="co-label">Jobtitel *</label>
+                                <input type="text" id="ac-job-title" class="co-input" placeholder="z.B. Senior Accountant / Bilanzbuchhalter">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Jobbeschreibung</label>
-                                <textarea id="ac-job-desc" rows="8"
-                                          class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                          placeholder="Aufgaben und Verantwortlichkeiten..."></textarea>
+                                <label class="co-label">Jobbeschreibung</label>
+                                <textarea id="ac-job-desc" rows="8" class="co-input" style="resize:vertical;" placeholder="Aufgaben und Verantwortlichkeiten..."></textarea>
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Anforderungen</label>
-                                <textarea id="ac-job-req" rows="5"
-                                          class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                          placeholder="Qualifikationen und Erfahrung..."></textarea>
+                                <label class="co-label">Anforderungen</label>
+                                <textarea id="ac-job-req" rows="5" class="co-input" style="resize:vertical;" placeholder="Qualifikationen und Erfahrung..."></textarea>
                             </div>
-                            <div class="grid grid-cols-2 gap-4">
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Standort</label>
-                                    <input type="text" id="ac-job-city"
-                                           class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                           placeholder="z.B. Unterschleissheim">
+                                    <label class="co-label">Standort</label>
+                                    <input type="text" id="ac-job-city" class="co-input" placeholder="z.B. Unterschleissheim">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Anstellungsart</label>
-                                    <select id="ac-job-type"
-                                            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500">
+                                    <label class="co-label">Anstellungsart</label>
+                                    <select id="ac-job-type" class="co-input" style="cursor:pointer;">
                                         <option value="">-- Waehlen --</option>
                                         <option value="fulltime">Vollzeit</option>
                                         <option value="parttime">Teilzeit</option>
@@ -385,11 +453,10 @@
                                     </select>
                                 </div>
                             </div>
-                            <div class="grid grid-cols-2 gap-4">
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Prioritaet</label>
-                                    <select id="ac-job-prio"
-                                            class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500">
+                                    <label class="co-label">Prioritaet</label>
+                                    <select id="ac-job-prio" class="co-input" style="cursor:pointer;">
                                         <option value="medium">Mittel</option>
                                         <option value="low">Niedrig</option>
                                         <option value="high">Hoch</option>
@@ -397,10 +464,8 @@
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Quelle</label>
-                                    <input type="text" id="ac-job-source"
-                                           class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                           placeholder="z.B. Akquise, LinkedIn">
+                                    <label class="co-label">Quelle</label>
+                                    <input type="text" id="ac-job-source" class="co-input" placeholder="z.B. Akquise, LinkedIn">
                                 </div>
                             </div>
                         </div>
@@ -409,49 +474,48 @@
             </div>
 
             {# Modal Footer #}
-            <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
-                <button type="button" @click="showAddCompanyModal = false"
-                        class="px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+            <div class="co-modal-footer">
+                <button type="button" @click="showAddCompanyModal = false" class="btn-aurora ghost sm">
                     Abbrechen
                 </button>
-                <button @click="submitForm()" :disabled="submitting"
-                        class="px-6 py-2.5 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
-                    <svg x-show="submitting" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                <button @click="submitForm()" :disabled="submitting" class="btn-aurora primary sm" style="min-width:100px;">
+                    <svg x-show="submitting" style="width:14px;height:14px;animation:spin 1s linear infinite;" fill="none" viewBox="0 0 24 24">
+                        <circle style="opacity:0.25;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path style="opacity:0.75;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
                     </svg>
                     Erstellen
                 </button>
             </div>
         </div>
     </div>
+    </template>
 
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-// Stats-Anzeige formatieren
+// Stats-Anzeige formatieren — Aurora Glass Style
 document.body.addEventListener('htmx:afterSwap', function(event) {
     if (event.detail.target.id === 'company-stats') {
         try {
             const data = JSON.parse(event.detail.xhr.responseText);
             event.detail.target.innerHTML = `
-                <div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:12px;padding:16px;">
-                    <p style="font-size:11px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.06em;">Gesamt</p>
-                    <p style="font-size:24px;font-weight:700;color:var(--pp-text);margin-top:4px;">${data.total}</p>
+                <div class="co-stat-card">
+                    <p class="co-stat-label">Gesamt</p>
+                    <p class="co-stat-value" style="color:var(--pp-text);">${data.total}</p>
                 </div>
-                <div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:12px;padding:16px;">
-                    <p style="font-size:11px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.06em;">Aktiv</p>
-                    <p style="font-size:24px;font-weight:700;color:var(--pp-green);margin-top:4px;">${data.active}</p>
+                <div class="co-stat-card">
+                    <p class="co-stat-label">Aktiv</p>
+                    <p class="co-stat-value" style="color:#34D399;">${data.active}</p>
                 </div>
-                <div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:12px;padding:16px;">
-                    <p style="font-size:11px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.06em;">Blacklist</p>
-                    <p style="font-size:24px;font-weight:700;color:var(--pp-red);margin-top:4px;">${data.blacklisted}</p>
+                <div class="co-stat-card">
+                    <p class="co-stat-label">Blacklist</p>
+                    <p class="co-stat-value" style="color:#F87171;">${data.blacklisted}</p>
                 </div>
-                <div style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:12px;padding:16px;">
-                    <p style="font-size:11px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.06em;">Laufende Prozesse</p>
-                    <p style="font-size:24px;font-weight:700;color:var(--pp-orange);margin-top:4px;">${data.laufende_prozesse}</p>
+                <div class="co-stat-card">
+                    <p class="co-stat-label">Laufende Prozesse</p>
+                    <p class="co-stat-value" style="color:#FBBF24;">${data.laufende_prozesse}</p>
                 </div>
             `;
         } catch(e) {}

@@ -2,237 +2,291 @@
 
 {% block title %}Einstellungen - Matching-Tool{% endblock %}
 
+{% block head %}
+<style>
+    /* Aurora Settings */
+    .st-section {
+        background: rgba(255,255,255,0.02); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255,255,255,0.06); border-radius: 14px;
+        overflow: hidden; transition: all 0.25s; margin-bottom: 18px;
+    }
+    .st-section:hover { border-color: rgba(255,255,255,0.1); }
+    .st-section-head {
+        padding: 18px 24px; display: flex; align-items: center; justify-content: space-between;
+        border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .st-section-title { font-size: 15px; font-weight: 700; color: var(--pp-text); letter-spacing: -0.01em; }
+    .st-section-desc { font-size: 12px; color: var(--pp-textDim); margin-top: 2px; }
+    .st-section-body { padding: 20px 24px; }
+    .st-btn-refresh {
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600;
+        background: rgba(255,255,255,0.04); color: var(--pp-textMuted);
+        border: 1px solid rgba(255,255,255,0.08); cursor: pointer;
+        transition: all 0.15s; font-family: var(--pp-ff);
+    }
+    .st-btn-refresh:hover { background: rgba(255,255,255,0.08); color: var(--pp-text); }
+    .st-btn-refresh svg { width: 13px; height: 13px; }
+    .st-filter-pill {
+        display: inline-flex; align-items: center; gap: 4px;
+        padding: 5px 12px; border-radius: 9999px; font-size: 11px; font-weight: 600;
+        background: rgba(255,255,255,0.04); color: var(--pp-textDim);
+        border: 1px solid rgba(255,255,255,0.06); cursor: pointer;
+        transition: all 0.15s; font-family: var(--pp-ff);
+    }
+    .st-filter-pill:hover { background: rgba(255,255,255,0.08); }
+    .st-filter-pill.active { background: rgba(96,165,250,0.12); color: #93C5FD; border-color: rgba(96,165,250,0.2); }
+    .st-filter-pill.active-green { background: rgba(52,211,153,0.1); color: #34D399; border-color: rgba(52,211,153,0.2); }
+    .st-filter-pill.active-red { background: rgba(239,68,68,0.1); color: #F87171; border-color: rgba(239,68,68,0.2); }
+    /* Import table */
+    .st-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+    .st-table th {
+        font-size: 11px; font-weight: 700; color: var(--pp-textDim);
+        text-transform: uppercase; letter-spacing: 0.06em; padding: 10px 12px;
+        text-align: left; border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .st-table td {
+        padding: 10px 12px; font-size: 13px; color: var(--pp-textMuted);
+        border-bottom: 1px solid rgba(255,255,255,0.03); vertical-align: middle;
+    }
+    .st-table tr:hover td { background: rgba(255,255,255,0.015); }
+    .st-badge {
+        display: inline-flex; padding: 2px 8px; border-radius: 6px;
+        font-size: 11px; font-weight: 600;
+    }
+    .st-badge-ok { background: rgba(52,211,153,0.12); color: #34D399; }
+    .st-badge-fail { background: rgba(239,68,68,0.12); color: #F87171; }
+    .st-badge-cancel { background: rgba(255,255,255,0.06); color: var(--pp-textDim); }
+    .st-pipeline-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+    .st-pipeline-ok { background: #34D399; }
+    .st-pipeline-fail { background: #F87171; }
+    .st-pipeline-none { background: rgba(255,255,255,0.15); }
+    .st-expand-row td { background: rgba(255,255,255,0.02); }
+    .st-expand-card {
+        background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 8px; padding: 10px 12px;
+    }
+    /* Slider */
+    .st-slider {
+        flex: 1; height: 6px; border-radius: 3px; appearance: none; -webkit-appearance: none;
+        background: rgba(255,255,255,0.08); cursor: pointer; outline: none;
+    }
+    .st-slider::-webkit-slider-thumb {
+        -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%;
+        background: #60A5FA; border: 2px solid rgba(14,17,28,0.8); cursor: pointer;
+        box-shadow: 0 0 8px rgba(96,165,250,0.3);
+    }
+    .st-slider::-moz-range-thumb {
+        width: 18px; height: 18px; border-radius: 50%;
+        background: #60A5FA; border: 2px solid rgba(14,17,28,0.8); cursor: pointer;
+    }
+    .st-info-box {
+        padding: 12px 16px; border-radius: 10px;
+        background: rgba(96,165,250,0.06); border: 1px solid rgba(96,165,250,0.12);
+    }
+    .st-info-box p { font-size: 12px; color: rgba(147,197,253,0.7); line-height: 1.5; }
+    .st-info-box strong { color: #93C5FD; }
+    .st-page-btn {
+        padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 500;
+        background: rgba(255,255,255,0.04); color: var(--pp-textMuted);
+        border: 1px solid rgba(255,255,255,0.06); cursor: pointer;
+        font-family: var(--pp-ff); transition: all 0.15s;
+    }
+    .st-page-btn:hover { background: rgba(255,255,255,0.08); }
+    .st-page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="space-y-6">
-    {# Header #}
-    <div>
-        <h1 class="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
-            Einstellungen
-        </h1>
-        <p class="mt-1 text-sm text-gray-500">
-            System-Konfiguration und manuelle Aktionen
-        </p>
+<div style="max-width:1400px;margin:0 auto;padding:28px 32px;">
+
+    {# ═══ Hero Header — Aurora ═══ #}
+    <div style="margin-bottom:24px;">
+        <div style="display:flex;align-items:center;gap:14px;">
+            <div class="aurora-section-icon blue" style="width:40px;height:40px;border-radius:12px;">
+                <svg style="width:20px;height:20px;" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+            </div>
+            <div>
+                <h1 style="font-size:24px;font-weight:700;color:var(--pp-text);margin:0;letter-spacing:-0.03em;line-height:1.2;">Einstellungen</h1>
+                <p style="font-size:13px;color:var(--pp-textMuted);margin-top:2px;">System-Konfiguration und manuelle Aktionen</p>
+            </div>
+        </div>
     </div>
 
-    {# System-Status (Live-Daten) #}
-    <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg">
-        <div class="px-4 py-5 sm:px-6 flex items-center justify-between">
+    {# ═══ System-Status ═══ #}
+    <div class="st-section">
+        <div class="st-section-head">
             <div>
-                <h2 class="text-base font-semibold leading-6 text-gray-900">System-Status</h2>
-                <p class="mt-1 text-sm text-gray-500">
-                    Geodaten, Profiling, Matches und Aufgaben auf einen Blick.
-                </p>
+                <div class="st-section-title">System-Status</div>
+                <div class="st-section-desc">Geodaten, Profiling, Matches und Aufgaben auf einen Blick</div>
             </div>
-            <button onclick="htmx.trigger('#system-status', 'load')"
-                    class="inline-flex items-center gap-1.5 rounded-md bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-200 transition-colors">
-                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <button onclick="htmx.trigger('#system-status', 'load')" class="st-btn-refresh">
+                <svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
                 </svg>
                 Aktualisieren
             </button>
         </div>
-        <div class="border-t border-gray-200 px-4 py-5 sm:px-6">
+        <div class="st-section-body">
             <div id="system-status"
                  hx-get="/api/status/system-html"
                  hx-trigger="load"
                  hx-swap="innerHTML">
-                {% include 'components/loading_spinner.html' %}
+                <div style="text-align:center;padding:24px;color:var(--pp-textDim);font-size:13px;">Lade Status...</div>
             </div>
         </div>
     </div>
 
-    {# Manuelle Aktionen #}
-    <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg">
-        <div class="px-4 py-5 sm:px-6">
-            <h2 class="text-base font-semibold leading-6 text-gray-900">Manuelle Aktionen</h2>
-            <p class="mt-1 text-sm text-gray-500">
-                Background-Jobs manuell starten. Diese laufen normalerweise automatisch nachts.
-            </p>
-        </div>
-        <div class="border-t border-gray-200 px-4 py-5 sm:px-6">
-            <div class="space-y-4">
-                {# Geocoding #}
-                <div id="admin-job-geocoding"
-                     hx-get="/api/admin/geocoding/status"
-                     hx-trigger="load"
-                     hx-swap="innerHTML">
-                    {% include 'components/loading_spinner.html' %}
-                </div>
-
-                {# Matching #}
-                <div id="admin-job-matching"
-                     hx-get="/api/admin/matching/status"
-                     hx-trigger="load"
-                     hx-swap="innerHTML">
-                    {% include 'components/loading_spinner.html' %}
-                </div>
-
-                {# Cleanup #}
-                <div id="admin-job-cleanup"
-                     hx-get="/api/admin/cleanup/status"
-                     hx-trigger="load"
-                     hx-swap="innerHTML">
-                    {% include 'components/loading_spinner.html' %}
-                </div>
-
-                {# R2 CV-Migration #}
-                <div id="admin-r2-migration"
-                     hx-get="/api/admin/r2-migration/status-html"
-                     hx-trigger="load"
-                     hx-swap="innerHTML">
-                    {% include 'components/loading_spinner.html' %}
-                </div>
-            </div>
-        </div>
-    </div>
-
-    {# Import-Historie #}
-    <div x-data="importHistory()" class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg">
-        <div class="px-4 py-5 sm:px-6 flex items-center justify-between">
+    {# ═══ Manuelle Aktionen ═══ #}
+    <div class="st-section">
+        <div class="st-section-head">
             <div>
-                <h2 class="text-base font-semibold leading-6 text-gray-900">Import-Historie</h2>
-                <p class="mt-1 text-sm text-gray-500">
-                    Alle CSV-Imports mit Pipeline-Status und Fehlerdetails.
-                </p>
+                <div class="st-section-title">Manuelle Aktionen</div>
+                <div class="st-section-desc">Background-Jobs manuell starten</div>
             </div>
-            <button @click="loadImports()"
-                    class="inline-flex items-center gap-1.5 rounded-md bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-200 transition-colors">
-                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+        </div>
+        <div class="st-section-body" style="display:flex;flex-direction:column;gap:12px;">
+            <div id="admin-job-geocoding"
+                 hx-get="/api/admin/geocoding/status"
+                 hx-trigger="load"
+                 hx-swap="innerHTML">
+                <div style="padding:12px;color:var(--pp-textDim);font-size:13px;">Lade Geocoding-Status...</div>
+            </div>
+            <div id="admin-job-matching"
+                 hx-get="/api/admin/matching/status"
+                 hx-trigger="load"
+                 hx-swap="innerHTML">
+                <div style="padding:12px;color:var(--pp-textDim);font-size:13px;">Lade Matching-Status...</div>
+            </div>
+            <div id="admin-job-cleanup"
+                 hx-get="/api/admin/cleanup/status"
+                 hx-trigger="load"
+                 hx-swap="innerHTML">
+                <div style="padding:12px;color:var(--pp-textDim);font-size:13px;">Lade Cleanup-Status...</div>
+            </div>
+            <div id="admin-r2-migration"
+                 hx-get="/api/admin/r2-migration/status-html"
+                 hx-trigger="load"
+                 hx-swap="innerHTML">
+                <div style="padding:12px;color:var(--pp-textDim);font-size:13px;">Lade R2-Status...</div>
+            </div>
+        </div>
+    </div>
+
+    {# ═══ Import-Historie ═══ #}
+    <div x-data="importHistory()" class="st-section">
+        <div class="st-section-head">
+            <div>
+                <div class="st-section-title">Import-Historie</div>
+                <div class="st-section-desc">CSV-Imports mit Pipeline-Status und Fehlerdetails</div>
+            </div>
+            <button @click="loadImports()" class="st-btn-refresh">
+                <svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
                 </svg>
                 Aktualisieren
             </button>
         </div>
-        <div class="border-t border-gray-200 px-4 py-5 sm:px-6">
+        <div class="st-section-body">
             {# Status-Filter #}
-            <div class="flex items-center gap-2 mb-4">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:16px;">
                 <button @click="statusFilter = null; loadImports()"
-                        :class="!statusFilter ? 'bg-gray-100 text-gray-700 border-gray-300' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'"
-                        class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium border rounded-full transition-colors">
-                    Alle
-                </button>
+                        class="st-filter-pill" :class="!statusFilter && 'active'">Alle</button>
                 <button @click="statusFilter = 'completed'; loadImports()"
-                        :class="statusFilter === 'completed' ? 'bg-green-100 text-green-700 border-green-300' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'"
-                        class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium border rounded-full transition-colors">
-                    Erfolgreich
-                </button>
+                        class="st-filter-pill" :class="statusFilter === 'completed' && 'active-green'">Erfolgreich</button>
                 <button @click="statusFilter = 'failed'; loadImports()"
-                        :class="statusFilter === 'failed' ? 'bg-red-100 text-red-700 border-red-300' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'"
-                        class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium border rounded-full transition-colors">
-                    Fehlgeschlagen
-                </button>
+                        class="st-filter-pill" :class="statusFilter === 'failed' && 'active-red'">Fehlgeschlagen</button>
             </div>
 
             {# Tabelle #}
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm" x-show="imports.length > 0">
+            <div style="overflow-x:auto;">
+                <table class="st-table" x-show="imports.length > 0">
                     <thead>
-                        <tr class="border-b border-gray-200 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            <th class="pb-2 pr-3">Datum</th>
-                            <th class="pb-2 pr-3">Datei</th>
-                            <th class="pb-2 pr-3">Status</th>
-                            <th class="pb-2 pr-3 text-right">Zeilen</th>
-                            <th class="pb-2 pr-3">Pipeline</th>
-                            <th class="pb-2 pr-3 text-right">Dauer</th>
-                            <th class="pb-2"></th>
+                        <tr>
+                            <th>Datum</th>
+                            <th>Datei</th>
+                            <th>Status</th>
+                            <th style="text-align:right;">Zeilen</th>
+                            <th>Pipeline</th>
+                            <th style="text-align:right;">Dauer</th>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody>
                         <template x-for="imp in imports" :key="imp.id">
-                            <tr class="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
-                                @click="imp._expanded = !imp._expanded">
-                                <td class="py-2.5 pr-3 text-xs text-gray-500" x-text="formatDate(imp.created_at)"></td>
-                                <td class="py-2.5 pr-3 font-medium text-gray-900 text-xs" x-text="imp.filename"></td>
-                                <td class="py-2.5 pr-3">
-                                    <span x-show="imp.status === 'completed'"
-                                          class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                                        Erfolgreich
-                                    </span>
-                                    <span x-show="imp.status === 'failed'"
-                                          class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
-                                        Fehlgeschlagen
-                                    </span>
-                                    <span x-show="imp.status === 'cancelled'"
-                                          class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                                        Abgebrochen
-                                    </span>
+                            <tr style="cursor:pointer;" @click="imp._expanded = !imp._expanded">
+                                <td style="font-size:12px;color:var(--pp-textDim);" x-text="formatDate(imp.created_at)"></td>
+                                <td style="font-weight:600;color:var(--pp-text);font-size:12px;" x-text="imp.filename"></td>
+                                <td>
+                                    <span x-show="imp.status === 'completed'" class="st-badge st-badge-ok">Erfolgreich</span>
+                                    <span x-show="imp.status === 'failed'" class="st-badge st-badge-fail">Fehlgeschlagen</span>
+                                    <span x-show="imp.status === 'cancelled'" class="st-badge st-badge-cancel">Abgebrochen</span>
                                 </td>
-                                <td class="py-2.5 pr-3 text-right text-xs">
-                                    <span class="text-green-600 font-medium" x-text="imp.successful_rows"></span>
-                                    <span class="text-gray-400">/</span>
-                                    <span class="text-gray-600" x-text="imp.total_rows"></span>
+                                <td style="text-align:right;font-size:12px;">
+                                    <span style="color:#34D399;font-weight:600;" x-text="imp.successful_rows"></span>
+                                    <span style="color:var(--pp-textDim);">/</span>
+                                    <span x-text="imp.total_rows"></span>
                                     <template x-if="imp.failed_rows > 0">
-                                        <span class="text-red-500 ml-1" x-text="'(' + imp.failed_rows + ' Fehler)'"></span>
+                                        <span style="color:#F87171;margin-left:4px;" x-text="'(' + imp.failed_rows + ' Fehler)'"></span>
                                     </template>
                                 </td>
-                                <td class="py-2.5 pr-3">
-                                    <div class="flex items-center gap-1">
+                                <td>
+                                    <div style="display:flex;align-items:center;gap:3px;">
                                         <template x-for="step in ['categorization','geocoding','profiling','embedding','matching']" :key="step">
                                             <span :title="step"
-                                                  :class="pipelineStatus(imp, step) === 'ok' ? 'bg-green-400' : pipelineStatus(imp, step) === 'failed' ? 'bg-red-400' : 'bg-gray-300'"
-                                                  class="w-2 h-2 rounded-full inline-block"></span>
+                                                  :class="pipelineStatus(imp, step) === 'ok' ? 'st-pipeline-ok' : pipelineStatus(imp, step) === 'failed' ? 'st-pipeline-fail' : 'st-pipeline-none'"
+                                                  class="st-pipeline-dot"></span>
                                         </template>
                                     </div>
                                 </td>
-                                <td class="py-2.5 pr-3 text-right text-xs text-gray-500" x-text="imp.duration_seconds ? imp.duration_seconds + 's' : '-'"></td>
-                                <td class="py-2.5 text-right">
-                                    <svg :class="imp._expanded ? 'rotate-180' : ''" class="w-4 h-4 text-gray-400 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <td style="text-align:right;font-size:12px;color:var(--pp-textDim);" x-text="imp.duration_seconds ? imp.duration_seconds + 's' : '-'"></td>
+                                <td style="text-align:right;">
+                                    <svg :style="imp._expanded ? 'transform:rotate(180deg)' : ''" style="width:14px;height:14px;color:var(--pp-textDim);transition:transform 0.2s;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                                     </svg>
                                 </td>
                             </tr>
                             {# Expandierte Details #}
-                            <tr x-show="imp._expanded" x-transition>
-                                <td colspan="7" class="py-3 px-4 bg-gray-50">
-                                    <div class="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
+                            <tr x-show="imp._expanded" x-transition class="st-expand-row">
+                                <td colspan="7" style="padding:12px 16px;">
+                                    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;">
                                         <template x-for="step in ['categorization','geocoding','profiling','embedding','matching']" :key="step">
-                                            <div class="bg-white rounded-lg border border-gray-200 p-2.5">
-                                                <div class="font-medium text-gray-700 capitalize mb-1" x-text="stepLabel(step)"></div>
+                                            <div class="st-expand-card">
+                                                <div style="font-size:11px;font-weight:600;color:var(--pp-textMuted);text-transform:capitalize;margin-bottom:4px;" x-text="stepLabel(step)"></div>
                                                 <template x-if="imp.pipeline && imp.pipeline[step]">
                                                     <div>
                                                         <template x-if="imp.pipeline[step].status === 'ok'">
-                                                            <div class="text-green-600">
-                                                                <template x-if="step === 'categorization'">
-                                                                    <span x-text="imp.pipeline[step].categorized + ' kategorisiert'"></span>
-                                                                </template>
-                                                                <template x-if="step === 'geocoding'">
-                                                                    <span x-text="imp.pipeline[step].successful + ' geocodiert'"></span>
-                                                                </template>
-                                                                <template x-if="step === 'profiling'">
-                                                                    <span x-text="imp.pipeline[step].profiled + ' profiliert ($' + (imp.pipeline[step].cost_usd || 0).toFixed(4) + ')'"></span>
-                                                                </template>
-                                                                <template x-if="step === 'embedding'">
-                                                                    <span x-text="imp.pipeline[step].generated + ' generiert'"></span>
-                                                                </template>
-                                                                <template x-if="step === 'matching'">
-                                                                    <span x-text="imp.pipeline[step].matches_created + ' Matches'"></span>
-                                                                </template>
+                                                            <div style="font-size:11px;color:#34D399;">
+                                                                <template x-if="step === 'categorization'"><span x-text="imp.pipeline[step].categorized + ' kategorisiert'"></span></template>
+                                                                <template x-if="step === 'geocoding'"><span x-text="imp.pipeline[step].successful + ' geocodiert'"></span></template>
+                                                                <template x-if="step === 'profiling'"><span x-text="imp.pipeline[step].profiled + ' profiliert ($' + (imp.pipeline[step].cost_usd || 0).toFixed(4) + ')'"></span></template>
+                                                                <template x-if="step === 'embedding'"><span x-text="imp.pipeline[step].generated + ' generiert'"></span></template>
+                                                                <template x-if="step === 'matching'"><span x-text="imp.pipeline[step].matches_created + ' Matches'"></span></template>
                                                             </div>
                                                         </template>
                                                         <template x-if="imp.pipeline[step].status === 'failed'">
-                                                            <div class="text-red-600" x-text="imp.pipeline[step].error || 'Fehler'"></div>
+                                                            <div style="font-size:11px;color:#F87171;" x-text="imp.pipeline[step].error || 'Fehler'"></div>
                                                         </template>
                                                     </div>
                                                 </template>
                                                 <template x-if="!imp.pipeline || !imp.pipeline[step]">
-                                                    <span class="text-gray-400">Keine Daten</span>
+                                                    <span style="font-size:11px;color:var(--pp-textDim);">Keine Daten</span>
                                                 </template>
                                             </div>
                                         </template>
                                     </div>
                                     <template x-if="imp.error_message">
-                                        <div class="mt-3 p-2.5 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
-                                            <span class="font-medium">Fehler:</span> <span x-text="imp.error_message"></span>
+                                        <div style="margin-top:10px;padding:10px 14px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.12);border-radius:8px;font-size:12px;color:#F87171;">
+                                            <span style="font-weight:600;">Fehler:</span> <span x-text="imp.error_message"></span>
                                         </div>
                                     </template>
                                     <template x-if="imp.duplicates_updated > 0 || imp.blacklisted_skipped > 0">
-                                        <div class="mt-2 text-xs text-gray-500">
-                                            <template x-if="imp.duplicates_updated > 0">
-                                                <span x-text="imp.duplicates_updated + ' Duplikate aktualisiert'"></span>
-                                            </template>
-                                            <template x-if="imp.blacklisted_skipped > 0">
-                                                <span x-text="' · ' + imp.blacklisted_skipped + ' Blacklist-Skips'"></span>
-                                            </template>
+                                        <div style="margin-top:6px;font-size:11px;color:var(--pp-textDim);">
+                                            <template x-if="imp.duplicates_updated > 0"><span x-text="imp.duplicates_updated + ' Duplikate aktualisiert'"></span></template>
+                                            <template x-if="imp.blacklisted_skipped > 0"><span x-text="' · ' + imp.blacklisted_skipped + ' Blacklist-Skips'"></span></template>
                                         </div>
                                     </template>
                                 </td>
@@ -242,29 +296,18 @@
                 </table>
             </div>
 
-            {# Leer-Zustand #}
-            <div x-show="!loading && imports.length === 0" class="text-center text-sm text-gray-400 py-8">
+            <div x-show="!loading && imports.length === 0" style="text-align:center;padding:32px;color:var(--pp-textDim);font-size:13px;">
                 Keine Imports gefunden.
             </div>
-
-            {# Lade-Spinner #}
-            <div x-show="loading" class="text-center py-8">
-                {% include 'components/loading_spinner.html' %}
+            <div x-show="loading" style="text-align:center;padding:32px;color:var(--pp-textDim);font-size:13px;">
+                Lade...
             </div>
 
             {# Pagination #}
-            <div x-show="totalPages > 1" class="flex items-center justify-center gap-2 mt-4">
-                <button @click="if (page > 1) { page--; loadImports(); }"
-                        :disabled="page <= 1"
-                        class="px-3 py-1.5 text-xs border rounded-md disabled:opacity-30 hover:bg-gray-50">
-                    Zurueck
-                </button>
-                <span class="text-xs text-gray-500" x-text="'Seite ' + page + ' von ' + totalPages"></span>
-                <button @click="if (page < totalPages) { page++; loadImports(); }"
-                        :disabled="page >= totalPages"
-                        class="px-3 py-1.5 text-xs border rounded-md disabled:opacity-30 hover:bg-gray-50">
-                    Weiter
-                </button>
+            <div x-show="totalPages > 1" style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:16px;">
+                <button @click="if (page > 1) { page--; loadImports(); }" :disabled="page <= 1" class="st-page-btn">Zurueck</button>
+                <span style="font-size:12px;color:var(--pp-textDim);" x-text="'Seite ' + page + ' von ' + totalPages"></span>
+                <button @click="if (page < totalPages) { page++; loadImports(); }" :disabled="page >= totalPages" class="st-page-btn">Weiter</button>
             </div>
         </div>
     </div>
@@ -272,14 +315,8 @@
     <script>
     function importHistory() {
         return {
-            imports: [],
-            loading: true,
-            page: 1,
-            totalPages: 0,
-            statusFilter: null,
-
+            imports: [], loading: true, page: 1, totalPages: 0, statusFilter: null,
             init() { this.loadImports(); },
-
             async loadImports() {
                 this.loading = true;
                 const params = new URLSearchParams({ page: this.page, per_page: 10 });
@@ -289,145 +326,101 @@
                     const data = await resp.json();
                     this.imports = (data.imports || []).map(i => ({ ...i, _expanded: false }));
                     this.totalPages = data.pages || 0;
-                } catch (e) {
-                    console.error('Import-Historie laden fehlgeschlagen:', e);
-                    this.imports = [];
-                }
+                } catch (e) { this.imports = []; }
                 this.loading = false;
             },
-
             formatDate(iso) {
                 if (!iso) return '-';
                 const d = new Date(iso);
                 return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
             },
-
             pipelineStatus(imp, step) {
                 if (!imp.pipeline || !imp.pipeline[step]) return 'none';
                 return imp.pipeline[step].status;
             },
-
             stepLabel(step) {
-                const labels = {
-                    categorization: 'Kategorisierung',
-                    geocoding: 'Geocoding',
-                    profiling: 'Profiling',
-                    embedding: 'Embedding',
-                    matching: 'Matching',
-                };
-                return labels[step] || step;
+                return { categorization: 'Kategorisierung', geocoding: 'Geocoding', profiling: 'Profiling', embedding: 'Embedding', matching: 'Matching' }[step] || step;
             },
         };
     }
     </script>
 
-    {# Prio-Staedte #}
-    <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg">
-        <div class="px-4 py-5 sm:px-6">
-            <h2 class="text-base font-semibold leading-6 text-gray-900">Prioritaets-Staedte</h2>
-            <p class="mt-1 text-sm text-gray-500">
-                Jobs aus diesen Staedten werden in der Liste oben angezeigt.
-            </p>
+    {# ═══ Prio-Staedte ═══ #}
+    <div class="st-section">
+        <div class="st-section-head">
+            <div>
+                <div class="st-section-title">Prioritaets-Staedte</div>
+                <div class="st-section-desc">Jobs aus diesen Staedten werden oben angezeigt</div>
+            </div>
         </div>
-        <div class="border-t border-gray-200 px-4 py-5 sm:px-6">
+        <div class="st-section-body">
             <div id="priority-cities"
                  hx-get="/partials/priority-cities"
                  hx-trigger="load"
                  hx-swap="innerHTML">
-                {% include 'components/loading_spinner.html' %}
+                <div style="padding:12px;color:var(--pp-textDim);font-size:13px;">Lade...</div>
             </div>
         </div>
     </div>
 
-    {# Filter-Presets #}
-    <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg">
-        <div class="px-4 py-5 sm:px-6">
-            <h2 class="text-base font-semibold leading-6 text-gray-900">Gespeicherte Filter</h2>
-            <p class="mt-1 text-sm text-gray-500">
-                Haeufig verwendete Filter-Kombinationen fuer schnellen Zugriff.
-            </p>
+    {# ═══ Filter-Presets ═══ #}
+    <div class="st-section">
+        <div class="st-section-head">
+            <div>
+                <div class="st-section-title">Gespeicherte Filter</div>
+                <div class="st-section-desc">Haeufig verwendete Filter-Kombinationen</div>
+            </div>
         </div>
-        <div class="border-t border-gray-200 px-4 py-5 sm:px-6">
+        <div class="st-section-body">
             <div id="filter-presets"
                  hx-get="/partials/filter-presets"
                  hx-trigger="load"
                  hx-swap="innerHTML">
-                {% include 'components/loading_spinner.html' %}
+                <div style="padding:12px;color:var(--pp-textDim);font-size:13px;">Lade...</div>
             </div>
         </div>
     </div>
 
-    {# Google Maps Fahrzeit — Score-Schwellenwert #}
-    <div x-data="driveTimeThreshold()" class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg">
-        <div class="px-4 py-5 sm:px-6">
-            <h2 class="text-base font-semibold leading-6 text-gray-900">Google Maps Fahrzeit</h2>
-            <p class="mt-1 text-sm text-gray-500">
-                Ab welchem Match-Score soll die Fahrzeit (Auto + OEPNV) per Google Maps berechnet werden?
-            </p>
+    {# ═══ Google Maps Fahrzeit — Score-Schwellenwert ═══ #}
+    <div x-data="driveTimeThreshold()" class="st-section">
+        <div class="st-section-head">
+            <div>
+                <div class="st-section-title">Google Maps Fahrzeit</div>
+                <div class="st-section-desc">Ab welchem Match-Score soll die Fahrzeit berechnet werden?</div>
+            </div>
         </div>
-        <div class="border-t border-gray-200 px-4 py-5 sm:px-6">
-            <div class="space-y-4">
-                {# Slider + Wert-Anzeige #}
-                <div class="flex items-center gap-4">
-                    <label for="threshold-slider" class="text-sm font-medium text-gray-700 whitespace-nowrap w-36">
-                        Minimum Score:
-                    </label>
-                    <input
-                        type="range"
-                        id="threshold-slider"
-                        min="0"
-                        max="100"
-                        step="5"
-                        x-model="threshold"
-                        @input="dirty = true"
-                        class="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary-600"
-                    >
-                    <span
-                        class="inline-flex items-center justify-center w-14 h-9 rounded-lg text-sm font-bold"
-                        :class="threshold >= 70 ? 'bg-green-100 text-green-700' : threshold >= 40 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'"
-                        x-text="threshold"
-                    ></span>
-                </div>
+        <div class="st-section-body" style="display:flex;flex-direction:column;gap:16px;">
+            {# Slider + Wert #}
+            <div style="display:flex;align-items:center;gap:14px;">
+                <span style="font-size:13px;font-weight:500;color:var(--pp-textMuted);white-space:nowrap;width:120px;">Minimum Score:</span>
+                <input type="range" id="threshold-slider" min="0" max="100" step="5"
+                       x-model="threshold" @input="dirty = true" class="st-slider">
+                <span style="display:inline-flex;align-items:center;justify-content:center;width:48px;height:32px;border-radius:8px;font-size:14px;font-weight:700;font-family:'Space Mono',monospace;"
+                      :style="threshold >= 70 ? 'background:rgba(52,211,153,0.12);color:#34D399;' : threshold >= 40 ? 'background:rgba(251,191,36,0.12);color:#FBBF24;' : 'background:rgba(255,255,255,0.06);color:var(--pp-textDim);'"
+                      x-text="threshold"></span>
+            </div>
 
-                {# Erklaerung #}
-                <div class="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <svg class="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            {# Info-Box #}
+            <div class="st-info-box">
+                <div style="display:flex;align-items:flex-start;gap:8px;">
+                    <svg style="width:14px;height:14px;color:#60A5FA;flex-shrink:0;margin-top:1px;" fill="currentColor" viewBox="0 0 20 20">
                         <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd" />
                     </svg>
-                    <p class="text-xs text-blue-700 leading-relaxed">
-                        Nur <strong>zukuenftige</strong> Matches mit einem Score ab <span class="font-bold" x-text="threshold"></span>
-                        erhalten eine Google Maps Fahrzeit-Berechnung. Bestehende Matches mit bereits berechneter Fahrzeit
-                        werden <strong>nicht</strong> veraendert.
-                    </p>
+                    <p>Nur <strong>zukuenftige</strong> Matches mit Score ab <strong x-text="threshold"></strong> erhalten Google Maps Fahrzeit. Bestehende bleiben unveraendert.</p>
                 </div>
+            </div>
 
-                {# Speichern Button #}
-                <div class="flex items-center gap-3">
-                    <button
-                        type="button"
-                        @click="save()"
-                        :disabled="saving || !dirty"
-                        class="inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                        :class="saving ? 'bg-gray-400' : 'bg-primary-600 hover:bg-primary-500'"
-                    >
-                        <template x-if="saving">
-                            <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                            </svg>
-                        </template>
-                        <template x-if="!saving">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                            </svg>
-                        </template>
-                        <span x-text="saving ? 'Speichern...' : 'Speichern'"></span>
-                    </button>
-                    <span x-show="saved" x-transition class="text-sm text-green-600 font-medium">
-                        Gespeichert! Gilt fuer zukuenftige Matches.
-                    </span>
-                    <span x-show="error" x-transition class="text-sm text-red-600 font-medium" x-text="error"></span>
-                </div>
+            {# Speichern #}
+            <div style="display:flex;align-items:center;gap:10px;">
+                <button type="button" @click="save()" :disabled="saving || !dirty" class="btn-aurora primary sm" style="min-width:100px;">
+                    <svg x-show="saving" style="width:14px;height:14px;animation:spin 1s linear infinite;" fill="none" viewBox="0 0 24 24">
+                        <circle style="opacity:0.25;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path style="opacity:0.75;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                    </svg>
+                    <span x-text="saving ? 'Speichern...' : 'Speichern'"></span>
+                </button>
+                <span x-show="saved" x-transition style="font-size:12px;color:#34D399;font-weight:500;">Gespeichert!</span>
+                <span x-show="error" x-transition style="font-size:12px;color:#F87171;font-weight:500;" x-text="error"></span>
             </div>
         </div>
     </div>
@@ -435,78 +428,47 @@
     <script>
     function driveTimeThreshold() {
         return {
-            threshold: 80,
-            originalValue: 80,
-            saving: false,
-            saved: false,
-            dirty: false,
-            error: '',
-
-            init() {
-                this.loadThreshold();
-            },
-
+            threshold: 80, originalValue: 80, saving: false, saved: false, dirty: false, error: '',
+            init() { this.loadThreshold(); },
             async loadThreshold() {
                 try {
                     const resp = await fetch('/api/settings/system/drive_time_score_threshold');
-                    if (resp.ok) {
-                        const data = await resp.json();
-                        this.threshold = parseInt(data.value) || 80;
-                        this.originalValue = this.threshold;
-                    }
-                } catch (e) {
-                    console.error('Threshold laden fehlgeschlagen:', e);
-                }
+                    if (resp.ok) { const data = await resp.json(); this.threshold = parseInt(data.value) || 80; this.originalValue = this.threshold; }
+                } catch (e) {}
             },
-
             async save() {
-                this.saving = true;
-                this.saved = false;
-                this.error = '';
+                this.saving = true; this.saved = false; this.error = '';
                 try {
                     const resp = await fetch('/api/settings/system/drive_time_score_threshold', {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'x-csrf-token': document.cookie.match(/pp_csrf=([^;]+)/)?.[1] || '',
-                        },
+                        method: 'PUT', headers: { 'Content-Type': 'application/json', 'x-csrf-token': document.cookie.match(/pp_csrf=([^;]+)/)?.[1] || '' },
                         body: JSON.stringify({ value: String(this.threshold) }),
                     });
-                    if (resp.ok) {
-                        this.saved = true;
-                        this.dirty = false;
-                        this.originalValue = this.threshold;
-                        setTimeout(() => { this.saved = false; }, 4000);
-                    } else {
-                        const data = await resp.json();
-                        this.error = data.detail || data.error || 'Fehler beim Speichern';
-                    }
-                } catch (e) {
-                    this.error = 'Netzwerkfehler';
-                    console.error('Threshold speichern fehlgeschlagen:', e);
-                }
+                    if (resp.ok) { this.saved = true; this.dirty = false; this.originalValue = this.threshold; setTimeout(() => { this.saved = false; }, 4000); }
+                    else { const data = await resp.json(); this.error = data.detail || 'Fehler'; }
+                } catch (e) { this.error = 'Netzwerkfehler'; }
                 this.saving = false;
             },
         };
     }
     </script>
 
-    {# System-Limits #}
-    <div class="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-lg">
-        <div class="px-4 py-5 sm:px-6">
-            <h2 class="text-base font-semibold leading-6 text-gray-900">System-Limits</h2>
-            <p class="mt-1 text-sm text-gray-500">
-                Aktuelle Konfiguration des Systems.
-            </p>
+    {# ═══ System-Limits ═══ #}
+    <div class="st-section">
+        <div class="st-section-head">
+            <div>
+                <div class="st-section-title">System-Limits</div>
+                <div class="st-section-desc">Aktuelle Konfiguration</div>
+            </div>
         </div>
-        <div class="border-t border-gray-200 px-4 py-5 sm:px-6">
+        <div class="st-section-body">
             <div id="system-limits"
                  hx-get="/api/settings/limits"
                  hx-trigger="load"
                  hx-swap="innerHTML">
-                {% include 'components/loading_spinner.html' %}
+                <div style="padding:12px;color:var(--pp-textDim);font-size:13px;">Lade...</div>
             </div>
         </div>
     </div>
+
 </div>
 {% endblock %}

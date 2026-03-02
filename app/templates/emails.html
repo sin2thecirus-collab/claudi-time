@@ -19,65 +19,67 @@
     .em-anim-d3 { animation-delay: 0.24s; }
     .em-anim-d4 { animation-delay: 0.32s; }
 
-    /* Hero */
+    /* Hero — Aurora */
     .em-hero {
-        background: var(--pp-surface);
-        padding: 32px 40px 28px;
+        max-width: 1400px; margin: 0 auto;
+        padding: 28px 32px 0;
         position: relative;
-        overflow: hidden;
-        border-bottom: 1px solid var(--pp-border);
     }
     .em-hero-circle-1 { display: none; }
     .em-hero-circle-2 { display: none; }
-    .em-breadcrumb {
-        display: flex; align-items: center; gap: 8px; font-size: 14px;
-        color: var(--pp-textDim); margin-bottom: 20px; font-weight: 500;
-    }
-    .em-breadcrumb a { color: var(--pp-textMuted); text-decoration: none; font-size: 16px; }
-    .em-breadcrumb-current { color: var(--pp-text); }
+    .em-breadcrumb { display: none; }
+    .em-breadcrumb a { display: none; }
+    .em-breadcrumb-current { display: none; }
     .em-hero-title {
-        font-size: 32px; font-weight: 800; color: var(--pp-text); letter-spacing: -0.03em; margin: 0;
+        font-size: 24px; font-weight: 700; color: var(--pp-text); letter-spacing: -0.03em; margin: 0; line-height: 1.2;
     }
     .em-hero-subtitle {
-        font-size: 16px; color: var(--pp-textMuted); margin-top: 6px; font-weight: 400;
+        font-size: 13px; color: var(--pp-textMuted); margin-top: 2px; font-weight: 400;
     }
 
-    /* Stat Cards in Hero */
-    .em-stats { display: flex; gap: 14px; margin-top: 22px; flex-wrap: wrap; }
+    /* Stat Cards — Aurora Glass */
+    .em-stats { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
     .em-stat-card {
-        background: var(--pp-bg);
-        border: 1px solid var(--pp-border); border-radius: 12px;
-        padding: 14px 24px; min-width: 130px; text-align: center;
+        position: relative; padding: 14px 22px; min-width: 120px; text-align: center;
+        background: rgba(255,255,255,0.02); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255,255,255,0.06); border-radius: 14px;
         transition: all 0.25s;
     }
-    .em-stat-card:hover { background: var(--pp-surfaceHover); border-color: var(--pp-borderLight); }
-    .em-stat-value { font-size: 26px; font-weight: 800; color: var(--pp-text); line-height: 1.2; }
+    .em-stat-card::before {
+        content: ''; position: absolute; top: 0; left: 16px; right: 16px; height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(96,165,250,0.3), transparent);
+    }
+    .em-stat-card:hover { border-color: rgba(255,255,255,0.1); transform: translateY(-1px); }
+    .em-stat-value { font-size: 24px; font-weight: 700; color: var(--pp-text); line-height: 1.2; font-family: 'Space Mono', monospace; }
     .em-stat-label {
-        font-size: 11.5px; font-weight: 600; color: var(--pp-textMuted);
+        font-size: 11px; font-weight: 600; color: var(--pp-textMuted);
         text-transform: uppercase; letter-spacing: 0.06em; margin-top: 4px;
     }
-    .em-stat-card--error { border-color: rgba(239,68,68,0.35); }
-    .em-stat-card--error .em-stat-value { color: var(--pp-red); }
+    .em-stat-card--error { border-color: rgba(239,68,68,0.2); }
+    .em-stat-card--error::before { background: linear-gradient(90deg, transparent, rgba(239,68,68,0.4), transparent); }
+    .em-stat-card--error .em-stat-value { color: #F87171; }
     .em-stat-card--error .em-stat-label { color: rgba(248,113,113,0.6); }
-    .em-stat-card--success .em-stat-value { color: var(--pp-green); }
+    .em-stat-card--success .em-stat-value { color: #34D399; }
+    .em-stat-card--success::before { background: linear-gradient(90deg, transparent, rgba(52,211,153,0.4), transparent); }
 
-    /* Content area */
-    .em-content { padding: 24px 40px 48px; display: flex; flex-direction: column; gap: 20px; }
+    /* Content area — Aurora */
+    .em-content { max-width: 1400px; margin: 0 auto; padding: 24px 32px 48px; display: flex; flex-direction: column; gap: 18px; }
 
-    /* Section wrapper */
+    /* Section wrapper — Glass */
     .em-section {
-        background: var(--pp-surface); border-radius: 12px; border: 1px solid var(--pp-border);
-        overflow: hidden; transition: border-color 0.3s;
+        background: rgba(255,255,255,0.02); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+        border-radius: 14px; border: 1px solid rgba(255,255,255,0.06);
+        overflow: hidden; transition: all 0.25s;
     }
-    .em-section:hover { border-color: var(--pp-borderLight); }
-    .em-section--danger { border-left: 3px solid var(--pp-red); }
+    .em-section:hover { border-color: rgba(255,255,255,0.1); }
+    .em-section--danger { border-left: 3px solid rgba(239,68,68,0.5); }
 
     .em-section-head {
         display: flex; align-items: center; justify-content: space-between;
-        padding: 18px 24px; border-bottom: 1px solid var(--pp-border);
+        padding: 18px 24px; border-bottom: 1px solid rgba(255,255,255,0.04);
     }
     .em-section-head--clickable { cursor: pointer; user-select: none; }
-    .em-section-head--clickable:hover { background: var(--pp-surfaceHover); }
+    .em-section-head--clickable:hover { background: rgba(255,255,255,0.02); }
     .em-section-title {
         display: flex; align-items: center; gap: 10px;
         font-size: 15px; font-weight: 700; color: var(--pp-text);
@@ -95,14 +97,14 @@
     .em-section-head--clickable:hover .em-section-toggle { color: var(--pp-accent); }
     .em-section-body { padding: 6px 20px 20px; }
 
-    /* Email Card (Draft / Failed) */
+    /* Email Card (Draft / Failed) — Glass */
     .em-card {
-        background: var(--pp-bg); border-radius: 10px; border: 1px solid var(--pp-border);
+        background: rgba(255,255,255,0.015); border-radius: 10px; border: 1px solid rgba(255,255,255,0.05);
         padding: 16px 20px; margin-bottom: 10px; transition: all 0.2s;
     }
     .em-card:last-child { margin-bottom: 0; }
-    .em-card:hover { border-color: var(--pp-borderLight); }
-    .em-card--failed { border-left: 3px solid var(--pp-red); }
+    .em-card:hover { border-color: rgba(255,255,255,0.1); }
+    .em-card--failed { border-left: 3px solid rgba(239,68,68,0.4); }
 
     .em-card-top {
         display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
@@ -188,20 +190,21 @@
     .em-chevron { width: 14px; height: 14px; transition: transform 0.25s ease; }
     .em-chevron--open { transform: rotate(180deg); }
 
-    /* ── Tab Navigation ── */
+    /* ── Tab Navigation — Aurora Sub-Tabs ── */
     .em-tab-nav {
-        display: flex; gap: 6px; margin-top: 20px; margin-bottom: -6px;
+        display: flex; gap: 4px; margin-top: 20px;
+        background: rgba(14,17,28,0.6); border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 10px; padding: 3px; width: fit-content;
     }
     .em-tab-btn {
-        padding: 10px 22px; border-radius: 10px 10px 0 0; font-size: 14px; font-weight: 700;
-        background: var(--pp-surfaceHover); color: var(--pp-textMuted);
-        border: 1px solid var(--pp-border); border-bottom: none;
-        cursor: pointer; transition: all 0.2s; font-family: inherit;
+        padding: 8px 20px; border-radius: 8px; font-size: 13px; font-weight: 600;
+        background: transparent; color: var(--pp-textDim);
+        border: none; cursor: pointer; transition: all 0.2s; font-family: inherit;
     }
-    .em-tab-btn:hover { background: var(--pp-surface3); color: var(--pp-text); }
+    .em-tab-btn:hover { color: var(--pp-textMuted); }
     .em-tab-btn--active {
-        background: var(--pp-bg); color: var(--pp-text);
-        border-color: var(--pp-border);
+        background: rgba(96,165,250,0.12); color: #93C5FD;
+        box-shadow: 0 0 8px rgba(96,165,250,0.15);
     }
 
     /* ── Rundmail Tab ── */
@@ -307,17 +310,17 @@
        HERO HEADER
     ═══════════════════════════════════════ #}
     <div class="em-hero">
-        <div class="em-hero-circle-1"></div>
-        <div class="em-hero-circle-2"></div>
-
-        <div class="em-breadcrumb">
-            <a href="/">&#x1F3E0;</a>
-            <span>&#x203A;</span>
-            <span class="em-breadcrumb-current">Emails</span>
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:4px;">
+            <div class="aurora-section-icon red" style="width:40px;height:40px;border-radius:12px;">
+                <svg style="width:20px;height:20px;" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                </svg>
+            </div>
+            <div>
+                <h1 class="em-hero-title">Email-Dashboard</h1>
+                <p class="em-hero-subtitle" x-text="tab === 'emails' ? 'Entwuerfe pruefen, senden, nachverfolgen' : 'Finance-Kandidaten kontaktieren'"></p>
+            </div>
         </div>
-
-        <h1 class="em-hero-title">Email-Dashboard</h1>
-        <p class="em-hero-subtitle" x-text="tab === 'emails' ? 'Entwuerfe pruefen, senden, nachverfolgen' : 'Finance-Kandidaten kontaktieren'"></p>
 
         {# ── Tab Navigation ── #}
         <div class="em-tab-nav">

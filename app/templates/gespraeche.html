@@ -12,29 +12,36 @@
     .gc-anim { opacity: 0; animation: gcFadeUp 0.5s cubic-bezier(0.4,0,0.2,1) forwards; }
 
     .gc-stat-card {
-        background: var(--pp-surface);
-        border: 1px solid var(--pp-border); border-radius: 12px;
-        padding: 16px 24px; min-width: 140px; text-align: center;
+        position: relative; padding: 16px 24px; min-width: 140px; text-align: center;
+        background: rgba(255,255,255,0.02); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255,255,255,0.06); border-radius: 14px;
+        transition: all 0.25s;
     }
-    .gc-stat-value { font-size: 26px; font-weight: 800; color: var(--pp-text); }
-    .gc-stat-label { font-size: 12.5px; font-weight: 500; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 3px; }
+    .gc-stat-card::before {
+        content: ''; position: absolute; top: 0; left: 20px; right: 20px; height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(96,165,250,0.3), transparent);
+    }
+    .gc-stat-card:hover { border-color: rgba(255,255,255,0.1); transform: translateY(-1px); }
+    .gc-stat-value { font-size: 26px; font-weight: 800; color: var(--pp-text); font-family: 'Space Mono', monospace; }
+    .gc-stat-label { font-size: 11px; font-weight: 600; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 4px; }
 
     .gc-search {
-        width: 100%; padding: 13px 18px 13px 44px; border-radius: 10px;
-        border: 1.5px solid var(--pp-border); background: var(--pp-surface); font-size: 15px;
+        width: 100%; padding: 12px 18px 12px 40px; border-radius: 10px;
+        border: 1px solid rgba(255,255,255,0.08); background: rgba(14,17,28,0.8); font-size: 14px;
         color: var(--pp-text); font-family: inherit; transition: all 0.2s;
-        outline: none; min-height: 48px;
+        outline: none;
     }
     .gc-search:focus {
-        border-color: var(--pp-accent); box-shadow: 0 0 0 3px rgba(79,140,255,0.15);
+        border-color: #60A5FA; box-shadow: 0 0 0 3px rgba(96,165,250,0.15), 0 0 16px rgba(96,165,250,0.08);
     }
     .gc-search::placeholder { color: var(--pp-textDim); }
 
     .gc-call-card {
-        background: var(--pp-surface); border-radius: 12px; border: 1px solid var(--pp-border);
-        padding: 20px 24px; margin-bottom: 12px; transition: all 0.2s;
+        background: rgba(255,255,255,0.02); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+        border-radius: 14px; border: 1px solid rgba(255,255,255,0.06);
+        padding: 20px 24px; margin-bottom: 12px; transition: all 0.25s;
     }
-    .gc-call-card:hover { border-color: var(--pp-borderLight); box-shadow: 0 2px 12px rgba(0,0,0,0.2); }
+    .gc-call-card:hover { border-color: rgba(255,255,255,0.12); box-shadow: 0 4px 24px rgba(0,0,0,0.15); transform: translateY(-1px); }
 
     .gc-badge {
         display: inline-flex; align-items: center; gap: 4px;
@@ -74,30 +81,23 @@
 <div class="gc-wrap">
 
     {# ════════════════════════════════════════════════════
-       HERO HEADER
+       HERO HEADER — Aurora
     ════════════════════════════════════════════════════ #}
-    <div style="background: var(--pp-surface); padding: 32px 40px 28px; border-bottom: 1px solid var(--pp-border);">
-        {# Breadcrumb #}
-        <div style="display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--pp-textDim); margin-bottom: 20px; font-weight: 500;">
-            <a href="/" style="color: var(--pp-textMuted); text-decoration: none; font-size: 16px;">&#x1F3E0;</a>
-            <span>&#x203A;</span>
-            <span style="color: var(--pp-text);">Gespräche</span>
-        </div>
-
-        {# Title + Subtitle #}
-        <div>
-            <h1 style="font-size: 32px; font-weight: 800; color: var(--pp-text); letter-spacing: -0.03em; margin: 0;">
-                Unzugeordnete Gespräche
-            </h1>
-            <p style="font-size: 16px; color: var(--pp-textMuted); margin-top: 6px; font-weight: 400;">
-                Transkribierte Anrufe, die keinem Kandidaten/Kontakt zugeordnet werden konnten
-            </p>
-        </div>
-
-        {# Stats #}
-        <div style="display: flex; gap: 14px; margin-top: 22px; flex-wrap: wrap;">
-            <div class="gc-stat-card">
-                <div class="gc-stat-value">{{ unassigned_count }}</div>
+    <div style="max-width:1400px;margin:0 auto;padding:28px 32px 0;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:24px;">
+            <div style="display:flex;align-items:center;gap:14px;">
+                <div class="aurora-section-icon green" style="width:40px;height:40px;border-radius:12px;">
+                    <svg style="width:20px;height:20px;" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
+                    </svg>
+                </div>
+                <div>
+                    <h1 style="font-size:24px;font-weight:700;color:var(--pp-text);margin:0;letter-spacing:-0.03em;line-height:1.2;">Unzugeordnete Gespraeche</h1>
+                    <p style="font-size:13px;color:var(--pp-textMuted);margin-top:2px;">Transkribierte Anrufe ohne Zuordnung</p>
+                </div>
+            </div>
+            <div class="gc-stat-card" style="min-width:auto;padding:12px 20px;">
+                <div class="gc-stat-value" style="font-size:22px;">{{ unassigned_count }}</div>
                 <div class="gc-stat-label">Offen</div>
             </div>
         </div>
@@ -106,8 +106,8 @@
     {# ════════════════════════════════════════════════════
        SEARCH BAR
     ════════════════════════════════════════════════════ #}
-    <div style="padding: 22px 40px 0;" class="gc-anim">
-        <div style="position: relative; max-width: 500px;">
+    <div style="max-width:1400px;margin:0 auto;padding:0 32px;" class="gc-anim">
+        <div class="glass" style="padding:14px 18px;margin-bottom:20px;max-width:500px;position:relative;">
             <svg style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: #94a3b8; pointer-events: none;" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd" />
             </svg>
@@ -125,7 +125,7 @@
     {# ════════════════════════════════════════════════════
        CONTENT (loaded via HTMX)
     ════════════════════════════════════════════════════ #}
-    <div style="padding: 18px 40px 40px;" class="gc-anim" style="animation-delay: 0.15s;">
+    <div style="max-width:1400px;margin:0 auto;padding:0 32px 40px;" class="gc-anim">
         <div id="gespraeche-list"
              hx-get="/partials/gespraeche-list"
              hx-trigger="load"

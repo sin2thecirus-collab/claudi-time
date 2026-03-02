@@ -3,11 +3,11 @@
 
 {% block head %}
 <style>
-    .kl-wrap { background: var(--pp-bg); color: var(--pp-text); min-height: 100vh; font-size: 15px; }
+    .kl-wrap { background: var(--pp-bg); color: var(--pp-text); min-height: 100vh; font-size: 14px; }
 
     .kl-wrap ::-webkit-scrollbar { width: 5px; }
     .kl-wrap ::-webkit-scrollbar-track { background: transparent; }
-    .kl-wrap ::-webkit-scrollbar-thumb { background: var(--pp-border); border-radius: 3px; }
+    .kl-wrap ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
 
     /* ── Animations ── */
     @keyframes klFadeUp {
@@ -20,202 +20,234 @@
     }
     .kl-anim { opacity: 0; animation: klFadeUp 0.5s cubic-bezier(0.4,0,0.2,1) forwards; }
 
-    /* ── Stat Cards ── */
+    /* ── Stat Cards — Aurora Glass ── */
     .kl-stat-card {
-        background: var(--pp-surface); border: 1px solid var(--pp-borderLight);
-        border-radius: 12px; padding: 16px 24px; min-width: 160px; text-align: center;
+        background: rgba(20,25,42,0.55);
+        backdrop-filter: blur(16px) saturate(1.3);
+        -webkit-backdrop-filter: blur(16px) saturate(1.3);
+        border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 14px; padding: 18px 24px; min-width: 140px; text-align: center;
+        position: relative; overflow: hidden;
+        transition: all 250ms ease;
     }
-    .kl-stat-value { font-size: 26px; font-weight: 800; color: var(--pp-text); }
-    .kl-stat-label { font-size: 12.5px; font-weight: 500; color: var(--pp-textDim); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 3px; }
+    .kl-stat-card::before {
+        content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+    }
+    .kl-stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+    .kl-stat-value { font-size: 24px; font-weight: 800; color: var(--pp-text); font-family: var(--pp-mono); }
+    .kl-stat-label { font-size: 11px; font-weight: 600; color: var(--pp-textDim); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 4px; }
 
-    /* ── Category Chips ── */
+    /* ── Category Chips — Aurora Toggle ── */
     .kl-chip {
-        display: inline-flex; align-items: center; gap: 8px;
-        padding: 10px 22px; border-radius: 12px;
-        font-size: 15px; font-weight: 600; cursor: pointer;
-        background: var(--pp-surface); color: var(--pp-textMuted); border: 1.5px solid var(--pp-border);
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 8px 18px; border-radius: 9999px;
+        font-size: 13px; font-weight: 600; cursor: pointer;
+        background: rgba(255,255,255,0.04); color: var(--pp-textMuted);
+        border: 1px solid rgba(255,255,255,0.08);
         transition: all 0.2s; user-select: none;
+        font-family: var(--pp-ff);
     }
-    .kl-chip:hover { background: var(--pp-surfaceHover); color: var(--pp-text); }
+    .kl-chip:hover { border-color: rgba(255,255,255,0.15); color: var(--pp-text); background: rgba(255,255,255,0.06); }
     .kl-chip-active {
-        background: var(--pp-accent) !important;
-        color: #fff !important; border-color: var(--pp-accent) !important;
+        background: rgba(96,165,250,0.12) !important;
+        color: #93C5FD !important;
+        border-color: rgba(96,165,250,0.3) !important;
+        box-shadow: 0 0 12px rgba(96,165,250,0.15);
     }
 
-    /* ── Search Input ── */
+    /* ── Search Input — Aurora Glass ── */
     .kl-search {
-        width: 100%; padding: 13px 18px 13px 44px; border-radius: 12px;
-        border: 1.5px solid var(--pp-border); background: var(--pp-surface); font-size: 15px;
-        color: var(--pp-text); font-family: inherit; transition: all 0.2s;
-        outline: none; min-height: 48px;
+        width: 100%; padding: 11px 16px 11px 40px; border-radius: 10px;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: rgba(14,17,28,0.8); font-size: 13px;
+        color: var(--pp-text); font-family: var(--pp-ff); transition: all 0.2s;
+        outline: none; min-height: 40px;
     }
     .kl-search:focus {
-        border-color: var(--pp-accent); box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+        border-color: #60A5FA;
+        box-shadow: 0 0 0 3px rgba(96,165,250,0.15), 0 0 16px rgba(96,165,250,0.08);
     }
     .kl-search::placeholder { color: var(--pp-textDim); }
 
-    /* ── Table Card ── */
+    /* ── Table Card — Aurora Glass ── */
     .kl-table-card {
-        background: var(--pp-surface); border-radius: 12px; border: 1px solid var(--pp-border);
+        background: rgba(20,25,42,0.55);
+        backdrop-filter: blur(16px) saturate(1.3);
+        -webkit-backdrop-filter: blur(16px) saturate(1.3);
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,0.06);
         overflow: hidden;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 16px rgba(0,0,0,0.2);
     }
-    .kl-table-card table {
-        table-layout: fixed; width: 100%;
-    }
+    .kl-table-card table { table-layout: fixed; width: 100%; }
 
     /* ── Table Header ── */
     .kl-th {
-        font-size: 12.5px; font-weight: 700; color: var(--pp-textDim);
-        text-transform: uppercase; letter-spacing: 0.06em;
-        padding: 16px 20px; text-align: left; white-space: nowrap;
-        background: var(--pp-bg); border-bottom: 1px solid var(--pp-border);
+        font-size: 11px; font-weight: 700; color: var(--pp-textDim);
+        text-transform: uppercase; letter-spacing: 0.08em;
+        padding: 14px 18px; text-align: left; white-space: nowrap;
+        background: rgba(6,7,11,0.6); border-bottom: 1px solid rgba(255,255,255,0.06);
     }
 
     /* ── Table Rows ── */
     .kl-row {
-        border-bottom: 1px solid var(--pp-border); transition: all 0.15s; cursor: pointer;
+        border-bottom: 1px solid rgba(255,255,255,0.04); transition: all 0.15s; cursor: pointer;
         opacity: 0; animation: klRowFadeUp 0.35s cubic-bezier(0.4,0,0.2,1) forwards;
     }
-    .kl-row:hover { background: var(--pp-surfaceHover); }
-    .kl-row.kl-selected { background: var(--pp-accentSoft); }
+    .kl-row:hover { background: rgba(30,38,65,0.5); }
+    .kl-row.kl-selected { background: rgba(96,165,250,0.08); }
     .kl-row:last-child { border-bottom: none; }
-    .kl-row td { padding: 16px 20px; font-size: 15px; vertical-align: middle; }
+    .kl-row td { padding: 14px 18px; font-size: 14px; vertical-align: middle; }
 
-    /* ── Avatar ── */
+    /* ── Avatar — Aurora Gradient Ring ── */
     .kl-avatar {
-        width: 44px; height: 44px; border-radius: 12px;
+        width: 40px; height: 40px; border-radius: 12px;
         display: flex; align-items: center; justify-content: center;
-        font-weight: 700; font-size: 15px; flex-shrink: 0;
-        border: 2px solid var(--pp-border);
+        font-weight: 700; font-size: 13px; flex-shrink: 0;
+        background: linear-gradient(135deg, rgba(96,165,250,0.15), rgba(167,139,250,0.15));
+        border: 1.5px solid rgba(96,165,250,0.2);
+        color: #93C5FD;
     }
 
-    /* ── Skill Tags ── */
+    /* ── Skill Tags — Aurora Pills ── */
     .kl-skill-tag {
         display: inline-flex; align-items: center;
-        padding: 4px 10px; border-radius: 7px;
-        font-size: 12.5px; font-weight: 600;
-        background: var(--pp-surfaceHover); color: var(--pp-textMuted);
+        padding: 3px 10px; border-radius: 9999px;
+        font-size: 11px; font-weight: 600;
+        background: rgba(255,255,255,0.04); color: var(--pp-textMuted);
+        border: 1px solid rgba(255,255,255,0.06);
         white-space: nowrap;
     }
-    .kl-skill-tag-tech { background: var(--pp-greenSoft); color: var(--pp-green); }
-    .kl-skill-tag-fach { background: var(--pp-purpleSoft); color: var(--pp-purple); }
+    .kl-skill-tag-tech { background: rgba(52,211,153,0.12); color: #34D399; border-color: rgba(52,211,153,0.2); }
+    .kl-skill-tag-fach { background: rgba(167,139,250,0.12); color: #A78BFA; border-color: rgba(167,139,250,0.2); }
 
-    /* ── Status Badge ── */
+    /* ── Status Badge — Aurora ── */
     .kl-status {
         display: inline-flex; align-items: center; gap: 6px;
-        padding: 6px 12px; border-radius: 8px;
-        font-size: 13px; font-weight: 600;
+        padding: 4px 10px; border-radius: 9999px;
+        font-size: 11px; font-weight: 600;
     }
-    .kl-status-dot { width: 7px; height: 7px; border-radius: 50%; }
-    .kl-status-active { background: var(--pp-greenSoft); color: var(--pp-green); }
-    .kl-status-active .kl-status-dot { background: var(--pp-green); }
-    .kl-status-inactive { background: var(--pp-orangeSoft); color: var(--pp-orange); }
-    .kl-status-inactive .kl-status-dot { background: var(--pp-orange); }
-    .kl-status-hidden { background: var(--pp-surfaceHover); color: var(--pp-textMuted); }
+    .kl-status-dot { width: 6px; height: 6px; border-radius: 50%; }
+    .kl-status-active { background: rgba(52,211,153,0.12); color: #34D399; border: 1px solid rgba(52,211,153,0.2); }
+    .kl-status-active .kl-status-dot { background: #34D399; box-shadow: 0 0 6px rgba(52,211,153,0.5); }
+    .kl-status-inactive { background: rgba(251,191,36,0.12); color: #FBBF24; border: 1px solid rgba(251,191,36,0.2); }
+    .kl-status-inactive .kl-status-dot { background: #FBBF24; }
+    .kl-status-hidden { background: rgba(255,255,255,0.04); color: var(--pp-textMuted); border: 1px solid rgba(255,255,255,0.08); }
     .kl-status-hidden .kl-status-dot { background: var(--pp-textDim); }
 
     /* ── CV Indicator ── */
-    .kl-cv-yes { color: var(--pp-accent); }
+    .kl-cv-yes { color: #60A5FA; }
     .kl-cv-no { color: var(--pp-textDim); }
 
-    /* ── Batch Bar ── */
+    /* ── Batch Bar — Aurora Glass ── */
     .kl-batch-bar {
-        background: var(--pp-surface); border: 1px solid var(--pp-border);
-        border-radius: 12px; padding: 16px 26px;
+        background: rgba(20,25,42,0.85);
+        backdrop-filter: blur(20px) saturate(1.4);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 14px; padding: 14px 24px;
         display: flex; align-items: center; justify-content: space-between;
         position: sticky; bottom: 20px; z-index: 40;
         margin: 16px 0;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.4);
     }
     .kl-batch-bar-btn {
-        display: inline-flex; align-items: center; gap: 8px;
-        padding: 10px 20px; border-radius: 8px;
-        font-size: 14px; font-weight: 630; cursor: pointer;
-        font-family: inherit; transition: all 0.2s; border: none;
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 8px 18px; border-radius: 8px;
+        font-size: 13px; font-weight: 600; cursor: pointer;
+        font-family: var(--pp-ff); transition: all 0.2s; border: none;
     }
-    .kl-batch-bar-btn-primary { background: var(--pp-accent); color: #fff; }
-    .kl-batch-bar-btn-primary:hover { background: #2563EB; }
-    .kl-batch-bar-btn-danger { background: var(--pp-redSoft); color: var(--pp-red); }
-    .kl-batch-bar-btn-danger:hover { background: rgba(239,68,68,0.15); }
+    .kl-batch-bar-btn-primary {
+        background: linear-gradient(135deg, #3B82F6, #60A5FA); color: #fff;
+        box-shadow: 0 2px 8px rgba(96,165,250,0.2);
+    }
+    .kl-batch-bar-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(96,165,250,0.3); }
+    .kl-batch-bar-btn-danger { background: rgba(248,113,113,0.12); color: #F87171; }
+    .kl-batch-bar-btn-danger:hover { background: rgba(248,113,113,0.2); }
 
-    /* ── Pagination ── */
+    /* ── Pagination — Aurora ── */
     .kl-page-btn {
         display: inline-flex; align-items: center; justify-content: center;
-        min-width: 42px; height: 42px; border-radius: 8px;
-        font-size: 15px; font-weight: 600; cursor: pointer;
-        background: var(--pp-surface); color: var(--pp-textMuted); border: 1.5px solid var(--pp-border);
-        transition: all 0.2s; font-family: inherit;
+        min-width: 36px; height: 36px; border-radius: 8px;
+        font-size: 13px; font-weight: 600; cursor: pointer;
+        background: rgba(255,255,255,0.04); color: var(--pp-textMuted);
+        border: 1px solid rgba(255,255,255,0.06);
+        transition: all 0.2s; font-family: var(--pp-mono);
     }
-    .kl-page-btn:hover { background: var(--pp-surfaceHover); color: var(--pp-text); }
+    .kl-page-btn:hover { background: rgba(255,255,255,0.08); color: var(--pp-text); }
     .kl-page-btn-active {
-        background: var(--pp-accent) !important;
-        color: #fff !important; border-color: var(--pp-accent) !important;
+        background: rgba(96,165,250,0.12) !important;
+        color: #93C5FD !important;
+        border-color: rgba(96,165,250,0.3) !important;
+        box-shadow: 0 0 8px rgba(96,165,250,0.2);
     }
-    .kl-page-btn-disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+    .kl-page-btn-disabled { opacity: 0.3; cursor: not-allowed; pointer-events: none; }
 
-    /* ── Filter Panel ── */
+    /* ── Filter Panel — Aurora Glass ── */
     .kl-filter-panel {
-        background: var(--pp-surface); border-radius: 12px; border: 1px solid var(--pp-border);
+        background: rgba(20,25,42,0.55);
+        backdrop-filter: blur(16px) saturate(1.3);
+        border-radius: 14px; border: 1px solid rgba(255,255,255,0.06);
         overflow: hidden; transition: all 0.3s;
     }
     .kl-filter-input {
-        width: 100%; padding: 12px 16px; border-radius: 8px;
-        border: 1.5px solid var(--pp-border); background: var(--pp-bg); font-size: 15px;
-        color: var(--pp-text); font-family: inherit; transition: all 0.2s; outline: none;
+        width: 100%; padding: 10px 14px; border-radius: 8px;
+        border: 1px solid rgba(255,255,255,0.08); background: rgba(14,17,28,0.8); font-size: 13px;
+        color: var(--pp-text); font-family: var(--pp-ff); transition: all 0.2s; outline: none;
     }
     .kl-filter-input:focus {
-        border-color: var(--pp-accent); box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
-        background: var(--pp-bg);
+        border-color: #60A5FA;
+        box-shadow: 0 0 0 3px rgba(96,165,250,0.15), 0 0 16px rgba(96,165,250,0.08);
     }
     .kl-filter-input::placeholder { color: var(--pp-textDim); }
 
     /* ── Inline Edit ── */
-    .kl-inline-display {
-        cursor: pointer; border-radius: 6px; padding: 4px 8px;
-        transition: all 0.15s;
-    }
-    .kl-inline-display:hover { background: var(--pp-accentSoft); }
+    .kl-inline-display { cursor: pointer; border-radius: 6px; padding: 4px 8px; transition: all 0.15s; }
+    .kl-inline-display:hover { background: rgba(96,165,250,0.08); }
     .kl-inline-input {
         width: 100%; padding: 6px 12px; border-radius: 8px;
-        border: 1.5px solid var(--pp-accent); font-size: 15px;
-        color: var(--pp-text); font-family: inherit; outline: none;
-        background: var(--pp-bg);
-        box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+        border: 1px solid #60A5FA; font-size: 14px;
+        color: var(--pp-text); font-family: var(--pp-ff); outline: none;
+        background: rgba(14,17,28,0.8);
+        box-shadow: 0 0 0 3px rgba(96,165,250,0.15);
     }
 
-    /* ── Select Toggle Button ── */
+    /* ── Select Toggle Button — Aurora ── */
     .kl-select-btn {
-        display: inline-flex; align-items: center; gap: 8px;
-        padding: 10px 20px; border-radius: 8px;
-        font-size: 14px; font-weight: 630; cursor: pointer;
-        font-family: inherit; transition: all 0.2s;
-        border: 1.5px solid var(--pp-border); background: var(--pp-surface); color: var(--pp-textMuted);
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 8px 16px; border-radius: 8px;
+        font-size: 13px; font-weight: 600; cursor: pointer;
+        font-family: var(--pp-ff); transition: all 0.2s;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.04); color: var(--pp-textMuted);
     }
-    .kl-select-btn:hover { background: var(--pp-surfaceHover); color: var(--pp-text); }
+    .kl-select-btn:hover { background: rgba(255,255,255,0.08); color: var(--pp-text); }
     .kl-select-btn-active {
-        background: var(--pp-accentSoft); color: var(--pp-accent); border-color: rgba(59,130,246,0.3);
+        background: rgba(96,165,250,0.12); color: #93C5FD;
+        border-color: rgba(96,165,250,0.3);
     }
 
-    /* ── Per-Page Select ── */
+    /* ── Per-Page Select — Aurora ── */
     .kl-per-page {
-        padding: 10px 36px 10px 16px; border-radius: 8px;
-        border: 1.5px solid var(--pp-border); background: var(--pp-surface); font-size: 15px;
-        color: var(--pp-text); font-family: inherit; cursor: pointer; outline: none;
-        appearance: none; -webkit-appearance: none; min-height: 44px;
+        padding: 8px 32px 8px 14px; border-radius: 8px;
+        border: 1px solid rgba(255,255,255,0.08); background: rgba(14,17,28,0.8); font-size: 13px;
+        color: var(--pp-text); font-family: var(--pp-ff); cursor: pointer; outline: none;
+        appearance: none; -webkit-appearance: none; min-height: 36px;
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2371717A' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
-        background-position: right 8px center; background-repeat: no-repeat; background-size: 16px;
+        background-position: right 8px center; background-repeat: no-repeat; background-size: 14px;
     }
-    .kl-per-page:focus { border-color: var(--pp-accent); box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+    .kl-per-page:focus { border-color: #60A5FA; box-shadow: 0 0 0 3px rgba(96,165,250,0.15); }
 
     /* ── Action Buttons in rows ── */
     .kl-action-btn {
         display: inline-flex; align-items: center; justify-content: center;
-        width: 38px; height: 38px; border-radius: 8px;
+        width: 34px; height: 34px; border-radius: 8px;
         background: transparent; border: none; cursor: pointer;
-        color: var(--pp-textDim); transition: all 0.15s; font-size: 16px;
+        color: var(--pp-textDim); transition: all 0.15s; font-size: 14px;
     }
-    .kl-action-btn:hover { background: var(--pp-surfaceHover); color: var(--pp-text); }
-    .kl-action-btn-danger:hover { background: var(--pp-redSoft); color: var(--pp-red); }
-    .kl-action-btn-primary:hover { background: var(--pp-accentSoft); color: var(--pp-accent); }
+    .kl-action-btn:hover { background: rgba(255,255,255,0.06); color: var(--pp-text); }
+    .kl-action-btn-danger:hover { background: rgba(248,113,113,0.12); color: #F87171; }
+    .kl-action-btn-primary:hover { background: rgba(96,165,250,0.12); color: #60A5FA; }
 </style>
 {% endblock %}
 
@@ -223,27 +255,23 @@
 <div class="kl-wrap">
 
     {# ════════════════════════════════════════════════════
-       PAGE HEADER
+       PAGE HEADER — Aurora Glass
     ════════════════════════════════════════════════════ #}
-    <div style="background: var(--pp-surface); padding: 32px 40px 28px; border-bottom: 1px solid var(--pp-border);">
+    <div style="padding: 28px 32px 24px; max-width: 1400px; margin: 0 auto;">
 
-        {# Breadcrumb #}
-        <div style="display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--pp-textDim); margin-bottom: 20px; font-weight: 500;">
-            <a href="/" style="color: var(--pp-textMuted); text-decoration: none; font-size: 16px;">&#x1F3E0;</a>
-            <span>&#x203A;</span>
-            <span style="color: var(--pp-text);">Kandidaten</span>
-        </div>
-
-        {# Title + Subtitle #}
-        <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; flex-wrap: wrap;">
+        {# Title Row #}
+        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
+            <div class="aurora-section-icon blue" style="width: 40px; height: 40px; border-radius: 12px;">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128H5.228A2 2 0 013 17.208V5.45a2 2 0 012-2h14a2 2 0 012 2v5.5M9.75 7.5a2.25 2.25 0 110 4.5 2.25 2.25 0 010-4.5z"/></svg>
+            </div>
             <div>
-                <h1 style="font-size: 32px; font-weight: 800; color: var(--pp-text); letter-spacing: -0.03em; margin: 0;">Kandidaten</h1>
-                <p style="font-size: 16px; color: var(--pp-textMuted); margin-top: 6px; font-weight: 400;">Alle Kandidaten im System</p>
+                <h1 style="font-size: 24px; font-weight: 700; color: var(--pp-text); letter-spacing: -0.03em; margin: 0; line-height: 1.2;">Kandidaten</h1>
+                <p style="font-size: 13px; color: var(--pp-textMuted); margin-top: 2px;">Alle Kandidaten im System</p>
             </div>
         </div>
 
-        {# Stats Bar #}
-        <div style="display: flex; gap: 14px; margin-top: 22px; flex-wrap: wrap;">
+        {# Stats Bar — Aurora Glass Cards #}
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
             <div class="kl-stat-card">
                 <div class="kl-stat-value" id="kl-stat-total">—</div>
                 <div class="kl-stat-label">Ergebnisse</div>
@@ -262,7 +290,7 @@
     {# ════════════════════════════════════════════════════
        FILTER & SEARCH AREA
     ════════════════════════════════════════════════════ #}
-    <div style="padding: 22px 40px 0;" class="kl-anim" style="animation-delay: 0.1s;">
+    <div style="padding: 0 32px; max-width: 1400px; margin: 0 auto;" class="kl-anim">
 
         {# Row: Chips + Search + Select + Per-Page #}
         <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
@@ -400,7 +428,7 @@
     {# ════════════════════════════════════════════════════
        TABLE CONTAINER
     ════════════════════════════════════════════════════ #}
-    <div style="padding: 18px 40px 40px;">
+    <div style="padding: 18px 32px 40px; max-width: 1400px; margin: 0 auto;">
         <div class="kl-table-card kl-anim" style="animation-delay: 0.2s;">
             <div id="candidates-list" hx-swap="innerHTML">
                 {# Loading State #}
