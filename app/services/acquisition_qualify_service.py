@@ -168,21 +168,21 @@ class AcquisitionQualifyService:
             elif len(nums) == 1:
                 ats_job.salary_min = nums[0]
 
-        # Direkte Textfeld-Mappings
+        # Direkte Textfeld-Mappings (ats_field, max_length passend zum DB-Schema)
         mapping = {
-            "teamgroesse": "team_size",
-            "home_office": "home_office_days",
-            "software": "erp_system",
-            "arbeitszeiten": "core_hours",
-            "ueberstunden": "overtime_handling",
-            "bewerbungsprozess": "hiring_process_steps",
-            "englisch": "english_requirements",
-            "timeline": "desired_start_date",
+            "teamgroesse": ("team_size", 100),
+            "home_office": ("home_office_days", 100),
+            "software": ("erp_system", 255),
+            "arbeitszeiten": ("core_hours", 100),
+            "ueberstunden": ("overtime_handling", 255),
+            "bewerbungsprozess": ("hiring_process_steps", 500),
+            "englisch": ("english_requirements", 255),
+            "timeline": ("desired_start_date", 100),
         }
-        for qa_key, ats_field in mapping.items():
+        for qa_key, (ats_field, max_len) in mapping.items():
             answer = _get_answer(qa_key)
             if answer and not getattr(ats_job, ats_field, None):
-                setattr(ats_job, ats_field, answer[:500])  # Truncate safety
+                setattr(ats_job, ats_field, answer[:max_len])
 
         # Boolean-Mappings
         aeltere = _get_answer("aeltere_kandidaten")
