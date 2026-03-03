@@ -495,7 +495,7 @@
         <div class="aq-modal-content" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:14px;width:560px;max-width:90vw;max-height:85vh;overflow:auto;z-index:151;box-shadow:0 20px 60px rgba(0,0,0,0.5);">
             <div style="padding:20px 24px;border-bottom:1px solid var(--pp-border);display:flex;align-items:center;justify-content:space-between;">
                 <h3 style="font-size:16px;font-weight:600;color:var(--pp-text);margin:0;">Lead anlegen</h3>
-                <button @click="showManualLead = false; mlStep = 1; mlRawText = ''; mlExtracted = false;" style="background:none;border:none;color:var(--pp-textDim);cursor:pointer;font-size:18px;">&times;</button>
+                <button @click="showManualLead = false; mlStep = 1; mlRawText = ''; mlExtracted = false; mlContacts = [];" style="background:none;border:none;color:var(--pp-textDim);cursor:pointer;font-size:18px;">&times;</button>
             </div>
 
             {# ── Step 1: Text einfuegen ── #}
@@ -560,44 +560,124 @@
                                style="width:100%;padding:8px 12px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;box-sizing:border-box;">
                     </div>
                 </div>
-                <p style="font-size:12px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.5px;margin:0 0 10px;">Ansprechpartner</p>
-                <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:10px;margin-bottom:10px;">
-                    <div>
-                        <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">Anrede</label>
-                        <select x-model="mlSalutation" style="padding:8px 10px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;">
-                            <option value="">—</option>
-                            <option value="Herr">Herr</option>
-                            <option value="Frau">Frau</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">Vorname</label>
-                        <input type="text" x-model="mlFirstName" placeholder="Vorname"
-                               style="width:100%;padding:8px 12px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;box-sizing:border-box;">
-                    </div>
-                    <div>
-                        <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">Nachname</label>
-                        <input type="text" x-model="mlLastName" placeholder="Nachname"
-                               style="width:100%;padding:8px 12px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;box-sizing:border-box;">
-                    </div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                    <p style="font-size:12px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.5px;margin:0;">
+                        Ansprechpartner
+                        <span x-show="mlContacts.length > 0" style="font-weight:400;color:var(--pp-accent);margin-left:4px;" x-text="'(' + mlContacts.length + ')'"></span>
+                    </p>
+                    <button type="button" @click="mlContacts.push({salutation:'',first_name:'',last_name:'',position:'',email:'',phone:'',expanded:true})"
+                            style="padding:3px 10px;background:none;border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-accent);font-size:11px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">
+                        <svg style="width:12px;height:12px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                        Hinzufuegen
+                    </button>
                 </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-                    <div>
-                        <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">Telefon</label>
-                        <input type="tel" x-model="mlPhone" placeholder="z.B. 040 123456"
-                               style="width:100%;padding:8px 12px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;box-sizing:border-box;">
+
+                {# Multi-Kontakt-Liste #}
+                <template x-if="mlContacts.length > 0">
+                    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;">
+                        <template x-for="(contact, idx) in mlContacts" :key="idx">
+                            <div style="background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;overflow:hidden;">
+                                {# Kompakte Zeile #}
+                                <div @click="contact.expanded = !contact.expanded" style="padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;">
+                                    <div style="width:28px;height:28px;border-radius:50%;background:var(--pp-surface3);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                                        <svg style="width:14px;height:14px;color:var(--pp-textDim);" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/></svg>
+                                    </div>
+                                    <div style="flex:1;min-width:0;">
+                                        <div style="font-size:13px;color:var(--pp-text);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" x-text="(contact.salutation ? contact.salutation + ' ' : '') + (contact.first_name || '') + ' ' + (contact.last_name || '') || 'Neuer Kontakt'"></div>
+                                        <div style="font-size:11px;color:var(--pp-textDim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" x-text="[contact.position, contact.phone, contact.email].filter(Boolean).join(' · ') || 'Keine Details'"></div>
+                                    </div>
+                                    <button type="button" @click.stop="mlContacts.splice(idx, 1)" style="background:none;border:none;color:var(--pp-textDim);cursor:pointer;padding:4px;" title="Entfernen">
+                                        <svg style="width:14px;height:14px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                    </button>
+                                    <svg style="width:12px;height:12px;color:var(--pp-textDim);transition:transform .15s;flex-shrink:0;" :style="contact.expanded ? 'transform:rotate(180deg)' : ''" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+                                </div>
+                                {# Aufklappbare Detail-Felder #}
+                                <div x-show="contact.expanded" x-transition style="padding:0 12px 10px;border-top:1px solid var(--pp-border);">
+                                    <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:8px;margin-top:10px;">
+                                        <div>
+                                            <label style="font-size:11px;color:var(--pp-textDim);display:block;margin-bottom:3px;">Anrede</label>
+                                            <select x-model="contact.salutation" style="padding:6px 8px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;">
+                                                <option value="">—</option>
+                                                <option value="Herr">Herr</option>
+                                                <option value="Frau">Frau</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label style="font-size:11px;color:var(--pp-textDim);display:block;margin-bottom:3px;">Vorname</label>
+                                            <input type="text" x-model="contact.first_name" placeholder="Vorname"
+                                                   style="width:100%;padding:6px 10px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;box-sizing:border-box;">
+                                        </div>
+                                        <div>
+                                            <label style="font-size:11px;color:var(--pp-textDim);display:block;margin-bottom:3px;">Nachname</label>
+                                            <input type="text" x-model="contact.last_name" placeholder="Nachname"
+                                                   style="width:100%;padding:6px 10px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;box-sizing:border-box;">
+                                        </div>
+                                    </div>
+                                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
+                                        <div>
+                                            <label style="font-size:11px;color:var(--pp-textDim);display:block;margin-bottom:3px;">Telefon</label>
+                                            <input type="tel" x-model="contact.phone" placeholder="040 123456"
+                                                   style="width:100%;padding:6px 10px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;box-sizing:border-box;">
+                                        </div>
+                                        <div>
+                                            <label style="font-size:11px;color:var(--pp-textDim);display:block;margin-bottom:3px;">E-Mail</label>
+                                            <input type="email" x-model="contact.email" placeholder="name@firma.de"
+                                                   style="width:100%;padding:6px 10px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;box-sizing:border-box;">
+                                        </div>
+                                    </div>
+                                    <div style="margin-top:8px;">
+                                        <label style="font-size:11px;color:var(--pp-textDim);display:block;margin-bottom:3px;">Funktion</label>
+                                        <input type="text" x-model="contact.position" placeholder="z.B. Personalleitung"
+                                               style="width:100%;padding:6px 10px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;box-sizing:border-box;">
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
                     </div>
+                </template>
+
+                {# Fallback: Einzelkontakt-Formular wenn keine Kontakte extrahiert #}
+                <template x-if="mlContacts.length === 0">
                     <div>
-                        <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">E-Mail</label>
-                        <input type="email" x-model="mlEmail" placeholder="name@firma.de"
-                               style="width:100%;padding:8px 12px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;box-sizing:border-box;">
+                        <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:10px;margin-bottom:10px;">
+                            <div>
+                                <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">Anrede</label>
+                                <select x-model="mlSalutation" style="padding:8px 10px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;">
+                                    <option value="">—</option>
+                                    <option value="Herr">Herr</option>
+                                    <option value="Frau">Frau</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">Vorname</label>
+                                <input type="text" x-model="mlFirstName" placeholder="Vorname"
+                                       style="width:100%;padding:8px 12px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;box-sizing:border-box;">
+                            </div>
+                            <div>
+                                <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">Nachname</label>
+                                <input type="text" x-model="mlLastName" placeholder="Nachname"
+                                       style="width:100%;padding:8px 12px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;box-sizing:border-box;">
+                            </div>
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+                            <div>
+                                <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">Telefon</label>
+                                <input type="tel" x-model="mlPhone" placeholder="z.B. 040 123456"
+                                       style="width:100%;padding:8px 12px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;box-sizing:border-box;">
+                            </div>
+                            <div>
+                                <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">E-Mail</label>
+                                <input type="email" x-model="mlEmail" placeholder="name@firma.de"
+                                       style="width:100%;padding:8px 12px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;box-sizing:border-box;">
+                            </div>
+                        </div>
+                        <div>
+                            <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">Funktion / Position</label>
+                            <input type="text" x-model="mlContactPosition" placeholder="z.B. Personalleitung"
+                                   style="width:100%;padding:8px 12px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;box-sizing:border-box;">
+                        </div>
                     </div>
-                </div>
-                <div>
-                    <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">Funktion / Position</label>
-                    <input type="text" x-model="mlContactPosition" placeholder="z.B. Personalleitung"
-                           style="width:100%;padding:8px 12px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;box-sizing:border-box;">
-                </div>
+                </template>
                 <div style="margin-top:14px;">
                     <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">Notizen</label>
                     <textarea x-model="mlNotes" rows="2" placeholder="Kontext, Hintergrund..."
@@ -612,7 +692,7 @@
                     </template>
                 </div>
                 <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px;">
-                    <button type="button" @click="showManualLead = false; mlStep = 1; mlRawText = ''; mlExtracted = false;"
+                    <button type="button" @click="showManualLead = false; mlStep = 1; mlRawText = ''; mlExtracted = false; mlContacts = [];"
                             style="padding:8px 16px;background:var(--pp-surface3);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-textMuted);font-size:13px;font-weight:500;cursor:pointer;">
                         Abbrechen
                     </button>
@@ -1191,6 +1271,7 @@ function akquisePage() {
         mlEmail: '',
         mlContactPosition: '',
         mlNotes: '',
+        mlContacts: [],
         mlSaving: false,
         mlResult: null,
 
@@ -1457,13 +1538,35 @@ function akquisePage() {
                     this.mlPosition = data.position || '';
                     this.mlCity = data.city || '';
                     this.mlPostalCode = data.postal_code || '';
-                    this.mlSalutation = data.contact_salutation || '';
-                    this.mlFirstName = data.contact_first_name || '';
-                    this.mlLastName = data.contact_last_name || '';
-                    this.mlContactPosition = data.contact_position || '';
-                    this.mlEmail = data.contact_email || '';
-                    this.mlPhone = data.contact_phone || '';
                     this.mlNotes = data.notes || '';
+                    // Multi-Kontakt: Array aus Response uebernehmen
+                    if (data.contacts && data.contacts.length > 0) {
+                        this.mlContacts = data.contacts.map(c => ({
+                            salutation: c.salutation || '',
+                            first_name: c.first_name || '',
+                            last_name: c.last_name || '',
+                            position: c.position || '',
+                            email: c.email || '',
+                            phone: c.phone || '',
+                            expanded: false,
+                        }));
+                        // Ersten Kontakt auch in alte Felder (Fallback)
+                        const first = data.contacts[0];
+                        this.mlSalutation = first.salutation || '';
+                        this.mlFirstName = first.first_name || '';
+                        this.mlLastName = first.last_name || '';
+                        this.mlContactPosition = first.position || '';
+                        this.mlEmail = first.email || '';
+                        this.mlPhone = first.phone || '';
+                    } else {
+                        this.mlContacts = [];
+                        this.mlSalutation = data.contact_salutation || '';
+                        this.mlFirstName = data.contact_first_name || '';
+                        this.mlLastName = data.contact_last_name || '';
+                        this.mlContactPosition = data.contact_position || '';
+                        this.mlEmail = data.contact_email || '';
+                        this.mlPhone = data.contact_phone || '';
+                    }
                     this.mlExtracted = true;
                     this.mlStep = 2;
                 } else {
@@ -1483,29 +1586,53 @@ function akquisePage() {
             }
             this.mlSaving = true;
             this.mlResult = null;
+
+            // Kontakte aus mlContacts oder alten Einzelfeldern
+            let contacts = null;
+            if (this.mlContacts.length > 0) {
+                contacts = this.mlContacts
+                    .filter(c => c.first_name || c.last_name)
+                    .map(c => ({
+                        salutation: c.salutation || null,
+                        first_name: c.first_name || null,
+                        last_name: c.last_name || null,
+                        position: c.position || null,
+                        email: c.email || null,
+                        phone: c.phone || null,
+                    }));
+                if (contacts.length === 0) contacts = null;
+            }
+
             try {
+                const payload = {
+                    company_name: this.mlCompanyName.trim(),
+                    position: this.mlPosition.trim(),
+                    city: this.mlCity.trim() || null,
+                    postal_code: this.mlPostalCode.trim() || null,
+                    notes: this.mlNotes.trim() || null,
+                    raw_text: this.mlRawText.trim() || null,
+                };
+                if (contacts) {
+                    payload.contacts = contacts;
+                } else if (this.mlFirstName.trim() || this.mlLastName.trim()) {
+                    // Fallback: alte Einzelfelder
+                    payload.contact_salutation = this.mlSalutation || null;
+                    payload.contact_first_name = this.mlFirstName.trim() || null;
+                    payload.contact_last_name = this.mlLastName.trim() || null;
+                    payload.contact_position = this.mlContactPosition.trim() || null;
+                    payload.contact_email = this.mlEmail.trim() || null;
+                    payload.contact_phone = this.mlPhone.trim() || null;
+                }
+
                 const resp = await fetch('/api/akquise/leads/manual', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        company_name: this.mlCompanyName.trim(),
-                        position: this.mlPosition.trim(),
-                        city: this.mlCity.trim() || null,
-                        postal_code: this.mlPostalCode.trim() || null,
-                        contact_salutation: this.mlSalutation || null,
-                        contact_first_name: this.mlFirstName.trim() || null,
-                        contact_last_name: this.mlLastName.trim() || null,
-                        contact_position: this.mlContactPosition.trim() || null,
-                        contact_email: this.mlEmail.trim() || null,
-                        contact_phone: this.mlPhone.trim() || null,
-                        notes: this.mlNotes.trim() || null,
-                        raw_text: this.mlRawText.trim() || null,
-                    }),
+                    body: JSON.stringify(payload),
                 });
                 if (resp.ok) {
                     const data = await resp.json();
                     this.mlResult = data;
-                    if (typeof showToast === 'function') showToast('Lead erstellt: ' + data.company_name + ' — ' + data.position, 'success');
+                    if (typeof showToast === 'function') showToast(data.message + ': ' + data.company_name + ' — ' + data.position, 'success');
                     // Reset form
                     this.mlCompanyName = '';
                     this.mlCity = '';
@@ -1518,11 +1645,12 @@ function akquisePage() {
                     this.mlEmail = '';
                     this.mlContactPosition = '';
                     this.mlNotes = '';
+                    this.mlContacts = [];
                     // Refresh
                     this.loadTab(this.activeTab);
                     fetch('/api/akquise/stats').then(r => r.json()).then(d => this.stats = d).catch(() => {});
                     // Modal nach 1.5s schliessen
-                    setTimeout(() => { this.showManualLead = false; this.mlResult = null; this.mlStep = 1; this.mlRawText = ''; this.mlExtracted = false; }, 1500);
+                    setTimeout(() => { this.showManualLead = false; this.mlResult = null; this.mlStep = 1; this.mlRawText = ''; this.mlExtracted = false; this.mlContacts = []; }, 1500);
                 } else {
                     const err = await resp.json();
                     this.mlResult = { error: err.detail || 'Fehler beim Erstellen' };

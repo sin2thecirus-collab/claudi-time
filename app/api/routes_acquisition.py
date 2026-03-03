@@ -81,17 +81,29 @@ class QualifyRequest(BaseModel):
     qualification_data: dict | None = None
 
 
+class ContactData(BaseModel):
+    salutation: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+    position: str | None = None
+    email: str | None = None
+    phone: str | None = None
+
+
 class ManualLeadRequest(BaseModel):
     company_name: str
     position: str
     city: str | None = None
     postal_code: str | None = None
+    # Alte single-contact Felder (Rueckwaertskompatibilitaet)
     contact_salutation: str | None = None
     contact_first_name: str | None = None
     contact_last_name: str | None = None
     contact_position: str | None = None
     contact_email: str | None = None
     contact_phone: str | None = None
+    # NEU: Multi-Contact Support
+    contacts: list[ContactData] | None = None
     notes: str | None = None
     raw_text: str | None = None  # Originaler Rohtext → wird als job_text gespeichert
 
@@ -537,43 +549,57 @@ async def extract_lead_from_text(body: ExtractLeadRequest):
     system_prompt = """Du bist ein Daten-Extraktor fuer ein Recruiting-CRM.
 Extrahiere aus dem folgenden Text alle relevanten Informationen fuer einen neuen Lead.
 
+WICHTIG: Extrahiere ALLE Ansprechpartner die du im Text findest, nicht nur einen!
+
 Antworte IMMER als JSON mit genau diesen Feldern (leere Felder als null):
 {
   "company_name": "Firmenname (PFLICHT)",
   "position": "Jobtitel / gesuchte Position (PFLICHT)",
   "city": "Stadt/Ort",
   "postal_code": "PLZ",
-  "contact_salutation": "Herr oder Frau",
-  "contact_first_name": "Vorname des Ansprechpartners",
-  "contact_last_name": "Nachname des Ansprechpartners",
-  "contact_position": "Funktion/Rolle des Ansprechpartners (z.B. Personalleitung, GF)",
-  "contact_email": "E-Mail-Adresse",
-  "contact_phone": "Telefonnummer",
-  "notes": "Zusammenfassung / wichtige Details die nicht in andere Felder passen"
+  "notes": "Zusammenfassung / wichtige Details die nicht in andere Felder passen",
+  "contacts": [
+    {
+      "salutation": "Herr oder Frau",
+      "first_name": "Vorname",
+      "last_name": "Nachname",
+      "position": "Funktion/Rolle (z.B. Personalrecruiter, Leiter HR)",
+      "email": "E-Mail-Adresse",
+      "phone": "Telefonnummer"
+    }
+  ]
 }
 
 Regeln:
 - Extrahiere NUR was im Text steht, erfinde NICHTS
 - Wenn ein Feld nicht im Text vorkommt, setze null
-- "position" ist die ZU BESETZENDE Stelle, nicht die Funktion des Ansprechpartners
-- Wenn mehrere Positionen erwaehnt werden, nimm die wichtigste/erste
+- "position" (oberste Ebene) ist die ZU BESETZENDE Stelle, nicht die Funktion eines Ansprechpartners
+- "position" in contacts ist die FUNKTION/ROLLE des Ansprechpartners (z.B. "Personalrecruiter")
+- Wenn mehrere Positionen (Stellen) erwaehnt werden, nimm die wichtigste/erste
+- contacts ist ein ARRAY — gib ALLE gefundenen Personen zurueck, auch 5 oder mehr!
+- Wenn keine Kontakte gefunden werden, gib ein leeres Array zurueck: "contacts": []
 
-KONTAKTDATEN FINDEN — durchsuche den Text gruendlich nach:
-- E-Mail-Signaturen (Name, Titel, Firma, Tel, Email am Ende einer Nachricht)
-- "Ansprechpartner:", "Kontakt:", "Ihr Ansprechpartner", "Bewerbungen an"
-- Zeilen mit Tel/Fon/Phone/Mobil gefolgt von Nummern
-- E-Mail-Adressen (alles mit @)
-- "Frau X" oder "Herr Y" im Fliesstext
+ANSPRECHPARTNER FINDEN — durchsuche den GESAMTEN Text gruendlich nach:
+- "Ihre Ansprechpartner:", "Ansprechpartner:", "Kontakt:", "Bewerbungen an"
+- ALLE Personen mit Name + Telefon und/oder Email
+- Jede Zeile die "Herr" oder "Frau" gefolgt von einem Namen enthaelt
+- Jede Zeile die eine Telefonnummer UND/ODER Email enthalt — die Person dazu finden
+- E-Mail-Signaturen am Ende (Name, Titel, Firma, Tel, Email)
 - Absenderzeilen wie "Von:", "From:", oder der Name vor einer E-Mail-Adresse
-- Visitenkarten-Bloecke am Ende (Name / Firma / Tel / Email)
-- LinkedIn-Profile, XING-Profile (Name extrahieren)
-- Bei Stellenanzeigen: der Recruiter/HR-Kontakt steht oft am Ende
+- Visitenkarten-Bloecke (Name / Firma / Tel / Email)
+- Listen von Ansprechpartnern (haeufig am Ende von Stellenanzeigen)
+- Wenn mehrere Email-Adressen und/oder Telefonnummern verschiedenen Personen gehoeren, erstelle fuer JEDE Person einen eigenen Eintrag!
 
 TELEFONNUMMERN — suche nach allen Formaten:
 - +49 123 456789, 0123/456789, (0123) 456-789, 0049 123 456789
 - "Tel:", "Fon:", "Phone:", "Mobil:", "Handy:", "M:", "T:", "Telefon:"
 - Nummern die direkt nach einem Namen stehen
-- Originalformat beibehalten"""
+- Originalformat beibehalten
+
+SALUTATION ABLEITEN:
+- Wenn "Herr" im Text steht → "Herr"
+- Wenn "Frau" im Text steht → "Frau"
+- Sonst: null"""
 
     user_prompt = f"Extrahiere die Lead-Daten aus diesem Text:\n\n{raw_text[:3000]}"
 
@@ -601,19 +627,36 @@ TELEFONNUMMERN — suche nach allen Formaten:
 
         parsed = json.loads(content)
 
-        # Sicherstellen dass Pflichtfelder vorhanden
+        # Contacts-Array normalisieren
+        raw_contacts = parsed.get("contacts") or []
+        contacts = []
+        for c in raw_contacts:
+            if isinstance(c, dict) and (c.get("first_name") or c.get("last_name")):
+                contacts.append({
+                    "salutation": c.get("salutation"),
+                    "first_name": c.get("first_name"),
+                    "last_name": c.get("last_name"),
+                    "position": c.get("position"),
+                    "email": c.get("email"),
+                    "phone": c.get("phone"),
+                })
+
+        # Rueckwaertskompatibilitaet: alte flache Felder aus erstem Kontakt
+        first = contacts[0] if contacts else {}
+
         result = {
             "company_name": parsed.get("company_name") or "",
             "position": parsed.get("position") or "",
             "city": parsed.get("city"),
             "postal_code": parsed.get("postal_code"),
-            "contact_salutation": parsed.get("contact_salutation"),
-            "contact_first_name": parsed.get("contact_first_name"),
-            "contact_last_name": parsed.get("contact_last_name"),
-            "contact_position": parsed.get("contact_position"),
-            "contact_email": parsed.get("contact_email"),
-            "contact_phone": parsed.get("contact_phone"),
+            "contact_salutation": first.get("salutation") or parsed.get("contact_salutation"),
+            "contact_first_name": first.get("first_name") or parsed.get("contact_first_name"),
+            "contact_last_name": first.get("last_name") or parsed.get("contact_last_name"),
+            "contact_position": first.get("position") or parsed.get("contact_position"),
+            "contact_email": first.get("email") or parsed.get("contact_email"),
+            "contact_phone": first.get("phone") or parsed.get("contact_phone"),
             "notes": parsed.get("notes"),
+            "contacts": contacts,
         }
         return result
 
@@ -625,6 +668,24 @@ TELEFONNUMMERN — suche nach allen Formaten:
         raise HTTPException(500, "Extraktion fehlgeschlagen — bitte manuell ausfuellen")
 
 
+def _normalize_phone(raw_phone: str | None) -> str | None:
+    """Telefonnummer in E.164-Format normalisieren."""
+    import re
+
+    if not raw_phone or not raw_phone.strip():
+        return None
+    phone = re.sub(r"[^0-9+]", "", raw_phone.strip())
+    if not phone:
+        return None
+    if phone.startswith("0") and not phone.startswith("00"):
+        phone = "+49" + phone[1:]
+    elif phone.startswith("00"):
+        phone = "+" + phone[2:]
+    elif not phone.startswith("+"):
+        phone = "+49" + phone
+    return phone[:20]
+
+
 @router.post("/leads/manual")
 async def create_manual_lead(
     body: ManualLeadRequest,
@@ -632,10 +693,9 @@ async def create_manual_lead(
 ):
     """Einzelnen Lead manuell anlegen (ohne CSV-Import).
 
-    Erstellt Company (oder nutzt bestehende), optionalen Ansprechpartner und Job.
+    Erstellt Company (oder nutzt bestehende), ALLE Ansprechpartner und Job.
     Der Job landet mit akquise_status='neu' im Akquise-Workflow.
     """
-    import re
     from app.services.company_service import CompanyService
 
     now = datetime.now(timezone.utc)
@@ -652,36 +712,38 @@ async def create_manual_lead(
             f"Firma '{body.company_name}' ist auf der Blacklist und kann nicht hinzugefuegt werden.",
         )
 
-    # 2. Ansprechpartner erstellen (wenn Name angegeben)
-    contact_id = None
-    if body.contact_first_name or body.contact_last_name:
-        # Phone normalisieren (gleiche Logik wie import_service)
-        phone_normalized = None
-        raw_phone = body.contact_phone
-        if raw_phone and raw_phone.strip():
-            phone = re.sub(r"[^0-9+]", "", raw_phone.strip())
-            if phone:
-                if phone.startswith("0") and not phone.startswith("00"):
-                    phone = "+49" + phone[1:]
-                elif phone.startswith("00"):
-                    phone = "+" + phone[2:]
-                elif not phone.startswith("+"):
-                    phone = "+49" + phone
-                phone_normalized = phone[:20]
+    # 2. Ansprechpartner erstellen — Multi-Contact mit Fallback auf alte Felder
+    contact_ids = []
+    contacts_to_create: list[ContactData] = []
 
-        contact = await company_service.get_or_create_contact(
-            company_id=company.id,
+    if body.contacts:
+        contacts_to_create = [c for c in body.contacts if c.first_name or c.last_name]
+    elif body.contact_first_name or body.contact_last_name:
+        # Rueckwaertskompatibilitaet: alte single-contact Felder
+        contacts_to_create = [ContactData(
+            salutation=body.contact_salutation,
             first_name=body.contact_first_name,
             last_name=body.contact_last_name,
-            salutation=body.contact_salutation,
             position=body.contact_position,
             email=body.contact_email,
             phone=body.contact_phone,
+        )]
+
+    for c in contacts_to_create:
+        phone_normalized = _normalize_phone(c.phone)
+        contact = await company_service.get_or_create_contact(
+            company_id=company.id,
+            first_name=c.first_name,
+            last_name=c.last_name,
+            salutation=c.salutation,
+            position=c.position,
+            email=c.email,
+            phone=c.phone,
             phone_normalized=phone_normalized,
             source="manual",
             contact_role="firma",
         )
-        contact_id = str(contact.id)
+        contact_ids.append(str(contact.id))
 
     # 3. Job erstellen
     job = Job(
@@ -707,14 +769,18 @@ async def create_manual_lead(
     await db.flush()
 
     await db.commit()
+
+    n_contacts = len(contact_ids)
+    msg = f"Lead erfolgreich erstellt" + (f" mit {n_contacts} Ansprechpartner{'n' if n_contacts != 1 else ''}" if n_contacts else "")
     return {
         "job_id": str(job.id),
         "company_id": str(company.id),
-        "contact_id": contact_id,
+        "contact_id": contact_ids[0] if contact_ids else None,
+        "contact_ids": contact_ids,
         "company_name": company.name,
         "position": job.position,
         "status": "neu",
-        "message": "Lead erfolgreich erstellt",
+        "message": msg,
     }
 
 
