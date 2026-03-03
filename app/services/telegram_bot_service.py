@@ -622,51 +622,60 @@ async def _handle_stats(chat_id: str) -> None:
 
 # ── Free-Text Handler ────────────────────────────────────────────
 
+async def _dispatch_intent(chat_id: str, intent: str, entities: dict, text: str) -> None:
+    """Fuehrt einen einzelnen Intent aus."""
+    if intent == "task_list":
+        await _handle_task_list(chat_id)
+    elif intent == "task_create":
+        await _handle_task_create(chat_id, entities)
+    elif intent == "task_complete":
+        await send_message("Bitte gib die Aufgaben-ID an: /done &lt;id&gt;", chat_id=chat_id)
+    elif intent == "candidate_search":
+        name = entities.get("name", "")
+        if name:
+            await _handle_candidate_search(chat_id, name)
+        else:
+            await send_message("Wen suchst du? Bitte gib einen Namen an.", chat_id=chat_id)
+    elif intent == "briefing":
+        await _handle_briefing(chat_id)
+    elif intent == "call_log":
+        from app.services.telegram_call_handler import handle_call_log
+        await handle_call_log(chat_id, text)
+    elif intent == "email_send":
+        from app.services.telegram_email_handler import handle_email_send
+        await handle_email_send(chat_id, text, entities)
+    elif intent == "calendar_create":
+        from app.services.telegram_calendar_handler import handle_calendar_create
+        await handle_calendar_create(chat_id, text, entities)
+    else:
+        await send_message(
+            "Das habe ich nicht verstanden. Tippe /help fuer verfuegbare Kommandos.",
+            chat_id=chat_id,
+        )
+
+
 async def _handle_free_text(chat_id: str, text: str) -> None:
-    """Verarbeitet Freitext-Nachrichten via GPT Intent-Klassifikation."""
+    """Verarbeitet Freitext-Nachrichten via GPT Intent-Klassifikation.
+
+    Unterstuetzt Multi-Intent: bis zu 2 Aufgaben in einer Nachricht.
+    """
     try:
         from app.services.telegram_intent_service import classify_intent
 
         result = await classify_intent(text)
         intent = result.get("intent", "unknown")
         entities = result.get("entities", {})
+        secondary = result.get("secondary", [])
 
-        if intent == "task_list":
-            await _handle_task_list(chat_id)
-        elif intent == "task_create":
-            await _handle_task_create(chat_id, entities)
-        elif intent == "task_complete":
-            name = entities.get("name", entities.get("title", ""))
-            if name:
-                await send_message(
-                    f"Welche Aufgabe meinst du?\n"
-                    f"Bitte verwende: /done &lt;Aufgaben-ID&gt;",
-                    chat_id=chat_id,
-                )
-            else:
-                await send_message("Bitte gib die Aufgaben-ID an: /done &lt;id&gt;", chat_id=chat_id)
-        elif intent == "candidate_search":
-            name = entities.get("name", "")
-            if name:
-                await _handle_candidate_search(chat_id, name)
-            else:
-                await send_message("Wen suchst du? Bitte gib einen Namen an.", chat_id=chat_id)
-        elif intent == "briefing":
-            await _handle_briefing(chat_id)
-        elif intent == "call_log":
-            from app.services.telegram_call_handler import handle_call_log
-            await handle_call_log(chat_id, text)
-        elif intent == "email_send":
-            from app.services.telegram_email_handler import handle_email_send
-            await handle_email_send(chat_id, text, entities)
-        elif intent == "calendar_create":
-            from app.services.telegram_calendar_handler import handle_calendar_create
-            await handle_calendar_create(chat_id, text, entities)
-        else:
-            await send_message(
-                "Das habe ich nicht verstanden. Tippe /help fuer verfuegbare Kommandos.",
-                chat_id=chat_id,
-            )
+        # Primaeren Intent ausfuehren
+        await _dispatch_intent(chat_id, intent, entities, text)
+
+        # Sekundaere Intents nacheinander ausfuehren (max. 1 weiterer)
+        for sec in secondary[:1]:
+            sec_intent = sec.get("intent", "unknown")
+            sec_entities = sec.get("entities", {})
+            if sec_intent and sec_intent != "unknown":
+                await _dispatch_intent(chat_id, sec_intent, sec_entities, text)
 
     except Exception as e:
         logger.error(f"Freitext-Handler fehlgeschlagen: {e}", exc_info=True)

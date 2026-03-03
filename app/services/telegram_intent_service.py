@@ -19,10 +19,7 @@ INTENT_SYSTEM_PROMPT_TEMPLATE = """Du bist ein Intent-Klassifikator fuer einen R
 
 HEUTE ist {today} ({weekday}). Verwende dieses Datum als Referenz fuer relative Angaben wie "morgen", "Samstag", "naechste Woche" etc.
 
-WICHTIG: Wenn eine Nachricht mehrere Aufgaben enthaelt (z.B. "schreibe Email UND erstelle Aufgabe"), waehle den ERSTEN genannten Intent. Der User schickt die zweite Aufgabe danach als separate Nachricht.
-
-Klassifiziere die Nachricht des Users in GENAU EINEN der folgenden Intents:
-
+Verfuegbare Intents:
 - task_list: User will seine Aufgaben sehen ("Was steht an?", "Aufgaben heute", "Todos")
 - task_create: User will eine neue Aufgabe erstellen ("Erstelle Aufgabe...", "Erinnerung: ...", "Morgen um 14 Uhr...")
 - task_complete: User hat eine Aufgabe erledigt ("Erledigt: ...", "Done: ...")
@@ -33,23 +30,30 @@ Klassifiziere die Nachricht des Users in GENAU EINEN der folgenden Intents:
 - calendar_create: User will einen Termin erstellen ("Erstelle Termin mit...", "Terminiere...", "Meeting am...")
 - unknown: Keiner der obigen Intents passt
 
-Extrahiere zusaetzlich relevante Entitaeten:
-- name: Name einer Person/Firma (falls erwaehnt). PFLICHT bei email_send, calendar_create und task_create — extrahiere ihn aus "an [Name]", "fuer [Name]", "bei [Name]", "mit [Name]" etc.
-- date: Datum (MUSS im Format YYYY-MM-DD sein, berechne aus dem heutigen Datum)
-- time: Uhrzeit (falls erwaehnt, Format: HH:MM)
-- title: Titel/Beschreibung einer Aufgabe. WICHTIG: Der Name der Person ist NICHT der Titel! "Aufgabe fuer Max Mueller: anrufen" -> name="Max Mueller", title="anrufen". Wenn kein expliziter Titel genannt wird, erstelle einen kurzen aus dem Kontext.
-- priority: Prioritaet (dringend/wichtig/normal, falls erwaehnt)
-- instruction: Bei email_send — der Inhalt/Anweisung fuer die Email (alles NACH dem Empfaengernamen)
-- duration: Bei calendar_create — Dauer des Termins in Minuten (Default: 30)
+Extrahiere fuer jeden Intent relevante Entitaeten:
+- name: Name einer Person/Firma. PFLICHT bei email_send, calendar_create, task_create.
+- date: Datum im Format YYYY-MM-DD (berechne aus heutigem Datum)
+- time: Uhrzeit im Format HH:MM
+- title: Aufgaben-Titel (NICHT der Personenname!)
+- priority: dringend/wichtig/normal
+- instruction: Bei email_send — Anweisung/Inhalt der Email
+- duration: Bei calendar_create — Dauer in Minuten (Default: 30)
 
-BEISPIELE fuer task_create Entity-Extraktion:
-- "Aufgabe fuer Testo Kandidat: 1,2,3 Telefongespraeche" -> name="Testo Kandidat", title="1,2,3 Telefongespraeche"
-- "Erstelle Aufgabe bei Max Mueller morgen anrufen" -> name="Max Mueller", title="Morgen anrufen"
-- "Erinnerung: Mueller Feedback geben am Freitag" -> name="Mueller", title="Feedback geben", date=Freitag
-- "Aufgabe: Bewerbungsunterlagen sichten" -> name="", title="Bewerbungsunterlagen sichten" (kein Name erwaehnt)
+MULTI-INTENT: Wenn die Nachricht mehrere Aufgaben enthaelt, erkenne bis zu 2 Intents.
+Gib den ERSTEN als "intent"+"entities" zurueck, weitere in "secondary" als Array.
 
-Antworte NUR mit JSON:
-{{"intent": "...", "entities": {{...}}, "confidence": 0.0-1.0}}"""
+BEISPIEL Multi-Intent:
+Nachricht: "Schreibe Email an Mueller und erstelle Aufgabe fuer den 10. März: Feedback einholen"
+Antwort:
+{{"intent": "email_send", "entities": {{"name": "Mueller", "instruction": "..."}},
+  "secondary": [{{"intent": "task_create", "entities": {{"name": "Mueller", "date": "2026-03-10", "title": "Feedback einholen"}}}}],
+  "confidence": 0.95}}
+
+BEISPIEL Single-Intent:
+{{"intent": "email_send", "entities": {{"name": "Sandra Kuhse", "instruction": "..."}}, "secondary": [], "confidence": 0.95}}
+
+WICHTIG: "secondary" ist immer ein Array (leer wenn nur ein Intent). Max. 2 Intents gesamt.
+WICHTIG: Bei task_create ist der Name der Person NICHT der Titel. "Mueller anrufen" -> name="Mueller", title="anrufen"."""
 
 
 WEEKDAY_NAMES = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"]
