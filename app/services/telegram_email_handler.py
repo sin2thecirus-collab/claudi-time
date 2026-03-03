@@ -128,6 +128,55 @@ async def handle_email_send(chat_id: str, text: str, entities: dict) -> None:
         )
 
 
+_EMAIL_BUTTONS = {
+    "inline_keyboard": [
+        [
+            {"text": "Senden", "callback_data": "email_send_confirm"},
+            {"text": "Neu schreiben", "callback_data": "email_send_rewrite"},
+            {"text": "Abbrechen", "callback_data": "email_send_cancel"},
+        ],
+    ],
+}
+
+_CHUNK_SIZE = 3500  # Telegram max ist 4096, Puffer fuer Header + Formatierung
+
+
+async def _send_preview_with_buttons(
+    chat_id: str, recipient: dict, subject: str, preview_text: str
+) -> None:
+    """Sendet Email-Vorschau — bei langen Emails mehrere Telegram-Nachrichten."""
+    from app.services.telegram_bot_service import send_message
+
+    header = (
+        f"<b>Email-Vorschau</b>\n"
+        f"━━━━━━━━━━━━━━━\n"
+        f"An: {recipient['name']} ({recipient['email']})\n"
+        f"Betreff: <b>{subject}</b>\n"
+        f"━━━━━━━━━━━━━━━\n\n"
+    )
+
+    # In Chunks aufteilen (Telegram-Limit ~4096 Zeichen)
+    chunks = [preview_text[i:i + _CHUNK_SIZE] for i in range(0, max(len(preview_text), 1), _CHUNK_SIZE)]
+
+    if len(chunks) <= 1:
+        # Kurze Email: alles in einer Nachricht
+        await send_message(
+            header + f"<i>{preview_text}</i>",
+            chat_id=chat_id,
+            reply_markup=_EMAIL_BUTTONS,
+        )
+    else:
+        # Lange Email: Header + erster Chunk, dann weitere Chunks, Buttons am Ende
+        await send_message(header + f"<i>{chunks[0]}</i>", chat_id=chat_id)
+        for chunk in chunks[1:-1]:
+            await send_message(f"<i>{chunk}</i>", chat_id=chat_id)
+        await send_message(
+            f"<i>{chunks[-1]}</i>",
+            chat_id=chat_id,
+            reply_markup=_EMAIL_BUTTONS,
+        )
+
+
 async def _generate_and_preview(chat_id: str, text: str, recipient: dict) -> None:
     """Generiert Email via GPT und zeigt Vorschau mit Buttons."""
     from app.services.telegram_bot_service import send_message
@@ -160,24 +209,7 @@ async def _generate_and_preview(chat_id: str, text: str, recipient: dict) -> Non
     preview_text = re.sub(r"<[^>]+>", "", body_html)
     preview_text = preview_text.replace("&nbsp;", " ").strip()
 
-    await send_message(
-        f"<b>Email-Vorschau</b>\n"
-        f"━━━━━━━━━━━━━━━\n"
-        f"An: {recipient['name']} ({recipient['email']})\n"
-        f"Betreff: <b>{subject}</b>\n"
-        f"━━━━━━━━━━━━━━━\n\n"
-        f"<i>{preview_text[:800]}</i>",
-        chat_id=chat_id,
-        reply_markup={
-            "inline_keyboard": [
-                [
-                    {"text": "Senden", "callback_data": "email_send_confirm"},
-                    {"text": "Neu schreiben", "callback_data": "email_send_rewrite"},
-                    {"text": "Abbrechen", "callback_data": "email_send_cancel"},
-                ],
-            ],
-        },
-    )
+    await _send_preview_with_buttons(chat_id, recipient, subject, preview_text)
 
 
 async def handle_email_callback(chat_id: str, action: str, callback_id: str) -> None:
@@ -306,24 +338,7 @@ async def handle_email_callback(chat_id: str, action: str, callback_id: str) -> 
         preview_text = re.sub(r"<[^>]+>", "", body_html)
         preview_text = preview_text.replace("&nbsp;", " ").strip()
 
-        await send_message(
-            f"<b>Neue Email-Vorschau</b>\n"
-            f"━━━━━━━━━━━━━━━\n"
-            f"An: {recipient['name']} ({recipient['email']})\n"
-            f"Betreff: <b>{subject}</b>\n"
-            f"━━━━━━━━━━━━━━━\n\n"
-            f"<i>{preview_text[:800]}</i>",
-            chat_id=chat_id,
-            reply_markup={
-                "inline_keyboard": [
-                    [
-                        {"text": "Senden", "callback_data": "email_send_confirm"},
-                        {"text": "Neu schreiben", "callback_data": "email_send_rewrite"},
-                        {"text": "Abbrechen", "callback_data": "email_send_cancel"},
-                    ],
-                ],
-            },
-        )
+        await _send_preview_with_buttons(chat_id, recipient, subject, preview_text)
 
     elif action == "email_send_cancel":
         # ── Abbrechen ──
