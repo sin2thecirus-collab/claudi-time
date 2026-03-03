@@ -206,8 +206,14 @@ async def _generate_and_preview(chat_id: str, text: str, recipient: dict) -> Non
         "created_at": datetime.now().isoformat(),
     }
 
-    preview_text = re.sub(r"<[^>]+>", "", body_html)
-    preview_text = preview_text.replace("&nbsp;", " ").strip()
+    # Block-Elemente zuerst in Zeilenumbrueche umwandeln, dann Tags entfernen
+    preview_text = re.sub(r"<br\s*/?>", "\n", body_html, flags=re.IGNORECASE)
+    preview_text = re.sub(r"</p>", "\n\n", preview_text, flags=re.IGNORECASE)
+    preview_text = re.sub(r"<p[^>]*>", "", preview_text, flags=re.IGNORECASE)
+    preview_text = re.sub(r"<[^>]+>", "", preview_text)
+    preview_text = preview_text.replace("&nbsp;", " ")
+    # Mehrfache Leerzeilen auf max. 2 reduzieren
+    preview_text = re.sub(r"\n{3,}", "\n\n", preview_text).strip()
 
     await _send_preview_with_buttons(chat_id, recipient, subject, preview_text)
 
