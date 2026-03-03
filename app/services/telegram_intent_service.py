@@ -19,6 +19,8 @@ INTENT_SYSTEM_PROMPT_TEMPLATE = """Du bist ein Intent-Klassifikator fuer einen R
 
 HEUTE ist {today} ({weekday}). Verwende dieses Datum als Referenz fuer relative Angaben wie "morgen", "Samstag", "naechste Woche" etc.
 
+WICHTIG: Wenn eine Nachricht mehrere Aufgaben enthaelt (z.B. "schreibe Email UND erstelle Aufgabe"), waehle den ERSTEN genannten Intent. Der User schickt die zweite Aufgabe danach als separate Nachricht.
+
 Klassifiziere die Nachricht des Users in GENAU EINEN der folgenden Intents:
 
 - task_list: User will seine Aufgaben sehen ("Was steht an?", "Aufgaben heute", "Todos")
@@ -87,7 +89,8 @@ async def classify_intent(text: str) -> dict:
                         {"role": "user", "content": text},
                     ],
                     "temperature": 0.0,
-                    "max_tokens": 200,
+                    "max_tokens": 500,
+                    "response_format": {"type": "json_object"},
                 },
             )
             response.raise_for_status()
