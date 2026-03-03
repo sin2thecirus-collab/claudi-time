@@ -601,7 +601,9 @@ SALUTATION ABLEITEN:
 - Wenn "Frau" im Text steht → "Frau"
 - Sonst: null"""
 
-    user_prompt = f"Extrahiere die Lead-Daten aus diesem Text:\n\n{raw_text[:3000]}"
+    # GPT-4o-mini hat 128K Context — 10.000 Zeichen sind kein Problem.
+    # Kontakte stehen oft am ENDE des Textes, daher grosszuegig.
+    user_prompt = f"Extrahiere die Lead-Daten aus diesem Text:\n\n{raw_text[:10000]}"
 
     try:
         async with httpx.AsyncClient(timeout=30) as client:
