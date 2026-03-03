@@ -589,7 +589,7 @@
                                     <button type="button" @click.stop="mlContacts.splice(idx, 1)" style="background:none;border:none;color:var(--pp-textDim);cursor:pointer;padding:4px;" title="Entfernen">
                                         <svg style="width:14px;height:14px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                                     </button>
-                                    <svg style="width:12px;height:12px;color:var(--pp-textDim);transition:transform .15s;flex-shrink:0;" :style="contact.expanded ? 'transform:rotate(180deg)' : ''" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+                                    <svg :style="'width:12px;height:12px;color:var(--pp-textDim);transition:transform .15s;flex-shrink:0;' + (contact.expanded ? 'transform:rotate(180deg)' : '')" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
                                 </div>
                                 {# Aufklappbare Detail-Felder #}
                                 <div x-show="contact.expanded" x-transition style="padding:0 12px 10px;border-top:1px solid var(--pp-border);">
