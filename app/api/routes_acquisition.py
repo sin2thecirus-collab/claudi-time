@@ -596,10 +596,12 @@ TELEFONNUMMERN — suche nach allen Formaten:
 - Nummern die direkt nach einem Namen stehen
 - Originalformat beibehalten
 
-SALUTATION ABLEITEN:
+SALUTATION ABLEITEN (WICHTIG — immer versuchen!):
 - Wenn "Herr" im Text steht → "Herr"
 - Wenn "Frau" im Text steht → "Frau"
-- Sonst: null"""
+- Wenn KEIN "Herr"/"Frau" im Text, aber der Vorname eindeutig maennlich ist (Thomas, Michael, Stefan, Andreas, Peter, Martin, Daniel, Markus, Frank, Wolfgang, Tobias, Jan, Florian, Sebastian, Oliver, Patrick, Benjamin, Felix, Lukas, David, Robert, Dirk, Werner, Hans, Karl etc.) → "Herr"
+- Wenn KEIN "Herr"/"Frau" im Text, aber der Vorname eindeutig weiblich ist (Sabine, Petra, Claudia, Susanne, Monika, Stefanie, Christina, Katrin, Nicole, Sandra, Julia, Anna, Karin, Barbara, Nadine, Lena, Sarah, Laura, Lisa, Sophie, Katharina, Daniela, Melanie, Franziska, Frederike, Annerose, Andrea, Maria, Eva etc.) → "Frau"
+- NUR wenn der Vorname wirklich nicht zuordenbar ist (auslaendische Namen, Initialen): null"""
 
     # GPT-4o-mini hat 128K Context — 10.000 Zeichen sind kein Problem.
     # Kontakte stehen oft am ENDE des Textes, daher grosszuegig.

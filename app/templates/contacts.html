@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block title %}Kontakte - Pulspoint{% endblock %}
+
+{% block head %}
+<style>
+    /* Aurora Contacts Page — reuse co-* pattern */
+    .ct-stat-card {
+        position: relative; padding: 18px 20px;
+        background: rgba(255,255,255,0.02); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255,255,255,0.06); border-radius: 14px;
+        transition: all 0.25s;
+    }
+    .ct-stat-card::before {
+        content: ''; position: absolute; top: 0; left: 20px; right: 20px; height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(167,139,250,0.3), transparent);
+    }
+    .ct-stat-card:hover { border-color: rgba(255,255,255,0.1); transform: translateY(-1px); }
+    .ct-stat-label {
+        font-size: 11px; font-weight: 600; color: var(--pp-textDim);
+        text-transform: uppercase; letter-spacing: 0.06em;
+    }
+    .ct-stat-value {
+        font-size: 26px; font-weight: 700; margin-top: 6px;
+        font-family: 'Space Mono', monospace; letter-spacing: -0.02em;
+    }
+    .ct-filter-input {
+        padding: 10px 14px; background: rgba(14,17,28,0.8);
+        border: 1px solid rgba(255,255,255,0.08); border-radius: 8px;
+        color: var(--pp-text); font-size: 13px; font-family: var(--pp-ff);
+        transition: all 0.2s; outline: none;
+    }
+    .ct-filter-input:focus {
+        border-color: #A78BFA;
+        box-shadow: 0 0 0 3px rgba(167,139,250,0.15), 0 0 16px rgba(167,139,250,0.08);
+    }
+    .ct-filter-input::placeholder { color: var(--pp-textDim); }
+    .ct-filter-input option { background: #0E111C; color: var(--pp-text); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:1400px;margin:0 auto;padding:28px 32px;">
+
+    {# ═══ Hero Header — Aurora ═══ #}
+    <div style="margin-bottom:24px;">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:14px;">
+                <div class="aurora-section-icon purple" style="width:40px;height:40px;border-radius:12px;">
+                    <svg style="width:20px;height:20px;" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                    </svg>
+                </div>
+                <div>
+                    <h1 style="font-size:24px;font-weight:700;color:var(--pp-text);margin:0;letter-spacing:-0.03em;line-height:1.2;">Kontakte</h1>
+                    <p style="font-size:13px;color:var(--pp-textMuted);margin-top:2px;">Alle Ansprechpartner im CRM</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ═══ Stats Cards (HTMX geladen) ═══ #}
+    <div id="contact-stats"
+         hx-get="/api/companies/contacts/stats"
+         hx-trigger="load"
+         hx-swap="innerHTML"
+         style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;">
+        <div class="ct-stat-card" style="animation:skeletonPulse 1.5s ease-in-out infinite;">
+            <p class="ct-stat-label">Gesamt</p>
+            <p class="ct-stat-value" style="color:var(--pp-textDim);">--</p>
+        </div>
+        <div class="ct-stat-card" style="animation:skeletonPulse 1.5s ease-in-out infinite;animation-delay:0.1s;">
+            <p class="ct-stat-label">Mit E-Mail</p>
+            <p class="ct-stat-value" style="color:var(--pp-textDim);">--</p>
+        </div>
+        <div class="ct-stat-card" style="animation:skeletonPulse 1.5s ease-in-out infinite;animation-delay:0.2s;">
+            <p class="ct-stat-label">Mit Telefon</p>
+            <p class="ct-stat-value" style="color:var(--pp-textDim);">--</p>
+        </div>
+        <div class="ct-stat-card" style="animation:skeletonPulse 1.5s ease-in-out infinite;animation-delay:0.3s;">
+            <p class="ct-stat-label">Neue (7 Tage)</p>
+            <p class="ct-stat-value" style="color:var(--pp-textDim);">--</p>
+        </div>
+    </div>
+
+    {# ═══ Filter + Suche — Aurora Glass ═══ #}
+    <div class="glass" style="padding:14px 18px;margin-bottom:24px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
+        <div style="flex:1;min-width:240px;position:relative;">
+            <svg style="position:absolute;left:12px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--pp-textDim);pointer-events:none;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            </svg>
+            <input type="text"
+                   name="search"
+                   placeholder="Name, E-Mail oder Firma suchen..."
+                   hx-get="/partials/contacts-list"
+                   hx-trigger="keyup changed delay:300ms"
+                   hx-target="#contacts-table"
+                   hx-include="[name='sort_by']"
+                   class="ct-filter-input"
+                   style="width:100%;padding-left:36px;">
+        </div>
+        <select name="sort_by"
+                hx-get="/partials/contacts-list"
+                hx-trigger="change"
+                hx-target="#contacts-table"
+                hx-include="[name='search']"
+                class="ct-filter-input"
+                style="padding-right:32px;cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 12 12%22><path fill=%22%238B8FA3%22 d=%22M2.5 4.5L6 8l3.5-3.5%22 stroke=%22%238B8FA3%22 stroke-width=%221.5%22 fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/></svg>');background-repeat:no-repeat;background-position:right 10px center;">
+            <option value="created_at">Kuerzlich hinzugefuegt</option>
+            <option value="name">Name A-Z</option>
+            <option value="company">Firma A-Z</option>
+        </select>
+    </div>
+
+    {# ═══ Tabelle (HTMX geladen) ═══ #}
+    <div id="contacts-table"
+         hx-get="/partials/contacts-list?per_page=25"
+         hx-trigger="load"
+         hx-swap="innerHTML">
+        <div class="glass" style="padding:48px;text-align:center;animation:skeletonPulse 1.5s ease-in-out infinite;">
+            <p style="color:var(--pp-textDim);font-size:13px;">Lade Kontakte...</p>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Stats afterSwap — die Stats-Cards mit echten Werten befuellen
+    document.addEventListener('htmx:afterSwap', function(e) {
+        if (e.detail.target.id === 'contact-stats') {
+            try {
+                const data = JSON.parse(e.detail.target.textContent);
+                e.detail.target.innerHTML = `
+                    <div class="ct-stat-card">
+                        <p class="ct-stat-label">Gesamt</p>
+                        <p class="ct-stat-value" style="color:var(--pp-text);">${data.total}</p>
+                    </div>
+                    <div class="ct-stat-card">
+                        <p class="ct-stat-label">Mit E-Mail</p>
+                        <p class="ct-stat-value" style="color:#34D399;">${data.with_email}</p>
+                    </div>
+                    <div class="ct-stat-card">
+                        <p class="ct-stat-label">Mit Telefon</p>
+                        <p class="ct-stat-value" style="color:#60A5FA;">${data.with_phone}</p>
+                    </div>
+                    <div class="ct-stat-card">
+                        <p class="ct-stat-label">Neue (7 Tage)</p>
+                        <p class="ct-stat-value" style="color:#FBBF24;">${data.recent}</p>
+                    </div>
+                `;
+            } catch (e) {}
+        }
+    });
+</script>
+{% endblock %}

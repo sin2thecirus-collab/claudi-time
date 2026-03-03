@@ -92,6 +92,13 @@ async def company_stats(db: AsyncSession = Depends(get_db)):
     return await service.get_stats()
 
 
+@router.get("/contacts/stats")
+async def contact_stats(db: AsyncSession = Depends(get_db)):
+    """Gibt Kontakt-Statistiken fuer die Kontakte-Uebersichtsseite zurueck."""
+    service = CompanyService(db)
+    return await service.get_contact_stats()
+
+
 @router.get("/search/json")
 async def search_companies_json(
     q: str = Query(default="", min_length=1),

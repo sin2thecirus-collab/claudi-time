@@ -265,6 +265,15 @@ class CompanyService:
         if contact:
             return contact
 
+        # Auto-Gender: Anrede aus Vorname ableiten wenn nicht gesetzt
+        from app.utils.gender_inference import apply_salutation_if_missing
+        if "salutation" in kwargs:
+            kwargs["salutation"] = apply_salutation_if_missing(kwargs.get("salutation"), first_name)
+        else:
+            inferred = apply_salutation_if_missing(None, first_name)
+            if inferred:
+                kwargs["salutation"] = inferred
+
         return await self.add_contact(
             company_id=company_id,
             first_name=first_name.strip() if first_name else None,
@@ -350,4 +359,95 @@ class CompanyService:
             "active": active.scalar() or 0,
             "blacklisted": blacklisted.scalar() or 0,
             "laufende_prozesse": laufende.scalar() or 0,
+        }
+
+    # ── Kontakte Global (fuer /kontakte Seite) ─────────
+
+    async def list_contacts_global(
+        self,
+        search: str | None = None,
+        sort_by: str = "created_at",
+        page: int = 1,
+        per_page: int = 25,
+    ) -> dict:
+        """Listet ALLE Kontakte ueber alle Firmen mit Filter + Pagination."""
+        from sqlalchemy.orm import selectinload as _sel
+
+        base = select(CompanyContact).options(_sel(CompanyContact.company))
+        count_base = select(func.count(CompanyContact.id))
+
+        need_join = False
+
+        if search:
+            search_term = f"%{search}%"
+            search_filter = (
+                CompanyContact.first_name.ilike(search_term)
+                | CompanyContact.last_name.ilike(search_term)
+                | CompanyContact.email.ilike(search_term)
+                | CompanyContact.phone.ilike(search_term)
+                | Company.name.ilike(search_term)
+            )
+            base = base.join(Company).where(search_filter)
+            count_base = count_base.join(Company).where(search_filter)
+            need_join = True
+
+        # Sortierung
+        if sort_by == "name":
+            base = base.order_by(
+                CompanyContact.last_name.asc(), CompanyContact.first_name.asc()
+            )
+        elif sort_by == "company":
+            if not need_join:
+                base = base.join(Company)
+            base = base.order_by(Company.name.asc())
+        else:  # created_at (default)
+            base = base.order_by(CompanyContact.created_at.desc())
+
+        # Count
+        total_result = await self.db.execute(count_base)
+        total = total_result.scalar() or 0
+
+        # Paginate
+        offset = (page - 1) * per_page
+        base = base.offset(offset).limit(per_page)
+
+        result = await self.db.execute(base)
+        contacts = list(result.scalars().all())
+
+        pages = (total + per_page - 1) // per_page if per_page > 0 else 0
+
+        return {
+            "items": contacts,
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+            "pages": pages,
+        }
+
+    async def get_contact_stats(self) -> dict:
+        """Gibt Kontakt-Statistiken fuer die Uebersichtsseite zurueck."""
+        from datetime import datetime, timedelta, timezone
+
+        total = await self.db.execute(select(func.count(CompanyContact.id)))
+        with_email = await self.db.execute(
+            select(func.count(CompanyContact.id)).where(
+                CompanyContact.email.isnot(None), CompanyContact.email != ""
+            )
+        )
+        with_phone = await self.db.execute(
+            select(func.count(CompanyContact.id)).where(
+                CompanyContact.phone.isnot(None), CompanyContact.phone != ""
+            )
+        )
+        seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
+        recent = await self.db.execute(
+            select(func.count(CompanyContact.id)).where(
+                CompanyContact.created_at >= seven_days_ago
+            )
+        )
+        return {
+            "total": total.scalar() or 0,
+            "with_email": with_email.scalar() or 0,
+            "with_phone": with_phone.scalar() or 0,
+            "recent": recent.scalar() or 0,
         }

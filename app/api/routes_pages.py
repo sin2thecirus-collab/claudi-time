@@ -1389,6 +1389,48 @@ async def trigger_cleanup_html(
 
 
 # ============================================================================
+# Kontakte-Uebersichtsseite + Partial
+# ============================================================================
+
+
+@router.get("/kontakte", response_class=HTMLResponse)
+async def contacts_page(request: Request):
+    """Kontakte-Uebersichtsseite (alle Ansprechpartner im CRM)."""
+    return templates.TemplateResponse("contacts.html", {"request": request})
+
+
+@router.get("/partials/contacts-list", response_class=HTMLResponse)
+async def contacts_list_partial(
+    request: Request,
+    page: int = 1,
+    per_page: int = 25,
+    search: str | None = None,
+    sort_by: str = "created_at",
+    db: AsyncSession = Depends(get_db),
+):
+    """Partial: Kontakte-Tabelle fuer HTMX."""
+    from app.services.company_service import CompanyService as _CS
+
+    service = _CS(db)
+    result = await service.list_contacts_global(
+        search=search, sort_by=sort_by, page=page, per_page=per_page
+    )
+    return templates.TemplateResponse(
+        "partials/contacts_list.html",
+        {
+            "request": request,
+            "contacts": result["items"],
+            "total": result["total"],
+            "page": result["page"],
+            "per_page": result["per_page"],
+            "total_pages": result["pages"],
+            "search": search or "",
+            "sort_by": sort_by,
+        },
+    )
+
+
+# ============================================================================
 # Kontakt-Detailseite
 # ============================================================================
 
