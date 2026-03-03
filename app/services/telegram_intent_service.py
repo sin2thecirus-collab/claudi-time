@@ -57,7 +57,9 @@ Nachricht: "Sende eine Terminbestaetigung an Antje Lindner fuer Mittwoch um 17:3
 Antwort: {{"intent": "calendar_create", "entities": {{"name": "Antje Lindner", "date": "2026-03-04", "time": "17:30", "duration": 60}}, "secondary": [], "confidence": 0.95}}
 
 WICHTIG: "secondary" ist immer ein Array (leer wenn nur ein Intent). Max. 2 Intents gesamt.
-WICHTIG: Bei task_create ist der Name der Person NICHT der Titel. "Mueller anrufen" -> name="Mueller", title="anrufen"."""
+WICHTIG: Bei task_create ist der Name der Person NICHT der Titel. "Mueller anrufen" -> name="Mueller", title="anrufen".
+
+Antworte IMMER als JSON-Objekt mit den Feldern: intent, entities, secondary, confidence."""
 
 
 WEEKDAY_NAMES = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"]
@@ -108,6 +110,10 @@ async def classify_intent(text: str) -> dict:
             if response.status_code == 401:
                 logger.error("OpenAI API Key ungueltig (401)")
                 return {"intent": "unknown", "entities": {}, "confidence": 0.0, "_error": "openai_401"}
+            if response.status_code == 400:
+                body = response.text[:300]
+                logger.error(f"OpenAI Bad Request (400): {body}")
+                return {"intent": "unknown", "entities": {}, "confidence": 0.0, "_error": f"openai_400: {body[:80]}"}
             response.raise_for_status()
             data = response.json()
 
