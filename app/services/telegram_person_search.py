@@ -13,6 +13,27 @@ from sqlalchemy import or_, select
 logger = logging.getLogger(__name__)
 
 
+_GERMAN_SALUTATIONS = {"herr", "frau", "dr", "prof", "dipl", "herr.", "frau.", "dr.", "prof."}
+
+
+def _clean_name(name: str) -> tuple[str, int | None]:
+    """Entfernt deutsche Anreden und extrahiert optionale numerische ID.
+
+    Returns: (bereinigter Name, numerische ID oder None)
+    """
+    parts = name.strip().split()
+    cleaned = []
+    numeric_id = None
+    for part in parts:
+        if part.lower().rstrip(".") in _GERMAN_SALUTATIONS:
+            continue
+        try:
+            numeric_id = int(part)
+        except ValueError:
+            cleaned.append(part)
+    return " ".join(cleaned).strip(), numeric_id
+
+
 async def search_persons(name: str, limit: int = 5) -> list[dict]:
     """Sucht Kandidaten, Kontakte und Unternehmen per Name.
 
@@ -39,19 +60,30 @@ async def search_persons(name: str, limit: int = 5) -> list[dict]:
         from app.models.company import Company
         from app.models.company_contact import CompanyContact
 
-        search = f"%{name}%"
+        clean, numeric_id = _clean_name(name)
+        search = f"%{clean}%"
 
         # ── 1. Kandidaten suchen ──
         async with async_session_maker() as db:
+            # Such-Bedingungen: vollständiger Name, Vor- und Nachname einzeln,
+            # einzelne Namensteile (für "Sandra Kuhse" → suche auch nur "Kuhse")
+            conditions = [
+                (Candidate.first_name + " " + Candidate.last_name).ilike(search),
+                Candidate.last_name.ilike(search),
+                Candidate.first_name.ilike(search),
+            ]
+            # Jedes Wort des bereinigten Namens separat suchen
+            for part in clean.split():
+                if len(part) > 1:
+                    conditions.append(Candidate.last_name.ilike(f"%{part}%"))
+                    conditions.append(Candidate.first_name.ilike(f"%{part}%"))
+            # Numerische ID (candidate_number) unterstützen
+            if numeric_id is not None:
+                conditions.append(Candidate.candidate_number == numeric_id)
+
             result = await db.execute(
                 select(Candidate)
-                .where(
-                    or_(
-                        Candidate.last_name.ilike(search),
-                        (Candidate.first_name + " " + Candidate.last_name).ilike(search),
-                        Candidate.first_name.ilike(search),
-                    )
-                )
+                .where(or_(*conditions))
                 .limit(limit)
             )
             candidates = result.scalars().all()
@@ -88,15 +120,19 @@ async def search_persons(name: str, limit: int = 5) -> list[dict]:
 
         # ── 2. Kontakte suchen ──
         async with async_session_maker() as db:
+            contact_conditions = [
+                (CompanyContact.first_name + " " + CompanyContact.last_name).ilike(search),
+                CompanyContact.last_name.ilike(search),
+                CompanyContact.first_name.ilike(search),
+            ]
+            for part in clean.split():
+                if len(part) > 1:
+                    contact_conditions.append(CompanyContact.last_name.ilike(f"%{part}%"))
+                    contact_conditions.append(CompanyContact.first_name.ilike(f"%{part}%"))
+
             result = await db.execute(
                 select(CompanyContact)
-                .where(
-                    or_(
-                        CompanyContact.last_name.ilike(search),
-                        (CompanyContact.first_name + " " + CompanyContact.last_name).ilike(search),
-                        CompanyContact.first_name.ilike(search),
-                    )
-                )
+                .where(or_(*contact_conditions))
                 .limit(limit)
             )
             contacts = result.scalars().all()
