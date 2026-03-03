@@ -8,7 +8,7 @@ Stadt, Firma, letzter Kontakt, wann hinzugefuegt, Position.
 import logging
 from datetime import datetime
 
-from sqlalchemy import or_, select
+from sqlalchemy import and_, or_, select
 
 logger = logging.getLogger(__name__)
 
@@ -62,21 +62,36 @@ async def search_persons(name: str, limit: int = 5) -> list[dict]:
 
         clean, numeric_id = _clean_name(name)
         search = f"%{clean}%"
+        parts = [p for p in clean.split() if len(p) > 1]
+
+        def _build_name_conditions(first_col, last_col):
+            """Baut praezise Such-Bedingungen: bei Mehrwort-Anfragen AND-Logik."""
+            conds = [
+                # Exakter Vollname-Match (hoeichste Prioritaet)
+                (first_col + " " + last_col).ilike(search),
+            ]
+            if len(parts) >= 2:
+                # Mehrere Woerter: Jede Kombination als AND (p1 in Vorname AND p2 in Nachname)
+                # Verhindert falsche Treffer wie "Joachim Timm" bei Suche nach "Joachim Storz"
+                for p1 in parts:
+                    for p2 in parts:
+                        if p1 != p2:
+                            conds.append(
+                                and_(
+                                    first_col.ilike(f"%{p1}%"),
+                                    last_col.ilike(f"%{p2}%"),
+                                )
+                            )
+            else:
+                # Einzelwort: in Vor- ODER Nachname suchen
+                for p in parts:
+                    conds.append(last_col.ilike(f"%{p}%"))
+                    conds.append(first_col.ilike(f"%{p}%"))
+            return conds
 
         # ── 1. Kandidaten suchen ──
         async with async_session_maker() as db:
-            # Such-Bedingungen: vollständiger Name, Vor- und Nachname einzeln,
-            # einzelne Namensteile (für "Sandra Kuhse" → suche auch nur "Kuhse")
-            conditions = [
-                (Candidate.first_name + " " + Candidate.last_name).ilike(search),
-                Candidate.last_name.ilike(search),
-                Candidate.first_name.ilike(search),
-            ]
-            # Jedes Wort des bereinigten Namens separat suchen
-            for part in clean.split():
-                if len(part) > 1:
-                    conditions.append(Candidate.last_name.ilike(f"%{part}%"))
-                    conditions.append(Candidate.first_name.ilike(f"%{part}%"))
+            conditions = _build_name_conditions(Candidate.first_name, Candidate.last_name)
             # Numerische ID (candidate_number) unterstützen
             if numeric_id is not None:
                 conditions.append(Candidate.candidate_number == numeric_id)
@@ -120,15 +135,7 @@ async def search_persons(name: str, limit: int = 5) -> list[dict]:
 
         # ── 2. Kontakte suchen ──
         async with async_session_maker() as db:
-            contact_conditions = [
-                (CompanyContact.first_name + " " + CompanyContact.last_name).ilike(search),
-                CompanyContact.last_name.ilike(search),
-                CompanyContact.first_name.ilike(search),
-            ]
-            for part in clean.split():
-                if len(part) > 1:
-                    contact_conditions.append(CompanyContact.last_name.ilike(f"%{part}%"))
-                    contact_conditions.append(CompanyContact.first_name.ilike(f"%{part}%"))
+            contact_conditions = _build_name_conditions(CompanyContact.first_name, CompanyContact.last_name)
 
             result = await db.execute(
                 select(CompanyContact)
