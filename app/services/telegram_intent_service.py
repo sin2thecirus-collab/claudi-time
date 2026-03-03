@@ -26,8 +26,8 @@ Verfuegbare Intents:
 - candidate_search: User sucht einen Kandidaten ("Finde Anna Schmidt", "Kandidat Mueller", "Suche...")
 - briefing: User will ein Update/Briefing ("Was gibt es Neues?", "Ueberblick", "Status")
 - call_log: User berichtet von einem Telefonat ("Gerade mit Firma X telefoniert...", "Call mit...")
-- email_send: User will eine Email senden ("Schreibe Email an...", "Mail an...")
-- calendar_create: User will einen Termin erstellen ("Erstelle Termin mit...", "Terminiere...", "Meeting am...")
+- email_send: User will eine Email senden ("Schreibe Email an...", "Mail an...") — NUR wenn KEIN Termin/Kalender erwaehnt wird
+- calendar_create: User will einen Termin erstellen ODER eine Terminbestaetigung senden ("Erstelle Termin mit...", "Terminiere...", "Meeting am...", "Terminbestaetigung senden", "Termin in Kalender eintragen", "sende Terminbestaetigung an...")
 - unknown: Keiner der obigen Intents passt
 
 Extrahiere fuer jeden Intent relevante Entitaeten:
@@ -49,8 +49,12 @@ Antwort:
   "secondary": [{{"intent": "task_create", "entities": {{"name": "Mueller", "date": "2026-03-10", "title": "Feedback einholen"}}}}],
   "confidence": 0.95}}
 
-BEISPIEL Single-Intent:
+BEISPIEL Single-Intent Email:
 {{"intent": "email_send", "entities": {{"name": "Sandra Kuhse", "instruction": "..."}}, "secondary": [], "confidence": 0.95}}
+
+BEISPIEL Terminbestaetigung (= calendar_create, NICHT email_send!):
+Nachricht: "Sende eine Terminbestaetigung an Antje Lindner fuer Mittwoch um 17:30 und trage den Termin in meinen Kalender ein"
+Antwort: {{"intent": "calendar_create", "entities": {{"name": "Antje Lindner", "date": "2026-03-04", "time": "17:30", "duration": 60}}, "secondary": [], "confidence": 0.95}}
 
 WICHTIG: "secondary" ist immer ein Array (leer wenn nur ein Intent). Max. 2 Intents gesamt.
 WICHTIG: Bei task_create ist der Name der Person NICHT der Titel. "Mueller anrufen" -> name="Mueller", title="anrufen"."""
