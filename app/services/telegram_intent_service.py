@@ -80,8 +80,9 @@ async def classify_intent(text: str) -> dict:
     """
     if not settings.openai_api_key:
         logger.warning("OpenAI API Key nicht konfiguriert - Intent-Klassifikation nicht moeglich")
-        return {"intent": "unknown", "entities": {}, "confidence": 0.0}
+        return {"intent": "unknown", "entities": {}, "confidence": 0.0, "_error": "no_api_key"}
 
+    content = ""
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
             response = await client.post(
@@ -101,21 +102,26 @@ async def classify_intent(text: str) -> dict:
                     "response_format": {"type": "json_object"},
                 },
             )
+            if response.status_code == 429:
+                logger.error("OpenAI Rate-Limit oder Quota erschoepft (429)")
+                return {"intent": "unknown", "entities": {}, "confidence": 0.0, "_error": "openai_429"}
+            if response.status_code == 401:
+                logger.error("OpenAI API Key ungueltig (401)")
+                return {"intent": "unknown", "entities": {}, "confidence": 0.0, "_error": "openai_401"}
             response.raise_for_status()
             data = response.json()
 
         content = data["choices"][0]["message"]["content"].strip()
-        # Parse JSON response
         result = json.loads(content)
         logger.info(f"Intent klassifiziert: {result.get('intent')} (confidence: {result.get('confidence')})")
         return result
 
     except json.JSONDecodeError:
         logger.warning(f"GPT hat kein valides JSON zurueckgegeben: {content[:200]}")
-        return {"intent": "unknown", "entities": {}, "confidence": 0.0}
+        return {"intent": "unknown", "entities": {}, "confidence": 0.0, "_error": "json_error"}
     except Exception as e:
         logger.error(f"Intent-Klassifikation fehlgeschlagen: {e}")
-        return {"intent": "unknown", "entities": {}, "confidence": 0.0}
+        return {"intent": "unknown", "entities": {}, "confidence": 0.0, "_error": str(e)[:100]}
 
 
 async def transcribe_voice(audio_bytes: bytes, filename: str = "voice.ogg") -> str:

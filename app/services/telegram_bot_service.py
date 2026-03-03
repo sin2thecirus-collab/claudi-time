@@ -666,6 +666,19 @@ async def _handle_free_text(chat_id: str, text: str) -> None:
         intent = result.get("intent", "unknown")
         entities = result.get("entities", {})
         secondary = result.get("secondary", [])
+        error_code = result.get("_error", "")
+
+        # Fehlermeldung wenn OpenAI nicht erreichbar
+        if intent == "unknown" and error_code:
+            if error_code == "no_api_key":
+                await send_message("OpenAI API Key nicht konfiguriert (Railway ENV pruefen).", chat_id=chat_id)
+            elif error_code == "openai_429":
+                await send_message("OpenAI Kontingent erschoepft — bitte Guthaben auf platform.openai.com pruefen.", chat_id=chat_id)
+            elif error_code == "openai_401":
+                await send_message("OpenAI API Key ungueltig — bitte in Railway ENV pruefen.", chat_id=chat_id)
+            else:
+                await send_message(f"Fehler bei der Nachrichtenverarbeitung: {error_code}", chat_id=chat_id)
+            return
 
         # Primaeren Intent ausfuehren
         await _dispatch_intent(chat_id, intent, entities, text)
