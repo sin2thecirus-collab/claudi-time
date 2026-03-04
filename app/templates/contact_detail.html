@@ -32,16 +32,30 @@
     }
     .cd-card-body { padding: 20px; }
 
-    /* Field rows */
-    .cd-field {
-        display: flex; flex-direction: column; gap: 4px;
+    /* CRM Field Groups */
+    .cd-field-group {
+        padding: 0 24px 24px;
     }
+    .cd-field-group-title {
+        font-size: 11px; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.08em; color: var(--pp-textDim);
+        margin-bottom: 16px; padding-top: 20px;
+        border-top: 1px solid rgba(255,255,255,0.04);
+    }
+    .cd-field-group:first-child .cd-field-group-title { border-top: none; padding-top: 0; }
+
+    /* CRM Field rows */
+    .cd-field {
+        display: flex; flex-direction: column; gap: 6px;
+        margin-bottom: 18px;
+    }
+    .cd-field:last-child { margin-bottom: 0; }
     .cd-field-label {
-        font-size: 10px; font-weight: 600; text-transform: uppercase;
-        letter-spacing: 0.05em; color: var(--pp-textDim);
+        font-size: 12px; font-weight: 600;
+        color: var(--pp-textMuted); letter-spacing: 0.01em;
     }
     .cd-field-value {
-        font-size: 13px; color: var(--pp-text); min-height: 20px;
+        font-size: 14px; color: var(--pp-text); min-height: 20px;
     }
     .cd-field-value a {
         color: var(--pp-accent); text-decoration: none;
@@ -49,24 +63,70 @@
     .cd-field-value a:hover { text-decoration: underline; }
     .cd-field-empty { color: var(--pp-text4); font-style: italic; }
 
-    /* Edit inputs */
+    /* CRM Edit inputs */
     .cd-input {
-        width: 100%; padding: 8px 12px; font-size: 13px;
-        background: rgba(255,255,255,0.04);
-        border: 1px solid rgba(255,255,255,0.1);
-        border-radius: 8px; color: var(--pp-text);
-        outline: none; transition: border-color 0.15s, box-shadow 0.15s;
+        width: 100%; padding: 11px 14px; font-size: 14px;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 10px; color: var(--pp-text);
+        outline: none; transition: all 0.2s;
         box-sizing: border-box;
+        font-family: var(--pp-ff);
+    }
+    .cd-input:hover {
+        border-color: rgba(255,255,255,0.15);
+        background: rgba(255,255,255,0.04);
     }
     .cd-input:focus {
         border-color: var(--pp-accent);
-        box-shadow: 0 0 0 3px rgba(96,165,250,0.12);
+        background: rgba(96,165,250,0.04);
+        box-shadow: 0 0 0 3px rgba(96,165,250,0.1);
     }
-    .cd-input::placeholder { color: var(--pp-text4); }
+    .cd-input::placeholder { color: var(--pp-text4); font-size: 13px; }
 
-    select.cd-input { cursor: pointer; }
+    select.cd-input { cursor: pointer; -webkit-appearance: none; appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg fill='none' viewBox='0 0 24 24' stroke='%236b7280' stroke-width='2' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19.5 8.25l-7.5 7.5-7.5-7.5'/%3E%3C/svg%3E");
+        background-repeat: no-repeat; background-position: right 12px center; background-size: 16px;
+        padding-right: 36px;
+    }
     select.cd-input option { background: var(--pp-surface); color: var(--pp-text); }
-    textarea.cd-input { resize: vertical; min-height: 80px; }
+    textarea.cd-input { resize: vertical; min-height: 90px; line-height: 1.5; }
+
+    /* Phone field with call button */
+    .cd-phone-wrap {
+        display: flex; align-items: stretch; gap: 0;
+        border-radius: 10px; overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.08);
+        transition: all 0.2s;
+    }
+    .cd-phone-wrap:hover { border-color: rgba(255,255,255,0.15); }
+    .cd-phone-wrap:focus-within {
+        border-color: var(--pp-accent);
+        box-shadow: 0 0 0 3px rgba(96,165,250,0.1);
+    }
+    .cd-phone-wrap .cd-input {
+        border: none; border-radius: 0;
+        background: rgba(255,255,255,0.03);
+    }
+    .cd-phone-wrap .cd-input:hover { background: rgba(255,255,255,0.04); }
+    .cd-phone-wrap .cd-input:focus { box-shadow: none; background: rgba(96,165,250,0.04); }
+    .cd-phone-call-btn {
+        display: flex; align-items: center; justify-content: center; gap: 6px;
+        padding: 0 16px; border: none; cursor: pointer;
+        background: rgba(16,185,129,0.08); color: #34d399;
+        font-size: 12px; font-weight: 700; white-space: nowrap;
+        transition: all 0.15s; font-family: var(--pp-ff);
+        border-left: 1px solid rgba(255,255,255,0.06);
+        text-decoration: none;
+    }
+    .cd-phone-call-btn:hover { background: rgba(16,185,129,0.16); }
+    .cd-phone-call-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+    /* Two-column fields */
+    .cd-fields-row {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+    }
+    @media (max-width: 640px) { .cd-fields-row { grid-template-columns: 1fr; } }
 
     /* Copy button */
     .cd-copy {
@@ -240,96 +300,117 @@
                         Kontaktdaten
                     </div>
                 </div>
-                <div class="cd-card-body">
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
 
-                        {# Anrede #}
-                        <div class="cd-field">
-                            <span class="cd-field-label">Anrede</span>
-                            <select class="cd-input"
-                                    @change="saveField('salutation', $event.target.value)">
-                                <option value="" {% if not contact.salutation %}selected{% endif %}>-- Bitte waehlen --</option>
-                                <option value="Herr" {% if contact.salutation == 'Herr' %}selected{% endif %}>Herr</option>
-                                <option value="Frau" {% if contact.salutation == 'Frau' %}selected{% endif %}>Frau</option>
-                            </select>
-                        </div>
+                {# ── Persoenliche Daten ── #}
+                <div class="cd-field-group">
+                    <div class="cd-field-group-title">Pers&ouml;nliche Daten</div>
 
-                        {# Leer #}
-                        <div></div>
+                    <div class="cd-field">
+                        <span class="cd-field-label">Anrede</span>
+                        <select class="cd-input" style="max-width:200px;"
+                                @change="saveField('salutation', $event.target.value)">
+                            <option value="" {% if not contact.salutation %}selected{% endif %}>-- Bitte w&auml;hlen --</option>
+                            <option value="Herr" {% if contact.salutation == 'Herr' %}selected{% endif %}>Herr</option>
+                            <option value="Frau" {% if contact.salutation == 'Frau' %}selected{% endif %}>Frau</option>
+                        </select>
+                    </div>
 
-                        {# Vorname #}
+                    <div class="cd-fields-row">
                         <div class="cd-field">
                             <span class="cd-field-label">Vorname</span>
                             <input type="text" class="cd-input"
                                    value="{{ contact.first_name or '' }}"
                                    @blur="saveField('first_name', $event.target.value)"
-                                   placeholder="Vorname">
+                                   placeholder="Vorname eingeben">
                         </div>
-
-                        {# Nachname #}
                         <div class="cd-field">
                             <span class="cd-field-label">Nachname</span>
                             <input type="text" class="cd-input"
                                    value="{{ contact.last_name or '' }}"
                                    @blur="saveField('last_name', $event.target.value)"
-                                   placeholder="Nachname">
+                                   placeholder="Nachname eingeben">
                         </div>
+                    </div>
 
-                        {# Position #}
-                        <div class="cd-field" style="grid-column:1/-1;">
-                            <span class="cd-field-label">Position / Funktion</span>
-                            <input type="text" class="cd-input"
-                                   value="{{ contact.position or '' }}"
-                                   @blur="saveField('position', $event.target.value)"
-                                   placeholder="z.B. Geschaeftsfuehrer, HR-Leiter">
-                        </div>
-
-                        {# E-Mail #}
-                        <div class="cd-field" style="grid-column:1/-1;">
-                            <span class="cd-field-label">E-Mail</span>
-                            <input type="email" class="cd-input"
-                                   value="{{ contact.email or '' }}"
-                                   @blur="saveField('email', $event.target.value)"
-                                   placeholder="name@firma.de">
-                        </div>
-
-                        {# Telefon #}
-                        <div class="cd-field">
-                            <span class="cd-field-label">Telefon</span>
-                            <input type="text" class="cd-input"
-                                   value="{{ contact.phone or '' }}"
-                                   @blur="saveField('phone', $event.target.value)"
-                                   placeholder="+49 40 123456">
-                        </div>
-
-                        {# Mobil #}
-                        <div class="cd-field">
-                            <span class="cd-field-label">Mobil</span>
-                            <input type="text" class="cd-input"
-                                   value="{{ contact.mobile or '' }}"
-                                   @blur="saveField('mobile', $event.target.value)"
-                                   placeholder="+49 176 123456">
-                        </div>
-
-                        {# Stadt #}
-                        <div class="cd-field" style="grid-column:1/-1;">
-                            <span class="cd-field-label">Stadt / Standort</span>
-                            <input type="text" class="cd-input"
-                                   value="{{ contact.city or '' }}"
-                                   @blur="saveField('city', $event.target.value)"
-                                   placeholder="z.B. Hamburg">
-                        </div>
-
-                        {# Notizen #}
-                        <div class="cd-field" style="grid-column:1/-1;">
-                            <span class="cd-field-label">Notizen</span>
-                            <textarea class="cd-input" rows="3"
-                                      @blur="saveField('notes', $event.target.value)"
-                                      placeholder="Freitext-Notizen...">{{ contact.notes or '' }}</textarea>
-                        </div>
-
+                    <div class="cd-field">
+                        <span class="cd-field-label">Position / Funktion</span>
+                        <input type="text" class="cd-input"
+                               value="{{ contact.position or '' }}"
+                               @blur="saveField('position', $event.target.value)"
+                               placeholder="z.B. Gesch&auml;ftsf&uuml;hrer, HR-Leiter, Teamleiter Buchhaltung">
                     </div>
                 </div>
+
+                {# ── Erreichbarkeit ── #}
+                <div class="cd-field-group">
+                    <div class="cd-field-group-title">Erreichbarkeit</div>
+
+                    <div class="cd-field">
+                        <span class="cd-field-label">E-Mail</span>
+                        <input type="email" class="cd-input"
+                               value="{{ contact.email or '' }}"
+                               @blur="saveField('email', $event.target.value)"
+                               placeholder="name@firma.de">
+                    </div>
+
+                    <div class="cd-fields-row">
+                        <div class="cd-field">
+                            <span class="cd-field-label">Telefon</span>
+                            <div class="cd-phone-wrap">
+                                <input type="text" class="cd-input"
+                                       value="{{ contact.phone or '' }}"
+                                       @blur="saveField('phone', $event.target.value)"
+                                       placeholder="+49 40 123456">
+                                {% if contact.phone %}
+                                <a href="tel:{{ contact.phone_normalized or contact.phone }}" class="cd-phone-call-btn" title="Anrufen">
+                                    <svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"/></svg>
+                                    Anrufen
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="cd-field">
+                            <span class="cd-field-label">Mobil</span>
+                            <div class="cd-phone-wrap">
+                                <input type="text" class="cd-input"
+                                       value="{{ contact.mobile or '' }}"
+                                       @blur="saveField('mobile', $event.target.value)"
+                                       placeholder="+49 176 123456">
+                                {% if contact.mobile %}
+                                <a href="tel:{{ contact.mobile }}" class="cd-phone-call-btn" title="Anrufen">
+                                    <svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"/></svg>
+                                    Anrufen
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {# ── Standort ── #}
+                <div class="cd-field-group">
+                    <div class="cd-field-group-title">Standort</div>
+
+                    <div class="cd-field">
+                        <span class="cd-field-label">Stadt / Standort</span>
+                        <input type="text" class="cd-input"
+                               value="{{ contact.city or '' }}"
+                               @blur="saveField('city', $event.target.value)"
+                               placeholder="z.B. Hamburg, M&uuml;nchen, Berlin">
+                    </div>
+                </div>
+
+                {# ── Notizen ── #}
+                <div class="cd-field-group">
+                    <div class="cd-field-group-title">Notizen</div>
+
+                    <div class="cd-field">
+                        <textarea class="cd-input" rows="4"
+                                  @blur="saveField('notes', $event.target.value)"
+                                  placeholder="Freitext-Notizen zum Kontakt...">{{ contact.notes or '' }}</textarea>
+                    </div>
+                </div>
+
             </div>
 
             {# ── Anrufprotokoll Card ── #}
