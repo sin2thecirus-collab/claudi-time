@@ -666,6 +666,9 @@ async def candidates_list_partial(
     skills: Optional[str] = None,
     city: Optional[str] = None,
     category: Optional[str] = None,
+    plz_prefix: Optional[str] = None,
+    plz_from: Optional[str] = None,
+    plz_to: Optional[str] = None,
     db: AsyncSession = Depends(get_db)
 ):
     """Partial: Kandidaten-Liste fuer HTMX."""
@@ -686,6 +689,9 @@ async def candidates_list_partial(
         skills=skills_list,
         city_search=city if city else None,
         hotlist_category=category if category else None,
+        plz_prefix=plz_prefix if plz_prefix else None,
+        plz_from=plz_from if plz_from else None,
+        plz_to=plz_to if plz_to else None,
         include_hidden=True,
         only_active=False,
     )
@@ -712,6 +718,9 @@ async def candidates_list_partial(
             "skills": skills,
             "city": city,
             "category": category,
+            "plz_prefix": plz_prefix,
+            "plz_from": plz_from,
+            "plz_to": plz_to,
         }
     )
 

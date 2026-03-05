@@ -138,6 +138,17 @@ class CandidateFilterParams(BaseModel):
         default=None, description="Filter nach Match-Status"
     )
 
+    # PLZ-Filter
+    plz_prefix: str | None = Field(
+        default=None, min_length=1, max_length=5, description="PLZ beginnt mit..."
+    )
+    plz_from: str | None = Field(
+        default=None, min_length=1, max_length=5, description="PLZ-Bereich von (erste Ziffern)"
+    )
+    plz_to: str | None = Field(
+        default=None, min_length=1, max_length=5, description="PLZ-Bereich bis (erste Ziffern)"
+    )
+
     # Sortierung (Standard: neueste zuerst)
     sort_by: CandidateSortBy = Field(
         default=CandidateSortBy.CREATED_AT, description="Sortierfeld"

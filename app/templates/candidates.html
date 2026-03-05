@@ -316,7 +316,7 @@
                        hx-get="/partials/candidates-list"
                        hx-trigger="change"
                        hx-target="#candidates-list"
-                       hx-include="[name='search'], [name='per_page'], [name='position'], [name='skills'], [name='city'], [name='category']">
+                       hx-include="[name='search'], [name='per_page'], [name='position'], [name='skills'], [name='city'], [name='category'], [name='plz_prefix'], [name='plz_from'], [name='plz_to']">
             </div>
 
             {# Search #}
@@ -331,7 +331,7 @@
                        hx-get="/partials/candidates-list"
                        hx-trigger="keyup changed delay:300ms"
                        hx-target="#candidates-list"
-                       hx-include="[name='search'], [name='per_page'], [name='position'], [name='skills'], [name='city'], [name='category']"
+                       hx-include="[name='search'], [name='per_page'], [name='position'], [name='skills'], [name='city'], [name='category'], [name='plz_prefix'], [name='plz_from'], [name='plz_to']"
                        class="kl-search">
             </div>
 
@@ -385,7 +385,7 @@
                                hx-get="/partials/candidates-list"
                                hx-trigger="keyup changed delay:300ms"
                                hx-target="#candidates-list"
-                               hx-include="[name='search'], [name='per_page'], [name='position'], [name='skills'], [name='city'], [name='category']"
+                               hx-include="[name='search'], [name='per_page'], [name='position'], [name='skills'], [name='city'], [name='category'], [name='plz_prefix'], [name='plz_from'], [name='plz_to']"
                                oninput="updateFilterBadge()"
                                class="kl-filter-input">
                     </div>
@@ -397,7 +397,7 @@
                                hx-get="/partials/candidates-list"
                                hx-trigger="keyup changed delay:300ms"
                                hx-target="#candidates-list"
-                               hx-include="[name='search'], [name='per_page'], [name='position'], [name='skills'], [name='city'], [name='category']"
+                               hx-include="[name='search'], [name='per_page'], [name='position'], [name='skills'], [name='city'], [name='category'], [name='plz_prefix'], [name='plz_from'], [name='plz_to']"
                                oninput="updateFilterBadge()"
                                class="kl-filter-input">
                     </div>
@@ -409,16 +409,86 @@
                                hx-get="/partials/candidates-list"
                                hx-trigger="keyup changed delay:300ms"
                                hx-target="#candidates-list"
-                               hx-include="[name='search'], [name='per_page'], [name='position'], [name='skills'], [name='city'], [name='category']"
+                               hx-include="[name='search'], [name='per_page'], [name='position'], [name='skills'], [name='city'], [name='category'], [name='plz_prefix'], [name='plz_from'], [name='plz_to']"
                                oninput="updateFilterBadge()"
                                class="kl-filter-input">
                     </div>
                 </div>
+
+                {# ── PLZ-Filter Zeile ── #}
+                <div style="margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.04);">
+                    <label style="display: block; font-size: 11px; font-weight: 700; color: var(--pp-textDim); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px;">
+                        📮 Postleitzahl
+                    </label>
+                    <div x-data="{ plzMode: 'prefix' }" style="display: flex; flex-direction: column; gap: 10px;">
+                        {# Mode Toggle #}
+                        <div style="display: flex; gap: 6px;">
+                            <button type="button"
+                                    :class="plzMode === 'prefix' ? 'kl-chip kl-chip-active' : 'kl-chip'"
+                                    @click="plzMode = 'prefix'; $refs.plzFrom.value = ''; $refs.plzTo.value = ''; htmx.trigger($refs.plzFrom, 'change'); updateFilterBadge();"
+                                    style="font-size: 12px; padding: 5px 14px;">
+                                Beginnt mit
+                            </button>
+                            <button type="button"
+                                    :class="plzMode === 'range' ? 'kl-chip kl-chip-active' : 'kl-chip'"
+                                    @click="plzMode = 'range'; $refs.plzPrefix.value = ''; htmx.trigger($refs.plzPrefix, 'change'); updateFilterBadge();"
+                                    style="font-size: 12px; padding: 5px 14px;">
+                                Von – Bis
+                            </button>
+                        </div>
+
+                        {# Prefix Mode #}
+                        <div x-show="plzMode === 'prefix'" style="max-width: 220px;">
+                            <input type="text"
+                                   name="plz_prefix"
+                                   x-ref="plzPrefix"
+                                   placeholder="z.B. 8 oder 80 oder 801..."
+                                   maxlength="5"
+                                   hx-get="/partials/candidates-list"
+                                   hx-trigger="keyup changed delay:400ms"
+                                   hx-target="#candidates-list"
+                                   hx-include="[name='search'], [name='per_page'], [name='position'], [name='skills'], [name='city'], [name='category'], [name='plz_prefix'], [name='plz_from'], [name='plz_to']"
+                                   oninput="this.value = this.value.replace(/[^0-9]/g, ''); updateFilterBadge();"
+                                   class="kl-filter-input"
+                                   style="font-family: var(--pp-mono); letter-spacing: 0.1em; font-size: 15px;">
+                        </div>
+
+                        {# Range Mode #}
+                        <div x-show="plzMode === 'range'" style="display: flex; align-items: center; gap: 10px; max-width: 360px;">
+                            <input type="text"
+                                   name="plz_from"
+                                   x-ref="plzFrom"
+                                   placeholder="Von z.B. 20"
+                                   maxlength="5"
+                                   hx-get="/partials/candidates-list"
+                                   hx-trigger="keyup changed delay:400ms"
+                                   hx-target="#candidates-list"
+                                   hx-include="[name='search'], [name='per_page'], [name='position'], [name='skills'], [name='city'], [name='category'], [name='plz_prefix'], [name='plz_from'], [name='plz_to']"
+                                   oninput="this.value = this.value.replace(/[^0-9]/g, ''); updateFilterBadge();"
+                                   class="kl-filter-input"
+                                   style="font-family: var(--pp-mono); letter-spacing: 0.1em; font-size: 15px; flex: 1;">
+                            <span style="color: var(--pp-textDim); font-weight: 600; font-size: 13px;">bis</span>
+                            <input type="text"
+                                   name="plz_to"
+                                   x-ref="plzTo"
+                                   placeholder="Bis z.B. 22"
+                                   maxlength="5"
+                                   hx-get="/partials/candidates-list"
+                                   hx-trigger="keyup changed delay:400ms"
+                                   hx-target="#candidates-list"
+                                   hx-include="[name='search'], [name='per_page'], [name='position'], [name='skills'], [name='city'], [name='category'], [name='plz_prefix'], [name='plz_from'], [name='plz_to']"
+                                   oninput="this.value = this.value.replace(/[^0-9]/g, ''); updateFilterBadge();"
+                                   class="kl-filter-input"
+                                   style="font-family: var(--pp-mono); letter-spacing: 0.1em; font-size: 15px; flex: 1;">
+                        </div>
+                    </div>
+                </div>
+
                 <div style="display: flex; justify-content: flex-end; margin-top: 12px;">
                     <button type="button" onclick="resetCandidateFilters()"
                             style="font-size: 12px; font-weight: 600; color: var(--pp-textDim); cursor: pointer; background: none; border: none; font-family: inherit; transition: color 0.15s;"
                             onmouseover="this.style.color='#3B82F6'" onmouseout="this.style.color='#71717A'">
-                        Filter zurücksetzen
+                        Filter zur&uuml;cksetzen
                     </button>
                 </div>
             </div>
@@ -500,7 +570,7 @@ function toggleFilterPanel() {
 // Auto-open filter panel if URL has filter params
 (function() {
     var params = new URLSearchParams(window.location.search);
-    if (params.get('position') || params.get('skills') || params.get('city')) {
+    if (params.get('position') || params.get('skills') || params.get('city') || params.get('plz_prefix') || params.get('plz_from') || params.get('plz_to')) {
         var panel = document.getElementById('kl-filter-panel');
         var btn = document.getElementById('kl-filter-toggle');
         if (panel) panel.style.display = 'block';
@@ -535,6 +605,9 @@ function getCurrentState() {
     var city = document.querySelector('[name="city"]');
     var category = document.querySelector('[name="category"]');
     var perPage = document.getElementById('per-page-select');
+    var plzPrefix = document.querySelector('[name="plz_prefix"]');
+    var plzFrom = document.querySelector('[name="plz_from"]');
+    var plzTo = document.querySelector('[name="plz_to"]');
     return {
         search: search ? search.value : '',
         position: position ? position.value : '',
@@ -542,6 +615,9 @@ function getCurrentState() {
         city: city ? city.value : '',
         category: category ? category.value : '',
         per_page: perPage ? perPage.value : '25',
+        plz_prefix: plzPrefix ? plzPrefix.value : '',
+        plz_from: plzFrom ? plzFrom.value : '',
+        plz_to: plzTo ? plzTo.value : '',
     };
 }
 
@@ -554,6 +630,9 @@ function buildQueryString(state, page) {
     if (state.skills) params.set('skills', state.skills);
     if (state.city) params.set('city', state.city);
     if (state.category) params.set('category', state.category);
+    if (state.plz_prefix) params.set('plz_prefix', state.plz_prefix);
+    if (state.plz_from) params.set('plz_from', state.plz_from);
+    if (state.plz_to) params.set('plz_to', state.plz_to);
     var qs = params.toString();
     return qs ? '?' + qs : '';
 }
@@ -585,6 +664,16 @@ function restoreStateFromUrl() {
 
     var perPage = document.getElementById('per-page-select');
     if (perPage && params.get('per_page')) perPage.value = params.get('per_page');
+
+    // PLZ-Filter wiederherstellen
+    var plzPrefix = document.querySelector('[name="plz_prefix"]');
+    if (plzPrefix && params.get('plz_prefix')) plzPrefix.value = params.get('plz_prefix');
+
+    var plzFrom = document.querySelector('[name="plz_from"]');
+    if (plzFrom && params.get('plz_from')) plzFrom.value = params.get('plz_from');
+
+    var plzTo = document.querySelector('[name="plz_to"]');
+    if (plzTo && params.get('plz_to')) plzTo.value = params.get('plz_to');
 
     // Sync Alpine.js category chips
     var catVal = params.get('category') || '';
@@ -639,6 +728,9 @@ window.addEventListener('popstate', function(event) {
         if (params.get('skills')) url += '&skills=' + encodeURIComponent(params.get('skills'));
         if (params.get('city')) url += '&city=' + encodeURIComponent(params.get('city'));
         if (params.get('category')) url += '&category=' + encodeURIComponent(params.get('category'));
+        if (params.get('plz_prefix')) url += '&plz_prefix=' + encodeURIComponent(params.get('plz_prefix'));
+        if (params.get('plz_from')) url += '&plz_from=' + encodeURIComponent(params.get('plz_from'));
+        if (params.get('plz_to')) url += '&plz_to=' + encodeURIComponent(params.get('plz_to'));
         htmx.ajax('GET', url, {target:'#candidates-list', swap:'innerHTML'});
     }
 });
@@ -652,6 +744,9 @@ function changePerPage(perPage) {
     if (state.skills) url += '&skills=' + encodeURIComponent(state.skills);
     if (state.city) url += '&city=' + encodeURIComponent(state.city);
     if (state.category) url += '&category=' + encodeURIComponent(state.category);
+    if (state.plz_prefix) url += '&plz_prefix=' + encodeURIComponent(state.plz_prefix);
+    if (state.plz_from) url += '&plz_from=' + encodeURIComponent(state.plz_from);
+    if (state.plz_to) url += '&plz_to=' + encodeURIComponent(state.plz_to);
     htmx.ajax('GET', url, {target:'#candidates-list', swap:'innerHTML'});
 }
 
@@ -663,6 +758,13 @@ function resetCandidateFilters() {
     if (search) search.value = '';
     var category = document.querySelector('[name="category"]');
     if (category) category.value = '';
+    // PLZ-Filter zuruecksetzen
+    var plzPrefix = document.querySelector('[name="plz_prefix"]');
+    if (plzPrefix) plzPrefix.value = '';
+    var plzFrom = document.querySelector('[name="plz_from"]');
+    if (plzFrom) plzFrom.value = '';
+    var plzTo = document.querySelector('[name="plz_to"]');
+    if (plzTo) plzTo.value = '';
     // Reset Alpine.js category state
     var catContainer = document.getElementById('kl-category-chips');
     if (catContainer && catContainer._x_dataStack) {
@@ -681,6 +783,11 @@ function updateFilterBadge() {
     document.querySelectorAll('#candidate-filters input').forEach(function(input) {
         if (input.value.trim()) hasFilter = true;
     });
+    // PLZ-Filter pruefen (ausserhalb von #candidate-filters)
+    var plzP = document.querySelector('[name="plz_prefix"]');
+    var plzF = document.querySelector('[name="plz_from"]');
+    var plzT = document.querySelector('[name="plz_to"]');
+    if ((plzP && plzP.value.trim()) || (plzF && plzF.value.trim()) || (plzT && plzT.value.trim())) hasFilter = true;
     if (hasFilter) {
         badge.classList.remove('hidden');
     } else {
@@ -702,6 +809,9 @@ function updateFilterBadge() {
         if (params.get('skills')) url += '&skills=' + encodeURIComponent(params.get('skills'));
         if (params.get('city')) url += '&city=' + encodeURIComponent(params.get('city'));
         if (params.get('category')) url += '&category=' + encodeURIComponent(params.get('category'));
+        if (params.get('plz_prefix')) url += '&plz_prefix=' + encodeURIComponent(params.get('plz_prefix'));
+        if (params.get('plz_from')) url += '&plz_from=' + encodeURIComponent(params.get('plz_from'));
+        if (params.get('plz_to')) url += '&plz_to=' + encodeURIComponent(params.get('plz_to'));
         htmx.ajax('GET', url, {target:'#candidates-list', swap:'innerHTML'});
     }
 

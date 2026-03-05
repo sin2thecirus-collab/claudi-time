@@ -634,6 +634,32 @@ class CandidateService:
         if filters.hotlist_category:
             query = query.where(Candidate.hotlist_category == filters.hotlist_category)
 
+        # PLZ-Filter: "beginnt mit" (z.B. "8" → 80xxx-89xxx)
+        if filters.plz_prefix:
+            query = query.where(
+                Candidate.postal_code.ilike(f"{filters.plz_prefix}%")
+            )
+
+        # PLZ-Filter: Bereich "von-bis" (z.B. "20" bis "22" → 20xxx-22xxx)
+        if filters.plz_from and filters.plz_to:
+            # Auffuellen auf gleiche Laenge: "20" → "20000", "22" → "22999"
+            pad_len = max(len(filters.plz_from), len(filters.plz_to))
+            plz_min = filters.plz_from.ljust(5, "0")  # "20" → "20000"
+            plz_max = filters.plz_to.ljust(5, "9")    # "22" → "22999"
+            query = query.where(
+                Candidate.postal_code.isnot(None),
+                func.lpad(Candidate.postal_code, 5, '0') >= plz_min,
+                func.lpad(Candidate.postal_code, 5, '0') <= plz_max,
+            )
+        elif filters.plz_from:
+            query = query.where(
+                Candidate.postal_code.ilike(f"{filters.plz_from}%")
+            )
+        elif filters.plz_to:
+            query = query.where(
+                Candidate.postal_code.ilike(f"{filters.plz_to}%")
+            )
+
         # Nur aktive Kandidaten
         if filters.only_active:
             cutoff = datetime.now(timezone.utc) - timedelta(days=limits.ACTIVE_CANDIDATE_DAYS)
