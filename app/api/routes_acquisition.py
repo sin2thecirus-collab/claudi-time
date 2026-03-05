@@ -95,6 +95,9 @@ class ManualLeadRequest(BaseModel):
     position: str
     city: str | None = None
     postal_code: str | None = None
+    # Firmen-Kontaktdaten (Zentrale)
+    company_phone: str | None = None
+    company_email: str | None = None
     # Alte single-contact Felder (Rueckwaertskompatibilitaet)
     contact_salutation: str | None = None
     contact_first_name: str | None = None
@@ -557,6 +560,8 @@ Antworte IMMER als JSON mit genau diesen Feldern (leere Felder als null):
   "position": "Jobtitel / gesuchte Position (PFLICHT)",
   "city": "Stadt/Ort",
   "postal_code": "PLZ",
+  "company_phone": "Telefon-Zentrale der Firma (z.B. 0511 407837) — NICHT persoenliche Durchwahl eines Ansprechpartners",
+  "company_email": "Allgemeine Firmen-Email (z.B. info@firma.de, personal@firma.de) — NICHT persoenliche Email eines Ansprechpartners",
   "notes": "Zusammenfassung / wichtige Details die nicht in andere Felder passen",
   "contacts": [
     {
@@ -706,9 +711,14 @@ async def create_manual_lead(
     company_service = CompanyService(db)
 
     # 1. Company finden oder erstellen (Blacklist-Check inbegriffen)
+    company_extra = {"city": body.city}
+    if body.company_phone and body.company_phone.strip():
+        company_extra["phone"] = body.company_phone.strip()
+    if body.company_email and body.company_email.strip():
+        company_extra["email"] = body.company_email.strip()
     company = await company_service.get_or_create_by_name(
         body.company_name,
-        city=body.city,
+        **company_extra,
     )
     if company is None:
         raise HTTPException(

@@ -535,7 +535,7 @@
                 </div>
 
                 <p style="font-size:12px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.5px;margin:0 0 10px;">Firma</p>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
                     <div>
                         <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">Firmenname *</label>
                         <input type="text" x-model="mlCompanyName" required placeholder="z.B. Mustermann GmbH"
@@ -544,6 +544,18 @@
                     <div>
                         <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">Stadt</label>
                         <input type="text" x-model="mlCity" placeholder="z.B. Hamburg"
+                               style="width:100%;padding:8px 12px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;box-sizing:border-box;">
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+                    <div>
+                        <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">📞 Telefon Zentrale</label>
+                        <input type="tel" x-model="mlCompanyPhone" placeholder="z.B. 0511 407837"
+                               style="width:100%;padding:8px 12px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">✉️ E-Mail Firma</label>
+                        <input type="email" x-model="mlCompanyEmail" placeholder="z.B. info@firma.de"
                                style="width:100%;padding:8px 12px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;box-sizing:border-box;">
                     </div>
                 </div>
@@ -563,6 +575,7 @@
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
                     <p style="font-size:12px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.5px;margin:0;">
                         Ansprechpartner
+                        <span style="font-weight:400;text-transform:none;letter-spacing:normal;color:var(--pp-textDim);font-size:11px;opacity:0.7;">(optional)</span>
                         <span x-show="mlContacts.length > 0" style="font-weight:400;color:var(--pp-accent);margin-left:4px;" x-text="'(' + mlContacts.length + ')'"></span>
                     </p>
                     <button type="button" @click="mlContacts.push({salutation:'',first_name:'',last_name:'',position:'',email:'',phone:'',expanded:true})"
@@ -1262,6 +1275,8 @@ function akquisePage() {
         mlExtractError: '',
         mlCompanyName: '',
         mlCity: '',
+        mlCompanyPhone: '',
+        mlCompanyEmail: '',
         mlPosition: '',
         mlPostalCode: '',
         mlSalutation: '',
@@ -1538,6 +1553,8 @@ function akquisePage() {
                     this.mlPosition = data.position || '';
                     this.mlCity = data.city || '';
                     this.mlPostalCode = data.postal_code || '';
+                    this.mlCompanyPhone = data.company_phone || '';
+                    this.mlCompanyEmail = data.company_email || '';
                     this.mlNotes = data.notes || '';
                     // Multi-Kontakt: Array aus Response uebernehmen
                     if (data.contacts && data.contacts.length > 0) {
@@ -1609,6 +1626,8 @@ function akquisePage() {
                     position: this.mlPosition.trim(),
                     city: this.mlCity.trim() || null,
                     postal_code: this.mlPostalCode.trim() || null,
+                    company_phone: this.mlCompanyPhone.trim() || null,
+                    company_email: this.mlCompanyEmail.trim() || null,
                     notes: this.mlNotes.trim() || null,
                     raw_text: this.mlRawText.trim() || null,
                 };
@@ -1636,6 +1655,8 @@ function akquisePage() {
                     // Reset form
                     this.mlCompanyName = '';
                     this.mlCity = '';
+                    this.mlCompanyPhone = '';
+                    this.mlCompanyEmail = '';
                     this.mlPosition = '';
                     this.mlPostalCode = '';
                     this.mlSalutation = '';
