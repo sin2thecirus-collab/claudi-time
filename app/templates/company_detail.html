@@ -4,337 +4,358 @@
 
 {% block head %}
 <style>
-    /* ═══ Company Detail Dark Theme ═══ */
-    .cd-page { color: var(--pp-text); }
-    .cd-page * { box-sizing: border-box; }
+    /* ═══ Company Detail — Aurora Dark Theme (Design System v7) ═══ */
+    .kd-wrap { background: var(--pp-bg); color: var(--pp-text); font-size: 15px; overflow-x: hidden; max-width: 100vw; }
+    .kd-wrap ::-webkit-scrollbar { width: 5px; }
+    .kd-wrap ::-webkit-scrollbar-track { background: transparent; }
+    .kd-wrap ::-webkit-scrollbar-thumb { background: var(--pp-border); border-radius: 3px; }
 
-    /* Animations */
-    @keyframes cdFadeUp { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
-    .cd-anim { opacity:0; animation: cdFadeUp 0.4s cubic-bezier(0.16,1,0.3,1) forwards; }
+    @keyframes kdFadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes kdSlideIn { from { opacity:0; transform:translateX(12px); } to { opacity:1; transform:translateX(0); } }
+    .kd-anim { opacity:0; animation: kdFadeUp 0.5s cubic-bezier(0.16,1,0.3,1) forwards; }
+    .kd-anim-side { opacity:0; animation: kdSlideIn 0.5s cubic-bezier(0.16,1,0.3,1) forwards; }
 
-    /* Company Header */
-    .cd-header {
-        padding: 24px 32px 0;
-        border-bottom: 1px solid var(--pp-border);
-        background: var(--pp-surface);
+    /* ── Sticky Header ── */
+    .kd-sticky-header {
+        background: rgba(14,16,25,0.75);
+        backdrop-filter: blur(20px) saturate(1.4);
+        -webkit-backdrop-filter: blur(20px) saturate(1.4);
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+        padding: 20px 32px 0;
+        position: sticky; top: 0; z-index: 100;
     }
-    .cd-breadcrumb {
-        font-size: 14px; color: var(--pp-textDim); margin-bottom: 16px;
+
+    /* Breadcrumb */
+    .kd-breadcrumb {
+        font-size: 13px; color: var(--pp-textDim); margin-bottom: 14px;
         display: flex; align-items: center; gap: 8px;
     }
-    .cd-breadcrumb a { color: var(--pp-accent); text-decoration: none; cursor: pointer; }
-    .cd-breadcrumb a:hover { text-decoration: underline; }
+    .kd-breadcrumb a { color: var(--pp-accent); text-decoration: none; cursor: pointer; transition: opacity 0.15s; }
+    .kd-breadcrumb a:hover { opacity: 0.8; }
 
-    .cd-info-row {
+    /* Info Row */
+    .kd-info-row {
         display: flex; align-items: center; justify-content: space-between;
-        margin-bottom: 42px;
+        margin-bottom: 14px;
     }
-    .cd-info-left { display: flex; align-items: center; gap: 16px; min-width: 0; flex: 1; }
+    .kd-info-left { display: flex; align-items: center; gap: 16px; min-width: 0; flex: 1; }
 
-    .cd-avatar {
-        width: 56px; height: 56px; border-radius: 12px; flex-shrink: 0;
-        background: var(--pp-accentSoft);
-        border: 1px solid rgba(59,130,246,0.20);
+    /* Avatar Ring */
+    .kd-avatar-ring {
+        width: 52px; height: 52px; border-radius: 50%; flex-shrink: 0;
+        background: conic-gradient(from 45deg, #60A5FA, #A78BFA, #34D399, #60A5FA);
+        padding: 2.5px;
         display: flex; align-items: center; justify-content: center;
-        font-size: 20px; font-weight: 700; color: var(--pp-accent);
+        box-shadow: 0 0 16px rgba(96,165,250,0.15);
     }
-    .cd-name {
-        font-size: 27px; font-weight: 700; margin: 0;
+    .kd-avatar-inner {
+        width: 100%; height: 100%; border-radius: 50%;
+        background: rgba(14,16,25,0.9);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 17px; font-weight: 700; color: var(--pp-accent);
+        letter-spacing: 0.5px;
+    }
+
+    /* Name */
+    .kd-name {
+        font-size: 24px; font-weight: 700; margin: 0;
         letter-spacing: -0.02em; color: var(--pp-text);
         overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
-    .cd-meta {
-        display: flex; align-items: center; gap: 18px; margin-top: 8px;
-        font-size: 20px; color: var(--pp-textMuted);
-    }
-    .cd-meta .sep { color: var(--pp-textDim); }
-    .cd-meta a { color: var(--pp-accent); text-decoration: none; display: flex; align-items: center; gap: 5px; }
-    .cd-meta a:hover { text-decoration: underline; }
 
     /* Status Badge */
-    .cd-badge {
+    .kd-badge {
         display: inline-flex; align-items: center; gap: 5px;
-        padding: 3px 10px; border-radius: 7px; font-size: 13px; font-weight: 600;
+        padding: 3px 10px; border-radius: 8px; font-size: 12px; font-weight: 600;
         letter-spacing: 0.03em;
     }
+    .kd-badge-green { color: var(--pp-green); background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.15); box-shadow: 0 0 8px rgba(52,211,153,0.1); }
+    .kd-badge-red { color: var(--pp-red); background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.15); box-shadow: 0 0 8px rgba(248,113,113,0.1); }
+    .kd-badge-orange { color: var(--pp-orange); background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.15); box-shadow: 0 0 8px rgba(251,191,36,0.1); }
+
+    /* Meta Badges */
+    .kd-meta-row {
+        display: flex; align-items: center; gap: 6px; margin-top: 6px;
+        flex-wrap: wrap;
+    }
+    .kd-meta-badge {
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 4px 10px; border-radius: 8px; font-size: 13px;
+        background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);
+        color: var(--pp-textMuted); transition: all 0.2s; white-space: nowrap;
+    }
+    .kd-meta-badge:hover { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.1); }
+    a.kd-meta-badge { color: var(--pp-accent); text-decoration: none; cursor: pointer; }
+    a.kd-meta-badge:hover { background: rgba(96,165,250,0.08); border-color: rgba(96,165,250,0.15); }
+    .kd-meta-badge-purple { background: rgba(167,139,250,0.08); border-color: rgba(167,139,250,0.15); color: var(--pp-purple); font-size: 11px; font-weight: 600; }
 
     /* Action Buttons */
-    .cd-btn-call {
-        display: flex; align-items: center; gap: 8px;
-        padding: 10px 18px; border-radius: 10px;
-        border: 1px solid rgba(52,211,153,0.27);
-        background: var(--pp-greenSoft); color: var(--pp-green);
-        font-size: 14px; font-weight: 600; cursor: pointer;
-        transition: all 0.15s; font-family: var(--pp-ff);
+    .kd-quickbtn {
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 7px 16px; border-radius: 8px; font-size: 12.5px; font-weight: 600;
+        cursor: pointer; font-family: inherit; transition: all 0.25s ease;
+        border: 1px solid rgba(255,255,255,0.08); background: rgba(30,34,53,0.6); color: var(--pp-textMuted);
+        backdrop-filter: blur(8px);
     }
-    .cd-btn-call:hover { background: rgba(52,211,153,0.14); }
-    .cd-btn-gear {
-        padding: 10px 14px; border-radius: 10px;
-        border: 1px solid var(--pp-border); background: transparent;
-        color: var(--pp-textMuted); font-size: 16px; cursor: pointer;
-        transition: all 0.15s;
+    .kd-quickbtn:hover { background: rgba(30,34,53,0.9); transform: translateY(-1px); border-color: rgba(255,255,255,0.12); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+    .kd-quickbtn-primary { background: linear-gradient(135deg, #34D399, #10B981); color: #fff; border: none; font-weight: 700; box-shadow: 0 2px 8px rgba(52,211,153,0.25); padding: 9px 18px; font-size: 13px; }
+    .kd-quickbtn-primary:hover { opacity: 0.92; box-shadow: 0 4px 16px rgba(52,211,153,0.35); }
+    .kd-quickbtn-accent { background: rgba(96,165,250,0.1); color: var(--pp-accent); border: 1px solid rgba(96,165,250,0.2); }
+    .kd-quickbtn-accent:hover { background: rgba(96,165,250,0.16); box-shadow: 0 0 12px rgba(96,165,250,0.1); }
+    .kd-quickbtn-gear {
+        padding: 8px 12px; border-radius: 8px;
+        border: 1px solid rgba(255,255,255,0.08); background: rgba(30,34,53,0.6);
+        color: var(--pp-textMuted); font-size: 15px; cursor: pointer;
+        transition: all 0.2s; backdrop-filter: blur(8px);
     }
-    .cd-btn-gear:hover { border-color: var(--pp-borderLight); color: var(--pp-text); }
+    .kd-quickbtn-gear:hover { border-color: rgba(255,255,255,0.15); color: var(--pp-text); background: rgba(30,34,53,0.9); }
 
     /* Status Menu */
-    .cd-status-menu {
+    .kd-status-menu {
         position: absolute; right: 0; top: 100%; margin-top: 8px;
-        width: 240px; background: var(--pp-surface); border-radius: 12px;
-        box-shadow: 0 8px 30px rgba(0,0,0,0.35); border: 1px solid var(--pp-border);
+        width: 240px; border-radius: 12px;
+        background: rgba(14,16,25,0.9);
+        backdrop-filter: blur(20px) saturate(1.3);
+        -webkit-backdrop-filter: blur(20px) saturate(1.3);
+        box-shadow: 0 8px 30px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.08);
         padding: 6px; z-index: 50;
     }
-    .cd-status-item {
+    .kd-status-item {
         width: 100%; text-align: left; padding: 12px 16px; border-radius: 8px;
         font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 10px;
         border: none; background: transparent; color: var(--pp-text);
         transition: background 0.15s; font-family: var(--pp-ff);
     }
-    .cd-status-item:hover { background: var(--pp-surfaceHover); }
-    .cd-status-item.danger { color: var(--pp-red); }
-    .cd-status-item.danger:hover { background: var(--pp-redSoft); }
+    .kd-status-item:hover { background: rgba(255,255,255,0.05); }
+    .kd-status-item.danger { color: var(--pp-red); }
+    .kd-status-item.danger:hover { background: rgba(248,113,113,0.08); }
 
-    /* Tabs */
-    .cd-tabs { display: flex; gap: 2px; }
-    .cd-tab {
-        padding: 12px 20px; border-radius: 10px 10px 0 0; border: none;
-        cursor: pointer; font-size: 15px; font-weight: 600;
+    /* ── Tabs ── */
+    .kd-tabs { display: flex; gap: 0; }
+    .kd-tab-btn {
+        padding: 10px 16px; background: none; border: none;
+        font-size: 13px; font-weight: 500; cursor: pointer;
         display: flex; align-items: center; gap: 8px;
-        color: var(--pp-textMuted); background: transparent;
         border-bottom: 2px solid transparent;
-        transition: all 0.15s; font-family: var(--pp-ff);
-    }
-    .cd-tab:hover { color: var(--pp-text); }
-    .cd-tab.active {
+        transition: all 0.2s ease; color: var(--pp-textDim); font-family: var(--pp-ff);
         position: relative;
-        border-bottom-color: var(--pp-accent);
-        color: var(--pp-accent);
-        background: var(--pp-accentSoft);
-        border-radius: 10px 10px 0 0;
     }
-    .cd-tab .icon { font-size: 16px; }
+    .kd-tab-btn:hover { color: var(--pp-textMuted); background: rgba(96,165,250,0.04); border-radius: 8px 8px 0 0; }
+    .kd-tab-btn.active {
+        color: var(--pp-text); font-weight: 600;
+        border-bottom-color: transparent;
+        background: linear-gradient(180deg, rgba(96,165,250,0.08) 0%, transparent 100%);
+        border-radius: 8px 8px 0 0;
+    }
+    .kd-tab-btn.active::after {
+        content: ''; position: absolute; bottom: 0; left: 20%; right: 20%; height: 2px;
+        background: linear-gradient(90deg, transparent, var(--pp-accent), transparent);
+        border-radius: 1px;
+        box-shadow: 0 0 8px rgba(96,165,250,0.4);
+    }
+    .kd-tab-btn .icon { font-size: 14px; }
+    .kd-tab-count {
+        font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 6px;
+        background: rgba(96,165,250,0.1); color: var(--pp-accent); margin-left: 4px;
+    }
 
-    /* Main Grid */
-    .cd-grid {
-        display: grid; grid-template-columns: 1fr 380px; gap: 0;
-        min-height: calc(100vh - 200px);
+    /* ── Main Grid ── */
+    .kd-grid {
+        display: grid; grid-template-columns: 1fr 320px; gap: 0;
+        min-height: calc(100vh - 140px);
     }
-    .cd-main { padding: 24px 28px; border-right: 1px solid var(--pp-border); }
-    .cd-sidebar {
-        padding: 28px 24px; background: var(--pp-bg);
+    .kd-main { padding: 24px 28px; border-right: 1px solid rgba(255,255,255,0.05); }
+    .kd-sidebar {
+        padding: 24px 20px; background: var(--pp-bg);
         display: flex; flex-direction: column;
+        position: sticky; top: 80px; max-height: calc(100vh - 80px); overflow-y: auto;
     }
 
-    /* Overview Cards */
-    .cd-overview-card {
-        background: var(--pp-surface);
-        border: 1px solid var(--pp-border);
-        border-radius: 12px;
-        padding: 20px;
-        overflow: hidden;
+    /* ── Glass Section (Cards) ── */
+    .kd-section {
+        background: rgba(14,16,25,0.65); border-radius: 14px;
+        border: 1px solid rgba(255,255,255,0.07); overflow: hidden;
+        transition: border-color 0.3s, box-shadow 0.3s;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.03);
+        backdrop-filter: blur(16px) saturate(1.3);
+        -webkit-backdrop-filter: blur(16px) saturate(1.3);
+        position: relative;
     }
-
-    /* Section Header */
-    .cd-sec-hdr {
+    .kd-section::before {
+        content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+        background: linear-gradient(135deg, rgba(255,255,255,0.025) 0%, transparent 50%);
+    }
+    .kd-section:hover { border-color: rgba(96,165,250,0.2); box-shadow: 0 4px 24px rgba(0,0,0,0.3), 0 0 20px rgba(96,165,250,0.06); }
+    .kd-section-header {
         display: flex; align-items: center; justify-content: space-between;
-        margin-bottom: 16px; padding: 0 2px;
+        padding: 16px 24px 12px; border-bottom: 1px solid rgba(255,255,255,0.05);
     }
-    .cd-sec-hdr-left { display: flex; align-items: center; gap: 10px; }
-    .cd-sec-hdr-left .icon { font-size: 22px; }
-    .cd-sec-hdr-left .title {
-        font-size: 18px; font-weight: 750; letter-spacing: 0.01em;
-        color: var(--pp-text);
+    .kd-section-title { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 700; color: var(--pp-text); }
+    .kd-section-title .icon { font-size: 17px; }
+    .kd-section-title .count {
+        font-size: 12px; font-weight: 600; color: var(--pp-textDim);
+        background: rgba(255,255,255,0.05); padding: 2px 8px; border-radius: 6px;
     }
-    .cd-sec-hdr-left .count {
-        font-size: 13px; font-weight: 600; color: var(--pp-textDim);
-        background: var(--pp-surfaceHover); padding: 2px 8px; border-radius: 6px;
-    }
-    .cd-sec-action {
-        background: none; border: 1px solid var(--pp-border); border-radius: 8px;
-        color: var(--pp-textMuted); font-size: 13px; font-weight: 500;
-        padding: 6px 12px; cursor: pointer; transition: all 0.15s;
-        font-family: var(--pp-ff);
-    }
-    .cd-sec-action:hover { border-color: var(--pp-accent); color: var(--pp-accent); }
+    .kd-section-body { padding: 18px 24px; }
+    .kd-section-sub { font-size: 13px; color: var(--pp-textDim); font-weight: 500; }
 
-    /* Card */
-    .cd-card {
-        background: var(--pp-surface); border: 1px solid var(--pp-border);
-        border-radius: 12px; padding: 20px; transition: all 0.2s ease;
+    /* ── Sidebar Cards ── */
+    .kd-sidebar-card {
+        background: rgba(14,16,25,0.55); border-radius: 14px;
+        border: 1px solid rgba(255,255,255,0.07); overflow: hidden;
+        transition: border-color 0.3s, box-shadow 0.3s;
+        backdrop-filter: blur(12px) saturate(1.2);
+        -webkit-backdrop-filter: blur(12px) saturate(1.2);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.02);
+        position: relative; margin-bottom: 16px;
     }
-
-    /* Sidebar Sections */
-    .cd-side-sec { margin-bottom: 32px; }
-    .cd-side-hdr {
+    .kd-sidebar-card::before {
+        content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+        background: linear-gradient(160deg, rgba(96,165,250,0.03) 0%, transparent 40%);
+    }
+    .kd-sidebar-card:hover { border-color: rgba(96,165,250,0.18); box-shadow: 0 4px 20px rgba(0,0,0,0.3), 0 0 16px rgba(96,165,250,0.05); }
+    .kd-sidebar-header {
+        padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.05);
         display: flex; align-items: center; justify-content: space-between;
-        margin-bottom: 16px;
+        font-size: 14px; font-weight: 700; color: var(--pp-text);
     }
-    .cd-side-hdr-left { display: flex; align-items: center; gap: 10px; }
-    .cd-side-hdr-left .icon { font-size: 18px; }
-    .cd-side-hdr-left .title { font-size: 16px; font-weight: 650; color: var(--pp-text); }
-    .cd-side-hdr-left .cnt {
-        font-size: 13px; font-weight: 700; padding: 3px 8px; border-radius: 6px;
+    .kd-sidebar-header .icon { font-size: 16px; }
+    .kd-sidebar-body { padding: 14px 16px; }
+    .kd-sidebar-link { font-size: 13px; color: var(--pp-accent); cursor: pointer; text-decoration: none; transition: opacity 0.15s; }
+    .kd-sidebar-link:hover { opacity: 0.8; }
+    .kd-sidebar-cnt {
+        font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 6px;
     }
-    .cd-side-link { font-size: 14px; color: var(--pp-accent); cursor: pointer; text-decoration: none; }
-    .cd-side-link:hover { text-decoration: underline; }
-    .cd-side-empty {
-        padding: 28px; border-radius: 12px; border: 1px dashed var(--pp-border);
-        text-align: center;
-    }
-    .cd-side-empty-text { font-size: 14px; color: var(--pp-textDim); margin-bottom: 10px; }
-    .cd-side-empty-link { font-size: 14px; color: var(--pp-accent); cursor: pointer; }
 
-    /* Call Stats */
-    .cd-stat-box {
-        padding: 20px; border-radius: 12px; background: var(--pp-surface);
-        border: 1px solid var(--pp-border); text-align: center;
+    /* ── Stats ── */
+    .kd-stat-box {
+        padding: 18px; border-radius: 10px;
+        background: rgba(6,7,11,0.6); border: 1px solid rgba(255,255,255,0.04);
+        text-align: center; transition: border-color 0.3s, background 0.3s;
     }
-    .cd-stat-val { font-size: 32px; font-weight: 700; }
-    .cd-stat-label { font-size: 13px; color: var(--pp-textDim); margin-top: 4px; }
+    .kd-stat-box:hover { border-color: rgba(96,165,250,0.1); background: rgba(6,7,11,0.8); }
+    .kd-stat-val { font-size: 28px; font-weight: 700; font-family: var(--pp-mono); }
+    .kd-stat-label { font-size: 11px; color: var(--pp-textDim); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600; }
 
-    /* Date Footer */
-    .cd-date-footer {
-        padding: 14px 0; border-top: 1px solid var(--pp-border);
+    /* ── Date Footer ── */
+    .kd-date-footer {
+        padding: 14px 0; border-top: 1px solid rgba(255,255,255,0.05);
         display: flex; justify-content: space-between;
-        font-size: 12px; color: var(--pp-textDim); letter-spacing: 0.02em;
+        font-size: 11px; color: var(--pp-textDim); letter-spacing: 0.04em;
+        text-transform: uppercase; font-weight: 500;
     }
 
-    /* Loading */
-    .cd-load { font-size: 14px; color: var(--pp-textMuted); padding: 14px 0; }
-    @keyframes cdPulse { 0%,100% { opacity:0.6; } 50% { opacity:1; } }
-    .cd-load { animation: cdPulse 1.5s ease-in-out infinite; }
+    /* ── Loading ── */
+    .kd-load { font-size: 14px; color: var(--pp-textMuted); padding: 14px 0; }
+    @keyframes kdPulse { 0%,100% { opacity:0.6; } 50% { opacity:1; } }
+    .kd-load { animation: kdPulse 1.5s ease-in-out infinite; }
 
-    /* Inputs Dark */
-    .cd-inp {
+    /* ── Inputs ── */
+    .kd-inp {
         width: 100%; padding: 11px 14px; border-radius: 10px;
-        border: 1px solid var(--pp-border); background: var(--pp-bg);
+        border: 1px solid rgba(255,255,255,0.08); background: rgba(6,7,11,0.6);
         color: var(--pp-text); font-size: 14px; outline: none;
-        transition: border-color 0.15s; font-family: var(--pp-ff);
+        transition: border-color 0.2s, box-shadow 0.2s; font-family: var(--pp-ff);
+        backdrop-filter: blur(8px);
     }
-    .cd-inp:focus { border-color: var(--pp-accent); box-shadow: 0 0 0 3px rgba(79,140,255,0.1); }
-    .cd-inp::placeholder { color: var(--pp-textDim); }
-    .cd-sel {
+    .kd-inp:focus { border-color: rgba(96,165,250,0.4); box-shadow: 0 0 0 3px rgba(96,165,250,0.08), 0 0 12px rgba(96,165,250,0.06); }
+    .kd-inp::placeholder { color: var(--pp-textDim); }
+    .kd-sel {
         padding: 11px 14px; border-radius: 10px;
-        border: 1px solid var(--pp-border); background: var(--pp-bg);
+        border: 1px solid rgba(255,255,255,0.08); background: rgba(6,7,11,0.6);
         color: var(--pp-text); font-size: 14px; outline: none;
         cursor: pointer; font-family: var(--pp-ff);
+        transition: border-color 0.2s, box-shadow 0.2s;
     }
-    .cd-sel:focus { border-color: var(--pp-accent); box-shadow: 0 0 0 3px rgba(79,140,255,0.1); }
-    .cd-sel option { background: var(--pp-surface); color: var(--pp-text); }
-    .cd-ta {
+    .kd-sel:focus { border-color: rgba(96,165,250,0.4); box-shadow: 0 0 0 3px rgba(96,165,250,0.08); }
+    .kd-sel option { background: rgba(14,16,25,0.95); color: var(--pp-text); }
+    .kd-ta {
         width: 100%; padding: 11px 14px; border-radius: 10px;
-        border: 1px solid var(--pp-border); background: var(--pp-bg);
+        border: 1px solid rgba(255,255,255,0.08); background: rgba(6,7,11,0.6);
         color: var(--pp-text); font-size: 14px; outline: none;
         resize: vertical; font-family: var(--pp-ff);
+        transition: border-color 0.2s, box-shadow 0.2s;
     }
-    .cd-ta:focus { border-color: var(--pp-accent); box-shadow: 0 0 0 3px rgba(79,140,255,0.1); }
-    .cd-ta::placeholder { color: var(--pp-textDim); }
-    .cd-iform {
-        margin-top: 18px; padding: 22px; background: var(--pp-bg);
-        border-radius: 12px; border: 1px solid var(--pp-border);
+    .kd-ta:focus { border-color: rgba(96,165,250,0.4); box-shadow: 0 0 0 3px rgba(96,165,250,0.08); }
+    .kd-ta::placeholder { color: var(--pp-textDim); }
+    .kd-iform {
+        margin-top: 18px; padding: 20px; border-radius: 12px;
+        background: rgba(6,7,11,0.5); border: 1px solid rgba(255,255,255,0.06);
+        backdrop-filter: blur(8px);
     }
 
-    /* Buttons Dark */
-    .cd-btn {
-        padding: 9px 16px; border-radius: 10px; font-size: 14px; font-weight: 600;
-        cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
-        transition: all 0.15s; font-family: var(--pp-ff);
-        border: 1px solid var(--pp-border); background: var(--pp-surface);
-        color: var(--pp-textMuted);
-    }
-    .cd-btn:hover { background: var(--pp-surfaceHover); border-color: var(--pp-borderLight); }
-    .cd-btn-accent { color: var(--pp-accent); border-color: rgba(79,140,255,0.27); }
-    .cd-btn-accent:hover { background: var(--pp-accentSoft); }
-    .cd-btn-primary {
-        background: var(--pp-accent);
-        color: #fff; border: none;
-    }
-    .cd-btn-primary:hover { opacity: 0.9; }
-
-    /* Dropzone Dark */
-    .cd-dz {
-        border: 2px dashed var(--pp-border); border-radius: 12px;
+    /* ── Dropzone ── */
+    .kd-dz {
+        border: 2px dashed rgba(255,255,255,0.1); border-radius: 12px;
         padding: 28px; text-align: center; cursor: pointer;
-        transition: all 0.2s; background: var(--pp-bg);
+        transition: all 0.25s; background: rgba(6,7,11,0.4);
     }
-    .cd-dz:hover, .cd-dz.dragover { border-color: var(--pp-accent); background: var(--pp-accentSoft); }
+    .kd-dz:hover, .kd-dz.dragover { border-color: rgba(96,165,250,0.4); background: rgba(96,165,250,0.04); box-shadow: 0 0 20px rgba(96,165,250,0.06); }
 
-    /* Call Modal */
-    .cd-modal-overlay {
+    /* ── Modal ── */
+    .kd-modal-overlay {
         position: fixed; inset: 0; z-index: 1000;
-        background: rgba(0,0,0,0.6);
+        background: rgba(0,0,0,0.65);
+        backdrop-filter: blur(4px);
         display: flex; align-items: center; justify-content: center;
     }
-    .cd-modal {
-        background: var(--pp-surface); border-radius: 12px; padding: 40px;
-        width: 620px; border: 1px solid var(--pp-border);
-        box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+    .kd-modal {
+        background: rgba(14,16,25,0.92); border-radius: 16px; padding: 36px;
+        width: 620px; border: 1px solid rgba(255,255,255,0.08);
+        box-shadow: 0 24px 80px rgba(0,0,0,0.6), 0 0 40px rgba(96,165,250,0.04);
+        backdrop-filter: blur(24px) saturate(1.3);
+        -webkit-backdrop-filter: blur(24px) saturate(1.3);
     }
-    .cd-modal-hdr {
+    .kd-modal-hdr {
         display: flex; align-items: center; justify-content: space-between;
-        margin-bottom: 32px;
+        margin-bottom: 28px;
     }
-    .cd-modal-icon {
-        width: 48px; height: 48px; border-radius: 12px;
-        background: var(--pp-accentSoft); display: flex;
-        align-items: center; justify-content: center; font-size: 24px;
+    .kd-modal-icon {
+        width: 44px; height: 44px; border-radius: 12px;
+        background: rgba(96,165,250,0.1); border: 1px solid rgba(96,165,250,0.15);
+        display: flex; align-items: center; justify-content: center; font-size: 22px;
     }
-    .cd-modal-title { font-size: 22px; font-weight: 700; color: var(--pp-text); }
-    .cd-modal-close {
+    .kd-modal-title { font-size: 20px; font-weight: 700; color: var(--pp-text); }
+    .kd-modal-close {
         background: none; border: none; color: var(--pp-textDim);
-        font-size: 28px; cursor: pointer;
+        font-size: 26px; cursor: pointer; transition: color 0.15s;
     }
-    .cd-modal-close:hover { color: var(--pp-text); }
-    .cd-modal-label {
-        font-size: 14px; font-weight: 600; color: var(--pp-textMuted);
-        margin-bottom: 8px; display: block; letter-spacing: 0.05em;
+    .kd-modal-close:hover { color: var(--pp-text); }
+    .kd-modal-label {
+        font-size: 12px; font-weight: 700; color: var(--pp-textMuted);
+        margin-bottom: 8px; display: block; letter-spacing: 0.08em;
         text-transform: uppercase;
     }
-    .cd-modal-dir-btn {
-        flex: 1; padding: 14px 0; border-radius: 10px; font-size: 15px;
-        font-weight: 600; cursor: pointer; transition: all 0.15s;
-        font-family: var(--pp-ff);
+    .kd-modal-dir-btn {
+        flex: 1; padding: 12px 0; border-radius: 10px; font-size: 14px;
+        font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: var(--pp-ff);
     }
-    .cd-modal-submit {
-        width: 100%; padding: 16px 0; border-radius: 12px; border: none;
-        background: var(--pp-accent);
-        color: #fff; font-size: 17px; font-weight: 700; cursor: pointer;
+    .kd-modal-submit {
+        width: 100%; padding: 14px; border-radius: 12px; border: none;
+        background: linear-gradient(135deg, #34D399, #10B981);
+        color: #fff; font-size: 15px; font-weight: 700; cursor: pointer;
         transition: all 0.2s; font-family: var(--pp-ff);
         margin-top: 8px;
+        box-shadow: 0 2px 12px rgba(52,211,153,0.25);
     }
-    .cd-modal-submit:hover { opacity: 0.9; }
+    .kd-modal-submit:hover { opacity: 0.92; box-shadow: 0 4px 20px rgba(52,211,153,0.35); }
 
-    /* Modal-specific input overrides for larger sizing */
-    .cd-modal .cd-inp,
-    .cd-modal .cd-sel {
-        padding: 14px 18px; font-size: 16px; border-radius: 12px;
+    /* Modal input overrides */
+    .kd-modal .kd-inp,
+    .kd-modal .kd-sel {
+        padding: 13px 16px; font-size: 15px; border-radius: 12px;
     }
-    .cd-modal .cd-ta {
-        padding: 14px 18px; font-size: 16px; border-radius: 12px;
-        min-height: 120px;
+    .kd-modal .kd-ta {
+        padding: 13px 16px; font-size: 15px; border-radius: 12px;
+        min-height: 110px;
     }
 
-    /* Tab Content Sections */
-    .cd-tab-sec {
-        background: var(--pp-surface); border-radius: 12px;
-        border: 1px solid var(--pp-border); overflow: hidden;
-    }
-    .cd-tab-sec-h {
-        display: flex; align-items: center; justify-content: space-between;
-        padding: 16px 22px 12px;
-    }
-    .cd-tab-sec-t {
-        display: flex; align-items: center; gap: 10px;
-        font-size: 16px; font-weight: 650; color: var(--pp-text);
-    }
-    .cd-tab-sec-t .icon { font-size: 18px; }
-    .cd-tab-sec-b { padding: 0 20px 20px; }
-    .cd-tab-sec-sub { font-size: 13px; color: var(--pp-textDim); font-weight: 500; }
-
-    /* Responsive */
+    /* ── Responsive ── */
     @media (max-width: 900px) {
-        .cd-grid { grid-template-columns: 1fr; }
-        .cd-sidebar { border-top: 1px solid var(--pp-border); }
-        .cd-main { border-right: none; }
+        .kd-grid { grid-template-columns: 1fr; }
+        .kd-sidebar { border-top: 1px solid rgba(255,255,255,0.05); position: static; max-height: none; }
+        .kd-main { border-right: none; }
+        .kd-sticky-header { position: relative; }
     }
 </style>
 {% endblock %}
@@ -342,42 +363,43 @@
 {% block content %}
 {% set invalid_vals = ['not available', 'n/a', 'na', 'none', 'null', '-', '—', ''] %}
 
-<div class="cd-page" id="cd-page" x-data="{ tab: 'overview', statusOpen: false, showCallModal: false, callDir: 'outbound' }" x-effect="if (showCallModal) { $nextTick(() => { const d = document.getElementById('call-date'); const t = document.getElementById('call-time'); if (d) d.value = new Date().toISOString().split('T')[0]; if (t) t.value = new Date().toTimeString().slice(0,5); }); }">
+<div class="kd-wrap" id="cd-page" x-data="{ tab: 'overview', statusOpen: false, showCallModal: false, callDir: 'outbound' }" x-effect="if (showCallModal) { $nextTick(() => { const d = document.getElementById('call-date'); const t = document.getElementById('call-time'); if (d) d.value = new Date().toISOString().split('T')[0]; if (t) t.value = new Date().toTimeString().slice(0,5); }); }">
 
-    {# ═══ COMPANY HEADER ═══ #}
-    <div class="cd-header cd-anim">
+    {# ═══ STICKY HEADER ═══ #}
+    <div class="kd-sticky-header kd-anim">
         {# Breadcrumb #}
-        <div class="cd-breadcrumb">
+        <div class="kd-breadcrumb">
             <a href="/unternehmen">🏢 Unternehmen</a>
-            <span>›</span>
+            <span style="opacity:0.4;">›</span>
             <span>{{ company.name }}</span>
         </div>
 
         {# Company Info Row #}
-        <div class="cd-info-row">
-            <div class="cd-info-left">
-                <div class="cd-avatar">{% set np = company.name.split() %}{% if np|length >= 2 %}{{ np[0][0]|upper }}{{ np[1][0]|upper }}{% else %}{{ company.name[0:2]|upper }}{% endif %}</div>
+        <div class="kd-info-row">
+            <div class="kd-info-left">
+                <div class="kd-avatar-ring">
+                    <div class="kd-avatar-inner">{% set np = company.name.split() %}{% if np|length >= 2 %}{{ np[0][0]|upper }}{{ np[1][0]|upper }}{% else %}{{ company.name[0:2]|upper }}{% endif %}</div>
+                </div>
                 <div style="min-width:0; flex:1;">
-                    <div style="display:flex; align-items:center; gap:12px;">
-                        <h1 class="cd-name">{{ company.name }}</h1>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <h1 class="kd-name">{{ company.name }}</h1>
                         {% if company.status.value == 'active' %}
-                        <span class="cd-badge" style="color:var(--pp-green); background:var(--pp-greenSoft);">● Aktiv</span>
+                        <span class="kd-badge kd-badge-green">● Aktiv</span>
                         {% elif company.status.value == 'blacklist' %}
-                        <span class="cd-badge" style="color:var(--pp-red); background:var(--pp-redSoft);">● Blacklist</span>
+                        <span class="kd-badge kd-badge-red">● Blacklist</span>
                         {% else %}
-                        <span class="cd-badge" style="color:var(--pp-orange); background:var(--pp-orangeSoft);">● Laufende Prozesse</span>
+                        <span class="kd-badge kd-badge-orange">● Laufende Prozesse</span>
                         {% endif %}
                     </div>
-                    <div class="cd-meta">
-                        {% set meta_items = [] %}
+                    <div class="kd-meta-row">
                         {% if company.city and company.city|string|lower|trim not in invalid_vals %}
-                            {% set _ = meta_items.append('<span style="display:flex;align-items:center;gap:5px;">📍 ' ~ company.city ~ '</span>') %}
+                            <span class="kd-meta-badge">📍 {{ company.city }}</span>
                         {% endif %}
                         {% if company.address and company.address|string|lower|trim not in invalid_vals %}
-                            {% set _ = meta_items.append('<span style="display:flex;align-items:center;gap:5px;">🏠 ' ~ company.address ~ '</span>') %}
+                            <span class="kd-meta-badge">🏠 {{ company.address }}</span>
                         {% endif %}
                         {% if company.phone and company.phone|string|lower|trim not in invalid_vals %}
-                            {% set _ = meta_items.append('<a href="tel:' ~ company.phone ~ '" style="color:var(--pp-accent);text-decoration:none;display:flex;align-items:center;gap:5px;">📞 ' ~ company.phone ~ '</a>') %}
+                            <a href="tel:{{ company.phone }}" class="kd-meta-badge">📞 {{ company.phone }}</a>
                         {% endif %}
                         {% if company.domain and company.domain|string|lower|trim not in invalid_vals %}
                             {% if 'http' in company.domain %}
@@ -385,139 +407,143 @@
                             {% else %}
                                 {% set url = 'https://' ~ company.domain %}
                             {% endif %}
-                            {% set _ = meta_items.append('<a href="' ~ url ~ '" target="_blank" style="color:var(--pp-accent);text-decoration:none;display:flex;align-items:center;gap:5px;">🌐 ' ~ company.domain ~ '</a>') %}
+                            <a href="{{ url }}" target="_blank" class="kd-meta-badge">🌐 {{ company.domain }}</a>
                         {% endif %}
                         {% if company.industry and company.industry|string|lower|trim not in invalid_vals %}
-                            {% set _ = meta_items.append('<span style="display:flex;align-items:center;gap:5px;">🏭 ' ~ company.industry ~ '</span>') %}
+                            <span class="kd-meta-badge">🏭 {{ company.industry }}</span>
                         {% endif %}
                         {% if company.employee_count and company.employee_count|string|lower|trim not in invalid_vals %}
-                            {% set _ = meta_items.append('<span style="display:flex;align-items:center;gap:5px;">👥 ' ~ company.employee_count ~ ' MA</span>') %}
+                            <span class="kd-meta-badge">👥 {{ company.employee_count }} MA</span>
                         {% endif %}
                         {% if job_count is defined %}
-                            {% set _ = meta_items.append('<a href="/jobs?company=' ~ company.id ~ '" style="color:var(--pp-accent);text-decoration:none;transition:opacity 0.15s;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">💼 ' ~ job_count ~ ' Job' ~ ('s' if job_count != 1 else '') ~ '</a>') %}
+                            <a href="/jobs?company={{ company.id }}" class="kd-meta-badge">💼 {{ job_count }} Job{{ 's' if job_count != 1 else '' }}</a>
                         {% endif %}
                         {% if akquise_count is defined and akquise_count > 0 %}
-                            {% set _ = meta_items.append('<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;background:rgba(167,139,250,0.12);color:var(--pp-purple);">📞 Akquise (' ~ akquise_count ~ ')</span>') %}
+                            <span class="kd-meta-badge kd-meta-badge-purple">📞 Akquise ({{ akquise_count }})</span>
                         {% endif %}
-                        {% for item in meta_items %}
-                            {% if not loop.first %}<span class="sep">|</span>{% endif %}
-                            {{ item|safe }}
-                        {% endfor %}
                     </div>
                 </div>
             </div>
-            <div style="display:flex; gap:10px; flex-shrink:0;">
-                <button class="cd-btn-call" @click="showCallModal = true">📞 Anruf protokollieren</button>
+            <div style="display:flex; gap:8px; flex-shrink:0;">
+                <button class="kd-quickbtn kd-quickbtn-primary" @click="showCallModal = true">📞 Anruf protokollieren</button>
                 <div style="position:relative;">
-                    <button class="cd-btn-gear" @click="statusOpen = !statusOpen">⚙</button>
-                    <div x-show="statusOpen" @click.away="statusOpen = false" x-transition class="cd-status-menu" style="display:none;">
-                        <button onclick="setStatus('active')" class="cd-status-item"><span style="width:8px;height:8px;border-radius:50%;background:var(--pp-green);flex-shrink:0;"></span> Aktiv</button>
-                        <button onclick="setStatus('laufende_prozesse')" class="cd-status-item"><span style="width:8px;height:8px;border-radius:50%;background:var(--pp-orange);flex-shrink:0;"></span> Laufende Prozesse</button>
-                        <button onclick="setStatus('blacklist')" class="cd-status-item danger"><span style="width:8px;height:8px;border-radius:50%;background:var(--pp-red);flex-shrink:0;"></span> Blacklist</button>
+                    <button class="kd-quickbtn-gear" @click="statusOpen = !statusOpen">⚙</button>
+                    <div x-show="statusOpen" @click.away="statusOpen = false" x-transition class="kd-status-menu" style="display:none;">
+                        <button onclick="setStatus('active')" class="kd-status-item"><span style="width:8px;height:8px;border-radius:50%;background:var(--pp-green);flex-shrink:0;"></span> Aktiv</button>
+                        <button onclick="setStatus('laufende_prozesse')" class="kd-status-item"><span style="width:8px;height:8px;border-radius:50%;background:var(--pp-orange);flex-shrink:0;"></span> Laufende Prozesse</button>
+                        <button onclick="setStatus('blacklist')" class="kd-status-item danger"><span style="width:8px;height:8px;border-radius:50%;background:var(--pp-red);flex-shrink:0;"></span> Blacklist</button>
                     </div>
                 </div>
             </div>
         </div>
 
         {# Tabs #}
-        <div class="cd-tabs">
-            <button class="cd-tab" :class="{ active: tab==='overview' }" @click="tab='overview'"><span class="icon">📋</span> Übersicht</button>
-            <button class="cd-tab" :class="{ active: tab==='contacts' }" @click="tab='contacts'"><span class="icon">👤</span> Kontakte</button>
-            <button class="cd-tab" :class="{ active: tab==='activities' }" @click="tab='activities'"><span class="icon">📊</span> Aktivitäten</button>
-            <button class="cd-tab" :class="{ active: tab==='emails' }" @click="tab='emails'"><span class="icon">✉️</span> E-Mails</button>
-            <button class="cd-tab" :class="{ active: tab==='notes' }" @click="tab='notes'"><span class="icon">📝</span> Notizen</button>
-            <button class="cd-tab" :class="{ active: tab==='jobs' }" @click="tab='jobs'"><span class="icon">💼</span> Jobs{% if job_count is defined and job_count > 0 %} <span style="font-size:11px;font-weight:600;padding:1px 6px;border-radius:6px;background:var(--pp-accentSoft);color:var(--pp-accent);margin-left:4px;">{{ job_count }}</span>{% endif %}</button>
-            <button class="cd-tab" :class="{ active: tab==='documents' }" @click="tab='documents'"><span class="icon">📁</span> Dokumente</button>
+        <div class="kd-tabs">
+            <button class="kd-tab-btn" :class="{ active: tab==='overview' }" @click="tab='overview'"><span class="icon">📋</span> Übersicht</button>
+            <button class="kd-tab-btn" :class="{ active: tab==='contacts' }" @click="tab='contacts'"><span class="icon">👤</span> Kontakte</button>
+            <button class="kd-tab-btn" :class="{ active: tab==='activities' }" @click="tab='activities'"><span class="icon">📊</span> Aktivitäten</button>
+            <button class="kd-tab-btn" :class="{ active: tab==='emails' }" @click="tab='emails'"><span class="icon">✉️</span> E-Mails</button>
+            <button class="kd-tab-btn" :class="{ active: tab==='notes' }" @click="tab='notes'"><span class="icon">📝</span> Notizen</button>
+            <button class="kd-tab-btn" :class="{ active: tab==='jobs' }" @click="tab='jobs'"><span class="icon">💼</span> Jobs{% if job_count is defined and job_count > 0 %} <span class="kd-tab-count">{{ job_count }}</span>{% endif %}</button>
+            <button class="kd-tab-btn" :class="{ active: tab==='documents' }" @click="tab='documents'"><span class="icon">📁</span> Dokumente</button>
         </div>
     </div>
 
     {# ═══ MAIN GRID ═══ #}
-    <div class="cd-grid">
+    <div class="kd-grid">
 
         {# ═══ LEFT MAIN ═══ #}
-        <div class="cd-main">
+        <div class="kd-main">
 
             {# ── Übersicht ── #}
             <div x-show="tab==='overview'" style="display:flex; flex-direction:column; gap:20px;">
 
                 {# ── ROW 1: Kontakte + Aufgaben ── #}
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
 
                     {# Kontakte #}
-                    <div class="cd-anim cd-overview-card" style="animation-delay:100ms;">
-                        <div class="cd-sec-hdr">
-                            <div class="cd-sec-hdr-left">
+                    <div class="kd-anim kd-section" style="animation-delay:100ms;">
+                        <div class="kd-section-header">
+                            <div class="kd-section-title">
                                 <span class="icon">👥</span>
-                                <span class="title">Kontakte</span>
+                                <span>Kontakte</span>
                                 <span class="count">{{ contact_count if contact_count is defined else '0' }}</span>
                             </div>
-                            <button class="cd-sec-action" onclick="toggleContactForm()">+ Hinzufügen</button>
+                            <button class="kd-quickbtn kd-quickbtn-accent" onclick="toggleContactForm()">+ Hinzufügen</button>
                         </div>
-                        <div id="contacts-container" hx-get="/partials/company-contacts/{{ company.id }}" hx-trigger="load" hx-swap="innerHTML">
-                            <p class="cd-load">Lade Kontakte...</p>
-                        </div>
-                        <div id="contact-form" style="display:none" class="cd-iform">
-                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-                                <input type="text" id="cf-first-name" placeholder="Vorname" class="cd-inp">
-                                <input type="text" id="cf-last-name" placeholder="Nachname" class="cd-inp">
-                                <input type="text" id="cf-position" placeholder="Position" class="cd-inp">
-                                <input type="text" id="cf-phone" placeholder="Telefon" class="cd-inp">
-                                <input type="email" id="cf-email" placeholder="E-Mail" class="cd-inp" style="grid-column:span 2;">
+                        <div class="kd-section-body">
+                            <div id="contacts-container" hx-get="/partials/company-contacts/{{ company.id }}" hx-trigger="load" hx-swap="innerHTML">
+                                <p class="kd-load">Lade Kontakte...</p>
                             </div>
-                            <div style="display:flex; gap:10px; margin-top:14px;">
-                                <button onclick="saveContact()" class="cd-btn cd-btn-primary">Speichern</button>
-                                <button onclick="toggleContactForm()" class="cd-btn">Abbrechen</button>
+                            <div id="contact-form" style="display:none" class="kd-iform">
+                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                                    <input type="text" id="cf-first-name" placeholder="Vorname" class="kd-inp">
+                                    <input type="text" id="cf-last-name" placeholder="Nachname" class="kd-inp">
+                                    <input type="text" id="cf-position" placeholder="Position" class="kd-inp">
+                                    <input type="text" id="cf-phone" placeholder="Telefon" class="kd-inp">
+                                    <input type="email" id="cf-email" placeholder="E-Mail" class="kd-inp" style="grid-column:span 2;">
+                                </div>
+                                <div style="display:flex; gap:10px; margin-top:14px;">
+                                    <button onclick="saveContact()" class="kd-quickbtn kd-quickbtn-primary">Speichern</button>
+                                    <button onclick="toggleContactForm()" class="kd-quickbtn">Abbrechen</button>
+                                </div>
                             </div>
                         </div>
                     </div>
 
                     {# Aufgaben #}
-                    <div class="cd-anim cd-overview-card" style="animation-delay:200ms;">
-                        <div class="cd-sec-hdr">
-                            <div class="cd-sec-hdr-left">
+                    <div class="kd-anim kd-section" style="animation-delay:200ms;">
+                        <div class="kd-section-header">
+                            <div class="kd-section-title">
                                 <span class="icon">✅</span>
-                                <span class="title">Aufgaben</span>
+                                <span>Aufgaben</span>
                             </div>
-                            <button class="cd-sec-action" onclick="openQuickAdd('aufgabe', {company_id: '{{ company.id }}'})">+ Neu</button>
+                            <button class="kd-quickbtn kd-quickbtn-accent" onclick="openQuickAdd('aufgabe', {company_id: '{{ company.id }}'})">+ Neu</button>
                         </div>
-                        <div id="todos-container" hx-get="/partials/company/{{ company.id }}/todos" hx-trigger="load, refreshTodos from:body" hx-swap="innerHTML">
-                            <p class="cd-load">Lade Aufgaben...</p>
+                        <div class="kd-section-body">
+                            <div id="todos-container" hx-get="/partials/company/{{ company.id }}/todos" hx-trigger="load, refreshTodos from:body" hx-swap="innerHTML">
+                                <p class="kd-load">Lade Aufgaben...</p>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 {# Trennlinie #}
-                <div style="border-top:1px solid var(--pp-border); margin:4px 0;"></div>
+                <div style="border-top:1px solid rgba(255,255,255,0.05); margin:2px 0;"></div>
 
                 {# ── ROW 2: Anruf-Protokoll + Letzte Aktivitäten ── #}
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
 
                     {# Anruf-Protokoll #}
-                    <div class="cd-anim cd-overview-card" style="animation-delay:300ms;">
-                        <div class="cd-sec-hdr">
-                            <div class="cd-sec-hdr-left">
+                    <div class="kd-anim kd-section" style="animation-delay:300ms;">
+                        <div class="kd-section-header">
+                            <div class="kd-section-title">
                                 <span class="icon">📞</span>
-                                <span class="title">Anruf-Protokoll</span>
+                                <span>Anruf-Protokoll</span>
                                 <span class="count">{{ call_count if call_count is defined else '0' }}</span>
                             </div>
-                            <button class="cd-sec-action" @click="showCallModal = true">+ Anruf</button>
+                            <button class="kd-quickbtn kd-quickbtn-accent" @click="showCallModal = true">+ Anruf</button>
                         </div>
-                        <div id="call-log-container" hx-get="/partials/company/{{ company.id }}/call-log" hx-trigger="load, refreshCallLog from:body" hx-swap="innerHTML">
-                            <p class="cd-load">Lade Anrufe...</p>
+                        <div class="kd-section-body">
+                            <div id="call-log-container" hx-get="/partials/company/{{ company.id }}/call-log" hx-trigger="load, refreshCallLog from:body" hx-swap="innerHTML">
+                                <p class="kd-load">Lade Anrufe...</p>
+                            </div>
                         </div>
                     </div>
 
                     {# Letzte Aktivitäten #}
-                    <div class="cd-anim cd-overview-card" style="animation-delay:400ms;">
-                        <div class="cd-sec-hdr">
-                            <div class="cd-sec-hdr-left">
+                    <div class="kd-anim kd-section" style="animation-delay:400ms;">
+                        <div class="kd-section-header">
+                            <div class="kd-section-title">
                                 <span class="icon">📈</span>
-                                <span class="title">Letzte Aktivitäten</span>
+                                <span>Letzte Aktivitäten</span>
                             </div>
-                            <button class="cd-sec-action" @click="tab='activities'">Alle →</button>
+                            <button class="kd-quickbtn kd-quickbtn-accent" @click="tab='activities'">Alle →</button>
                         </div>
-                        <div id="activities-container" hx-get="/partials/company/{{ company.id }}/activities" hx-trigger="load" hx-swap="innerHTML">
-                            <p class="cd-load">Lade Aktivitäten...</p>
+                        <div class="kd-section-body">
+                            <div id="activities-container" hx-get="/partials/company/{{ company.id }}/activities" hx-trigger="load" hx-swap="innerHTML">
+                                <p class="kd-load">Lade Aktivitäten...</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -525,27 +551,27 @@
 
             {# ── Tab: Kontakte ── #}
             <div x-show="tab==='contacts'" x-cloak style="padding-top:16px;">
-                <div class="cd-tab-sec">
-                    <div class="cd-tab-sec-h">
-                        <span class="cd-tab-sec-t"><span class="icon">👤</span> Alle Kontakte</span>
-                        <button class="cd-btn cd-btn-accent" onclick="toggleContactForm('tab')">+ Hinzufügen</button>
+                <div class="kd-section">
+                    <div class="kd-section-header">
+                        <div class="kd-section-title"><span class="icon">👤</span> Alle Kontakte</div>
+                        <button class="kd-quickbtn kd-quickbtn-accent" onclick="toggleContactForm('tab')">+ Hinzufügen</button>
                     </div>
-                    <div id="contact-form-tab" style="display:none" class="cd-iform">
+                    <div id="contact-form-tab" style="display:none" class="kd-iform" style="margin:0 24px;">
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-                            <input type="text" id="cf-first-name-tab" placeholder="Vorname" class="cd-inp">
-                            <input type="text" id="cf-last-name-tab" placeholder="Nachname" class="cd-inp">
-                            <input type="text" id="cf-position-tab" placeholder="Position" class="cd-inp">
-                            <input type="text" id="cf-phone-tab" placeholder="Telefon" class="cd-inp">
-                            <input type="email" id="cf-email-tab" placeholder="E-Mail" class="cd-inp" style="grid-column:span 2;">
+                            <input type="text" id="cf-first-name-tab" placeholder="Vorname" class="kd-inp">
+                            <input type="text" id="cf-last-name-tab" placeholder="Nachname" class="kd-inp">
+                            <input type="text" id="cf-position-tab" placeholder="Position" class="kd-inp">
+                            <input type="text" id="cf-phone-tab" placeholder="Telefon" class="kd-inp">
+                            <input type="email" id="cf-email-tab" placeholder="E-Mail" class="kd-inp" style="grid-column:span 2;">
                         </div>
                         <div style="display:flex; gap:10px; margin-top:14px;">
-                            <button onclick="saveContact('tab')" class="cd-btn cd-btn-primary">Speichern</button>
-                            <button onclick="toggleContactForm('tab')" class="cd-btn">Abbrechen</button>
+                            <button onclick="saveContact('tab')" class="kd-quickbtn kd-quickbtn-primary">Speichern</button>
+                            <button onclick="toggleContactForm('tab')" class="kd-quickbtn">Abbrechen</button>
                         </div>
                     </div>
-                    <div class="cd-tab-sec-b">
+                    <div class="kd-section-body">
                         <div id="contacts-container-tab" hx-get="/partials/company-contacts/{{ company.id }}" hx-trigger="load" hx-swap="innerHTML">
-                            <p class="cd-load">Lade Kontakte...</p>
+                            <p class="kd-load">Lade Kontakte...</p>
                         </div>
                     </div>
                 </div>
@@ -553,14 +579,14 @@
 
             {# ── Tab: Aktivitäten ── #}
             <div x-show="tab==='activities'" x-cloak style="padding-top:16px;">
-                <div class="cd-tab-sec">
-                    <div class="cd-tab-sec-h">
-                        <span class="cd-tab-sec-t"><span class="icon">📊</span> Alle Aktivitäten</span>
-                        <span class="cd-tab-sec-sub">Chronologisch — neueste zuerst</span>
+                <div class="kd-section">
+                    <div class="kd-section-header">
+                        <div class="kd-section-title"><span class="icon">📊</span> Alle Aktivitäten</div>
+                        <span class="kd-section-sub">Chronologisch — neueste zuerst</span>
                     </div>
-                    <div class="cd-tab-sec-b">
+                    <div class="kd-section-body">
                         <div hx-get="/partials/company/{{ company.id }}/activities" hx-trigger="load" hx-swap="innerHTML">
-                            <p class="cd-load">Lade Aktivitäten...</p>
+                            <p class="kd-load">Lade Aktivitäten...</p>
                         </div>
                     </div>
                 </div>
@@ -568,32 +594,32 @@
 
             {# ── Tab: E-Mails ── #}
             <div x-show="tab==='emails'" x-cloak style="padding-top:16px;">
-                <div class="cd-tab-sec">
-                    <div class="cd-tab-sec-h">
-                        <span class="cd-tab-sec-t"><span class="icon">✉️</span> Alle E-Mails</span>
-                        <button class="cd-btn cd-btn-accent" onclick="toggleCorrForm()">+ Neue E-Mail</button>
+                <div class="kd-section">
+                    <div class="kd-section-header">
+                        <div class="kd-section-title"><span class="icon">✉️</span> Alle E-Mails</div>
+                        <button class="kd-quickbtn kd-quickbtn-accent" onclick="toggleCorrForm()">+ Neue E-Mail</button>
                     </div>
-                    <div class="cd-tab-sec-b">
+                    <div class="kd-section-body">
                         <div id="correspondence-container" hx-get="/partials/company-correspondence/{{ company.id }}" hx-trigger="load" hx-swap="innerHTML">
-                            <p class="cd-load">Lade E-Mails...</p>
+                            <p class="kd-load">Lade E-Mails...</p>
                         </div>
-                        <div id="corr-form" style="display:none" class="cd-iform">
+                        <div id="corr-form" style="display:none" class="kd-iform">
                             <div style="display:flex; flex-direction:column; gap:12px;">
                                 <div style="display:flex; gap:12px;">
-                                    <select id="corr-direction" class="cd-sel"><option value="outbound">Ausgehend</option><option value="inbound">Eingehend</option></select>
-                                    <select id="corr-contact" class="cd-sel" style="flex:1;">
+                                    <select id="corr-direction" class="kd-sel"><option value="outbound">Ausgehend</option><option value="inbound">Eingehend</option></select>
+                                    <select id="corr-contact" class="kd-sel" style="flex:1;">
                                         <option value="">— Kontakt zuordnen —</option>
                                         {% for c in contacts %}
                                         <option value="{{ c.id }}">{{ c.first_name }} {{ c.last_name }}{% if c.email %} ({{ c.email }}){% endif %}</option>
                                         {% endfor %}
                                     </select>
                                 </div>
-                                <input type="text" id="corr-subject" placeholder="Betreff" class="cd-inp">
-                                <textarea id="corr-body" placeholder="Inhalt / Notizen" rows="3" class="cd-ta"></textarea>
+                                <input type="text" id="corr-subject" placeholder="Betreff" class="kd-inp">
+                                <textarea id="corr-body" placeholder="Inhalt / Notizen" rows="3" class="kd-ta"></textarea>
                             </div>
                             <div style="display:flex; gap:10px; margin-top:14px;">
-                                <button onclick="saveCorrespondence()" class="cd-btn cd-btn-primary">Speichern</button>
-                                <button onclick="toggleCorrForm()" class="cd-btn">Abbrechen</button>
+                                <button onclick="saveCorrespondence()" class="kd-quickbtn kd-quickbtn-primary">Speichern</button>
+                                <button onclick="toggleCorrForm()" class="kd-quickbtn">Abbrechen</button>
                             </div>
                         </div>
                     </div>
@@ -602,23 +628,23 @@
 
             {# ── Tab: Notizen ── #}
             <div x-show="tab==='notes'" x-cloak style="padding-top:16px;">
-                <div class="cd-tab-sec">
-                    <div class="cd-tab-sec-h">
-                        <span class="cd-tab-sec-t"><span class="icon">📝</span> Alle Notizen</span>
-                        <button class="cd-btn cd-btn-accent" onclick="toggleNoteForm()">+ Neue Notiz</button>
+                <div class="kd-section">
+                    <div class="kd-section-header">
+                        <div class="kd-section-title"><span class="icon">📝</span> Alle Notizen</div>
+                        <button class="kd-quickbtn kd-quickbtn-accent" onclick="toggleNoteForm()">+ Neue Notiz</button>
                     </div>
-                    <div class="cd-tab-sec-b">
+                    <div class="kd-section-body">
                         <div id="notes-container" hx-get="/partials/company/{{ company.id }}/notes" hx-trigger="load" hx-swap="innerHTML">
-                            <p class="cd-load">Lade Notizen...</p>
+                            <p class="kd-load">Lade Notizen...</p>
                         </div>
-                        <div id="note-form" style="display:none" class="cd-iform">
+                        <div id="note-form" style="display:none" class="kd-iform">
                             <div style="display:flex; flex-direction:column; gap:12px;">
-                                <input type="text" id="note-title" placeholder="Titel (optional)" class="cd-inp">
-                                <textarea id="note-content" placeholder="Notiz schreiben..." rows="4" class="cd-ta"></textarea>
+                                <input type="text" id="note-title" placeholder="Titel (optional)" class="kd-inp">
+                                <textarea id="note-content" placeholder="Notiz schreiben..." rows="4" class="kd-ta"></textarea>
                             </div>
                             <div style="display:flex; gap:10px; margin-top:14px;">
-                                <button onclick="saveCompanyNote()" class="cd-btn cd-btn-primary">Speichern</button>
-                                <button onclick="toggleNoteForm()" class="cd-btn">Abbrechen</button>
+                                <button onclick="saveCompanyNote()" class="kd-quickbtn kd-quickbtn-primary">Speichern</button>
+                                <button onclick="toggleNoteForm()" class="kd-quickbtn">Abbrechen</button>
                             </div>
                         </div>
                     </div>
@@ -627,16 +653,16 @@
 
             {# ── Tab: Jobs ── #}
             <div x-show="tab==='jobs'" x-cloak style="padding-top:16px;">
-                <div class="cd-tab-sec">
-                    <div class="cd-tab-sec-h">
-                        <span class="cd-tab-sec-t"><span class="icon">💼</span> Alle Jobs ({{ job_count }})</span>
+                <div class="kd-section">
+                    <div class="kd-section-header">
+                        <div class="kd-section-title"><span class="icon">💼</span> Alle Jobs ({{ job_count }})</div>
                         {% if akquise_count is defined and akquise_count > 0 %}
-                        <span style="padding:2px 10px;border-radius:8px;font-size:11px;font-weight:600;background:rgba(167,139,250,0.12);color:var(--pp-purple);">📞 {{ akquise_count }} Akquise</span>
+                        <span class="kd-meta-badge kd-meta-badge-purple">📞 {{ akquise_count }} Akquise</span>
                         {% endif %}
                     </div>
-                    <div class="cd-tab-sec-b">
+                    <div class="kd-section-body">
                         <div id="company-jobs-full-container" hx-get="/partials/company-jobs-full/{{ company.id }}" hx-trigger="intersect once" hx-swap="innerHTML">
-                            <p class="cd-load">Lade Jobs...</p>
+                            <p class="kd-load">Lade Jobs...</p>
                         </div>
                     </div>
                 </div>
@@ -644,27 +670,27 @@
 
             {# ── Tab: Dokumente ── #}
             <div x-show="tab==='documents'" x-cloak style="padding-top:16px;">
-                <div class="cd-tab-sec">
-                    <div class="cd-tab-sec-h">
-                        <span class="cd-tab-sec-t"><span class="icon">📁</span> Alle Dokumente</span>
-                        <button class="cd-btn cd-btn-accent" onclick="toggleDocForm()">⬆ Hochladen</button>
+                <div class="kd-section">
+                    <div class="kd-section-header">
+                        <div class="kd-section-title"><span class="icon">📁</span> Alle Dokumente</div>
+                        <button class="kd-quickbtn kd-quickbtn-accent" onclick="toggleDocForm()">⬆ Hochladen</button>
                     </div>
-                    <div class="cd-tab-sec-b">
+                    <div class="kd-section-body">
                         <div id="documents-container" hx-get="/partials/company/{{ company.id }}/documents" hx-trigger="load" hx-swap="innerHTML">
-                            <p class="cd-load">Lade Dokumente...</p>
+                            <p class="kd-load">Lade Dokumente...</p>
                         </div>
-                        <div id="doc-upload-form" style="display:none" class="cd-iform">
-                            <div class="cd-dz" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="event.preventDefault();this.classList.remove('dragover');handleFileDrop(event)" onclick="document.getElementById('doc-file-input').click()">
+                        <div id="doc-upload-form" style="display:none" class="kd-iform">
+                            <div class="kd-dz" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="event.preventDefault();this.classList.remove('dragover');handleFileDrop(event)" onclick="document.getElementById('doc-file-input').click()">
                                 <div style="font-size:32px; margin-bottom:8px;">📄</div>
                                 <div style="font-size:14px; font-weight:600; color:var(--pp-textMuted);">Datei hierher ziehen oder klicken</div>
                                 <div style="font-size:13px; color:var(--pp-textDim); margin-top:5px;">PDF, Word, Bilder, etc.</div>
                             </div>
                             <input type="file" id="doc-file-input" onchange="handleFileSelect(this)" style="display:none;">
-                            <div id="doc-file-name" class="hidden" style="margin-top:12px; font-size:14px; font-weight:600; color:var(--pp-accent); padding:10px 14px; background:var(--pp-accentSoft); border-radius:10px;"></div>
-                            <input type="text" id="doc-notes" placeholder="Notizen zum Dokument (optional)" class="cd-inp" style="margin-top:12px;">
+                            <div id="doc-file-name" class="hidden" style="margin-top:12px; font-size:14px; font-weight:600; color:var(--pp-accent); padding:10px 14px; background:rgba(96,165,250,0.08); border-radius:10px; border:1px solid rgba(96,165,250,0.15);"></div>
+                            <input type="text" id="doc-notes" placeholder="Notizen zum Dokument (optional)" class="kd-inp" style="margin-top:12px;">
                             <div style="display:flex; gap:10px; margin-top:14px;">
-                                <button id="doc-upload-btn" onclick="uploadDocument()" disabled class="cd-btn cd-btn-primary" style="opacity:0.5;">Hochladen</button>
-                                <button onclick="toggleDocForm()" class="cd-btn">Abbrechen</button>
+                                <button id="doc-upload-btn" onclick="uploadDocument()" disabled class="kd-quickbtn kd-quickbtn-primary" style="opacity:0.5;">Hochladen</button>
+                                <button onclick="toggleDocForm()" class="kd-quickbtn">Abbrechen</button>
                             </div>
                         </div>
                     </div>
@@ -674,57 +700,62 @@
         </div>
 
         {# ═══ RIGHT SIDEBAR ═══ #}
-        <div class="cd-sidebar">
+        <div class="kd-sidebar">
 
             {# ATS-Stellen #}
-            <div class="cd-side-sec cd-anim" style="animation-delay:150ms;">
-                <div class="cd-side-hdr">
-                    <div class="cd-side-hdr-left">
+            <div class="kd-sidebar-card kd-anim-side" style="animation-delay:150ms;">
+                <div class="kd-sidebar-header">
+                    <div style="display:flex; align-items:center; gap:8px;">
                         <span class="icon">🎯</span>
-                        <span class="title">ATS-Stellen</span>
-                        <span class="cnt" style="color:var(--pp-orange); background:var(--pp-orangeSoft);">{{ ats_job_count }}</span>
+                        <span>ATS-Stellen</span>
+                        <span class="kd-sidebar-cnt" style="color:var(--pp-orange); background:rgba(251,191,36,0.1);">{{ ats_job_count }}</span>
                     </div>
-                    <a href="/ats/stellen" class="cd-side-link">Alle →</a>
+                    <a href="/ats/stellen" class="kd-sidebar-link">Alle →</a>
                 </div>
-                <div id="sidebar-ats-jobs" hx-get="/partials/company-ats-jobs/{{ company.id }}" hx-trigger="load" hx-swap="innerHTML">
-                    <p class="cd-load">Lade ATS-Stellen...</p>
+                <div class="kd-sidebar-body">
+                    <div id="sidebar-ats-jobs" hx-get="/partials/company-ats-jobs/{{ company.id }}" hx-trigger="load" hx-swap="innerHTML">
+                        <p class="kd-load">Lade ATS-Stellen...</p>
+                    </div>
                 </div>
             </div>
 
             {# Jobs #}
-            <div class="cd-side-sec cd-anim" style="animation-delay:200ms;">
-                <div class="cd-side-hdr">
-                    <div class="cd-side-hdr-left">
+            <div class="kd-sidebar-card kd-anim-side" style="animation-delay:200ms;">
+                <div class="kd-sidebar-header">
+                    <div style="display:flex; align-items:center; gap:8px;">
                         <span class="icon">💼</span>
-                        <span class="title">Jobs</span>
-                        <span class="cnt" style="color:var(--pp-textDim); background:var(--pp-surfaceHover);">{{ job_count }}</span>
+                        <span>Jobs</span>
+                        <span class="kd-sidebar-cnt" style="color:var(--pp-textDim); background:rgba(255,255,255,0.05);">{{ job_count }}</span>
                     </div>
                     {% if job_count > 0 %}
-                    <a href="/jobs?company={{ company.id }}" class="cd-side-link">Alle →</a>
+                    <a href="/jobs?company={{ company.id }}" class="kd-sidebar-link">Alle →</a>
                     {% endif %}
                 </div>
-                <div id="sidebar-jobs" hx-get="/partials/company-jobs/{{ company.id }}" hx-trigger="load" hx-swap="innerHTML">
-                    <p class="cd-load">Lade Jobs...</p>
+                <div class="kd-sidebar-body">
+                    <div id="sidebar-jobs" hx-get="/partials/company-jobs/{{ company.id }}" hx-trigger="load" hx-swap="innerHTML">
+                        <p class="kd-load">Lade Jobs...</p>
+                    </div>
                 </div>
             </div>
 
-            {# Trennlinie #}
-            <div style="height:1px; background:var(--pp-border); margin:8px 0 28px;"></div>
-
             {# Anruf-Statistik #}
-            <div class="cd-side-sec cd-anim" style="animation-delay:250ms;">
-                <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
-                    <span style="font-size:18px;">📊</span>
-                    <span style="font-size:16px; font-weight:650; color:var(--pp-text);">Anruf-Statistik</span>
-                </div>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-                    <div class="cd-stat-box">
-                        <div class="cd-stat-val" style="color:var(--pp-accent);">{{ call_count if call_count is defined else '0' }}</div>
-                        <div class="cd-stat-label">Gesamt</div>
+            <div class="kd-sidebar-card kd-anim-side" style="animation-delay:250ms;">
+                <div class="kd-sidebar-header">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span class="icon">📊</span>
+                        <span>Anruf-Statistik</span>
                     </div>
-                    <div class="cd-stat-box">
-                        <div class="cd-stat-val" style="color:var(--pp-green);">{{ call_total_duration if call_total_duration is defined else '0' }}m</div>
-                        <div class="cd-stat-label">Gesamtdauer</div>
+                </div>
+                <div class="kd-sidebar-body">
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                        <div class="kd-stat-box">
+                            <div class="kd-stat-val" style="color:var(--pp-accent);">{{ call_count if call_count is defined else '0' }}</div>
+                            <div class="kd-stat-label">Gesamt</div>
+                        </div>
+                        <div class="kd-stat-box">
+                            <div class="kd-stat-val" style="color:var(--pp-green);">{{ call_total_duration if call_total_duration is defined else '0' }}m</div>
+                            <div class="kd-stat-label">Gesamtdauer</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -733,9 +764,9 @@
             <div style="flex:1;"></div>
 
             {# Dates Footer #}
-            <div class="cd-date-footer">
+            <div class="kd-date-footer">
                 <span>Erstellt {{ company.created_at.strftime('%d.%m.%y') if company.created_at else '—' }}</span>
-                <span>·</span>
+                <span style="opacity:0.4;">·</span>
                 <span>Akt. {{ company.updated_at.strftime('%d.%m.%y') if company.updated_at else '—' }}</span>
             </div>
         </div>
@@ -743,21 +774,21 @@
 
     {# ═══ CALL MODAL ═══ #}
     <template x-if="showCallModal">
-        <div class="cd-modal-overlay" @click.self="showCallModal = false">
-            <div class="cd-modal" @click.stop>
-                <div class="cd-modal-hdr">
+        <div class="kd-modal-overlay" @click.self="showCallModal = false">
+            <div class="kd-modal" @click.stop>
+                <div class="kd-modal-hdr">
                     <div style="display:flex; align-items:center; gap:12px;">
-                        <div class="cd-modal-icon">📞</div>
-                        <span class="cd-modal-title">Anruf protokollieren</span>
+                        <div class="kd-modal-icon">📞</div>
+                        <span class="kd-modal-title">Anruf protokollieren</span>
                     </div>
-                    <button class="cd-modal-close" @click="showCallModal = false">×</button>
+                    <button class="kd-modal-close" @click="showCallModal = false">×</button>
                 </div>
 
-                <div style="display:flex; flex-direction:column; gap:24px;">
+                <div style="display:flex; flex-direction:column; gap:22px;">
                     {# Kontakt #}
                     <div>
-                        <label class="cd-modal-label">Kontakt</label>
-                        <select id="call-contact" class="cd-sel" style="width:100%;">
+                        <label class="kd-modal-label">Kontakt</label>
+                        <select id="call-contact" class="kd-sel" style="width:100%;">
                             <option value="">Kontakt wählen...</option>
                             {% if contacts is defined %}
                             {% for c in contacts %}
@@ -770,42 +801,42 @@
                     {# Richtung + Dauer #}
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
                         <div>
-                            <label class="cd-modal-label">Richtung</label>
+                            <label class="kd-modal-label">Richtung</label>
                             <div style="display:flex; gap:10px;">
-                                <button class="cd-modal-dir-btn"
-                                    :style="callDir === 'outbound' ? 'background:var(--pp-accentSoft); color:var(--pp-accent); border:1px solid rgba(79,140,255,0.27);' : 'background:transparent; color:var(--pp-textMuted); border:1px solid var(--pp-border);'"
+                                <button class="kd-modal-dir-btn"
+                                    :style="callDir === 'outbound' ? 'background:rgba(96,165,250,0.1); color:var(--pp-accent); border:1px solid rgba(96,165,250,0.25);' : 'background:transparent; color:var(--pp-textMuted); border:1px solid rgba(255,255,255,0.08);'"
                                     @click="callDir = 'outbound'">📤 Ausgehend</button>
-                                <button class="cd-modal-dir-btn"
-                                    :style="callDir === 'inbound' ? 'background:var(--pp-greenSoft); color:var(--pp-green); border:1px solid rgba(52,211,153,0.27);' : 'background:transparent; color:var(--pp-textMuted); border:1px solid var(--pp-border);'"
+                                <button class="kd-modal-dir-btn"
+                                    :style="callDir === 'inbound' ? 'background:rgba(52,211,153,0.1); color:var(--pp-green); border:1px solid rgba(52,211,153,0.25);' : 'background:transparent; color:var(--pp-textMuted); border:1px solid rgba(255,255,255,0.08);'"
                                     @click="callDir = 'inbound'">📥 Eingehend</button>
                             </div>
                         </div>
                         <div>
-                            <label class="cd-modal-label">Dauer</label>
-                            <input id="call-duration" class="cd-inp" placeholder="z.B. 15">
+                            <label class="kd-modal-label">Dauer</label>
+                            <input id="call-duration" class="kd-inp" placeholder="z.B. 15">
                         </div>
                     </div>
 
                     {# Datum + Uhrzeit #}
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
                         <div>
-                            <label class="cd-modal-label">Datum</label>
-                            <input id="call-date" type="date" class="cd-inp">
+                            <label class="kd-modal-label">Datum</label>
+                            <input id="call-date" type="date" class="kd-inp">
                         </div>
                         <div>
-                            <label class="cd-modal-label">Uhrzeit</label>
-                            <input id="call-time" type="time" class="cd-inp">
+                            <label class="kd-modal-label">Uhrzeit</label>
+                            <input id="call-time" type="time" class="kd-inp">
                         </div>
                     </div>
 
                     {# Notizen #}
                     <div>
-                        <label class="cd-modal-label">Notizen</label>
-                        <textarea id="call-notes" class="cd-ta" rows="3" placeholder="Gesprächsnotizen..."></textarea>
+                        <label class="kd-modal-label">Notizen</label>
+                        <textarea id="call-notes" class="kd-ta" rows="3" placeholder="Gesprächsnotizen..."></textarea>
                     </div>
 
                     {# Submit #}
-                    <button class="cd-modal-submit" onclick="saveCall()">Anruf speichern</button>
+                    <button class="kd-modal-submit" onclick="saveCall()">Anruf speichern</button>
                 </div>
             </div>
         </div>
