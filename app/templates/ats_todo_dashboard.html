@@ -3,6 +3,46 @@
 {% block title %}Aufgaben-Dashboard - Pulspoint{% endblock %}
 
 {% block content %}
+<style>
+/* ═══ Todo Card Design (td-*) ═══ */
+.td-list { display:flex; flex-direction:column; }
+.td-row {
+    display:flex; align-items:center; gap:10px;
+    padding:10px 14px 10px 0; position:relative;
+    border-bottom:1px solid rgba(255,255,255,0.04);
+    transition: background 0.12s;
+}
+.td-row:last-child { border-bottom:none; }
+.td-row:hover { background:rgba(255,255,255,0.02); }
+.td-row-overdue { background:rgba(248,113,113,0.03); }
+.td-row-overdue:hover { background:rgba(248,113,113,0.06); }
+.td-row-done { opacity:0.55; }
+.td-stripe { width:3px; align-self:stretch; border-radius:0 2px 2px 0; flex-shrink:0; transition:background 0.2s; }
+.td-check { width:20px; height:20px; border-radius:6px; border:2px solid var(--pp-textDim); background:transparent; display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; transition:all 0.15s; padding:0; }
+.td-check:hover { border-color:var(--pp-green); background:rgba(52,211,153,0.08); }
+.td-check-done { border-color:var(--pp-green) !important; background:var(--pp-green) !important; }
+.td-title { font-size:13px; font-weight:600; line-height:1.3; color:var(--pp-text); overflow:hidden; text-overflow:ellipsis; }
+.td-title-done { color:var(--pp-textDim) !important; text-decoration:line-through; }
+.td-prio { font-size:10px; font-weight:700; padding:2px 8px; border-radius:6px; cursor:pointer; white-space:nowrap; transition:all 0.12s; user-select:none; border:none; font-family:var(--pp-ff); }
+.td-prio:hover { filter:brightness(1.3); transform:scale(1.05); }
+.td-prio-dropdown { position:absolute; z-index:50; width:160px; background:rgba(14,16,25,0.95); border:1px solid rgba(255,255,255,0.1); border-radius:10px; box-shadow:0 8px 30px rgba(0,0,0,0.6); padding:4px; backdrop-filter:blur(16px); }
+.td-prio-option { width:100%; text-align:left; padding:7px 10px; border-radius:7px; border:none; background:transparent; color:var(--pp-text); font-size:12px; cursor:pointer; display:flex; align-items:center; gap:8px; font-family:var(--pp-ff); transition:background 0.1s; }
+.td-prio-option:hover { background:rgba(255,255,255,0.06); }
+.td-source { font-size:9px; font-weight:700; padding:2px 6px; border-radius:5px; white-space:nowrap; }
+.td-date { font-size:11px; font-weight:600; color:var(--pp-textDim); cursor:pointer; white-space:nowrap; padding:3px 7px; border-radius:6px; transition:all 0.12s; border:none; background:transparent; font-family:var(--pp-ff); }
+.td-date:hover { background:rgba(255,255,255,0.05); color:var(--pp-textMuted); }
+.td-date-overdue { color:var(--pp-red) !important; font-weight:700; }
+.td-date-none { color:var(--pp-text4); font-size:10px; }
+.td-date-popover { position:absolute; z-index:50; right:0; top:100%; margin-top:4px; background:rgba(14,16,25,0.95); border:1px solid rgba(255,255,255,0.1); border-radius:12px; box-shadow:0 8px 30px rgba(0,0,0,0.6); padding:8px; min-width:200px; backdrop-filter:blur(16px); }
+.td-date-quick { width:100%; text-align:left; padding:7px 10px; border-radius:7px; border:none; background:transparent; color:var(--pp-textMuted); font-size:12px; cursor:pointer; font-family:var(--pp-ff); transition:background 0.1s; }
+.td-date-quick:hover { background:rgba(255,255,255,0.06); color:var(--pp-text); }
+.td-hover-actions { display:flex; gap:2px; opacity:0; transition:opacity 0.15s; flex-shrink:0; }
+.td-row:hover .td-hover-actions { opacity:1; }
+.td-hover-btn { padding:5px; border-radius:6px; border:none; background:transparent; cursor:pointer; color:var(--pp-textDim); transition:all 0.1s; display:flex; align-items:center; justify-content:center; }
+.td-hover-btn:hover { background:rgba(255,255,255,0.06); color:var(--pp-text); }
+.td-hover-btn-danger:hover { background:rgba(248,113,113,0.12); color:var(--pp-red); }
+.td-expand { padding:12px 16px 14px 19px; background:rgba(255,255,255,0.015); border-top:1px solid rgba(255,255,255,0.04); }
+</style>
 <div x-data="todoDashboard()" x-init="init()">
 
     {# ── Header ── #}
@@ -66,249 +106,232 @@
         {% endfor %}
     </div>
 
-    {# ── Todo-Liste — CRM-gerechte Karten ── #}
-    <div id="todo-list" style="display:flex;flex-direction:column;gap:10px;">
+    {# ── Todo-Liste — td-* Card Design ── #}
+    <div id="todo-list" class="td-list" style="background:var(--pp-surface);border-radius:14px;border:1px solid var(--pp-border);overflow:hidden;">
         {% if todos %}
             {% for todo in todos %}
+            {# Priority stripe colors #}
+            {% set stripe_colors = {
+                'sehr_dringend': '#ef4444',
+                'dringend': '#f97316',
+                'wichtig': '#fbbf24',
+                'mittelmaessig': '#60a5fa',
+                'unwichtig': '#475569',
+            } %}
+            {% set prio_bg = {
+                'sehr_dringend': 'background:rgba(239,68,68,0.15);color:#f87171;',
+                'dringend': 'background:rgba(249,115,22,0.15);color:#fb923c;',
+                'wichtig': 'background:rgba(251,191,36,0.12);color:#fbbf24;',
+                'mittelmaessig': 'background:rgba(96,165,250,0.12);color:#60a5fa;',
+                'unwichtig': 'background:rgba(148,163,184,0.12);color:#94a3b8;',
+            } %}
+            {% set prio_labels = {
+                'sehr_dringend': 'Sehr dringend',
+                'dringend': 'Dringend',
+                'wichtig': 'Wichtig',
+                'mittelmaessig': 'Mittel',
+                'unwichtig': 'Unwichtig',
+            } %}
             <div id="todo-{{ todo.id }}"
                  x-data="{
+                    prioDrop: false,
+                    datePop: false,
                     expanded: false,
-                    editing: false,
-                    editTitle: '{{ todo.title|replace("'", "\\'") }}',
-                    editDate: '{{ todo.due_date.isoformat() if todo.due_date else '' }}',
+                    saving: false,
+                    editTitle: {{ todo.title | tojson }},
+                    editDesc: {{ (todo.description or '') | tojson }},
                     editTime: '{{ todo.due_time or '' }}',
-                    editPriority: '{{ todo.priority.value }}',
-                    editStatus: '{{ todo.status.value }}',
-                    editNote: '',
-                    saving: false
-                 }"
-                 style="border-radius:14px;background:var(--pp-surface);border:1px solid {% if todo.is_overdue %}rgba(239,68,68,0.25){% elif todo.status.value == 'done' %}rgba(34,197,94,0.15){% else %}var(--pp-border){% endif %};transition:all .2s;{% if todo.is_overdue %}background:rgba(239,68,68,0.03);{% endif %}"
-                 onmouseover="if(!this.classList.contains('editing'))this.style.borderColor='var(--pp-accentGlow)'"
-                 onmouseout="this.style.borderColor='{% if todo.is_overdue %}rgba(239,68,68,0.25){% elif todo.status.value == 'done' %}rgba(34,197,94,0.15){% else %}var(--pp-border){% endif %}'">
+                    editStatus: '{{ todo.status.value }}'
+                 }">
+                <div class="td-row {{ 'td-row-overdue' if todo.is_overdue else '' }} {{ 'td-row-done' if todo.status.value == 'done' else '' }}">
 
-                {# ── Hauptzeile ── #}
-                <div style="padding:16px 20px;display:flex;align-items:flex-start;gap:14px;cursor:pointer;" @click="expanded = !expanded">
+                    {# ── Stripe ── #}
+                    <div class="td-stripe" style="background:{{ stripe_colors.get(todo.priority.value, '#475569') }};"></div>
 
-                    {# Checkbox #}
-                    <div style="flex-shrink:0;padding-top:2px;" @click.stop>
-                        {% if todo.status.value != 'done' %}
-                        <button @click="completeTodo('{{ todo.id }}')"
-                                style="width:24px;height:24px;border-radius:8px;border:2px solid {% if todo.is_overdue %}#ef4444{% elif todo.priority.value in ['sehr_dringend', 'dringend'] %}#f97316{% else %}var(--pp-text4){% endif %};background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;transition:all .15s;"
-                                onmouseover="this.style.borderColor='#22c55e';this.style.background='rgba(34,197,94,0.1)'"
-                                onmouseout="this.style.borderColor='{% if todo.is_overdue %}#ef4444{% elif todo.priority.value in ['sehr_dringend', 'dringend'] %}#f97316{% else %}var(--pp-text4){% endif %}';this.style.background='transparent'"
-                                title="Als erledigt markieren">
-                        </button>
-                        {% else %}
-                        <div style="width:24px;height:24px;border-radius:8px;background:#22c55e;display:flex;align-items:center;justify-content:center;">
-                            <svg style="width:14px;height:14px;color:#fff;" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
-                        </div>
-                        {% endif %}
+                    {# ── Checkbox ── #}
+                    {% if todo.status.value != 'done' %}
+                    <button class="td-check" @click="completeTodo('{{ todo.id }}')" title="Erledigt">
+                    </button>
+                    {% else %}
+                    <div class="td-check td-check-done">
+                        <svg style="width:12px;height:12px;color:#fff;" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
                     </div>
+                    {% endif %}
 
-                    {# Inhalt #}
-                    <div style="flex:1;min-width:0;">
-                        {# Zeile 1: Titel + Prioritaet + Quelle #}
-                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
-                            <span style="font-size:15px;font-weight:600;line-height:1.3;{% if todo.status.value == 'done' %}color:var(--pp-textDim);text-decoration:line-through;{% else %}color:var(--pp-text);{% endif %}">
-                                {{ todo.title }}
-                            </span>
+                    {# ── Titel + Chips ── #}
+                    <div style="flex:1;min-width:0;cursor:pointer;" @click="expanded = !expanded">
+                        <span class="td-title {{ 'td-title-done' if todo.status.value == 'done' else '' }}">{{ todo.title }}</span>
 
-                            {# Prioritaet-Badge — ALLE Stufen sichtbar #}
-                            {% set prio_styles = {
-                                'sehr_dringend': 'background:rgba(239,68,68,0.15);color:#f87171;',
-                                'dringend': 'background:rgba(249,115,22,0.15);color:#fb923c;',
-                                'wichtig': 'background:rgba(251,191,36,0.12);color:#fbbf24;',
-                                'mittelmaessig': 'background:rgba(96,165,250,0.12);color:#60a5fa;',
-                                'unwichtig': 'background:rgba(148,163,184,0.12);color:#94a3b8;',
-                            } %}
-                            <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;white-space:nowrap;{{ prio_styles.get(todo.priority.value, '') }}">
-                                {{ todo.priority_label }}
-                            </span>
-
-                            {# Quelle-Badge #}
-                            {% if todo.call_note_id %}
-                            <span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:6px;background:rgba(167,139,250,0.12);color:#a78bfa;">&#x1F4DE; Gespr&auml;ch</span>
-                            {% endif %}
-                        </div>
-
-                        {# Zeile 2: Verknuepfungen als farbige Chips #}
-                        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                        {# Entity-Chips #}
+                        <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:3px;">
                             {% if todo.company %}
                             <a href="/unternehmen/{{ todo.company_id }}" @click.stop
-                               style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;background:rgba(96,165,250,0.1);color:#60a5fa;transition:all .12s;"
-                               onmouseover="this.style.background='rgba(96,165,250,0.2)'" onmouseout="this.style.background='rgba(96,165,250,0.1)'">
-                                <svg style="width:12px;height:12px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5M3.75 3v18m16.5-18v18M5.25 6h.008M5.25 9h.008M5.25 12h.008M9.75 6h.008M9.75 9h.008M9.75 12h.008M14.25 6h.008M14.25 9h.008M14.25 12h.008M18.75 6h.008M18.75 9h.008M18.75 12h.008" /></svg>
-                                {{ todo.company.name }}
+                               style="font-size:11px;font-weight:600;color:#60a5fa;text-decoration:none;display:inline-flex;align-items:center;gap:3px;"
+                               onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
+                                &#x1F3E2; {{ todo.company.name }}
                             </a>
                             {% endif %}
-
                             {% if todo.candidate %}
                             <a href="/kandidaten/{{ todo.candidate_id }}" @click.stop
-                               style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;background:rgba(34,197,94,0.1);color:#4ade80;transition:all .12s;"
-                               onmouseover="this.style.background='rgba(34,197,94,0.2)'" onmouseout="this.style.background='rgba(34,197,94,0.1)'">
-                                <svg style="width:12px;height:12px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0" /></svg>
-                                {{ todo.candidate.first_name }} {{ todo.candidate.last_name }}
+                               style="font-size:11px;font-weight:600;color:#4ade80;text-decoration:none;display:inline-flex;align-items:center;gap:3px;"
+                               onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
+                                &#x1F464; {{ todo.candidate.first_name }} {{ todo.candidate.last_name }}
                             </a>
                             {% endif %}
-
                             {% if todo.contact %}
-                            <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:8px;font-size:12px;font-weight:600;background:rgba(167,139,250,0.1);color:#a78bfa;">
-                                <svg style="width:12px;height:12px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" /></svg>
-                                {{ todo.contact.full_name }}
+                            <span style="font-size:11px;font-weight:600;color:#a78bfa;display:inline-flex;align-items:center;gap:3px;">
+                                &#x1F4DE; {{ todo.contact.full_name }}
                             </span>
                             {% endif %}
-
-                            {# Ueberfaellig-Badge #}
                             {% if todo.is_overdue %}
                             {% set days_overdue = (today_date - todo.due_date).days %}
-                            <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700;background:rgba(239,68,68,0.15);color:#f87171;">
-                                &#x26A0;&#xFE0F; {{ days_overdue }}d ueberfaellig
-                            </span>
+                            <span style="font-size:10px;font-weight:700;color:#f87171;">&#x26A0;&#xFE0F; {{ days_overdue }}d</span>
                             {% endif %}
                         </div>
                     </div>
 
-                    {# Rechte Seite: Datum + Aktionen #}
-                    <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
-                        {# Faelligkeitsdatum #}
-                        {% if todo.due_date and not todo.is_overdue and todo.status.value != 'done' %}
-                        <div style="display:flex;align-items:center;gap:4px;">
-                            {% if todo.due_time %}<span style="font-size:12px;font-weight:600;color:var(--pp-textDim);font-family:'Space Mono',monospace;">{{ todo.due_time }}</span>{% endif %}
-                            <span style="font-size:12px;font-weight:500;color:var(--pp-textDim);">{{ todo.due_date.strftime('%d.%m.%Y') }}</span>
+                    {# ── Priority Badge + Dropdown ── #}
+                    {% if todo.status.value != 'done' %}
+                    <div style="position:relative;" @click.away="prioDrop = false">
+                        <button class="td-prio" style="{{ prio_bg.get(todo.priority.value, '') }}" @click="prioDrop = !prioDrop">
+                            {{ prio_labels.get(todo.priority.value, 'Wichtig') }}
+                        </button>
+                        <div x-show="prioDrop" x-cloak x-transition.scale.origin.top class="td-prio-dropdown" style="right:0;top:100%;margin-top:4px;">
+                            {% for pval, plabel in [('sehr_dringend','Sehr dringend'),('dringend','Dringend'),('wichtig','Wichtig'),('mittelmaessig','Mittel'),('unwichtig','Unwichtig')] %}
+                            <button class="td-prio-option" @click="prioDrop=false; setPriority('{{ todo.id }}','{{ pval }}')">
+                                <span style="width:8px;height:8px;border-radius:50%;background:{{ stripe_colors.get(pval, '#475569') }};"></span>
+                                {{ plabel }}
+                            </button>
+                            {% endfor %}
                         </div>
-                        {% elif todo.status.value == 'done' and todo.completed_at %}
-                        <span style="font-size:11px;color:var(--pp-textDim);">Erledigt {{ todo.completed_at.strftime('%d.%m.') }}</span>
-                        {% endif %}
+                    </div>
+                    {% else %}
+                    <span class="td-prio" style="{{ prio_bg.get(todo.priority.value, '') }};cursor:default;opacity:0.6;">
+                        {{ prio_labels.get(todo.priority.value, 'Wichtig') }}
+                    </span>
+                    {% endif %}
 
-                        {# Aktions-Buttons #}
-                        <div style="display:flex;align-items:center;gap:4px;" @click.stop>
-                            {% if todo.status.value != 'done' %}
-                            <button @click="editing = true; expanded = true;"
-                                    style="padding:5px;border-radius:6px;border:none;background:transparent;color:var(--pp-textDim);cursor:pointer;transition:all .12s;"
-                                    onmouseover="this.style.background='var(--pp-surfaceHover)';this.style.color='var(--pp-accent)'"
-                                    onmouseout="this.style.background='transparent';this.style.color='var(--pp-textDim)'"
-                                    title="Bearbeiten">
-                                <svg style="width:15px;height:15px;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /></svg>
-                            </button>
-                            <button @click="rescheduleTomorrow('{{ todo.id }}')"
-                                    style="padding:5px;border-radius:6px;border:none;background:transparent;color:var(--pp-textDim);cursor:pointer;transition:all .12s;"
-                                    onmouseover="this.style.background='var(--pp-surfaceHover)';this.style.color='var(--pp-orange)'"
-                                    onmouseout="this.style.background='transparent';this.style.color='var(--pp-textDim)'"
-                                    title="Auf morgen verschieben">
-                                <svg style="width:15px;height:15px;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>
-                            </button>
+                    {# ── Source Badge ── #}
+                    {% if todo.call_note_id %}
+                    <span class="td-source" style="background:rgba(167,139,250,0.12);color:#a78bfa;">&#x1F4DE;</span>
+                    {% endif %}
+
+                    {# ── Date + Popover ── #}
+                    {% if todo.status.value != 'done' %}
+                    <div style="position:relative;" @click.away="datePop = false">
+                        {% if todo.due_date %}
+                        <button class="td-date {{ 'td-date-overdue' if todo.is_overdue else '' }}" @click="datePop = !datePop">
+                            {% if todo.due_time %}<span style="font-family:'Space Mono',monospace;margin-right:3px;">{{ todo.due_time }}</span>{% endif %}
+                            {{ todo.due_date.strftime('%d.%m.') }}
+                        </button>
+                        {% else %}
+                        <button class="td-date td-date-none" @click="datePop = !datePop">&#x1F4C5;</button>
+                        {% endif %}
+                        <div x-show="datePop" x-cloak x-transition.scale.origin.top class="td-date-popover">
+                            <button class="td-date-quick" @click="datePop=false; setDate('{{ todo.id }}', todayISO)">&#x1F4CC; Heute</button>
+                            <button class="td-date-quick" @click="datePop=false; setDate('{{ todo.id }}', tomorrowISO)">&#x27A1;&#xFE0F; Morgen</button>
+                            <button class="td-date-quick" @click="datePop=false; setDate('{{ todo.id }}', nextWeekISO)">&#x1F4C6; N&auml;chste Woche</button>
+                            <div style="padding:4px 6px;">
+                                <input type="date" style="width:100%;padding:6px 8px;border-radius:7px;font-size:12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:var(--pp-text);font-family:var(--pp-ff);color-scheme:dark;"
+                                       @change="datePop=false; setDate('{{ todo.id }}', $event.target.value)">
+                            </div>
+                            {% if todo.due_date %}
+                            <button class="td-date-quick" style="color:#f87171;" @click="datePop=false; setDate('{{ todo.id }}', null)">&#x2716; Entfernen</button>
                             {% endif %}
-                            <svg @click="expanded = !expanded" :style="expanded ? 'transform:rotate(180deg)' : ''" style="width:16px;height:16px;color:var(--pp-textDim);cursor:pointer;transition:transform .2s;flex-shrink:0;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
                         </div>
+                    </div>
+                    {% else %}
+                        {% if todo.completed_at %}
+                        <span style="font-size:11px;color:var(--pp-textDim);white-space:nowrap;">&#x2705; {{ todo.completed_at.strftime('%d.%m.') }}</span>
+                        {% endif %}
+                    {% endif %}
+
+                    {# ── Hover Actions ── #}
+                    <div class="td-hover-actions">
+                        {% if todo.status.value != 'done' %}
+                        <button class="td-hover-btn" @click="rescheduleTomorrow('{{ todo.id }}')" title="Morgen">
+                            <svg style="width:14px;height:14px;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>
+                        </button>
+                        {% endif %}
+                        <button class="td-hover-btn td-hover-btn-danger" @click="deleteTodo('{{ todo.id }}')" title="L&ouml;schen">
+                            <svg style="width:14px;height:14px;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+                        </button>
                     </div>
                 </div>
 
-                {# ── Aufklapp-Detail ── #}
-                <div x-show="expanded" x-cloak x-transition.duration.150ms style="border-top:1px solid var(--pp-border);padding:16px 20px;background:var(--pp-surfaceHover);border-radius:0 0 14px 14px;">
-
-                    {# Beschreibung #}
+                {# ── Expand Section ── #}
+                <div x-show="expanded" x-cloak x-transition.duration.150ms class="td-expand">
                     {% if todo.description %}
-                    <div style="font-size:13px;color:var(--pp-textMuted);line-height:1.6;margin-bottom:12px;white-space:pre-wrap;">{{ todo.description }}</div>
+                    <div style="font-size:12px;color:var(--pp-textDim);line-height:1.5;margin-bottom:10px;white-space:pre-wrap;">{{ todo.description }}</div>
                     {% endif %}
-
-                    {# Call Note Hinweis #}
                     {% if todo.call_note_id and todo.call_note %}
-                    <div style="margin-bottom:12px;padding:10px 14px;border-radius:10px;background:rgba(167,139,250,0.06);border:1px solid rgba(167,139,250,0.12);font-size:12px;">
-                        <span style="color:#a78bfa;font-weight:600;">&#x1F4DE; Aus Gespr&auml;ch:</span>
-                        <span style="color:var(--pp-textDim);margin-left:4px;">{{ todo.call_note.summary[:200] if todo.call_note.summary else 'Anruf-Notiz' }}</span>
+                    <div style="margin-bottom:10px;padding:8px 12px;border-radius:8px;background:rgba(167,139,250,0.06);border:1px solid rgba(167,139,250,0.1);font-size:11px;">
+                        <span style="color:#a78bfa;font-weight:600;">&#x1F4DE; Gespr&auml;ch:</span>
+                        <span style="color:var(--pp-textDim);margin-left:4px;">{{ todo.call_note.summary[:150] if todo.call_note.summary else 'Anruf-Notiz' }}</span>
                     </div>
                     {% endif %}
-
-                    {# Edit Form #}
-                    <template x-if="editing">
-                        <div style="padding:16px;border-radius:12px;background:var(--pp-surface);border:1px solid var(--pp-border);">
-                            <div style="margin-bottom:12px;">
-                                <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--pp-textDim);margin-bottom:4px;">Titel</label>
-                                <input x-model="editTitle" type="text"
-                                       style="width:100%;padding:8px 12px;border-radius:8px;font-size:14px;font-weight:500;background:var(--pp-surfaceHover);border:1px solid var(--pp-border);color:var(--pp-text);outline:none;font-family:inherit;">
+                    {% if todo.status.value != 'done' %}
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+                        <div>
+                            <label style="display:block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--pp-textDim);margin-bottom:3px;">Titel</label>
+                            <input x-model="editTitle" type="text"
+                                   style="width:100%;padding:7px 10px;border-radius:8px;font-size:12px;font-weight:500;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);color:var(--pp-text);outline:none;font-family:var(--pp-ff);">
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                            <div>
+                                <label style="display:block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--pp-textDim);margin-bottom:3px;">Uhrzeit</label>
+                                <input x-model="editTime" type="time"
+                                       style="width:100%;padding:7px 10px;border-radius:8px;font-size:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);color:var(--pp-text);outline:none;font-family:var(--pp-ff);color-scheme:dark;">
                             </div>
-                            <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
-                                <div>
-                                    <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--pp-textDim);margin-bottom:4px;">Datum</label>
-                                    <input x-model="editDate" type="date" style="width:100%;padding:7px 10px;border-radius:8px;font-size:12px;background:var(--pp-surfaceHover);border:1px solid var(--pp-border);color:var(--pp-text);outline:none;font-family:inherit;color-scheme:dark;">
-                                </div>
-                                <div>
-                                    <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--pp-textDim);margin-bottom:4px;">Uhrzeit</label>
-                                    <input x-model="editTime" type="time" style="width:100%;padding:7px 10px;border-radius:8px;font-size:12px;background:var(--pp-surfaceHover);border:1px solid var(--pp-border);color:var(--pp-text);outline:none;font-family:inherit;color-scheme:dark;">
-                                </div>
-                                <div>
-                                    <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--pp-textDim);margin-bottom:4px;">Priorit&auml;t</label>
-                                    <select x-model="editPriority" style="width:100%;padding:7px 10px;border-radius:8px;font-size:12px;background:var(--pp-surfaceHover);border:1px solid var(--pp-border);color:var(--pp-text);outline:none;cursor:pointer;font-family:inherit;">
-                                        <option value="unwichtig">Unwichtig</option>
-                                        <option value="mittelmaessig">Mittel</option>
-                                        <option value="wichtig">Wichtig</option>
-                                        <option value="dringend">Dringend</option>
-                                        <option value="sehr_dringend">Sehr dringend</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--pp-textDim);margin-bottom:4px;">Status</label>
-                                    <select x-model="editStatus" style="width:100%;padding:7px 10px;border-radius:8px;font-size:12px;background:var(--pp-surfaceHover);border:1px solid var(--pp-border);color:var(--pp-text);outline:none;cursor:pointer;font-family:inherit;">
-                                        <option value="open">Offen</option>
-                                        <option value="in_progress">In Bearbeitung</option>
-                                        <option value="done">Erledigt</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div style="margin-bottom:12px;">
-                                <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--pp-textDim);margin-bottom:4px;">Notiz</label>
-                                <textarea x-model="editNote" rows="2" placeholder="Optionale Notiz..."
-                                          style="width:100%;padding:8px 12px;border-radius:8px;font-size:12px;background:var(--pp-surfaceHover);border:1px solid var(--pp-border);color:var(--pp-text);outline:none;resize:vertical;font-family:inherit;"></textarea>
-                            </div>
-                            <div style="display:flex;align-items:center;justify-content:space-between;">
-                                <button @click="deleteTodo('{{ todo.id }}')"
-                                        style="padding:6px 12px;border-radius:8px;border:1px solid rgba(239,68,68,0.2);background:transparent;color:#f87171;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .12s;"
-                                        onmouseover="this.style.background='rgba(239,68,68,0.1)'" onmouseout="this.style.background='transparent'">
-                                    L&ouml;schen
-                                </button>
-                                <div style="display:flex;gap:8px;">
-                                    <button @click="editing = false"
-                                            style="padding:6px 14px;border-radius:8px;border:none;background:transparent;color:var(--pp-textDim);font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;">
-                                        Abbrechen
-                                    </button>
-                                    <button @click="saveTodo('{{ todo.id }}')" :disabled="saving"
-                                            style="padding:6px 16px;border-radius:8px;border:none;background:var(--pp-accent);color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .12s;">
-                                        <span x-text="saving ? 'Speichert...' : 'Speichern'"></span>
-                                    </button>
-                                </div>
+                            <div>
+                                <label style="display:block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--pp-textDim);margin-bottom:3px;">Status</label>
+                                <select x-model="editStatus"
+                                        style="width:100%;padding:7px 10px;border-radius:8px;font-size:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);color:var(--pp-text);outline:none;cursor:pointer;font-family:var(--pp-ff);">
+                                    <option value="open">Offen</option>
+                                    <option value="in_progress">In Bearbeitung</option>
+                                    <option value="done">Erledigt</option>
+                                </select>
                             </div>
                         </div>
-                    </template>
-
-                    {# Quick Actions (wenn nicht im Edit-Modus) #}
-                    <template x-if="!editing && '{{ todo.status.value }}' !== 'done'">
-                        <div style="display:flex;gap:8px;margin-top:8px;">
-                            <button @click="editing = true"
-                                    style="padding:6px 14px;border-radius:8px;border:none;background:var(--pp-accentSoft);color:var(--pp-accent);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .12s;">
-                                Bearbeiten
-                            </button>
-                            <button @click="rescheduleTomorrow('{{ todo.id }}')"
-                                    style="padding:6px 14px;border-radius:8px;border:none;background:transparent;color:var(--pp-textDim);font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .12s;"
-                                    onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='transparent'">
-                                &#x1F4C5; Auf morgen verschieben
-                            </button>
-                        </div>
-                    </template>
+                    </div>
+                    <div style="margin-bottom:10px;">
+                        <label style="display:block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--pp-textDim);margin-bottom:3px;">Beschreibung</label>
+                        <textarea x-model="editDesc" rows="2"
+                                  style="width:100%;padding:7px 10px;border-radius:8px;font-size:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);color:var(--pp-text);outline:none;resize:vertical;font-family:var(--pp-ff);"></textarea>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <button @click="saveTodo('{{ todo.id }}')" :disabled="saving"
+                                style="padding:5px 14px;border-radius:7px;border:none;background:var(--pp-accent);color:#fff;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--pp-ff);">
+                            <span x-text="saving ? '...' : 'Speichern'"></span>
+                        </button>
+                        <button @click="expanded = false"
+                                style="padding:5px 12px;border-radius:7px;border:none;background:transparent;color:var(--pp-textDim);font-size:11px;cursor:pointer;font-family:var(--pp-ff);">
+                            Schlie&szlig;en
+                        </button>
+                    </div>
+                    {% else %}
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <button @click="expanded = false"
+                                style="padding:5px 12px;border-radius:7px;border:none;background:transparent;color:var(--pp-textDim);font-size:11px;cursor:pointer;font-family:var(--pp-ff);">
+                            Schlie&szlig;en
+                        </button>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
             {% endfor %}
         {% else %}
-            <div style="padding:48px 24px;text-align:center;border-radius:14px;background:var(--pp-surface);border:1px solid var(--pp-border);">
+            <div style="padding:40px 24px;text-align:center;">
                 {% if active_tab == 'done' %}
-                <div style="font-size:32px;opacity:0.3;margin-bottom:8px;">&#x1F4CB;</div>
-                <p style="font-size:14px;color:var(--pp-textDim);">Noch keine erledigten Aufgaben</p>
+                <div style="font-size:28px;opacity:0.3;margin-bottom:6px;">&#x1F4CB;</div>
+                <p style="font-size:13px;color:var(--pp-textDim);">Noch keine erledigten Aufgaben</p>
                 {% elif active_tab == 'overdue' %}
-                <div style="font-size:32px;margin-bottom:8px;">&#x2705;</div>
-                <p style="font-size:14px;color:#4ade80;font-weight:600;">Keine ueberfaelligen Aufgaben!</p>
-                <p style="font-size:12px;color:var(--pp-textDim);margin-top:4px;">Alles im Griff.</p>
+                <div style="font-size:28px;margin-bottom:6px;">&#x2705;</div>
+                <p style="font-size:13px;color:#4ade80;font-weight:600;">Keine &uuml;berf&auml;lligen Aufgaben!</p>
+                <p style="font-size:11px;color:var(--pp-textDim);margin-top:4px;">Alles im Griff.</p>
                 {% else %}
-                <div style="font-size:32px;opacity:0.3;margin-bottom:8px;">&#x1F4CB;</div>
-                <p style="font-size:14px;color:var(--pp-textDim);">Keine Aufgaben in dieser Ansicht</p>
+                <div style="font-size:28px;opacity:0.3;margin-bottom:6px;">&#x1F4CB;</div>
+                <p style="font-size:13px;color:var(--pp-textDim);">Keine Aufgaben in dieser Ansicht</p>
                 {% endif %}
             </div>
         {% endif %}
@@ -392,16 +415,60 @@ function todoDashboard() {
     return {
         showNewModal: false,
         newTitle: '', newDesc: '', newPriority: 'wichtig', newDate: '', newTime: '',
+        todayISO: '', tomorrowISO: '', nextWeekISO: '',
 
-        init() {},
+        init() {
+            var d = new Date();
+            this.todayISO = d.toISOString().split('T')[0];
+            var t = new Date(d); t.setDate(t.getDate() + 1);
+            this.tomorrowISO = t.toISOString().split('T')[0];
+            var w = new Date(d); w.setDate(w.getDate() + (8 - w.getDay()) % 7 || 7);
+            this.nextWeekISO = w.toISOString().split('T')[0];
+        },
 
         async completeTodo(id) {
             try {
-                const resp = await fetch('/api/ats/todos/' + id + '/complete', { method: 'PUT' });
+                var resp = await fetch('/api/ats/todos/' + id + '/complete', { method: 'PUT' });
                 if (resp.ok) {
                     var el = document.getElementById('todo-' + id);
-                    if (el) { el.style.opacity = '0'; el.style.transform = 'translateX(20px)'; setTimeout(function() { el.remove(); }, 200); }
+                    if (el) { el.style.opacity = '0'; el.style.transform = 'translateX(20px)'; setTimeout(function() { location.reload(); }, 250); }
                     showToast('Aufgabe erledigt', 'success');
+                }
+            } catch(e) { showToast('Fehler', 'error'); }
+        },
+
+        async setPriority(id, val) {
+            try {
+                var resp = await fetch('/api/ats/todos/' + id, {
+                    method: 'PATCH',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ priority: val })
+                });
+                if (resp.ok) {
+                    showToast('Priorität geändert', 'success');
+                    setTimeout(function() { location.reload(); }, 300);
+                }
+            } catch(e) { showToast('Fehler', 'error'); }
+        },
+
+        async setDate(id, dateStr) {
+            try {
+                if (dateStr) {
+                    var resp = await fetch('/api/ats/todos/' + id + '/reschedule', {
+                        method: 'PATCH',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ due_date: dateStr })
+                    });
+                } else {
+                    var resp = await fetch('/api/ats/todos/' + id, {
+                        method: 'PATCH',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ due_date: null })
+                    });
+                }
+                if (resp.ok) {
+                    showToast('Datum geändert', 'success');
+                    setTimeout(function() { location.reload(); }, 300);
                 }
             } catch(e) { showToast('Fehler', 'error'); }
         },
@@ -409,32 +476,16 @@ function todoDashboard() {
         async saveTodo(id) {
             this.saving = true;
             try {
-                var body = {
-                    title: this.editTitle,
-                    due_date: this.editDate || null,
-                    due_time: this.editTime || null,
-                    priority: this.editPriority,
-                    status: this.editStatus,
-                };
-
-                if (this.editNote && this.editNote.trim() && this.editDate) {
-                    await fetch('/api/ats/todos/' + id + '/reschedule', {
-                        method: 'PATCH',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({
-                            due_date: this.editDate,
-                            due_time: this.editTime || null,
-                            note: this.editNote
-                        })
-                    });
-                }
-
                 var resp = await fetch('/api/ats/todos/' + id, {
                     method: 'PATCH',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(body)
+                    body: JSON.stringify({
+                        title: this.editTitle,
+                        description: this.editDesc || null,
+                        due_time: this.editTime || null,
+                        status: this.editStatus,
+                    })
                 });
-
                 if (resp.ok) {
                     showToast('Aufgabe aktualisiert', 'success');
                     setTimeout(function() { location.reload(); }, 300);
@@ -444,26 +495,23 @@ function todoDashboard() {
         },
 
         async deleteTodo(id) {
-            if (!confirm('Aufgabe wirklich loeschen?')) return;
+            if (!confirm('Aufgabe wirklich löschen?')) return;
             try {
                 var resp = await fetch('/api/ats/todos/' + id, { method: 'DELETE' });
                 if (resp.ok) {
                     var el = document.getElementById('todo-' + id);
-                    if (el) { el.style.opacity = '0'; setTimeout(function() { el.remove(); }, 150); }
-                    showToast('Aufgabe geloescht', 'success');
+                    if (el) { el.style.opacity = '0'; setTimeout(function() { location.reload(); }, 200); }
+                    showToast('Aufgabe gelöscht', 'success');
                 }
             } catch(e) { showToast('Fehler', 'error'); }
         },
 
         async rescheduleTomorrow(id) {
-            var tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            var dateStr = tomorrow.toISOString().split('T')[0];
             try {
                 var resp = await fetch('/api/ats/todos/' + id + '/reschedule', {
                     method: 'PATCH',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ due_date: dateStr, note: 'Auf morgen verschoben' })
+                    body: JSON.stringify({ due_date: this.tomorrowISO, note: 'Auf morgen verschoben' })
                 });
                 if (resp.ok) {
                     showToast('Auf morgen verschoben', 'success');
@@ -475,17 +523,16 @@ function todoDashboard() {
         async createTodo() {
             if (!this.newTitle.trim()) return;
             try {
-                var body = {
-                    title: this.newTitle,
-                    description: this.newDesc || null,
-                    priority: this.newPriority,
-                    due_date: this.newDate || null,
-                    due_time: this.newTime || null,
-                };
                 var resp = await fetch('/api/ats/todos', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(body)
+                    body: JSON.stringify({
+                        title: this.newTitle,
+                        description: this.newDesc || null,
+                        priority: this.newPriority,
+                        due_date: this.newDate || null,
+                        due_time: this.newTime || null,
+                    })
                 });
                 if (resp.ok) {
                     this.showNewModal = false;
