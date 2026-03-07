@@ -666,7 +666,7 @@ async def update_item_source(
         if candidate:
             candidate.source = data.source_override
 
-    await db.flush()
+    await db.commit()
 
     return {
         "id": str(item.id),
@@ -699,7 +699,7 @@ async def bulk_update_source(
                 candidate.source = data.source_override
         updated += 1
 
-    await db.flush()
+    await db.commit()
     return {"updated": updated, "source_override": data.source_override, "campaign_type": campaign_type}
 
 
