@@ -359,6 +359,27 @@
     }
     .kd-copy:hover { background: rgba(96,165,250,0.08); color: var(--pp-accent); }
 
+    /* ── Company Chip (prominent) ── */
+    .kd-company-chip {
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 6px 14px 6px 10px; border-radius: 10px;
+        background: rgba(96,165,250,0.08);
+        border: 1px solid rgba(96,165,250,0.2);
+        color: var(--pp-accent); font-size: 14px; font-weight: 600;
+        text-decoration: none; transition: all 0.25s;
+        backdrop-filter: blur(4px);
+        box-shadow: 0 0 12px rgba(96,165,250,0.08);
+        letter-spacing: 0.01em;
+    }
+    .kd-company-chip:hover {
+        background: rgba(96,165,250,0.14);
+        border-color: rgba(96,165,250,0.35);
+        box-shadow: 0 0 20px rgba(96,165,250,0.15);
+        transform: translateY(-1px);
+    }
+    .kd-company-chip svg { width: 14px; height: 14px; opacity: 0.5; transition: opacity 0.2s; }
+    .kd-company-chip:hover svg { opacity: 1; }
+
     /* ── Saved Flash ── */
     @keyframes kdSavedFlash { 0% { opacity: 1; } 100% { opacity: 0; } }
 
@@ -397,12 +418,18 @@
                     </div>
                 </div>
                 <div style="min-width:0;">
-                    <h1 class="kd-name">{{ contact.full_name }}</h1>
+                    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                        <h1 class="kd-name">{{ contact.full_name }}</h1>
+                        <a href="/unternehmen/{{ company.id }}" class="kd-company-chip">
+                            <span style="font-size:16px;">🏢</span>
+                            {{ company.name }}
+                            <svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
+                        </a>
+                    </div>
                     <div class="kd-meta-row">
                         {% if contact.position %}
                         <span class="kd-meta-badge">💼 {{ contact.position }}</span>
                         {% endif %}
-                        <a href="/unternehmen/{{ company.id }}" class="kd-meta-badge" style="color:var(--pp-accent);">🏢 {{ company.name }}</a>
                         {% if contact.phone %}
                         <span class="kd-meta-badge">📞 {{ contact.phone }}</span>
                         {% endif %}
