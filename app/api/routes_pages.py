@@ -1550,7 +1550,13 @@ async def contact_detail_page(
     db: AsyncSession = Depends(get_db),
 ):
     """Kontakt-Detailseite."""
+    from sqlalchemy import func
     from sqlalchemy.orm import selectinload
+    from app.models.ats_call_note import ATSCallNote
+    from app.models.company_correspondence import CompanyCorrespondence
+    from app.models.ats_todo import ATSTodo
+    from app.models.ats_job import ATSJob
+    from app.models.job import Job
 
     result = await db.execute(
         select(CompanyContact)
@@ -1560,10 +1566,48 @@ async def contact_detail_page(
     contact = result.scalar_one_or_none()
     if not contact:
         raise HTTPException(status_code=404, detail="Kontakt nicht gefunden")
+
+    # Zähler für Tab-Badges
+    call_note_count = (await db.execute(
+        select(func.count(ATSCallNote.id)).where(ATSCallNote.contact_id == contact_id)
+    )).scalar() or 0
+
+    correspondence_count = (await db.execute(
+        select(func.count(CompanyCorrespondence.id)).where(CompanyCorrespondence.contact_id == contact_id)
+    )).scalar() or 0
+
+    todo_count = (await db.execute(
+        select(func.count(ATSTodo.id)).where(
+            ATSTodo.contact_id == contact_id,
+            ATSTodo.status != 'done',
+        )
+    )).scalar() or 0
+
+    ats_job_count = (await db.execute(
+        select(func.count(ATSJob.id)).where(
+            ATSJob.contact_id == contact_id,
+            ATSJob.deleted_at.is_(None),
+        )
+    )).scalar() or 0
+
+    job_count = 0
+    if contact.company_id:
+        job_count = (await db.execute(
+            select(func.count(Job.id)).where(
+                Job.company_id == contact.company_id,
+                Job.deleted_at.is_(None),
+            )
+        )).scalar() or 0
+
     return templates.TemplateResponse("contact_detail.html", {
         "request": request,
         "contact": contact,
         "company": contact.company,
+        "call_note_count": call_note_count,
+        "correspondence_count": correspondence_count,
+        "todo_count": todo_count,
+        "ats_job_count": ats_job_count,
+        "job_count": job_count,
     })
 
 
@@ -1641,6 +1685,68 @@ async def contact_correspondence_partial(
         "request": request,
         "correspondence": correspondence,
         "contact_id": str(contact_id),
+    })
+
+
+@router.get("/partials/contact/{contact_id}/ats-jobs", response_class=HTMLResponse)
+async def contact_ats_jobs_partial(
+    contact_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Partial: ATS-Stellen eines Kontakts fuer HTMX."""
+    from app.models.ats_job import ATSJob
+    from sqlalchemy.orm import selectinload
+
+    result = await db.execute(
+        select(ATSJob)
+        .options(selectinload(ATSJob.pipeline_entries))
+        .where(
+            ATSJob.contact_id == contact_id,
+            ATSJob.deleted_at.is_(None),
+        )
+        .order_by(ATSJob.created_at.desc())
+        .limit(50)
+    )
+    ats_jobs = result.scalars().all()
+
+    return templates.TemplateResponse("partials/contact_ats_jobs.html", {
+        "request": request,
+        "ats_jobs": ats_jobs,
+        "contact_id": str(contact_id),
+    })
+
+
+@router.get("/partials/contact/{contact_id}/jobs", response_class=HTMLResponse)
+async def contact_jobs_partial(
+    contact_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Partial: Jobs der Firma eines Kontakts fuer HTMX."""
+    from app.models.job import Job
+
+    # Contact laden um company_id zu ermitteln
+    result = await db.execute(
+        select(CompanyContact.company_id).where(CompanyContact.id == contact_id)
+    )
+    company_id = result.scalar_one_or_none()
+
+    jobs = []
+    if company_id:
+        job_result = await db.execute(
+            select(Job)
+            .where(Job.company_id == company_id, Job.deleted_at.is_(None))
+            .order_by(Job.created_at.desc())
+            .limit(50)
+        )
+        jobs = job_result.scalars().all()
+
+    return templates.TemplateResponse("partials/contact_jobs.html", {
+        "request": request,
+        "jobs": jobs,
+        "contact_id": str(contact_id),
+        "company_id": str(company_id) if company_id else None,
     })
 
 
