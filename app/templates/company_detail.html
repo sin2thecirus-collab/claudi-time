@@ -413,7 +413,7 @@
                             <span class="kd-meta-badge">🏭 {{ company.industry }}</span>
                         {% endif %}
                         {% if company.employee_count and company.employee_count|string|lower|trim not in invalid_vals %}
-                            <span class="kd-meta-badge">👥 {{ company.employee_count }} MA</span>
+                            <span class="kd-meta-badge">👥 {{ company.employee_count }}{% if 'MA' not in company.employee_count|string|upper and 'Mitarbeiter' not in company.employee_count|string %} MA{% endif %}</span>
                         {% endif %}
                         {% if job_count is defined %}
                             <a href="/jobs?company={{ company.id }}" class="kd-meta-badge">💼 {{ job_count }} Job{{ 's' if job_count != 1 else '' }}</a>
