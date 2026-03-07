@@ -421,9 +421,8 @@
                     <h1 class="kd-name">{{ contact.full_name }}</h1>
                     <div class="kd-meta-row">
                         <a href="/unternehmen/{{ company.id }}" class="kd-company-chip">
-                            <svg style="width:15px;height:15px;flex-shrink:0;" viewBox="0 0 24 24" fill="currentColor"><path d="M4 2a1 1 0 00-1 1v18a1 1 0 001 1h3v-3a2 2 0 012-2h6a2 2 0 012 2v3h3a1 1 0 001-1V3a1 1 0 00-1-1H4zm3 3h2v2H7V5zm0 4h2v2H7V9zm0 4h2v2H7v-2zm8-8h2v2h-2V5zm0 4h2v2h-2V9zm0 4h2v2h-2v-2zm-4-8h2v2h-2V5zm0 4h2v2h-2V9zm0 4h2v2h-2v-2z"/></svg>
+                            <svg style="width:15px;height:15px;flex-shrink:0;" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" d="M4.5 2.25a.75.75 0 000 1.5v16.5h-.75a.75.75 0 000 1.5h16.5a.75.75 0 000-1.5h-.75V3.75a.75.75 0 000-1.5h-15zM9 6a.75.75 0 00-.75.75v.75c0 .414.336.75.75.75h.75a.75.75 0 00.75-.75V6.75A.75.75 0 009.75 6H9zm-.75 3.75A.75.75 0 019 9h.75a.75.75 0 01.75.75v.75a.75.75 0 01-.75.75H9a.75.75 0 01-.75-.75v-.75zM9 12a.75.75 0 00-.75.75v.75c0 .414.336.75.75.75h.75a.75.75 0 00.75-.75v-.75a.75.75 0 00-.75-.75H9zm2.25-5.25a.75.75 0 01.75-.75h.75a.75.75 0 01.75.75v.75a.75.75 0 01-.75.75H12a.75.75 0 01-.75-.75v-.75zm.75 2.25a.75.75 0 00-.75.75v.75c0 .414.336.75.75.75h.75a.75.75 0 00.75-.75v-.75a.75.75 0 00-.75-.75H12zM11.25 12.75a.75.75 0 01.75-.75h.75a.75.75 0 01.75.75v.75a.75.75 0 01-.75.75H12a.75.75 0 01-.75-.75v-.75zm.75 2.25a.75.75 0 00-.75.75v.75c0 .414.336.75.75.75h.75a.75.75 0 00.75-.75v-.75a.75.75 0 00-.75-.75H12zm-2.25.75a.75.75 0 01.75-.75h.75a.75.75 0 01.75.75v3h-2.25v-3z" clip-rule="evenodd"/></svg>
                             {{ company.name }}
-                            <svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
                         </a>
                         {% if contact.position %}
                         <span class="kd-meta-badge">💼 {{ contact.position }}</span>
