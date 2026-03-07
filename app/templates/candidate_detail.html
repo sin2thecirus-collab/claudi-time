@@ -3538,6 +3538,8 @@ function aufgabenManager() {
         t._expanded = t._expanded || false;
         t._prioDrop = false;
         t._datePop = false;
+        // "00:00" bedeutet "keine Uhrzeit gesetzt" — nicht anzeigen
+        if (t.due_time === '00:00' || t.due_time === '00:00:00') t.due_time = null;
         t.priority_label = priorityLabels[t.priority] || t.priority;
         t.priority_color = priorityColors[t.priority] || '#6b7280';
         var src = t._source || (t.call_note_id ? 'gespräch' : 'manuell');

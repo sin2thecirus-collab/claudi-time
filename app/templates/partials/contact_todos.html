@@ -196,7 +196,7 @@
     prioDrop: false, datePop: false, expanded: false, saving: false,
     editTitle: {{ todo.title | tojson }},
     editDesc: {{ (todo.description or '') | tojson }},
-    editTime: '{{ todo.due_time.strftime('%H:%M') if todo.due_time else '' }}',
+    editTime: '{{ todo.due_time if todo.due_time and todo.due_time != '00:00' else '' }}',
     editStatus: '{{ todo.status.value }}'
 }" x-show="filter==='all' || (filter==='open' && {{ 'true' if not is_done and not is_cancelled else 'false' }}) || (filter==='overdue' && {{ 'true' if todo.is_overdue else 'false' }}) || (filter==='done' && {{ 'true' if is_done else 'false' }})">
 
@@ -269,7 +269,7 @@
         <div style="position:relative;" @click.stop>
             <button class="td-date{% if todo.is_overdue %} td-date-overdue{% endif %}{% if not todo.due_date %} td-date-none{% endif %}"
                     @click="prioDrop=false; datePop=!datePop">
-                {% if todo.due_date and todo.is_overdue %}&#x26A0; {{ todo.due_date.strftime('%d.%m.') }}{% elif todo.due_date %}{{ todo.due_date.strftime('%d.%m.') }}{% else %}&#x1F4C5;{% endif %}{% if todo.due_time %}<span style="font-size:10px; opacity:0.7;"> {{ todo.due_time.strftime('%H:%M') }}</span>{% endif %}
+                {% if todo.due_date and todo.is_overdue %}&#x26A0; {{ todo.due_date.strftime('%d.%m.') }}{% elif todo.due_date %}{{ todo.due_date.strftime('%d.%m.') }}{% else %}&#x1F4C5;{% endif %}{% if todo.due_time and todo.due_time != '00:00' %}<span style="font-size:10px; opacity:0.7;"> {{ todo.due_time }}</span>{% endif %}
             </button>
             <div x-show="datePop" x-transition.scale.origin.top @click.away="datePop=false"
                  class="td-date-popover">

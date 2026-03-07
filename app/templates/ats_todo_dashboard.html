@@ -140,7 +140,7 @@
                     saving: false,
                     editTitle: {{ todo.title | tojson }},
                     editDesc: {{ (todo.description or '') | tojson }},
-                    editTime: '{{ todo.due_time or '' }}',
+                    editTime: '{{ todo.due_time if todo.due_time and todo.due_time != '00:00' else '' }}',
                     editStatus: '{{ todo.status.value }}'
                  }">
                 <div class="td-row {{ 'td-row-overdue' if todo.is_overdue else '' }} {{ 'td-row-done' if todo.status.value == 'done' else '' }}">
@@ -221,7 +221,7 @@
                     <div style="position:relative;" @click.away="datePop = false">
                         {% if todo.due_date %}
                         <button class="td-date {{ 'td-date-overdue' if todo.is_overdue else '' }}" @click="datePop = !datePop">
-                            {% if todo.due_time %}<span style="font-family:'Space Mono',monospace;margin-right:3px;">{{ todo.due_time }}</span>{% endif %}
+                            {% if todo.due_time and todo.due_time != '00:00' %}<span style="font-family:'Space Mono',monospace;margin-right:3px;">{{ todo.due_time }}</span>{% endif %}
                             {{ todo.due_date.strftime('%d.%m.') }}
                         </button>
                         {% else %}
