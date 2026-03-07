@@ -1235,7 +1235,7 @@
             </div>
 
             {# ═══ TAB: Aufgaben ═══ #}
-            <div x-show="activeTab === 'aufgaben'" x-cloak x-data="aufgabenManager()" style="display:flex; flex-direction:column; gap:48px;">
+            <div x-show="activeTab === 'aufgaben'" x-cloak x-data="aufgabenManager()" style="display:flex; flex-direction:column;">
                 <div class="kd-section kd-anim" style="animation-delay:100ms;">
                     <div class="kd-section-header">
                         <div class="kd-section-title"><span>&#x2705;</span> Aufgaben</div>
@@ -1416,7 +1416,7 @@
                 </div>
 
                 {# ═══ Email-Entwürfe Sektion (im Aufgaben-Tab) ═══ #}
-                <div class="kd-section kd-anim" style="animation-delay:200ms;" x-data="emailDraftsManager()">
+                <div class="kd-section kd-anim" style="animation-delay:200ms; margin-top:40px;" x-data="emailDraftsManager()">
                     <div class="kd-section-header">
                         <div class="kd-section-title"><span>&#x2709;</span> Email-Entw&uuml;rfe</div>
                         <div style="display:flex; align-items:center; gap:10px;">
