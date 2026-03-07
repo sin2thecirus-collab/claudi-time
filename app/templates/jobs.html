@@ -84,6 +84,24 @@
         </div>
     </div>
 
+    {# ═══ Company Filter Banner (wenn von Firmenprofil kommend) ═══ #}
+    {% if filter_company_id %}
+    <div style="margin-bottom:16px;padding:12px 18px;border-radius:10px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);display:flex;align-items:center;justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:10px;">
+            <svg style="width:16px;height:16px;color:var(--pp-accent);" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" />
+            </svg>
+            <span style="font-size:13px;color:var(--pp-text);">
+                Jobs von: <a href="/unternehmen/{{ filter_company_id }}" style="color:var(--pp-accent);font-weight:600;text-decoration:none;">{{ filter_company_name or 'Unbekannt' }}</a>
+            </span>
+        </div>
+        <a href="/jobs" style="font-size:12px;color:var(--pp-textDim);text-decoration:none;display:flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;background:rgba(255,255,255,0.04);transition:all 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='rgba(255,255,255,0.04)'">
+            ✕ Filter aufheben
+        </a>
+    </div>
+    <input type="hidden" name="company_id" value="{{ filter_company_id }}">
+    {% endif %}
+
     {# ═══ Filter Bar — Aurora Glass ═══ #}
     <div class="glass" style="padding:14px 18px;margin-bottom:24px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
         {# Suchfeld mit Icon #}
@@ -97,7 +115,7 @@
                    hx-get="/partials/jobs-list"
                    hx-trigger="keyup changed delay:300ms"
                    hx-target="#jobs-content"
-                   hx-include="[name='sort_by'],[name='imported_days'],[name='company'],[name='cities'],[name='postal_code_prefix']"
+                   hx-include="[name='sort_by'],[name='imported_days'],[name='company'],[name='company_id'],[name='cities'],[name='postal_code_prefix']"
                    class="jobs-filter-input"
                    style="width:100%;padding-left:36px;">
         </div>
@@ -109,7 +127,7 @@
                hx-get="/partials/jobs-list"
                hx-trigger="keyup changed delay:400ms"
                hx-target="#jobs-content"
-               hx-include="[name='search'],[name='sort_by'],[name='imported_days'],[name='cities'],[name='postal_code_prefix']"
+               hx-include="[name='search'],[name='sort_by'],[name='imported_days'],[name='company_id'],[name='cities'],[name='postal_code_prefix']"
                class="jobs-filter-input"
                style="width:160px;">
 
@@ -120,7 +138,7 @@
                hx-get="/partials/jobs-list"
                hx-trigger="keyup changed delay:400ms"
                hx-target="#jobs-content"
-               hx-include="[name='search'],[name='sort_by'],[name='imported_days'],[name='company'],[name='postal_code_prefix']"
+               hx-include="[name='search'],[name='sort_by'],[name='imported_days'],[name='company'],[name='company_id'],[name='postal_code_prefix']"
                class="jobs-filter-input"
                style="width:140px;">
 
@@ -132,7 +150,7 @@
                hx-get="/partials/jobs-list"
                hx-trigger="keyup changed delay:400ms"
                hx-target="#jobs-content"
-               hx-include="[name='search'],[name='sort_by'],[name='imported_days'],[name='company'],[name='cities']"
+               hx-include="[name='search'],[name='sort_by'],[name='imported_days'],[name='company'],[name='company_id'],[name='cities']"
                class="jobs-filter-input"
                style="width:100px;">
 
@@ -144,7 +162,7 @@
                 hx-get="/partials/jobs-list"
                 hx-trigger="change"
                 hx-target="#jobs-content"
-                hx-include="[name='search'],[name='sort_by'],[name='company'],[name='cities'],[name='postal_code_prefix']"
+                hx-include="[name='search'],[name='sort_by'],[name='company'],[name='company_id'],[name='cities'],[name='postal_code_prefix']"
                 class="jobs-filter-input"
                 style="padding-right:32px;cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 12 12%22><path fill=%22%238B8FA3%22 d=%22M2.5 4.5L6 8l3.5-3.5%22 stroke=%22%238B8FA3%22 stroke-width=%221.5%22 fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/></svg>');background-repeat:no-repeat;background-position:right 10px center;">
             <option value="">Alle Zeitraeume</option>
@@ -159,7 +177,7 @@
                 hx-get="/partials/jobs-list"
                 hx-trigger="change"
                 hx-target="#jobs-content"
-                hx-include="[name='search'],[name='imported_days'],[name='company'],[name='cities'],[name='postal_code_prefix']"
+                hx-include="[name='search'],[name='imported_days'],[name='company'],[name='company_id'],[name='cities'],[name='postal_code_prefix']"
                 class="jobs-filter-input"
                 style="padding-right:32px;cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 12 12%22><path fill=%22%238B8FA3%22 d=%22M2.5 4.5L6 8l3.5-3.5%22 stroke=%22%238B8FA3%22 stroke-width=%221.5%22 fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/></svg>');background-repeat:no-repeat;background-position:right 10px center;">
             <option value="imported_at">Neueste zuerst</option>
@@ -205,7 +223,7 @@
 
     {# ═══ Jobs Content (HTMX geladen) ═══ #}
     <div id="jobs-content"
-         hx-get="/partials/jobs-list?per_page=20"
+         hx-get="/partials/jobs-list?per_page=20{% if filter_company_id %}&company_id={{ filter_company_id }}{% endif %}"
          hx-trigger="load"
          hx-swap="innerHTML">
         {# Skeleton — Aurora Glass Pulse #}

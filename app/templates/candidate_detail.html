@@ -1240,6 +1240,10 @@
                     <div class="kd-section-header">
                         <div class="kd-section-title"><span>&#x2705;</span> Aufgaben</div>
                         <div style="display:flex; align-items:center; gap:10px;">
+                            <a href="/ats/todos/dashboard" style="font-size:11px; font-weight:600; color:var(--pp-accent); text-decoration:none; opacity:0.8; transition:opacity .15s;"
+                               onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='0.8'">
+                                Alle Aufgaben &rarr;
+                            </a>
                             <span style="font-size:12px; font-weight:600; color:var(--pp-textDim);" x-text="todos.length + ' Aufgaben'"></span>
                             <button type="button" @click="showAddForm = !showAddForm"
                                 class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer"
@@ -1305,16 +1309,34 @@
                                             <svg x-show="todo.status === 'done'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
                                         </button>
 
-                                        {# Titel + Priority #}
+                                        {# Titel + Priority + Quelle #}
                                         <div style="flex:1; min-width:0; cursor:pointer;" @click="todo._open = !todo._open">
-                                            <div style="display:flex; align-items:center; gap:8px;">
+                                            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                                                 <span style="font-size:13.5px; font-weight:600; line-height:1.3; font-family:inherit;"
                                                       :style="todo.status === 'done' ? 'color:var(--pp-textDim); text-decoration:line-through;' : 'color:var(--pp-text);'"
                                                       x-text="todo.title"></span>
                                                 <span style="font-size:10px; font-weight:700; padding:2px 7px; border-radius:6px; white-space:nowrap; font-family:inherit;"
                                                       :style="'color:' + todo.priority_color + '; background:' + todo.priority_color + '18;'"
                                                       x-text="todo.priority_label"></span>
+                                                {# Quellen-Badge #}
+                                                <span style="font-size:9px; font-weight:700; padding:2px 6px; border-radius:5px; white-space:nowrap; font-family:inherit;"
+                                                      :style="todo.source_style"
+                                                      x-text="todo.source_label"></span>
                                             </div>
+                                            {# Verknuepfungs-Chips (Firma, Kontakt) #}
+                                            <template x-if="todo.company_name || todo.contact_name">
+                                                <div style="display:flex; gap:5px; margin-top:4px; flex-wrap:wrap;">
+                                                    <template x-if="todo.company_name">
+                                                        <a :href="todo.company_id ? '/unternehmen/' + todo.company_id : '#'"
+                                                           style="font-size:10px; font-weight:600; padding:1px 7px; border-radius:5px; background:rgba(96,165,250,0.12); color:#60a5fa; text-decoration:none; white-space:nowrap;"
+                                                           x-text="'🏢 ' + todo.company_name"></a>
+                                                    </template>
+                                                    <template x-if="todo.contact_name">
+                                                        <span style="font-size:10px; font-weight:600; padding:1px 7px; border-radius:5px; background:rgba(167,139,250,0.12); color:#a78bfa; white-space:nowrap;"
+                                                              x-text="'👤 ' + todo.contact_name"></span>
+                                                    </template>
+                                                </div>
+                                            </template>
                                         </div>
 
                                         {# Datum + Uhrzeit rechts #}
@@ -2051,44 +2073,7 @@
                     </div>
                 </div>
 
-                {# ── Automatisierungs-Aufgaben ── #}
-                <template x-if="tasks.length > 0">
-                    <div class="kd-section kd-anim" style="animation-delay:200ms;">
-                        <div class="kd-section-header">
-                            <div class="kd-section-title"><span>&#x1F4CB;</span> Automatisierungs-Aufgaben</div>
-                            <span style="font-size:12px; font-weight:600; color:var(--pp-textDim);" x-text="tasks.filter(t => t.status === 'open').length + ' offen'"></span>
-                        </div>
-                        <div class="kd-section-body" style="padding:12px 24px 16px;">
-                            <div style="display:flex; flex-direction:column; gap:6px;">
-                                <template x-for="task in tasks" :key="task.id">
-                                    <div style="padding:10px 14px; border-radius:12px; border:1px solid var(--pp-border); background:var(--pp-bg); display:flex; align-items:center; gap:10px;"
-                                         :style="task.status === 'done' ? 'opacity:0.5;' : ''">
-                                        {# Status-Icon #}
-                                        <button type="button" @click="toggleTask(task)"
-                                            style="flex-shrink:0; width:20px; height:20px; border-radius:6px; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0;"
-                                            :style="task.status === 'done' ? 'border:2px solid var(--pp-green); background:var(--pp-green);' : 'border:2px solid var(--pp-text4); background:transparent;'">
-                                            <svg x-show="task.status === 'done'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
-                                        </button>
-                                        <div style="flex:1; min-width:0;">
-                                            <div style="font-size:13px; font-weight:600;"
-                                                 :style="task.status === 'done' ? 'color:var(--pp-textDim); text-decoration:line-through;' : 'color:var(--pp-text);'"
-                                                 x-text="task.title"></div>
-                                            <template x-if="task.description">
-                                                <div style="font-size:11px; color:var(--pp-textDim); margin-top:2px; line-height:1.4;" x-text="task.description"></div>
-                                            </template>
-                                        </div>
-                                        <template x-if="task.due_date">
-                                            <span style="font-size:11px; font-weight:600; color:var(--pp-textDim); white-space:nowrap;" x-text="task.due_date_formatted"></span>
-                                        </template>
-                                        <span style="font-size:9px; font-weight:700; padding:2px 6px; border-radius:5px; text-transform:uppercase; letter-spacing:0.5px;"
-                                              :style="task.source === 'gpt' ? 'background:var(--pp-purpleSoft); color:var(--pp-purple);' : task.source === 'system' ? 'background:var(--pp-accentSoft); color:var(--pp-accent);' : 'background:var(--pp-surfaceHover); color:var(--pp-textDim);'"
-                                              x-text="task.source"></span>
-                                    </div>
-                                </template>
-                            </div>
-                        </div>
-                    </div>
-                </template>
+                {# ── Automatisierungs-Aufgaben: ENTFERNT — Tasks sind jetzt alle im Aufgaben-Tab vereint ── #}
             </div>
 
             {# ═══ TAB: Dateien ═══ #}
@@ -3297,24 +3282,12 @@ function emailAutomationManager() {
         return e;
     }
 
-    function enrichTask(t) {
-        if (t.due_date) {
-            var parts = t.due_date.split('-');
-            t.due_date_formatted = parts[2] + '.' + parts[1] + '.' + parts[0];
-        } else { t.due_date_formatted = ''; }
-        return t;
-    }
-
     var rawEmails = {{ (seq_emails_json or []) | tojson | safe }};
     rawEmails = rawEmails.map(function(e) { return enrichEmail(e); });
-
-    var rawTasks = {{ (seq_tasks_json or []) | tojson | safe }};
-    rawTasks = rawTasks.map(function(t) { return enrichTask(t); });
 
     return {
         contactStatus: currentContactStatus,
         emails: rawEmails,
-        tasks: rawTasks,
 
         get statusLabel() {
             // Wiedervorlage-Status beginnt mit "wiedervorlage_"
@@ -3329,25 +3302,6 @@ function emailAutomationManager() {
 
         startSequenz: function() {
             triggerNichtErreicht(candidateId);
-        },
-
-        toggleTask: function(task) {
-            var self = this;
-            var newStatus = task.status === 'done' ? 'open' : 'done';
-            fetch('/api/email-automation/tasks/' + task.id, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status: newStatus })
-            })
-            .then(function(r) { if (!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
-            .then(function(data) {
-                var idx = self.tasks.findIndex(function(t){ return t.id === task.id; });
-                if (idx !== -1) {
-                    self.tasks[idx].status = data.status || newStatus;
-                }
-                showToast('Aufgabe aktualisiert', 'success');
-            })
-            .catch(function(e) { showToast('Fehler: '+e.message, 'error'); });
         },
 
         refreshEmails: function() {
@@ -3370,10 +3324,37 @@ function aufgabenManager() {
     var priorityLabels = {unwichtig:'Unwichtig',mittelmaessig:'Mittelmäßig',wichtig:'Wichtig',dringend:'Dringend',sehr_dringend:'Sehr dringend'};
     var priorityColors = {unwichtig:'#6b7280',mittelmaessig:'#3b82f6',wichtig:'#f59e0b',dringend:'#f97316',sehr_dringend:'#ef4444'};
 
+    var sourceLabels = {
+        'gespräch': '📞 Gespräch',
+        'manuell': '✏️ Manuell',
+        'system': '🤖 Auto',
+        'gpt': '🤖 GPT',
+        'n8n': '🤖 n8n',
+        'telegram': '💬 Telegram',
+        'email': '✉️ E-Mail'
+    };
+    var sourceStyles = {
+        'gespräch': 'background:rgba(34,197,94,0.12); color:#22c55e;',
+        'manuell': 'background:rgba(148,163,184,0.12); color:#94a3b8;',
+        'system': 'background:rgba(99,102,241,0.12); color:#818cf8;',
+        'gpt': 'background:rgba(167,139,250,0.12); color:#a78bfa;',
+        'n8n': 'background:rgba(99,102,241,0.12); color:#818cf8;',
+        'telegram': 'background:rgba(96,165,250,0.12); color:#60a5fa;',
+        'email': 'background:rgba(251,191,36,0.12); color:#fbbf24;'
+    };
+
     function enrichTodo(t) {
         t._open = false;
         t.priority_label = priorityLabels[t.priority] || t.priority;
         t.priority_color = priorityColors[t.priority] || '#6b7280';
+        // Quellen-Info
+        var src = t._source || 'manuell';
+        t.source_label = sourceLabels[src] || ('📋 ' + src);
+        t.source_style = sourceStyles[src] || 'background:rgba(148,163,184,0.12); color:#94a3b8;';
+        // Verknuepfungen
+        t.company_name = t.company_name || null;
+        t.company_id = t.company_id || null;
+        t.contact_name = t.contact_name || null;
         if (t.due_date) {
             var parts = t.due_date.split('-');
             t.due_date_formatted = parts[2] + '.' + parts[1] + '.' + parts[0];

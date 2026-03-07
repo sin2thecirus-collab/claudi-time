@@ -52,7 +52,8 @@ class JobFilterParams(BaseModel):
     industries: list[str] | None = Field(default=None, description="Filter nach Branchen")
 
     # Einzelne Filter
-    company: SearchTerm = Field(default=None, description="Filter nach Unternehmen")
+    company: SearchTerm = Field(default=None, description="Filter nach Unternehmen (Textsuche)")
+    company_id: str | None = Field(default=None, description="Filter nach Unternehmen-ID (UUID)")
     position: SearchTerm = Field(default=None, description="Filter nach Position")
 
     # Status-Filter

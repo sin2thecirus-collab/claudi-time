@@ -394,7 +394,10 @@
                             {% set _ = meta_items.append('<span style="display:flex;align-items:center;gap:5px;">👥 ' ~ company.employee_count ~ ' MA</span>') %}
                         {% endif %}
                         {% if job_count is defined %}
-                            {% set _ = meta_items.append('<span>💼 ' ~ job_count ~ ' Job' ~ ('s' if job_count != 1 else '') ~ '</span>') %}
+                            {% set _ = meta_items.append('<a href="/jobs?company=' ~ company.id ~ '" style="color:var(--pp-accent);text-decoration:none;transition:opacity 0.15s;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">💼 ' ~ job_count ~ ' Job' ~ ('s' if job_count != 1 else '') ~ '</a>') %}
+                        {% endif %}
+                        {% if akquise_count is defined and akquise_count > 0 %}
+                            {% set _ = meta_items.append('<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;background:rgba(167,139,250,0.12);color:var(--pp-purple);">📞 Akquise (' ~ akquise_count ~ ')</span>') %}
                         {% endif %}
                         {% for item in meta_items %}
                             {% if not loop.first %}<span class="sep">|</span>{% endif %}
@@ -423,6 +426,7 @@
             <button class="cd-tab" :class="{ active: tab==='activities' }" @click="tab='activities'"><span class="icon">📊</span> Aktivitäten</button>
             <button class="cd-tab" :class="{ active: tab==='emails' }" @click="tab='emails'"><span class="icon">✉️</span> E-Mails</button>
             <button class="cd-tab" :class="{ active: tab==='notes' }" @click="tab='notes'"><span class="icon">📝</span> Notizen</button>
+            <button class="cd-tab" :class="{ active: tab==='jobs' }" @click="tab='jobs'"><span class="icon">💼</span> Jobs{% if job_count is defined and job_count > 0 %} <span style="font-size:11px;font-weight:600;padding:1px 6px;border-radius:6px;background:var(--pp-accentSoft);color:var(--pp-accent);margin-left:4px;">{{ job_count }}</span>{% endif %}</button>
             <button class="cd-tab" :class="{ active: tab==='documents' }" @click="tab='documents'"><span class="icon">📁</span> Dokumente</button>
         </div>
     </div>
@@ -621,6 +625,23 @@
                 </div>
             </div>
 
+            {# ── Tab: Jobs ── #}
+            <div x-show="tab==='jobs'" x-cloak style="padding-top:16px;">
+                <div class="cd-tab-sec">
+                    <div class="cd-tab-sec-h">
+                        <span class="cd-tab-sec-t"><span class="icon">💼</span> Alle Jobs ({{ job_count }})</span>
+                        {% if akquise_count is defined and akquise_count > 0 %}
+                        <span style="padding:2px 10px;border-radius:8px;font-size:11px;font-weight:600;background:rgba(167,139,250,0.12);color:var(--pp-purple);">📞 {{ akquise_count }} Akquise</span>
+                        {% endif %}
+                    </div>
+                    <div class="cd-tab-sec-b">
+                        <div id="company-jobs-full-container" hx-get="/partials/company-jobs-full/{{ company.id }}" hx-trigger="intersect once" hx-swap="innerHTML">
+                            <p class="cd-load">Lade Jobs...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {# ── Tab: Dokumente ── #}
             <div x-show="tab==='documents'" x-cloak style="padding-top:16px;">
                 <div class="cd-tab-sec">
@@ -678,6 +699,9 @@
                         <span class="title">Jobs</span>
                         <span class="cnt" style="color:var(--pp-textDim); background:var(--pp-surfaceHover);">{{ job_count }}</span>
                     </div>
+                    {% if job_count > 0 %}
+                    <a href="/jobs?company={{ company.id }}" class="cd-side-link">Alle →</a>
+                    {% endif %}
                 </div>
                 <div id="sidebar-jobs" hx-get="/partials/company-jobs/{{ company.id }}" hx-trigger="load" hx-swap="innerHTML">
                     <p class="cd-load">Lade Jobs...</p>

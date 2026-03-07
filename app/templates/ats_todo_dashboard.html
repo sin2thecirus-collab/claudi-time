@@ -6,80 +6,68 @@
 <div x-data="todoDashboard()" x-init="init()">
 
     {# ── Header ── #}
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;">
         <div>
-            <h1 class="text-2xl font-bold text-white">Aufgaben-Dashboard</h1>
-            <p class="text-sm text-gray-400 mt-1">
+            <h1 style="font-size:22px;font-weight:700;color:var(--pp-text);margin:0;letter-spacing:-0.3px;">Aufgaben-Dashboard</h1>
+            <p style="font-size:13px;color:var(--pp-textDim);margin-top:4px;">
                 {{ greeting }}, Milad &mdash;
-                <span class="text-white font-medium">{{ stats.overdue }} ueberfaellig</span>,
-                <span class="text-white font-medium">{{ today_count }} heute</span>,
-                <span class="text-white font-medium">{{ upcoming_count }} diese Woche</span>
+                {% if stats.overdue > 0 %}<span style="color:#f87171;font-weight:600;">{{ stats.overdue }} ueberfaellig</span>, {% endif %}
+                <span style="color:var(--pp-text);font-weight:500;">{{ today_count }} heute</span>,
+                <span style="color:var(--pp-textDim);">{{ upcoming_count }} diese Woche</span>
             </p>
         </div>
         <button @click="showNewModal = true"
-                class="inline-flex items-center rounded-lg px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors"
-                style="background: var(--pp-accent);">
-            <svg class="-ml-0.5 mr-1.5 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
+                style="display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border-radius:10px;font-size:13px;font-weight:600;color:#fff;background:var(--pp-accent);border:none;cursor:pointer;font-family:inherit;transition:all .15s;"
+                onmouseover="this.style.filter='brightness(1.1)'" onmouseout="this.style.filter='none'">
+            <svg style="width:16px;height:16px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
             Neue Aufgabe
         </button>
     </div>
 
     {# ── Stats Cards ── #}
-    <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
-        <div class="rounded-xl p-4" style="background: var(--pp-surface); border: 1px solid var(--pp-border);">
-            <p class="text-xs font-medium uppercase tracking-wider" style="color: var(--pp-textMuted);">Offen</p>
-            <p class="text-2xl font-bold text-white mt-1">{{ stats.open }}</p>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:24px;">
+        {% set stat_cards = [
+            ('Offen', stats.open, '--pp-accent', '📋'),
+            ('In Bearbeitung', stats.in_progress, '--pp-blue', '⏳'),
+            ('Heute faellig', today_count, '--pp-orange', '📅'),
+            ('Ueberfaellig', stats.overdue, '--pp-red', '🔴'),
+            ('Erledigt', stats.done, '--pp-green', '✅'),
+        ] %}
+        {% for label, count, color, icon in stat_cards %}
+        <div style="padding:16px;border-radius:12px;background:var(--pp-surface);border:1px solid var(--pp-border);border-top:2px solid var({{ color }});">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+                <span style="font-size:14px;">{{ icon }}</span>
+                <span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--pp-textDim);">{{ label }}</span>
+            </div>
+            <div style="font-size:24px;font-weight:700;color:var(--pp-text);">{{ count }}</div>
         </div>
-        <div class="rounded-xl p-4" style="background: var(--pp-surface); border: 1px solid var(--pp-border);">
-            <p class="text-xs font-medium uppercase tracking-wider" style="color: var(--pp-textMuted);">In Bearbeitung</p>
-            <p class="text-2xl font-bold mt-1" style="color: var(--pp-accent);">{{ stats.in_progress }}</p>
-        </div>
-        <div class="rounded-xl p-4" style="background: var(--pp-surface); border: 1px solid var(--pp-border);">
-            <p class="text-xs font-medium uppercase tracking-wider" style="color: var(--pp-textMuted);">Heute faellig</p>
-            <p class="text-2xl font-bold text-amber-400 mt-1">{{ today_count }}</p>
-        </div>
-        <div class="rounded-xl p-4" style="background: var(--pp-surface); border: 1px solid var(--pp-border);">
-            <p class="text-xs font-medium uppercase tracking-wider" style="color: var(--pp-textMuted);">Ueberfaellig</p>
-            <p class="text-2xl font-bold text-red-400 mt-1">{{ stats.overdue }}</p>
-        </div>
-        <div class="rounded-xl p-4" style="background: var(--pp-surface); border: 1px solid var(--pp-border);">
-            <p class="text-xs font-medium uppercase tracking-wider" style="color: var(--pp-textMuted);">Erledigt</p>
-            <p class="text-2xl font-bold text-green-400 mt-1">{{ stats.done }}</p>
-        </div>
+        {% endfor %}
     </div>
 
     {# ── Tabs ── #}
-    <div class="flex items-center gap-1 mb-4 overflow-x-auto pb-1" style="scrollbar-width: none;">
+    <div style="display:flex;gap:4px;margin-bottom:20px;overflow-x:auto;padding-bottom:2px;">
         {% set tabs = [
-            ('overdue', 'Ueberfaellig', stats.overdue, 'red'),
-            ('today', 'Heute', today_count, 'amber'),
-            ('upcoming', 'Diese Woche', upcoming_count, 'blue'),
-            ('open', 'Alle Offenen', stats.open + stats.in_progress, 'gray'),
-            ('done', 'Erledigt', stats.done, 'green'),
+            ('overdue', 'Ueberfaellig', stats.overdue, '--pp-red'),
+            ('today', 'Heute', today_count, '--pp-orange'),
+            ('upcoming', 'Diese Woche', upcoming_count, '--pp-blue'),
+            ('open', 'Alle Offenen', stats.open + stats.in_progress, '--pp-textDim'),
+            ('done', 'Erledigt', stats.done, '--pp-green'),
         ] %}
         {% for key, label, count, color in tabs %}
         <a href="/ats/todos/dashboard?tab={{ key }}"
-           class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all"
-           style="{% if active_tab == key %}background: var(--pp-accentSoft); color: var(--pp-accent);{% else %}color: var(--pp-textMuted); background: transparent;{% endif %}"
+           style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:10px;font-size:13px;font-weight:500;text-decoration:none;white-space:nowrap;transition:all .15s;{% if active_tab == key %}background:var(--pp-accentSoft);color:var(--pp-accent);{% else %}color:var(--pp-textDim);background:transparent;{% endif %}"
            onmouseover="{% if active_tab != key %}this.style.background='var(--pp-surfaceHover)'{% endif %}"
            onmouseout="{% if active_tab != key %}this.style.background='transparent'{% endif %}">
             {{ label }}
             {% if count > 0 %}
-            <span class="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-bold
-                {% if color == 'red' %}bg-red-500/20 text-red-400
-                {% elif color == 'amber' %}bg-amber-500/20 text-amber-400
-                {% elif color == 'blue' %}bg-blue-500/20 text-blue-400
-                {% elif color == 'green' %}bg-green-500/20 text-green-400
-                {% else %}bg-gray-500/20 text-gray-400{% endif %}">{{ count }}</span>
+            <span style="display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;border-radius:99px;font-size:11px;font-weight:700;background:var({{ color }}, rgba(255,255,255,0.1));color:{% if color == '--pp-red' %}#f87171{% elif color == '--pp-orange' %}#fbbf24{% elif color == '--pp-green' %}#4ade80{% elif color == '--pp-blue' %}#60a5fa{% else %}var(--pp-textDim){% endif %};opacity:0.9;">{{ count }}</span>
             {% endif %}
         </a>
         {% endfor %}
     </div>
 
-    {# ── Todo-Liste ── #}
-    <div id="todo-list" class="space-y-2">
+    {# ── Todo-Liste — CRM-gerechte Karten ── #}
+    <div id="todo-list" style="display:flex;flex-direction:column;gap:10px;">
         {% if todos %}
             {% for todo in todos %}
             <div id="todo-{{ todo.id }}"
@@ -94,316 +82,298 @@
                     editNote: '',
                     saving: false
                  }"
-                 class="rounded-xl transition-all"
-                 style="background: var(--pp-surface); border: 1px solid {% if todo.is_overdue %}rgba(239,68,68,0.3){% elif todo.status.value == 'done' %}rgba(34,197,94,0.2){% else %}var(--pp-border){% endif %};">
+                 style="border-radius:14px;background:var(--pp-surface);border:1px solid {% if todo.is_overdue %}rgba(239,68,68,0.25){% elif todo.status.value == 'done' %}rgba(34,197,94,0.15){% else %}var(--pp-border){% endif %};transition:all .2s;{% if todo.is_overdue %}background:rgba(239,68,68,0.03);{% endif %}"
+                 onmouseover="if(!this.classList.contains('editing'))this.style.borderColor='var(--pp-accentGlow)'"
+                 onmouseout="this.style.borderColor='{% if todo.is_overdue %}rgba(239,68,68,0.25){% elif todo.status.value == 'done' %}rgba(34,197,94,0.15){% else %}var(--pp-border){% endif %}'">
 
-                {# ── Row ── #}
-                <div class="flex items-center gap-3 px-4 py-3 cursor-pointer" @click="expanded = !expanded">
+                {# ── Hauptzeile ── #}
+                <div style="padding:16px 20px;display:flex;align-items:flex-start;gap:14px;cursor:pointer;" @click="expanded = !expanded">
+
                     {# Checkbox #}
-                    <div class="flex-shrink-0" @click.stop>
+                    <div style="flex-shrink:0;padding-top:2px;" @click.stop>
                         {% if todo.status.value != 'done' %}
                         <button @click="completeTodo('{{ todo.id }}')"
-                                class="w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all hover:border-green-400 hover:bg-green-400/10"
-                                style="border-color: {% if todo.is_overdue %}#ef4444{% elif todo.priority.value == 'sehr_dringend' or todo.priority.value == 'dringend' %}#f97316{% else %}var(--pp-border){% endif %};"
+                                style="width:24px;height:24px;border-radius:8px;border:2px solid {% if todo.is_overdue %}#ef4444{% elif todo.priority.value in ['sehr_dringend', 'dringend'] %}#f97316{% else %}var(--pp-text4){% endif %};background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;transition:all .15s;"
+                                onmouseover="this.style.borderColor='#22c55e';this.style.background='rgba(34,197,94,0.1)'"
+                                onmouseout="this.style.borderColor='{% if todo.is_overdue %}#ef4444{% elif todo.priority.value in ['sehr_dringend', 'dringend'] %}#f97316{% else %}var(--pp-text4){% endif %}';this.style.background='transparent'"
                                 title="Als erledigt markieren">
                         </button>
                         {% else %}
-                        <div class="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
-                            <svg class="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                            </svg>
+                        <div style="width:24px;height:24px;border-radius:8px;background:#22c55e;display:flex;align-items:center;justify-content:center;">
+                            <svg style="width:14px;height:14px;color:#fff;" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
                         </div>
                         {% endif %}
                     </div>
 
-                    {# Title + Meta #}
-                    <div class="flex-1 min-w-0">
-                        <div class="flex items-center gap-2">
-                            <span class="text-sm font-medium truncate {% if todo.status.value == 'done' %}line-through{% endif %}"
-                                  style="color: {% if todo.status.value == 'done' %}var(--pp-textMuted){% else %}var(--pp-text){% endif %};">
-                                {% if todo.due_time %}
-                                <span class="font-mono text-xs px-1.5 py-0.5 rounded mr-1"
-                                      style="background: var(--pp-surfaceHover); color: var(--pp-textMuted);">{{ todo.due_time }}</span>
-                                {% endif %}
+                    {# Inhalt #}
+                    <div style="flex:1;min-width:0;">
+                        {# Zeile 1: Titel + Prioritaet + Quelle #}
+                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+                            <span style="font-size:15px;font-weight:600;line-height:1.3;{% if todo.status.value == 'done' %}color:var(--pp-textDim);text-decoration:line-through;{% else %}color:var(--pp-text);{% endif %}">
                                 {{ todo.title }}
                             </span>
-                        </div>
-                        <div class="flex items-center gap-2 mt-0.5 flex-wrap">
-                            {# Priority #}
-                            {% if todo.priority.value in ['dringend', 'sehr_dringend'] %}
-                            <span class="text-xs font-medium px-1.5 py-0.5 rounded"
-                                  style="background: {% if todo.priority.value == 'sehr_dringend' %}rgba(239,68,68,0.15); color: #f87171;{% else %}rgba(249,115,22,0.15); color: #fb923c;{% endif %}">
+
+                            {# Prioritaet-Badge — ALLE Stufen sichtbar #}
+                            {% set prio_styles = {
+                                'sehr_dringend': 'background:rgba(239,68,68,0.15);color:#f87171;',
+                                'dringend': 'background:rgba(249,115,22,0.15);color:#fb923c;',
+                                'wichtig': 'background:rgba(251,191,36,0.12);color:#fbbf24;',
+                                'mittelmaessig': 'background:rgba(96,165,250,0.12);color:#60a5fa;',
+                                'unwichtig': 'background:rgba(148,163,184,0.12);color:#94a3b8;',
+                            } %}
+                            <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;white-space:nowrap;{{ prio_styles.get(todo.priority.value, '') }}">
                                 {{ todo.priority_label }}
                             </span>
+
+                            {# Quelle-Badge #}
+                            {% if todo.call_note_id %}
+                            <span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:6px;background:rgba(167,139,250,0.12);color:#a78bfa;">&#x1F4DE; Gespr&auml;ch</span>
                             {% endif %}
-                            {# Overdue Badge #}
-                            {% if todo.is_overdue %}
-                            <span class="text-xs font-medium px-1.5 py-0.5 rounded" style="background: rgba(239,68,68,0.15); color: #f87171;">
-                                {% set days_overdue = (today_date - todo.due_date).days %}
-                                {{ days_overdue }} Tag{{ 'e' if days_overdue != 1 }} ueberfaellig
-                            </span>
-                            {% endif %}
-                            {# Due Date #}
-                            {% if todo.due_date and not todo.is_overdue and todo.status.value != 'done' %}
-                            <span class="text-xs" style="color: var(--pp-textMuted);">
-                                Faellig: {{ todo.due_date.strftime('%d.%m.%Y') }}
-                            </span>
-                            {% endif %}
-                            {# Completed at #}
-                            {% if todo.status.value == 'done' and todo.completed_at %}
-                            <span class="text-xs" style="color: var(--pp-textMuted);">
-                                Erledigt am {{ todo.completed_at.strftime('%d.%m.%Y %H:%M') }}
-                            </span>
-                            {% endif %}
-                            {# Related entities #}
-                            {% if todo.candidate %}
-                            <a href="/kandidaten/{{ todo.candidate_id }}" class="text-xs hover:underline" style="color: var(--pp-accent);" @click.stop>
-                                {{ todo.candidate.first_name }} {{ todo.candidate.last_name }}
-                            </a>
-                            {% endif %}
+                        </div>
+
+                        {# Zeile 2: Verknuepfungen als farbige Chips #}
+                        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
                             {% if todo.company %}
-                            <a href="/unternehmen/{{ todo.company_id }}" class="text-xs hover:underline" style="color: var(--pp-accent);" @click.stop>
+                            <a href="/unternehmen/{{ todo.company_id }}" @click.stop
+                               style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;background:rgba(96,165,250,0.1);color:#60a5fa;transition:all .12s;"
+                               onmouseover="this.style.background='rgba(96,165,250,0.2)'" onmouseout="this.style.background='rgba(96,165,250,0.1)'">
+                                <svg style="width:12px;height:12px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5M3.75 3v18m16.5-18v18M5.25 6h.008M5.25 9h.008M5.25 12h.008M9.75 6h.008M9.75 9h.008M9.75 12h.008M14.25 6h.008M14.25 9h.008M14.25 12h.008M18.75 6h.008M18.75 9h.008M18.75 12h.008" /></svg>
                                 {{ todo.company.name }}
                             </a>
                             {% endif %}
+
+                            {% if todo.candidate %}
+                            <a href="/kandidaten/{{ todo.candidate_id }}" @click.stop
+                               style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;background:rgba(34,197,94,0.1);color:#4ade80;transition:all .12s;"
+                               onmouseover="this.style.background='rgba(34,197,94,0.2)'" onmouseout="this.style.background='rgba(34,197,94,0.1)'">
+                                <svg style="width:12px;height:12px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0" /></svg>
+                                {{ todo.candidate.first_name }} {{ todo.candidate.last_name }}
+                            </a>
+                            {% endif %}
+
                             {% if todo.contact %}
-                            <span class="text-xs" style="color: var(--pp-textMuted);">{{ todo.contact.full_name }}</span>
+                            <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:8px;font-size:12px;font-weight:600;background:rgba(167,139,250,0.1);color:#a78bfa;">
+                                <svg style="width:12px;height:12px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" /></svg>
+                                {{ todo.contact.full_name }}
+                            </span>
+                            {% endif %}
+
+                            {# Ueberfaellig-Badge #}
+                            {% if todo.is_overdue %}
+                            {% set days_overdue = (today_date - todo.due_date).days %}
+                            <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700;background:rgba(239,68,68,0.15);color:#f87171;">
+                                &#x26A0;&#xFE0F; {{ days_overdue }}d ueberfaellig
+                            </span>
                             {% endif %}
                         </div>
                     </div>
 
-                    {# Right: Actions #}
-                    <div class="flex items-center gap-1 flex-shrink-0" @click.stop>
-                        {# Reschedule #}
-                        {% if todo.status.value != 'done' %}
-                        <button @click="editing = true; expanded = true;"
-                                class="p-1.5 rounded-lg transition-colors"
-                                style="color: var(--pp-textMuted);"
-                                onmouseover="this.style.background='var(--pp-surfaceHover)'"
-                                onmouseout="this.style.background='transparent'"
-                                title="Bearbeiten">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
-                            </svg>
-                        </button>
+                    {# Rechte Seite: Datum + Aktionen #}
+                    <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+                        {# Faelligkeitsdatum #}
+                        {% if todo.due_date and not todo.is_overdue and todo.status.value != 'done' %}
+                        <div style="display:flex;align-items:center;gap:4px;">
+                            {% if todo.due_time %}<span style="font-size:12px;font-weight:600;color:var(--pp-textDim);font-family:'Space Mono',monospace;">{{ todo.due_time }}</span>{% endif %}
+                            <span style="font-size:12px;font-weight:500;color:var(--pp-textDim);">{{ todo.due_date.strftime('%d.%m.%Y') }}</span>
+                        </div>
+                        {% elif todo.status.value == 'done' and todo.completed_at %}
+                        <span style="font-size:11px;color:var(--pp-textDim);">Erledigt {{ todo.completed_at.strftime('%d.%m.') }}</span>
                         {% endif %}
-                        {# Expand Arrow #}
-                        <div class="p-1.5" style="color: var(--pp-textMuted);">
-                            <svg class="w-4 h-4 transition-transform" :class="expanded ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                            </svg>
+
+                        {# Aktions-Buttons #}
+                        <div style="display:flex;align-items:center;gap:4px;" @click.stop>
+                            {% if todo.status.value != 'done' %}
+                            <button @click="editing = true; expanded = true;"
+                                    style="padding:5px;border-radius:6px;border:none;background:transparent;color:var(--pp-textDim);cursor:pointer;transition:all .12s;"
+                                    onmouseover="this.style.background='var(--pp-surfaceHover)';this.style.color='var(--pp-accent)'"
+                                    onmouseout="this.style.background='transparent';this.style.color='var(--pp-textDim)'"
+                                    title="Bearbeiten">
+                                <svg style="width:15px;height:15px;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /></svg>
+                            </button>
+                            <button @click="rescheduleTomorrow('{{ todo.id }}')"
+                                    style="padding:5px;border-radius:6px;border:none;background:transparent;color:var(--pp-textDim);cursor:pointer;transition:all .12s;"
+                                    onmouseover="this.style.background='var(--pp-surfaceHover)';this.style.color='var(--pp-orange)'"
+                                    onmouseout="this.style.background='transparent';this.style.color='var(--pp-textDim)'"
+                                    title="Auf morgen verschieben">
+                                <svg style="width:15px;height:15px;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>
+                            </button>
+                            {% endif %}
+                            <svg @click="expanded = !expanded" :style="expanded ? 'transform:rotate(180deg)' : ''" style="width:16px;height:16px;color:var(--pp-textDim);cursor:pointer;transition:transform .2s;flex-shrink:0;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
                         </div>
                     </div>
                 </div>
 
-                {# ── Expanded Detail Panel ── #}
-                <div x-show="expanded"
-                     x-transition:enter="transition ease-out duration-200"
-                     x-transition:enter-start="opacity-0 -translate-y-1"
-                     x-transition:enter-end="opacity-100 translate-y-0"
-                     x-transition:leave="transition ease-in duration-150"
-                     x-transition:leave-start="opacity-100 translate-y-0"
-                     x-transition:leave-end="opacity-0 -translate-y-1"
-                     class="px-4 pb-4">
-                    <div class="border-t pt-3" style="border-color: var(--pp-border);">
+                {# ── Aufklapp-Detail ── #}
+                <div x-show="expanded" x-cloak x-transition.duration.150ms style="border-top:1px solid var(--pp-border);padding:16px 20px;background:var(--pp-surfaceHover);border-radius:0 0 14px 14px;">
 
-                        {# Description #}
-                        {% if todo.description %}
-                        <div class="mb-3 text-sm whitespace-pre-wrap" style="color: var(--pp-textMuted);">{{ todo.description }}</div>
-                        {% endif %}
+                    {# Beschreibung #}
+                    {% if todo.description %}
+                    <div style="font-size:13px;color:var(--pp-textMuted);line-height:1.6;margin-bottom:12px;white-space:pre-wrap;">{{ todo.description }}</div>
+                    {% endif %}
 
-                        {# Call Note Link #}
-                        {% if todo.call_note_id %}
-                        <div class="mb-3 text-xs rounded-lg p-2" style="background: var(--pp-surfaceHover);">
-                            <span style="color: var(--pp-textMuted);">Aus Gespraech:</span>
-                            <span style="color: var(--pp-text);">{{ todo.call_note.summary[:150] if todo.call_note and todo.call_note.summary else 'Anruf-Notiz' }}...</span>
-                        </div>
-                        {% endif %}
-
-                        {# Edit Form #}
-                        <template x-if="editing">
-                            <div class="space-y-3 mt-2 p-3 rounded-lg" style="background: var(--pp-surfaceHover);">
-                                <div>
-                                    <label class="block text-xs font-medium mb-1" style="color: var(--pp-textMuted);">Titel</label>
-                                    <input x-model="editTitle" type="text"
-                                           class="w-full px-3 py-2 rounded-lg text-sm"
-                                           style="background: var(--pp-surface); border: 1px solid var(--pp-border); color: var(--pp-text);">
-                                </div>
-                                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                    <div>
-                                        <label class="block text-xs font-medium mb-1" style="color: var(--pp-textMuted);">Datum</label>
-                                        <input x-model="editDate" type="date"
-                                               class="w-full px-3 py-2 rounded-lg text-sm"
-                                               style="background: var(--pp-surface); border: 1px solid var(--pp-border); color: var(--pp-text);">
-                                    </div>
-                                    <div>
-                                        <label class="block text-xs font-medium mb-1" style="color: var(--pp-textMuted);">Uhrzeit</label>
-                                        <input x-model="editTime" type="time"
-                                               class="w-full px-3 py-2 rounded-lg text-sm"
-                                               style="background: var(--pp-surface); border: 1px solid var(--pp-border); color: var(--pp-text);">
-                                    </div>
-                                    <div>
-                                        <label class="block text-xs font-medium mb-1" style="color: var(--pp-textMuted);">Prioritaet</label>
-                                        <select x-model="editPriority"
-                                                class="w-full px-3 py-2 rounded-lg text-sm"
-                                                style="background: var(--pp-surface); border: 1px solid var(--pp-border); color: var(--pp-text);">
-                                            <option value="unwichtig">Unwichtig</option>
-                                            <option value="mittelmaessig">Mittelmaessig</option>
-                                            <option value="wichtig">Wichtig</option>
-                                            <option value="dringend">Dringend</option>
-                                            <option value="sehr_dringend">Sehr dringend</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label class="block text-xs font-medium mb-1" style="color: var(--pp-textMuted);">Status</label>
-                                        <select x-model="editStatus"
-                                                class="w-full px-3 py-2 rounded-lg text-sm"
-                                                style="background: var(--pp-surface); border: 1px solid var(--pp-border); color: var(--pp-text);">
-                                            <option value="open">Offen</option>
-                                            <option value="in_progress">In Bearbeitung</option>
-                                            <option value="done">Erledigt</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-medium mb-1" style="color: var(--pp-textMuted);">Notiz hinzufuegen</label>
-                                    <textarea x-model="editNote" rows="2" placeholder="Optionale Notiz zur Aenderung..."
-                                              class="w-full px-3 py-2 rounded-lg text-sm"
-                                              style="background: var(--pp-surface); border: 1px solid var(--pp-border); color: var(--pp-text);"></textarea>
-                                </div>
-                                <div class="flex items-center justify-between pt-1">
-                                    <button @click="deleteTodo('{{ todo.id }}')"
-                                            class="text-xs font-medium px-3 py-1.5 rounded-lg transition-colors text-red-400 hover:bg-red-500/10">
-                                        Loeschen
-                                    </button>
-                                    <div class="flex gap-2">
-                                        <button @click="editing = false"
-                                                class="text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
-                                                style="color: var(--pp-textMuted);"
-                                                onmouseover="this.style.background='var(--pp-surfaceHover)'"
-                                                onmouseout="this.style.background='transparent'">
-                                            Abbrechen
-                                        </button>
-                                        <button @click="saveTodo('{{ todo.id }}')"
-                                                :disabled="saving"
-                                                class="text-xs font-semibold px-4 py-1.5 rounded-lg text-white transition-colors"
-                                                style="background: var(--pp-accent);">
-                                            <span x-text="saving ? 'Speichert...' : 'Speichern'"></span>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </template>
-
-                        {# Quick actions when not editing #}
-                        <template x-if="!editing && '{{ todo.status.value }}' !== 'done'">
-                            <div class="flex items-center gap-2 mt-2">
-                                <button @click="editing = true"
-                                        class="text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
-                                        style="color: var(--pp-accent); background: var(--pp-accentSoft);">
-                                    Bearbeiten
-                                </button>
-                                <button @click="rescheduleTomorrow('{{ todo.id }}')"
-                                        class="text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
-                                        style="color: var(--pp-textMuted);"
-                                        onmouseover="this.style.background='var(--pp-surfaceHover)'"
-                                        onmouseout="this.style.background='transparent'">
-                                    Auf morgen verschieben
-                                </button>
-                            </div>
-                        </template>
-
+                    {# Call Note Hinweis #}
+                    {% if todo.call_note_id and todo.call_note %}
+                    <div style="margin-bottom:12px;padding:10px 14px;border-radius:10px;background:rgba(167,139,250,0.06);border:1px solid rgba(167,139,250,0.12);font-size:12px;">
+                        <span style="color:#a78bfa;font-weight:600;">&#x1F4DE; Aus Gespr&auml;ch:</span>
+                        <span style="color:var(--pp-textDim);margin-left:4px;">{{ todo.call_note.summary[:200] if todo.call_note.summary else 'Anruf-Notiz' }}</span>
                     </div>
+                    {% endif %}
+
+                    {# Edit Form #}
+                    <template x-if="editing">
+                        <div style="padding:16px;border-radius:12px;background:var(--pp-surface);border:1px solid var(--pp-border);">
+                            <div style="margin-bottom:12px;">
+                                <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--pp-textDim);margin-bottom:4px;">Titel</label>
+                                <input x-model="editTitle" type="text"
+                                       style="width:100%;padding:8px 12px;border-radius:8px;font-size:14px;font-weight:500;background:var(--pp-surfaceHover);border:1px solid var(--pp-border);color:var(--pp-text);outline:none;font-family:inherit;">
+                            </div>
+                            <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
+                                <div>
+                                    <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--pp-textDim);margin-bottom:4px;">Datum</label>
+                                    <input x-model="editDate" type="date" style="width:100%;padding:7px 10px;border-radius:8px;font-size:12px;background:var(--pp-surfaceHover);border:1px solid var(--pp-border);color:var(--pp-text);outline:none;font-family:inherit;color-scheme:dark;">
+                                </div>
+                                <div>
+                                    <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--pp-textDim);margin-bottom:4px;">Uhrzeit</label>
+                                    <input x-model="editTime" type="time" style="width:100%;padding:7px 10px;border-radius:8px;font-size:12px;background:var(--pp-surfaceHover);border:1px solid var(--pp-border);color:var(--pp-text);outline:none;font-family:inherit;color-scheme:dark;">
+                                </div>
+                                <div>
+                                    <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--pp-textDim);margin-bottom:4px;">Priorit&auml;t</label>
+                                    <select x-model="editPriority" style="width:100%;padding:7px 10px;border-radius:8px;font-size:12px;background:var(--pp-surfaceHover);border:1px solid var(--pp-border);color:var(--pp-text);outline:none;cursor:pointer;font-family:inherit;">
+                                        <option value="unwichtig">Unwichtig</option>
+                                        <option value="mittelmaessig">Mittel</option>
+                                        <option value="wichtig">Wichtig</option>
+                                        <option value="dringend">Dringend</option>
+                                        <option value="sehr_dringend">Sehr dringend</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--pp-textDim);margin-bottom:4px;">Status</label>
+                                    <select x-model="editStatus" style="width:100%;padding:7px 10px;border-radius:8px;font-size:12px;background:var(--pp-surfaceHover);border:1px solid var(--pp-border);color:var(--pp-text);outline:none;cursor:pointer;font-family:inherit;">
+                                        <option value="open">Offen</option>
+                                        <option value="in_progress">In Bearbeitung</option>
+                                        <option value="done">Erledigt</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div style="margin-bottom:12px;">
+                                <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--pp-textDim);margin-bottom:4px;">Notiz</label>
+                                <textarea x-model="editNote" rows="2" placeholder="Optionale Notiz..."
+                                          style="width:100%;padding:8px 12px;border-radius:8px;font-size:12px;background:var(--pp-surfaceHover);border:1px solid var(--pp-border);color:var(--pp-text);outline:none;resize:vertical;font-family:inherit;"></textarea>
+                            </div>
+                            <div style="display:flex;align-items:center;justify-content:space-between;">
+                                <button @click="deleteTodo('{{ todo.id }}')"
+                                        style="padding:6px 12px;border-radius:8px;border:1px solid rgba(239,68,68,0.2);background:transparent;color:#f87171;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .12s;"
+                                        onmouseover="this.style.background='rgba(239,68,68,0.1)'" onmouseout="this.style.background='transparent'">
+                                    L&ouml;schen
+                                </button>
+                                <div style="display:flex;gap:8px;">
+                                    <button @click="editing = false"
+                                            style="padding:6px 14px;border-radius:8px;border:none;background:transparent;color:var(--pp-textDim);font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;">
+                                        Abbrechen
+                                    </button>
+                                    <button @click="saveTodo('{{ todo.id }}')" :disabled="saving"
+                                            style="padding:6px 16px;border-radius:8px;border:none;background:var(--pp-accent);color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .12s;">
+                                        <span x-text="saving ? 'Speichert...' : 'Speichern'"></span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    {# Quick Actions (wenn nicht im Edit-Modus) #}
+                    <template x-if="!editing && '{{ todo.status.value }}' !== 'done'">
+                        <div style="display:flex;gap:8px;margin-top:8px;">
+                            <button @click="editing = true"
+                                    style="padding:6px 14px;border-radius:8px;border:none;background:var(--pp-accentSoft);color:var(--pp-accent);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .12s;">
+                                Bearbeiten
+                            </button>
+                            <button @click="rescheduleTomorrow('{{ todo.id }}')"
+                                    style="padding:6px 14px;border-radius:8px;border:none;background:transparent;color:var(--pp-textDim);font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .12s;"
+                                    onmouseover="this.style.background='var(--pp-surfaceHover)'" onmouseout="this.style.background='transparent'">
+                                &#x1F4C5; Auf morgen verschieben
+                            </button>
+                        </div>
+                    </template>
                 </div>
             </div>
             {% endfor %}
         {% else %}
-            <div class="rounded-xl px-6 py-12 text-center" style="background: var(--pp-surface); border: 1px solid var(--pp-border);">
-                <svg class="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" style="color: var(--pp-textMuted);">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+            <div style="padding:48px 24px;text-align:center;border-radius:14px;background:var(--pp-surface);border:1px solid var(--pp-border);">
                 {% if active_tab == 'done' %}
-                <p class="mt-3 text-sm" style="color: var(--pp-textMuted);">Noch keine erledigten Aufgaben</p>
+                <div style="font-size:32px;opacity:0.3;margin-bottom:8px;">&#x1F4CB;</div>
+                <p style="font-size:14px;color:var(--pp-textDim);">Noch keine erledigten Aufgaben</p>
                 {% elif active_tab == 'overdue' %}
-                <p class="mt-3 text-sm text-green-400 font-medium">Keine ueberfaelligen Aufgaben!</p>
+                <div style="font-size:32px;margin-bottom:8px;">&#x2705;</div>
+                <p style="font-size:14px;color:#4ade80;font-weight:600;">Keine ueberfaelligen Aufgaben!</p>
+                <p style="font-size:12px;color:var(--pp-textDim);margin-top:4px;">Alles im Griff.</p>
                 {% else %}
-                <p class="mt-3 text-sm" style="color: var(--pp-textMuted);">Keine Aufgaben in dieser Ansicht</p>
+                <div style="font-size:32px;opacity:0.3;margin-bottom:8px;">&#x1F4CB;</div>
+                <p style="font-size:14px;color:var(--pp-textDim);">Keine Aufgaben in dieser Ansicht</p>
                 {% endif %}
             </div>
         {% endif %}
     </div>
 
     {# ── Neue Aufgabe Modal ── #}
-    <div x-show="showNewModal" x-cloak class="fixed inset-0 z-50" @keydown.escape.window="showNewModal = false">
-        <div class="fixed inset-0" style="background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);" @click="showNewModal = false"></div>
-        <div class="fixed inset-0 z-10 overflow-y-auto">
-            <div class="flex min-h-full items-center justify-center p-4">
+    <div x-show="showNewModal" x-cloak style="position:fixed;inset:0;z-index:50;" @keydown.escape.window="showNewModal = false">
+        <div style="position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);" @click="showNewModal = false"></div>
+        <div style="position:fixed;inset:0;z-index:10;overflow-y:auto;">
+            <div style="display:flex;min-height:100%;align-items:center;justify-content:center;padding:16px;">
                 <div @click.stop
                      x-show="showNewModal"
                      x-transition:enter="transition ease-out duration-200"
-                     x-transition:enter-start="opacity-0 scale-95"
-                     x-transition:enter-end="opacity-100 scale-100"
-                     class="relative w-full max-w-lg rounded-xl shadow-2xl"
-                     style="background: var(--pp-surface); border: 1px solid var(--pp-border);">
-                    <div class="px-6 py-4" style="border-bottom: 1px solid var(--pp-border);">
-                        <div class="flex items-center justify-between">
-                            <h3 class="text-lg font-semibold" style="color: var(--pp-text);">Neue Aufgabe</h3>
-                            <button @click="showNewModal = false" style="color: var(--pp-textMuted);">
-                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                            </button>
-                        </div>
+                     x-transition:enter-start="opacity-0 transform scale-95"
+                     x-transition:enter-end="opacity-100 transform scale-100"
+                     style="position:relative;width:100%;max-width:500px;border-radius:16px;background:var(--pp-surface);border:1px solid var(--pp-border);box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);">
+                    <div style="padding:20px 24px;border-bottom:1px solid var(--pp-border);display:flex;align-items:center;justify-content:space-between;">
+                        <h3 style="font-size:16px;font-weight:700;color:var(--pp-text);margin:0;">Neue Aufgabe</h3>
+                        <button @click="showNewModal = false" style="color:var(--pp-textDim);background:none;border:none;cursor:pointer;padding:4px;">
+                            <svg style="width:18px;height:18px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
                     </div>
-                    <form @submit.prevent="createTodo()" class="px-6 py-4 space-y-4">
-                        <div>
-                            <label class="block text-xs font-medium mb-1" style="color: var(--pp-textMuted);">Titel *</label>
+                    <form @submit.prevent="createTodo()" style="padding:20px 24px;">
+                        <div style="margin-bottom:14px;">
+                            <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--pp-textDim);margin-bottom:4px;">Titel *</label>
                             <input x-model="newTitle" type="text" required
-                                   class="w-full px-3 py-2.5 rounded-lg text-sm"
-                                   style="background: var(--pp-surfaceHover); border: 1px solid var(--pp-border); color: var(--pp-text);"
-                                   placeholder="Aufgabe beschreiben...">
+                                   style="width:100%;padding:10px 14px;border-radius:10px;font-size:14px;background:var(--pp-surfaceHover);border:1px solid var(--pp-border);color:var(--pp-text);outline:none;font-family:inherit;"
+                                   placeholder="Was muss erledigt werden?">
                         </div>
-                        <div>
-                            <label class="block text-xs font-medium mb-1" style="color: var(--pp-textMuted);">Beschreibung</label>
-                            <textarea x-model="newDesc" rows="3"
-                                      class="w-full px-3 py-2.5 rounded-lg text-sm"
-                                      style="background: var(--pp-surfaceHover); border: 1px solid var(--pp-border); color: var(--pp-text);"
+                        <div style="margin-bottom:14px;">
+                            <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--pp-textDim);margin-bottom:4px;">Beschreibung</label>
+                            <textarea x-model="newDesc" rows="2"
+                                      style="width:100%;padding:10px 14px;border-radius:10px;font-size:13px;background:var(--pp-surfaceHover);border:1px solid var(--pp-border);color:var(--pp-text);outline:none;resize:vertical;font-family:inherit;"
                                       placeholder="Details..."></textarea>
                         </div>
-                        <div class="grid grid-cols-2 gap-3">
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
                             <div>
-                                <label class="block text-xs font-medium mb-1" style="color: var(--pp-textMuted);">Prioritaet</label>
-                                <select x-model="newPriority" class="w-full px-3 py-2.5 rounded-lg text-sm"
-                                        style="background: var(--pp-surfaceHover); border: 1px solid var(--pp-border); color: var(--pp-text);">
+                                <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--pp-textDim);margin-bottom:4px;">Priorit&auml;t</label>
+                                <select x-model="newPriority" style="width:100%;padding:8px 12px;border-radius:10px;font-size:13px;background:var(--pp-surfaceHover);border:1px solid var(--pp-border);color:var(--pp-text);outline:none;cursor:pointer;font-family:inherit;">
                                     <option value="wichtig">Wichtig</option>
                                     <option value="unwichtig">Unwichtig</option>
-                                    <option value="mittelmaessig">Mittelmaessig</option>
+                                    <option value="mittelmaessig">Mittel</option>
                                     <option value="dringend">Dringend</option>
                                     <option value="sehr_dringend">Sehr dringend</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-medium mb-1" style="color: var(--pp-textMuted);">Faellig am</label>
-                                <input x-model="newDate" type="date"
-                                       class="w-full px-3 py-2.5 rounded-lg text-sm"
-                                       style="background: var(--pp-surfaceHover); border: 1px solid var(--pp-border); color: var(--pp-text);">
+                                <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--pp-textDim);margin-bottom:4px;">F&auml;llig am</label>
+                                <input x-model="newDate" type="date" style="width:100%;padding:8px 12px;border-radius:10px;font-size:13px;background:var(--pp-surfaceHover);border:1px solid var(--pp-border);color:var(--pp-text);outline:none;font-family:inherit;color-scheme:dark;">
                             </div>
                         </div>
-                        <div class="grid grid-cols-2 gap-3">
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;">
                             <div>
-                                <label class="block text-xs font-medium mb-1" style="color: var(--pp-textMuted);">Uhrzeit</label>
-                                <input x-model="newTime" type="time"
-                                       class="w-full px-3 py-2.5 rounded-lg text-sm"
-                                       style="background: var(--pp-surfaceHover); border: 1px solid var(--pp-border); color: var(--pp-text);">
+                                <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--pp-textDim);margin-bottom:4px;">Uhrzeit</label>
+                                <input x-model="newTime" type="time" style="width:100%;padding:8px 12px;border-radius:10px;font-size:13px;background:var(--pp-surfaceHover);border:1px solid var(--pp-border);color:var(--pp-text);outline:none;font-family:inherit;color-scheme:dark;">
                             </div>
                         </div>
-                        <div class="flex justify-end gap-3 pt-2">
+                        <div style="display:flex;justify-content:flex-end;gap:10px;">
                             <button type="button" @click="showNewModal = false"
-                                    class="px-4 py-2.5 text-sm font-medium rounded-lg"
-                                    style="color: var(--pp-textMuted); border: 1px solid var(--pp-border);">
+                                    style="padding:8px 16px;border-radius:10px;font-size:13px;font-weight:500;background:transparent;border:1px solid var(--pp-border);color:var(--pp-textDim);cursor:pointer;font-family:inherit;">
                                 Abbrechen
                             </button>
                             <button type="submit"
-                                    class="px-4 py-2.5 text-sm font-semibold text-white rounded-lg"
-                                    style="background: var(--pp-accent);">
+                                    style="padding:8px 20px;border-radius:10px;font-size:13px;font-weight:600;background:var(--pp-accent);border:none;color:#fff;cursor:pointer;font-family:inherit;transition:all .15s;"
+                                    onmouseover="this.style.filter='brightness(1.1)'" onmouseout="this.style.filter='none'">
                                 Erstellen
                             </button>
                         </div>
@@ -427,9 +397,10 @@ function todoDashboard() {
 
         async completeTodo(id) {
             try {
-                const resp = await fetch(`/api/ats/todos/${id}/complete`, { method: 'PUT' });
+                const resp = await fetch('/api/ats/todos/' + id + '/complete', { method: 'PUT' });
                 if (resp.ok) {
-                    document.getElementById('todo-' + id).remove();
+                    var el = document.getElementById('todo-' + id);
+                    if (el) { el.style.opacity = '0'; el.style.transform = 'translateX(20px)'; setTimeout(function() { el.remove(); }, 200); }
                     showToast('Aufgabe erledigt', 'success');
                 }
             } catch(e) { showToast('Fehler', 'error'); }
@@ -438,7 +409,7 @@ function todoDashboard() {
         async saveTodo(id) {
             this.saving = true;
             try {
-                const body = {
+                var body = {
                     title: this.editTitle,
                     due_date: this.editDate || null,
                     due_time: this.editTime || null,
@@ -446,9 +417,8 @@ function todoDashboard() {
                     status: this.editStatus,
                 };
 
-                // If note provided, use reschedule endpoint
                 if (this.editNote && this.editNote.trim() && this.editDate) {
-                    await fetch(`/api/ats/todos/${id}/reschedule`, {
+                    await fetch('/api/ats/todos/' + id + '/reschedule', {
                         method: 'PATCH',
                         headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify({
@@ -459,7 +429,7 @@ function todoDashboard() {
                     });
                 }
 
-                const resp = await fetch(`/api/ats/todos/${id}`, {
+                var resp = await fetch('/api/ats/todos/' + id, {
                     method: 'PATCH',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify(body)
@@ -467,7 +437,7 @@ function todoDashboard() {
 
                 if (resp.ok) {
                     showToast('Aufgabe aktualisiert', 'success');
-                    setTimeout(() => location.reload(), 300);
+                    setTimeout(function() { location.reload(); }, 300);
                 }
             } catch(e) { showToast('Fehler beim Speichern', 'error'); }
             this.saving = false;
@@ -476,27 +446,28 @@ function todoDashboard() {
         async deleteTodo(id) {
             if (!confirm('Aufgabe wirklich loeschen?')) return;
             try {
-                const resp = await fetch(`/api/ats/todos/${id}`, { method: 'DELETE' });
+                var resp = await fetch('/api/ats/todos/' + id, { method: 'DELETE' });
                 if (resp.ok) {
-                    document.getElementById('todo-' + id).remove();
+                    var el = document.getElementById('todo-' + id);
+                    if (el) { el.style.opacity = '0'; setTimeout(function() { el.remove(); }, 150); }
                     showToast('Aufgabe geloescht', 'success');
                 }
             } catch(e) { showToast('Fehler', 'error'); }
         },
 
         async rescheduleTomorrow(id) {
-            const tomorrow = new Date();
+            var tomorrow = new Date();
             tomorrow.setDate(tomorrow.getDate() + 1);
-            const dateStr = tomorrow.toISOString().split('T')[0];
+            var dateStr = tomorrow.toISOString().split('T')[0];
             try {
-                const resp = await fetch(`/api/ats/todos/${id}/reschedule`, {
+                var resp = await fetch('/api/ats/todos/' + id + '/reschedule', {
                     method: 'PATCH',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ due_date: dateStr, note: 'Auf morgen verschoben' })
                 });
                 if (resp.ok) {
                     showToast('Auf morgen verschoben', 'success');
-                    setTimeout(() => location.reload(), 300);
+                    setTimeout(function() { location.reload(); }, 300);
                 }
             } catch(e) { showToast('Fehler', 'error'); }
         },
@@ -504,14 +475,14 @@ function todoDashboard() {
         async createTodo() {
             if (!this.newTitle.trim()) return;
             try {
-                const body = {
+                var body = {
                     title: this.newTitle,
                     description: this.newDesc || null,
                     priority: this.newPriority,
                     due_date: this.newDate || null,
                     due_time: this.newTime || null,
                 };
-                const resp = await fetch('/api/ats/todos', {
+                var resp = await fetch('/api/ats/todos', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify(body)
@@ -519,7 +490,7 @@ function todoDashboard() {
                 if (resp.ok) {
                     this.showNewModal = false;
                     showToast('Aufgabe erstellt', 'success');
-                    setTimeout(() => location.reload(), 300);
+                    setTimeout(function() { location.reload(); }, 300);
                 }
             } catch(e) { showToast('Fehler', 'error'); }
         }

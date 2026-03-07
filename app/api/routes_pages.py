@@ -118,11 +118,28 @@ async def job_detail(
 
 
 @router.get("/jobs", response_class=HTMLResponse)
-async def jobs_page(request: Request):
+async def jobs_page(
+    request: Request,
+    company: Optional[str] = None,
+    db: AsyncSession = Depends(get_db),
+):
     """Dedizierte Jobs-Uebersichtsseite mit Kachel-/Listenansicht."""
+    company_name = None
+    if company:
+        # Company-Name laden fuer Filter-Banner
+        from app.models.company import Company
+        result = await db.execute(
+            select(Company.name).where(Company.id == company)
+        )
+        company_name = result.scalar()
+
     return templates.TemplateResponse(
         "jobs.html",
-        {"request": request}
+        {
+            "request": request,
+            "filter_company_id": company,
+            "filter_company_name": company_name,
+        }
     )
 
 
@@ -165,6 +182,11 @@ async def candidate_detail(
     # Todos serialisieren fuer Alpine.js tojson im Template
     todos_serialized = []
     for t in todos:
+        # Quelle bestimmen anhand der Verknuepfungen
+        if getattr(t, 'call_note_id', None):
+            _src = "gespräch"
+        else:
+            _src = "manuell"
         todos_serialized.append({
             "id": str(t.id),
             "title": t.title,
@@ -175,6 +197,11 @@ async def candidate_detail(
             "due_time": t.due_time if hasattr(t, 'due_time') else None,
             "is_overdue": t.is_overdue if hasattr(t, 'is_overdue') else False,
             "created_at": t.created_at.isoformat() if t.created_at else None,
+            "_source": _src,
+            "_is_legacy": False,
+            "company_name": t.company.name if getattr(t, 'company', None) else None,
+            "company_id": str(t.company_id) if t.company_id else None,
+            "contact_name": (t.contact.first_name or '') + ' ' + (t.contact.last_name or '') if getattr(t, 'contact', None) else None,
         })
 
     # Email-Drafts fuer diesen Kandidaten laden
@@ -221,7 +248,7 @@ async def candidate_detail(
             "created_at": e.created_at.isoformat() if e.created_at else None,
         })
 
-    # E-Mail-Automatisierung: Aufgaben laden (candidate_tasks Tabelle)
+    # Alte CandidateTasks in todos_serialized hineinmergen (Dual-Read)
     seq_tasks_query = (
         select(CandidateTask)
         .where(CandidateTask.candidate_id == candidate_id)
@@ -230,19 +257,24 @@ async def candidate_detail(
     )
     seq_tasks_result = await db.execute(seq_tasks_query)
     seq_tasks = seq_tasks_result.scalars().all()
-    seq_tasks_serialized = []
+
+    # CandidateTasks → ATSTodo-kompatibles Format für den vereinheitlichten Aufgaben-Tab
+    _ct_priority_map = {"low": "unwichtig", "normal": "mittelmaessig", "high": "wichtig", "urgent": "dringend"}
     for t in seq_tasks:
-        seq_tasks_serialized.append({
+        from datetime import date as _date
+        is_overdue = bool(t.due_date and t.due_date < _date.today() and t.status == "open")
+        todos_serialized.append({
             "id": str(t.id),
             "title": t.title,
             "description": t.description,
-            "task_type": t.task_type,
-            "status": t.status,
-            "priority": t.priority,
+            "status": t.status if t.status in ("open", "done", "cancelled") else "open",
+            "priority": _ct_priority_map.get(t.priority, "mittelmaessig"),
             "due_date": t.due_date.isoformat() if t.due_date else None,
-            "completed_at": t.completed_at.isoformat() if t.completed_at else None,
-            "source": t.source,
+            "due_time": None,
+            "is_overdue": is_overdue,
             "created_at": t.created_at.isoformat() if t.created_at else None,
+            "_source": t.source or "system",
+            "_is_legacy": True,
         })
 
     return templates.TemplateResponse(
@@ -255,7 +287,6 @@ async def candidate_detail(
             "todos_json": todos_serialized,
             "email_drafts_json": drafts_serialized,
             "seq_emails_json": seq_emails_serialized,
-            "seq_tasks_json": seq_tasks_serialized,
         }
     )
 
@@ -327,6 +358,16 @@ async def company_detail(
     )
     contact_count = contact_count_result.scalar() or 0
 
+    # Akquise-Jobs Count (Jobs mit acquisition_source != NULL)
+    akquise_count_result = await db.execute(
+        select(func.count(Job.id)).where(
+            Job.company_id == company_id,
+            Job.deleted_at.is_(None),
+            Job.acquisition_source.isnot(None),
+        )
+    )
+    akquise_count = akquise_count_result.scalar() or 0
+
     # Kontakte fuer Call-Modal laden
     from sqlalchemy.orm import selectinload
     contacts_result = await db.execute(
@@ -343,6 +384,7 @@ async def company_detail(
             "company": company,
             "job_count": job_count,
             "ats_job_count": ats_job_count,
+            "akquise_count": akquise_count,
             "call_count": call_count,
             "call_total_duration": call_total_duration,
             "contact_count": contact_count,
@@ -429,6 +471,7 @@ async def jobs_list_partial(
     cities: Optional[str] = None,
     industry: Optional[str] = None,
     company: Optional[str] = None,
+    company_id: Optional[str] = None,
     sort_by: str = "imported_at",
     sort_order: str = "desc",
     postal_code_prefix: Optional[str] = None,
@@ -483,12 +526,18 @@ async def jobs_list_partial(
     if updated_days and updated_days.strip().isdigit():
         safe_updated_days = int(updated_days.strip())
 
+    # company_id validieren (UUID-Format)
+    safe_company_id = None
+    if company_id and company_id.strip():
+        safe_company_id = company_id.strip()
+
     # Filter aufbauen
     filters = JobFilterParams(
         search=safe_search,
         cities=safe_cities,
         industries=[industry] if industry else None,
         company=safe_company,
+        company_id=safe_company_id,
         postal_code_prefix=safe_postal_code_prefix,
         sort_by=sort_by_enum,
         sort_order=sort_order_enum,
@@ -821,6 +870,56 @@ async def company_jobs_partial(
 
     return templates.TemplateResponse(
         "partials/company_jobs.html",
+        {
+            "request": request,
+            "jobs": jobs,
+            "company_id": str(company_id),
+        }
+    )
+
+
+@router.get("/partials/company-jobs-full/{company_id}", response_class=HTMLResponse)
+async def company_jobs_full_partial(
+    request: Request,
+    company_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Partial: ALLE Jobs eines Unternehmens fuer den Jobs-Tab (HTMX)."""
+    from app.models.job import Job
+    from app.models.match import Match
+    from sqlalchemy import func, select, case
+
+    # Jobs mit Match-Count laden
+    match_count_subq = (
+        select(func.count(Match.id))
+        .where(Match.job_id == Job.id)
+        .correlate(Job)
+        .scalar_subquery()
+    )
+
+    result = await db.execute(
+        select(Job, match_count_subq.label("match_count"))
+        .where(Job.company_id == company_id, Job.deleted_at.is_(None))
+        .order_by(Job.created_at.desc())
+    )
+    rows = result.all()
+
+    jobs = []
+    for job, match_count in rows:
+        jobs.append({
+            "id": str(job.id),
+            "position": job.position,
+            "city": job.city or job.work_location_city,
+            "acquisition_source": job.acquisition_source,
+            "akquise_status": getattr(job, "akquise_status", None),
+            "match_count": match_count or 0,
+            "created_at": job.created_at,
+            "expires_at": job.expires_at,
+            "quality_score": getattr(job, "quality_score", None),
+        })
+
+    return templates.TemplateResponse(
+        "partials/company_jobs_full.html",
         {
             "request": request,
             "jobs": jobs,

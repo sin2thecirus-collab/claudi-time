@@ -19,7 +19,11 @@
             </div>
             <div style="display:flex;flex-direction:column;gap:2px;">
                 <div style="display:flex;align-items:center;gap:8px;">
-                    <span style="font-size:14px;font-weight:600;color:var(--pp-text);">{{ group.company_name }}</span>
+                    <a href="/unternehmen/{{ group.company_id }}" @click.stop
+                       style="font-size:14px;font-weight:600;color:var(--pp-text);text-decoration:none;transition:color 0.15s;"
+                       onmouseover="this.style.color='var(--pp-accent)'"
+                       onmouseout="this.style.color='var(--pp-text)'"
+                       title="Firmenprofil öffnen">{{ group.company_name }}</a>
                     {% if group.company_status == 'blacklist' %}
                     <span style="padding:1px 8px;border-radius:4px;font-size:10px;font-weight:700;background:rgba(239,68,68,0.15);color:var(--pp-red);">BLACKLIST</span>
                     {% elif group.company_status == 'customer' %}

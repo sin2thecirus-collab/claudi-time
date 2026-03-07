@@ -384,9 +384,13 @@ class JobService:
         if filters.industries:
             query = query.where(Job.industry.in_(filters.industries))
 
-        # Unternehmen-Filter
+        # Unternehmen-Filter (Textsuche)
         if filters.company:
             query = query.where(Job.company_name.ilike(f"%{filters.company}%"))
+
+        # Unternehmen-ID-Filter (exakter UUID-Match)
+        if filters.company_id:
+            query = query.where(Job.company_id == filters.company_id)
 
         # Position-Filter
         if filters.position:

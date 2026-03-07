@@ -12,7 +12,7 @@ Alle Endpoints fuer:
 """
 
 import logging
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Optional
 from uuid import UUID
 
@@ -27,8 +27,10 @@ from app.database import get_db
 from app.models.candidate import Candidate
 from app.models.candidate_email import CandidateEmail
 from app.models.candidate_task import CandidateTask
+from app.models.ats_todo import ATSTodo, TodoPriority, TodoStatus
 from app.models.outreach_batch import OutreachBatch
 from app.models.outreach_item import OutreachItem
+from app.services.ats_todo_service import ATSTodoService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/email-automation", tags=["Email-Automatisierung"])
@@ -116,7 +118,10 @@ def _serialize_email(e: CandidateEmail) -> dict:
     }
 
 
-def _serialize_task(t: CandidateTask) -> dict:
+def _serialize_task(t) -> dict:
+    """Serialisiert CandidateTask ODER ATSTodo ins gleiche JSON-Format."""
+    if isinstance(t, ATSTodo):
+        return _serialize_ats_todo_as_task(t)
     return {
         "id": str(t.id),
         "candidate_id": str(t.candidate_id),
@@ -131,6 +136,44 @@ def _serialize_task(t: CandidateTask) -> dict:
         "source_email_id": str(t.source_email_id) if t.source_email_id else None,
         "created_at": t.created_at.isoformat() if t.created_at else None,
         "updated_at": t.updated_at.isoformat() if t.updated_at else None,
+    }
+
+
+# ── Priority-Mapping: CandidateTask-Werte → ATSTodo-Werte ──
+_PRIORITY_TO_ATS = {
+    "low": "unwichtig",
+    "normal": "mittelmaessig",
+    "high": "wichtig",
+    "urgent": "dringend",
+}
+_PRIORITY_FROM_ATS = {v: k for k, v in _PRIORITY_TO_ATS.items()}
+_PRIORITY_FROM_ATS["sehr_dringend"] = "urgent"
+
+_STATUS_FROM_ATS = {
+    TodoStatus.OPEN: "open",
+    TodoStatus.IN_PROGRESS: "open",
+    TodoStatus.DONE: "done",
+    TodoStatus.CANCELLED: "cancelled",
+}
+
+
+def _serialize_ats_todo_as_task(t: ATSTodo) -> dict:
+    """Serialisiert ATSTodo im CandidateTask-kompatiblen Format."""
+    return {
+        "id": str(t.id),
+        "candidate_id": str(t.candidate_id) if t.candidate_id else None,
+        "title": t.title,
+        "description": t.description,
+        "task_type": "manual",
+        "status": _STATUS_FROM_ATS.get(t.status, "open"),
+        "priority": _PRIORITY_FROM_ATS.get(t.priority.value, "normal") if t.priority else "normal",
+        "due_date": t.due_date.isoformat() if t.due_date else None,
+        "completed_at": t.completed_at.isoformat() if t.completed_at else None,
+        "source": "system",
+        "source_email_id": None,
+        "created_at": t.created_at.isoformat() if t.created_at else None,
+        "updated_at": t.updated_at.isoformat() if t.updated_at else None,
+        "_is_ats_todo": True,
     }
 
 
@@ -351,27 +394,36 @@ async def create_task(
     data: TaskCreate,
     db: AsyncSession = Depends(get_db),
 ):
-    """Erstellt eine Aufgabe fuer einen Kandidaten."""
+    """Erstellt eine Aufgabe fuer einen Kandidaten — NEU als ATSTodo."""
     candidate = await db.get(Candidate, candidate_id)
     if not candidate:
         return {"error": "Kandidat nicht gefunden"}, 404
 
-    task = CandidateTask(
-        candidate_id=candidate_id,
+    # Priority-Mapping: CandidateTask-Werte → ATSTodo-Werte
+    ats_priority = _PRIORITY_TO_ATS.get(data.priority, "mittelmaessig")
+
+    # Beschreibung mit Kontext anreichern
+    desc_parts = []
+    if data.description:
+        desc_parts.append(data.description)
+    if data.task_type and data.task_type != "manual":
+        desc_parts.append(f"[Typ: {data.task_type}]")
+    if data.source and data.source != "system":
+        desc_parts.append(f"[Quelle: {data.source}]")
+    description = "\n".join(desc_parts) if desc_parts else None
+
+    service = ATSTodoService(db)
+    todo = await service.create_todo(
         title=data.title,
-        description=data.description,
-        task_type=data.task_type,
-        priority=data.priority,
+        description=description,
+        priority=ats_priority,
         due_date=data.due_date,
-        source=data.source,
-        source_email_id=data.source_email_id,
+        candidate_id=candidate_id,
     )
-    db.add(task)
-    await db.flush()
 
-    logger.info(f"Aufgabe erstellt: '{data.title}' fuer Kandidat {candidate_id}")
+    logger.info(f"Aufgabe erstellt (ATSTodo): '{data.title}' fuer Kandidat {candidate_id}")
 
-    return _serialize_task(task)
+    return _serialize_task(todo)
 
 
 @router.get("/candidates/{candidate_id}/tasks")
@@ -381,19 +433,31 @@ async def list_tasks(
     limit: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
 ):
-    """Listet Aufgaben fuer einen Kandidaten."""
-    query = (
-        select(CandidateTask)
-        .where(CandidateTask.candidate_id == candidate_id)
-        .order_by(CandidateTask.created_at.desc())
-        .limit(limit)
-    )
-    if status:
-        query = query.where(CandidateTask.status == status)
+    """Listet Aufgaben fuer einen Kandidaten — merged aus ATSTodo + CandidateTask."""
+    all_items = []
 
-    result = await db.execute(query)
-    tasks = result.scalars().all()
-    return {"items": [_serialize_task(t) for t in tasks], "total": len(tasks)}
+    # 1. ATSTodos laden (neue Tasks)
+    ats_query = select(ATSTodo).where(ATSTodo.candidate_id == candidate_id)
+    if status:
+        status_map = {"open": [TodoStatus.OPEN, TodoStatus.IN_PROGRESS],
+                      "done": [TodoStatus.DONE], "cancelled": [TodoStatus.CANCELLED]}
+        ats_statuses = status_map.get(status, [TodoStatus.OPEN])
+        ats_query = ats_query.where(ATSTodo.status.in_(ats_statuses))
+    ats_result = await db.execute(ats_query)
+    all_items.extend(ats_result.scalars().all())
+
+    # 2. CandidateTasks laden (alte Tasks)
+    ct_query = select(CandidateTask).where(CandidateTask.candidate_id == candidate_id)
+    if status:
+        ct_query = ct_query.where(CandidateTask.status == status)
+    ct_result = await db.execute(ct_query)
+    all_items.extend(ct_result.scalars().all())
+
+    # 3. Nach created_at sortieren (neueste zuerst), limitieren
+    all_items.sort(key=lambda x: x.created_at or datetime.min, reverse=True)
+    all_items = all_items[:limit]
+
+    return {"items": [_serialize_task(t) for t in all_items], "total": len(all_items)}
 
 
 @router.patch("/tasks/{task_id}")
@@ -402,10 +466,35 @@ async def update_task(
     data: TaskUpdate,
     db: AsyncSession = Depends(get_db),
 ):
-    """Aktualisiert eine Aufgabe (erledigen, Datum aendern, etc.)."""
+    """Aktualisiert eine Aufgabe — Dual-Read: ATSTodo zuerst, Fallback CandidateTask."""
+    # 1. Versuche ATSTodo (neue Tasks)
+    ats_todo = await db.get(ATSTodo, task_id)
+    if ats_todo:
+        if data.title is not None:
+            ats_todo.title = data.title
+        if data.description is not None:
+            ats_todo.description = data.description
+        if data.status is not None:
+            status_map = {"open": TodoStatus.OPEN, "in_progress": TodoStatus.IN_PROGRESS,
+                          "done": TodoStatus.DONE, "cancelled": TodoStatus.CANCELLED}
+            ats_todo.status = status_map.get(data.status, TodoStatus.OPEN)
+            if data.status == "done":
+                ats_todo.completed_at = datetime.now(timezone.utc)
+        if data.priority is not None:
+            ats_prio = _PRIORITY_TO_ATS.get(data.priority, data.priority)
+            try:
+                ats_todo.priority = TodoPriority(ats_prio)
+            except ValueError:
+                pass
+        if data.due_date is not None:
+            ats_todo.due_date = data.due_date
+        await db.flush()
+        return _serialize_task(ats_todo)
+
+    # 2. Fallback: CandidateTask (alte Tasks)
     task = await db.get(CandidateTask, task_id)
     if not task:
-        return {"error": "Aufgabe nicht gefunden"}, 404
+        return JSONResponse(status_code=404, content={"error": "Aufgabe nicht gefunden"})
 
     if data.title is not None:
         task.title = data.title
@@ -945,13 +1034,17 @@ async def sequence_status(candidate_id: UUID, db: AsyncSession = Depends(get_db)
     )
     emails = emails_result.scalars().all()
 
-    # Aufgaben laden
-    tasks_result = await db.execute(
-        select(CandidateTask)
-        .where(CandidateTask.candidate_id == candidate_id)
-        .order_by(CandidateTask.created_at.desc())
+    # Aufgaben laden — BEIDE Systeme
+    all_tasks = []
+    ct_result = await db.execute(
+        select(CandidateTask).where(CandidateTask.candidate_id == candidate_id)
     )
-    tasks = tasks_result.scalars().all()
+    all_tasks.extend(ct_result.scalars().all())
+    ats_result = await db.execute(
+        select(ATSTodo).where(ATSTodo.candidate_id == candidate_id)
+    )
+    all_tasks.extend(ats_result.scalars().all())
+    all_tasks.sort(key=lambda x: x.created_at or datetime.min, reverse=True)
 
     return {
         "candidate_id": str(candidate_id),
@@ -963,7 +1056,7 @@ async def sequence_status(candidate_id: UUID, db: AsyncSession = Depends(get_db)
         "source": candidate.source,
         "sequence_active": getattr(candidate, "contact_status", None) == "email_sequenz_aktiv",
         "emails": [_serialize_email(e) for e in emails],
-        "tasks": [_serialize_task(t) for t in tasks],
+        "tasks": [_serialize_task(t) for t in all_tasks],
     }
 
 
@@ -1004,8 +1097,10 @@ async def email_health(db: AsyncSession = Depends(get_db)):
             (SELECT COUNT(*) FROM candidate_emails WHERE created_at >= CURRENT_DATE AND direction = 'outbound') as sent_today,
             (SELECT COUNT(*) FROM candidate_emails WHERE created_at >= CURRENT_DATE - INTERVAL '7 days' AND direction = 'outbound') as sent_7d,
             (SELECT COUNT(*) FROM candidate_emails WHERE created_at >= CURRENT_DATE AND send_error IS NOT NULL) as errors_today,
-            (SELECT COUNT(*) FROM candidate_tasks WHERE status = 'open') as pending_tasks,
-            (SELECT COUNT(*) FROM candidate_tasks WHERE status = 'open' AND due_date < CURRENT_DATE) as overdue_tasks
+            (SELECT COUNT(*) FROM candidate_tasks WHERE status = 'open')
+             + (SELECT COUNT(*) FROM ats_todos WHERE status = 'open') as pending_tasks,
+            (SELECT COUNT(*) FROM candidate_tasks WHERE status = 'open' AND due_date < CURRENT_DATE)
+             + (SELECT COUNT(*) FROM ats_todos WHERE status = 'open' AND due_date < CURRENT_DATE) as overdue_tasks
     """))
     row = result.fetchone()
 
@@ -1064,7 +1159,7 @@ async def activity_log(candidate_id: UUID, db: AsyncSession = Depends(get_db)):
             },
         })
 
-    # Aufgaben
+    # Aufgaben — BEIDE Systeme (CandidateTask + ATSTodo)
     tasks_result = await db.execute(
         select(CandidateTask)
         .where(CandidateTask.candidate_id == candidate_id)
@@ -1079,6 +1174,23 @@ async def activity_log(candidate_id: UUID, db: AsyncSession = Depends(get_db)):
                 "task_id": str(t.id),
                 "task_type": t.task_type,
                 "status": t.status,
+                "due_date": t.due_date.isoformat() if t.due_date else None,
+            },
+        })
+    ats_todos_result = await db.execute(
+        select(ATSTodo)
+        .where(ATSTodo.candidate_id == candidate_id)
+        .order_by(ATSTodo.created_at.asc())
+    )
+    for t in ats_todos_result.scalars().all():
+        entries.append({
+            "timestamp": t.created_at.isoformat() if t.created_at else None,
+            "type": "task_created",
+            "summary": f"Aufgabe erstellt: {t.title}",
+            "details": {
+                "task_id": str(t.id),
+                "task_type": "ats_todo",
+                "status": _STATUS_FROM_ATS.get(t.status, "open"),
                 "due_date": t.due_date.isoformat() if t.due_date else None,
             },
         })

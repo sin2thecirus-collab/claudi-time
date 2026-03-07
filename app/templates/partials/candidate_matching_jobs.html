@@ -6,7 +6,11 @@
             <div class="flex items-center justify-between">
                 <div class="min-w-0 flex-1">
                     <p class="text-sm font-medium text-gray-900 truncate">{{ job.position }}</p>
+                    {% if job.company_id %}
+                    <a href="/unternehmen/{{ job.company_id }}" class="text-sm truncate" style="color:var(--pp-accent, #6366f1);text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'" onclick="event.stopPropagation()">{{ job.company_name }}</a>
+                    {% else %}
                     <p class="text-sm text-gray-500 truncate">{{ job.company_name }}</p>
+                    {% endif %}
                     {% if job.city %}
                     <p class="text-xs text-gray-400 mt-0.5">{{ job.city }}</p>
                     {% endif %}

@@ -492,6 +492,7 @@ class CandidateService:
         for job, match in rows:
             items.append({
                 "job_id": str(job.id),
+                "company_id": str(job.company_id) if job.company_id else None,
                 "company_name": job.company_name,
                 "position": job.position,
                 "city": job.city or job.work_location_city,

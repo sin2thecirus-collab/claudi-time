@@ -1,0 +1,76 @@
+{# Volle Job-Liste fuer Company Detail Jobs-Tab #}
+{# Erwartet: jobs (list of dicts), company_id #}
+
+{% if jobs and jobs|length > 0 %}
+<div style="display:flex;flex-direction:column;gap:0;">
+    {# Header-Zeile #}
+    <div style="display:grid;grid-template-columns:3fr 1.5fr 1fr 1fr 1fr;gap:8px;padding:10px 16px;font-size:11px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid var(--pp-border);">
+        <span>Position</span>
+        <span>Stadt</span>
+        <span>Quelle</span>
+        <span>Matches</span>
+        <span>Erstellt</span>
+    </div>
+
+    {% for job in jobs %}
+    {% set now = import('datetime').datetime.now(import('datetime').timezone.utc) if false else none %}
+    <a href="/jobs/{{ job.id }}"
+       style="display:grid;grid-template-columns:3fr 1.5fr 1fr 1fr 1fr;gap:8px;padding:12px 16px;text-decoration:none;border-bottom:1px solid var(--pp-border);transition:background 0.12s;"
+       onmouseover="this.style.background='var(--pp-surfaceHover)'"
+       onmouseout="this.style.background='transparent'">
+
+        {# Position #}
+        <div style="min-width:0;">
+            <div style="font-size:13px;font-weight:600;color:var(--pp-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                {{ job.position | default('Keine Position') }}
+            </div>
+            {% if job.akquise_status %}
+            <span style="font-size:10px;font-weight:600;padding:1px 6px;border-radius:4px;
+                {% if job.akquise_status == 'neu' %}background:rgba(59,130,246,0.12);color:var(--pp-accent);
+                {% elif job.akquise_status == 'qualifiziert' %}background:rgba(16,185,129,0.12);color:#10b981;
+                {% elif job.akquise_status in ('angerufen', 'kontaktiert') %}background:rgba(234,179,8,0.12);color:var(--pp-orange);
+                {% else %}background:var(--pp-surface3);color:var(--pp-textDim);{% endif %}">
+                {{ job.akquise_status }}
+            </span>
+            {% endif %}
+        </div>
+
+        {# Stadt #}
+        <div style="font-size:12px;color:var(--pp-textMuted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+            {{ job.city or '—' }}
+        </div>
+
+        {# Quelle #}
+        <div>
+            {% if job.acquisition_source == 'advertsdata' %}
+            <span style="font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;background:rgba(167,139,250,0.12);color:var(--pp-purple);">Akquise</span>
+            {% elif job.acquisition_source == 'manual' %}
+            <span style="font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;background:rgba(167,139,250,0.12);color:var(--pp-purple);">Manuell</span>
+            {% else %}
+            <span style="font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;background:rgba(59,130,246,0.08);color:var(--pp-textDim);">CSV</span>
+            {% endif %}
+        </div>
+
+        {# Matches #}
+        <div>
+            {% if job.match_count > 0 %}
+            <span style="font-size:12px;font-weight:600;color:var(--pp-green);">{{ job.match_count }}</span>
+            {% else %}
+            <span style="font-size:12px;color:var(--pp-textDim);">0</span>
+            {% endif %}
+        </div>
+
+        {# Erstellt #}
+        <div style="font-size:12px;color:var(--pp-textMuted);">
+            {% if job.created_at %}{{ job.created_at.strftime('%d.%m.%Y') }}{% else %}—{% endif %}
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<div style="padding:40px 20px;text-align:center;">
+    <div style="font-size:32px;margin-bottom:12px;">💼</div>
+    <div style="font-size:14px;color:var(--pp-textDim);">Keine Jobs vorhanden</div>
+    <div style="font-size:12px;color:var(--pp-text4);margin-top:6px;">Jobs werden ueber CSV-Import oder die Akquise angelegt.</div>
+</div>
+{% endif %}
