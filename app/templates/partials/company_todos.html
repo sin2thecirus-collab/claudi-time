@@ -135,6 +135,14 @@
     transition:all 0.12s; background:transparent; color:var(--pp-textDim);
 }
 .td-add-btn:hover { background:rgba(255,255,255,0.06); color:var(--pp-text); }
+.td-add-enter {
+    width:30px; height:30px; border-radius:8px; border:none; cursor:pointer;
+    background:var(--pp-accent); color:#fff; font-size:15px; font-weight:700;
+    display:flex; align-items:center; justify-content:center;
+    transition:all 0.15s; flex-shrink:0;
+}
+.td-add-enter:hover { background:var(--pp-accentHover); transform:scale(1.05); }
+.td-add-enter:disabled { opacity:0.25; cursor:default; transform:none; }
 
 .td-empty { padding:32px 24px; text-align:center; }
 </style>
@@ -392,6 +400,18 @@
             </template>
         </div>
     </div>
+    {# Enter-Button #}
+    <button class="td-add-enter" :disabled="!newTitle.trim()" title="Hinzuf&uuml;gen (Enter)"
+            @click="
+                if(!newTitle.trim()) return;
+                var payload={title:newTitle.trim(), company_id:'{{ company_id }}', priority:newPrio};
+                if(newDate) payload.due_date=newDate;
+                fetch('/api/ats/todos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+                .then(function(r){if(!r.ok) throw new Error('HTTP '+r.status); return r.json();})
+                .then(function(){newTitle='';newDate='';newPrio='wichtig';showToast('Aufgabe erstellt','success');document.body.dispatchEvent(new CustomEvent('refreshTodos'));})
+                .catch(function(e){showToast('Fehler: '+e.message,'error');});">
+        &#x21A9;
+    </button>
 </div>
 
 {# ── Empty State ── #}
