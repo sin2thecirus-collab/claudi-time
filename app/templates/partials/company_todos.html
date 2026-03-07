@@ -120,29 +120,54 @@
 .td-pill-active .td-pill-count { background:rgba(96,165,250,0.2); }
 
 .td-add-row {
-    display:flex; align-items:center; gap:8px;
-    padding:10px 14px 10px 19px;
-    border-top:1px solid rgba(255,255,255,0.04);
+    display:flex; align-items:center; gap:10px;
+    padding:12px 16px;
+    margin:12px 0 4px;
+    border-radius:12px;
+    border:1.5px dashed rgba(255,255,255,0.10);
+    background:rgba(255,255,255,0.02);
+    transition:all 0.2s;
 }
+.td-add-row:focus-within {
+    border-color:var(--pp-accent);
+    background:rgba(96,165,250,0.04);
+    box-shadow:0 0 0 3px rgba(96,165,250,0.08);
+}
+.td-add-icon {
+    width:28px; height:28px; border-radius:8px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(96,165,250,0.10); color:var(--pp-accent);
+    font-size:16px; font-weight:600; transition:all 0.15s;
+}
+.td-add-row:focus-within .td-add-icon { background:var(--pp-accent); color:#fff; }
 .td-add-input {
     flex:1; border:none; background:transparent; color:var(--pp-text);
     font-size:13px; font-family:var(--pp-ff); outline:none; padding:4px 0;
 }
 .td-add-input::placeholder { color:var(--pp-text4); }
+.td-add-actions {
+    display:flex; align-items:center; gap:4px; opacity:0; transition:opacity 0.15s;
+}
+.td-add-row:focus-within .td-add-actions { opacity:1; }
 .td-add-btn {
-    padding:4px 8px; border-radius:6px; border:none; cursor:pointer;
-    font-size:11px; font-weight:700; font-family:var(--pp-ff);
-    transition:all 0.12s; background:transparent; color:var(--pp-textDim);
+    padding:5px 8px; border-radius:6px; border:none; cursor:pointer;
+    font-size:11px; font-weight:600; font-family:var(--pp-ff);
+    transition:all 0.12s; background:rgba(255,255,255,0.06); color:var(--pp-textDim);
 }
-.td-add-btn:hover { background:rgba(255,255,255,0.06); color:var(--pp-text); }
+.td-add-btn:hover { background:rgba(255,255,255,0.10); color:var(--pp-text); }
 .td-add-enter {
-    width:30px; height:30px; border-radius:8px; border:none; cursor:pointer;
-    background:var(--pp-accent); color:#fff; font-size:15px; font-weight:700;
-    display:flex; align-items:center; justify-content:center;
-    transition:all 0.15s; flex-shrink:0;
+    height:28px; border-radius:8px; border:none; cursor:pointer;
+    background:var(--pp-accent); color:#fff; font-size:12px; font-weight:600;
+    display:flex; align-items:center; justify-content:center; gap:4px;
+    padding:0 12px; transition:all 0.15s; flex-shrink:0; font-family:var(--pp-ff);
 }
-.td-add-enter:hover { background:var(--pp-accentHover); transform:scale(1.05); }
-.td-add-enter:disabled { opacity:0.25; cursor:default; transform:none; }
+.td-add-enter:hover { background:var(--pp-accentHover); transform:translateY(-1px); box-shadow:0 2px 8px rgba(96,165,250,0.3); }
+.td-add-enter:disabled { opacity:0.3; cursor:default; transform:none; box-shadow:none; }
+.td-add-hint {
+    font-size:10px; color:var(--pp-text4); margin-top:2px; padding-left:54px;
+    opacity:0; transition:opacity 0.15s;
+}
+.td-add-row:focus-within + .td-add-hint { opacity:1; }
 
 .td-empty { padding:32px 24px; text-align:center; }
 </style>
@@ -349,70 +374,68 @@
 </div>
 {% endif %}
 
-{# ── Immer sichtbare Schnell-Eingabe (Linear-Style) ── #}
+{# ── Schnell-Eingabe (Linear-Style) ── #}
+{% set _qa_js %}
+    if(!newTitle.trim()) return;
+    var payload={title:newTitle.trim(), company_id:'{{ company_id }}', priority:newPrio};
+    if(newDate) payload.due_date=newDate;
+    fetch('/api/ats/todos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+    .then(function(r){if(!r.ok) throw new Error('HTTP '+r.status); return r.json();})
+    .then(function(){newTitle='';newDate='';newPrio='wichtig';showToast('Aufgabe erstellt','success');document.body.dispatchEvent(new CustomEvent('refreshTodos'));})
+    .catch(function(e){showToast('Fehler: '+e.message,'error');});
+{% endset %}
 <div class="td-add-row">
-    <span style="color:var(--pp-textDim); font-size:16px; font-weight:300; flex-shrink:0;">+</span>
-    <input type="text" x-model="newTitle" placeholder="Neue Aufgabe..." class="td-add-input"
-           @keydown.enter="
-               if(!newTitle.trim()) return;
-               var payload={title:newTitle.trim(), company_id:'{{ company_id }}', priority:newPrio};
-               if(newDate) payload.due_date=newDate;
-               fetch('/api/ats/todos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
-               .then(function(r){if(!r.ok) throw new Error('HTTP '+r.status); return r.json();})
-               .then(function(){newTitle='';newDate='';newPrio='wichtig';showToast('Aufgabe erstellt','success');document.body.dispatchEvent(new CustomEvent('refreshTodos'));})
-               .catch(function(e){showToast('Fehler: '+e.message,'error');});">
-
-    {# Quick-Prio #}
-    <div style="position:relative;" @click.stop>
-        <button class="td-add-btn" @click="showNewPrio=!showNewPrio; showNewDate=false"
-                :style="'color:'+prioColors[newPrio]" x-text="prioLabels[newPrio]" title="Priorit&auml;t"></button>
-        <div x-show="showNewPrio" x-transition @click.away="showNewPrio=false"
-             class="td-prio-dropdown" style="bottom:100%; right:0; margin-bottom:4px; top:auto;">
-            {% for pv, plbl, pcol in [('unwichtig','Unwichtig','#6b7280'),('mittelmaessig','Mittel','#3b82f6'),('wichtig','Wichtig','#f59e0b'),('dringend','Dringend','#f97316'),('sehr_dringend','Sehr dringend','#ef4444')] %}
-            <button class="td-prio-option" @click="newPrio='{{ pv }}'; showNewPrio=false">
-                <span style="width:8px; height:8px; border-radius:50%; flex-shrink:0; background:{{ pcol }};"></span>
-                {{ plbl }}
-                <span x-show="newPrio==='{{ pv }}'" style="margin-left:auto; color:var(--pp-accent); font-size:11px;">&#x2713;</span>
+    <div class="td-add-icon">+</div>
+    <input type="text" x-model="newTitle" placeholder="Neue Aufgabe hinzuf&uuml;gen..." class="td-add-input"
+           @keydown.enter="{{ _qa_js }}">
+    <div class="td-add-actions">
+        {# Quick-Prio #}
+        <div style="position:relative;" @click.stop>
+            <button class="td-add-btn" @click="showNewPrio=!showNewPrio; showNewDate=false"
+                    :style="'color:'+prioColors[newPrio]">
+                <span style="width:7px; height:7px; border-radius:50%; display:inline-block; margin-right:3px;" :style="'background:'+prioColors[newPrio]"></span>
+                <span x-text="prioLabels[newPrio]"></span>
             </button>
-            {% endfor %}
+            <div x-show="showNewPrio" x-transition @click.away="showNewPrio=false"
+                 class="td-prio-dropdown" style="bottom:100%; right:0; margin-bottom:4px; top:auto;">
+                {% for pv, plbl, pcol in [('unwichtig','Unwichtig','#6b7280'),('mittelmaessig','Mittel','#3b82f6'),('wichtig','Wichtig','#f59e0b'),('dringend','Dringend','#f97316'),('sehr_dringend','Sehr dringend','#ef4444')] %}
+                <button class="td-prio-option" @click="newPrio='{{ pv }}'; showNewPrio=false">
+                    <span style="width:8px; height:8px; border-radius:50%; flex-shrink:0; background:{{ pcol }};"></span>
+                    {{ plbl }}
+                    <span x-show="newPrio==='{{ pv }}'" style="margin-left:auto; color:var(--pp-accent); font-size:11px;">&#x2713;</span>
+                </button>
+                {% endfor %}
+            </div>
         </div>
-    </div>
-
-    {# Quick-Date #}
-    <div style="position:relative;" @click.stop>
-        <button class="td-add-btn" @click="showNewDate=!showNewDate; showNewPrio=false" title="Datum">
-            <span x-show="!newDate">&#x1F4C5;</span>
-            <span x-show="newDate" x-text="newDate ? newDate.split('-')[2]+'.'+newDate.split('-')[1]+'.' : ''" style="font-size:10px;"></span>
+        {# Quick-Date #}
+        <div style="position:relative;" @click.stop>
+            <button class="td-add-btn" @click="showNewDate=!showNewDate; showNewPrio=false">
+                <span x-show="!newDate">&#x1F4C5; Datum</span>
+                <span x-show="newDate" x-text="newDate ? newDate.split('-')[2]+'.'+newDate.split('-')[1]+'.' : ''" style="font-size:10px;"></span>
+            </button>
+            <div x-show="showNewDate" x-transition @click.away="showNewDate=false"
+                 class="td-date-popover" style="bottom:100%; right:0; margin-bottom:4px; top:auto;">
+                <button class="td-date-quick" @click="newDate=todayISO; showNewDate=false">&#x1F4C6; Heute</button>
+                <button class="td-date-quick" @click="newDate=tomorrowISO; showNewDate=false">&#x2197; Morgen</button>
+                <button class="td-date-quick" @click="newDate=nextWeekISO; showNewDate=false">&#x1F4C5; N&auml;chste Woche</button>
+                <div style="border-top:1px solid rgba(255,255,255,0.06); margin:4px 0;"></div>
+                <input type="date" :value="newDate" @change="newDate=$event.target.value; showNewDate=false"
+                       style="width:100%; padding:6px 8px; border-radius:8px; font-size:12px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); color:var(--pp-text); outline:none; font-family:var(--pp-ff); color-scheme:dark;">
+                <template x-if="newDate">
+                    <div>
+                        <div style="border-top:1px solid rgba(255,255,255,0.06); margin:4px 0;"></div>
+                        <button class="td-date-quick" style="color:var(--pp-red);" @click="newDate=''; showNewDate=false">&#x2715; Entfernen</button>
+                    </div>
+                </template>
+            </div>
+        </div>
+        {# Enter-Button #}
+        <button class="td-add-enter" :disabled="!newTitle.trim()" @click="{{ _qa_js }}">
+            Hinzuf&uuml;gen &#x21A9;
         </button>
-        <div x-show="showNewDate" x-transition @click.away="showNewDate=false"
-             class="td-date-popover" style="bottom:100%; right:0; margin-bottom:4px; top:auto;">
-            <button class="td-date-quick" @click="newDate=todayISO; showNewDate=false">&#x1F4C6; Heute</button>
-            <button class="td-date-quick" @click="newDate=tomorrowISO; showNewDate=false">&#x2197; Morgen</button>
-            <button class="td-date-quick" @click="newDate=nextWeekISO; showNewDate=false">&#x1F4C5; N&auml;chste Woche</button>
-            <div style="border-top:1px solid rgba(255,255,255,0.06); margin:4px 0;"></div>
-            <input type="date" :value="newDate" @change="newDate=$event.target.value; showNewDate=false"
-                   style="width:100%; padding:6px 8px; border-radius:8px; font-size:12px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); color:var(--pp-text); outline:none; font-family:var(--pp-ff); color-scheme:dark;">
-            <template x-if="newDate">
-                <div>
-                    <div style="border-top:1px solid rgba(255,255,255,0.06); margin:4px 0;"></div>
-                    <button class="td-date-quick" style="color:var(--pp-red);" @click="newDate=''; showNewDate=false">&#x2715; Entfernen</button>
-                </div>
-            </template>
-        </div>
     </div>
-    {# Enter-Button #}
-    <button class="td-add-enter" :disabled="!newTitle.trim()" title="Hinzuf&uuml;gen (Enter)"
-            @click="
-                if(!newTitle.trim()) return;
-                var payload={title:newTitle.trim(), company_id:'{{ company_id }}', priority:newPrio};
-                if(newDate) payload.due_date=newDate;
-                fetch('/api/ats/todos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
-                .then(function(r){if(!r.ok) throw new Error('HTTP '+r.status); return r.json();})
-                .then(function(){newTitle='';newDate='';newPrio='wichtig';showToast('Aufgabe erstellt','success');document.body.dispatchEvent(new CustomEvent('refreshTodos'));})
-                .catch(function(e){showToast('Fehler: '+e.message,'error');});">
-        &#x21A9;
-    </button>
 </div>
+<div class="td-add-hint">Enter dr&uuml;cken oder Button klicken</div>
 
 {# ── Empty State ── #}
 {% if not todos or todos | length == 0 %}
