@@ -91,6 +91,8 @@ async def create_todo(data: TodoCreate, db: AsyncSession = Depends(get_db)):
     service = ATSTodoService(db)
     todo = await service.create_todo(**data.model_dump(exclude_unset=True))
     await db.commit()
+    # Reload with selectinload for relationships (async SQLAlchemy can't lazy-load)
+    todo = await service.get_todo(todo.id)
     return _serialize_todo(todo)
 
 
@@ -220,6 +222,8 @@ async def reschedule_todo(
             todo.description = reschedule_note.strip()
 
     await db.commit()
+    # Reload with selectinload for relationships (async SQLAlchemy can't lazy-load)
+    todo = await service.get_todo(todo_id)
     return _serialize_todo(todo)
 
 
@@ -233,6 +237,8 @@ async def update_todo(
     if not todo:
         raise HTTPException(status_code=404, detail="Aufgabe nicht gefunden")
     await db.commit()
+    # Reload with selectinload for relationships (async SQLAlchemy can't lazy-load)
+    todo = await service.get_todo(todo_id)
     return _serialize_todo(todo)
 
 
