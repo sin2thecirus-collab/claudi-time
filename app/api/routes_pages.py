@@ -457,7 +457,7 @@ async def job_list_partial(
             "request": request,
             "jobs": result.items,
             "priority_cities": priority_cities,
-            "now": datetime.now
+            "now": _utcnow
         }
     )
 
@@ -567,7 +567,7 @@ async def jobs_list_partial(
             "priority_cities": priority_cities,
             "view": view,
             "search": search,
-            "now": datetime.now,
+            "now": _utcnow,
         }
     )
 
