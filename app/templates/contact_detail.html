@@ -271,71 +271,86 @@
     .kd-phone-call-btn:hover { background: rgba(16,185,129,0.16); }
     .kd-phone-call-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
 
-    /* ── CRM Field Table ── */
-    .crm-table { width: 100%; border-collapse: collapse; }
-    .crm-section-label {
-        padding: 10px 20px 6px; font-size: 10px; font-weight: 700;
+    /* ── CRM Click-to-Edit Fields ── */
+    .crm-card { padding: 0; }
+    .crm-group-label {
+        padding: 8px 20px 5px; font-size: 10px; font-weight: 700;
         text-transform: uppercase; letter-spacing: 0.1em;
-        color: var(--pp-textDim); background: rgba(255,255,255,0.015);
+        color: var(--pp-accent); background: rgba(96,165,250,0.03);
         border-top: 1px solid rgba(255,255,255,0.04);
     }
-    .crm-section-label:first-child { border-top: none; }
+    .crm-card > .crm-group-label:first-child { border-top: none; }
+
     .crm-row {
-        border-bottom: 1px solid rgba(255,255,255,0.035);
-        transition: background 0.15s;
+        display: flex; align-items: center; min-height: 40px;
+        padding: 0 20px; border-bottom: 1px solid rgba(255,255,255,0.03);
+        transition: background 0.12s;
     }
-    .crm-row:hover { background: rgba(96,165,250,0.03); }
     .crm-row:last-child { border-bottom: none; }
-    .crm-label {
-        width: 140px; padding: 10px 12px 10px 20px; vertical-align: middle;
-        font-size: 12px; font-weight: 600; color: var(--pp-textDim);
-        white-space: nowrap;
+    .crm-row:hover { background: rgba(255,255,255,0.02); }
+
+    .crm-lbl {
+        width: 120px; flex-shrink: 0; font-size: 12px; font-weight: 600;
+        color: var(--pp-textDim); padding: 8px 0;
     }
-    .crm-value {
-        padding: 6px 20px 6px 0; vertical-align: middle;
+    .crm-val {
+        flex: 1; min-width: 0; padding: 4px 0; position: relative;
+        display: flex; align-items: center; gap: 8px;
     }
-    .crm-value .crm-inp {
-        width: 100%; padding: 7px 10px; border-radius: 7px;
-        border: 1px solid transparent; background: transparent;
-        color: var(--pp-text); font-size: 14px; outline: none;
-        font-family: var(--pp-ff); transition: all 0.2s;
+
+    /* Display mode value */
+    .crm-display {
+        font-size: 14px; color: var(--pp-text); padding: 5px 8px;
+        border-radius: 6px; cursor: pointer; transition: all 0.15s;
+        border: 1px solid transparent; min-height: 20px; flex: 1;
+        display: flex; align-items: center;
+    }
+    .crm-display:hover {
+        background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.08);
+    }
+    .crm-display.empty {
+        color: var(--pp-textDim); font-style: italic; font-size: 13px;
+    }
+    .crm-display .crm-pencil {
+        opacity: 0; margin-left: auto; font-size: 11px; color: var(--pp-textDim);
+        transition: opacity 0.15s; flex-shrink: 0;
+    }
+    .crm-display:hover .crm-pencil { opacity: 0.6; }
+
+    /* Edit mode input */
+    .crm-edit {
+        width: 100%; padding: 6px 10px; border-radius: 6px;
+        border: 1px solid rgba(96,165,250,0.5);
+        background: rgba(6,7,11,0.9); color: var(--pp-text);
+        font-size: 14px; outline: none; font-family: var(--pp-ff);
+        box-shadow: 0 0 0 3px rgba(96,165,250,0.1), 0 0 16px rgba(96,165,250,0.06);
         box-sizing: border-box;
     }
-    .crm-value .crm-inp:hover {
-        background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.06);
-    }
-    .crm-value .crm-inp:focus {
-        background: rgba(6,7,11,0.8); border-color: rgba(96,165,250,0.4);
-        box-shadow: 0 0 0 2px rgba(96,165,250,0.1);
-    }
-    .crm-value .crm-inp::placeholder { color: var(--pp-textDim); font-size: 13px; font-style: italic; }
-    .crm-value select.crm-inp {
+    .crm-edit::placeholder { color: var(--pp-textDim); font-size: 13px; }
+    select.crm-edit {
         cursor: pointer; -webkit-appearance: none; appearance: none;
-        background-image: url("data:image/svg+xml,%3Csvg fill='none' viewBox='0 0 24 24' stroke='%234b5563' stroke-width='2' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19.5 8.25l-7.5 7.5-7.5-7.5'/%3E%3C/svg%3E");
-        background-repeat: no-repeat; background-position: right 8px center; background-size: 14px;
-        padding-right: 28px;
+        background-image: url("data:image/svg+xml,%3Csvg fill='none' viewBox='0 0 24 24' stroke='%2360A5FA' stroke-width='2' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19.5 8.25l-7.5 7.5-7.5-7.5'/%3E%3C/svg%3E");
+        background-repeat: no-repeat; background-position: right 10px center; background-size: 14px;
+        padding-right: 30px;
     }
-    .crm-value select.crm-inp option { background: rgba(14,16,25,0.95); color: var(--pp-text); }
-    .crm-value textarea.crm-inp { resize: vertical; min-height: 60px; line-height: 1.5; }
-    .crm-phone-row {
-        display: flex; align-items: center; gap: 0;
+    select.crm-edit option { background: rgba(14,16,25,0.95); color: var(--pp-text); }
+    textarea.crm-edit { resize: vertical; min-height: 60px; line-height: 1.5; }
+
+    /* Action links (phone, email) */
+    .crm-action-link {
+        display: inline-flex; align-items: center; gap: 5px;
+        font-size: 13px; color: var(--pp-accent); text-decoration: none;
+        padding: 3px 8px; border-radius: 6px; transition: all 0.15s;
     }
-    .crm-phone-row .crm-inp { flex: 1; border-radius: 7px 0 0 7px; }
-    .crm-phone-row .crm-call-btn {
-        display: flex; align-items: center; gap: 4px;
-        padding: 7px 12px; border: none; cursor: pointer;
-        background: rgba(52,211,153,0.08); color: #34d399;
-        font-size: 11px; font-weight: 700; white-space: nowrap;
-        transition: all 0.15s; font-family: var(--pp-ff);
-        border-radius: 0 7px 7px 0; text-decoration: none;
-        border: 1px solid rgba(52,211,153,0.12);
-        border-left: none;
-    }
-    .crm-phone-row .crm-call-btn:hover { background: rgba(52,211,153,0.15); }
-    .crm-phone-row .crm-call-btn svg { width: 12px; height: 12px; }
+    .crm-action-link:hover { background: rgba(96,165,250,0.08); }
+    .crm-action-link.green { color: #34d399; }
+    .crm-action-link.green:hover { background: rgba(52,211,153,0.08); }
+    .crm-action-link svg { width: 13px; height: 13px; flex-shrink: 0; }
+
+    /* 2-col row */
     .crm-2col { display: grid; grid-template-columns: 1fr 1fr; }
-    .crm-2col .crm-label { width: 100px; }
-    @media (max-width: 700px) { .crm-2col { grid-template-columns: 1fr; } .crm-label { width: 120px; } }
+    .crm-2col > .crm-row { padding: 0 20px; }
+    @media (max-width: 700px) { .crm-2col { grid-template-columns: 1fr; } }
 
     /* ── Copy ── */
     .kd-copy {
@@ -472,128 +487,149 @@
                         </div>
                     </div>
 
-                    <table class="crm-table">
+                    <div class="crm-card">
                         {# ── Persönliche Daten ── #}
-                        <tr><td colspan="2" class="crm-section-label">Persönliche Daten</td></tr>
+                        <div class="crm-group-label">Persönliche Daten</div>
 
-                        <tr class="crm-row">
-                            <td class="crm-label">Anrede</td>
-                            <td class="crm-value">
-                                <select class="crm-inp" style="max-width:160px;"
-                                        @change="saveField('salutation', $event.target.value)">
-                                    <option value="" {% if not contact.salutation %}selected{% endif %}>—</option>
-                                    <option value="Herr" {% if contact.salutation == 'Herr' %}selected{% endif %}>Herr</option>
-                                    <option value="Frau" {% if contact.salutation == 'Frau' %}selected{% endif %}>Frau</option>
-                                </select>
-                            </td>
-                        </tr>
-
-                        <tr class="crm-row">
-                            <td colspan="2" style="padding:0;">
-                                <div class="crm-2col">
-                                    <div style="display:flex;align-items:center;">
-                                        <span class="crm-label">Vorname</span>
-                                        <div class="crm-value" style="flex:1;">
-                                            <input type="text" class="crm-inp"
-                                                   value="{{ contact.first_name or '' }}"
-                                                   @blur="saveField('first_name', $event.target.value)"
-                                                   placeholder="Vorname">
-                                        </div>
-                                    </div>
-                                    <div style="display:flex;align-items:center;">
-                                        <span class="crm-label">Nachname</span>
-                                        <div class="crm-value" style="flex:1;">
-                                            <input type="text" class="crm-inp"
-                                                   value="{{ contact.last_name or '' }}"
-                                                   @blur="saveField('last_name', $event.target.value)"
-                                                   placeholder="Nachname">
-                                        </div>
-                                    </div>
+                        <div class="crm-row">
+                            <div class="crm-lbl">Anrede</div>
+                            <div class="crm-val">
+                                <div class="crm-display" x-show="editField !== 'salutation'" @click="startEdit('salutation')" :class="!fields.salutation && 'empty'">
+                                    <span x-text="fields.salutation || '—'"></span>
+                                    <span class="crm-pencil">✏️</span>
                                 </div>
-                            </td>
-                        </tr>
+                                <select class="crm-edit" x-show="editField === 'salutation'" x-ref="edit_salutation"
+                                        @change="finishEdit('salutation', $event.target.value)"
+                                        @blur="finishEdit('salutation', $event.target.value)">
+                                    <option value="">—</option>
+                                    <option value="Herr" :selected="fields.salutation === 'Herr'">Herr</option>
+                                    <option value="Frau" :selected="fields.salutation === 'Frau'">Frau</option>
+                                </select>
+                            </div>
+                        </div>
 
-                        <tr class="crm-row">
-                            <td class="crm-label">Position</td>
-                            <td class="crm-value">
-                                <input type="text" class="crm-inp"
-                                       value="{{ contact.position or '' }}"
-                                       @blur="saveField('position', $event.target.value)"
-                                       placeholder="z.B. Geschäftsführer, HR-Leiter">
-                            </td>
-                        </tr>
+                        <div class="crm-2col">
+                            <div class="crm-row">
+                                <div class="crm-lbl">Vorname</div>
+                                <div class="crm-val">
+                                    <div class="crm-display" x-show="editField !== 'first_name'" @click="startEdit('first_name')" :class="!fields.first_name && 'empty'">
+                                        <span x-text="fields.first_name || 'Vorname eingeben'"></span>
+                                        <span class="crm-pencil">✏️</span>
+                                    </div>
+                                    <input type="text" class="crm-edit" x-show="editField === 'first_name'" x-ref="edit_first_name"
+                                           :value="fields.first_name" @blur="finishEdit('first_name', $event.target.value)"
+                                           @keydown.enter="$event.target.blur()" @keydown.escape="editField=null" placeholder="Vorname">
+                                </div>
+                            </div>
+                            <div class="crm-row">
+                                <div class="crm-lbl">Nachname</div>
+                                <div class="crm-val">
+                                    <div class="crm-display" x-show="editField !== 'last_name'" @click="startEdit('last_name')" :class="!fields.last_name && 'empty'">
+                                        <span x-text="fields.last_name || 'Nachname eingeben'"></span>
+                                        <span class="crm-pencil">✏️</span>
+                                    </div>
+                                    <input type="text" class="crm-edit" x-show="editField === 'last_name'" x-ref="edit_last_name"
+                                           :value="fields.last_name" @blur="finishEdit('last_name', $event.target.value)"
+                                           @keydown.enter="$event.target.blur()" @keydown.escape="editField=null" placeholder="Nachname">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="crm-row">
+                            <div class="crm-lbl">Position</div>
+                            <div class="crm-val">
+                                <div class="crm-display" x-show="editField !== 'position'" @click="startEdit('position')" :class="!fields.position && 'empty'">
+                                    <span x-text="fields.position || 'Position eingeben'"></span>
+                                    <span class="crm-pencil">✏️</span>
+                                </div>
+                                <input type="text" class="crm-edit" x-show="editField === 'position'" x-ref="edit_position"
+                                       :value="fields.position" @blur="finishEdit('position', $event.target.value)"
+                                       @keydown.enter="$event.target.blur()" @keydown.escape="editField=null" placeholder="z.B. Geschäftsführer">
+                            </div>
+                        </div>
 
                         {# ── Erreichbarkeit ── #}
-                        <tr><td colspan="2" class="crm-section-label">Erreichbarkeit</td></tr>
+                        <div class="crm-group-label">Erreichbarkeit</div>
 
-                        <tr class="crm-row">
-                            <td class="crm-label">E-Mail</td>
-                            <td class="crm-value">
-                                <input type="email" class="crm-inp"
-                                       value="{{ contact.email or '' }}"
-                                       @blur="saveField('email', $event.target.value)"
-                                       placeholder="name@firma.de">
-                            </td>
-                        </tr>
-
-                        <tr class="crm-row">
-                            <td class="crm-label">Telefon</td>
-                            <td class="crm-value">
-                                <div class="crm-phone-row">
-                                    <input type="text" class="crm-inp"
-                                           value="{{ contact.phone or '' }}"
-                                           @blur="saveField('phone', $event.target.value)"
-                                           placeholder="+49 40 123456">
-                                    {% if contact.phone %}
-                                    <a href="tel:{{ contact.phone_normalized or contact.phone }}" class="crm-call-btn" title="Anrufen">
-                                        <svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"/></svg>
-                                        Anrufen
-                                    </a>
-                                    {% endif %}
+                        <div class="crm-row">
+                            <div class="crm-lbl">E-Mail</div>
+                            <div class="crm-val">
+                                <div class="crm-display" x-show="editField !== 'email'" @click="startEdit('email')" :class="!fields.email && 'empty'">
+                                    <span x-text="fields.email || 'E-Mail eingeben'"></span>
+                                    <span class="crm-pencil">✏️</span>
                                 </div>
-                            </td>
-                        </tr>
+                                <input type="email" class="crm-edit" x-show="editField === 'email'" x-ref="edit_email"
+                                       :value="fields.email" @blur="finishEdit('email', $event.target.value)"
+                                       @keydown.enter="$event.target.blur()" @keydown.escape="editField=null" placeholder="name@firma.de">
+                                <a x-show="fields.email && editField !== 'email'" :href="'mailto:' + fields.email" class="crm-action-link" @click.stop title="E-Mail senden">
+                                    <svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"/></svg>
+                                </a>
+                            </div>
+                        </div>
 
-                        <tr class="crm-row">
-                            <td class="crm-label">Mobil</td>
-                            <td class="crm-value">
-                                <div class="crm-phone-row">
-                                    <input type="text" class="crm-inp"
-                                           value="{{ contact.mobile or '' }}"
-                                           @blur="saveField('mobile', $event.target.value)"
-                                           placeholder="+49 176 123456">
-                                    {% if contact.mobile %}
-                                    <a href="tel:{{ contact.mobile }}" class="crm-call-btn" title="Anrufen">
-                                        <svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"/></svg>
-                                        Anrufen
-                                    </a>
-                                    {% endif %}
+                        <div class="crm-row">
+                            <div class="crm-lbl">Telefon</div>
+                            <div class="crm-val">
+                                <div class="crm-display" x-show="editField !== 'phone'" @click="startEdit('phone')" :class="!fields.phone && 'empty'">
+                                    <span x-text="fields.phone || 'Telefon eingeben'"></span>
+                                    <span class="crm-pencil">✏️</span>
                                 </div>
-                            </td>
-                        </tr>
+                                <input type="text" class="crm-edit" x-show="editField === 'phone'" x-ref="edit_phone"
+                                       :value="fields.phone" @blur="finishEdit('phone', $event.target.value)"
+                                       @keydown.enter="$event.target.blur()" @keydown.escape="editField=null" placeholder="+49 40 123456">
+                                <a x-show="fields.phone && editField !== 'phone'" :href="'tel:' + fields.phone" class="crm-action-link green" @click.stop title="Anrufen">
+                                    <svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"/></svg>
+                                </a>
+                            </div>
+                        </div>
 
-                        {# ── Standort ── #}
-                        <tr><td colspan="2" class="crm-section-label">Standort & Notizen</td></tr>
+                        <div class="crm-row">
+                            <div class="crm-lbl">Mobil</div>
+                            <div class="crm-val">
+                                <div class="crm-display" x-show="editField !== 'mobile'" @click="startEdit('mobile')" :class="!fields.mobile && 'empty'">
+                                    <span x-text="fields.mobile || 'Mobil eingeben'"></span>
+                                    <span class="crm-pencil">✏️</span>
+                                </div>
+                                <input type="text" class="crm-edit" x-show="editField === 'mobile'" x-ref="edit_mobile"
+                                       :value="fields.mobile" @blur="finishEdit('mobile', $event.target.value)"
+                                       @keydown.enter="$event.target.blur()" @keydown.escape="editField=null" placeholder="+49 176 123456">
+                                <a x-show="fields.mobile && editField !== 'mobile'" :href="'tel:' + fields.mobile" class="crm-action-link green" @click.stop title="Anrufen">
+                                    <svg fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"/></svg>
+                                </a>
+                            </div>
+                        </div>
 
-                        <tr class="crm-row">
-                            <td class="crm-label">Stadt</td>
-                            <td class="crm-value">
-                                <input type="text" class="crm-inp"
-                                       value="{{ contact.city or '' }}"
-                                       @blur="saveField('city', $event.target.value)"
-                                       placeholder="z.B. Hamburg, München">
-                            </td>
-                        </tr>
+                        {# ── Standort & Notizen ── #}
+                        <div class="crm-group-label">Standort & Notizen</div>
 
-                        <tr class="crm-row">
-                            <td class="crm-label" style="vertical-align:top;padding-top:14px;">Notizen</td>
-                            <td class="crm-value">
-                                <textarea class="crm-inp" rows="3" style="resize:vertical;min-height:50px;"
-                                          @blur="saveField('notes', $event.target.value)"
-                                          placeholder="Freitext-Notizen...">{{ contact.notes or '' }}</textarea>
-                            </td>
-                        </tr>
-                    </table>
+                        <div class="crm-row">
+                            <div class="crm-lbl">Stadt</div>
+                            <div class="crm-val">
+                                <div class="crm-display" x-show="editField !== 'city'" @click="startEdit('city')" :class="!fields.city && 'empty'">
+                                    <span x-text="fields.city || 'Stadt eingeben'"></span>
+                                    <span class="crm-pencil">✏️</span>
+                                </div>
+                                <input type="text" class="crm-edit" x-show="editField === 'city'" x-ref="edit_city"
+                                       :value="fields.city" @blur="finishEdit('city', $event.target.value)"
+                                       @keydown.enter="$event.target.blur()" @keydown.escape="editField=null" placeholder="z.B. Hamburg, München">
+                            </div>
+                        </div>
+
+                        <div class="crm-row" style="align-items:flex-start;">
+                            <div class="crm-lbl" style="padding-top:12px;">Notizen</div>
+                            <div class="crm-val">
+                                <div class="crm-display" x-show="editField !== 'notes'" @click="startEdit('notes')" :class="!fields.notes && 'empty'"
+                                     style="white-space:pre-wrap;min-height:40px;align-items:flex-start;">
+                                    <span x-text="fields.notes || 'Notizen hinzufügen...'"></span>
+                                    <span class="crm-pencil">✏️</span>
+                                </div>
+                                <textarea class="crm-edit" x-show="editField === 'notes'" x-ref="edit_notes"
+                                          @blur="finishEdit('notes', $event.target.value)"
+                                          @keydown.escape="editField=null" rows="3" placeholder="Freitext-Notizen..."
+                                          x-effect="if(editField==='notes') { $nextTick(() => { $refs.edit_notes.value = fields.notes || ''; $refs.edit_notes.focus(); }) }"></textarea>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 {# ── Letzte Anrufe (Preview) ── #}
@@ -867,6 +903,19 @@
 {% endblock %}
 
 {% block scripts %}
+<script type="application/json" id="contact-data">
+{
+    "salutation": {{ (contact.salutation or '') | tojson }},
+    "first_name": {{ (contact.first_name or '') | tojson }},
+    "last_name": {{ (contact.last_name or '') | tojson }},
+    "position": {{ (contact.position or '') | tojson }},
+    "email": {{ (contact.email or '') | tojson }},
+    "phone": {{ (contact.phone or '') | tojson }},
+    "mobile": {{ (contact.mobile or '') | tojson }},
+    "city": {{ (contact.city or '') | tojson }},
+    "notes": {{ (contact.notes or '') | tojson }}
+}
+</script>
 <script>
 const CONTACT_ID = '{{ contact.id }}';
 const COMPANY_ID = '{{ company.id }}';
@@ -874,6 +923,35 @@ const COMPANY_ID = '{{ company.id }}';
 function contactPage() {
     return {
         tab: 'overview',
+        editField: null,
+        fields: {},
+
+        init() {
+            const el = document.getElementById('contact-data');
+            if (el) {
+                try { this.fields = JSON.parse(el.textContent); } catch(e) { console.warn('contact-data parse error', e); }
+            }
+        },
+
+        startEdit(field) {
+            this.editField = field;
+            this.$nextTick(() => {
+                const ref = this.$refs['edit_' + field];
+                if (ref) {
+                    ref.focus();
+                    if (ref.tagName === 'INPUT' && ref.select) ref.select();
+                }
+            });
+        },
+
+        finishEdit(field, value) {
+            if (this.editField !== field) return;
+            this.editField = null;
+            const trimmed = (value || '').trim();
+            if (this.fields[field] === trimmed) return;
+            this.fields[field] = trimmed;
+            this.saveField(field, trimmed);
+        },
 
         saveField(field, value) {
             const data = {};
