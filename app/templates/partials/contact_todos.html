@@ -1,141 +1,406 @@
-{# Partial: Aufgaben eines Kontakts — interaktiv #}
+{# Partial: Aufgaben — Card-Design für Kontakte #}
+
+<style>
+/* ═══ Todo Card Design (td-*) ═══ */
+.td-list { display:flex; flex-direction:column; }
+.td-row {
+    display:flex; align-items:center; gap:10px;
+    padding:10px 14px 10px 0; position:relative;
+    border-bottom:1px solid rgba(255,255,255,0.04);
+    transition: background 0.12s;
+}
+.td-row:last-child { border-bottom:none; }
+.td-row:hover { background:rgba(255,255,255,0.02); }
+.td-row-overdue { background:rgba(248,113,113,0.03); }
+.td-row-overdue:hover { background:rgba(248,113,113,0.06); }
+.td-row-done { opacity:0.55; }
+
+.td-stripe {
+    width:3px; align-self:stretch; border-radius:0 2px 2px 0;
+    flex-shrink:0; transition:background 0.2s;
+}
+
+.td-check {
+    width:20px; height:20px; border-radius:6px;
+    border:2px solid var(--pp-textDim); background:transparent;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; flex-shrink:0; transition:all 0.15s; padding:0;
+}
+.td-check:hover { border-color:var(--pp-green); background:rgba(52,211,153,0.08); }
+.td-check-done { border-color:var(--pp-green) !important; background:var(--pp-green) !important; }
+
+.td-title {
+    font-size:13px; font-weight:600; line-height:1.3;
+    color:var(--pp-text); overflow:hidden; text-overflow:ellipsis;
+}
+.td-title-done { color:var(--pp-textDim) !important; text-decoration:line-through; }
+
+.td-prio {
+    font-size:10px; font-weight:700; padding:2px 8px;
+    border-radius:6px; cursor:pointer; white-space:nowrap;
+    transition:all 0.12s; user-select:none; border:none;
+    font-family:var(--pp-ff);
+}
+.td-prio:hover { filter:brightness(1.3); transform:scale(1.05); }
+
+.td-prio-dropdown {
+    position:absolute; z-index:50; width:160px;
+    background:rgba(14,16,25,0.95); border:1px solid rgba(255,255,255,0.1);
+    border-radius:10px; box-shadow:0 8px 30px rgba(0,0,0,0.6);
+    padding:4px; backdrop-filter:blur(16px);
+}
+.td-prio-option {
+    width:100%; text-align:left; padding:7px 10px; border-radius:7px;
+    border:none; background:transparent; color:var(--pp-text);
+    font-size:12px; cursor:pointer; display:flex; align-items:center; gap:8px;
+    font-family:var(--pp-ff); transition:background 0.1s;
+}
+.td-prio-option:hover { background:rgba(255,255,255,0.06); }
+
+.td-source {
+    font-size:9px; font-weight:700; padding:2px 6px;
+    border-radius:5px; white-space:nowrap;
+}
+
+.td-date {
+    font-size:11px; font-weight:600; color:var(--pp-textDim);
+    cursor:pointer; white-space:nowrap; padding:3px 7px;
+    border-radius:6px; transition:all 0.12s; border:none;
+    background:transparent; font-family:var(--pp-ff);
+}
+.td-date:hover { background:rgba(255,255,255,0.05); color:var(--pp-textMuted); }
+.td-date-overdue { color:var(--pp-red) !important; font-weight:700; }
+.td-date-none { color:var(--pp-text4); font-size:10px; }
+
+.td-date-popover {
+    position:absolute; z-index:50; right:0; top:100%; margin-top:4px;
+    background:rgba(14,16,25,0.95); border:1px solid rgba(255,255,255,0.1);
+    border-radius:12px; box-shadow:0 8px 30px rgba(0,0,0,0.6);
+    padding:8px; min-width:200px; backdrop-filter:blur(16px);
+}
+.td-date-quick {
+    width:100%; text-align:left; padding:7px 10px; border-radius:7px;
+    border:none; background:transparent; color:var(--pp-textMuted);
+    font-size:12px; cursor:pointer; font-family:var(--pp-ff); transition:background 0.1s;
+}
+.td-date-quick:hover { background:rgba(255,255,255,0.06); color:var(--pp-text); }
+
+.td-hover-actions {
+    display:flex; gap:2px; opacity:0; transition:opacity 0.15s; flex-shrink:0;
+}
+.td-row:hover .td-hover-actions { opacity:1; }
+
+.td-hover-btn {
+    padding:5px; border-radius:6px; border:none; background:transparent;
+    cursor:pointer; color:var(--pp-textDim); transition:all 0.1s;
+    display:flex; align-items:center; justify-content:center;
+}
+.td-hover-btn:hover { background:rgba(255,255,255,0.06); color:var(--pp-text); }
+.td-hover-btn-danger:hover { background:rgba(248,113,113,0.12); color:var(--pp-red); }
+
+.td-expand {
+    padding:12px 16px 14px 19px; background:rgba(255,255,255,0.015);
+    border-top:1px solid rgba(255,255,255,0.04);
+}
+
+.td-filter-pills { display:flex; gap:4px; padding:0 0 8px; }
+.td-pill {
+    padding:4px 12px; border-radius:8px; font-size:11px; font-weight:600;
+    color:var(--pp-textDim); background:transparent; border:none;
+    cursor:pointer; font-family:var(--pp-ff); transition:all 0.12s;
+    display:flex; align-items:center; gap:5px;
+}
+.td-pill:hover { background:rgba(255,255,255,0.04); color:var(--pp-textMuted); }
+.td-pill-active { background:var(--pp-accentSoft) !important; color:var(--pp-accent) !important; font-weight:700; }
+.td-pill-count {
+    font-size:9px; font-weight:800; min-width:16px; height:16px;
+    display:inline-flex; align-items:center; justify-content:center;
+    border-radius:99px; padding:0 4px; background:rgba(255,255,255,0.06);
+}
+.td-pill-active .td-pill-count { background:rgba(96,165,250,0.2); }
+
+.td-add-row {
+    display:flex; align-items:center; gap:8px;
+    padding:10px 14px 10px 19px;
+    border-top:1px solid rgba(255,255,255,0.04);
+}
+.td-add-input {
+    flex:1; border:none; background:transparent; color:var(--pp-text);
+    font-size:13px; font-family:var(--pp-ff); outline:none; padding:4px 0;
+}
+.td-add-input::placeholder { color:var(--pp-text4); }
+.td-add-btn {
+    padding:4px 8px; border-radius:6px; border:none; cursor:pointer;
+    font-size:11px; font-weight:700; font-family:var(--pp-ff);
+    transition:all 0.12s; background:transparent; color:var(--pp-textDim);
+}
+.td-add-btn:hover { background:rgba(255,255,255,0.06); color:var(--pp-text); }
+
+.td-empty { padding:32px 24px; text-align:center; }
+</style>
+
+{# ── Counts für Filter-Pillen ── #}
+{% set ns = namespace(open=0, overdue=0, done=0) %}
+{% for t in todos %}
+    {% if t.status.value in ['open', 'in_progress'] %}{% set ns.open = ns.open + 1 %}{% endif %}
+    {% if t.is_overdue %}{% set ns.overdue = ns.overdue + 1 %}{% endif %}
+    {% if t.status.value == 'done' %}{% set ns.done = ns.done + 1 %}{% endif %}
+{% endfor %}
+
+<div x-data="{
+    filter: 'all',
+    newTitle: '', newPrio: 'wichtig', newDate: '',
+    showNewPrio: false, showNewDate: false,
+    todayISO: '', tomorrowISO: '', nextWeekISO: '',
+    prioLabels: {unwichtig:'Unwichtig',mittelmaessig:'Mittel',wichtig:'Wichtig',dringend:'Dringend',sehr_dringend:'Sehr dringend'},
+    prioColors: {unwichtig:'#6b7280',mittelmaessig:'#3b82f6',wichtig:'#f59e0b',dringend:'#f97316',sehr_dringend:'#ef4444'}
+}" x-init="
+    var _n=new Date();
+    todayISO=_n.toISOString().split('T')[0];
+    var _t=new Date(_n); _t.setDate(_t.getDate()+1);
+    tomorrowISO=_t.toISOString().split('T')[0];
+    var _w=new Date(_n); _w.setDate(_w.getDate()+7);
+    nextWeekISO=_w.toISOString().split('T')[0];
+">
 
 {% if todos and todos | length > 0 %}
-<div style="display:flex;flex-direction:column;gap:12px;">
-    {% for todo in todos %}
-    <div x-data="{ open: false, editing: false, saving: false,
-                   editTitle: '{{ todo.title | replace("'", "\\'") }}',
-                   editDesc: '{{ (todo.description or '') | replace("'", "\\'") | replace('\n', '\\n') }}',
-                   editPriority: '{{ todo.priority.value }}',
-                   editStatus: '{{ todo.status.value }}',
-                   editDueDate: '{{ todo.due_date.isoformat() if todo.due_date else '' }}',
-                   editDueTime: '{{ todo.due_time or '' }}' }"
-         style="border-radius:12px;border:1px solid {% if todo.status.value == 'done' %}rgba(52,211,153,0.25){% elif todo.is_overdue %}rgba(239,68,68,0.25){% else %}var(--pp-border){% endif %};background:{% if todo.status.value == 'done' %}rgba(52,211,153,0.08){% elif todo.is_overdue %}rgba(239,68,68,0.08){% else %}var(--pp-surface){% endif %};overflow:hidden;transition:all .2s;">
+{# ── Filter-Pillen ── #}
+<div class="td-filter-pills" style="padding:0 16px 8px;">
+    <button type="button" @click="filter='all'" class="td-pill" :class="filter==='all'?'td-pill-active':''">
+        Alle <span class="td-pill-count">{{ todos | length }}</span>
+    </button>
+    <button type="button" @click="filter='open'" class="td-pill" :class="filter==='open'?'td-pill-active':''">
+        Offen <span class="td-pill-count">{{ ns.open }}</span>
+    </button>
+    {% if ns.overdue > 0 %}
+    <button type="button" @click="filter='overdue'" class="td-pill" :class="filter==='overdue'?'td-pill-active':''" style="color:var(--pp-red);">
+        &#x26A0; &Uuml;berf&auml;llig <span class="td-pill-count" style="background:rgba(248,113,113,0.15); color:var(--pp-red);">{{ ns.overdue }}</span>
+    </button>
+    {% endif %}
+    <button type="button" @click="filter='done'" class="td-pill" :class="filter==='done'?'td-pill-active':''">
+        Erledigt <span class="td-pill-count">{{ ns.done }}</span>
+    </button>
+</div>
 
-        {# ── Aufgaben-Kopfzeile (immer sichtbar, klickbar) ── #}
-        <div @click="open = !open" style="padding:18px 20px;cursor:pointer;display:flex;align-items:flex-start;gap:14px;">
-            {# Checkbox/Status-Icon #}
-            <button @click.stop="
-                var newStatus = editStatus === 'done' ? 'open' : 'done';
-                fetch('/api/ats/todos/{{ todo.id }}', {method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:newStatus})})
-                .then(function(r){if(r.ok){showToast(newStatus==='done'?'Erledigt':'Wieder geöffnet','success');document.body.dispatchEvent(new CustomEvent('refreshTodos'));}});
-            " type="button" style="margin-top:4px;flex-shrink:0;width:40px;height:40px;border-radius:50%;border:3px solid {% if todo.status.value == 'done' %}var(--pp-green){% elif todo.is_overdue %}var(--pp-red){% else %}var(--pp-textDim){% endif %};background:{% if todo.status.value == 'done' %}var(--pp-green){% else %}transparent{% endif %};display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;" title="{% if todo.status.value == 'done' %}Wieder öffnen{% else %}Als erledigt markieren{% endif %}">
-                {% if todo.status.value == 'done' %}
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
-                {% endif %}
-            </button>
+{# ── Todo-Liste ── #}
+<div class="td-list">
+{% for todo in todos %}
+{% set prio_colors = {'unwichtig':'#6b7280','mittelmaessig':'#3b82f6','wichtig':'#f59e0b','dringend':'#f97316','sehr_dringend':'#ef4444'} %}
+{% set prio_labels = {'unwichtig':'Unwichtig','mittelmaessig':'Mittel','wichtig':'Wichtig','dringend':'Dringend','sehr_dringend':'Sehr dringend'} %}
+{% set pc = prio_colors.get(todo.priority.value, '#6b7280') %}
+{% set pl = prio_labels.get(todo.priority.value, 'Mittel') %}
+{% set is_done = todo.status.value == 'done' %}
+{% set is_cancelled = todo.status.value == 'cancelled' %}
 
-            {# Inhalt #}
-            <div style="flex:1;min-width:0;">
-                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-                    <span style="font-size:28px;font-weight:600;color:{% if todo.status.value == 'done' %}var(--pp-textDim){% else %}var(--pp-text){% endif %};{% if todo.status.value == 'done' %}text-decoration:line-through;{% endif %}font-family:var(--pp-ff);line-height:1.2;">{{ todo.title }}</span>
-                    {# Priority Badge #}
-                    {% set prio_map = {'unwichtig': ('Unwichtig','var(--pp-textMuted)','var(--pp-surfaceHover)'), 'mittelmaessig': ('Mittelmäßig','var(--pp-accent)','var(--pp-accentSoft)'), 'wichtig': ('Wichtig','var(--pp-orange)','var(--pp-orangeSoft)'), 'dringend': ('Dringend','#f97316','rgba(249,115,22,0.12)'), 'sehr_dringend': ('Sehr dringend','var(--pp-red)','var(--pp-redSoft)')} %}
-                    {% set pl, pc, pbg = prio_map.get(todo.priority.value, ('','var(--pp-textMuted)','var(--pp-surfaceHover)')) %}
-                    <span style="font-size:22px;font-weight:600;color:{{ pc }};background:{{ pbg }};padding:4px 14px;border-radius:99px;font-family:var(--pp-ff);">{{ pl }}</span>
-                </div>
-                {# Meta-Zeile: Datum + Links #}
-                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:6px;">
-                    {% if todo.due_date %}
-                    <span style="font-size:22px;white-space:nowrap;color:{% if todo.is_overdue %}var(--pp-red);font-weight:600{% else %}var(--pp-textDim){% endif %};display:inline-flex;align-items:center;gap:5px;">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/></svg>
-                        {% if todo.is_overdue %}Überfällig{% endif %} {{ todo.due_date.strftime('%d.%m.%Y') }}{% if todo.due_time %} {{ todo.due_time }} Uhr{% endif %}
-                    </span>
-                    {% endif %}
-                    {% if todo.company %}
-                    <span style="color:var(--pp-textDim);font-size:22px;">·</span>
-                    <a href="/unternehmen/{{ todo.company_id }}" @click.stop style="font-size:22px;white-space:nowrap;color:var(--pp-green);text-decoration:none;font-weight:500;">{{ todo.company.name }}</a>
-                    {% endif %}
-                    {% if todo.candidate %}
-                    <span style="color:var(--pp-textDim);font-size:22px;">·</span>
-                    <a href="/kandidaten/{{ todo.candidate_id }}" @click.stop style="font-size:22px;white-space:nowrap;color:var(--pp-accent);text-decoration:none;font-weight:500;">{{ todo.candidate.first_name }} {{ todo.candidate.last_name }}</a>
-                    {% endif %}
-                    {% if todo.ats_job %}
-                    <span style="color:var(--pp-textDim);font-size:22px;">·</span>
-                    <a href="/ats/jobs/{{ todo.ats_job_id }}" @click.stop style="font-size:22px;white-space:nowrap;color:var(--pp-purple);text-decoration:none;font-weight:500;">{{ todo.ats_job.title }}</a>
-                    {% endif %}
-                </div>
+<div x-data="{
+    prioDrop: false, datePop: false, expanded: false, saving: false,
+    editTitle: {{ todo.title | tojson }},
+    editDesc: {{ (todo.description or '') | tojson }},
+    editTime: '{{ todo.due_time.strftime('%H:%M') if todo.due_time else '' }}',
+    editStatus: '{{ todo.status.value }}'
+}" x-show="filter==='all' || (filter==='open' && {{ 'true' if not is_done and not is_cancelled else 'false' }}) || (filter==='overdue' && {{ 'true' if todo.is_overdue else 'false' }}) || (filter==='done' && {{ 'true' if is_done else 'false' }})">
+
+    {# ── Card Row ── #}
+    <div class="td-row{% if todo.is_overdue %} td-row-overdue{% endif %}{% if is_done %} td-row-done{% endif %}">
+
+        {# Priority Stripe #}
+        <div class="td-stripe" style="background:{{ pc }};"></div>
+
+        {# Checkbox #}
+        <button type="button" class="td-check{% if is_done %} td-check-done{% endif %}"
+                @click.stop="fetch('/api/ats/todos/{{ todo.id }}',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'{{ 'open' if is_done else 'done' }}'})}).then(function(r){if(r.ok){showToast('{{ 'Wieder ge\u00f6ffnet' if is_done else 'Erledigt' }}','success');document.body.dispatchEvent(new CustomEvent('refreshTodos'));}});">
+            {% if is_done %}
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+            {% endif %}
+        </button>
+
+        {# Titel + Verknüpfungs-Chips #}
+        <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; cursor:pointer;" @click="expanded=!expanded">
+            <div style="display:flex; align-items:center; gap:7px; flex-wrap:wrap;">
+                <span class="td-title{% if is_done %} td-title-done{% endif %}">{{ todo.title }}</span>
                 {% if todo.description %}
-                <p style="font-size:24px;color:var(--pp-textMuted);margin-top:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ todo.description }}</p>
+                <span style="font-size:10px; color:var(--pp-text4);" title="Hat Notizen">&#x1F4DD;</span>
                 {% endif %}
             </div>
-
-            {# Aufklapp-Pfeil #}
-            <svg :style="open ? 'transform:rotate(180deg)' : ''" width="20" height="20" style="width:20px;height:20px;min-width:20px;min-height:20px;color:var(--pp-textDim);flex-shrink:0;margin-top:8px;transition:transform .2s;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+            {% if todo.company or todo.candidate or todo.ats_job %}
+            <div style="display:flex; gap:4px; flex-wrap:wrap;">
+                {% if todo.company %}
+                <a href="/unternehmen/{{ todo.company_id }}" @click.stop
+                   style="font-size:9px; font-weight:600; padding:1px 6px; border-radius:4px; background:rgba(96,165,250,0.1); color:#60a5fa; text-decoration:none; white-space:nowrap;">
+                    &#x1F3E2; {{ todo.company.name }}</a>
+                {% endif %}
+                {% if todo.candidate %}
+                <a href="/kandidaten/{{ todo.candidate_id }}" @click.stop
+                   style="font-size:9px; font-weight:600; padding:1px 6px; border-radius:4px; background:rgba(167,139,250,0.1); color:#a78bfa; text-decoration:none; white-space:nowrap;">
+                    &#x1F9D1;&#x200D;&#x1F4BC; {{ todo.candidate.first_name }} {{ todo.candidate.last_name }}</a>
+                {% endif %}
+                {% if todo.ats_job %}
+                <a href="/ats/jobs/{{ todo.ats_job_id }}" @click.stop
+                   style="font-size:9px; font-weight:600; padding:1px 6px; border-radius:4px; background:rgba(251,191,36,0.1); color:#fbbf24; text-decoration:none; white-space:nowrap;">
+                    &#x1F4BC; {{ todo.ats_job.title }}</a>
+                {% endif %}
+            </div>
+            {% endif %}
         </div>
 
-        {# ── Aufklapp-Bereich (Edit) ── #}
-        <div x-show="open" x-transition style="border-top:1px solid var(--pp-border);padding:24px;background:var(--pp-surface);">
-            {# Titel bearbeiten #}
-            <div style="margin-bottom:18px;">
-                <label style="font-size:21px;font-weight:600;color:var(--pp-text);display:block;margin-bottom:8px;font-family:var(--pp-ff);">Titel</label>
-                <input type="text" x-model="editTitle" style="width:100%;padding:16px 18px;font-size:22px;border:1px solid var(--pp-border);border-radius:10px;font-family:var(--pp-ff);background:var(--pp-bg);color:var(--pp-text);height:58px;">
+        {# Priority Badge + Dropdown #}
+        <div style="position:relative;" @click.stop>
+            <button class="td-prio" @click="datePop=false; prioDrop=!prioDrop"
+                    style="color:{{ pc }}; background:{{ pc }}18;">{{ pl }}</button>
+            <div x-show="prioDrop" x-transition.scale.origin.top @click.away="prioDrop=false"
+                 class="td-prio-dropdown" style="top:100%; right:0; margin-top:4px;">
+                {% for pv, plbl, pcol in [('unwichtig','Unwichtig','#6b7280'),('mittelmaessig','Mittel','#3b82f6'),('wichtig','Wichtig','#f59e0b'),('dringend','Dringend','#f97316'),('sehr_dringend','Sehr dringend','#ef4444')] %}
+                <button class="td-prio-option"
+                        @click="prioDrop=false; fetch('/api/ats/todos/{{ todo.id }}',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({priority:'{{ pv }}'})}).then(function(r){if(r.ok){showToast('Priorit\u00e4t ge\u00e4ndert','success');document.body.dispatchEvent(new CustomEvent('refreshTodos'));}});">
+                    <span style="width:8px; height:8px; border-radius:50%; flex-shrink:0; background:{{ pcol }};"></span>
+                    {{ plbl }}
+                    {% if todo.priority.value == pv %}<span style="margin-left:auto; color:var(--pp-accent); font-size:11px;">&#x2713;</span>{% endif %}
+                </button>
+                {% endfor %}
             </div>
-            {# Beschreibung #}
-            <div style="margin-bottom:18px;">
-                <label style="font-size:21px;font-weight:600;color:var(--pp-text);display:block;margin-bottom:8px;font-family:var(--pp-ff);">Notizen</label>
-                <textarea x-model="editDesc" rows="3" style="width:100%;padding:16px 18px;font-size:22px;border:1px solid var(--pp-border);border-radius:10px;font-family:var(--pp-ff);background:var(--pp-bg);color:var(--pp-text);resize:vertical;"></textarea>
+        </div>
+
+        {# Source Badge #}
+        {% if todo.call_note_id %}
+        <span class="td-source" style="background:rgba(34,197,94,0.12); color:#22c55e;">&#x1F4DE;</span>
+        {% endif %}
+
+        {# Datum + Popover #}
+        <div style="position:relative;" @click.stop>
+            <button class="td-date{% if todo.is_overdue %} td-date-overdue{% endif %}{% if not todo.due_date %} td-date-none{% endif %}"
+                    @click="prioDrop=false; datePop=!datePop">
+                {% if todo.due_date and todo.is_overdue %}&#x26A0; {{ todo.due_date.strftime('%d.%m.') }}{% elif todo.due_date %}{{ todo.due_date.strftime('%d.%m.') }}{% else %}&#x1F4C5;{% endif %}{% if todo.due_time %}<span style="font-size:10px; opacity:0.7;"> {{ todo.due_time.strftime('%H:%M') }}</span>{% endif %}
+            </button>
+            <div x-show="datePop" x-transition.scale.origin.top @click.away="datePop=false"
+                 class="td-date-popover">
+                <button class="td-date-quick" @click="datePop=false; fetch('/api/ats/todos/{{ todo.id }}/reschedule',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({due_date:todayISO})}).then(function(r){if(r.ok){showToast('Datum ge\u00e4ndert','success');document.body.dispatchEvent(new CustomEvent('refreshTodos'));}});">&#x1F4C6; Heute</button>
+                <button class="td-date-quick" @click="datePop=false; fetch('/api/ats/todos/{{ todo.id }}/reschedule',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({due_date:tomorrowISO})}).then(function(r){if(r.ok){showToast('Datum ge\u00e4ndert','success');document.body.dispatchEvent(new CustomEvent('refreshTodos'));}});">&#x2197; Morgen</button>
+                <button class="td-date-quick" @click="datePop=false; fetch('/api/ats/todos/{{ todo.id }}/reschedule',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({due_date:nextWeekISO})}).then(function(r){if(r.ok){showToast('Datum ge\u00e4ndert','success');document.body.dispatchEvent(new CustomEvent('refreshTodos'));}});">&#x1F4C5; N&auml;chste Woche</button>
+                <div style="border-top:1px solid rgba(255,255,255,0.06); margin:4px 0;"></div>
+                <input type="date" value="{{ todo.due_date.isoformat() if todo.due_date else '' }}"
+                       @change="datePop=false; fetch('/api/ats/todos/{{ todo.id }}/reschedule',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({due_date:$event.target.value})}).then(function(r){if(r.ok){showToast('Datum ge\u00e4ndert','success');document.body.dispatchEvent(new CustomEvent('refreshTodos'));}});"
+                       style="width:100%; padding:6px 8px; border-radius:8px; font-size:12px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); color:var(--pp-text); outline:none; font-family:var(--pp-ff); color-scheme:dark;">
+                {% if todo.due_date %}
+                <div style="border-top:1px solid rgba(255,255,255,0.06); margin:4px 0;"></div>
+                <button class="td-date-quick" style="color:var(--pp-red);"
+                        @click="datePop=false; fetch('/api/ats/todos/{{ todo.id }}',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({due_date:null})}).then(function(r){if(r.ok){showToast('Datum entfernt','success');document.body.dispatchEvent(new CustomEvent('refreshTodos'));}});">&#x2715; Datum entfernen</button>
+                {% endif %}
             </div>
-            {# Datum + Uhrzeit + Priorität + Status in einer Zeile #}
-            <div style="display:grid;grid-template-columns:1fr 0.7fr 1fr 1fr;gap:14px;margin-bottom:22px;">
-                <div>
-                    <label style="font-size:21px;font-weight:600;color:var(--pp-text);display:block;margin-bottom:8px;font-family:var(--pp-ff);">Fällig am</label>
-                    <input type="date" x-model="editDueDate" style="width:100%;padding:16px 18px;font-size:22px;border:1px solid var(--pp-border);border-radius:10px;font-family:var(--pp-ff);background:var(--pp-bg);color:var(--pp-text);height:58px;">
+        </div>
+
+        {# Hover Actions #}
+        <div class="td-hover-actions">
+            <button class="td-hover-btn" title="Auf morgen verschieben"
+                    @click.stop="fetch('/api/ats/todos/{{ todo.id }}/reschedule',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({due_date:tomorrowISO})}).then(function(r){if(r.ok){showToast('Auf morgen verschoben','success');document.body.dispatchEvent(new CustomEvent('refreshTodos'));}});">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 5l7 7-7 7M5 12h14"/></svg>
+            </button>
+            <button class="td-hover-btn td-hover-btn-danger" title="L&ouml;schen"
+                    @click.stop="if(confirm('Aufgabe l\u00f6schen?')){fetch('/api/ats/todos/{{ todo.id }}',{method:'DELETE'}).then(function(r){if(r.ok){showToast('Gel\u00f6scht','success');document.body.dispatchEvent(new CustomEvent('refreshTodos'));}});}">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+    </div>
+
+    {# ── Expand (Titel / Beschreibung / Uhrzeit / Status) ── #}
+    <div x-show="expanded" x-transition.duration.150ms class="td-expand">
+        <div style="display:flex; flex-direction:column; gap:8px;">
+            <input type="text" x-model="editTitle"
+                   style="width:100%; padding:6px 10px; border-radius:8px; border:1px solid rgba(255,255,255,0.08); font-size:13px; font-weight:600; color:var(--pp-text); background:rgba(255,255,255,0.03); font-family:var(--pp-ff); outline:none;">
+            <textarea x-model="editDesc" placeholder="Notizen hinzuf&uuml;gen..." rows="2"
+                      style="width:100%; padding:6px 10px; border-radius:8px; border:1px solid rgba(255,255,255,0.08); font-size:12px; color:var(--pp-textMuted); background:rgba(255,255,255,0.03); font-family:var(--pp-ff); outline:none; resize:vertical;"></textarea>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                <div style="display:flex; align-items:center; gap:4px;">
+                    <span style="font-size:10px; font-weight:700; color:var(--pp-textDim); text-transform:uppercase;">Uhrzeit</span>
+                    <input type="time" x-model="editTime"
+                           style="padding:4px 6px; border-radius:6px; border:1px solid rgba(255,255,255,0.08); font-size:11px; color:var(--pp-text); background:rgba(255,255,255,0.03); font-family:var(--pp-ff); outline:none; color-scheme:dark; width:80px;">
                 </div>
-                <div>
-                    <label style="font-size:21px;font-weight:600;color:var(--pp-text);display:block;margin-bottom:8px;font-family:var(--pp-ff);">Uhrzeit</label>
-                    <input type="time" x-model="editDueTime" style="width:100%;padding:16px 18px;font-size:22px;border:1px solid var(--pp-border);border-radius:10px;font-family:var(--pp-ff);background:var(--pp-bg);color:var(--pp-text);height:58px;">
-                </div>
-                <div>
-                    <label style="font-size:21px;font-weight:600;color:var(--pp-text);display:block;margin-bottom:8px;font-family:var(--pp-ff);">Priorität</label>
-                    <select x-model="editPriority" style="width:100%;padding:16px 18px;font-size:22px;border:1px solid var(--pp-border);border-radius:10px;font-family:var(--pp-ff);background:var(--pp-bg);color:var(--pp-text);height:58px;">
-                        <option value="unwichtig">Unwichtig</option>
-                        <option value="mittelmaessig">Mittelmäßig</option>
-                        <option value="wichtig">Wichtig</option>
-                        <option value="dringend">Dringend</option>
-                        <option value="sehr_dringend">Sehr dringend</option>
-                    </select>
-                </div>
-                <div>
-                    <label style="font-size:21px;font-weight:600;color:var(--pp-text);display:block;margin-bottom:8px;font-family:var(--pp-ff);">Status</label>
-                    <select x-model="editStatus" style="width:100%;padding:16px 18px;font-size:22px;border:1px solid var(--pp-border);border-radius:10px;font-family:var(--pp-ff);background:var(--pp-bg);color:var(--pp-text);height:58px;">
+                <div style="display:flex; align-items:center; gap:4px;">
+                    <span style="font-size:10px; font-weight:700; color:var(--pp-textDim); text-transform:uppercase;">Status</span>
+                    <select x-model="editStatus"
+                            style="padding:4px 6px; border-radius:6px; border:1px solid rgba(255,255,255,0.08); font-size:11px; color:var(--pp-text); background:rgba(255,255,255,0.03); font-family:var(--pp-ff); outline:none; cursor:pointer;">
                         <option value="open">Offen</option>
                         <option value="in_progress">In Bearbeitung</option>
                         <option value="done">Erledigt</option>
                         <option value="cancelled">Abgebrochen</option>
                     </select>
                 </div>
-            </div>
-            {# Action-Buttons #}
-            <div style="display:flex;gap:12px;align-items:center;">
-                <button @click="
-                    saving = true;
-                    var payload = {title: editTitle.trim(), description: editDesc.trim() || null, priority: editPriority, status: editStatus, due_date: editDueDate || null, due_time: editDueTime || null};
-                    fetch('/api/ats/todos/{{ todo.id }}', {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)})
-                    .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
-                    .then(function(){ showToast('Aufgabe gespeichert','success'); document.body.dispatchEvent(new CustomEvent('refreshTodos')); })
-                    .catch(function(e){ showToast('Fehler: '+e.message,'error'); saving=false; });
-                " type="button" :disabled="saving"
-                   style="padding:16px 30px;font-size:22px;font-weight:600;border-radius:10px;border:none;cursor:pointer;background:var(--pp-blue);color:#fff;font-family:var(--pp-ff);display:flex;align-items:center;gap:8px;"
-                   :style="saving ? 'opacity:0.6;cursor:not-allowed;' : ''">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
-                    Speichern
-                </button>
-                <button @click="open = false" type="button"
-                   style="padding:16px 30px;font-size:22px;font-weight:500;border-radius:10px;border:1px solid var(--pp-border);cursor:pointer;background:var(--pp-surfaceHover);color:var(--pp-text);font-family:var(--pp-ff);">
-                    Abbrechen
-                </button>
                 <div style="flex:1;"></div>
-                <button @click="if(confirm('Aufgabe löschen?')){fetch('/api/ats/todos/{{ todo.id }}',{method:'DELETE'}).then(function(r){if(r.ok){showToast('Gelöscht','success');document.body.dispatchEvent(new CustomEvent('refreshTodos'));}});}" type="button"
-                   style="padding:16px 24px;font-size:21px;font-weight:500;border-radius:10px;border:1px solid rgba(239,68,68,0.25);cursor:pointer;background:var(--pp-redSoft);color:var(--pp-red);font-family:var(--pp-ff);display:flex;align-items:center;gap:6px;">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg>
-                    Löschen
+                <button type="button"
+                        @click="saving=true; var p={title:editTitle.trim(),description:editDesc.trim()||null,status:editStatus,due_time:editTime||null}; fetch('/api/ats/todos/{{ todo.id }}',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)}).then(function(r){if(!r.ok) throw new Error('HTTP '+r.status); return r.json();}).then(function(){showToast('Gespeichert','success');document.body.dispatchEvent(new CustomEvent('refreshTodos'));}).catch(function(e){showToast('Fehler: '+e.message,'error');saving=false;});"
+                        :disabled="saving"
+                        style="padding:4px 12px; border-radius:6px; border:none; cursor:pointer; font-size:11px; font-weight:700; background:var(--pp-accent); color:#fff; font-family:var(--pp-ff);"
+                        :style="saving?'opacity:0.5;cursor:not-allowed;':''">
+                    &#x2713; Speichern
                 </button>
+                <button type="button" @click="expanded=false" class="td-add-btn">Schlie&szlig;en</button>
             </div>
         </div>
     </div>
-    {% endfor %}
 </div>
-{% else %}
-<p style="font-size:18px;color:var(--pp-textDim);font-family:var(--pp-ff);">Keine Aufgaben vorhanden</p>
+{% endfor %}
+</div>
 {% endif %}
+
+{# ── Immer sichtbare Schnell-Eingabe (Linear-Style) ── #}
+<div class="td-add-row">
+    <span style="color:var(--pp-textDim); font-size:16px; font-weight:300; flex-shrink:0;">+</span>
+    <input type="text" x-model="newTitle" placeholder="Neue Aufgabe..." class="td-add-input"
+           @keydown.enter="
+               if(!newTitle.trim()) return;
+               var payload={title:newTitle.trim(), contact_id:'{{ contact_id }}', priority:newPrio};
+               if(newDate) payload.due_date=newDate;
+               fetch('/api/ats/todos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+               .then(function(r){if(!r.ok) throw new Error('HTTP '+r.status); return r.json();})
+               .then(function(){newTitle='';newDate='';newPrio='wichtig';showToast('Aufgabe erstellt','success');document.body.dispatchEvent(new CustomEvent('refreshTodos'));})
+               .catch(function(e){showToast('Fehler: '+e.message,'error');});">
+
+    {# Quick-Prio #}
+    <div style="position:relative;" @click.stop>
+        <button class="td-add-btn" @click="showNewPrio=!showNewPrio; showNewDate=false"
+                :style="'color:'+prioColors[newPrio]" x-text="prioLabels[newPrio]" title="Priorit&auml;t"></button>
+        <div x-show="showNewPrio" x-transition @click.away="showNewPrio=false"
+             class="td-prio-dropdown" style="bottom:100%; right:0; margin-bottom:4px; top:auto;">
+            {% for pv, plbl, pcol in [('unwichtig','Unwichtig','#6b7280'),('mittelmaessig','Mittel','#3b82f6'),('wichtig','Wichtig','#f59e0b'),('dringend','Dringend','#f97316'),('sehr_dringend','Sehr dringend','#ef4444')] %}
+            <button class="td-prio-option" @click="newPrio='{{ pv }}'; showNewPrio=false">
+                <span style="width:8px; height:8px; border-radius:50%; flex-shrink:0; background:{{ pcol }};"></span>
+                {{ plbl }}
+                <span x-show="newPrio==='{{ pv }}'" style="margin-left:auto; color:var(--pp-accent); font-size:11px;">&#x2713;</span>
+            </button>
+            {% endfor %}
+        </div>
+    </div>
+
+    {# Quick-Date #}
+    <div style="position:relative;" @click.stop>
+        <button class="td-add-btn" @click="showNewDate=!showNewDate; showNewPrio=false" title="Datum">
+            <span x-show="!newDate">&#x1F4C5;</span>
+            <span x-show="newDate" x-text="newDate ? newDate.split('-')[2]+'.'+newDate.split('-')[1]+'.' : ''" style="font-size:10px;"></span>
+        </button>
+        <div x-show="showNewDate" x-transition @click.away="showNewDate=false"
+             class="td-date-popover" style="bottom:100%; right:0; margin-bottom:4px; top:auto;">
+            <button class="td-date-quick" @click="newDate=todayISO; showNewDate=false">&#x1F4C6; Heute</button>
+            <button class="td-date-quick" @click="newDate=tomorrowISO; showNewDate=false">&#x2197; Morgen</button>
+            <button class="td-date-quick" @click="newDate=nextWeekISO; showNewDate=false">&#x1F4C5; N&auml;chste Woche</button>
+            <div style="border-top:1px solid rgba(255,255,255,0.06); margin:4px 0;"></div>
+            <input type="date" :value="newDate" @change="newDate=$event.target.value; showNewDate=false"
+                   style="width:100%; padding:6px 8px; border-radius:8px; font-size:12px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); color:var(--pp-text); outline:none; font-family:var(--pp-ff); color-scheme:dark;">
+            <template x-if="newDate">
+                <div>
+                    <div style="border-top:1px solid rgba(255,255,255,0.06); margin:4px 0;"></div>
+                    <button class="td-date-quick" style="color:var(--pp-red);" @click="newDate=''; showNewDate=false">&#x2715; Entfernen</button>
+                </div>
+            </template>
+        </div>
+    </div>
+</div>
+
+{# ── Empty State ── #}
+{% if not todos or todos | length == 0 %}
+<div class="td-empty">
+    <div style="font-size:28px; margin-bottom:6px; opacity:0.2;">&#x2705;</div>
+    <div style="font-size:13px; font-weight:600; color:var(--pp-textDim);">Keine Aufgaben</div>
+    <div style="font-size:11px; color:var(--pp-text4); margin-top:3px;">Tippe unten eine neue Aufgabe ein</div>
+</div>
+{% endif %}
+
+</div>
