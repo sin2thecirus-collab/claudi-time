@@ -7,6 +7,7 @@
     {% for contact in contacts %}
     {% set ccolor = contact_colors[loop.index0 % 5] %}
     <div style="background:var(--pp-surface); border:1px solid var(--pp-border); border-radius:14px; padding:18px; transition:all 0.2s ease; cursor:pointer; min-width:0; position:relative;"
+         onclick="window.location.href='/kontakte/{{ contact.id }}';"
          onmouseover="this.style.background='var(--pp-surfaceHover)'; this.style.borderColor='var(--pp-borderLight)';"
          onmouseout="this.style.background='var(--pp-surface)'; this.style.borderColor='var(--pp-border)';">
 
