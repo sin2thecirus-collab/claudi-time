@@ -24,8 +24,7 @@
       font-style: normal;
     }
 
-    @page { size: A4; margin: 0; margin-top: 18px; }
-    @page :first { margin-top: 0; }
+    @page { size: A4; margin: 0; }
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
@@ -229,6 +228,7 @@
       display: flex;
       flex-direction: column;
       position: relative;
+      overflow: hidden;
     }
 
     /* mid-center-area entfernt — Content liegt direkt in .page-content */
@@ -847,10 +847,6 @@
 
     @media print {
       body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .page { page-break-after: always; }
-      .page:last-child { page-break-after: auto; }
-      /* Padding fuer CV-Folgeseiten damit Content nicht am Rand klebt */
-      .cv-body { padding-top: 20px; }
     }
   </style>
 </head>
