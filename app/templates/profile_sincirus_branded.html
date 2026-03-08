@@ -24,8 +24,7 @@
       font-style: normal;
     }
 
-    @page { size: A4; margin: 0; }
-    @page cv { margin-top: 14px; }
+    @page { size: A4; margin: 0; margin-left: 5px; border-left: 5px solid #0b89bd; }
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
@@ -58,17 +57,7 @@
       background: var(--white);
     }
 
-    /* Globaler Seitenrand-Akzent — auf JEDER Seite (WeasyPrint: fixed = repeated) */
-    body::before {
-      content: '';
-      position: fixed;
-      left: 0;
-      top: 0;
-      bottom: 0;
-      width: 5px;
-      background: var(--gradient-bar);
-      z-index: 100;
-    }
+    /* Seitenrand-Akzent links: via @page border-left auf JEDER Seite */
 
     /* ═══════════════════════════════════════════════ */
     /*   SEITE 1 — DECKBLATT                          */
@@ -616,7 +605,6 @@
       background: var(--white);
       position: relative;
       padding-top: 0;
-      page: cv;
     }
 
     /* Seitenrand-Akzent links — jetzt global via body::before */
@@ -705,6 +693,7 @@
       border: 1px solid rgba(226, 232, 240, 0.7);
       border-radius: 10px;
       padding: 16px 20px;
+      margin-top: 10px;
       margin-bottom: 10px;
       page-break-inside: avoid;
       position: relative;
