@@ -57,18 +57,6 @@
       background: var(--white);
     }
 
-    /* Globaler Seitenrand-Akzent — auf JEDER Seite (WeasyPrint: fixed = repeated) */
-    body::before {
-      content: '';
-      position: fixed;
-      left: 0;
-      top: 0;
-      bottom: 0;
-      width: 5px;
-      background: var(--gradient-bar);
-      z-index: 100;
-    }
-
     /* ═══════════════════════════════════════════════ */
     /*   SEITE 1 — DECKBLATT                          */
     /* ═══════════════════════════════════════════════ */
@@ -77,9 +65,23 @@
       width: 210mm;
       height: 297mm;
       background: var(--white);
+      display: flex;
+      flex-direction: column;
       overflow: hidden;
       position: relative;
       page-break-after: always;
+    }
+
+    /* Seitenrand-Akzent links */
+    .page::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 5px;
+      background: var(--gradient-bar);
+      z-index: 10;
     }
     .page:last-child { page-break-after: auto; }
 
@@ -221,8 +223,10 @@
 
     /* ── CONTENT BEREICH ── */
     .page-content {
+      flex: 1;
       padding: 20px 48px 0 48px;
-      overflow: hidden;
+      display: flex;
+      flex-direction: column;
     }
 
     /* Section Headings — Premium Tech */
@@ -432,11 +436,9 @@
     /* ═══════════════════════════════════════════════ */
 
     .vcard-footer {
-      position: absolute;
-      bottom: 4px;
-      left: 0;
-      right: 0;
-      padding: 0 28px;
+      margin-top: auto;
+      padding: 8px 48px 28px 48px;
+      flex-shrink: 0;
     }
 
     .vcard {
@@ -617,7 +619,17 @@
       padding-top: 0;
     }
 
-    /* Seitenrand-Akzent links — jetzt global via body::before */
+    /* Seitenrand-Akzent links fuer CV-Seiten */
+    .cv-pages::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 5px;
+      background: var(--gradient-bar);
+      z-index: 10;
+    }
 
     .cv-top-accent {
       height: 4px;
@@ -988,9 +1000,7 @@
     </div>
     {% endif %}
 
-  </div><!-- /page-content -->
-
-  <!-- VISITENKARTE — absolute Positionierung am Seitenende -->
+  <!-- VISITENKARTE — margin-top:auto drueckt ans Seitenende -->
   <div class="vcard-footer">
     <div class="vcard">
       <!-- KI-Netzwerk Constellation Pattern — ab Separator (x>=380), kein Overlap mit Foto -->
@@ -1057,6 +1067,8 @@
       </div>
     </div>
   </div>
+
+  </div><!-- /page-content -->
 
 </div><!-- /page -->
 
