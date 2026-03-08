@@ -1,7 +1,7 @@
 {# Neuer Ansprechpartner — Inline-Formular im Call-Screen #}
 {# Wird bei D13 (Weiterverbunden) oder manuell geoeffnet #}
 
-<div x-data="{ saving: false }" style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:8px;padding:12px;margin-bottom:12px;">
+<div x-data="{ saving: false }" class="aq-contact-card" style="padding:12px;margin-bottom:12px;">
     <p style="font-size:12px;font-weight:600;color:var(--pp-text);margin:0 0 10px;">Neuen AP erfassen</p>
     <form @submit.prevent="
         saving = true;
@@ -27,23 +27,18 @@
             saving = false;
         }).catch(() => { saving = false; })
     ">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
-            <input x-ref="nc_first" type="text" placeholder="Vorname" required
-                   style="padding:6px 8px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;">
-            <input x-ref="nc_last" type="text" placeholder="Nachname" required
-                   style="padding:6px 8px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;">
+        <div class="aq-grid-2" style="margin-bottom:8px;">
+            <input x-ref="nc_first" type="text" placeholder="Vorname" required class="aq-input aq-input--sm">
+            <input x-ref="nc_last" type="text" placeholder="Nachname" required class="aq-input aq-input--sm">
         </div>
-        <input x-ref="nc_position" type="text" placeholder="Funktion (z.B. Personalleitung)"
-               style="width:100%;padding:6px 8px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;margin-bottom:8px;box-sizing:border-box;">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
-            <input x-ref="nc_phone" type="tel" placeholder="Telefon"
-                   style="padding:6px 8px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;">
-            <input x-ref="nc_email" type="email" placeholder="E-Mail"
-                   style="padding:6px 8px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;">
+        <input x-ref="nc_position" type="text" placeholder="Funktion (z.B. Personalleitung)" class="aq-input aq-input--sm" style="margin-bottom:8px;">
+        <div class="aq-grid-2" style="margin-bottom:8px;">
+            <input x-ref="nc_phone" type="tel" placeholder="Telefon" class="aq-input aq-input--sm">
+            <input x-ref="nc_email" type="email" placeholder="E-Mail" class="aq-input aq-input--sm">
         </div>
-        <div style="display:flex;gap:8px;">
+        <div class="aq-flex-center aq-gap-8">
             <button type="button" onclick="document.getElementById('new-contact-form').style.display='none'"
-                    style="flex:1;padding:6px;background:var(--pp-surface3);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-textMuted);font-size:11px;cursor:pointer;">
+                    style="flex:1;padding:6px;background:rgba(14,16,25,0.7);border:1px solid rgba(255,255,255,0.06);border-radius:6px;color:var(--pp-textMuted);font-size:11px;cursor:pointer;">
                 Abbrechen
             </button>
             <button type="submit" :disabled="saving"

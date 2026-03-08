@@ -1,43 +1,45 @@
 {# Tab "Nicht erreicht" — E-Mail gesendet, wartet auf Reaktion #}
 
 {% if groups and groups | length > 0 %}
-<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:16px;">
-    <span style="font-size:28px;font-weight:700;color:var(--pp-text);letter-spacing:-0.5px;font-family:var(--pp-mono);">{{ total }}</span>
-    <span style="font-size:14px;color:var(--pp-textMuted);">Leads mit gesendeter E-Mail</span>
+<div class="aq-tab-header">
+    <span class="aq-tab-header__count">{{ total }}</span>
+    <span class="aq-tab-header__label">Leads mit gesendeter E-Mail</span>
 </div>
 
 {% for group in groups %}
-<div class="aq-company-group">
+<div class="aq-company">
     {# Firmen-Header #}
-    <div class="aq-company-header"
-         onclick="var c=this.nextElementSibling;c.style.display=c.style.display==='none'?'block':'none';this.querySelector('.chevron').style.transform=c.style.display==='none'?'':'rotate(180deg)'">
-        <div style="display:flex;align-items:center;gap:10px;">
-            <div class="aq-company-avatar">
-                <div class="aq-company-avatar-inner">{{ group.company_name[:1] | upper }}</div>
+    <div class="aq-company__header"
+         onclick="var c=this.nextElementSibling;c.style.display=c.style.display==='none'?'block':'none';this.querySelector('.aq-company__chevron').style.transform=c.style.display==='none'?'':'rotate(180deg)'">
+        <div class="aq-company__left">
+            <div class="aq-company__avatar">
+                <span class="aq-company__avatar-text">{{ group.company_name[:1] | upper }}</span>
             </div>
-            <div>
-                <span style="font-size:14px;font-weight:600;color:var(--pp-text);">{{ group.company_name }}</span>
-                <div style="display:flex;align-items:center;gap:6px;margin-top:1px;">
-                    {% if group.city %}<span style="font-size:12px;color:var(--pp-textDim);">{{ group.city }}</span><span style="color:var(--pp-border);">&middot;</span>{% endif %}
-                    <span style="font-size:11px;color:var(--pp-textDim);">{{ group.jobs | length }} Stelle{{ 'n' if group.jobs | length > 1 else '' }}</span>
+            <div class="aq-company__info">
+                <div class="aq-company__name-row">
+                    <span class="aq-company__name" style="cursor:default;">{{ group.company_name }}</span>
+                </div>
+                <div class="aq-company__meta">
+                    {% if group.city %}<span>{{ group.city }}</span><span style="color:var(--pp-border);">&middot;</span>{% endif %}
+                    <span>{{ group.jobs | length }} Stelle{{ 'n' if group.jobs | length > 1 else '' }}</span>
                 </div>
             </div>
         </div>
-        <svg class="chevron" style="width:14px;height:14px;color:var(--pp-textDim);transition:transform .15s;transform:rotate(180deg);" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+        <svg class="aq-company__chevron" style="transform:rotate(180deg);" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
     </div>
     {# Jobs #}
     <div>
         {% for job in group.jobs %}
-        <div data-lead-id="{{ job.id }}" class="aq-job-row"
+        <div data-lead-id="{{ job.id }}" class="aq-lead"
              onclick="Alpine.$data(document.getElementById('akquise-root')).openCallScreen('{{ job.id }}')">
-            <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
-                <span class="aq-status-badge" style="background:rgba(96,165,250,0.12);color:#60a5fa;">{{ job.akquise_status }}</span>
-                <span style="font-size:13px;font-weight:500;color:var(--pp-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ job.position }}</span>
+            <div class="aq-lead__info" style="flex-direction:row;align-items:center;gap:10px;">
+                <span class="aq-lead__status aq-lead__status--{{ job.akquise_status or 'email_gesendet' }}">{{ job.akquise_status }}</span>
+                <span class="aq-lead__title">{{ job.position }}</span>
             </div>
-            <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;margin-left:12px;">
+            <div class="aq-lead__actions">
                 {% if job.email_sent_at %}
                 {% set days_since = job.days_since_email or 0 %}
-                <span style="font-size:10px;font-weight:500;padding:2px 8px;border-radius:10px;{% if days_since < 3 %}background:rgba(34,197,94,0.1);color:var(--pp-green);{% elif days_since < 7 %}background:rgba(234,179,8,0.1);color:var(--pp-orange);{% else %}background:rgba(239,68,68,0.1);color:var(--pp-red);{% endif %}">
+                <span style="font-size:10px;font-weight:500;padding:2px 8px;border-radius:10px;font-family:var(--pp-mono);{% if days_since < 3 %}background:rgba(34,197,94,0.1);color:var(--pp-green);{% elif days_since < 7 %}background:rgba(234,179,8,0.1);color:var(--pp-orange);{% else %}background:rgba(239,68,68,0.1);color:var(--pp-red);{% endif %}">
                     {{ days_since }}d
                 </span>
                 {% endif %}
@@ -69,9 +71,9 @@
 {% endif %}
 
 {% else %}
-<div style="text-align:center;padding:80px 0;">
-    <svg style="width:48px;height:48px;color:var(--pp-textDim);margin:0 auto 12px;opacity:0.4;" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"/></svg>
-    <p style="font-size:15px;font-weight:500;color:var(--pp-textMuted);margin:0;">Keine offenen E-Mail-Leads</p>
-    <p style="font-size:13px;color:var(--pp-textDim);margin:6px 0 0;">Leads mit gesendeter E-Mail erscheinen hier</p>
+<div class="aq-empty">
+    <svg class="aq-empty__icon" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"/></svg>
+    <p class="aq-empty__title">Keine offenen E-Mail-Leads</p>
+    <p class="aq-empty__desc">Leads mit gesendeter E-Mail erscheinen hier</p>
 </div>
 {% endif %}

@@ -1,31 +1,29 @@
 {# Tab "Heute anrufen" — Faellige Wiedervorlagen + neue Leads mit hoher Prio #}
 
 {% if wiedervorlagen and wiedervorlagen | length > 0 %}
-<div style="margin-bottom:24px;">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
-        <div class="aq-section-icon orange">
+<div class="aq-mb-24" style="margin-bottom:24px;">
+    <div class="aq-section-header">
+        <div class="aq-section-icon aq-section-icon--orange">
             <svg style="width:15px;height:15px;color:var(--pp-orange);" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
         </div>
-        <span style="font-size:15px;font-weight:600;color:var(--pp-text);">Faellige Wiedervorlagen</span>
-        <span style="background:rgba(234,179,8,0.12);color:var(--pp-orange);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;">{{ wiedervorlagen | length }}</span>
+        <span class="aq-section-title">Faellige Wiedervorlagen</span>
+        <span class="aq-section-count">{{ wiedervorlagen | length }}</span>
     </div>
     {% for wv in wiedervorlagen %}
-    <div data-lead-id="{{ wv.job_id }}" class="aq-wv-card"
+    <div data-lead-id="{{ wv.job_id }}" class="aq-wv"
          onclick="Alpine.$data(document.getElementById('akquise-root')).openCallScreen('{{ wv.job_id }}')">
-        <div style="display:flex;align-items:center;justify-content:space-between;">
-            <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:0;">
-                <span style="font-size:13px;font-weight:600;color:var(--pp-text);">{{ wv.company_name }}</span>
-                <span style="font-size:12px;color:var(--pp-textMuted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ wv.position }}</span>
+        <div class="aq-wv__header">
+            <div class="aq-wv__info">
+                <span class="aq-wv__company">{{ wv.company_name }}</span>
+                <span class="aq-wv__position">{{ wv.position }}</span>
             </div>
-            <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;margin-left:16px;">
-                <span style="background:rgba(234,179,8,0.12);color:var(--pp-orange);padding:3px 10px;border-radius:6px;font-size:11px;font-weight:600;white-space:nowrap;">{{ wv.follow_up_time or '' }}</span>
+            <div class="aq-wv__right">
+                <span class="aq-wv__time">{{ wv.follow_up_time or '' }}</span>
                 <svg style="width:16px;height:16px;color:var(--pp-green);" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"/></svg>
             </div>
         </div>
         {% if wv.follow_up_note %}
-        <div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.04);">
-            <span style="font-size:11px;color:var(--pp-textDim);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">{{ wv.follow_up_note }}</span>
-        </div>
+        <div class="aq-wv__note">{{ wv.follow_up_note }}</div>
         {% endif %}
     </div>
     {% endfor %}
@@ -33,9 +31,9 @@
 {% endif %}
 
 {% if groups and groups | length > 0 %}
-<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:16px;">
-    <span style="font-size:28px;font-weight:700;color:var(--pp-text);letter-spacing:-0.5px;font-family:var(--pp-mono);">{{ total }}</span>
-    <span style="font-size:14px;color:var(--pp-textMuted);">Leads in {{ groups | length }} Firmen</span>
+<div class="aq-tab-header">
+    <span class="aq-tab-header__count">{{ total }}</span>
+    <span class="aq-tab-header__label">Leads in {{ groups | length }} Firmen</span>
 </div>
 
 {% for group in groups %}
@@ -47,9 +45,9 @@
 {% endif %}
 
 {% else %}
-<div style="text-align:center;padding:80px 0;">
-    <svg style="width:48px;height:48px;color:var(--pp-textDim);margin:0 auto 12px;opacity:0.4;" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"/></svg>
-    <p style="font-size:15px;font-weight:500;color:var(--pp-textMuted);margin:0;">Keine Leads zum Anrufen</p>
-    <p style="font-size:13px;color:var(--pp-textDim);margin:6px 0 0;">Importiere eine CSV oder pruefe die Wiedervorlagen</p>
+<div class="aq-empty">
+    <svg class="aq-empty__icon" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"/></svg>
+    <p class="aq-empty__title">Keine Leads zum Anrufen</p>
+    <p class="aq-empty__desc">Importiere eine CSV oder pruefe die Wiedervorlagen</p>
 </div>
 {% endif %}

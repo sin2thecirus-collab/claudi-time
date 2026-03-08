@@ -3,6 +3,7 @@
 
 <style>
 /* ── Aurora: Disposition Glass System ── */
+.dsp-container { display: flex; flex-direction: column; gap: 6px; }
 .dsp-group {
     background: rgba(14,16,25,0.45);
     border: 1px solid rgba(255,255,255,0.05);
@@ -11,6 +12,18 @@
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
 }
+.dsp-group--orange { border-left: 3px solid var(--pp-orange); }
+.dsp-group--red    { border-left: 3px solid var(--pp-red); }
+.dsp-group--green  { border-left: 3px solid var(--pp-green); }
+.dsp-group--dim    { border-left: 3px solid var(--pp-textDim); }
+.dsp-group--purple { border-left: 3px solid var(--pp-purple); }
+.dsp-group__label {
+    font-size: 9px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.5px; margin-bottom: 4px;
+}
+.dsp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
+.dsp-grid--3col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 3px; }
+.dsp-stack { display: flex; flex-direction: column; gap: 3px; margin-top: 3px; }
 .dsp-btn {
     padding: 5px 6px;
     background: rgba(6,7,11,0.5);
@@ -27,6 +40,27 @@
     background: rgba(30,34,53,0.6);
     border-color: rgba(255,255,255,0.1);
 }
+.dsp-btn--span2 { grid-column: span 2; }
+.dsp-btn--danger {
+    background: rgba(239,68,68,0.06);
+    border-color: rgba(239,68,68,0.2);
+    color: var(--pp-red);
+}
+.dsp-btn--qualified {
+    background: rgba(34,197,94,0.05);
+    border-color: rgba(34,197,94,0.15);
+    color: var(--pp-green);
+}
+.dsp-btn--hero {
+    padding: 7px 8px;
+    background: linear-gradient(135deg, #34D399, #10B981);
+    border: none; border-radius: 8px;
+    color: #fff; font-size: 11px; font-weight: 700;
+    cursor: pointer; text-align: center;
+    transition: all .15s;
+    box-shadow: 0 2px 12px rgba(34,197,94,0.2);
+    font-family: inherit;
+}
 .dsp-form {
     background: rgba(14,16,25,0.55);
     border: 1px solid rgba(255,255,255,0.06);
@@ -34,6 +68,22 @@
     padding: 10px;
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
+}
+.dsp-form--sided { border-radius: 0 10px 10px 0; }
+.dsp-form__title {
+    font-size: 12px; font-weight: 600; color: var(--pp-text);
+    margin: 0 0 3px;
+}
+.dsp-form__title--mb { margin-bottom: 8px; }
+.dsp-form__hint {
+    font-size: 10px; color: var(--pp-textDim); margin: 0 0 8px;
+}
+.dsp-form__grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+}
+.dsp-form__label {
+    font-size: 9px; color: var(--pp-textDim);
+    display: block; margin-bottom: 3px;
 }
 .dsp-input {
     width: 100%;
@@ -51,6 +101,12 @@
 .dsp-input:focus {
     border-color: rgba(96,165,250,0.3);
 }
+.dsp-input--mt { margin-top: 6px; }
+.dsp-input--mb { margin-bottom: 6px; }
+.dsp-input--textarea { height: 50px; resize: vertical; }
+.dsp-actions {
+    display: flex; gap: 6px; margin-top: 8px;
+}
 .dsp-cancel {
     flex: 1;
     padding: 5px;
@@ -67,14 +123,24 @@
     background: rgba(30,34,53,0.5);
     border-color: rgba(255,255,255,0.1);
 }
+.dsp-submit {
+    flex: 1; padding: 5px;
+    border: none; border-radius: 6px;
+    color: #fff; font-size: 10px; font-weight: 600;
+    cursor: pointer; font-family: inherit;
+    transition: opacity .15s;
+}
+.dsp-submit--green  { background: linear-gradient(135deg, #34D399, #10B981); }
+.dsp-submit--blue   { background: var(--pp-accent); }
+.dsp-submit--orange { background: linear-gradient(135deg, #FBBF24, #F59E0B); color: #000; }
 </style>
 
-<div style="display:flex;flex-direction:column;gap:6px;">
+<div class="dsp-container">
 
     {# ── Nicht erreicht ── #}
-    <div class="dsp-group" style="border-left:3px solid var(--pp-orange);">
-        <div style="font-size:9px;font-weight:600;color:var(--pp-orange);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Nicht erreicht</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;">
+    <div class="dsp-group dsp-group--orange">
+        <div class="dsp-group__label" style="color:var(--pp-orange);">Nicht erreicht</div>
+        <div class="dsp-grid">
             <button @click="submitDisposition('nicht_erreicht')"
                     :style="selectedDisposition === 'nicht_erreicht' ? 'background:var(--pp-orange);color:#000;border-color:var(--pp-orange);' : ''"
                     class="dsp-btn">
@@ -97,16 +163,16 @@
             </button>
             <button @click="submitDisposition('sekretariat')"
                     :style="selectedDisposition === 'sekretariat' ? 'background:var(--pp-orange);color:#000;border-color:var(--pp-orange);' : ''"
-                    class="dsp-btn" style="grid-column:span 2;">
+                    class="dsp-btn dsp-btn--span2">
                 D4 Sekretariat
             </button>
         </div>
     </div>
 
     {# ── Erreicht — Negativ ── #}
-    <div class="dsp-group" style="border-left:3px solid var(--pp-red);">
-        <div style="font-size:9px;font-weight:600;color:var(--pp-red);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Ablehnung</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;">
+    <div class="dsp-group dsp-group--red">
+        <div class="dsp-group__label" style="color:var(--pp-red);">Ablehnung</div>
+        <div class="dsp-grid">
             <button @click="submitDisposition('kein_bedarf')"
                     :style="selectedDisposition === 'kein_bedarf' ? 'background:var(--pp-red);color:#fff;border-color:var(--pp-red);' : ''"
                     class="dsp-btn">
@@ -114,16 +180,16 @@
             </button>
             <button @click="if(confirm('Firma DAUERHAFT auf Blacklist setzen?')) submitDisposition('nie_wieder')"
                     :style="selectedDisposition === 'nie_wieder' ? 'background:var(--pp-red);color:#fff;border-color:var(--pp-red);' : ''"
-                    class="dsp-btn" style="background:rgba(239,68,68,0.06);border-color:rgba(239,68,68,0.2);color:var(--pp-red);">
+                    class="dsp-btn dsp-btn--danger">
                 D6 Nie wieder
             </button>
         </div>
     </div>
 
     {# ── Erreicht — Positiv ── #}
-    <div class="dsp-group" style="border-left:3px solid var(--pp-green);">
-        <div style="font-size:9px;font-weight:600;color:var(--pp-green);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Interesse</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;">
+    <div class="dsp-group dsp-group--green">
+        <div class="dsp-group__label" style="color:var(--pp-green);">Interesse</div>
+        <div class="dsp-grid">
             <button @click="showFollowUp = true; pendingDisposition = 'interesse_spaeter'"
                     :style="selectedDisposition === 'interesse_spaeter' ? 'background:var(--pp-green);color:#fff;border-color:var(--pp-green);' : ''"
                     class="dsp-btn">
@@ -135,24 +201,24 @@
                 D8 Will Infos
             </button>
         </div>
-        <div style="display:flex;flex-direction:column;gap:3px;margin-top:3px;">
+        <div class="dsp-stack">
             <button @click="showFollowUp = true; pendingDisposition = 'qualifiziert_erst'"
                     :style="selectedDisposition === 'qualifiziert_erst' ? 'background:var(--pp-green);color:#fff;border-color:var(--pp-green);' : ''"
-                    class="dsp-btn" style="background:rgba(34,197,94,0.05);border-color:rgba(34,197,94,0.15);color:var(--pp-green);">
+                    class="dsp-btn dsp-btn--qualified">
                 D9 Qualifiziert (Zweitkontakt)
             </button>
             <button @click="submitDisposition('voll_qualifiziert')"
                     :style="selectedDisposition === 'voll_qualifiziert' ? 'background:#16a34a;color:#fff;border-color:#16a34a;box-shadow:0 0 10px rgba(34,197,94,0.3);' : ''"
-                    style="padding:7px 8px;background:linear-gradient(135deg,#34D399,#10B981);border:none;border-radius:8px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;text-align:center;transition:all .15s;box-shadow:0 2px 12px rgba(34,197,94,0.2);font-family:inherit;">
+                    class="dsp-btn--hero">
                 ★ D10 Voll qualifiziert → ATS
             </button>
         </div>
     </div>
 
     {# ── Sonderfaelle ── #}
-    <div class="dsp-group" style="border-left:3px solid var(--pp-textDim);">
-        <div style="font-size:9px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Sonderfaelle</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;">
+    <div class="dsp-group dsp-group--dim">
+        <div class="dsp-group__label" style="color:var(--pp-textDim);">Sonderfaelle</div>
+        <div class="dsp-grid--3col">
             <button @click="showD11Form = true" class="dsp-btn">
                 D11 AP weg
             </button>
@@ -168,27 +234,27 @@
     </div>
 
     {# ── Wiedervorlage Datum/Uhrzeit (zeigt sich bei D7, D9) ── #}
-    <div x-show="showFollowUp" x-transition class="dsp-form" style="border-left:3px solid var(--pp-purple);border-radius:0 10px 10px 0;">
-        <p style="font-size:12px;font-weight:600;color:var(--pp-text);margin:0 0 3px;">Wiedervorlage</p>
-        <p x-show="pendingDisposition === 'interesse_spaeter'" style="font-size:10px;color:var(--pp-textDim);margin:0 0 8px;">Kunde hat Interesse, aber aktuell kein Bedarf.</p>
-        <p x-show="pendingDisposition === 'qualifiziert_erst'" style="font-size:10px;color:var(--pp-textDim);margin:0 0 8px;">Zweitkontakt vereinbart.</p>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+    <div x-show="showFollowUp" x-transition class="dsp-form dsp-form--sided dsp-group--purple">
+        <p class="dsp-form__title">Wiedervorlage</p>
+        <p x-show="pendingDisposition === 'interesse_spaeter'" class="dsp-form__hint">Kunde hat Interesse, aber aktuell kein Bedarf.</p>
+        <p x-show="pendingDisposition === 'qualifiziert_erst'" class="dsp-form__hint">Zweitkontakt vereinbart.</p>
+        <div class="dsp-form__grid">
             <div>
-                <label style="font-size:9px;color:var(--pp-textDim);display:block;margin-bottom:3px;">Datum *</label>
+                <label class="dsp-form__label">Datum *</label>
                 <input type="date" x-model="followUpDate" class="dsp-input">
             </div>
             <div>
-                <label style="font-size:9px;color:var(--pp-textDim);display:block;margin-bottom:3px;">Uhrzeit</label>
+                <label class="dsp-form__label">Uhrzeit</label>
                 <input type="time" x-model="followUpTime" class="dsp-input">
             </div>
         </div>
-        <input type="text" x-model="followUpNote" placeholder="Grund/Notiz..." class="dsp-input" style="margin-top:6px;">
-        <div style="display:flex;gap:6px;margin-top:8px;">
+        <input type="text" x-model="followUpNote" placeholder="Grund/Notiz..." class="dsp-input dsp-input--mt">
+        <div class="dsp-actions">
             <button @click="showFollowUp = false; pendingDisposition = ''" class="dsp-cancel">
                 Abbrechen
             </button>
             <button @click="submitDisposition(pendingDisposition); showFollowUp = false"
-                    style="flex:1;padding:5px;background:linear-gradient(135deg,#34D399,#10B981);border:none;border-radius:6px;color:#fff;font-size:10px;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .15s;">
+                    class="dsp-submit dsp-submit--green">
                 Speichern
             </button>
         </div>
@@ -196,21 +262,20 @@
 
     {# ── Neue Stelle Formular (zeigt sich bei D12) ── #}
     <div x-show="showNewJobForm" x-transition class="dsp-form">
-        <p style="font-size:12px;font-weight:600;color:var(--pp-text);margin:0 0 8px;">Neue Stelle anlegen</p>
-        <input type="text" x-model="newJobPosition" placeholder="Position / Jobtitel *" class="dsp-input" style="margin-bottom:6px;">
-        <select x-model="newJobType" class="dsp-input" style="margin-bottom:6px;">
+        <p class="dsp-form__title dsp-form__title--mb">Neue Stelle anlegen</p>
+        <input type="text" x-model="newJobPosition" placeholder="Position / Jobtitel *" class="dsp-input dsp-input--mb">
+        <select x-model="newJobType" class="dsp-input dsp-input--mb">
             <option value="">Art der Stelle</option>
             <option value="Vollzeit">Vollzeit</option>
             <option value="Teilzeit">Teilzeit</option>
             <option value="Freelance">Freelance</option>
         </select>
-        <textarea x-model="newJobNotes" placeholder="Notizen zur Stelle..." class="dsp-input" style="height:50px;resize:vertical;margin-bottom:6px;font-family:inherit;"></textarea>
-        <div style="display:flex;gap:6px;">
+        <textarea x-model="newJobNotes" placeholder="Notizen zur Stelle..." class="dsp-input dsp-input--mb dsp-input--textarea"></textarea>
+        <div class="dsp-actions" style="margin-top:0;">
             <button @click="showNewJobForm = false" class="dsp-cancel">
                 Abbrechen
             </button>
-            <button @click="submitD12WithJob()"
-                    style="flex:1;padding:5px;background:var(--pp-accent);border:none;border-radius:6px;color:#fff;font-size:10px;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .15s;">
+            <button @click="submitD12WithJob()" class="dsp-submit dsp-submit--blue">
                 Anlegen + Disposition
             </button>
         </div>
@@ -218,15 +283,14 @@
 
     {# ── D11 AP nicht mehr da — Nachfolger-Feld ── #}
     <div x-show="showD11Form" x-transition class="dsp-form">
-        <p style="font-size:12px;font-weight:600;color:var(--pp-text);margin:0 0 3px;">AP nicht mehr da</p>
-        <p style="font-size:10px;color:var(--pp-textDim);margin:0 0 8px;">Contact wird als inaktiv markiert.</p>
-        <input type="text" x-model="d11Nachfolger" placeholder="Nachfolger bekannt? (Name, optional)" class="dsp-input" style="margin-bottom:6px;">
-        <div style="display:flex;gap:6px;">
+        <p class="dsp-form__title">AP nicht mehr da</p>
+        <p class="dsp-form__hint">Contact wird als inaktiv markiert.</p>
+        <input type="text" x-model="d11Nachfolger" placeholder="Nachfolger bekannt? (Name, optional)" class="dsp-input dsp-input--mb">
+        <div class="dsp-actions" style="margin-top:0;">
             <button @click="showD11Form = false" class="dsp-cancel">
                 Abbrechen
             </button>
-            <button @click="submitD11()"
-                    style="flex:1;padding:5px;background:linear-gradient(135deg,#FBBF24,#F59E0B);border:none;border-radius:6px;color:#000;font-size:10px;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .15s;">
+            <button @click="submitD11()" class="dsp-submit dsp-submit--orange">
                 Speichern
             </button>
         </div>
@@ -234,20 +298,19 @@
 
     {# ── D13 Weiterverbunden — Neuer Contact ── #}
     <div x-show="showD13Form" x-transition class="dsp-form">
-        <p style="font-size:12px;font-weight:600;color:var(--pp-text);margin:0 0 3px;">Weiterverbunden</p>
-        <p style="font-size:10px;color:var(--pp-textDim);margin:0 0 8px;">Neuer AP wird an die Firma angehaengt.</p>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;">
+        <p class="dsp-form__title">Weiterverbunden</p>
+        <p class="dsp-form__hint">Neuer AP wird an die Firma angehaengt.</p>
+        <div class="dsp-form__grid" style="margin-bottom:6px;">
             <input type="text" x-model="d13FirstName" placeholder="Vorname *" class="dsp-input">
             <input type="text" x-model="d13LastName" placeholder="Nachname *" class="dsp-input">
         </div>
-        <input type="text" x-model="d13Function" placeholder="Funktion (z.B. Leiter Rechnungswesen)" class="dsp-input" style="margin-bottom:6px;">
-        <input type="text" x-model="d13Phone" placeholder="Telefon / Durchwahl" class="dsp-input" style="margin-bottom:6px;">
-        <div style="display:flex;gap:6px;">
+        <input type="text" x-model="d13Function" placeholder="Funktion (z.B. Leiter Rechnungswesen)" class="dsp-input dsp-input--mb">
+        <input type="text" x-model="d13Phone" placeholder="Telefon / Durchwahl" class="dsp-input dsp-input--mb">
+        <div class="dsp-actions" style="margin-top:0;">
             <button @click="showD13Form = false" class="dsp-cancel">
                 Abbrechen
             </button>
-            <button @click="submitD13()"
-                    style="flex:1;padding:5px;background:var(--pp-accent);border:none;border-radius:6px;color:#fff;font-size:10px;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .15s;">
+            <button @click="submitD13()" class="dsp-submit dsp-submit--blue">
                 Contact anlegen
             </button>
         </div>

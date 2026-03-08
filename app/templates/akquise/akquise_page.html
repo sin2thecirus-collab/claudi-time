@@ -4,276 +4,542 @@
 
 {% block head %}
 <style>
-    /* ── Aurora: Akquise Glass System ── */
+    /* ══════════════════════════════════════════════════════════
+       AKQUISE COCKPIT — Sales Mission Control
+       Redesign v6.0 — BEM-lite with aq- prefix
+       ══════════════════════════════════════════════════════════ */
+
+    /* ── Animations ── */
     @keyframes aqFadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
-    /* WICHTIG: backwards statt forwards — nach Animation KEIN transform auf dem Element,
-       sonst bricht position:fixed fuer alle Modals (Lead anlegen, CSV Import, E-Mail) */
+    @keyframes aqPulseRing { 0%,100% { opacity:0; transform:scale(1); } 50% { opacity:1; transform:scale(1.03); } }
+    @keyframes aqPulseDot { 0%,100% { opacity:0.4; transform:scale(0.8); } 50% { opacity:1; transform:scale(1.2); } }
+
+    /* WICHTIG: backwards — nach Animation KEIN transform, sonst bricht position:fixed */
     .aq-wrap { animation: aqFadeUp 0.4s cubic-bezier(0.16,1,0.3,1) backwards; }
 
-    /* KPI cards — glass */
-    .aq-kpi-card {
-        position: relative; padding: 18px 22px; overflow: hidden;
-        background: rgba(14,16,25,0.65);
-        border: 1px solid rgba(255,255,255,0.07);
-        border-radius: 14px;
-        backdrop-filter: blur(16px) saturate(1.3);
-        -webkit-backdrop-filter: blur(16px) saturate(1.3);
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        transition: border-color 0.3s, box-shadow 0.3s, transform 0.3s;
-    }
-    .aq-kpi-card::before {
-        content:''; position:absolute; top:0; left:20px; right:20px; height:1px;
-        background: linear-gradient(90deg, transparent, rgba(96,165,250,0.3), transparent);
-    }
-    .aq-kpi-card[data-accent="green"]::before { background: linear-gradient(90deg, transparent, rgba(52,211,153,0.35), transparent); }
-    .aq-kpi-card[data-accent="orange"]::before { background: linear-gradient(90deg, transparent, rgba(234,179,8,0.35), transparent); }
-    .aq-kpi-card[data-accent="blue"]::before { background: linear-gradient(90deg, transparent, rgba(96,165,250,0.35), transparent); }
-    .aq-kpi-card:hover {
-        border-color: rgba(96,165,250,0.2);
-        box-shadow: 0 4px 24px rgba(0,0,0,0.3), 0 0 20px rgba(96,165,250,0.06);
-        transform: translateY(-2px);
-    }
-    .aq-kpi-value {
-        font-size: 28px; font-weight: 800; color: var(--pp-text); margin: 0;
-        font-family: 'Space Mono', monospace; letter-spacing: -0.5px;
-    }
-
-    /* Tab navigation — glass pills */
-    .aq-tabs {
-        background: rgba(14,16,25,0.4);
-        border: 1px solid rgba(255,255,255,0.06);
-        border-radius: 12px;
-        padding: 4px;
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-    }
-    .aq-tab-pill {
-        padding: 9px 18px; font-size: 13px; font-weight: 500;
-        background: none; border: none; border-radius: 8px;
-        color: var(--pp-textMuted); cursor: pointer; white-space: nowrap;
-        transition: all 0.2s; font-family: inherit;
-    }
-    .aq-tab-pill:hover { background: rgba(96,165,250,0.06); color: var(--pp-text); }
-    .aq-tab-pill.active {
-        background: rgba(96,165,250,0.12); color: var(--pp-text); font-weight: 600;
-        box-shadow: 0 0 12px rgba(96,165,250,0.08);
-    }
-    .aq-tab-badge {
-        margin-left: 6px; padding: 2px 8px; border-radius: 10px;
-        font-size: 11px; font-weight: 600; min-width: 22px; text-align: center;
-        display: inline-block; background: rgba(255,255,255,0.06); color: var(--pp-textDim);
-    }
-    .aq-tab-badge.active { background: var(--pp-accent); color: #fff; }
-    .aq-tab-badge.red { background: rgba(239,68,68,0.12); color: var(--pp-red); }
-
-    /* Tab content area */
-    #akquise-tab-inner { border-radius: 14px; }
-
-    /* Abtelefonieren button — gradient */
-    .aq-call-btn {
-        background: linear-gradient(135deg, #34D399, #10B981) !important;
-        box-shadow: 0 2px 12px rgba(52,211,153,0.3);
-    }
-    .aq-call-btn:hover {
-        box-shadow: 0 4px 20px rgba(52,211,153,0.4);
-        transform: translateY(-1px);
-    }
-
-    /* Search input — glass */
-    .aq-search-input {
-        background: rgba(6,7,11,0.5);
-        border: 1px solid rgba(255,255,255,0.08);
-        border-radius: 8px; color: var(--pp-text); font-family: inherit;
-        backdrop-filter: blur(4px); transition: all 0.2s; outline: none;
-    }
-    .aq-search-input:focus {
-        border-color: rgba(96,165,250,0.4);
-        box-shadow: 0 0 0 3px rgba(96,165,250,0.1), 0 0 12px rgba(96,165,250,0.08);
-    }
-    .aq-search-input::placeholder { color: var(--pp-textDim); }
-
-    /* Modals — glass backdrop */
-    .aq-modal-bg {
-        backdrop-filter: blur(8px) !important;
-    }
-    .aq-modal-content {
-        background: rgba(14,16,25,0.92) !important;
-        border: 1px solid rgba(255,255,255,0.08) !important;
-        backdrop-filter: blur(24px) saturate(1.4) !important;
-        box-shadow: 0 24px 48px rgba(0,0,0,0.5), 0 0 30px rgba(96,165,250,0.04) !important;
-        border-radius: 16px !important;
-    }
-    /* Modal form inputs — glass */
-    .aq-modal-content input[type="text"],
-    .aq-modal-content input[type="tel"],
-    .aq-modal-content textarea,
-    .aq-modal-content select {
-        background: rgba(6,7,11,0.6) !important;
-        border: 1px solid rgba(255,255,255,0.08) !important;
-        color: var(--pp-text) !important;
-        transition: border-color 0.2s, box-shadow 0.2s;
-    }
-    .aq-modal-content input[type="text"]:focus,
-    .aq-modal-content input[type="tel"]:focus,
-    .aq-modal-content textarea:focus,
-    .aq-modal-content select:focus {
-        border-color: rgba(96,165,250,0.4) !important;
-        box-shadow: 0 0 0 3px rgba(96,165,250,0.1) !important;
-        outline: none !important;
-    }
-    .aq-modal-content input::placeholder,
-    .aq-modal-content textarea::placeholder { color: var(--pp-textDim) !important; }
-
-    /* Email modal — glass */
-    #email-modal-content {
-        background: rgba(14,16,25,0.92) !important;
-        border: 1px solid rgba(255,255,255,0.08) !important;
-        backdrop-filter: blur(24px) saturate(1.4) !important;
-        box-shadow: 0 24px 48px rgba(0,0,0,0.5), 0 0 30px rgba(96,165,250,0.04) !important;
-        border-radius: 16px !important;
-    }
-
-    /* Rueckruf popup — glass */
-    [x-show="rueckrufVisible"] {
-        background: rgba(14,16,25,0.92) !important;
-        border: 1px solid rgba(96,165,250,0.3) !important;
-        backdrop-filter: blur(20px) saturate(1.4) !important;
-        box-shadow: 0 12px 40px rgba(59,130,246,0.2), 0 0 20px rgba(96,165,250,0.06) !important;
-        border-radius: 14px !important;
-    }
-
-    /* Bulk action bar → glass */
-    .aq-bulk-bar {
-        background: rgba(14,16,25,0.85) !important;
-        border: 1px solid rgba(255,255,255,0.1) !important;
-        backdrop-filter: blur(20px) saturate(1.4) !important;
-        box-shadow: 0 -4px 24px rgba(0,0,0,0.3), 0 0 16px rgba(96,165,250,0.05) !important;
-        border-radius: 14px !important;
-    }
-
-    /* Call screen overlay → glass */
-    .aq-wrap [x-show="callScreenVisible"] > div:first-child {
-        backdrop-filter: blur(8px);
-    }
-
-    /* ── Aurora: Company Group Glass ── */
-    .aq-company-group {
-        background: rgba(14,16,25,0.65);
-        border: 1px solid rgba(255,255,255,0.06);
-        border-radius: 12px;
-        overflow: hidden;
-        margin-bottom: 12px;
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-        transition: border-color 0.3s;
-    }
-    .aq-company-group:hover {
-        border-color: rgba(255,255,255,0.1);
-    }
-
-    /* Company header */
-    .aq-company-header {
-        padding: 14px 18px;
-        background: rgba(10,12,20,0.5);
-        border-bottom: 1px solid rgba(255,255,255,0.05);
+    /* ── Command Bar (Header) ── */
+    .aq-command-bar {
         display: flex; align-items: center; justify-content: space-between;
-        cursor: pointer;
+        padding: 0 0 20px; margin-bottom: 0;
     }
-
-    /* Company avatar ring */
-    .aq-company-avatar {
-        width: 34px; height: 34px; border-radius: 10px; padding: 2px;
-        background: linear-gradient(135deg, rgba(96,165,250,0.5), rgba(167,139,250,0.5));
-        flex-shrink: 0;
-        box-shadow: 0 0 12px rgba(96,165,250,0.08);
-    }
-    .aq-company-avatar-inner {
-        width: 100%; height: 100%; border-radius: 8px;
-        background: var(--pp-surface);
+    .aq-command-bar__left { display: flex; align-items: center; gap: 14px; }
+    .aq-command-bar__icon {
+        width: 42px; height: 42px; border-radius: 12px;
+        background: rgba(52,211,153,0.1);
+        border: 1px solid rgba(52,211,153,0.15);
         display: flex; align-items: center; justify-content: center;
-        font-size: 13px; font-weight: 700; color: var(--pp-accent);
+        flex-shrink: 0;
     }
+    .aq-command-bar__icon svg { width: 20px; height: 20px; color: var(--pp-green); }
+    .aq-command-bar__title {
+        font-size: 22px; font-weight: 700; color: var(--pp-text);
+        letter-spacing: -0.03em; line-height: 1.2; margin: 0;
+    }
+    .aq-command-bar__subtitle {
+        font-size: 12px; color: var(--pp-textDim); margin-top: 2px;
+        font-family: var(--pp-mono); letter-spacing: 0.01em;
+    }
+    .aq-command-bar__actions { display: flex; gap: 8px; align-items: center; }
 
-    /* Job row */
-    .aq-job-row {
-        padding: 12px 18px;
-        border-bottom: 1px solid rgba(255,255,255,0.04);
-        display: flex; align-items: center; justify-content: space-between;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        position: relative;
+    /* ── Session Strip (KPIs) ── */
+    .aq-session {
+        display: flex; align-items: stretch; gap: 1px;
+        background: rgba(255,255,255,0.04);
+        border-radius: 14px; overflow: hidden;
+        margin-bottom: 24px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.2);
     }
-    .aq-job-row::before {
-        content: '';
-        position: absolute; top: 4px; left: 0; bottom: 4px; width: 3px;
-        background: transparent;
-        border-radius: 0 2px 2px 0;
+    .aq-session__progress {
+        flex: 0 0 210px; padding: 16px 22px;
+        background: rgba(14,16,25,0.7);
+        display: flex; align-items: center; gap: 16px;
+        backdrop-filter: blur(12px);
+    }
+    .aq-session__cell {
+        flex: 1; padding: 14px 18px;
+        background: rgba(14,16,25,0.7);
+        display: flex; flex-direction: column; gap: 4px;
+        border-left: 3px solid transparent;
+        backdrop-filter: blur(12px);
         transition: background 0.2s;
     }
-    .aq-job-row:hover {
-        background: rgba(96,165,250,0.04);
+    .aq-session__cell:hover { background: rgba(14,16,25,0.85); }
+    .aq-session__cell--green  { border-left-color: var(--pp-green); }
+    .aq-session__cell--blue   { border-left-color: var(--pp-accent); }
+    .aq-session__cell--indigo { border-left-color: #818CF8; }
+    .aq-session__cell--orange { border-left-color: var(--pp-orange); }
+    .aq-session__label {
+        font-size: 10px; font-weight: 600; color: var(--pp-textDim);
+        text-transform: uppercase; letter-spacing: 0.08em;
     }
-    .aq-job-row:hover::before {
-        background: var(--pp-accent);
+    .aq-session__value {
+        font-size: 26px; font-weight: 800; font-family: var(--pp-mono);
+        letter-spacing: -0.5px; line-height: 1; color: var(--pp-text);
     }
-    .aq-job-row:last-child {
-        border-bottom: none;
+    .aq-session__meta {
+        font-size: 10px; color: var(--pp-textDim);
+        font-family: var(--pp-mono); letter-spacing: 0.01em;
     }
 
-    /* Phone icon button */
-    .aq-phone-btn {
-        width: 30px; height: 30px; border-radius: 8px;
+    /* Progress Ring */
+    .aq-ring {
+        width: 52px; height: 52px; border-radius: 50%;
+        background: conic-gradient(var(--pp-green) calc(var(--progress,0) * 1%), rgba(255,255,255,0.06) 0);
         display: flex; align-items: center; justify-content: center;
-        transition: all 0.2s;
-        background: transparent;
+        flex-shrink: 0; transition: background 0.5s;
     }
-    .aq-phone-btn:hover {
-        background: rgba(34,197,94,0.12);
-        box-shadow: 0 0 12px rgba(34,197,94,0.1);
+    .aq-ring__inner {
+        width: 40px; height: 40px; border-radius: 50%;
+        background: rgba(14,16,25,0.95);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 15px; font-weight: 800; font-family: var(--pp-mono);
+        color: var(--pp-text);
     }
 
-    /* Wiedervorlagen card */
-    .aq-wv-card {
-        background: rgba(14,16,25,0.65);
+    /* ── Tab Navigation ── */
+    .aq-nav {
+        display: flex; align-items: center; gap: 0;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+        margin-bottom: 20px; padding: 0;
+    }
+    .aq-nav__tab {
+        padding: 10px 18px 12px; font-size: 13px; font-weight: 500;
+        color: var(--pp-textDim); background: none; border: none;
+        border-bottom: 2px solid transparent;
+        cursor: pointer; transition: all 0.15s; font-family: inherit;
+        white-space: nowrap;
+    }
+    .aq-nav__tab:hover { color: var(--pp-textMuted); }
+    .aq-nav__tab.active {
+        color: var(--pp-text); font-weight: 600;
+        border-bottom-color: var(--pp-accent);
+    }
+    .aq-nav__count {
+        display: inline-flex; align-items: center; justify-content: center;
+        min-width: 20px; height: 18px; padding: 0 6px;
+        margin-left: 6px; border-radius: 9px;
+        font-size: 10px; font-weight: 700; font-family: var(--pp-mono);
+        background: rgba(255,255,255,0.06); color: var(--pp-textDim);
+    }
+    .aq-nav__tab.active .aq-nav__count {
+        background: var(--pp-accent); color: #fff;
+    }
+    .aq-nav__count--alert {
+        background: rgba(239,68,68,0.15) !important;
+        color: var(--pp-red) !important;
+    }
+
+    /* ── Company Groups ── */
+    .aq-company {
+        background: rgba(14,16,25,0.55);
         border: 1px solid rgba(255,255,255,0.06);
-        border-left: 4px solid var(--pp-orange);
-        border-radius: 10px;
-        padding: 14px 16px;
+        border-radius: 10px; overflow: hidden;
         margin-bottom: 10px;
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        transition: all 0.2s;
-        cursor: pointer;
+        transition: border-color 0.2s;
     }
-    .aq-wv-card:hover {
-        background: rgba(30,34,53,0.5);
-        border-color: rgba(234,179,8,0.2);
-        border-left-color: var(--pp-orange);
-        transform: translateX(2px);
+    .aq-company:hover { border-color: rgba(255,255,255,0.1); }
+    .aq-company__header {
+        padding: 12px 16px;
+        display: flex; align-items: center; justify-content: space-between;
+        cursor: pointer; gap: 12px;
     }
-
-    /* Section header icon */
-    .aq-section-icon {
-        width: 28px; height: 28px; border-radius: 8px;
+    .aq-company__left { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
+    .aq-company__avatar {
+        width: 32px; height: 32px; border-radius: 8px;
+        background: linear-gradient(135deg, rgba(96,165,250,0.4), rgba(167,139,250,0.4));
         display: flex; align-items: center; justify-content: center;
         flex-shrink: 0;
     }
-    .aq-section-icon.orange { background: rgba(234,179,8,0.12); }
-    .aq-section-icon.blue { background: rgba(96,165,250,0.12); }
+    .aq-company__avatar-text { font-size: 13px; font-weight: 700; color: var(--pp-accent); }
+    .aq-company__info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .aq-company__name-row { display: flex; align-items: center; gap: 8px; }
+    .aq-company__name {
+        font-size: 13px; font-weight: 600; color: var(--pp-text);
+        text-decoration: none; transition: color 0.15s;
+    }
+    .aq-company__name:hover { color: var(--pp-accent); }
+    .aq-company__meta {
+        font-size: 11px; color: var(--pp-textDim);
+        display: flex; align-items: center; gap: 6px;
+    }
+    .aq-company__badge {
+        padding: 1px 8px; border-radius: 4px;
+        font-size: 9px; font-weight: 700; text-transform: uppercase;
+    }
+    .aq-company__badge--blacklist { background: rgba(239,68,68,0.15); color: var(--pp-red); }
+    .aq-company__badge--customer { background: rgba(34,197,94,0.15); color: var(--pp-green); }
+    .aq-company__chevron {
+        width: 14px; height: 14px; color: var(--pp-textDim);
+        transition: transform 0.15s; flex-shrink: 0;
+    }
 
-    /* Status badge refinement */
-    .aq-status-badge {
+    /* ── Lead / Job Row ── */
+    .aq-lead {
+        padding: 10px 16px;
+        border-bottom: 1px solid rgba(255,255,255,0.04);
+        display: flex; align-items: center; gap: 10px;
+        cursor: pointer; transition: background 0.15s;
+        position: relative;
+    }
+    .aq-lead:last-child { border-bottom: none; }
+    .aq-lead:hover { background: rgba(96,165,250,0.03); }
+    .aq-lead::before {
+        content: ''; position: absolute; top: 4px; left: 0; bottom: 4px; width: 3px;
+        border-radius: 0 2px 2px 0; background: transparent; transition: background 0.15s;
+    }
+    .aq-lead:hover::before { background: var(--pp-accent); }
+    .aq-lead__checkbox {
+        width: 15px; height: 15px; border-radius: 3px;
+        cursor: pointer; flex-shrink: 0; accent-color: var(--pp-accent);
+    }
+    .aq-lead__status {
         display: inline-block; padding: 2px 10px; border-radius: 6px;
         font-size: 10px; font-weight: 600; white-space: nowrap;
         flex-shrink: 0; min-width: 72px; text-align: center;
-        backdrop-filter: blur(4px);
+    }
+    .aq-lead__status--neu           { background: rgba(59,130,246,0.12); color: var(--pp-accent); }
+    .aq-lead__status--angerufen     { background: rgba(234,179,8,0.12); color: var(--pp-orange); }
+    .aq-lead__status--kontaktiert   { background: rgba(34,197,94,0.12); color: var(--pp-green); }
+    .aq-lead__status--wiedervorlage { background: rgba(167,139,250,0.12); color: var(--pp-purple); }
+    .aq-lead__status--email_gesendet,
+    .aq-lead__status--email_followup { background: rgba(96,165,250,0.12); color: #60a5fa; }
+    .aq-lead__status--qualifiziert  { background: rgba(16,185,129,0.12); color: #10b981; }
+    .aq-lead__status--stelle_erstellt { background: rgba(34,197,94,0.15); color: var(--pp-green); }
+    .aq-lead__status--kontakt_fehlt { background: rgba(234,179,8,0.12); color: var(--pp-orange); }
+    .aq-lead__status--blacklist_hart { background: rgba(239,68,68,0.15); color: var(--pp-red); }
+    .aq-lead__status--blacklist_weich { background: rgba(239,68,68,0.08); color: #f87171; }
+    .aq-lead__status--verloren,
+    .aq-lead__status--followup_abgeschlossen { background: var(--pp-surface3); color: var(--pp-textDim); }
+
+    .aq-lead__info { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+    .aq-lead__title {
+        font-size: 13px; font-weight: 500; color: var(--pp-text);
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .aq-lead__detail {
+        display: flex; align-items: center; gap: 6px;
+        font-size: 11px; color: var(--pp-textDim);
+    }
+    .aq-lead__actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; margin-left: 12px; }
+    .aq-lead__source {
+        padding: 1px 6px; border-radius: 4px;
+        font-size: 10px; font-weight: 600;
+        background: rgba(167,139,250,0.12); color: var(--pp-purple);
+    }
+    .aq-lead__call-icon {
+        width: 28px; height: 28px; border-radius: 7px;
+        display: flex; align-items: center; justify-content: center;
+        transition: all 0.15s; background: transparent;
+    }
+    .aq-lead__call-icon:hover {
+        background: rgba(34,197,94,0.1);
+        box-shadow: 0 0 10px rgba(34,197,94,0.08);
     }
 
-    /* Scrollbar */
+    /* ── Wiedervorlagen Card ── */
+    .aq-wv {
+        background: rgba(14,16,25,0.55);
+        border: 1px solid rgba(255,255,255,0.06);
+        border-left: 3px solid var(--pp-orange);
+        border-radius: 0 10px 10px 0;
+        padding: 12px 16px; margin-bottom: 8px;
+        cursor: pointer; transition: all 0.15s;
+    }
+    .aq-wv:hover { background: rgba(30,34,53,0.4); transform: translateX(2px); }
+    .aq-wv--overdue { border-left-color: var(--pp-red); }
+    .aq-wv__header { display: flex; align-items: center; justify-content: space-between; }
+    .aq-wv__info { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+    .aq-wv__company { font-size: 13px; font-weight: 600; color: var(--pp-text); }
+    .aq-wv__position {
+        font-size: 12px; color: var(--pp-textMuted);
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .aq-wv__right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; margin-left: 16px; }
+    .aq-wv__time {
+        background: rgba(234,179,8,0.12); color: var(--pp-orange);
+        padding: 3px 10px; border-radius: 6px;
+        font-size: 11px; font-weight: 600; white-space: nowrap;
+        font-family: var(--pp-mono);
+    }
+    .aq-wv__note {
+        margin-top: 8px; padding-top: 8px;
+        border-top: 1px solid rgba(255,255,255,0.04);
+        font-size: 11px; color: var(--pp-textDim);
+        display: -webkit-box; -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical; overflow: hidden;
+    }
+
+    /* ── Section Header ── */
+    .aq-section-header {
+        display: flex; align-items: center; gap: 8px; margin-bottom: 14px;
+    }
+    .aq-section-icon {
+        width: 28px; height: 28px; border-radius: 8px;
+        display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .aq-section-icon--orange { background: rgba(234,179,8,0.12); }
+    .aq-section-icon--blue   { background: rgba(96,165,250,0.12); }
+    .aq-section-icon--green  { background: rgba(52,211,153,0.12); }
+    .aq-section-title { font-size: 15px; font-weight: 600; color: var(--pp-text); }
+    .aq-section-count {
+        background: rgba(234,179,8,0.12); color: var(--pp-orange);
+        padding: 2px 8px; border-radius: 10px;
+        font-size: 11px; font-weight: 700;
+    }
+
+    /* ── Tab Content Header ── */
+    .aq-tab-header {
+        display: flex; align-items: baseline; gap: 8px; margin-bottom: 16px;
+    }
+    .aq-tab-header__count {
+        font-size: 26px; font-weight: 700; color: var(--pp-text);
+        letter-spacing: -0.5px; font-family: var(--pp-mono);
+    }
+    .aq-tab-header__label { font-size: 13px; color: var(--pp-textMuted); }
+
+    /* ── Modals ── */
+    .aq-overlay { position: fixed; inset: 0; z-index: 150; }
+    .aq-overlay__backdrop {
+        position: fixed; inset: 0;
+        background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
+    }
+    .aq-modal {
+        position: fixed; top: 50%; left: 50%;
+        transform: translate(-50%,-50%);
+        background: rgba(14,16,25,0.94);
+        border: 1px solid rgba(255,255,255,0.08);
+        backdrop-filter: blur(24px) saturate(1.4);
+        -webkit-backdrop-filter: blur(24px) saturate(1.4);
+        box-shadow: 0 24px 48px rgba(0,0,0,0.5), 0 0 30px rgba(96,165,250,0.04);
+        border-radius: 16px; z-index: 151;
+        max-width: 90vw; max-height: 85vh; overflow: auto;
+    }
+    .aq-modal--sm { width: 480px; }
+    .aq-modal--md { width: 560px; }
+    .aq-modal--lg { width: 640px; }
+    .aq-modal__header {
+        padding: 18px 24px;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+        display: flex; align-items: center; justify-content: space-between;
+    }
+    .aq-modal__title { font-size: 15px; font-weight: 600; color: var(--pp-text); margin: 0; }
+    .aq-modal__close {
+        background: none; border: none; color: var(--pp-textDim);
+        cursor: pointer; font-size: 18px; padding: 4px; transition: color 0.15s;
+    }
+    .aq-modal__close:hover { color: var(--pp-text); }
+    .aq-modal__body { padding: 20px 24px; }
+    .aq-modal__footer {
+        padding: 16px 24px; display: flex; justify-content: flex-end;
+        gap: 10px; border-top: 1px solid rgba(255,255,255,0.04);
+    }
+
+    /* ── Form Inputs ── */
+    .aq-input {
+        width: 100%; padding: 8px 12px;
+        background: rgba(6,7,11,0.6);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 8px; color: var(--pp-text);
+        font-size: 13px; font-family: inherit;
+        box-sizing: border-box; outline: none;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .aq-input:focus {
+        border-color: rgba(96,165,250,0.4);
+        box-shadow: 0 0 0 3px rgba(96,165,250,0.1);
+    }
+    .aq-input::placeholder { color: var(--pp-textDim); }
+    .aq-input--sm { padding: 6px 10px; font-size: 12px; border-radius: 6px; }
+    .aq-select {
+        padding: 8px 10px;
+        background: rgba(6,7,11,0.6);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 8px; color: var(--pp-text);
+        font-size: 13px; font-family: inherit; outline: none;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .aq-select:focus {
+        border-color: rgba(96,165,250,0.4);
+        box-shadow: 0 0 0 3px rgba(96,165,250,0.1);
+    }
+    .aq-label {
+        font-size: 11px; font-weight: 600; color: var(--pp-textDim);
+        text-transform: uppercase; letter-spacing: 0.04em;
+        display: block; margin-bottom: 4px;
+    }
+    .aq-section-label {
+        font-size: 12px; font-weight: 600; color: var(--pp-textDim);
+        text-transform: uppercase; letter-spacing: 0.5px;
+        margin: 0 0 10px;
+    }
+
+    /* ── CTA Button: Abtelefonieren ── */
+    .aq-cta-call {
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 10px 22px;
+        background: linear-gradient(135deg, #34D399, #10B981);
+        border: none; border-radius: 10px;
+        color: #fff; font-size: 13px; font-weight: 700;
+        cursor: pointer; font-family: inherit;
+        box-shadow: 0 2px 12px rgba(52,211,153,0.3);
+        transition: all 0.2s; position: relative;
+    }
+    .aq-cta-call:hover {
+        box-shadow: 0 4px 24px rgba(52,211,153,0.4);
+        transform: translateY(-1px);
+    }
+    .aq-cta-call--pulse::after {
+        content: ''; position: absolute; inset: -3px;
+        border-radius: 13px; border: 2px solid rgba(52,211,153,0.35);
+        animation: aqPulseRing 2s ease-in-out infinite;
+        pointer-events: none;
+    }
+
+    /* ── Search Input ── */
+    .aq-search {
+        position: relative; display: flex; align-items: center;
+    }
+    .aq-search__input {
+        padding: 7px 30px 7px 12px; width: 170px;
+        font-size: 12px; font-family: inherit;
+        background: rgba(6,7,11,0.5);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 8px; color: var(--pp-text);
+        outline: none; transition: all 0.2s;
+    }
+    .aq-search__input:focus {
+        border-color: rgba(96,165,250,0.4);
+        box-shadow: 0 0 0 3px rgba(96,165,250,0.1);
+        width: 210px;
+    }
+    .aq-search__input::placeholder { color: var(--pp-textDim); }
+    .aq-search__btn {
+        position: absolute; right: 4px;
+        background: none; border: none;
+        color: var(--pp-textDim); cursor: pointer; padding: 4px;
+    }
+
+    /* ── Bulk Action Bar ── */
+    .aq-bulk-bar {
+        position: fixed; bottom: 24px; left: 50%;
+        transform: translateX(-50%);
+        padding: 10px 20px; display: flex; align-items: center; gap: 14px;
+        background: rgba(14,16,25,0.88);
+        border: 1px solid rgba(255,255,255,0.1);
+        backdrop-filter: blur(20px) saturate(1.4);
+        -webkit-backdrop-filter: blur(20px) saturate(1.4);
+        box-shadow: 0 -4px 24px rgba(0,0,0,0.3);
+        border-radius: 14px; z-index: 80;
+    }
+    .aq-bulk-bar__count { font-size: 13px; font-weight: 600; color: var(--pp-text); }
+
+    /* ── Callback Popup ── */
+    .aq-callback {
+        position: fixed; top: 70px; right: 20px; z-index: 200;
+        width: 360px;
+        background: rgba(14,16,25,0.94);
+        border: 1px solid rgba(96,165,250,0.3);
+        backdrop-filter: blur(20px) saturate(1.4);
+        -webkit-backdrop-filter: blur(20px) saturate(1.4);
+        box-shadow: 0 12px 40px rgba(59,130,246,0.2);
+        border-radius: 14px; overflow: hidden;
+    }
+    .aq-callback__header {
+        padding: 12px 16px;
+        background: rgba(96,165,250,0.08);
+        border-bottom: 1px solid rgba(96,165,250,0.15);
+        display: flex; align-items: center; justify-content: space-between;
+    }
+    .aq-callback__title { font-size: 13px; font-weight: 600; color: var(--pp-accent); }
+    .aq-callback__body { padding: 14px 16px; }
+
+    /* ── Empty States ── */
+    .aq-empty { text-align: center; padding: 64px 0; }
+    .aq-empty__icon { width: 44px; height: 44px; color: var(--pp-textDim); margin: 0 auto 10px; opacity: 0.3; }
+    .aq-empty__title { font-size: 14px; font-weight: 500; color: var(--pp-textMuted); margin: 0; }
+    .aq-empty__desc { font-size: 12px; color: var(--pp-textDim); margin: 6px 0 0; }
+
+    /* ── Test Banner ── */
+    .aq-test-banner {
+        background: #fbbf24; color: #78350f;
+        padding: 10px 20px; border-radius: 8px; margin-bottom: 16px;
+        display: flex; align-items: center; gap: 10px;
+        font-weight: 600; font-size: 13px;
+    }
+    .aq-test-banner__btn {
+        margin-left: auto; padding: 4px 12px;
+        background: #78350f; color: #fbbf24;
+        border: none; border-radius: 6px;
+        font-size: 11px; font-weight: 600; cursor: pointer;
+    }
+
+    /* ── Dropzone ── */
+    .aq-dropzone {
+        border: 2px dashed rgba(255,255,255,0.1);
+        border-radius: 10px; padding: 32px; text-align: center;
+        transition: all 0.15s; cursor: pointer;
+    }
+    .aq-dropzone--active {
+        border-color: var(--pp-accent);
+        background: rgba(96,165,250,0.05);
+    }
+
+    /* ── KI Extract Banner ── */
+    .aq-extract-banner {
+        margin-bottom: 14px; padding: 8px 12px;
+        background: rgba(34,197,94,0.08);
+        border: 1px solid rgba(34,197,94,0.2);
+        border-radius: 8px;
+        display: flex; align-items: center; gap: 8px;
+    }
+
+    /* ── Import Result ── */
+    .aq-import-result {
+        margin-top: 14px; padding: 14px;
+        background: rgba(6,7,11,0.5);
+        border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 8px;
+    }
+
+    /* ── Contact Card (Manual Lead Modal) ── */
+    .aq-contact-card {
+        background: rgba(6,7,11,0.5);
+        border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 8px; overflow: hidden;
+    }
+    .aq-contact-card__header {
+        padding: 8px 12px; cursor: pointer;
+        display: flex; align-items: center; gap: 8px;
+    }
+    .aq-contact-card__avatar {
+        width: 28px; height: 28px; border-radius: 50%;
+        background: var(--pp-surface3);
+        display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .aq-contact-card__detail {
+        padding: 0 12px 10px;
+        border-top: 1px solid rgba(255,255,255,0.04);
+    }
+
+    /* ── Grid Helpers ── */
+    .aq-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .aq-grid-3 { display: grid; grid-template-columns: auto 1fr 1fr; gap: 10px; }
+
+    /* ── Scrollbar ── */
     .aq-wrap ::-webkit-scrollbar { width: 5px; }
     .aq-wrap ::-webkit-scrollbar-track { background: transparent; }
     .aq-wrap ::-webkit-scrollbar-thumb { background: rgba(96,165,250,0.15); border-radius: 3px; }
+
+    /* ── Utility ── */
+    .aq-text-green { color: var(--pp-green); }
+    .aq-text-blue  { color: var(--pp-accent); }
+    .aq-text-indigo { color: #818CF8; }
+    .aq-text-orange { color: var(--pp-orange); }
+    .aq-text-red { color: var(--pp-red); }
+    .aq-flex-center { display: flex; align-items: center; }
+    .aq-gap-4 { gap: 4px; } .aq-gap-6 { gap: 6px; } .aq-gap-8 { gap: 8px; } .aq-gap-10 { gap: 10px; }
+    .aq-mb-10 { margin-bottom: 10px; } .aq-mb-14 { margin-bottom: 14px; } .aq-mb-16 { margin-bottom: 16px; } .aq-mb-24 { margin-bottom: 24px; }
+    .aq-icon-sm { width: 14px; height: 14px; } .aq-icon-md { width: 16px; height: 16px; }
 </style>
 {% endblock %}
 
@@ -282,37 +548,32 @@
 
     {# ── Test-Modus Banner ── #}
     {% if test_mode %}
-    <div style="background:#fbbf24;color:#78350f;padding:10px 20px;border-radius:8px;margin-bottom:16px;display:flex;align-items:center;gap:10px;font-weight:600;font-size:13px;">
+    <div class="aq-test-banner">
         <svg style="width:18px;height:18px;flex-shrink:0;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
         TEST-MODUS &mdash; Keine echten Anrufe oder E-Mails an Kunden. E-Mails gehen an deine Test-Adresse.
-        <button @click="simulateCallback()" style="margin-left:auto;padding:4px 12px;background:#78350f;color:#fbbf24;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">
-            Rueckruf simulieren
-        </button>
+        <button @click="simulateCallback()" class="aq-test-banner__btn">Rueckruf simulieren</button>
     </div>
     {% endif %}
 
-    {# ── Header — Aurora ── #}
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;gap:16px;flex-wrap:wrap;">
-        <div style="display:flex;align-items:center;gap:14px;">
-            <div class="aurora-section-icon green" style="width:40px;height:40px;border-radius:12px;">
-                <svg style="width:20px;height:20px;" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+    {# ── Command Bar ── #}
+    <div class="aq-command-bar">
+        <div class="aq-command-bar__left">
+            <div class="aq-command-bar__icon">
+                <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"/>
                 </svg>
             </div>
             <div>
-                <h1 style="font-size:24px;font-weight:700;color:var(--pp-text);margin:0;letter-spacing:-0.03em;line-height:1.2;">Akquise</h1>
-                <p style="font-size:13px;color:var(--pp-textMuted);margin-top:2px;" x-text="(stats.open_leads || 0) + ' offene Leads · ' + (stats.calls_today || 0) + ' Anrufe heute'">Leads laden...</p>
+                <h1 class="aq-command-bar__title">Akquise</h1>
+                <p class="aq-command-bar__subtitle" x-text="(stats.open_leads || 0) + ' offene Leads · ' + (stats.calls_today || 0) + ' Anrufe heute'">Leads laden...</p>
             </div>
         </div>
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-            {# Rueckruf-Suche #}
-            <div style="position:relative;display:flex;align-items:center;">
+        <div class="aq-command-bar__actions">
+            <div class="aq-search">
                 <input type="tel" x-model="rueckrufPhone" placeholder="Rueckruf-Nr. suchen..."
-                       @keydown.enter="lookupPhone()" class="aq-search-input"
-                       style="padding:7px 30px 7px 12px;width:170px;font-size:12px;">
-                <button @click="lookupPhone()" title="Nummer suchen"
-                        style="position:absolute;right:4px;background:none;border:none;color:var(--pp-textDim);cursor:pointer;padding:4px;">
-                    <svg style="width:14px;height:14px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
+                       @keydown.enter="lookupPhone()" class="aq-search__input">
+                <button @click="lookupPhone()" title="Nummer suchen" class="aq-search__btn">
+                    <svg class="aq-icon-sm" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
                 </button>
             </div>
             <button @click="showManualLead = true" class="btn-aurora outline sm">
@@ -323,121 +584,100 @@
                 <svg style="width:15px;height:15px;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
                 CSV importieren
             </button>
-            <button @click="startCalling()" class="aq-call-btn"
-                    style="display:inline-flex;align-items:center;gap:6px;padding:9px 20px;border:none;border-radius:10px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;">
-                <svg style="width:16px;height:16px;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"/></svg>
+            <button @click="startCalling()" class="aq-cta-call" :class="(stats.open_leads || 0) > 0 ? 'aq-cta-call--pulse' : ''">
+                <svg class="aq-icon-md" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"/></svg>
                 Abtelefonieren
             </button>
         </div>
     </div>
 
-    {# ── Tages-KPIs — Aurora Glass ── #}
-    <div class="aq-kpis" style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:28px;">
-        <div class="aq-kpi-card">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-                <svg style="width:17px;height:17px;color:var(--pp-textMuted);" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"/></svg>
-                <span style="font-size:11px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.06em;">Anrufe heute</span>
+    {# ── Session Strip (KPIs) ── #}
+    <div class="aq-session">
+        <div class="aq-session__progress">
+            <div class="aq-ring" :style="'--progress: ' + Math.min(Math.round((stats.calls_today||0)/40*100), 100)">
+                <div class="aq-ring__inner" x-text="stats.calls_today || 0"></div>
             </div>
-            <p class="aq-kpi-value" x-text="stats.calls_today || 0"></p>
+            <div>
+                <div class="aq-session__label">Anrufe</div>
+                <div class="aq-session__meta" x-text="'Ziel 40 · ' + Math.min(Math.round((stats.calls_today||0)/40*100), 100) + '%'"></div>
+            </div>
         </div>
-        <div class="aq-kpi-card" data-accent="green">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-                <svg style="width:17px;height:17px;color:#34D399;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                <span style="font-size:11px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.06em;">Erreicht</span>
-            </div>
-            <p class="aq-kpi-value" style="color:#34D399;" x-text="stats.reached_today || 0"></p>
+        <div class="aq-session__cell aq-session__cell--green">
+            <div class="aq-session__label">Erreicht</div>
+            <div class="aq-session__value aq-text-green" x-text="stats.reached_today || 0"></div>
+            <div class="aq-session__meta" x-text="stats.calls_today ? (Math.round((stats.reached_today||0)/(stats.calls_today||1)*100)) + '% Rate' : '—'"></div>
         </div>
-        <div class="aq-kpi-card" data-accent="accent">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-                <svg style="width:17px;height:17px;color:var(--pp-accent);" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z"/></svg>
-                <span style="font-size:11px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.06em;">Qualifiziert</span>
-            </div>
-            <p class="aq-kpi-value" style="color:var(--pp-accent);" x-text="stats.qualified_today || 0"></p>
+        <div class="aq-session__cell aq-session__cell--blue">
+            <div class="aq-session__label">Qualifiziert</div>
+            <div class="aq-session__value aq-text-blue" x-text="stats.qualified_today || 0"></div>
+            <div class="aq-session__meta" x-text="stats.reached_today ? (Math.round((stats.qualified_today||0)/(stats.reached_today||1)*100)) + '% Conversion' : '—'"></div>
         </div>
-        <div class="aq-kpi-card" data-accent="blue">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-                <svg style="width:17px;height:17px;color:#60a5fa;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"/></svg>
-                <span style="font-size:11px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.06em;">E-Mails</span>
-            </div>
-            <p class="aq-kpi-value" style="color:#60a5fa;" x-text="stats.emails_today || 0"></p>
+        <div class="aq-session__cell aq-session__cell--indigo">
+            <div class="aq-session__label">E-Mails</div>
+            <div class="aq-session__value aq-text-indigo" x-text="stats.emails_today || 0"></div>
         </div>
-        <div class="aq-kpi-card" data-accent="orange">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-                <svg style="width:17px;height:17px;color:var(--pp-orange);" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 13.5h3.86a2.25 2.25 0 012.012 1.244l.256.512a2.25 2.25 0 002.013 1.244h3.218a2.25 2.25 0 002.013-1.244l.256-.512a2.25 2.25 0 012.013-1.244h3.859m-19.5.338V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18v-4.162c0-.224-.034-.447-.1-.661L19.24 5.338a2.25 2.25 0 00-2.15-1.588H6.911a2.25 2.25 0 00-2.15 1.588L2.35 13.177a2.25 2.25 0 00-.1.661z"/></svg>
-                <span style="font-size:11px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.06em;">Offene Leads</span>
-            </div>
-            <p class="aq-kpi-value" style="color:var(--pp-orange);" x-text="stats.open_leads || 0"></p>
+        <div class="aq-session__cell aq-session__cell--orange">
+            <div class="aq-session__label">Offene Leads</div>
+            <div class="aq-session__value aq-text-orange" x-text="stats.open_leads || 0"></div>
         </div>
     </div>
-    {# ── Tab-Navigation — Aurora Glass Pills ── #}
-    <div class="aq-tabs" style="margin-bottom:20px;">
-        <nav style="display:flex;gap:4px;overflow-x:auto;">
-            {% set tabs = [
-                ("heute", "Heute anrufen"),
-                ("neu", "Neue Leads"),
-                ("wiedervorlagen", "Wiedervorlagen"),
-                ("nicht_erreicht", "Nicht erreicht"),
-                ("qualifiziert", "Qualifiziert"),
-                ("archiv", "Archiv"),
-            ] %}
-            {% for tab_id, tab_label in tabs %}
-            <button @click="switchTab('{{ tab_id }}')" class="aq-tab-pill"
-                    :class="activeTab === '{{ tab_id }}' ? 'active' : ''">
-                {{ tab_label }}
-                {% if tab_counts.get(tab_id, 0) > 0 %}
-                <span class="aq-tab-badge"
-                      :class="activeTab === '{{ tab_id }}' ? 'active' : ''">{{ tab_counts[tab_id] }}</span>
-                {% endif %}
-            </button>
-            {% endfor %}
-            {# Unzugeordnete Anrufe — separater Tab #}
-            <button @click="switchTab('unzugeordnet')" class="aq-tab-pill"
-                    :class="activeTab === 'unzugeordnet' ? 'active' : ''">
-                Unzugeordnet
-                <span x-show="stats.unassigned_calls > 0" class="aq-tab-badge"
-                      :class="activeTab === 'unzugeordnet' ? 'active' : 'red'"
-                      x-text="stats.unassigned_calls"></span>
-            </button>
-        </nav>
-    </div>
+
+    {# ── Tab Navigation ── #}
+    <nav class="aq-nav">
+        {% set tabs = [
+            ("heute", "Heute anrufen"),
+            ("neu", "Neue Leads"),
+            ("wiedervorlagen", "Wiedervorlagen"),
+            ("nicht_erreicht", "Nicht erreicht"),
+            ("qualifiziert", "Qualifiziert"),
+            ("archiv", "Archiv"),
+        ] %}
+        {% for tab_id, tab_label in tabs %}
+        <button @click="switchTab('{{ tab_id }}')" class="aq-nav__tab"
+                :class="activeTab === '{{ tab_id }}' ? 'active' : ''">
+            {{ tab_label }}
+            {% if tab_counts.get(tab_id, 0) > 0 %}
+            <span class="aq-nav__count" :class="activeTab === '{{ tab_id }}' ? '' : ''">{{ tab_counts[tab_id] }}</span>
+            {% endif %}
+        </button>
+        {% endfor %}
+        <button @click="switchTab('unzugeordnet')" class="aq-nav__tab"
+                :class="activeTab === 'unzugeordnet' ? 'active' : ''">
+            Unzugeordnet
+            <span x-show="stats.unassigned_calls > 0"
+                  class="aq-nav__count aq-nav__count--alert"
+                  x-text="stats.unassigned_calls"></span>
+        </button>
+    </nav>
 
     {# ── Tab-Inhalt (HTMX) ── #}
     <div id="akquise-tab-content" style="min-height:400px;">
-        <div x-show="loading" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 0;gap:12px;">
-            <div style="width:28px;height:28px;border:2px solid rgba(255,255,255,0.06);border-top-color:var(--pp-accent);border-radius:50%;animation:spin 0.6s linear infinite;"></div>
+        <div x-show="loading" class="aq-empty">
+            <div style="width:28px;height:28px;border:2px solid rgba(255,255,255,0.06);border-top-color:var(--pp-accent);border-radius:50%;animation:spin 0.6s linear infinite;margin:0 auto 12px;"></div>
             <span style="font-size:13px;color:var(--pp-textDim);">Lade Daten...</span>
         </div>
         <div x-show="!loading" id="akquise-tab-inner"></div>
     </div>
 
-    {# ── Bulk-Action Bar — Aurora Glass ── #}
-    <div x-show="$store.bulkSelect && $store.bulkSelect.selected.length > 0" x-transition x-cloak
-         class="aq-bulk-bar"
-         style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:10px 20px;display:flex;align-items:center;gap:14px;z-index:80;">
-        <span style="font-size:13px;font-weight:600;color:var(--pp-text);"
-              x-text="$store.bulkSelect.selected.length + ' ausgewaehlt'"></span>
-        <button @click="bulkDeleteSelected()" class="btn-aurora outline sm" style="font-size:12px;">
-            Loeschen
-        </button>
-        <button @click="bulkBlacklistSelected()" class="btn-aurora danger sm" style="font-size:12px;">
-            Blacklist
-        </button>
-        <button @click="$store.bulkSelect.clear()"
-                style="padding:6px 10px;background:none;border:none;color:var(--pp-textDim);font-size:12px;cursor:pointer;font-family:inherit;">
-            Abbrechen
-        </button>
+    {# ── Bulk-Action Bar ── #}
+    <div x-show="$store.bulkSelect && $store.bulkSelect.selected.length > 0" x-transition x-cloak class="aq-bulk-bar">
+        <span class="aq-bulk-bar__count" x-text="$store.bulkSelect.selected.length + ' ausgewaehlt'"></span>
+        <button @click="bulkDeleteSelected()" class="btn-aurora outline sm" style="font-size:12px;">Loeschen</button>
+        <button @click="bulkBlacklistSelected()" class="btn-aurora danger sm" style="font-size:12px;">Blacklist</button>
+        <button @click="$store.bulkSelect.clear()" class="btn-aurora ghost sm" style="font-size:12px;">Abbrechen</button>
     </div>
 
     {# ── CSV-Import Modal ── #}
-    <div x-show="showImport" x-cloak style="position:fixed;inset:0;z-index:150;">
-        <div class="aq-modal-bg" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);" @click="showImport = false"></div>
-        <div class="aq-modal-content" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:14px;width:480px;max-width:90vw;z-index:151;box-shadow:0 20px 60px rgba(0,0,0,0.5);">
-            <div style="padding:20px 24px;border-bottom:1px solid var(--pp-border);">
-                <h3 style="font-size:16px;font-weight:600;color:var(--pp-text);margin:0;">CSV-Import (advertsdata.com)</h3>
+    <div x-show="showImport" x-cloak class="aq-overlay">
+        <div class="aq-overlay__backdrop" @click="showImport = false"></div>
+        <div class="aq-modal aq-modal--sm">
+            <div class="aq-modal__header">
+                <h3 class="aq-modal__title">CSV-Import (advertsdata.com)</h3>
+                <button @click="showImport = false" class="aq-modal__close">&times;</button>
             </div>
-            <form @submit.prevent="uploadCsv()" style="padding:20px 24px;">
-                <div style="border:2px dashed var(--pp-border);border-radius:10px;padding:32px;text-align:center;transition:all .15s;cursor:pointer;"
-                     :style="dragOver ? 'border-color:var(--pp-accent);background:var(--pp-accentSoft);' : ''"
+            <form @submit.prevent="uploadCsv()" class="aq-modal__body">
+                <div class="aq-dropzone"
+                     :class="dragOver ? 'aq-dropzone--active' : ''"
                      @dragover.prevent="dragOver = true"
                      @dragleave="dragOver = false"
                      @drop.prevent="handleDrop($event)"
@@ -448,19 +688,19 @@
                     <p style="font-size:13px;color:var(--pp-textMuted);margin:0;" x-text="csvFileName || 'CSV-Datei hierhin ziehen oder klicken'"></p>
                 </div>
 
-                <label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:13px;color:var(--pp-textMuted);cursor:pointer;">
-                    <input type="checkbox" x-model="previewOnly" style="width:16px;height:16px;border-radius:4px;cursor:pointer;">
+                <label class="aq-flex-center aq-gap-8" style="margin-top:14px;font-size:13px;color:var(--pp-textMuted);cursor:pointer;">
+                    <input type="checkbox" x-model="previewOnly" class="aq-lead__checkbox">
                     Nur Vorschau (kein Import)
                 </label>
 
-                <div x-show="importResult" style="margin-top:14px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;padding:14px;">
+                <div x-show="importResult" class="aq-import-result">
                     <template x-if="importResult">
                         <div style="font-size:13px;">
                             <p style="font-weight:600;color:var(--pp-text);margin:0 0 6px;" x-text="'Gesamt: ' + importResult.total_rows + ' Zeilen'"></p>
-                            <p style="color:var(--pp-green);margin:2px 0;" x-text="'Importiert: ' + (importResult.imported || importResult.new_leads || 0)"></p>
-                            <p style="color:var(--pp-accent);margin:2px 0;" x-text="'Duplikate: ' + (importResult.duplicates_refreshed || importResult.duplicates || 0)"></p>
-                            <p style="color:var(--pp-red);margin:2px 0;" x-text="'Blacklist: ' + (importResult.blacklisted_skipped || importResult.blacklisted || 0)"></p>
-                            <p x-show="importResult.errors > 0" style="color:var(--pp-orange);margin:2px 0;" x-text="'Fehler: ' + importResult.errors"></p>
+                            <p class="aq-text-green" style="margin:2px 0;" x-text="'Importiert: ' + (importResult.imported || importResult.new_leads || 0)"></p>
+                            <p class="aq-text-blue" style="margin:2px 0;" x-text="'Duplikate: ' + (importResult.duplicates_refreshed || importResult.duplicates || 0)"></p>
+                            <p class="aq-text-red" style="margin:2px 0;" x-text="'Blacklist: ' + (importResult.blacklisted_skipped || importResult.blacklisted || 0)"></p>
+                            <p x-show="importResult.errors > 0" class="aq-text-orange" style="margin:2px 0;" x-text="'Fehler: ' + importResult.errors"></p>
                             <template x-if="importResult.error_details && importResult.error_details.length > 0">
                                 <div style="margin-top:8px;padding:8px;background:var(--pp-surface3);border-radius:6px;font-size:11px;color:var(--pp-textMuted);max-height:120px;overflow-y:auto;">
                                     <template x-for="detail in importResult.error_details.slice(0, 10)">
@@ -468,18 +708,14 @@
                                     </template>
                                 </div>
                             </template>
-                            <p x-show="importResult.error" style="color:var(--pp-red);margin:6px 0;font-size:12px;" x-text="importResult.error + ': ' + (importResult.message || '')"></p>
+                            <p x-show="importResult.error" class="aq-text-red" style="margin:6px 0;font-size:12px;" x-text="importResult.error + ': ' + (importResult.message || '')"></p>
                         </div>
                     </template>
                 </div>
 
-                <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px;">
-                    <button type="button" @click="showImport = false"
-                            style="padding:8px 16px;background:var(--pp-surface3);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-textMuted);font-size:13px;font-weight:500;cursor:pointer;">
-                        Abbrechen
-                    </button>
-                    <button type="submit" :disabled="uploading"
-                            style="padding:8px 16px;background:var(--pp-accent);border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;opacity:1;"
+                <div class="aq-modal__footer" style="padding:18px 0 0;border-top:none;">
+                    <button type="button" @click="showImport = false" class="btn-aurora outline sm">Abbrechen</button>
+                    <button type="submit" :disabled="uploading" class="btn-aurora sm"
                             :style="uploading ? 'opacity:0.5;cursor:not-allowed;' : ''">
                         <span x-show="!uploading" x-text="previewOnly ? 'Vorschau' : 'Importieren'"></span>
                         <span x-show="uploading">Wird verarbeitet...</span>
@@ -490,19 +726,19 @@
     </div>
 
     {# ── Manual Lead Modal (2-Step: Paste → Extract → Review → Create) ── #}
-    <div x-show="showManualLead" x-cloak style="position:fixed;inset:0;z-index:150;">
-        <div class="aq-modal-bg" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);" @click="showManualLead = false"></div>
-        <div class="aq-modal-content" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:14px;width:560px;max-width:90vw;max-height:85vh;overflow:auto;z-index:151;box-shadow:0 20px 60px rgba(0,0,0,0.5);">
-            <div style="padding:20px 24px;border-bottom:1px solid var(--pp-border);display:flex;align-items:center;justify-content:space-between;">
-                <h3 style="font-size:16px;font-weight:600;color:var(--pp-text);margin:0;">Lead anlegen</h3>
-                <button @click="showManualLead = false; mlStep = 1; mlRawText = ''; mlExtracted = false; mlContacts = [];" style="background:none;border:none;color:var(--pp-textDim);cursor:pointer;font-size:18px;">&times;</button>
+    <div x-show="showManualLead" x-cloak class="aq-overlay">
+        <div class="aq-overlay__backdrop" @click="showManualLead = false"></div>
+        <div class="aq-modal aq-modal--md">
+            <div class="aq-modal__header">
+                <h3 class="aq-modal__title">Lead anlegen</h3>
+                <button @click="showManualLead = false; mlStep = 1; mlRawText = ''; mlExtracted = false; mlContacts = [];" class="aq-modal__close">&times;</button>
             </div>
 
             {# ── Step 1: Text einfuegen ── #}
-            <div x-show="mlStep === 1" style="padding:20px 24px;">
+            <div x-show="mlStep === 1" class="aq-modal__body">
                 <p style="font-size:13px;color:var(--pp-textMuted);margin:0 0 12px;">E-Mail, Stellenanzeige oder beliebigen Text einfuegen &mdash; die KI extrahiert automatisch alle Daten.</p>
-                <textarea x-model="mlRawText" rows="10" placeholder="Text hier einfuegen...&#10;&#10;z.B. eine E-Mail:&#10;Sehr geehrter Herr Hamdard,&#10;wir suchen einen Bilanzbuchhalter in Hamburg...&#10;&#10;Mit freundlichen Gruessen&#10;Max Mustermann&#10;Personalleitung&#10;Tel: 040 123456"
-                          style="width:100%;padding:12px 14px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;resize:vertical;box-sizing:border-box;line-height:1.5;"></textarea>
+                <textarea x-model="mlRawText" rows="10" class="aq-input" placeholder="Text hier einfuegen...&#10;&#10;z.B. eine E-Mail:&#10;Sehr geehrter Herr Hamdard,&#10;wir suchen einen Bilanzbuchhalter in Hamburg...&#10;&#10;Mit freundlichen Gruessen&#10;Max Mustermann&#10;Personalleitung&#10;Tel: 040 123456"
+                          style="resize:vertical;line-height:1.5;"></textarea>
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;">
                     <button type="button" @click="mlStep = 2; mlExtracted = false;"
                             style="padding:6px 12px;background:none;border:none;color:var(--pp-textDim);font-size:12px;cursor:pointer;text-decoration:underline;">
@@ -527,59 +763,53 @@
             </div>
 
             {# ── Step 2: Review + Edit + Create ── #}
-            <form x-show="mlStep === 2" @submit.prevent="createManualLead()" style="padding:20px 24px;">
-                <div x-show="mlExtracted" style="margin-bottom:14px;padding:8px 12px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:8px;display:flex;align-items:center;gap:8px;">
+            <form x-show="mlStep === 2" @submit.prevent="createManualLead()" class="aq-modal__body">
+                <div x-show="mlExtracted" class="aq-extract-banner">
                     <svg style="width:14px;height:14px;color:var(--pp-green);flex-shrink:0;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/></svg>
                     <span style="font-size:12px;color:var(--pp-green);font-weight:500;">KI-extrahiert — bitte pruefen und ggf. korrigieren</span>
                     <button type="button" @click="mlStep = 1" style="margin-left:auto;background:none;border:none;color:var(--pp-textDim);font-size:11px;cursor:pointer;text-decoration:underline;">Zurueck</button>
                 </div>
 
-                <p style="font-size:12px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.5px;margin:0 0 10px;">Firma</p>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+                <p class="aq-section-label">Firma</p>
+                <div class="aq-grid-2 aq-mb-10">
                     <div>
-                        <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">Firmenname *</label>
-                        <input type="text" x-model="mlCompanyName" required placeholder="z.B. Mustermann GmbH"
-                               style="width:100%;padding:8px 12px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;box-sizing:border-box;">
+                        <label class="aq-label">Firmenname *</label>
+                        <input type="text" x-model="mlCompanyName" required placeholder="z.B. Mustermann GmbH" class="aq-input">
                     </div>
                     <div>
-                        <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">Stadt</label>
-                        <input type="text" x-model="mlCity" placeholder="z.B. Hamburg"
-                               style="width:100%;padding:8px 12px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;box-sizing:border-box;">
+                        <label class="aq-label">Stadt</label>
+                        <input type="text" x-model="mlCity" placeholder="z.B. Hamburg" class="aq-input">
                     </div>
                 </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+                <div class="aq-grid-2 aq-mb-16">
                     <div>
-                        <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">📞 Telefon Zentrale</label>
-                        <input type="tel" x-model="mlCompanyPhone" placeholder="z.B. 0511 407837"
-                               style="width:100%;padding:8px 12px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;box-sizing:border-box;">
+                        <label class="aq-label">Telefon Zentrale</label>
+                        <input type="tel" x-model="mlCompanyPhone" placeholder="z.B. 0511 407837" class="aq-input">
                     </div>
                     <div>
-                        <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">✉️ E-Mail Firma</label>
-                        <input type="email" x-model="mlCompanyEmail" placeholder="z.B. info@firma.de"
-                               style="width:100%;padding:8px 12px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;box-sizing:border-box;">
+                        <label class="aq-label">E-Mail Firma</label>
+                        <input type="email" x-model="mlCompanyEmail" placeholder="z.B. info@firma.de" class="aq-input">
                     </div>
                 </div>
-                <p style="font-size:12px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.5px;margin:0 0 10px;">Stelle</p>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+                <p class="aq-section-label">Stelle</p>
+                <div class="aq-grid-2 aq-mb-16">
                     <div>
-                        <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">Position / Jobtitel *</label>
-                        <input type="text" x-model="mlPosition" required placeholder="z.B. Bilanzbuchhalter"
-                               style="width:100%;padding:8px 12px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;box-sizing:border-box;">
+                        <label class="aq-label">Position / Jobtitel *</label>
+                        <input type="text" x-model="mlPosition" required placeholder="z.B. Bilanzbuchhalter" class="aq-input">
                     </div>
                     <div>
-                        <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">PLZ</label>
-                        <input type="text" x-model="mlPostalCode" placeholder="z.B. 20095"
-                               style="width:100%;padding:8px 12px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;box-sizing:border-box;">
+                        <label class="aq-label">PLZ</label>
+                        <input type="text" x-model="mlPostalCode" placeholder="z.B. 20095" class="aq-input">
                     </div>
                 </div>
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-                    <p style="font-size:12px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.5px;margin:0;">
+                <div class="aq-flex-center" style="justify-content:space-between;margin-bottom:10px;">
+                    <p class="aq-section-label" style="margin:0;">
                         Ansprechpartner
-                        <span style="font-weight:400;text-transform:none;letter-spacing:normal;color:var(--pp-textDim);font-size:11px;opacity:0.7;">(optional)</span>
-                        <span x-show="mlContacts.length > 0" style="font-weight:400;color:var(--pp-accent);margin-left:4px;" x-text="'(' + mlContacts.length + ')'"></span>
+                        <span style="font-weight:400;text-transform:none;letter-spacing:normal;opacity:0.7;">(optional)</span>
+                        <span x-show="mlContacts.length > 0" class="aq-text-blue" style="font-weight:400;margin-left:4px;" x-text="'(' + mlContacts.length + ')'"></span>
                     </p>
                     <button type="button" @click="mlContacts.push({salutation:'',first_name:'',last_name:'',position:'',email:'',phone:'',expanded:true})"
-                            style="padding:3px 10px;background:none;border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-accent);font-size:11px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">
+                            style="padding:3px 10px;background:none;border:1px solid rgba(255,255,255,0.08);border-radius:6px;color:var(--pp-accent);font-size:11px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">
                         <svg style="width:12px;height:12px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
                         Hinzufuegen
                     </button>
@@ -589,59 +819,54 @@
                 <template x-if="mlContacts.length > 0">
                     <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;">
                         <template x-for="(contact, idx) in mlContacts" :key="idx">
-                            <div style="background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;overflow:hidden;">
+                            <div class="aq-contact-card">
                                 {# Kompakte Zeile #}
-                                <div @click="contact.expanded = !contact.expanded" style="padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;">
-                                    <div style="width:28px;height:28px;border-radius:50%;background:var(--pp-surface3);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                                <div @click="contact.expanded = !contact.expanded" class="aq-contact-card__header">
+                                    <div class="aq-contact-card__avatar">
                                         <svg style="width:14px;height:14px;color:var(--pp-textDim);" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/></svg>
                                     </div>
                                     <div style="flex:1;min-width:0;">
                                         <div style="font-size:13px;color:var(--pp-text);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" x-text="(contact.salutation ? contact.salutation + ' ' : '') + (contact.first_name || '') + ' ' + (contact.last_name || '') || 'Neuer Kontakt'"></div>
                                         <div style="font-size:11px;color:var(--pp-textDim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" x-text="[contact.position, contact.phone, contact.email].filter(Boolean).join(' · ') || 'Keine Details'"></div>
                                     </div>
-                                    <button type="button" @click.stop="mlContacts.splice(idx, 1)" style="background:none;border:none;color:var(--pp-textDim);cursor:pointer;padding:4px;" title="Entfernen">
+                                    <button type="button" @click.stop="mlContacts.splice(idx, 1)" class="aq-modal__close" style="font-size:14px;" title="Entfernen">
                                         <svg style="width:14px;height:14px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                                     </button>
                                     <span style="width:12px;height:12px;flex-shrink:0;display:inline-flex;"><svg :style="'width:12px;height:12px;color:var(--pp-textDim);transition:transform 0.2s;transform:rotate(' + (contact.expanded ? '180' : '0') + 'deg)'" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg></span>
                                 </div>
                                 {# Aufklappbare Detail-Felder #}
-                                <div x-show="contact.expanded" x-transition style="padding:0 12px 10px;border-top:1px solid var(--pp-border);">
-                                    <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:8px;margin-top:10px;">
+                                <div x-show="contact.expanded" x-transition class="aq-contact-card__detail">
+                                    <div class="aq-grid-3" style="margin-top:10px;">
                                         <div>
-                                            <label style="font-size:11px;color:var(--pp-textDim);display:block;margin-bottom:3px;">Anrede</label>
-                                            <select x-model="contact.salutation" style="padding:6px 8px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;">
+                                            <label class="aq-label">Anrede</label>
+                                            <select x-model="contact.salutation" class="aq-select" style="font-size:12px;">
                                                 <option value="">—</option>
                                                 <option value="Herr">Herr</option>
                                                 <option value="Frau">Frau</option>
                                             </select>
                                         </div>
                                         <div>
-                                            <label style="font-size:11px;color:var(--pp-textDim);display:block;margin-bottom:3px;">Vorname</label>
-                                            <input type="text" x-model="contact.first_name" placeholder="Vorname"
-                                                   style="width:100%;padding:6px 10px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;box-sizing:border-box;">
+                                            <label class="aq-label">Vorname</label>
+                                            <input type="text" x-model="contact.first_name" placeholder="Vorname" class="aq-input aq-input--sm">
                                         </div>
                                         <div>
-                                            <label style="font-size:11px;color:var(--pp-textDim);display:block;margin-bottom:3px;">Nachname</label>
-                                            <input type="text" x-model="contact.last_name" placeholder="Nachname"
-                                                   style="width:100%;padding:6px 10px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;box-sizing:border-box;">
+                                            <label class="aq-label">Nachname</label>
+                                            <input type="text" x-model="contact.last_name" placeholder="Nachname" class="aq-input aq-input--sm">
                                         </div>
                                     </div>
-                                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
+                                    <div class="aq-grid-2" style="margin-top:8px;">
                                         <div>
-                                            <label style="font-size:11px;color:var(--pp-textDim);display:block;margin-bottom:3px;">Telefon</label>
-                                            <input type="tel" x-model="contact.phone" placeholder="040 123456"
-                                                   style="width:100%;padding:6px 10px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;box-sizing:border-box;">
+                                            <label class="aq-label">Telefon</label>
+                                            <input type="tel" x-model="contact.phone" placeholder="040 123456" class="aq-input aq-input--sm">
                                         </div>
                                         <div>
-                                            <label style="font-size:11px;color:var(--pp-textDim);display:block;margin-bottom:3px;">E-Mail</label>
-                                            <input type="email" x-model="contact.email" placeholder="name@firma.de"
-                                                   style="width:100%;padding:6px 10px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;box-sizing:border-box;">
+                                            <label class="aq-label">E-Mail</label>
+                                            <input type="email" x-model="contact.email" placeholder="name@firma.de" class="aq-input aq-input--sm">
                                         </div>
                                     </div>
                                     <div style="margin-top:8px;">
-                                        <label style="font-size:11px;color:var(--pp-textDim);display:block;margin-bottom:3px;">Funktion</label>
-                                        <input type="text" x-model="contact.position" placeholder="z.B. Personalleitung"
-                                               style="width:100%;padding:6px 10px;background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:6px;color:var(--pp-text);font-size:12px;box-sizing:border-box;">
+                                        <label class="aq-label">Funktion</label>
+                                        <input type="text" x-model="contact.position" placeholder="z.B. Personalleitung" class="aq-input aq-input--sm">
                                     </div>
                                 </div>
                             </div>
@@ -652,65 +877,59 @@
                 {# Fallback: Einzelkontakt-Formular wenn keine Kontakte extrahiert #}
                 <template x-if="mlContacts.length === 0">
                     <div>
-                        <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:10px;margin-bottom:10px;">
+                        <div class="aq-grid-3 aq-mb-10">
                             <div>
-                                <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">Anrede</label>
-                                <select x-model="mlSalutation" style="padding:8px 10px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;">
+                                <label class="aq-label">Anrede</label>
+                                <select x-model="mlSalutation" class="aq-select">
                                     <option value="">—</option>
                                     <option value="Herr">Herr</option>
                                     <option value="Frau">Frau</option>
                                 </select>
                             </div>
                             <div>
-                                <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">Vorname</label>
-                                <input type="text" x-model="mlFirstName" placeholder="Vorname"
-                                       style="width:100%;padding:8px 12px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;box-sizing:border-box;">
+                                <label class="aq-label">Vorname</label>
+                                <input type="text" x-model="mlFirstName" placeholder="Vorname" class="aq-input">
                             </div>
                             <div>
-                                <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">Nachname</label>
-                                <input type="text" x-model="mlLastName" placeholder="Nachname"
-                                       style="width:100%;padding:8px 12px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;box-sizing:border-box;">
+                                <label class="aq-label">Nachname</label>
+                                <input type="text" x-model="mlLastName" placeholder="Nachname" class="aq-input">
                             </div>
                         </div>
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+                        <div class="aq-grid-2 aq-mb-10">
                             <div>
-                                <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">Telefon</label>
-                                <input type="tel" x-model="mlPhone" placeholder="z.B. 040 123456"
-                                       style="width:100%;padding:8px 12px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;box-sizing:border-box;">
+                                <label class="aq-label">Telefon</label>
+                                <input type="tel" x-model="mlPhone" placeholder="z.B. 040 123456" class="aq-input">
                             </div>
                             <div>
-                                <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">E-Mail</label>
-                                <input type="email" x-model="mlEmail" placeholder="name@firma.de"
-                                       style="width:100%;padding:8px 12px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;box-sizing:border-box;">
+                                <label class="aq-label">E-Mail</label>
+                                <input type="email" x-model="mlEmail" placeholder="name@firma.de" class="aq-input">
                             </div>
                         </div>
                         <div>
-                            <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">Funktion / Position</label>
-                            <input type="text" x-model="mlContactPosition" placeholder="z.B. Personalleitung"
-                                   style="width:100%;padding:8px 12px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;box-sizing:border-box;">
+                            <label class="aq-label">Funktion / Position</label>
+                            <input type="text" x-model="mlContactPosition" placeholder="z.B. Personalleitung" class="aq-input">
                         </div>
                     </div>
                 </template>
                 <div style="margin-top:14px;">
-                    <label style="font-size:12px;color:var(--pp-textMuted);margin-bottom:4px;display:block;">Notizen</label>
-                    <textarea x-model="mlNotes" rows="2" placeholder="Kontext, Hintergrund..."
-                              style="width:100%;padding:8px 12px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-text);font-size:13px;resize:vertical;box-sizing:border-box;"></textarea>
+                    <label class="aq-label">Notizen</label>
+                    <textarea x-model="mlNotes" rows="2" placeholder="Kontext, Hintergrund..." class="aq-input" style="resize:vertical;"></textarea>
                 </div>
-                <div x-show="mlResult" style="margin-top:14px;background:var(--pp-bg);border:1px solid var(--pp-border);border-radius:8px;padding:12px;">
+                <div x-show="mlResult" class="aq-import-result" style="margin-top:14px;">
                     <template x-if="mlResult && mlResult.job_id">
-                        <p style="color:var(--pp-green);font-size:13px;margin:0;font-weight:500;" x-text="'Lead erstellt: ' + mlResult.company_name + ' — ' + mlResult.position"></p>
+                        <p class="aq-text-green" style="font-size:13px;margin:0;font-weight:500;" x-text="'Lead erstellt: ' + mlResult.company_name + ' — ' + mlResult.position"></p>
                     </template>
                     <template x-if="mlResult && mlResult.error">
-                        <p style="color:var(--pp-red);font-size:13px;margin:0;" x-text="mlResult.error"></p>
+                        <p class="aq-text-red" style="font-size:13px;margin:0;" x-text="mlResult.error"></p>
                     </template>
                 </div>
-                <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px;">
+                <div class="aq-modal__footer" style="padding:18px 0 0;border-top:none;">
                     <button type="button" @click="showManualLead = false; mlStep = 1; mlRawText = ''; mlExtracted = false; mlContacts = [];"
-                            style="padding:8px 16px;background:var(--pp-surface3);border:1px solid var(--pp-border);border-radius:8px;color:var(--pp-textMuted);font-size:13px;font-weight:500;cursor:pointer;">
+                            class="btn-aurora outline sm">
                         Abbrechen
                     </button>
-                    <button type="submit" :disabled="mlSaving"
-                            style="padding:8px 18px;background:var(--pp-green);border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;opacity:1;"
+                    <button type="submit" :disabled="mlSaving" class="btn-aurora sm"
+                            style="background:var(--pp-green);"
                             :style="mlSaving ? 'opacity:0.5;cursor:not-allowed;' : ''">
                         <span x-show="!mlSaving">Lead anlegen</span>
                         <span x-show="mlSaving">Wird erstellt...</span>
@@ -732,9 +951,9 @@
     </div>
 
     {# ── E-Mail Modal ── #}
-    <div x-show="emailModalVisible" x-cloak style="position:fixed;inset:0;z-index:150;">
-        <div style="position:fixed;inset:0;background:rgba(0,0,0,0.6);" @click="emailModalVisible = false"></div>
-        <div id="email-modal-content" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:14px;width:640px;max-width:90vw;max-height:85vh;overflow:auto;z-index:151;box-shadow:0 20px 60px rgba(0,0,0,0.5);">
+    <div x-show="emailModalVisible" x-cloak class="aq-overlay">
+        <div class="aq-overlay__backdrop" @click="emailModalVisible = false"></div>
+        <div id="email-modal-content" class="aq-modal aq-modal--lg">
             <div style="padding:40px;text-align:center;color:var(--pp-textDim);">E-Mail wird geladen...</div>
         </div>
     </div>

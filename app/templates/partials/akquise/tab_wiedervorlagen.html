@@ -1,9 +1,9 @@
 {# Tab "Wiedervorlagen" — Geplante Wiedervorlagen #}
 
 {% if groups and groups | length > 0 %}
-<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:16px;">
-    <span style="font-size:28px;font-weight:700;color:var(--pp-text);letter-spacing:-0.5px;font-family:var(--pp-mono);">{{ total }}</span>
-    <span style="font-size:14px;color:var(--pp-textMuted);">Wiedervorlagen in {{ groups | length }} Firmen</span>
+<div class="aq-tab-header">
+    <span class="aq-tab-header__count">{{ total }}</span>
+    <span class="aq-tab-header__label">Wiedervorlagen in {{ groups | length }} Firmen</span>
 </div>
 
 {% for group in groups %}
@@ -15,9 +15,9 @@
 {% endif %}
 
 {% else %}
-<div style="text-align:center;padding:80px 0;">
-    <svg style="width:48px;height:48px;color:var(--pp-textDim);margin:0 auto 12px;opacity:0.4;" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-    <p style="font-size:15px;font-weight:500;color:var(--pp-textMuted);margin:0;">Keine Wiedervorlagen</p>
-    <p style="font-size:13px;color:var(--pp-textDim);margin:6px 0 0;">Wiedervorlagen werden automatisch aus Dispositionen erstellt</p>
+<div class="aq-empty">
+    <svg class="aq-empty__icon" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+    <p class="aq-empty__title">Keine Wiedervorlagen</p>
+    <p class="aq-empty__desc">Wiedervorlagen werden automatisch aus Dispositionen erstellt</p>
 </div>
 {% endif %}

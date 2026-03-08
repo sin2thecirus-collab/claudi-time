@@ -186,50 +186,404 @@
     cursor: pointer; transition: all 0.15s;
     font-family: inherit; text-decoration: none;
 }
+
+/* ── Layout ── */
+.cs-fullscreen {
+    height: 100vh; display: flex; flex-direction: column;
+    background: var(--pp-bg);
+}
+.cs-topbar-layout {
+    padding: 10px 20px; display: flex; align-items: center;
+    justify-content: space-between;
+}
+.cs-topbar__left {
+    display: flex; align-items: center; gap: 14px; min-width: 0;
+}
+.cs-topbar__right {
+    display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+}
+.cs-topbar__info { min-width: 0; }
+.cs-topbar__title-row {
+    display: flex; align-items: center; gap: 10px;
+}
+.cs-company-name {
+    font-size: 16px; font-weight: 700; color: var(--pp-text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cs-position-sub {
+    font-size: 12px; color: var(--pp-textMuted); display: block;
+    margin-top: 1px; white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis;
+}
+.cs-grid-3col {
+    flex: 1; display: grid;
+    grid-template-columns: 38% 30% 32%;
+    overflow: hidden;
+}
+
+/* ── Status Badges (Call-Screen) ── */
+.cs-status {
+    padding: 2px 8px; border-radius: 5px; font-size: 10px;
+    font-weight: 600; flex-shrink: 0;
+}
+.cs-status--neu            { background: rgba(59,130,246,0.12); color: var(--pp-accent); }
+.cs-status--angerufen      { background: rgba(234,179,8,0.12); color: var(--pp-orange); }
+.cs-status--kontaktiert    { background: rgba(34,197,94,0.12); color: var(--pp-green); }
+.cs-status--wiedervorlage  { background: rgba(167,139,250,0.12); color: var(--pp-purple); }
+.cs-status--email_gesendet { background: rgba(96,165,250,0.12); color: #60a5fa; }
+.cs-status--qualifiziert   { background: rgba(16,185,129,0.12); color: #10b981; }
+
+/* ── Timer ── */
+.cs-timer-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #34D399; animation: pulse 1.5s infinite;
+}
+.cs-timer-text {
+    font-size: 13px; font-weight: 600; color: #34D399;
+    font-variant-numeric: tabular-nums;
+    font-family: 'Space Mono', monospace;
+}
+.cs-timer-stop {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 3px 8px; background: var(--pp-red); border: none;
+    border-radius: 5px; color: #fff; font-size: 10px;
+    font-weight: 600; cursor: pointer;
+}
+.cs-timer-ended {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 12px; background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06); border-radius: 20px;
+}
+.cs-timer-ended__text {
+    font-size: 13px; font-weight: 600; color: var(--pp-textMuted);
+    font-variant-numeric: tabular-nums;
+    font-family: 'Space Mono', monospace;
+}
+
+/* ── Sim Dropdown ── */
+.cs-sim-dropdown {
+    position: absolute; right: 0; top: 100%; margin-top: 4px;
+    background: rgba(14,16,25,0.92); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    min-width: 200px; z-index: 50; overflow: hidden;
+    backdrop-filter: blur(20px) saturate(1.4);
+}
+.cs-sim-item {
+    display: flex; justify-content: space-between; align-items: center;
+    width: 100%; padding: 8px 14px; background: none; border: none;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    color: var(--pp-text); font-size: 12px; cursor: pointer;
+    text-align: left; font-family: inherit; transition: background 0.15s;
+}
+.cs-sim-item:hover { background: rgba(96,165,250,0.06); }
+.cs-sim-duration { font-size: 10px; color: var(--pp-textDim); }
+
+/* ── Job Card ── */
+.cs-job-header { padding: 14px 16px; margin-bottom: 16px; }
+.cs-job-title {
+    font-size: 16px; font-weight: 700; color: var(--pp-text);
+    margin: 0 0 6px; line-height: 1.3;
+}
+.cs-job-meta {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.cs-job-meta-item {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 12px; color: var(--pp-textMuted);
+}
+.cs-job-meta-dim { color: var(--pp-textDim); }
+.cs-employment-pill {
+    font-size: 10px; color: var(--pp-textDim);
+    padding: 2px 8px; background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06); border-radius: 5px;
+}
+.cs-job-info {
+    display: flex; gap: 10px; margin-top: 8px;
+    font-size: 11px; color: var(--pp-textDim);
+}
+.cs-job-link {
+    display: inline-flex; align-items: center; gap: 4px;
+    margin-top: 10px; padding: 4px 10px;
+    background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.2);
+    border-radius: 6px; font-size: 11px; color: var(--pp-accent);
+    text-decoration: none; transition: background .1s;
+}
+.cs-job-link:hover { background: rgba(59,130,246,0.15); }
+.cs-section-text {
+    font-size: 12px; color: var(--pp-textMuted);
+    line-height: 1.65; white-space: pre-wrap;
+}
+.cs-section-title {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* ── Contact Card ── */
+.cs-contact-wrap { padding: 10px 12px; margin-bottom: 8px; }
+.cs-contact-row {
+    display: flex; align-items: center; gap: 10px;
+}
+.cs-contact-info { flex: 1; min-width: 0; }
+.cs-contact-name-row {
+    display: flex; align-items: center; gap: 6px;
+}
+.cs-contact-name {
+    font-size: 13px; font-weight: 500; color: var(--pp-text);
+}
+.cs-contact-role {
+    font-size: 9px; color: var(--pp-textDim);
+    padding: 1px 5px; background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06); border-radius: 4px;
+}
+.cs-contact-position {
+    font-size: 11px; color: var(--pp-textDim); margin: 1px 0 0;
+}
+.cs-contact-details {
+    margin-top: 8px; padding-top: 8px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    display: flex; flex-direction: column; gap: 4px;
+}
+.cs-contact-field {
+    display: flex; align-items: center; gap: 6px;
+}
+.cs-contact-field__actions {
+    display: flex; align-items: center; gap: 4px;
+}
+.cs-contact-phone-link {
+    font-size: 12px; color: var(--pp-accent); text-decoration: none;
+}
+.cs-contact-no-data {
+    font-size: 11px; color: var(--pp-textDim); font-style: italic;
+}
+.cs-edit-btn {
+    background: none; border: none; color: var(--pp-textDim);
+    cursor: pointer; font-size: 10px; padding: 2px; opacity: 0.6;
+}
+.cs-copy-btn {
+    background: none; border: none; color: var(--pp-textDim);
+    cursor: pointer; font-size: 11px; padding: 2px;
+}
+.cs-edit-row {
+    display: flex; align-items: center; gap: 4px; flex: 1;
+}
+.cs-edit-input {
+    font-size: 12px; padding: 3px 6px;
+    border: 1px solid var(--pp-accent); border-radius: 4px;
+    background: rgba(0,0,0,0.3); color: var(--pp-text); outline: none;
+}
+.cs-edit-input--phone { width: 140px; }
+.cs-edit-input--email { width: 180px; }
+.cs-edit-ok {
+    background: var(--pp-accent); color: #fff; border: none;
+    border-radius: 4px; font-size: 10px; padding: 3px 8px;
+    cursor: pointer;
+}
+.cs-edit-close {
+    background: none; border: none; color: var(--pp-textDim);
+    cursor: pointer; font-size: 10px;
+}
+.cs-no-contact { padding: 12px; text-align: center; }
+.cs-no-contact__icon {
+    width: 20px; height: 20px; color: var(--pp-textDim);
+    margin: 0 auto 4px; opacity: 0.5;
+}
+.cs-no-contact__text {
+    font-size: 11px; color: var(--pp-textDim); margin: 0;
+}
+
+/* ── KI Badge + Transcript ── */
+.cs-ki-badge {
+    display: flex; align-items: center; gap: 8px;
+    margin: 12px 0 8px; padding: 8px 12px;
+    background: rgba(16,185,129,0.06);
+    border: 1px solid rgba(16,185,129,0.15); border-radius: 8px;
+}
+.cs-ki-badge__icon { font-size: 14px; }
+.cs-ki-badge__label {
+    font-size: 11px; font-weight: 600; color: #10b981;
+}
+.cs-ki-badge__count {
+    font-size: 10px; color: var(--pp-textDim);
+}
+.cs-transcript-btn {
+    margin-left: auto; padding: 2px 8px;
+    background: var(--pp-surface3); border: 1px solid var(--pp-border);
+    border-radius: 4px; color: var(--pp-textMuted);
+    font-size: 10px; cursor: pointer;
+}
+.cs-transcript-panel {
+    margin-bottom: 12px; padding: 10px 12px;
+    max-height: 200px; overflow-y: auto;
+}
+.cs-transcript-heading {
+    font-size: 10px; font-weight: 600; color: var(--pp-textDim);
+    text-transform: uppercase;
+}
+.cs-transcript-text {
+    font-size: 12px; color: var(--pp-textMuted);
+    margin: 4px 0 0; line-height: 1.5;
+}
+.cs-transcript-raw {
+    font-size: 11px; color: var(--pp-textDim);
+    margin: 4px 0 0; line-height: 1.5; white-space: pre-wrap;
+}
+
+/* ── Qualifizierung ── */
+.cs-quali-item { margin-bottom: 10px; }
+.cs-quali-check-row {
+    display: flex; align-items: flex-start; gap: 8px;
+}
+.cs-quali-checkbox {
+    width: 14px; height: 14px; margin-top: 2px;
+    border-radius: 3px; cursor: pointer; flex-shrink: 0;
+}
+.cs-quali-checkbox--blue { accent-color: var(--pp-accent); }
+.cs-quali-checkbox--purple { accent-color: var(--pp-purple); }
+.cs-quali-label {
+    font-size: 12px; color: var(--pp-textMuted); line-height: 1.4;
+}
+.cs-quali-answer {
+    margin-left: 22px; margin-top: 4px;
+}
+.cs-quali-answer-input {
+    width: 100%; padding: 4px 8px; font-size: 11px;
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 6px;
+    background: rgba(255,255,255,0.04); color: var(--pp-text);
+    outline: none;
+}
+.cs-ki-answer {
+    margin-left: 22px; margin-top: 3px; padding: 3px 8px;
+    background: rgba(16,185,129,0.05);
+    border-left: 2px solid #10b981; border-radius: 0 4px 4px 0;
+}
+.cs-ki-answer__prefix {
+    font-size: 10px; color: var(--pp-textDim);
+}
+.cs-ki-answer__text {
+    font-size: 10px; color: var(--pp-textMuted);
+}
+
+/* ── Convert Button ── */
+.cs-convert-section {
+    margin-top: 16px; border-top: 1px solid rgba(16,185,129,0.15);
+    padding-top: 14px;
+}
+.cs-convert-btn {
+    width: 100%; padding: 12px 16px; font-size: 13px; font-weight: 700;
+    color: #fff; background: linear-gradient(135deg, #10b981, #059669);
+    border: none; border-radius: 10px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: all .2s; box-shadow: 0 2px 8px rgba(16,185,129,0.2);
+}
+.cs-convert-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(16,185,129,0.35);
+}
+.cs-convert-hint {
+    margin: 6px 0 0; font-size: 9px; color: var(--pp-textDim);
+    text-align: center;
+}
+
+/* ── History ── */
+.cs-history-row {
+    display: flex; align-items: center; justify-content: space-between;
+}
+.cs-history-date {
+    font-size: 10px; color: var(--pp-textDim);
+}
+.cs-history-dispo {
+    font-size: 10px; font-weight: 600; color: var(--pp-textMuted);
+}
+.cs-history-note {
+    font-size: 10px; color: var(--pp-textDim);
+    margin: 3px 0 0; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap;
+}
+.cs-no-history {
+    font-size: 11px; color: var(--pp-textDim); margin: 0 0 8px;
+}
+
+/* ── Textbausteine ── */
+.cs-bausteine-wrap {
+    display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px;
+}
+
+/* ── Email Buttons ── */
+.cs-email-pitch {
+    flex: 1; display: inline-flex; align-items: center;
+    justify-content: center; gap: 5px; padding: 8px;
+    background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.2);
+    border-radius: 8px; color: var(--pp-accent);
+    font-size: 11px; font-weight: 600; cursor: pointer;
+    transition: background .1s;
+}
+.cs-email-pitch:hover { background: rgba(59,130,246,0.15); }
+.cs-email-contact {
+    flex: 1; display: inline-flex; align-items: center;
+    justify-content: center; gap: 5px; padding: 8px;
+    background: rgba(34,197,94,0.06); border: 1px solid rgba(34,197,94,0.2);
+    border-radius: 8px; color: var(--pp-green);
+    font-size: 11px; font-weight: 600; cursor: pointer;
+    transition: background .1s;
+}
+.cs-email-contact:hover { background: rgba(34,197,94,0.12); }
+.cs-email-row {
+    display: flex; gap: 6px; margin-top: 12px;
+}
+
+/* ── Bottom Actions ── */
+.cs-bottom-actions {
+    border-top: 1px solid rgba(255,255,255,0.05);
+    padding-top: 12px; margin-top: 8px;
+}
+.cs-bottom-row { display: flex; gap: 6px; }
+.cs-blacklist-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: 4px; padding: 7px 12px;
+    background: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.2);
+    border-radius: 8px; color: var(--pp-red);
+    font-size: 11px; font-weight: 500; cursor: pointer;
+    transition: all .15s;
+}
+.cs-blacklist-btn:hover { background: rgba(239,68,68,0.12); }
+.cs-icon-sm { width: 11px; height: 11px; flex-shrink: 0; }
+.cs-icon-xs { width: 10px; height: 10px; }
+.cs-flex-center { display: flex; align-items: center; }
+.cs-spacer { flex: 1; min-height: 16px; }
 </style>
 
-<div x-data="callScreen()" x-init="init()" style="height:100vh;display:flex;flex-direction:column;background:var(--pp-bg);">
+<div x-data="callScreen()" x-init="init()" class="cs-fullscreen">
 
     {# ── Top-Bar — Aurora Glass ── #}
-    <div class="cs-topbar" style="padding:10px 20px;display:flex;align-items:center;justify-content:space-between;">
-        <div style="display:flex;align-items:center;gap:14px;min-width:0;">
+    <div class="cs-topbar cs-topbar-layout">
+        <div class="cs-topbar__left">
             <button @click="Alpine.$data(document.getElementById('akquise-root')).closeCallScreen()"
                     class="cs-btn-secondary" style="padding:6px;border-radius:8px;" title="Zurueck">
                 <svg style="width:18px;height:18px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
             </button>
-            <div style="min-width:0;">
-                <div style="display:flex;align-items:center;gap:10px;">
-                    <span style="font-size:16px;font-weight:700;color:var(--pp-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ job.company_name }}</span>
-                    {% set status_colors = {
-                        'neu': 'background:rgba(59,130,246,0.12);color:var(--pp-accent);',
-                        'angerufen': 'background:rgba(234,179,8,0.12);color:var(--pp-orange);',
-                        'kontaktiert': 'background:rgba(34,197,94,0.12);color:var(--pp-green);',
-                        'wiedervorlage': 'background:rgba(167,139,250,0.12);color:var(--pp-purple);',
-                        'email_gesendet': 'background:rgba(96,165,250,0.12);color:#60a5fa;',
-                        'qualifiziert': 'background:rgba(16,185,129,0.12);color:#10b981;',
-                    } %}
-                    <span style="padding:2px 8px;border-radius:5px;font-size:10px;font-weight:600;flex-shrink:0;{{ status_colors.get(job.akquise_status, 'background:var(--pp-surface3);color:var(--pp-textDim);') }}">
+            <div class="cs-topbar__info">
+                <div class="cs-topbar__title-row">
+                    <span class="cs-company-name">{{ job.company_name }}</span>
+                    <span class="cs-status cs-status--{{ job.akquise_status or 'neu' }}">
                         {{ job.akquise_status or 'neu' }}
                     </span>
                 </div>
-                <span style="font-size:12px;color:var(--pp-textMuted);display:block;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ job.position }}{% if job.city %} · {{ job.city }}{% endif %}</span>
+                <span class="cs-position-sub">{{ job.position }}{% if job.city %} · {{ job.city }}{% endif %}</span>
             </div>
         </div>
-        <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
+        <div class="cs-topbar__right">
             {# Timer Pill — Aktiver Anruf #}
             <div x-show="callActive" class="cs-timer-pill">
-                <span style="width:7px;height:7px;border-radius:50%;background:#34D399;animation:pulse 1.5s infinite;"></span>
-                <span style="font-size:13px;font-weight:600;color:#34D399;font-variant-numeric:tabular-nums;font-family:'Space Mono',monospace;" x-text="callTimer"></span>
-                <button @click="stopCall()"
-                        style="display:inline-flex;align-items:center;gap:3px;padding:3px 8px;background:var(--pp-red);border:none;border-radius:5px;color:#fff;font-size:10px;font-weight:600;cursor:pointer;"
-                        title="Anruf beenden">
-                    <svg style="width:10px;height:10px;" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                <span class="cs-timer-dot"></span>
+                <span class="cs-timer-text" x-text="callTimer"></span>
+                <button @click="stopCall()" class="cs-timer-stop" title="Anruf beenden">
+                    <svg class="cs-icon-xs" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                     Stop
                 </button>
             </div>
             {# Gestoppte Dauer #}
-            <div x-show="!callActive && callDuration > 0" style="display:flex;align-items:center;gap:6px;padding:5px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:20px;">
-                <span style="font-size:13px;font-weight:600;color:var(--pp-textMuted);font-variant-numeric:tabular-nums;font-family:'Space Mono',monospace;" x-text="callTimer"></span>
+            <div x-show="!callActive && callDuration > 0" class="cs-timer-ended">
+                <span class="cs-timer-ended__text" x-text="callTimer"></span>
                 <span style="font-size:10px;color:var(--pp-textDim);">beendet</span>
             </div>
             {# Anrufen Button #}
@@ -241,8 +595,7 @@
                     <svg style="width:14px;height:14px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"/></svg>
                     Simulieren ▾
                 </button>
-                <div x-show="simOpen" @click.away="simOpen = false"
-                     style="position:absolute;right:0;top:100%;margin-top:4px;background:rgba(14,16,25,0.92);border:1px solid rgba(255,255,255,0.08);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.5);min-width:200px;z-index:50;overflow:hidden;backdrop-filter:blur(20px) saturate(1.4);">
+                <div x-show="simOpen" @click.away="simOpen = false" class="cs-sim-dropdown">
                     {% set szenarien = [
                         ("nicht_erreicht", "Nicht erreicht", "30s"),
                         ("besetzt", "Besetzt", "5s"),
@@ -254,11 +607,9 @@
                         ("nie_wieder", "Nie wieder", "40s"),
                     ] %}
                     {% for key, label, dauer in szenarien %}
-                    <button @click="simOpen = false; simulateCall('{{ key }}')"
-                            style="display:flex;justify-content:space-between;align-items:center;width:100%;padding:8px 14px;background:none;border:none;border-bottom:1px solid rgba(255,255,255,0.04);color:var(--pp-text);font-size:12px;cursor:pointer;text-align:left;font-family:inherit;transition:background 0.15s;"
-                            onmouseover="this.style.background='rgba(96,165,250,0.06)'" onmouseout="this.style.background='none'">
+                    <button @click="simOpen = false; simulateCall('{{ key }}')" class="cs-sim-item">
                         <span>{{ label }}</span>
-                        <span style="font-size:10px;color:var(--pp-textDim);">{{ dauer }}</span>
+                        <span class="cs-sim-duration">{{ dauer }}</span>
                     </button>
                     {% endfor %}
                 </div>
@@ -285,7 +636,7 @@
     {% if other_jobs and other_jobs | length > 0 %}
     <div class="cs-banner" style="flex-wrap:wrap;">
         <svg style="width:12px;height:12px;color:var(--pp-textDim);" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>
-        <span style="font-size:11px;color:var(--pp-textDim);">{{ other_jobs | length }} weitere Stelle{{ 'n' if other_jobs | length > 1 else '' }}:</span>
+        <span class="cs-sim-duration">{{ other_jobs | length }} weitere Stelle{{ 'n' if other_jobs | length > 1 else '' }}:</span>
         {% for oj in other_jobs %}
         <button onclick="Alpine.$data(document.getElementById('akquise-root')).openCallScreen('{{ oj.id }}')"
                 class="cs-other-job-btn">
@@ -296,41 +647,39 @@
     {% endif %}
 
     {# ── 3-Spalten Content ── #}
-    <div style="flex:1;display:grid;grid-template-columns:38% 30% 32%;overflow:hidden;">
+    <div class="cs-grid-3col">
 
         {# ══════════════════════════════════════════════════════════════ #}
         {# ── Spalte 1: Stellenausschreibung ── #}
         {# ══════════════════════════════════════════════════════════════ #}
         <div class="cs-col">
             {# Job-Header Card #}
-            <div class="cs-card" style="padding:14px 16px;margin-bottom:16px;">
-                <h3 style="font-size:16px;font-weight:700;color:var(--pp-text);margin:0 0 6px;line-height:1.3;">{{ job.position }}</h3>
-                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                    <span style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--pp-textMuted);">
+            <div class="cs-card cs-job-header">
+                <h3 class="cs-job-title">{{ job.position }}</h3>
+                <div class="cs-job-meta">
+                    <span class="cs-job-meta-item">
                         <svg style="width:12px;height:12px;flex-shrink:0;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5M3.75 3v18m4.5-18v18m4.5-18v18m4.5-18v18M6 6.75h.008v.008H6V6.75zm0 3h.008v.008H6V9.75zm0 3h.008v.008H6v-.008zm0 3h.008v.008H6v-.008zm3-9h.008v.008H9V6.75zm0 3h.008v.008H9V9.75zm0 3h.008v.008H9v-.008zm0 3h.008v.008H9v-.008zm3-9h.008v.008H12V6.75zm0 3h.008v.008H12V9.75zm0 3h.008v.008H12v-.008z"/></svg>
                         {{ job.company_name }}
                     </span>
                     {% if job.city %}
-                    <span style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--pp-textDim);">
-                        <svg style="width:11px;height:11px;flex-shrink:0;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"/></svg>
+                    <span class="cs-job-meta-item cs-job-meta-dim">
+                        <svg class="cs-icon-sm" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"/></svg>
                         {{ job.city }}
                     </span>
                     {% endif %}
                     {% if job.employment_type %}
-                    <span style="font-size:10px;color:var(--pp-textDim);padding:2px 8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:5px;">{{ job.employment_type }}</span>
+                    <span class="cs-employment-pill">{{ job.employment_type }}</span>
                     {% endif %}
                 </div>
                 {% if job.industry or (company and company.domain) %}
-                <div style="display:flex;gap:10px;margin-top:8px;font-size:11px;color:var(--pp-textDim);">
+                <div class="cs-job-info">
                     {% if job.industry %}<span>{{ job.industry }}</span>{% endif %}
                     {% if company and company.domain %}<span style="color:var(--pp-accent);">{{ company.domain }}</span>{% endif %}
                 </div>
                 {% endif %}
                 {% if job.job_url %}
-                <a href="{{ job.job_url }}" target="_blank"
-                   style="display:inline-flex;align-items:center;gap:4px;margin-top:10px;padding:4px 10px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:6px;font-size:11px;color:var(--pp-accent);text-decoration:none;transition:background .1s;"
-                   onmouseover="this.style.background='rgba(59,130,246,0.15)'" onmouseout="this.style.background='rgba(59,130,246,0.08)'">
-                    <svg style="width:11px;height:11px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg>
+                <a href="{{ job.job_url }}" target="_blank" class="cs-job-link">
+                    <svg class="cs-icon-sm" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg>
                     Originalanzeige
                 </a>
                 {% endif %}
@@ -348,15 +697,15 @@
             } %}
             {% for section in job_sections %}
             <div class="cs-section-labeled" style="border-left:3px solid {{ section_colors.get(section.type, 'var(--pp-textDim)') }};">
-                <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
-                    <span style="font-size:10px;font-weight:700;color:{{ section_colors.get(section.type, 'var(--pp-textDim)') }};text-transform:uppercase;letter-spacing:0.5px;">{{ section.title }}</span>
+                <div class="cs-flex-center" style="gap:6px;margin-bottom:6px;">
+                    <span class="cs-section-title" style="color:{{ section_colors.get(section.type, 'var(--pp-textDim)') }};">{{ section.title }}</span>
                 </div>
-                <div style="font-size:12px;color:var(--pp-textMuted);line-height:1.65;white-space:pre-wrap;">{{ section.content }}</div>
+                <div class="cs-section-text">{{ section.content }}</div>
             </div>
             {% endfor %}
             {% else %}
             <div class="cs-section-card" style="padding:14px;">
-                <div style="font-size:12px;color:var(--pp-textMuted);line-height:1.65;white-space:pre-wrap;">{{ job.job_text or 'Kein Stellentext vorhanden' }}</div>
+                <div class="cs-section-text">{{ job.job_text or 'Kein Stellentext vorhanden' }}</div>
             </div>
             {% endif %}
         </div>
@@ -369,90 +718,88 @@
             <h4 class="cs-section-label">Ansprechpartner</h4>
             {% if contacts and contacts | length > 0 %}
             {% for contact in contacts %}
-            <div class="cs-card" style="padding:10px 12px;margin-bottom:8px;">
-                <div style="display:flex;align-items:center;gap:10px;">
+            <div class="cs-card cs-contact-wrap">
+                <div class="cs-contact-row">
                     {# Avatar Circle — Gradient Ring #}
                     <div class="cs-avatar">
                         <div class="cs-avatar-inner">{{ contact.name[:1] | upper if contact.name else '?' }}</div>
                     </div>
-                    <div style="flex:1;min-width:0;">
-                        <div style="display:flex;align-items:center;gap:6px;">
-                            <span style="font-size:13px;font-weight:500;color:var(--pp-text);">{{ contact.name }}</span>
+                    <div class="cs-contact-info">
+                        <div class="cs-contact-name-row">
+                            <span class="cs-contact-name">{{ contact.name }}</span>
                             {% if contact.contact_role %}
-                            <span style="font-size:9px;color:var(--pp-textDim);padding:1px 5px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:4px;">{{ contact.contact_role }}</span>
+                            <span class="cs-contact-role">{{ contact.contact_role }}</span>
                             {% endif %}
                         </div>
                         {% if contact.position %}
-                        <p style="font-size:11px;color:var(--pp-textDim);margin:1px 0 0;">{{ contact.position }}</p>
+                        <p class="cs-contact-position">{{ contact.position }}</p>
                         {% endif %}
                     </div>
                 </div>
-                <div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.05);display:flex;flex-direction:column;gap:4px;"
+                <div class="cs-contact-details"
                      x-data="{ editPhone_{{ loop.index }}: false, editEmail_{{ loop.index }}: false, phoneVal_{{ loop.index }}: '{{ contact.phone or '' }}', emailVal_{{ loop.index }}: '{{ contact.email or '' }}' }">
                     {# Telefon — editierbar #}
-                    <div style="display:flex;align-items:center;gap:6px;">
-                        <svg style="width:11px;height:11px;color:var(--pp-accent);flex-shrink:0;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"/></svg>
+                    <div class="cs-contact-field">
+                        <svg class="cs-icon-sm" style="color:var(--pp-accent);" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"/></svg>
                         <template x-if="!editPhone_{{ loop.index }}">
-                            <div style="display:flex;align-items:center;gap:4px;">
+                            <div class="cs-contact-field__actions">
                                 <template x-if="phoneVal_{{ loop.index }}">
                                     {% if test_mode %}
                                     <span style="font-size:12px;color:var(--pp-textDim);text-decoration:line-through;" x-text="phoneVal_{{ loop.index }}"></span>
                                     {% else %}
                                     <a :href="'tel:' + phoneVal_{{ loop.index }}" @click="selectAndCall('{{ contact.id }}', phoneVal_{{ loop.index }})"
-                                       style="font-size:12px;color:var(--pp-accent);text-decoration:none;" x-text="phoneVal_{{ loop.index }}"></a>
+                                       class="cs-contact-phone-link" x-text="phoneVal_{{ loop.index }}"></a>
                                     {% endif %}
                                 </template>
                                 <template x-if="!phoneVal_{{ loop.index }}">
-                                    <span style="font-size:11px;color:var(--pp-textDim);font-style:italic;">Keine Tel.</span>
+                                    <span class="cs-contact-no-data">Keine Tel.</span>
                                 </template>
                                 <button @click="editPhone_{{ loop.index }} = true; $nextTick(() => $refs.phoneInput_{{ loop.index }}.focus())"
-                                        style="background:none;border:none;color:var(--pp-textDim);cursor:pointer;font-size:10px;padding:2px;opacity:0.6;" title="Bearbeiten">✏️</button>
+                                        class="cs-edit-btn" title="Bearbeiten">✏️</button>
                                 <template x-if="phoneVal_{{ loop.index }}">
                                     <button @click="navigator.clipboard.writeText(phoneVal_{{ loop.index }});if(typeof showToast==='function')showToast('Kopiert','success')"
-                                            style="background:none;border:none;color:var(--pp-textDim);cursor:pointer;font-size:11px;padding:2px;">&#128203;</button>
+                                            class="cs-copy-btn">&#128203;</button>
                                 </template>
                             </div>
                         </template>
                         <template x-if="editPhone_{{ loop.index }}">
-                            <div style="display:flex;align-items:center;gap:4px;flex:1;">
+                            <div class="cs-edit-row">
                                 <input type="text" x-model="phoneVal_{{ loop.index }}" x-ref="phoneInput_{{ loop.index }}"
                                        @keydown.enter="fetch('/api/companies/contacts/{{ contact.id }}',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone:phoneVal_{{ loop.index }}})}).then(r=>{if(r.ok){editPhone_{{ loop.index }}=false;if(typeof showToast==='function')showToast('Telefon gespeichert','success')}else{showToast('Fehler','error')}})"
                                        @keydown.escape="editPhone_{{ loop.index }} = false"
                                        placeholder="+49..."
-                                       style="font-size:12px;padding:3px 6px;border:1px solid var(--pp-accent);border-radius:4px;background:rgba(0,0,0,0.3);color:var(--pp-text);width:140px;outline:none;">
+                                       class="cs-edit-input cs-edit-input--phone">
                                 <button @click="fetch('/api/companies/contacts/{{ contact.id }}',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone:phoneVal_{{ loop.index }}})}).then(r=>{if(r.ok){editPhone_{{ loop.index }}=false;if(typeof showToast==='function')showToast('Telefon gespeichert','success')}else{showToast('Fehler','error')}})"
-                                        style="background:var(--pp-accent);color:#fff;border:none;border-radius:4px;font-size:10px;padding:3px 8px;cursor:pointer;">OK</button>
-                                <button @click="editPhone_{{ loop.index }} = false"
-                                        style="background:none;border:none;color:var(--pp-textDim);cursor:pointer;font-size:10px;">✕</button>
+                                        class="cs-edit-ok">OK</button>
+                                <button @click="editPhone_{{ loop.index }} = false" class="cs-edit-close">✕</button>
                             </div>
                         </template>
                     </div>
                     {# Email — editierbar #}
-                    <div style="display:flex;align-items:center;gap:6px;">
-                        <svg style="width:11px;height:11px;color:var(--pp-textDim);flex-shrink:0;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"/></svg>
+                    <div class="cs-contact-field">
+                        <svg class="cs-icon-sm" style="color:var(--pp-textDim);" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"/></svg>
                         <template x-if="!editEmail_{{ loop.index }}">
-                            <div style="display:flex;align-items:center;gap:4px;">
+                            <div class="cs-contact-field__actions">
                                 <template x-if="emailVal_{{ loop.index }}">
                                     <span style="font-size:11px;color:var(--pp-textMuted);" x-text="emailVal_{{ loop.index }}"></span>
                                 </template>
                                 <template x-if="!emailVal_{{ loop.index }}">
-                                    <span style="font-size:11px;color:var(--pp-textDim);font-style:italic;">Keine Email</span>
+                                    <span class="cs-contact-no-data">Keine Email</span>
                                 </template>
                                 <button @click="editEmail_{{ loop.index }} = true; $nextTick(() => $refs.emailInput_{{ loop.index }}.focus())"
-                                        style="background:none;border:none;color:var(--pp-textDim);cursor:pointer;font-size:10px;padding:2px;opacity:0.6;" title="Bearbeiten">✏️</button>
+                                        class="cs-edit-btn" title="Bearbeiten">✏️</button>
                             </div>
                         </template>
                         <template x-if="editEmail_{{ loop.index }}">
-                            <div style="display:flex;align-items:center;gap:4px;flex:1;">
+                            <div class="cs-edit-row">
                                 <input type="email" x-model="emailVal_{{ loop.index }}" x-ref="emailInput_{{ loop.index }}"
                                        @keydown.enter="fetch('/api/companies/contacts/{{ contact.id }}',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:emailVal_{{ loop.index }}})}).then(r=>{if(r.ok){editEmail_{{ loop.index }}=false;if(typeof showToast==='function')showToast('Email gespeichert','success')}else{showToast('Fehler','error')}})"
                                        @keydown.escape="editEmail_{{ loop.index }} = false"
                                        placeholder="name@firma.de"
-                                       style="font-size:12px;padding:3px 6px;border:1px solid var(--pp-accent);border-radius:4px;background:rgba(0,0,0,0.3);color:var(--pp-text);width:180px;outline:none;">
+                                       class="cs-edit-input cs-edit-input--email">
                                 <button @click="fetch('/api/companies/contacts/{{ contact.id }}',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:emailVal_{{ loop.index }}})}).then(r=>{if(r.ok){editEmail_{{ loop.index }}=false;if(typeof showToast==='function')showToast('Email gespeichert','success')}else{showToast('Fehler','error')}})"
-                                        style="background:var(--pp-accent);color:#fff;border:none;border-radius:4px;font-size:10px;padding:3px 8px;cursor:pointer;">OK</button>
-                                <button @click="editEmail_{{ loop.index }} = false"
-                                        style="background:none;border:none;color:var(--pp-textDim);cursor:pointer;font-size:10px;">✕</button>
+                                        class="cs-edit-ok">OK</button>
+                                <button @click="editEmail_{{ loop.index }} = false" class="cs-edit-close">✕</button>
                             </div>
                         </template>
                     </div>
@@ -460,9 +807,9 @@
             </div>
             {% endfor %}
             {% else %}
-            <div class="cs-section-card" style="padding:12px;text-align:center;">
-                <svg style="width:20px;height:20px;color:var(--pp-textDim);margin:0 auto 4px;opacity:0.5;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/></svg>
-                <p style="font-size:11px;color:var(--pp-textDim);margin:0;">Kein AP hinterlegt</p>
+            <div class="cs-section-card cs-no-contact">
+                <svg class="cs-no-contact__icon" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/></svg>
+                <p class="cs-no-contact__text">Kein AP hinterlegt</p>
             </div>
             {% endif %}
             <button onclick="document.getElementById('new-contact-form').style.display = document.getElementById('new-contact-form').style.display === 'none' ? 'block' : 'none'"
@@ -475,14 +822,13 @@
 
             {# KI-Badge (wenn Qualifizierungsdaten vorhanden) #}
             <template x-if="qualiLoaded && Object.keys(qualiAnswers).length > 0">
-                <div style="display:flex;align-items:center;gap:8px;margin:12px 0 8px;padding:8px 12px;background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.15);border-radius:8px;">
-                    <span style="font-size:14px;">&#129302;</span>
-                    <span style="font-size:11px;font-weight:600;color:#10b981;">KI-Qualifizierung</span>
-                    <span style="font-size:10px;color:var(--pp-textDim);"
+                <div class="cs-ki-badge">
+                    <span class="cs-ki-badge__icon">&#129302;</span>
+                    <span class="cs-ki-badge__label">KI-Qualifizierung</span>
+                    <span class="cs-ki-badge__count"
                           x-text="Object.values(qualiAnswers).filter(a => a && a.answer).length + '/' + Object.keys(qualiAnswers).length + ' beantwortet'"></span>
                     <template x-if="qualiTranscript">
-                        <button @click="showTranscript = !showTranscript"
-                                style="margin-left:auto;padding:2px 8px;background:var(--pp-surface3);border:1px solid var(--pp-border);border-radius:4px;color:var(--pp-textMuted);font-size:10px;cursor:pointer;"
+                        <button @click="showTranscript = !showTranscript" class="cs-transcript-btn"
                                 x-text="showTranscript ? 'Transkript ▲' : 'Transkript ▼'">
                         </button>
                     </template>
@@ -491,16 +837,16 @@
 
             {# Transkript-Panel (aufklappbar) #}
             <template x-if="showTranscript && qualiTranscript">
-                <div class="cs-section-card" style="margin-bottom:12px;padding:10px 12px;max-height:200px;overflow-y:auto;">
+                <div class="cs-section-card cs-transcript-panel">
                     <template x-if="qualiTranscript.summary">
                         <div style="margin-bottom:8px;">
-                            <span style="font-size:10px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;">Zusammenfassung</span>
-                            <p style="font-size:12px;color:var(--pp-textMuted);margin:4px 0 0;line-height:1.5;" x-text="qualiTranscript.summary"></p>
+                            <span class="cs-transcript-heading">Zusammenfassung</span>
+                            <p class="cs-transcript-text" x-text="qualiTranscript.summary"></p>
                         </div>
                     </template>
                     <div>
-                        <span style="font-size:10px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;">Transkript</span>
-                        <p style="font-size:11px;color:var(--pp-textDim);margin:4px 0 0;line-height:1.5;white-space:pre-wrap;" x-text="qualiTranscript.text"></p>
+                        <span class="cs-transcript-heading">Transkript</span>
+                        <p class="cs-transcript-raw" x-text="qualiTranscript.text"></p>
                     </div>
                 </div>
             </template>
@@ -528,23 +874,23 @@
                         ("profile_senden", "Darf ich passende Profile senden?"),
                     ] %}
                     {% for key, label in fragen %}
-                    <div style="margin-bottom:10px;">
-                        <div style="display:flex;align-items:flex-start;gap:8px;">
+                    <div class="cs-quali-item">
+                        <div class="cs-quali-check-row">
                             <input type="checkbox" :checked="quali['{{ key }}']"
                                    @change="quali['{{ key }}'] = $event.target.checked; saveQualiField('{{ key }}')"
-                                   style="width:14px;height:14px;margin-top:2px;border-radius:3px;cursor:pointer;flex-shrink:0;accent-color:var(--pp-accent);">
-                            <span style="font-size:12px;color:var(--pp-textMuted);line-height:1.4;">{{ label }}</span>
+                                   class="cs-quali-checkbox cs-quali-checkbox--blue">
+                            <span class="cs-quali-label">{{ label }}</span>
                         </div>
-                        <div x-show="quali['{{ key }}']" x-transition style="margin-left:22px;margin-top:4px;">
+                        <div x-show="quali['{{ key }}']" x-transition class="cs-quali-answer">
                             <input type="text" x-model="qualiText['{{ key }}']"
                                    @input="saveQualiField('{{ key }}')"
                                    placeholder="Antwort eintragen..."
-                                   style="width:100%;padding:4px 8px;font-size:11px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;background:rgba(255,255,255,0.04);color:var(--pp-text);outline:none;">
+                                   class="cs-quali-answer-input">
                         </div>
                         <template x-if="qualiAnswers['{{ key }}'] && qualiAnswers['{{ key }}'].source && qualiAnswers['{{ key }}'].source.includes('auto') && qualiAnswers['{{ key }}'].answer && qualiAnswers['{{ key }}'].answer !== (qualiText['{{ key }}'] || '')">
-                            <div style="margin-left:22px;margin-top:3px;padding:3px 8px;background:rgba(16,185,129,0.05);border-left:2px solid #10b981;border-radius:0 4px 4px 0;">
-                                <span style="font-size:10px;color:var(--pp-textDim);">KI: </span>
-                                <span style="font-size:10px;color:var(--pp-textMuted);" x-text="qualiAnswers['{{ key }}'].answer"></span>
+                            <div class="cs-ki-answer">
+                                <span class="cs-ki-answer__prefix">KI: </span>
+                                <span class="cs-ki-answer__text" x-text="qualiAnswers['{{ key }}'].answer"></span>
                             </div>
                         </template>
                     </div>
@@ -582,23 +928,23 @@
                         ("englisch", "Englisch noetig? Wie eingesetzt?"),
                     ] %}
                     {% for key, label in fragen2 %}
-                    <div style="margin-bottom:10px;">
-                        <div style="display:flex;align-items:flex-start;gap:8px;">
+                    <div class="cs-quali-item">
+                        <div class="cs-quali-check-row">
                             <input type="checkbox" :checked="quali['{{ key }}']"
                                    @change="quali['{{ key }}'] = $event.target.checked; saveQualiField('{{ key }}')"
-                                   style="width:14px;height:14px;margin-top:2px;border-radius:3px;cursor:pointer;flex-shrink:0;accent-color:var(--pp-purple);">
-                            <span style="font-size:12px;color:var(--pp-textMuted);line-height:1.4;">{{ label }}</span>
+                                   class="cs-quali-checkbox cs-quali-checkbox--purple">
+                            <span class="cs-quali-label">{{ label }}</span>
                         </div>
-                        <div x-show="quali['{{ key }}']" x-transition style="margin-left:22px;margin-top:4px;">
+                        <div x-show="quali['{{ key }}']" x-transition class="cs-quali-answer">
                             <input type="text" x-model="qualiText['{{ key }}']"
                                    @input="saveQualiField('{{ key }}')"
                                    placeholder="Antwort eintragen..."
-                                   style="width:100%;padding:4px 8px;font-size:11px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;background:rgba(255,255,255,0.04);color:var(--pp-text);outline:none;">
+                                   class="cs-quali-answer-input">
                         </div>
                         <template x-if="qualiAnswers['{{ key }}'] && qualiAnswers['{{ key }}'].source && qualiAnswers['{{ key }}'].source.includes('auto') && qualiAnswers['{{ key }}'].answer && qualiAnswers['{{ key }}'].answer !== (qualiText['{{ key }}'] || '')">
-                            <div style="margin-left:22px;margin-top:3px;padding:3px 8px;background:rgba(16,185,129,0.05);border-left:2px solid #10b981;border-radius:0 4px 4px 0;">
-                                <span style="font-size:10px;color:var(--pp-textDim);">KI: </span>
-                                <span style="font-size:10px;color:var(--pp-textMuted);" x-text="qualiAnswers['{{ key }}'].answer"></span>
+                            <div class="cs-ki-answer">
+                                <span class="cs-ki-answer__prefix">KI: </span>
+                                <span class="cs-ki-answer__text" x-text="qualiAnswers['{{ key }}'].answer"></span>
                             </div>
                         </template>
                     </div>
@@ -608,29 +954,27 @@
 
             {# ── Als Stelle anlegen Button — EINZIGER Konvertierungs-Button ── #}
             {# Sichtbar wenn mind. 1 Quali-Checkbox oder Backend qualification_answers existieren #}
-            <div style="margin-top:16px;border-top:1px solid rgba(16,185,129,0.15);padding-top:14px;">
+            <div class="cs-convert-section">
                 <button @click="convertToStelle()"
                         :disabled="converting"
                         x-show="Object.values(quali).some(v => v) || Object.keys(qualiAnswers).length > 0"
-                        style="width:100%;padding:12px 16px;font-size:13px;font-weight:700;color:#fff;background:linear-gradient(135deg,#10b981,#059669);border:none;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s;box-shadow:0 2px 8px rgba(16,185,129,0.2);"
-                        :style="converting ? 'opacity:0.6;cursor:not-allowed;' : ''"
-                        onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 14px rgba(16,185,129,0.35)'"
-                        onmouseout="this.style.transform='';this.style.boxShadow='0 2px 8px rgba(16,185,129,0.2)'">
+                        class="cs-convert-btn"
+                        :style="converting ? 'opacity:0.6;cursor:not-allowed;' : ''">
                     <template x-if="!converting">
-                        <span style="display:flex;align-items:center;gap:8px;">
+                        <span class="cs-flex-center" style="gap:8px;">
                             <svg style="width:16px;height:16px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
                             Lead → ATS-Stelle umwandeln
                         </span>
                     </template>
                     <template x-if="converting">
-                        <span style="display:flex;align-items:center;gap:8px;">
+                        <span class="cs-flex-center" style="gap:8px;">
                             <div style="width:14px;height:14px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;"></div>
                             Wird automatisch umgewandelt...
                         </span>
                     </template>
                 </button>
                 <p x-show="Object.values(quali).some(v => v) || Object.keys(qualiAnswers).length > 0"
-                   style="margin:6px 0 0;font-size:9px;color:var(--pp-textDim);text-align:center;">
+                   class="cs-convert-hint">
                     Alle Daten werden automatisch uebertragen — kein erneutes Eintippen noetig
                 </p>
             </div>
@@ -660,17 +1004,17 @@
             } %}
             {% for call in call_history[:4] %}
             <div class="cs-history-card" style="border-left:3px solid {{ dispo_colors.get(call.disposition, 'var(--pp-textDim)') }};">
-                <div style="display:flex;align-items:center;justify-content:space-between;">
-                    <span style="font-size:10px;color:var(--pp-textDim);">{{ call.created_at[:10] if call.created_at else '?' }}</span>
-                    <span style="font-size:10px;font-weight:600;color:var(--pp-textMuted);">{{ call.disposition }}</span>
+                <div class="cs-history-row">
+                    <span class="cs-history-date">{{ call.created_at[:10] if call.created_at else '?' }}</span>
+                    <span class="cs-history-dispo">{{ call.disposition }}</span>
                 </div>
                 {% if call.notes %}
-                <p style="font-size:10px;color:var(--pp-textDim);margin:3px 0 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ call.notes }}</p>
+                <p class="cs-history-note">{{ call.notes }}</p>
                 {% endif %}
             </div>
             {% endfor %}
             {% else %}
-            <p style="font-size:11px;color:var(--pp-textDim);margin:0 0 8px;">Noch keine Anrufe</p>
+            <p class="cs-no-history">Noch keine Anrufe</p>
             {% endif %}
 
             {# Notizen #}
@@ -680,7 +1024,7 @@
                       placeholder="Notizen zum Anruf..."></textarea>
 
             {# Textbausteine #}
-            <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">
+            <div class="cs-bausteine-wrap">
                 {% set bausteine = [
                     ("AB besprochen", "AB besprochen am " ~ now_date ~ ". "),
                     ("Sekretariat", "Sekretariat erreicht. "),
@@ -710,16 +1054,14 @@
 
             {# E-Mail senden #}
             {% if contacts and contacts | length > 0 and contacts[0].email %}
-            <div style="display:flex;gap:6px;margin-top:12px;">
+            <div class="cs-email-row">
                 <button @click="Alpine.$data(document.getElementById('akquise-root')).openEmailModal('{{ job.id }}', contactId)"
-                        style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:8px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:8px;color:var(--pp-accent);font-size:11px;font-weight:600;cursor:pointer;transition:background .1s;"
-                        onmouseover="this.style.background='rgba(59,130,246,0.15)'" onmouseout="this.style.background='rgba(59,130,246,0.08)'">
+                        class="cs-email-pitch">
                     <svg style="width:13px;height:13px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"/></svg>
                     Pitch
                 </button>
                 <button @click="Alpine.$data(document.getElementById('akquise-root')).openEmailModal('{{ job.id }}', contactId, 'kontaktdaten')"
-                        style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:8px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:8px;color:var(--pp-green);font-size:11px;font-weight:600;cursor:pointer;transition:background .1s;"
-                        onmouseover="this.style.background='rgba(34,197,94,0.12)'" onmouseout="this.style.background='rgba(34,197,94,0.06)'">
+                        class="cs-email-contact">
                     <svg style="width:13px;height:13px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/></svg>
                     Kontaktdaten
                 </button>
@@ -727,11 +1069,11 @@
             {% endif %}
 
             {# Spacer um Skip/Blacklist nach unten zu druecken #}
-            <div style="flex:1;min-height:16px;"></div>
+            <div class="cs-spacer"></div>
 
             {# Skip + Blacklist + Zurueck — sekundaere Aktionen am unteren Rand #}
-            <div style="border-top:1px solid rgba(255,255,255,0.05);padding-top:12px;margin-top:8px;">
-                <div style="display:flex;gap:6px;">
+            <div class="cs-bottom-actions">
+                <div class="cs-bottom-row">
                     <button @click="Alpine.$data(document.getElementById('akquise-root')).closeCallScreen()"
                             class="cs-btn-secondary" style="flex:1;">
                         Zurueck
@@ -743,8 +1085,7 @@
                         Weiter
                     </button>
                     <button @click="if(confirm('Firma DAUERHAFT auf Blacklist setzen? Alle offenen Stellen dieser Firma werden gesperrt.')) { blacklistCompany() }"
-                            style="display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:7px 12px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:8px;color:var(--pp-red);font-size:11px;font-weight:500;cursor:pointer;transition:all .15s;"
-                            onmouseover="this.style.background='rgba(239,68,68,0.12)'" onmouseout="this.style.background='rgba(239,68,68,0.06)'"
+                            class="cs-blacklist-btn"
                             title="Firma auf Blacklist">
                         <svg style="width:12px;height:12px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
                         Blacklist
