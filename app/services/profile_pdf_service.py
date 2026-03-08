@@ -440,7 +440,8 @@ class ProfilePdfService:
                 tags.append({"name": name, "highlight": is_highlight})
                 seen.add(name.lower())
 
-        return tags
+        # Max 10 Tags um Deckblatt-Overflow zu vermeiden
+        return tags[:10]
 
     def _build_work_items(self, candidate) -> list[dict]:
         """Baut die Berufserfahrung-Karten."""
