@@ -77,8 +77,6 @@
       width: 210mm;
       height: 297mm;
       background: var(--white);
-      display: flex;
-      flex-direction: column;
       overflow: hidden;
       position: relative;
       page-break-after: always;
@@ -223,18 +221,8 @@
 
     /* ── CONTENT BEREICH ── */
     .page-content {
-      flex: 1;
       padding: 20px 48px 0 48px;
-      display: flex;
-      flex-direction: column;
-      position: relative;
       overflow: hidden;
-    }
-
-    /* Content-Sektionen: natuerliche Hoehe, kein Flex-Stretching */
-    .page-content > div {
-      flex-shrink: 0;
-      flex-grow: 0;
     }
 
     /* Section Headings — Premium Tech */
@@ -444,9 +432,11 @@
     /* ═══════════════════════════════════════════════ */
 
     .vcard-footer {
-      margin-top: auto;
-      padding: 6px 28px 4px 28px;
-      flex-shrink: 0;
+      position: absolute;
+      bottom: 4px;
+      left: 0;
+      right: 0;
+      padding: 0 28px;
     }
 
     .vcard {
@@ -997,7 +987,9 @@
     </div>
     {% endif %}
 
-  <!-- VISITENKARTE — margin-top:auto drueckt ans Seitenende -->
+  </div><!-- /page-content -->
+
+  <!-- VISITENKARTE — absolute Positionierung am Seitenende -->
   <div class="vcard-footer">
     <div class="vcard">
       <!-- KI-Netzwerk Constellation Pattern — ab Separator (x>=380), kein Overlap mit Foto -->
@@ -1064,8 +1056,6 @@
       </div>
     </div>
   </div>
-
-  </div><!-- /page-content -->
 
 </div><!-- /page -->
 
