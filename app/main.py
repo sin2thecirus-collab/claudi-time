@@ -237,7 +237,7 @@ async def login_submit(
     try:
         async with engine.begin() as conn:
             result = await conn.execute(
-                text("SELECT email, hashed_password, role FROM users WHERE email = :email"),
+                text("SELECT email, hashed_password, role, name, is_active FROM users WHERE email = :email"),
                 {"email": login_email},
             )
             user = result.fetchone()
@@ -250,8 +250,34 @@ async def login_submit(
         logger.warning(f"Login: Passwort-Vergleich fehlgeschlagen fuer '{login_email}'")
 
     if user and verify_password(password, user[1]):
+        # Pruefen ob Konto aktiv ist
+        if not user[4]:  # is_active
+            logger.warning(f"Login: Deaktiviertes Konto '{login_email}'")
+            csrf_token = generate_csrf_token()
+            response = templates.TemplateResponse("login.html", {
+                "request": request,
+                "error": "Dein Konto wurde deaktiviert. Kontaktiere einen Administrator.",
+                "csrf_token": csrf_token,
+            }, status_code=403)
+            response.set_cookie(
+                CSRF_COOKIE_NAME, csrf_token,
+                httponly=True, samesite="strict",
+                secure=settings.is_production,
+            )
+            return response
+
+        # last_login_at aktualisieren
+        try:
+            async with engine.begin() as conn:
+                await conn.execute(
+                    text("UPDATE users SET last_login_at = NOW() WHERE email = :email"),
+                    {"email": login_email},
+                )
+        except Exception as e:
+            logger.warning(f"last_login_at Update fehlgeschlagen: {e}")
+
         # Erfolgreicher Login
-        token = create_access_token(email=user[0], role=user[2])
+        token = create_access_token(email=user[0], role=user[2], name=user[3])
         csrf_token = generate_csrf_token()
 
         logger.info(f"Login erfolgreich: {user[0]} von IP {client_ip}")
@@ -442,3 +468,7 @@ from app.api.routes_acquisition import router as acquisition_router
 from app.api.routes_acquisition_pages import router as acquisition_pages_router
 app.include_router(acquisition_router, prefix="/api")  # API: /api/akquise/...
 app.include_router(acquisition_pages_router)  # Pages: /akquise
+
+# Benutzerverwaltung (/api/users/...)
+from app.api.routes_users import router as users_router
+app.include_router(users_router, prefix="/api")  # API: /api/users/...

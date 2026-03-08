@@ -52,12 +52,13 @@ def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
 
-def create_access_token(email: str, role: str = "admin") -> str:
+def create_access_token(email: str, role: str = "admin", name: str | None = None) -> str:
     """Erzeugt JWT Token mit Ablaufzeit."""
     expire = datetime.now(timezone.utc) + timedelta(hours=settings.session_expire_hours)
     payload = {
         "sub": email,
         "role": role,
+        "name": name or email.split("@")[0],
         "exp": expire,
         "iat": datetime.now(timezone.utc),
     }
@@ -147,6 +148,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 user_email = payload.get("sub")
                 request.state.user_email = user_email
                 request.state.user_role = payload.get("role", "user")
+                request.state.user_name = payload.get("name", "")
 
         # 2. API-Key Header pruefen
         if not user_email and settings.api_access_key:
@@ -155,6 +157,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 user_email = "api-access"
                 request.state.user_email = user_email
                 request.state.user_role = "admin"
+                request.state.user_name = "API"
 
         # 3. Nicht authentifiziert → abweisen
         if not user_email:

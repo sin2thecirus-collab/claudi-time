@@ -1,0 +1,483 @@
+{% extends "base.html" %}
+
+{% block title %}Benutzer - Matching-Tool{% endblock %}
+
+{% block head %}
+<style>
+    /* Reuse Aurora Settings styles */
+    .st-section {
+        background: rgba(255,255,255,0.02); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255,255,255,0.06); border-radius: 14px;
+        overflow: hidden; transition: all 0.25s; margin-bottom: 18px;
+    }
+    .st-section:hover { border-color: rgba(255,255,255,0.1); }
+    .st-section-head {
+        padding: 18px 24px; display: flex; align-items: center; justify-content: space-between;
+        border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .st-section-title { font-size: 15px; font-weight: 700; color: var(--pp-text); letter-spacing: -0.01em; }
+    .st-section-desc { font-size: 12px; color: var(--pp-textDim); margin-top: 2px; }
+    .st-section-body { padding: 20px 24px; }
+    .st-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+    .st-table th {
+        font-size: 11px; font-weight: 700; color: var(--pp-textDim);
+        text-transform: uppercase; letter-spacing: 0.06em; padding: 10px 12px;
+        text-align: left; border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .st-table td {
+        padding: 10px 12px; font-size: 13px; color: var(--pp-textMuted);
+        border-bottom: 1px solid rgba(255,255,255,0.03); vertical-align: middle;
+    }
+    .st-table tr:hover td { background: rgba(255,255,255,0.015); }
+    .st-badge {
+        display: inline-flex; padding: 2px 8px; border-radius: 6px;
+        font-size: 11px; font-weight: 600;
+    }
+    .st-badge-ok { background: rgba(52,211,153,0.12); color: #34D399; }
+    .st-badge-fail { background: rgba(239,68,68,0.12); color: #F87171; }
+    .st-btn-refresh {
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600;
+        background: rgba(255,255,255,0.04); color: var(--pp-textMuted);
+        border: 1px solid rgba(255,255,255,0.08); cursor: pointer;
+        transition: all 0.15s; font-family: var(--pp-ff);
+    }
+    .st-btn-refresh:hover { background: rgba(255,255,255,0.08); color: var(--pp-text); }
+    .st-btn-refresh svg { width: 13px; height: 13px; }
+    /* Action buttons */
+    .usr-action-btn {
+        padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 600;
+        border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03);
+        color: var(--pp-textMuted); cursor: pointer; transition: all 0.15s;
+        font-family: var(--pp-ff); display: inline-flex; align-items: center; gap: 4px;
+    }
+    .usr-action-btn:hover { background: rgba(255,255,255,0.08); color: var(--pp-text); }
+    .usr-action-btn.danger { border-color: rgba(239,68,68,0.2); }
+    .usr-action-btn.danger:hover { background: rgba(239,68,68,0.1); color: #F87171; }
+    /* Modal overlay */
+    .usr-modal-bg {
+        position: fixed; inset: 0; z-index: 300;
+        background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+        display: flex; align-items: center; justify-content: center; padding: 20px;
+    }
+    .usr-modal {
+        background: var(--pp-surface); border: 1px solid var(--pp-border);
+        border-radius: 14px; box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+        width: 100%; max-width: 460px; overflow: hidden;
+    }
+    .usr-modal-head {
+        padding: 18px 24px; border-bottom: 1px solid rgba(255,255,255,0.06);
+        display: flex; align-items: center; justify-content: space-between;
+    }
+    .usr-modal-head h3 { font-size: 15px; font-weight: 700; color: var(--pp-text); margin: 0; }
+    .usr-modal-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; }
+    .usr-modal-foot {
+        padding: 14px 24px; border-top: 1px solid rgba(255,255,255,0.06);
+        display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+    }
+    .usr-label {
+        display: block; font-size: 12px; font-weight: 600; color: var(--pp-textMuted);
+        margin-bottom: 4px;
+    }
+    .usr-input {
+        width: 100%; padding: 9px 12px; border-radius: 8px; font-size: 13px;
+        background: var(--pp-bg); border: 1px solid var(--pp-border); color: var(--pp-text);
+        font-family: var(--pp-ff); outline: none; transition: border-color 0.15s;
+    }
+    .usr-input:focus { border-color: var(--pp-accent); box-shadow: 0 0 0 3px rgba(96,165,250,0.1); }
+    .usr-input::placeholder { color: var(--pp-textDim); }
+    .usr-btn {
+        padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;
+        cursor: pointer; font-family: var(--pp-ff); transition: all 0.15s; border: none;
+    }
+    .usr-btn.primary {
+        background: linear-gradient(135deg, #3B82F6, #60A5FA); color: #fff;
+        box-shadow: 0 2px 12px rgba(96,165,250,0.25);
+    }
+    .usr-btn.primary:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(96,165,250,0.35); }
+    .usr-btn.primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .usr-btn.secondary {
+        background: rgba(255,255,255,0.04); color: var(--pp-textMuted);
+        border: 1px solid rgba(255,255,255,0.08);
+    }
+    .usr-btn.secondary:hover { background: rgba(255,255,255,0.08); color: var(--pp-text); }
+    .usr-btn.danger { background: rgba(239,68,68,0.12); color: #F87171; }
+    .usr-btn.danger:hover { background: rgba(239,68,68,0.2); }
+    /* Toggle */
+    .usr-toggle {
+        position: relative; width: 36px; height: 20px; border-radius: 10px;
+        background: rgba(255,255,255,0.1); cursor: pointer; transition: background 0.2s;
+        border: none; padding: 0; flex-shrink: 0;
+    }
+    .usr-toggle.active { background: rgba(52,211,153,0.4); }
+    .usr-toggle::after {
+        content: ''; position: absolute; top: 2px; left: 2px;
+        width: 16px; height: 16px; border-radius: 50%;
+        background: var(--pp-text); transition: transform 0.2s;
+    }
+    .usr-toggle.active::after { transform: translateX(16px); }
+    /* Toast */
+    .usr-toast {
+        position: fixed; top: 70px; right: 20px; z-index: 400;
+        padding: 10px 18px; border-radius: 10px; font-size: 13px; font-weight: 600;
+        animation: toast-in 0.3s ease-out;
+    }
+    .usr-toast.success { background: rgba(52,211,153,0.15); color: #34D399; border: 1px solid rgba(52,211,153,0.2); }
+    .usr-toast.error { background: rgba(239,68,68,0.15); color: #F87171; border: 1px solid rgba(239,68,68,0.2); }
+    /* Self badge */
+    .usr-self-badge {
+        display: inline-flex; padding: 1px 6px; border-radius: 4px;
+        font-size: 10px; font-weight: 700; background: rgba(96,165,250,0.12);
+        color: #93C5FD; margin-left: 6px; letter-spacing: 0.02em;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div x-data="userManagement()" x-init="loadUsers()" style="max-width:1400px;margin:0 auto;padding:28px 32px;">
+
+    {# ═══ Hero Header ═══ #}
+    <div style="margin-bottom:24px;">
+        <div style="display:flex;align-items:center;gap:14px;">
+            <div class="aurora-section-icon blue" style="width:40px;height:40px;border-radius:12px;background:rgba(96,165,250,0.1);display:flex;align-items:center;justify-content:center;">
+                <svg style="width:20px;height:20px;color:#60A5FA;" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                </svg>
+            </div>
+            <div>
+                <h1 style="font-size:24px;font-weight:700;color:var(--pp-text);margin:0;letter-spacing:-0.03em;line-height:1.2;">Benutzerverwaltung</h1>
+                <p style="font-size:13px;color:var(--pp-textMuted);margin-top:2px;">Benutzer anlegen, bearbeiten und verwalten</p>
+            </div>
+        </div>
+    </div>
+
+    {# ═══ User Table Section ═══ #}
+    <div class="st-section">
+        <div class="st-section-head">
+            <div>
+                <div class="st-section-title">Benutzer</div>
+                <div class="st-section-desc" x-text="users.length + ' Benutzer registriert'"></div>
+            </div>
+            <div style="display:flex;gap:8px;">
+                <button @click="loadUsers()" class="st-btn-refresh">
+                    <svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
+                    </svg>
+                    Aktualisieren
+                </button>
+                <button @click="openCreateModal()" class="usr-btn primary" style="font-size:12px;padding:6px 14px;">
+                    <svg style="width:13px;height:13px;display:inline;vertical-align:-2px;margin-right:4px;" fill="currentColor" viewBox="0 0 20 20"><path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z"/></svg>
+                    Neuer Benutzer
+                </button>
+            </div>
+        </div>
+        <div class="st-section-body">
+            {# Loading State #}
+            <div x-show="loading" style="text-align:center;padding:32px;color:var(--pp-textDim);font-size:13px;">
+                Lade Benutzer...
+            </div>
+
+            {# Table #}
+            <div x-show="!loading" style="overflow-x:auto;">
+                <table class="st-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>E-Mail</th>
+                            <th>Status</th>
+                            <th>Erstellt</th>
+                            <th>Letzter Login</th>
+                            <th style="text-align:right;">Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="u in users" :key="u.id">
+                            <tr>
+                                <td>
+                                    <div style="display:flex;align-items:center;gap:8px;">
+                                        <span style="width:28px;height:28px;border-radius:8px;background:rgba(96,165,250,0.1);color:#93C5FD;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;"
+                                              x-text="u.name ? u.name.split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase() : u.email.substring(0,2).toUpperCase()"></span>
+                                        <span style="font-weight:600;color:var(--pp-text);" x-text="u.name || '-'"></span>
+                                        <span x-show="u.email === currentEmail" class="usr-self-badge">DU</span>
+                                    </div>
+                                </td>
+                                <td style="font-size:12px;" x-text="u.email"></td>
+                                <td>
+                                    <span x-show="u.is_active" class="st-badge st-badge-ok">Aktiv</span>
+                                    <span x-show="!u.is_active" class="st-badge st-badge-fail">Deaktiviert</span>
+                                </td>
+                                <td style="font-size:12px;color:var(--pp-textDim);" x-text="formatDate(u.created_at)"></td>
+                                <td style="font-size:12px;color:var(--pp-textDim);" x-text="u.last_login_at ? formatDate(u.last_login_at) : 'Noch nie'"></td>
+                                <td style="text-align:right;">
+                                    <div style="display:flex;align-items:center;gap:4px;justify-content:flex-end;">
+                                        <button @click="openEditModal(u)" class="usr-action-btn" title="Bearbeiten">
+                                            <svg style="width:12px;height:12px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg>
+                                            Bearbeiten
+                                        </button>
+                                        <button @click="confirmDelete(u)" class="usr-action-btn danger"
+                                                :disabled="u.email === currentEmail" :title="u.email === currentEmail ? 'Du kannst dich nicht selbst loeschen' : 'Loeschen'"
+                                                :style="u.email === currentEmail ? 'opacity:0.3;cursor:not-allowed;' : ''">
+                                            <svg style="width:12px;height:12px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+
+            {# Empty State #}
+            <div x-show="!loading && users.length === 0" style="text-align:center;padding:40px;color:var(--pp-textDim);font-size:13px;">
+                Keine Benutzer vorhanden.
+            </div>
+        </div>
+    </div>
+
+    {# ═══ Create / Edit Modal ═══ #}
+    <template x-if="modalOpen">
+        <div class="usr-modal-bg" @click.self="closeModal()" @keydown.escape.window="closeModal()">
+            <div class="usr-modal modal-enter" @click.stop>
+                <div class="usr-modal-head">
+                    <h3 x-text="editingUser ? 'Benutzer bearbeiten' : 'Neuer Benutzer'"></h3>
+                    <button @click="closeModal()" style="background:none;border:none;color:var(--pp-textDim);cursor:pointer;padding:4px;">
+                        <svg style="width:16px;height:16px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+                <div class="usr-modal-body">
+                    <div>
+                        <label class="usr-label">Name</label>
+                        <input type="text" class="usr-input" x-model="form.name" placeholder="z.B. Max Mustermann" maxlength="100">
+                    </div>
+                    <div>
+                        <label class="usr-label">E-Mail</label>
+                        <input type="email" class="usr-input" x-model="form.email" placeholder="max@beispiel.de">
+                    </div>
+                    <div>
+                        <label class="usr-label" x-text="editingUser ? 'Neues Passwort (leer = ungeaendert)' : 'Passwort'"></label>
+                        <input type="password" class="usr-input" x-model="form.password" :placeholder="editingUser ? 'Nur wenn aendern...' : 'Mindestens 8 Zeichen'" minlength="8">
+                    </div>
+                    <template x-if="editingUser">
+                        <div style="display:flex;align-items:center;justify-content:space-between;">
+                            <div>
+                                <label class="usr-label" style="margin-bottom:0;">Konto aktiv</label>
+                                <div style="font-size:11px;color:var(--pp-textDim);">Deaktivierte Konten koennen sich nicht einloggen</div>
+                            </div>
+                            <button type="button" class="usr-toggle" :class="form.is_active && 'active'"
+                                    @click="form.is_active = !form.is_active"
+                                    :disabled="editingUser && editingUser.email === currentEmail"
+                                    :style="editingUser && editingUser.email === currentEmail ? 'opacity:0.3;cursor:not-allowed;' : ''"></button>
+                        </div>
+                    </template>
+                    <div x-show="formError" style="padding:8px 12px;border-radius:8px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.15);font-size:12px;color:#F87171;" x-text="formError"></div>
+                </div>
+                <div class="usr-modal-foot">
+                    <button @click="closeModal()" class="usr-btn secondary">Abbrechen</button>
+                    <button @click="saveUser()" :disabled="saving" class="usr-btn primary">
+                        <span x-text="saving ? 'Speichern...' : (editingUser ? 'Speichern' : 'Anlegen')"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    {# ═══ Delete Confirm Modal ═══ #}
+    <template x-if="deleteConfirmOpen">
+        <div class="usr-modal-bg" @click.self="deleteConfirmOpen = false" @keydown.escape.window="deleteConfirmOpen = false">
+            <div class="usr-modal modal-enter" @click.stop style="max-width:400px;">
+                <div class="usr-modal-head">
+                    <h3>Benutzer loeschen?</h3>
+                </div>
+                <div class="usr-modal-body">
+                    <p style="font-size:13px;color:var(--pp-textMuted);margin:0;line-height:1.6;">
+                        Soll der Benutzer <strong style="color:var(--pp-text);" x-text="deletingUser?.name || deletingUser?.email"></strong> wirklich geloescht werden?
+                        Diese Aktion kann nicht rueckgaengig gemacht werden.
+                    </p>
+                </div>
+                <div class="usr-modal-foot">
+                    <button @click="deleteConfirmOpen = false" class="usr-btn secondary">Abbrechen</button>
+                    <button @click="deleteUser()" :disabled="saving" class="usr-btn danger">
+                        <span x-text="saving ? 'Loeschen...' : 'Endgueltig loeschen'"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    {# ═══ Toast ═══ #}
+    <template x-if="toast.show">
+        <div class="usr-toast" :class="toast.type" x-text="toast.message"
+             x-init="setTimeout(() => toast.show = false, 4000)"></div>
+    </template>
+</div>
+
+<script>
+function userManagement() {
+    return {
+        users: [],
+        loading: true,
+        modalOpen: false,
+        deleteConfirmOpen: false,
+        editingUser: null,
+        deletingUser: null,
+        saving: false,
+        formError: '',
+        currentEmail: '{{ user_email }}',
+        form: { name: '', email: '', password: '', is_active: true },
+        toast: { show: false, type: 'success', message: '' },
+
+        csrfToken() {
+            const m = document.cookie.match(/pp_csrf=([^;]+)/);
+            return m ? m[1] : '';
+        },
+
+        async loadUsers() {
+            this.loading = true;
+            try {
+                const resp = await fetch('/api/users/', {
+                    headers: { 'x-csrf-token': this.csrfToken() }
+                });
+                if (resp.ok) {
+                    this.users = await resp.json();
+                } else {
+                    this.showToast('Fehler beim Laden der Benutzer', 'error');
+                }
+            } catch (e) {
+                this.showToast('Netzwerkfehler', 'error');
+            }
+            this.loading = false;
+        },
+
+        openCreateModal() {
+            this.editingUser = null;
+            this.form = { name: '', email: '', password: '', is_active: true };
+            this.formError = '';
+            this.modalOpen = true;
+        },
+
+        openEditModal(user) {
+            this.editingUser = user;
+            this.form = {
+                name: user.name || '',
+                email: user.email,
+                password: '',
+                is_active: user.is_active,
+            };
+            this.formError = '';
+            this.modalOpen = true;
+        },
+
+        closeModal() {
+            this.modalOpen = false;
+            this.editingUser = null;
+            this.formError = '';
+        },
+
+        async saveUser() {
+            this.formError = '';
+
+            // Validation
+            if (!this.form.name.trim()) {
+                this.formError = 'Name ist erforderlich.';
+                return;
+            }
+            if (!this.form.email.trim()) {
+                this.formError = 'E-Mail ist erforderlich.';
+                return;
+            }
+            if (!this.editingUser && this.form.password.length < 8) {
+                this.formError = 'Passwort muss mindestens 8 Zeichen lang sein.';
+                return;
+            }
+            if (this.editingUser && this.form.password && this.form.password.length < 8) {
+                this.formError = 'Passwort muss mindestens 8 Zeichen lang sein.';
+                return;
+            }
+
+            this.saving = true;
+            try {
+                let resp;
+                if (this.editingUser) {
+                    // PATCH — only send changed fields
+                    const body = {};
+                    if (this.form.name.trim() !== (this.editingUser.name || '')) body.name = this.form.name.trim();
+                    if (this.form.email.trim() !== this.editingUser.email) body.email = this.form.email.trim();
+                    if (this.form.password) body.password = this.form.password;
+                    if (this.form.is_active !== this.editingUser.is_active) body.is_active = this.form.is_active;
+
+                    resp = await fetch('/api/users/' + this.editingUser.id, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json', 'x-csrf-token': this.csrfToken() },
+                        body: JSON.stringify(body),
+                    });
+                } else {
+                    // POST — create new user
+                    resp = await fetch('/api/users/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'x-csrf-token': this.csrfToken() },
+                        body: JSON.stringify({
+                            name: this.form.name.trim(),
+                            email: this.form.email.trim(),
+                            password: this.form.password,
+                        }),
+                    });
+                }
+
+                if (resp.ok) {
+                    this.showToast(this.editingUser ? 'Benutzer aktualisiert' : 'Benutzer angelegt', 'success');
+                    this.closeModal();
+                    await this.loadUsers();
+                } else {
+                    const data = await resp.json();
+                    this.formError = data.detail || 'Fehler beim Speichern.';
+                }
+            } catch (e) {
+                this.formError = 'Netzwerkfehler.';
+            }
+            this.saving = false;
+        },
+
+        confirmDelete(user) {
+            this.deletingUser = user;
+            this.deleteConfirmOpen = true;
+        },
+
+        async deleteUser() {
+            if (!this.deletingUser) return;
+            this.saving = true;
+            try {
+                const resp = await fetch('/api/users/' + this.deletingUser.id, {
+                    method: 'DELETE',
+                    headers: { 'x-csrf-token': this.csrfToken() },
+                });
+                if (resp.ok) {
+                    this.showToast('Benutzer geloescht', 'success');
+                    this.deleteConfirmOpen = false;
+                    this.deletingUser = null;
+                    await this.loadUsers();
+                } else {
+                    const data = await resp.json();
+                    this.showToast(data.detail || 'Fehler beim Loeschen', 'error');
+                    this.deleteConfirmOpen = false;
+                }
+            } catch (e) {
+                this.showToast('Netzwerkfehler', 'error');
+                this.deleteConfirmOpen = false;
+            }
+            this.saving = false;
+        },
+
+        formatDate(iso) {
+            if (!iso) return '-';
+            const d = new Date(iso);
+            return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        },
+
+        showToast(message, type = 'success') {
+            this.toast = { show: true, type, message };
+            setTimeout(() => { this.toast.show = false; }, 4000);
+        },
+    };
+}
+</script>
+{% endblock %}

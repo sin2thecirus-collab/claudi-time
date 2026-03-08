@@ -719,10 +719,25 @@ async def _ensure_users_table() -> None:
                     email VARCHAR(255) NOT NULL UNIQUE,
                     hashed_password VARCHAR(255) NOT NULL,
                     role VARCHAR(20) DEFAULT 'admin',
-                    created_at TIMESTAMPTZ DEFAULT NOW()
+                    name VARCHAR(100),
+                    is_active BOOLEAN DEFAULT true NOT NULL,
+                    created_at TIMESTAMPTZ DEFAULT NOW(),
+                    last_login_at TIMESTAMPTZ
                 )
             """))
         logger.info("users Tabelle erfolgreich erstellt.")
+    else:
+        # Neue Spalten fuer bestehende Deployments hinzufuegen
+        async with engine.begin() as conn:
+            await conn.execute(text(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS name VARCHAR(100)"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true NOT NULL"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ"
+            ))
 
     # Admin-User aus ENV erstellen/aktualisieren
     from app.config import settings
@@ -749,16 +764,21 @@ async def _ensure_users_table() -> None:
             if existing:
                 # Passwort IMMER neu hashen und speichern,
                 # damit sicher das aktuelle ENV-Passwort gilt
+                # name nur setzen wenn noch NULL (damit UI-Aenderungen nicht ueberschrieben werden)
                 await conn.execute(
-                    text("UPDATE users SET hashed_password = :pw WHERE email = :email"),
+                    text(
+                        "UPDATE users SET hashed_password = :pw, "
+                        "name = COALESCE(name, 'Admin') "
+                        "WHERE email = :email"
+                    ),
                     {"pw": hashed, "email": admin_email},
                 )
                 logger.info(f"Admin-User {admin_email} Passwort-Hash aktualisiert.")
             else:
                 await conn.execute(
                     text(
-                        "INSERT INTO users (id, email, hashed_password, role) "
-                        "VALUES (gen_random_uuid(), :email, :pw, 'admin')"
+                        "INSERT INTO users (id, email, hashed_password, role, name) "
+                        "VALUES (gen_random_uuid(), :email, :pw, 'admin', 'Admin')"
                     ),
                     {"email": admin_email, "pw": hashed},
                 )

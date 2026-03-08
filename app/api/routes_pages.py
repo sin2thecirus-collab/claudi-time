@@ -411,6 +411,19 @@ async def settings_page(request: Request):
     )
 
 
+@router.get("/benutzer", response_class=HTMLResponse)
+async def users_page(request: Request):
+    """Benutzerverwaltung-Seite."""
+    return templates.TemplateResponse(
+        "users.html",
+        {
+            "request": request,
+            "user_email": getattr(request.state, "user_email", ""),
+            "user_name": getattr(request.state, "user_name", ""),
+        }
+    )
+
+
 # ============================================================================
 # Partials (HTMX)
 # ============================================================================
