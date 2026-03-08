@@ -223,12 +223,19 @@
 
     /* ── CONTENT BEREICH ── */
     .page-content {
+      flex: 1;
       padding: 20px 48px 0 48px;
+      display: flex;
+      flex-direction: column;
       position: relative;
       overflow: hidden;
     }
 
-    /* mid-center-area entfernt — Content liegt direkt in .page-content */
+    /* Content-Sektionen: natuerliche Hoehe, kein Flex-Stretching */
+    .page-content > div {
+      flex-shrink: 0;
+      flex-grow: 0;
+    }
 
     /* Section Headings — Premium Tech */
     .sh {
@@ -990,9 +997,7 @@
     </div>
     {% endif %}
 
-  </div><!-- /page-content -->
-
-  <!-- VISITENKARTE — ausserhalb page-content, direkt in .page -->
+  <!-- VISITENKARTE — margin-top:auto drueckt ans Seitenende -->
   <div class="vcard-footer">
     <div class="vcard">
       <!-- KI-Netzwerk Constellation Pattern — ab Separator (x>=380), kein Overlap mit Foto -->
@@ -1060,7 +1065,9 @@
     </div>
   </div>
 
-</div>
+  </div><!-- /page-content -->
+
+</div><!-- /page -->
 
 
 <!-- ═══════════════════ SEITE 2+: LEBENSLAUF ═══════════════════ -->
