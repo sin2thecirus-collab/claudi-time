@@ -48,7 +48,7 @@
 <table class="rm-table">
     <thead>
         <tr>
-            <th><input type="checkbox" class="rm-checkbox" onchange="rmToggleAll(this)" checked></th>
+            <th><input type="checkbox" class="rm-checkbox" onchange="rmToggleAll(this)"></th>
             <th>Vorname</th>
             <th>Nachname</th>
             <th>Stadt</th>
@@ -63,7 +63,6 @@
                 <input type="checkbox" class="rm-checkbox rm-item-cb"
                        data-item-id="{{ item.id }}"
                        onchange="rmUpdateCount()"
-                       {% if item.status == 'prepared' or item.status == 'approved' %}checked{% endif %}
                        {% if item.status == 'sent' %}disabled{% endif %}>
             </td>
             <td>
@@ -118,17 +117,17 @@
 <div class="rm-footer">
     <div class="rm-footer-left">
         <label style="display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--pp-textMuted); cursor: pointer;">
-            <input type="checkbox" class="rm-checkbox" onchange="rmToggleAll(this)" checked>
+            <input type="checkbox" class="rm-checkbox" onchange="rmToggleAll(this)">
             Alle auswaehlen
         </label>
         <span class="rm-settings-stat">
-            <strong id="rm-selected-count">{{ items | length }}</strong> von {{ items | length }} ausgewaehlt
+            <strong id="rm-selected-count">0</strong> von {{ items | length }} ausgewaehlt
         </span>
     </div>
     <div class="rm-footer-right">
         <button class="rm-btn-skip" onclick="rmSkipAll(this)">Ueberspringen</button>
-        <button class="rm-btn-send" id="rm-send-btn" onclick="rmSendSelected(this)">
-            Ausgewaehlte senden ({{ items | length }})
+        <button class="rm-btn-send" id="rm-send-btn" onclick="rmSendSelected(this)" disabled>
+            Keine ausgewaehlt
         </button>
     </div>
 </div>

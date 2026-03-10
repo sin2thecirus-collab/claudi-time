@@ -751,6 +751,8 @@ async function rmSendSelected(btn) {
     const checked = document.querySelectorAll('.rm-item-cb:checked');
     if (checked.length === 0) return;
 
+    if (!confirm(checked.length + ' Kandidaten an Instantly senden?')) return;
+
     const itemIds = Array.from(checked).map(cb => cb.dataset.itemId);
     const maxPerMailbox = parseInt(document.getElementById('rm-max-per-mailbox').value);
 
