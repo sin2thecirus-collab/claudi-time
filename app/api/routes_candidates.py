@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.exception_handlers import NotFoundException, ConflictException
 from app.api.rate_limiter import RateLimitTier, rate_limit
-from app.config import Limits
+from app.config import Limits, settings
 from app.database import get_db
 from app.schemas.candidate import CandidateListResponse, CandidateResponse, CandidateUpdate, LanguageEntry
 
@@ -167,6 +167,18 @@ async def search_candidates_quick(
     ]
 
 
+
+# ==================== Debug: Google Drive Config ====================
+
+@router.get("/drive-config-check")
+async def drive_config_check():
+    """Debug: Zeigt ob Google Drive Env-Vars gesetzt sind."""
+    return {
+        "GOOGLE_DRIVE_CLIENT_ID": bool(settings.google_drive_client_id),
+        "GOOGLE_DRIVE_CLIENT_SECRET": bool(settings.google_drive_client_secret),
+        "GOOGLE_DRIVE_REFRESH_TOKEN": bool(settings.google_drive_refresh_token),
+        "GOOGLE_DRIVE_FOLDER_ID": bool(settings.google_drive_folder_id),
+    }
 
 # ==================== Duplikat-Erkennung mit Diff ====================
 
@@ -1614,20 +1626,6 @@ async def generate_profile_pdf(
 
 
 # ==================== Google Drive Marketing-Upload ====================
-
-@router.get("/debug/google-drive-config")
-async def debug_google_drive_config():
-    """Debug: Zeigt ob Google Drive Env-Vars gesetzt sind (keine Werte, nur ja/nein)."""
-    return {
-        "GOOGLE_DRIVE_CLIENT_ID": bool(settings.google_drive_client_id),
-        "GOOGLE_DRIVE_CLIENT_SECRET": bool(settings.google_drive_client_secret),
-        "GOOGLE_DRIVE_REFRESH_TOKEN": bool(settings.google_drive_refresh_token),
-        "GOOGLE_DRIVE_FOLDER_ID": bool(settings.google_drive_folder_id),
-        "client_id_len": len(settings.google_drive_client_id),
-        "secret_len": len(settings.google_drive_client_secret),
-        "token_len": len(settings.google_drive_refresh_token),
-        "folder_id_len": len(settings.google_drive_folder_id),
-    }
 
 @router.post(
     "/{candidate_id}/send-to-marketing",
