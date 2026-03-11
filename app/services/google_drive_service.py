@@ -161,11 +161,11 @@ class GoogleDriveService:
         if not self.is_available:
             raise RuntimeError("Google Drive ist nicht konfiguriert")
 
-        # Ordnername: z.B. "Yvonne_Juengerich_74196_Finanzbuchhalterin"
+        # Ordnername: z.B. "74196_Finanzbuchhalterin_Yvonne_Juengerich"
         plz = (postal_code or "00000").strip()
         role = (primary_role or "Unbekannt").strip().replace("/", "-")
         name = (candidate_name or "Unbekannt").strip().replace(" ", "_").replace("/", "-")
-        folder_name = f"{name}_{plz}_{role}"
+        folder_name = f"{plz}_{role}_{name}"
 
         root_folder_id = self._get_config("folder_id")
 
