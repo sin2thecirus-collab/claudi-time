@@ -1613,6 +1613,83 @@ async def generate_profile_pdf(
     )
 
 
+# ==================== Google Drive Marketing-Upload ====================
+
+@router.post(
+    "/{candidate_id}/send-to-marketing",
+    summary="Kandidaten-Profil + Transkript an Marketing-Agentur (Google Drive) senden",
+)
+@rate_limit(RateLimitTier.AI)
+async def send_to_marketing(
+    candidate_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Laedt Profil-PDF und Transkript-DOCX in Google Drive hoch.
+
+    Ordner-Struktur: Kandidaten/{PLZ}_{Primary_Role}/
+    Dateien: Profil.pdf, Transkript.docx (wenn Transkript vorhanden)
+    """
+    from app.models.candidate import Candidate
+    from app.services.profile_pdf_service import ProfilePdfService
+    from app.services.google_drive_service import GoogleDriveService, create_transcript_docx
+
+    drive = GoogleDriveService()
+    if not drive.is_available:
+        raise ConflictException(
+            message="Google Drive ist nicht konfiguriert. "
+            "Bitte GOOGLE_DRIVE_CLIENT_ID, GOOGLE_DRIVE_CLIENT_SECRET, "
+            "GOOGLE_DRIVE_REFRESH_TOKEN und GOOGLE_DRIVE_FOLDER_ID setzen."
+        )
+
+    # Kandidat laden
+    candidate = await db.get(Candidate, candidate_id)
+    if not candidate:
+        raise NotFoundException(message=f"Kandidat {candidate_id} nicht gefunden")
+
+    # 1) Profil-PDF generieren (smart: nur wenn noetig)
+    pdf_service = ProfilePdfService(db)
+    try:
+        pdf_bytes = await pdf_service.generate_profile_pdf(candidate_id)
+    except Exception as e:
+        logger.error(f"PDF-Generierung fuer Marketing fehlgeschlagen: {e}")
+        raise ConflictException(message=f"PDF-Generierung fehlgeschlagen: {str(e)[:200]}")
+
+    # 2) Transkript als DOCX (wenn vorhanden)
+    docx_bytes = None
+    transcript = candidate.call_transcript
+    if transcript and transcript.strip():
+        display_name = f"{candidate.first_name or ''} {candidate.last_name or ''}".strip()
+        docx_bytes = create_transcript_docx(transcript, display_name)
+
+    # 3) PLZ + Primary Role fuer Ordnername
+    postal_code = candidate.postal_code or "00000"
+    primary_role = "Unbekannt"
+    if candidate.classification_data and isinstance(candidate.classification_data, dict):
+        primary_role = candidate.classification_data.get("primary_role", "Unbekannt")
+
+    # 4) Upload nach Google Drive
+    try:
+        result = await drive.upload_candidate_to_drive(
+            candidate_id=candidate_id,
+            postal_code=postal_code,
+            primary_role=primary_role,
+            pdf_bytes=pdf_bytes,
+            docx_bytes=docx_bytes,
+        )
+    except Exception as e:
+        logger.error(f"Google Drive Upload fehlgeschlagen fuer {candidate_id}: {e}")
+        raise ConflictException(message=f"Google Drive Upload fehlgeschlagen: {str(e)[:200]}")
+
+    return {
+        "success": True,
+        "message": f"Kandidat an Marketing gesendet: {result['folder_name']}/",
+        "folder_name": result["folder_name"],
+        "has_pdf": result["pdf_file_id"] is not None,
+        "has_transcript": result["docx_file_id"] is not None,
+    }
+
+
 # ==================== R2 Migration ====================
 
 @router.post(

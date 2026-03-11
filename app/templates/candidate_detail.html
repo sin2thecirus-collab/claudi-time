@@ -506,6 +506,7 @@
                 {% endif %}
                 <button type="button" @click="showPipelineModal = true" class="kd-quickbtn kd-quickbtn-primary">&#x1F680; Pipeline</button>
                 <button type="button" onclick="findJobsForCandidate('{{ candidate.id }}')" class="kd-quickbtn" style="background:var(--pp-accentSoft); color:var(--pp-accent); border:1px solid rgba(99,102,241,0.25);" id="btn-jobs-finden" title="Claude Matching: Passende Jobs fuer diesen Kandidaten finden">&#x1F50D; Jobs finden</button>
+                <button type="button" onclick="sendToMarketing('{{ candidate.id }}')" class="kd-quickbtn" style="background:linear-gradient(135deg, rgba(34,197,94,0.12), rgba(16,185,129,0.12)); color:#059669; border:1px solid rgba(34,197,94,0.3); font-weight:600;" id="btn-send-marketing" title="Profil-PDF + Transkript an Marketing-Agentur (Google Drive) senden">&#x1F4E4; An Marketing</button>
                 <button type="button" onclick="deleteCandidate('{{ candidate.id }}', '{{ display_name }}')" class="kd-quickbtn kd-quickbtn-danger">&#x1F5D1;</button>
             </div>
         </div>
@@ -3201,6 +3202,47 @@ function regenerateProfilePdf(candidateId) {
             pdfLink.innerHTML = '&#x1F4CA; Profil-PDF &#x2713;';
         }
     }, 5000);
+}
+
+// ==================== "An Marketing senden" Button (Google Drive Upload) ====================
+function sendToMarketing(candidateId) {
+    var btn = document.getElementById('btn-send-marketing');
+    btn.disabled = true;
+    btn.innerHTML = '&#x23F3; Wird gesendet...';
+    btn.style.opacity = '0.6';
+    btn.style.cursor = 'not-allowed';
+
+    fetch('/api/candidates/' + candidateId + '/send-to-marketing', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(function(resp) { return resp.json().then(function(data) { return {ok: resp.ok, data: data}; }); })
+    .then(function(result) {
+        if (result.ok) {
+            var msg = result.data.folder_name + '/ hochgeladen';
+            if (result.data.has_transcript) msg += ' (PDF + Transkript)';
+            else msg += ' (nur PDF, kein Transkript vorhanden)';
+            btn.innerHTML = '&#x2705; Gesendet';
+            btn.style.background = 'rgba(34,197,94,0.2)';
+            showToast(msg, 'success');
+        } else {
+            btn.innerHTML = '&#x274C; Fehler';
+            showToast(result.data.detail || 'Upload fehlgeschlagen', 'error');
+        }
+    })
+    .catch(function(err) {
+        btn.innerHTML = '&#x274C; Fehler';
+        showToast('Netzwerkfehler: ' + err.message, 'error');
+    })
+    .finally(function() {
+        setTimeout(function() {
+            btn.disabled = false;
+            btn.innerHTML = '&#x1F4E4; An Marketing';
+            btn.style.opacity = '1';
+            btn.style.cursor = 'pointer';
+            btn.style.background = 'linear-gradient(135deg, rgba(34,197,94,0.12), rgba(16,185,129,0.12))';
+        }, 4000);
+    });
 }
 
 // ==================== "Jobs finden" Button (Claude Matching v4) ====================

@@ -156,6 +156,24 @@ class Settings(BaseSettings):
         description="Google Maps API-Schlüssel für Distance Matrix API (Fahrzeit)",
     )
 
+    # Google Drive (Kandidaten-Upload fuer Marketing-Agentur)
+    google_drive_client_id: str = Field(
+        default="",
+        description="Google Drive OAuth Client ID",
+    )
+    google_drive_client_secret: str = Field(
+        default="",
+        description="Google Drive OAuth Client Secret",
+    )
+    google_drive_refresh_token: str = Field(
+        default="",
+        description="Google Drive OAuth Refresh Token (einmalig generiert)",
+    )
+    google_drive_folder_id: str = Field(
+        default="",
+        description="Google Drive Folder ID des 'Kandidaten'-Ordners",
+    )
+
     # Telegram Bot
     telegram_bot_token: str = Field(
         default="",
