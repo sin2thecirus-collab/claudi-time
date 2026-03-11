@@ -26,14 +26,25 @@ class GoogleDriveService:
     def __init__(self):
         self._service = None
 
+    def _get_config(self, key: str) -> str:
+        """Liest Config-Wert: Pydantic zuerst, dann os.environ Fallback."""
+        import os
+        val = getattr(settings, f"google_drive_{key}", "")
+        if not val:
+            env_key = f"GOOGLE_DRIVE_{key.upper()}"
+            val = os.environ.get(env_key, "")
+            if val:
+                logger.info(f"Google Drive {key}: aus os.environ gelesen (Pydantic war leer)")
+        return val
+
     @property
     def is_available(self) -> bool:
         """Prueft ob alle Google Drive Credentials konfiguriert sind."""
         return bool(
-            settings.google_drive_client_id
-            and settings.google_drive_client_secret
-            and settings.google_drive_refresh_token
-            and settings.google_drive_folder_id
+            self._get_config("client_id")
+            and self._get_config("client_secret")
+            and self._get_config("refresh_token")
+            and self._get_config("folder_id")
         )
 
     def _get_service(self):
@@ -43,10 +54,10 @@ class GoogleDriveService:
 
         creds = Credentials(
             token=None,
-            refresh_token=settings.google_drive_refresh_token,
+            refresh_token=self._get_config("refresh_token"),
             token_uri=TOKEN_URI,
-            client_id=settings.google_drive_client_id,
-            client_secret=settings.google_drive_client_secret,
+            client_id=self._get_config("client_id"),
+            client_secret=self._get_config("client_secret"),
             scopes=["https://www.googleapis.com/auth/drive.file"],
         )
 
@@ -149,7 +160,7 @@ class GoogleDriveService:
         role = (primary_role or "Unbekannt").strip().replace("/", "-")
         folder_name = f"{plz}_{role}"
 
-        root_folder_id = settings.google_drive_folder_id
+        root_folder_id = self._get_config("folder_id")
 
         # Blocking API-Calls in Executor ausfuehren
         loop = asyncio.get_event_loop()

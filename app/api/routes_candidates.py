@@ -1655,19 +1655,19 @@ async def send_to_marketing(
 
     drive = GoogleDriveService()
     if not drive.is_available:
-        # Debug: Zeige welche Vars fehlen
-        missing = []
-        if not settings.google_drive_client_id:
-            missing.append("GOOGLE_DRIVE_CLIENT_ID")
-        if not settings.google_drive_client_secret:
-            missing.append("GOOGLE_DRIVE_CLIENT_SECRET")
-        if not settings.google_drive_refresh_token:
-            missing.append("GOOGLE_DRIVE_REFRESH_TOKEN")
-        if not settings.google_drive_folder_id:
-            missing.append("GOOGLE_DRIVE_FOLDER_ID")
-        logger.error(f"Google Drive nicht konfiguriert. Fehlende Vars: {missing}")
+        import os
+        env_check = {
+            k: f"{v[:6]}..." if v else "MISSING"
+            for k, v in {
+                "GOOGLE_DRIVE_CLIENT_ID": os.environ.get("GOOGLE_DRIVE_CLIENT_ID", ""),
+                "GOOGLE_DRIVE_CLIENT_SECRET": os.environ.get("GOOGLE_DRIVE_CLIENT_SECRET", ""),
+                "GOOGLE_DRIVE_REFRESH_TOKEN": os.environ.get("GOOGLE_DRIVE_REFRESH_TOKEN", ""),
+                "GOOGLE_DRIVE_FOLDER_ID": os.environ.get("GOOGLE_DRIVE_FOLDER_ID", ""),
+            }.items()
+        }
+        logger.error(f"Google Drive nicht konfiguriert. Env-Check: {env_check}")
         raise ConflictException(
-            message=f"Google Drive nicht konfiguriert. Fehlende Env-Vars: {', '.join(missing)}"
+            message=f"Google Drive nicht konfiguriert. Env-Check: {env_check}"
         )
 
     # Kandidat laden
