@@ -145,12 +145,13 @@ class GoogleDriveService:
         candidate_id: UUID,
         postal_code: str,
         primary_role: str,
+        candidate_name: str,
         pdf_bytes: bytes,
         docx_bytes: bytes | None = None,
     ) -> dict:
         """Laedt Kandidaten-Profil + Transkript in Google Drive hoch.
 
-        Ordner-Struktur: Kandidaten/{PLZ}_{Primary_Role}/
+        Ordner-Struktur: Kandidaten/{Vorname_Nachname}_{PLZ}_{Primary_Role}/
         Dateien: Profil.pdf, Transkript.docx
 
         Returns: Dict mit folder_id, pdf_file_id, docx_file_id, folder_name
@@ -160,10 +161,11 @@ class GoogleDriveService:
         if not self.is_available:
             raise RuntimeError("Google Drive ist nicht konfiguriert")
 
-        # Ordnername: z.B. "34434_Bilanzbuchhalterin"
+        # Ordnername: z.B. "Yvonne_Juengerich_74196_Finanzbuchhalterin"
         plz = (postal_code or "00000").strip()
         role = (primary_role or "Unbekannt").strip().replace("/", "-")
-        folder_name = f"{plz}_{role}"
+        name = (candidate_name or "Unbekannt").strip().replace(" ", "_").replace("/", "-")
+        folder_name = f"{name}_{plz}_{role}"
 
         root_folder_id = self._get_config("folder_id")
 

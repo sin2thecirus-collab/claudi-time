@@ -1690,7 +1690,8 @@ async def send_to_marketing(
         display_name = f"{candidate.first_name or ''} {candidate.last_name or ''}".strip()
         docx_bytes = create_transcript_docx(transcript, display_name)
 
-    # 3) PLZ + Primary Role fuer Ordnername
+    # 3) Name + PLZ + Primary Role fuer Ordnername
+    candidate_name = f"{candidate.first_name or ''} {candidate.last_name or ''}".strip()
     postal_code = candidate.postal_code or "00000"
     primary_role = "Unbekannt"
     if candidate.classification_data and isinstance(candidate.classification_data, dict):
@@ -1702,6 +1703,7 @@ async def send_to_marketing(
             candidate_id=candidate_id,
             postal_code=postal_code,
             primary_role=primary_role,
+            candidate_name=candidate_name,
             pdf_bytes=pdf_bytes,
             docx_bytes=docx_bytes,
         )
