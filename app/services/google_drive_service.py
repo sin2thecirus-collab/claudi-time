@@ -27,14 +27,19 @@ class GoogleDriveService:
         self._service = None
 
     def _get_config(self, key: str) -> str:
-        """Liest Config-Wert: Pydantic zuerst, dann os.environ Fallback."""
+        """Liest Config-Wert: Pydantic zuerst, dann os.environ Fallbacks."""
         import os
         val = getattr(settings, f"google_drive_{key}", "")
         if not val:
+            # Fallback 1: Standard-Name
             env_key = f"GOOGLE_DRIVE_{key.upper()}"
             val = os.environ.get(env_key, "")
+        if not val:
+            # Fallback 2: Kurzname (fuer Railway-Workaround bei // im Wert)
+            short_key = f"GD_{key.upper()}"
+            val = os.environ.get(short_key, "")
             if val:
-                logger.info(f"Google Drive {key}: aus os.environ gelesen (Pydantic war leer)")
+                logger.info(f"Google Drive {key}: aus {short_key} gelesen (Workaround)")
         return val
 
     @property
