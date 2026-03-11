@@ -172,17 +172,19 @@ async def search_candidates_quick(
 
 @router.get("/drive-config-check")
 async def drive_config_check():
-    """Debug: Zeigt ob Google Drive Env-Vars gesetzt sind."""
+    """Debug: Zeigt alle GOOGLE/DRIVE env vars."""
     import os
-    raw_token = os.environ.get("GOOGLE_DRIVE_REFRESH_TOKEN", "<<NOT SET>>")
+    google_vars = {
+        k: f"{v[:8]}...({len(v)}ch)"
+        for k, v in os.environ.items()
+        if "GOOGLE" in k or "DRIVE" in k
+    }
     return {
-        "GOOGLE_DRIVE_CLIENT_ID": bool(settings.google_drive_client_id),
-        "GOOGLE_DRIVE_CLIENT_SECRET": bool(settings.google_drive_client_secret),
-        "GOOGLE_DRIVE_REFRESH_TOKEN": bool(settings.google_drive_refresh_token),
-        "GOOGLE_DRIVE_FOLDER_ID": bool(settings.google_drive_folder_id),
-        "raw_token_len": len(raw_token),
-        "raw_token_first5": raw_token[:5] if raw_token else "EMPTY",
+        "env_vars_found": google_vars,
+        "pydantic_client_id_len": len(settings.google_drive_client_id),
+        "pydantic_secret_len": len(settings.google_drive_client_secret),
         "pydantic_token_len": len(settings.google_drive_refresh_token),
+        "pydantic_folder_len": len(settings.google_drive_folder_id),
     }
 
 # ==================== Duplikat-Erkennung mit Diff ====================
