@@ -1615,6 +1615,20 @@ async def generate_profile_pdf(
 
 # ==================== Google Drive Marketing-Upload ====================
 
+@router.get("/debug/google-drive-config")
+async def debug_google_drive_config():
+    """Debug: Zeigt ob Google Drive Env-Vars gesetzt sind (keine Werte, nur ja/nein)."""
+    return {
+        "GOOGLE_DRIVE_CLIENT_ID": bool(settings.google_drive_client_id),
+        "GOOGLE_DRIVE_CLIENT_SECRET": bool(settings.google_drive_client_secret),
+        "GOOGLE_DRIVE_REFRESH_TOKEN": bool(settings.google_drive_refresh_token),
+        "GOOGLE_DRIVE_FOLDER_ID": bool(settings.google_drive_folder_id),
+        "client_id_len": len(settings.google_drive_client_id),
+        "secret_len": len(settings.google_drive_client_secret),
+        "token_len": len(settings.google_drive_refresh_token),
+        "folder_id_len": len(settings.google_drive_folder_id),
+    }
+
 @router.post(
     "/{candidate_id}/send-to-marketing",
     summary="Kandidaten-Profil + Transkript an Marketing-Agentur (Google Drive) senden",
@@ -1636,10 +1650,19 @@ async def send_to_marketing(
 
     drive = GoogleDriveService()
     if not drive.is_available:
+        # Debug: Zeige welche Vars fehlen
+        missing = []
+        if not settings.google_drive_client_id:
+            missing.append("GOOGLE_DRIVE_CLIENT_ID")
+        if not settings.google_drive_client_secret:
+            missing.append("GOOGLE_DRIVE_CLIENT_SECRET")
+        if not settings.google_drive_refresh_token:
+            missing.append("GOOGLE_DRIVE_REFRESH_TOKEN")
+        if not settings.google_drive_folder_id:
+            missing.append("GOOGLE_DRIVE_FOLDER_ID")
+        logger.error(f"Google Drive nicht konfiguriert. Fehlende Vars: {missing}")
         raise ConflictException(
-            message="Google Drive ist nicht konfiguriert. "
-            "Bitte GOOGLE_DRIVE_CLIENT_ID, GOOGLE_DRIVE_CLIENT_SECRET, "
-            "GOOGLE_DRIVE_REFRESH_TOKEN und GOOGLE_DRIVE_FOLDER_ID setzen."
+            message=f"Google Drive nicht konfiguriert. Fehlende Env-Vars: {', '.join(missing)}"
         )
 
     # Kandidat laden
