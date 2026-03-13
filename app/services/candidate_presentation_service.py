@@ -414,7 +414,7 @@ DEIN SCHREIBSTIL:
 - Kurze, praegnante Saetze. Kein Geschwafel. Keine Fuellwoerter.
 - JEDER Satz muss ein konkretes Detail enthalten das NUR auf diesen Kandidaten und DIESE Stelle zutrifft
 - Wenn ein Satz auch ueber jeden anderen Buchhalter geschrieben werden koennte, ist er WERTLOS — loeschen oder umschreiben
-- KEINE Tabelle schreiben! Nur den Platzhalter {{{{SKILLS_TABLE}}}}
+- KEIN HTML! Die E-Mail ist reiner Text. Der Platzhalter {{{{SKILLS_TABLE}}}} wird automatisch ersetzt
 - KEIN Markdown, keine **fett** Formatierung
 - NIEMALS den Firmennamen des aktuellen Arbeitgebers des Kandidaten nennen
 - NIEMALS Word, Excel oder MS-Office als Skill erwaehnen — das ist Standard und entwertet den Kandidaten
@@ -440,6 +440,7 @@ Antworte NUR mit einem JSON-Objekt:
 {{"subject": "Betreffzeile (max 8 Woerter)", "body_text": "Der E-Mail-Text mit {{{{SKILLS_TABLE}}}} Platzhalter"}}"""
 
         try:
+            # Erster Versuch
             result = await _call_gpt4o(
                 system_prompt=system_prompt,
                 user_message="Generiere die E-Mail. Denke daran: KEIN Firmenname des Arbeitgebers, KEINE generischen Floskeln, JEDER Satz mit konkretem Fakt.",
@@ -449,42 +450,63 @@ Antworte NUR mit einem JSON-Objekt:
             data = _parse_json_safe(result)
             body_text = data.get("body_text", "")
 
-            # HTML-Tabelle aus Skills-Vergleich bauen
-            skills_table_html = _build_skills_html_table(skills_comparison)
+            # Qualitaets-Check: Verbotene Phrasen im Output?
+            found_violations = _check_forbidden_phrases(body_text)
+            if found_violations:
+                logger.warning(f"E-Mail enthaelt {len(found_violations)} verbotene Phrasen: {found_violations[:5]}. Rewrite...")
+                rewrite_result = await _call_gpt4o(
+                    system_prompt="Du bist ein Lektor fuer professionelle Geschaefts-E-Mails im Recruiting-Bereich. Deine Aufgabe: Ersetze generische Floskeln durch konkrete, spezifische Aussagen.",
+                    user_message=f"""Schreibe den folgenden E-Mail-Text um. Ersetze JEDE der markierten Phrasen durch eine konkrete, spezifische Formulierung.
 
-            # Text in HTML konvertieren: Absaetze -> <p> Tags
-            # {{SKILLS_TABLE}} Platzhalter durch echte HTML-Tabelle ersetzen
-            paragraphs = body_text.split("\n\n")
-            html_parts = []
-            for p in paragraphs:
-                p = p.strip()
-                if not p:
-                    continue
-                if "SKILLS_TABLE" in p or "{SKILLS_TABLE}" in p:
-                    html_parts.append(skills_table_html)
-                else:
-                    # Zeilenumbrueche innerhalb eines Absatzes als <br> behalten
-                    p_html = p.replace("\n", "<br>")
-                    html_parts.append(f'<p style="margin:0 0 12px 0;font-size:14px;line-height:1.6;color:#1f2937;">{p_html}</p>')
+VERBOTENE PHRASEN DIE ERSETZT WERDEN MUESSEN:
+{chr(10).join(f'- "{v}"' for v in found_violations)}
 
-            # Falls kein Platzhalter im Text war, Tabelle nach dem ersten Absatz einfuegen
-            if skills_table_html and skills_table_html not in "\n".join(html_parts):
-                html_parts.insert(min(2, len(html_parts)), skills_table_html)
+REGELN FUER DEN REWRITE:
+- Ersetze "umfangreiche Erfahrung in X" durch eine konkrete Beschreibung WAS der Kandidat in X tut (z.B. "erstellt seit 3 Jahren eigenstaendig...")
+- Ersetze "fundierte Kenntnisse" durch den konkreten Einsatzbereich (z.B. "nutzt SAGE taeglich fuer die Kreditorenbuchhaltung")
+- Ersetze "kommunikativ und teamfaehig" ERSATZLOS — einfach loeschen, das ist Fuelltext
+- Ersetze "optimal abdeckt" / "von Vorteil" durch eine direkte Verbindung zur Stellenanforderung
+- NIEMALS Word/Excel/MS-Office erwaehnen
+- NIEMALS den Firmennamen des Arbeitgebers nennen
+- Der Platzhalter {{{{SKILLS_TABLE}}}} MUSS erhalten bleiben
+- Antworte NUR mit dem umgeschriebenen Text, KEIN JSON, KEIN Kommentar
 
-            body_html = f"""<div style="font-family:Arial,sans-serif;max-width:650px;">
-{"".join(html_parts)}
-{HTML_SIGNATURE}
-</div>"""
+ORIGINAL-TEXT:
+{body_text}""",
+                    max_tokens=2000,
+                    temperature=0.5,
+                )
+                # Rewrite ist Plain-Text, kein JSON
+                rewritten = rewrite_result.strip()
+                # Sicherheitscheck: Hat der Rewrite den Platzhalter behalten?
+                if "SKILLS_TABLE" in rewritten and len(rewritten) > 100:
+                    body_text = rewritten
+                    logger.info("E-Mail erfolgreich umgeschrieben (Floskeln entfernt)")
+                    # Zweiter Check
+                    remaining = _check_forbidden_phrases(body_text)
+                    if remaining:
+                        logger.warning(f"Rewrite enthaelt noch {len(remaining)} Phrasen: {remaining[:3]}")
 
-            # Plain-Text Fallback (fuer Vorschau + Alt-Text)
-            plain_body = body_text.replace("{{SKILLS_TABLE}}", "").replace("{SKILLS_TABLE}", "")
+            # Plain-Text Skills-Tabelle bauen
+            skills_table_text = _build_skills_plain_table(skills_comparison)
+
+            # {{SKILLS_TABLE}} Platzhalter durch Plain-Text-Tabelle ersetzen
+            plain_body = body_text.replace("{{SKILLS_TABLE}}", skills_table_text).replace("{SKILLS_TABLE}", skills_table_text)
+
+            # Falls kein Platzhalter im Text war, Tabelle nach dem zweiten Absatz einfuegen
+            if skills_table_text and skills_table_text not in plain_body:
+                paragraphs = plain_body.split("\n\n")
+                insert_pos = min(2, len(paragraphs))
+                paragraphs.insert(insert_pos, skills_table_text)
+                plain_body = "\n\n".join(paragraphs)
+
             if PLAIN_TEXT_SIGNATURE not in plain_body:
                 plain_body = plain_body.rstrip() + "\n\n--\n" + PLAIN_TEXT_SIGNATURE
 
             return {
                 "subject": data.get("subject", f"{primary_role} fuer {extracted_job_data.get('company_name', 'Ihre Stelle')}"),
                 "body_text": plain_body,
-                "body_html": body_html,
+                "body_html": "",  # KEIN HTML — Plain-Text E-Mail
             }
         except Exception as e:
             logger.error(f"generate_presentation_email fehlgeschlagen: {e}")
@@ -794,6 +816,61 @@ Antworte NUR mit einem JSON-Objekt:
 # ═══════════════════════════════════════════════════════════════
 # PRIVATE HELPERS
 # ═══════════════════════════════════════════════════════════════
+
+# Verbotene Phrasen — werden nach dem GPT-Call im Python-Code geprueft
+FORBIDDEN_PHRASES = [
+    "umfangreiche erfahrung", "fundierte kenntnisse", "hervorragender kandidat",
+    "ideale ergaenzung", "ideale ergänzung", "bringt alles mit",
+    "erfuellt alle anforderungen", "erfüllt alle anforderungen",
+    "bereichern koennte", "bereichern könnte", "umfassende kenntnisse",
+    "kommunikativ und teamfaehig", "kommunikativ und teamfähig",
+    "arbeitet gerne im team", "ist zudem kommunikativ",
+    "hat umfangreiche erfahrung", "sehr gut deutsch und englisch",
+    "nicht nur sondern auch", "darueber hinaus verfuegt", "darüber hinaus verfügt",
+    "zusaetzlich hat er", "zusätzlich hat er", "zusaetzlich hat sie", "zusätzlich hat sie",
+    "was ihn zu einem idealen", "was sie zu einer idealen",
+    "die sich direkt decken", "insbesondere auch", "wenn es erforderlich war",
+    "ich beziehe mich auf", "ich habe einen kandidaten identifiziert",
+    "schaetzt es als das beste", "schätzt es als das beste",
+    "was ihm besonders wichtig ist", "was ihr besonders wichtig ist",
+    "optimal abdeckt", "von vorteil ist", "ms-office", "ms office",
+    "microsoft office", "word und excel", "word, excel",
+    "fundierte erfahrung", "breite erfahrung", "solide erfahrung",
+    "idealer kandidat", "ideale kandidatin",
+]
+
+
+def _build_skills_plain_table(skills_comparison: dict) -> str:
+    """Baut eine Plain-Text-Darstellung des Skills-Vergleichs."""
+    matches = skills_comparison.get("matches", [])
+    if not matches:
+        return ""
+
+    status_symbols = {
+        "erfuellt": "OK",
+        "teilweise": "~",
+        "nicht_vorhanden": "-",
+    }
+
+    lines = ["Fachlicher Abgleich:", ""]
+    for m in matches:
+        req = m.get("requirement", "")
+        evidence = m.get("candidate_evidence", "")
+        status = m.get("status", "nicht_vorhanden")
+        symbol = status_symbols.get(status, "-")
+        lines.append(f"[{symbol}] {req}")
+        if evidence:
+            lines.append(f"    → {evidence}")
+        lines.append("")
+
+    return "\n".join(lines).rstrip()
+
+
+def _check_forbidden_phrases(text: str) -> list[str]:
+    """Prueft ob der Text verbotene Floskeln enthaelt. Gibt Liste der gefundenen zurueck."""
+    text_lower = text.lower()
+    return [phrase for phrase in FORBIDDEN_PHRASES if phrase in text_lower]
+
 
 async def _call_gpt4o(
     system_prompt: str,
