@@ -144,6 +144,12 @@ class Settings(BaseSettings):
         description="Anthropic API Key fuer Claude Matching v4",
     )
 
+    # Anthropic Opus (E-Mail-Generierung)
+    anthropic_opus_api_key: str = Field(
+        default="",
+        description="Separater Anthropic API Key mit Opus-Zugang (fuer E-Mail-Generierung)",
+    )
+
     # IONOS SMTP (Akquise-Mailboxen)
     ionos_smtp_password: str = Field(
         default="",
