@@ -952,34 +952,46 @@ async def _call_gpt4o(
     max_tokens: int = 1000,
     temperature: float = 0.5,
 ) -> str:
-    """GPT-4o API-Call ueber httpx (kein DB-Session waehrend Call!)."""
-    try:
-        async with httpx.AsyncClient(timeout=90.0) as client:
-            resp = await client.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {settings.openai_api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": "gpt-5.4",
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_message},
-                    ],
-                    "max_tokens": max_tokens,
-                    "temperature": temperature,
-                },
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            return data["choices"][0]["message"]["content"].strip()
-    except httpx.HTTPStatusError as e:
-        logger.error(f"GPT-4o API Error {e.response.status_code}: {e.response.text[:200]}")
-        raise
-    except Exception as e:
-        logger.error(f"GPT-4o Call fehlgeschlagen: {e}")
-        raise
+    """OpenAI API-Call ueber httpx (kein DB-Session waehrend Call!). Versucht gpt-4o, Fallback gpt-4o-mini."""
+    models_to_try = ["gpt-4o", "gpt-4o-mini"]
+    last_error = None
+
+    for model in models_to_try:
+        try:
+            async with httpx.AsyncClient(timeout=90.0) as client:
+                resp = await client.post(
+                    "https://api.openai.com/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {settings.openai_api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": model,
+                        "messages": [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_message},
+                        ],
+                        "max_tokens": max_tokens,
+                        "temperature": temperature,
+                    },
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                logger.info(f"OpenAI Call erfolgreich mit Modell: {model}")
+                return data["choices"][0]["message"]["content"].strip()
+        except httpx.HTTPStatusError as e:
+            last_error = e
+            logger.warning(f"OpenAI {model} fehlgeschlagen ({e.response.status_code}): {e.response.text[:300]}")
+            if e.response.status_code == 429:
+                raise  # Kein Guthaben → kein Fallback hilft
+            continue  # Naechstes Modell versuchen
+        except Exception as e:
+            last_error = e
+            logger.warning(f"OpenAI {model} Fehler: {e}")
+            continue
+
+    logger.error(f"Alle OpenAI-Modelle fehlgeschlagen. Letzter Fehler: {last_error}")
+    raise last_error or RuntimeError("Kein OpenAI-Modell verfuegbar")
 
 
 def _parse_json_safe(text: str) -> dict:
