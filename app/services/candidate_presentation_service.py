@@ -220,14 +220,18 @@ IT-Skills: {candidate_data.get('it_skills', '')}"""
             1: f"""Schreibe die ERSTE Vorstellungs-E-Mail. Inhalt:
 - Beginne mit "{anrede},"
 - Beginne den Text mit "Ich hoffe, es geht Ihnen gut."
-- Stelle den Kandidaten kurz vor (Rolle: {primary_role})
-- Erstelle eine Skills-Vergleichstabelle (Anforderung | Kandidat | Status)
-- Status-Symbole: ✓ (erfuellt), ○ (teilweise), ✗ (nicht vorhanden)
-- Erwaehne die Fahrzeit: {drive_info or 'nicht berechnet'}
-- Erwaehne Verfuegbarkeit: {notice_period or 'auf Anfrage'}
-- Erwaehne Gehaltsrahmen: {salary_range or 'auf Anfrage'}
+- Stelle den Kandidaten in 2-3 Saetzen kurz vor (Rolle: {primary_role})
+- Dann ein Skills-Vergleich als LISTE (KEIN Markdown, KEINE Pipe-Tabelle!):
+  Format pro Anforderung (eine Zeile pro Punkt):
+  ✓ Anforderung XY — Kandidat bringt ... mit
+  ○ Anforderung XY — Kandidat hat teilweise ...
+  ✗ Anforderung XY — Nicht vorhanden
+  Jede Zeile beginnt mit dem Symbol, dann die Anforderung kurz, dann Strich, dann Kandidaten-Evidence.
+  Maximal 8 Zeilen. Fasse aehnliche Anforderungen zusammen.
+- Nach der Liste: Fahrzeit ({drive_info or 'noch nicht berechnet'}), Verfuegbarkeit ({notice_period or 'auf Anfrage'}), Gehaltsrahmen ({salary_range or 'auf Anfrage'})
 - Schliesse mit: "Ich wuerde mich freuen, Ihnen weitere Details zukommen zu lassen."
-- KEIN PDF-Anhang erwaehnen (wird erst bei Interesse geschickt)""",
+- KEIN PDF-Anhang erwaehnen (wird erst bei Interesse geschickt)
+- WICHTIG: Reiner Plain-Text! Kein Markdown, keine Tabellen mit |, keine --- Linien, keine **fett** Formatierung.""",
 
             2: f"""Schreibe das ERSTE Follow-Up (Tag 3). Kurz und direkt:
 - Beginne mit "{anrede},"
@@ -249,10 +253,10 @@ IT-Skills: {candidate_data.get('it_skills', '')}"""
 
 WICHTIGE REGELN:
 - IMMER ICH-Form ("Ich betreue...", "Ich erkenne..."), NIEMALS Wir-Form
-- Plain-Text Format (kein HTML, kein Markdown)
+- Reiner Plain-Text (KEIN HTML, KEIN Markdown, KEINE Tabellen mit | Trennern, KEINE --- Linien)
 - Professionell aber persoenlich
 - Keine Floskeln wie "im Auftrag meines Kunden"
-- Die Skills-Tabelle mit | als Trenner formatieren
+- Skills-Vergleich als einfache Liste mit ✓/○/✗ am Zeilenanfang
 
 {step_instructions.get(step, step_instructions[1])}
 
