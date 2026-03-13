@@ -1144,6 +1144,17 @@
                         </div>
                     </div>
 
+                    {# Row 3.5: Wechselmotivation #}
+                    <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--pp-borderLight);">
+                        <div class="kd-field-label" style="display: flex; align-items: center; gap: 6px;">
+                            <span style="font-size: 14px;">&#x1F4A1;</span> Wechselmotivation
+                        </div>
+                        <textarea x-model="qf.change_motivation" @blur="saveQField('change_motivation')" placeholder="Warum will der Kandidat wechseln? z.B. Unzufrieden mit F&uuml;hrung, keine Entwicklungsm&ouml;glichkeiten, zu langer Arbeitsweg..."
+                            class="w-full rounded-lg text-sm font-medium resize-vertical"
+                            style="min-height: 70px; padding: 10px 14px; border: 1.5px solid var(--pp-border); color: var(--pp-text); background: var(--pp-surface); font-family: inherit; outline: none; line-height: 1.75;"
+                            @focus="$el.style.borderColor = 'var(--pp-accent)'" @focusout="$el.style.borderColor = 'var(--pp-border)'"></textarea>
+                    </div>
+
                     {# Row 4: Branchen #}
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--pp-borderLight);">
                         <div>
@@ -2873,6 +2884,7 @@ function qualificationFields() {
             other_recruiters: {{ (candidate.other_recruiters or '') | tojson | safe }},
             exclusivity_agreed: {{ 'true' if candidate.exclusivity_agreed == true else ('false' if candidate.exclusivity_agreed == false else 'null') }},
             applied_at_companies_text: {{ (candidate.applied_at_companies_text or '') | tojson | safe }},
+            change_motivation: {{ (candidate.change_motivation or '') | tojson | safe }},
             call_transcript: {{ (candidate.call_transcript or '') | tojson | safe }},
             call_summary: {{ (candidate.call_summary or '') | tojson | safe }},
             call_type: {{ (candidate.call_type or '') | tojson | safe }}

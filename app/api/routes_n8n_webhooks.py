@@ -1618,6 +1618,7 @@ async def _auto_assign_to_candidate(
             "desired_positions": "desired_positions",
             "key_activities": "key_activities",
             "home_office_days": "home_office_days",
+            "home_office": "home_office_days",  # n8n v2: Feld heisst jetzt home_office (String statt number)
             "commute_max": "commute_max",
             "commute_transport": "commute_transport",
             "erp_main": "erp_main",
@@ -1629,6 +1630,7 @@ async def _auto_assign_to_candidate(
             "notice_period": "notice_period",
             "open_office_ok": "open_office_ok",
             "other_recruiters": "other_recruiters",
+            "change_motivation": "change_motivation",
         }
         for src_key, dest_key in field_mappings.items():
             val = ext.get(src_key) or ext.get(f"call_{src_key}")

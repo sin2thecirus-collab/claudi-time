@@ -102,6 +102,7 @@ class Candidate(Base):
     other_recruiters: Mapped[str | None] = mapped_column(Text)  # Freitext: Andere Recruiter aktiv? Details
     exclusivity_agreed: Mapped[bool | None] = mapped_column(Boolean)  # Exklusivität vereinbart?
     applied_at_companies_text: Mapped[str | None] = mapped_column(Text)  # Freitext: Wo bereits beworben (aus Transkription)
+    change_motivation: Mapped[str | None] = mapped_column(Text)  # Freitext: Warum will der Kandidat wechseln? (Wechselmotivation)
 
     # ── Call-Transkription / KI-Zusammenfassung ──
     call_transcript: Mapped[str | None] = mapped_column(Text)  # Volle Transkription des Gesprächs
