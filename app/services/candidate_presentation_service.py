@@ -528,10 +528,10 @@ ORIGINAL-TEXT:
                 "body_html": "",  # KEIN HTML — Plain-Text E-Mail
             }
         except Exception as e:
-            logger.error(f"generate_presentation_email fehlgeschlagen: {e}")
+            logger.error(f"generate_presentation_email fehlgeschlagen: {e}", exc_info=True)
             return {
                 "subject": f"{primary_role} - Kandidatenvorstellung",
-                "body_text": f"{anrede},\n\nIch moechte Ihnen einen qualifizierten Kandidaten vorstellen.\n\n--\n{PLAIN_TEXT_SIGNATURE}",
+                "body_text": f"{anrede},\n\nIch moechte Ihnen einen qualifizierten Kandidaten vorstellen.\n\n[FEHLER: GPT-Call fehlgeschlagen: {str(e)[:200]}]\n\n--\n{PLAIN_TEXT_SIGNATURE}",
                 "body_html": "",
             }
 
@@ -962,7 +962,7 @@ async def _call_gpt4o(
                     "Content-Type": "application/json",
                 },
                 json={
-                    "model": "gpt-4.5-preview",
+                    "model": "gpt-4o",
                     "messages": [
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_message},
