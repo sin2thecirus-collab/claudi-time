@@ -138,6 +138,22 @@ class CandidatePresentationService:
         """
         prompt = """Du bist ein Recruiting-Analyst. Extrahiere aus dem folgenden Stellentext alle relevanten Informationen.
 
+WICHTIG — ANSPRECHPARTNER FINDEN:
+Der Ansprechpartner kann in VERSCHIEDENEN Formaten stehen:
+- "Ansprechpartner: Max Mustermann" (klassisch)
+- "Ihr Kontakt: Frau Mueller" (mit Label)
+- "Vorname\\nMax\\nNachname\\nMustermann" (Zeile fuer Zeile, z.B. auf Jobportalen)
+- Name + E-Mail nebeneinander: "Anna Schmidt a.schmidt@firma.de"
+- Im Impressum oder Footer der Anzeige
+Suche AKTIV nach Namen und E-Mail-Adressen im gesamten Text.
+
+contact_salutation BESTIMMEN:
+- Wenn "Herr" oder "Frau" im Text steht → uebernehmen
+- Wenn NUR ein Vorname vorhanden ist → aus dem Vornamen ableiten:
+  Weibliche Vornamen (Beispiele): Anna, Maria, Vera, Julia, Claudia, Sabine, Sandra, Nicole, Andrea, Christina, Daniela, Katharina, Stefanie, Petra, Monika, Susanne, Birgit, Lucia, Simone, Nadine, Anja, Elena, Sophie
+  Maennliche Vornamen (Beispiele): Max, Thomas, Michael, Stefan, Andreas, Peter, Martin, Markus, Christian, Daniel, Tobias, Matthias, Alexander, Jan, Frank, Jens, Dirk, Marco, Lars, Ralf, Oliver, Sven, Florian
+  Bei unklaren/internationalen Vornamen → "contact_salutation": "" leer lassen
+
 Antworte NUR mit einem JSON-Objekt (kein Markdown, keine Erklaerung):
 {
     "company_name": "Firmenname",
@@ -145,8 +161,8 @@ Antworte NUR mit einem JSON-Objekt (kein Markdown, keine Erklaerung):
     "plz": "PLZ (5-stellig)",
     "address": "Strasse + Hausnummer (wenn vorhanden)",
     "domain": "Website-Domain (ohne https://, wenn erkennbar)",
-    "contact_name": "Ansprechpartner Name (wenn vorhanden)",
-    "contact_salutation": "Herr oder Frau (wenn erkennbar)",
+    "contact_name": "NACHNAME des Ansprechpartners (ohne Vorname, ohne Herr/Frau)",
+    "contact_salutation": "Herr oder Frau (aus Text oder Vorname ableiten)",
     "contact_email": "E-Mail des Ansprechpartners (wenn vorhanden)",
     "job_title": "Exakter Jobtitel",
     "requirements": ["Anforderung 1", "Anforderung 2", ...],
@@ -154,7 +170,7 @@ Antworte NUR mit einem JSON-Objekt (kein Markdown, keine Erklaerung):
 }
 
 Wenn ein Feld nicht im Text vorkommt, verwende einen leeren String "" bzw. leeres Array [].
-Extrahiere ALLE genannten Anforderungen/Qualifikationen als separate Eintraege."""
+Extrahiere ALLE genannten fachlichen Anforderungen/Qualifikationen als separate Eintraege."""
 
         try:
             result = await _call_gpt4o(
