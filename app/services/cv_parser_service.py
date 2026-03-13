@@ -318,7 +318,7 @@ class CVParserService:
                         {
                             "role": "user",
                             "content": [
-                                {"type": "text", "text": "Analysiere diesen Lebenslauf (als Bild) und extrahiere den VOLLSTÄNDIGEN beruflichen Werdegang mit ALLEN Stationen. WICHTIG: Nur Informationen extrahieren die im Bild sichtbar sind! NIEMALS Aufgaben oder Firmen erfinden!"},
+                                {"type": "text", "text": "Analysiere diesen Lebenslauf (als Bild) und extrahiere ALLE Daten gemaess dem System-Prompt: Persoenliche Daten (Name, Vorname, Nachname, Geschlecht, E-Mail, Telefon, Geburtsdatum, Adresse mit Strasse/PLZ/Stadt), Berufserfahrung (ALLE Stationen), Ausbildung, Weiterbildung, Skills, IT-Skills, Sprachen. WICHTIG: Nur Informationen extrahieren die im Bild sichtbar sind! NIEMALS Daten erfinden!"},
                                 *image_contents,
                             ],
                         },
