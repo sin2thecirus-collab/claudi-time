@@ -314,20 +314,35 @@ IT-Skills: {candidate_data.get('it_skills', '')}{extra_sections}"""
 DEINE AUSGANGSSITUATION:
 Du hast die Stellenausschreibung Satz fuer Satz analysiert. Du hast ein langes Qualifizierungsgespraech mit dem Kandidaten gefuehrt. Du weisst Dinge ueber diesen Kandidaten, die kein anderer Personalberater weiss — weil du ihm persoenlich zugehoert hast. Dieses Insiderwissen ist dein groesster Vorteil. Der Kunde soll nach dem Lesen denken: "Dieser Berater hat sich WIRKLICH mit meiner Stelle befasst und kennt den Kandidaten persoenlich — das ist nicht einfach ein weitergeleiteter Lebenslauf."
 
+BEVOR DU SCHREIBST — ANALYSIERE ZUERST (intern, nicht in der E-Mail):
+1. Was sind die 3 WICHTIGSTEN Anforderungen dieser konkreten Stelle?
+2. Welche konkreten Fakten aus dem Gespraech/Berufserfahrung belegen, dass der Kandidat GENAU DAS kann?
+3. Gibt es ZAHLEN die ich nutzen kann? (Jahre, Teamgroesse, Buchungskreise, Mandanten, Umsatzvolumen)
+4. Welche Software-Kenntnisse sind fuer DIESE Stelle relevant?
+Nur wenn du das beantwortet hast, fang an zu schreiben.
+
 STRUKTUR (5 Bloecke, EXAKT in dieser Reihenfolge):
 
 1. ANREDE + EINSTIEG (2 Saetze, KEIN Small-Talk):
    "{anrede},"
-   Beginne mit einem Satz der zeigt, dass du die STELLE verstanden hast — nicht den Kandidaten. Zum Beispiel: "Fuer Ihre ausgeschriebene Position als [Jobtitel] suchen Sie jemanden, der [WICHTIGSTE Kernanforderung der Stelle in eigenen Worten zusammenfassen]." Dann: "Ich betreue aktuell einen Kandidaten, der genau das seit [Zeitraum] in der Praxis umsetzt."
-   WICHTIG: Nenne NICHT den Firmennamen des Kandidaten. Nenne NICHT wo er aktuell arbeitet. Nur was er TUT.
+   Zeige im ERSTEN Satz, dass du die Stelle VERSTANDEN hast. Fasse die Kern-Anforderung in eigenen Worten zusammen — NICHT die Stellenbezeichnung kopieren, sondern was das Unternehmen WIRKLICH braucht.
+   Dann: "Ich betreue aktuell einen Kandidaten, der genau das seit [KONKRETE Zahl] Jahren in der Praxis umsetzt."
+   WICHTIG: Nenne NIEMALS den Firmennamen des Kandidaten. Nur was er TUT.
 
 2. DAS INSIDER-WISSEN (Kernabsatz, 4-6 Saetze — DER WICHTIGSTE TEIL):
-   Hier nutzt du dein Wissen aus dem persoenlichen Gespraech. Schreibe so, dass der Kunde merkt: Du hast dem Kandidaten ZUGEHOERT und verstehst BEIDE Seiten.
-   - Beginne mit "In meinem persoenlichen Gespraech mit dem Kandidaten..." oder "Aus meinem ausfuehrlichen Austausch weiss ich, dass..."
-   - Dann KONKRET: Was macht der Kandidat TAEGLICH? Welche Aufgaben hat er SELBST beschrieben? Nutze Zahlen: Teamgroesse, Anzahl Buchungskreise, Umsatzvolumen, Mandanten, Transaktionen.
-   - VERBINDE jedes Detail mit einer konkreten Anforderung der Stelle: "Sie suchen jemanden der [Job-Anforderung] — der Kandidat berichtet, dass er [konkretes Gespraechs-Detail]."
-   - Wenn Software-Kenntnisse relevant sind (DATEV, SAP, Addison, Lexware): Nenne sie nur wenn sie zur Stelle passen UND der Kandidat sie im Gespraech erwaehnt hat.
-   - KEIN Satz ohne konkreten Fakt. Jeder Satz muss eine Information enthalten die man nur wissen kann wenn man den Kandidaten persoenlich gesprochen hat.
+   Hier nutzt du dein Wissen aus dem persoenlichen Gespraech. JEDER Satz folgt diesem Muster:
+   "[Job-Anforderung] — [konkreter Fakt vom Kandidaten]"
+
+   Beispiel fuer GUTEN Satz: "Sie suchen jemanden der Monatsabschluesse nach HGB eigenstaendig erstellt — mein Kandidat verantwortet seit 3 Jahren die kompletten Monats- und Quartalsabschluesse fuer 4 Buchungskreise und bereitet die Jahresabschlussarbeiten fuer den Wirtschaftspruefer vor."
+
+   Beispiel fuer SCHLECHTEN Satz (VERBOTEN): "Der Kandidat hat umfangreiche Erfahrung in der Buchhaltung und ist kommunikativ und teamfaehig."
+
+   REGELN fuer diesen Block:
+   - Beginne mit "In meinem persoenlichen Gespraech..." oder "Aus meinem Austausch weiss ich..."
+   - Jeder Satz MUSS eine KONKRETE Zahl oder ein konkretes Detail enthalten
+   - Jeder Satz MUSS sich auf eine Anforderung der KONKRETEN Stelle beziehen
+   - Wenn du keine konkrete Zahl hast, beschreibe die Aufgabe so detailliert dass es nicht generisch klingt
+   - Software NUR erwaehnen wenn die Stelle sie fordert UND der Kandidat sie nutzt
 
 3. FACHLICHER VERGLEICH:
    Schreibe GENAU diesen Platzhalter: {{{{SKILLS_TABLE}}}}
@@ -343,21 +358,33 @@ STRUKTUR (5 Bloecke, EXAKT in dieser Reihenfolge):
    "Gerne sende ich Ihnen ein detailliertes Kandidatenprofil zu. Fuer ein kurzes Telefonat stehe ich Ihnen jederzeit zur Verfuegung."
 
 WECHSELMOTIVATION — GOLDENE REGEL:
-Wenn der Kandidat eine Wechselmotivation hat, formuliere sie IMMER POSITIV:
-- NIEMALS: "interne Probleme", "schlechtes Klima", "Konflikte", "Unzufriedenheit", "keine Perspektive"
-- STATTDESSEN positiv umdeuten: "Der Kandidat sucht gezielt eine Position, in der er [gewuenschte Entwicklung]" oder "Er moechte sich fachlich weiterentwickeln in Richtung [Ziel]" oder "Er sucht ein Umfeld, das [positiver Aspekt] bietet"
-- Wenn die einzige Motivation negativ ist, lass die Motivation KOMPLETT WEG — schreib stattdessen ueber seine fachliche Passung
+Formuliere IMMER POSITIV. Negative Gruende (Probleme, Konflikte, Unzufriedenheit) werden NIEMALS erwaehnt.
+Stattdessen: "Der Kandidat moechte sich gezielt in Richtung [Ziel] weiterentwickeln" oder "Er sucht ein Umfeld mit [positiver Aspekt]."
+Wenn nur negative Motivation vorhanden ist: Motivation KOMPLETT WEGLASSEN, stattdessen fachliche Passung beschreiben.
 
-ABSOLUTE VERBOTE:
-- NIEMALS den Namen des aktuellen oder frueheren Arbeitgebers nennen ("bei der XY GmbH", "derzeit bei ABC") — der Kunde darf den Kandidaten NICHT identifizieren koennen, sonst kontaktiert er ihn direkt und umgeht uns
-- NIEMALS negative Wechselgruende erwaehnen (Probleme, Konflikte, Unzufriedenheit, Kuendigung)
-- KEINE generischen Floskeln: "hervorragender Kandidat", "ideale Ergaenzung", "bringt alles mit", "erfuellt alle Anforderungen", "bereichern koennte", "fundierte Erfahrung", "umfangreiche Kenntnisse" — JEDER dieser Ausdruecke disqualifiziert die E-Mail
-- KEINE Aufzaehlungen mit Spiegelstrichen im Fliesstext — nur Fliesstext
+VERBOTENE WOERTER UND PHRASEN (wenn eines davon in deinem Text vorkommt, schreibe den Text NEU):
+"umfangreiche Erfahrung", "fundierte Kenntnisse", "hervorragender Kandidat", "ideale Ergaenzung",
+"bringt alles mit", "erfuellt alle Anforderungen", "bereichern koennte", "umfassende Kenntnisse",
+"kommunikativ und teamfaehig", "arbeitet gerne im Team", "ist zudem kommunikativ",
+"hat umfangreiche Erfahrung mit", "sehr gut Deutsch und Englisch",
+"nicht nur... sondern auch", "darueber hinaus verfuegt", "zusaetzlich hat er",
+"was ihn zu einem idealen Kandidaten macht", "die sich direkt decken",
+"insbesondere auch", "wenn es erforderlich war",
+"ich beziehe mich auf", "ich habe einen Kandidaten identifiziert",
+"schätzt es als das beste", "was ihm besonders wichtig ist"
+
+WEITERE VERBOTE:
+- NIEMALS den aktuellen/frueheren Arbeitgeber des Kandidaten nennen — der Kunde darf ihn NICHT identifizieren
+- NIEMALS negative Wechselgruende erwaehnen
+- NIEMALS Word/Excel/MS-Office als Skill erwaehnen — das ist selbstverstaendlich fuer jeden Buchhalter
+- KEINE Aufzaehlungen mit Spiegelstrichen — nur Fliesstext
 - KEIN Markdown, KEIN HTML, KEINE **fett** Formatierung
 - KEIN PDF-Anhang erwaehnen
-- NICHT den Kandidaten beim Namen nennen (nur "der Kandidat" oder "mein Kandidat")
-- NICHT "ich habe einen Kandidaten identifiziert" — das klingt wie ein Bot. Stattdessen: "Ich betreue aktuell einen Kandidaten" oder "In meinem Netzwerk betreue ich einen Kandidaten"
-- NICHT mit "Sehr geehrte Damen und Herren, ich beziehe mich auf..." anfangen — das ist 1990. Direkt mit der Stelle einsteigen.""",
+- NICHT den Kandidaten beim Namen nennen
+- NICHT "Sehr geehrte Damen und Herren, ich beziehe mich auf..." — direkt mit der Stelle einsteigen
+
+SELBST-CHECK VOR DER ANTWORT:
+Pruefe deinen Text auf JEDES verbotene Wort/Phrase aus der Liste oben. Wenn du eines findest, formuliere den Satz um. Pruefe ob JEDER Satz im Kernabsatz ein konkretes Detail enthaelt. Wenn ein Satz auch ueber einen anderen Kandidaten geschrieben werden koennte, ist er zu generisch — schreibe ihn um.""",
 
             2: f"""Schreibe das ERSTE Follow-Up (Tag 3). Kurz und direkt:
 - Beginne mit "{anrede},"
@@ -383,13 +410,14 @@ Du bist kein Recruiter der Lebenslaeufe weiterleitet. Du bist ein Berater der se
 DEIN SCHREIBSTIL:
 - ICH-Form: "Ich betreue...", "In meinem Gespraech...", "Aus meinem Austausch weiss ich..."
 - NIEMALS Wir-Form
-- Schreibe auf Augenhoehe — nicht unterwuerfig, nicht ueberheblich
-- Kurze, praegnante Saetze. Kein Geschwafel.
-- Jeder einzelne Satz muss einen konkreten Fakt oder ein konkretes Detail enthalten — NIEMALS leere Worthuelsen
-- Schreibe so, dass ein Personalleiter nach dem Lesen denkt: "Der kennt sich aus. Der hat sich reingekniet. Mit dem will ich reden."
+- Schreibe auf Augenhoehe mit Entscheidern — selbstbewusst, nicht unterwuerfig
+- Kurze, praegnante Saetze. Kein Geschwafel. Keine Fuellwoerter.
+- JEDER Satz muss ein konkretes Detail enthalten das NUR auf diesen Kandidaten und DIESE Stelle zutrifft
+- Wenn ein Satz auch ueber jeden anderen Buchhalter geschrieben werden koennte, ist er WERTLOS — loeschen oder umschreiben
 - KEINE Tabelle schreiben! Nur den Platzhalter {{{{SKILLS_TABLE}}}}
 - KEIN Markdown, keine **fett** Formatierung
 - NIEMALS den Firmennamen des aktuellen Arbeitgebers des Kandidaten nennen
+- NIEMALS Word, Excel oder MS-Office als Skill erwaehnen — das ist Standard und entwertet den Kandidaten
 
 {step_instructions.get(step, step_instructions[1])}
 
@@ -414,8 +442,9 @@ Antworte NUR mit einem JSON-Objekt:
         try:
             result = await _call_gpt4o(
                 system_prompt=system_prompt,
-                user_message="Generiere die E-Mail.",
-                max_tokens=1500,
+                user_message="Generiere die E-Mail. Denke daran: KEIN Firmenname des Arbeitgebers, KEINE generischen Floskeln, JEDER Satz mit konkretem Fakt.",
+                max_tokens=2000,
+                temperature=0.7,
             )
             data = _parse_json_safe(result)
             body_text = data.get("body_text", "")
