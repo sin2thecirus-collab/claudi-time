@@ -221,17 +221,27 @@ IT-Skills: {candidate_data.get('it_skills', '')}"""
 - Beginne mit "{anrede},"
 - Beginne den Text mit "Ich hoffe, es geht Ihnen gut."
 - Stelle den Kandidaten in 2-3 Saetzen kurz vor (Rolle: {primary_role})
-- Dann ein Skills-Vergleich als LISTE (KEIN Markdown, KEINE Pipe-Tabelle!):
-  Format pro Anforderung (eine Zeile pro Punkt):
-  ✓ Anforderung XY — Kandidat bringt ... mit
-  ○ Anforderung XY — Kandidat hat teilweise ...
-  ✗ Anforderung XY — Nicht vorhanden
-  Jede Zeile beginnt mit dem Symbol, dann die Anforderung kurz, dann Strich, dann Kandidaten-Evidence.
-  Maximal 8 Zeilen. Fasse aehnliche Anforderungen zusammen.
-- Nach der Liste: Fahrzeit ({drive_info or 'noch nicht berechnet'}), Verfuegbarkeit ({notice_period or 'auf Anfrage'}), Gehaltsrahmen ({salary_range or 'auf Anfrage'})
+- Dann ein Skills-Vergleich als PLAIN-TEXT-TABELLE mit 3 Spalten.
+  EXAKTES Format (mit Leerzeichen ausrichten, Monospace-freundlich):
+
+  Anforderung                          Kandidat                              Bewertung
+  ------------------------------------ ------------------------------------- ---------
+  Kaufmaennische Ausbildung            Steuerfachangestellte bei XY          ✓
+  Bilanzbuchhalter-Weiterbildung       Nicht vorhanden                       ✗
+  MS Office                            Outlook, Word, Excel                  ✓
+
+  REGELN fuer die Tabelle:
+  - Erste Zeile ist die Kopfzeile (Anforderung / Kandidat / Bewertung)
+  - Zweite Zeile ist eine Trennlinie aus Bindestrichen (----)
+  - Danach eine Zeile pro Anforderung
+  - Spalten mit Leerzeichen ausrichten (KEINE Pipe-Zeichen |)
+  - Bewertungs-Spalte: ✓ (erfuellt), ○ (teilweise), ✗ (nicht vorhanden)
+  - Anforderungen kurz fassen (max 35 Zeichen pro Spalte)
+  - Maximal 8 Zeilen
+- Nach der Tabelle: Fahrzeit ({drive_info or 'noch nicht berechnet'}), Verfuegbarkeit ({notice_period or 'auf Anfrage'}), Gehaltsrahmen ({salary_range or 'auf Anfrage'})
 - Schliesse mit: "Ich wuerde mich freuen, Ihnen weitere Details zukommen zu lassen."
 - KEIN PDF-Anhang erwaehnen (wird erst bei Interesse geschickt)
-- WICHTIG: Reiner Plain-Text! Kein Markdown, keine Tabellen mit |, keine --- Linien, keine **fett** Formatierung.""",
+- WICHTIG: Reiner Plain-Text! Kein Markdown, keine Pipe-Tabellen, keine **fett** Formatierung.""",
 
             2: f"""Schreibe das ERSTE Follow-Up (Tag 3). Kurz und direkt:
 - Beginne mit "{anrede},"
@@ -253,10 +263,10 @@ IT-Skills: {candidate_data.get('it_skills', '')}"""
 
 WICHTIGE REGELN:
 - IMMER ICH-Form ("Ich betreue...", "Ich erkenne..."), NIEMALS Wir-Form
-- Reiner Plain-Text (KEIN HTML, KEIN Markdown, KEINE Tabellen mit | Trennern, KEINE --- Linien)
+- Reiner Plain-Text (KEIN HTML, KEIN Markdown)
 - Professionell aber persoenlich
 - Keine Floskeln wie "im Auftrag meines Kunden"
-- Skills-Vergleich als einfache Liste mit ✓/○/✗ am Zeilenanfang
+- Skills-Vergleich als mit Leerzeichen ausgerichtete Tabelle (KEINE Pipe-Zeichen |, Spalten mit Spaces trennen)
 
 {step_instructions.get(step, step_instructions[1])}
 
