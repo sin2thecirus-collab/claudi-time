@@ -504,6 +504,27 @@ async def merge_cv_into_existing(
     }
 
 
+# ==================== Debug: PyMuPDF Version ====================
+
+@router.get(
+    "/debug/pymupdf-version",
+    summary="PyMuPDF Version pruefen",
+)
+async def debug_pymupdf_version():
+    """Zeigt die installierte PyMuPDF-Version auf dem Server."""
+    try:
+        import fitz
+        return {
+            "pymupdf_version": fitz.__version__ if hasattr(fitz, '__version__') else "unknown",
+            "pymupdf_version_bind": fitz.version[0] if hasattr(fitz, 'version') else "unknown",
+            "status": "ok",
+        }
+    except ImportError as e:
+        return {"status": "error", "message": f"PyMuPDF nicht installiert: {e}"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
 # ==================== CV parsen ohne Kandidat (Quick-Add) ====================
 
 @router.post(
