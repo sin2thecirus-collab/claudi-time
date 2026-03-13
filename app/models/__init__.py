@@ -37,6 +37,7 @@ from app.models.client_presentation import (
     PresentationMode,
     PresentationStatus,
 )
+from app.models.presentation_batch import PresentationBatch
 from app.models.unassigned_call import UnassignedCall
 
 __all__ = [
