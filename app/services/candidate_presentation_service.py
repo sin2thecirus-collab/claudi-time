@@ -191,6 +191,13 @@ Vergleiche den Kandidaten mit den Anforderungen der Stelle. Bewerte jede Anforde
 - "teilweise" (○) — Kandidat hat aehnliche/verwandte Erfahrung
 - "nicht_vorhanden" (✗) — Keine passende Erfahrung erkennbar
 
+WICHTIGE REGELN:
+- UEBERSPRINGE Anforderungen zu MS-Office/Word/Excel/PowerPoint/Outlook — das ist Standard und wird NICHT aufgelistet
+- UEBERSPRINGE Anforderungen die nur Soft-Skills beschreiben ("teamfaehig", "strukturiert", "selbstaendig") — nicht bewertbar
+- "candidate_evidence" MUSS KONKRET sein: mit Zahlen (Jahre, Anzahl, Volumen) oder spezifischer Taetigkeit. NIEMALS "langjährige Erfahrung" oder "fundierte Kenntnisse" schreiben
+- KEIN Firmenname des Kandidaten in der Evidence — nur WAS er tut, nicht WO
+- Maximal 5-6 Anforderungen bewerten (nur die fachlich relevanten)
+
 Antworte NUR mit einem JSON-Objekt:
 {
     "matches": [
@@ -820,8 +827,25 @@ FORBIDDEN_PHRASES = [
 ]
 
 
+_SKIP_KEYWORDS = [
+    "ms-office", "ms office", "microsoft office", "word", "excel",
+    "powerpoint", "outlook", "office-anwendungen", "office anwendungen",
+    "teamfaehig", "teamfähig", "teamarbeit", "kommunikativ",
+    "selbstaendig", "selbständig", "strukturiert", "zuverlaessig", "zuverlässig",
+]
+
+_GENERIC_EVIDENCE = [
+    "langjährige erfahrung", "langjaehrige erfahrung",
+    "fundierte kenntnisse", "umfangreiche erfahrung",
+    "breite erfahrung", "solide erfahrung",
+]
+
+
 def _build_skills_plain_table(skills_comparison: dict) -> str:
-    """Baut eine Plain-Text-Darstellung des Skills-Vergleichs."""
+    """Baut eine Plain-Text-Darstellung des Skills-Vergleichs.
+
+    Filtert MS-Office, Soft-Skills und generische Evidence raus.
+    """
     matches = skills_comparison.get("matches", [])
     if not matches:
         return ""
@@ -837,11 +861,26 @@ def _build_skills_plain_table(skills_comparison: dict) -> str:
         req = m.get("requirement", "")
         evidence = m.get("candidate_evidence", "")
         status = m.get("status", "nicht_vorhanden")
+
+        # Skip MS-Office und Soft-Skill Anforderungen
+        req_lower = req.lower()
+        if any(kw in req_lower for kw in _SKIP_KEYWORDS):
+            continue
+
+        # Evidence bereinigen: generische Phrasen entfernen
+        evidence_lower = evidence.lower()
+        if any(gen in evidence_lower for gen in _GENERIC_EVIDENCE):
+            evidence = ""  # Lieber leer als generisch
+
         symbol = status_symbols.get(status, "-")
         lines.append(f"[{symbol}] {req}")
         if evidence:
             lines.append(f"    → {evidence}")
         lines.append("")
+
+    # Wenn nach Filter nichts uebrig bleibt
+    if len(lines) <= 2:
+        return ""
 
     return "\n".join(lines).rstrip()
 
