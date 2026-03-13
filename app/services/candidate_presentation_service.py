@@ -173,7 +173,7 @@ Wenn ein Feld nicht im Text vorkommt, verwende einen leeren String "" bzw. leere
 Extrahiere ALLE genannten fachlichen Anforderungen/Qualifikationen als separate Eintraege."""
 
         try:
-            result = await _call_gpt4o(
+            result = await _call_opus(
                 system_prompt=prompt,
                 user_message=job_posting_text[:8000],  # Max 8k Zeichen
                 max_tokens=1000,
@@ -252,7 +252,7 @@ ERP-Systeme: {candidate_data.get('erp', '')}
 IT-Skills: {candidate_data.get('it_skills', '')}{extra_sections}"""
 
         try:
-            result = await _call_gpt4o(
+            result = await _call_opus(
                 system_prompt=prompt,
                 user_message=user_msg,
                 max_tokens=1500,
@@ -370,7 +370,7 @@ IT-Skills: {candidate_data.get('it_skills', '')}{extra_sections}"""
                 followup_prompt = f"""Du bist Milad Hamdard, Senior Personalberater bei Sincirus. ICH-Form, kein HTML, kein Markdown.
 {followup_instructions[step]}
 Antworte NUR mit JSON: {{"subject": "Re: ...", "body_text": "..."}}"""
-                result = await _call_gpt4o(
+                result = await _call_opus(
                     system_prompt=followup_prompt,
                     user_message="Generiere das Follow-Up.",
                     max_tokens=500,
@@ -382,25 +382,32 @@ Antworte NUR mit JSON: {{"subject": "Re: ...", "body_text": "..."}}"""
             else:
                 # ══════════════════════════════════════════════════
                 # SINGLE-CALL: Kandidaten-Vorstellungs-E-Mail
-                # GPT bekommt den vollen Kontext und schreibt die
+                # Opus bekommt den vollen Kontext und schreibt die
                 # E-Mail in einem Durchgang.
                 # ══════════════════════════════════════════════════
 
                 home_office_info = f"Home-Office-Wunsch: {home_office}" if home_office else ""
 
-                email_prompt = f"""Du bist ein Personalberater fuer den Bereich Buchhaltung und Rechnungswesen in Deutschland mit 20 Jahren Berufserfahrung. Du heisst Milad Hamdard und arbeitest bei Sincirus.
+                email_prompt = f"""Du bist Milad Hamdard, Senior Personalberater bei Sincirus in Hamburg, spezialisiert auf Buchhaltung und Rechnungswesen. Du hast diesen Kandidaten persoenlich qualifiziert.
 
-Du hast mit dem Kandidaten ein persoenliches Qualifizierungsgespraech gefuehrt. Schau dir den Werdegang, die Ausbildung, das Gespraechstranskript und die Stellenausschreibung an.
+DEIN ZIEL: Der Kunde soll nach dem Lesen denken "Den will ich kennenlernen." Nicht informieren — VERKAUFEN. Jeder Satz muss Neugier wecken oder einen konkreten Mehrwert fuer den Kunden transportieren.
 
-Schreibe eine E-Mail, mit der du den Kandidaten bestmoeglich auf diese Vakanz vorstellst. Der Kunde soll merken: Du hast dich intensiv mit der Vakanz UND dem Kandidaten beschaeftigt.
-
-Die E-Mail hat GENAU diesen Aufbau — halte die Reihenfolge exakt ein:
+AUFBAU (exakt diese Reihenfolge):
 
 1. "{anrede},"
    "Ich hoffe, es geht Ihnen gut."
 
 2. Kandidaten-Portrait (5-8 Saetze):
-   Erzaehle wer dieser Kandidat ist, was er taeglich tut, wie tief seine Erfahrung ist, in welcher Art Unternehmen er arbeitet. Nutze konkrete Zahlen (Jahre, Anzahl Gesellschaften, Mandanten, Volumen). Wenn das Gespraechstranskript Details enthaelt die nicht im Lebenslauf stehen, nutze diese — das ist dein Insider-Wissen.
+   Male ein Bild von diesem Kandidaten, das den Kunden sofort packt. Starte mit dem staerksten Argument — dem einen Detail, das diesen Kandidaten fuer GENAU DIESE Stelle besonders macht.
+
+   Nutze ALLES was du hast:
+   - Aus dem Werdegang: Stationen, Dauer, Branchen, Aufstieg
+   - Aus den Skills: Fachliche Tiefe, Software, Spezialisierungen
+   - Aus dem Gespraechstranskript (wenn vorhanden): Das ist deine Geheimwaffe. Hier stehen Details die kein Lebenslauf zeigt — wie viele Gesellschaften er betreut, wie gross sein Team ist, welches Volumen er verantwortet, warum er wechseln will, was ihn antreibt.
+
+   Wenn konkrete Zahlen verfuegbar sind, nutze sie (Jahre, Gesellschaften, Mandanten, Team-Groesse, Volumen). Wenn nicht, beschreibe die Tiefe seiner Erfahrung anhand seiner Stationen.
+
+   Beschreibe die Art des Unternehmens (Branche, Groesse), NICHT den Firmennamen.
 
 3. Dann schreibe auf einer eigenen Zeile GENAU diesen Platzhalter: {{{{SKILLS_TABLE}}}}
 
@@ -412,14 +419,19 @@ Die E-Mail hat GENAU diesen Aufbau — halte die Reihenfolge exakt ein:
 
 5. "Unter welchen Voraussetzungen darf ich Ihnen das vollstaendige Profil unseres Kandidaten weiterleiten?"
 
-VERBOTE:
-- NIEMALS den Namen des Kandidaten nennen. Schreibe immer "der Kandidat" oder "mein Kandidat".
-- NIEMALS den Namen des Arbeitgebers des Kandidaten nennen. Beschreibe stattdessen die Art des Unternehmens (z.B. "mittelstaendisches Produktionsunternehmen").
-- NIEMALS Floskeln wie: "umfangreiche Erfahrung", "fundierte Kenntnisse", "beeindruckende Kombination", "ideale Besetzung", "ideale Ergaenzung", "breites Spektrum", "unterstreicht", "in der Lage", "hat Erfahrung in", "hervorzuheben ist".
-- NIEMALS Word, Excel, MS-Office erwaehnen.
-- NIEMALS HTML, Markdown oder Aufzaehlungszeichen verwenden.
-- IMMER Ich-Form, NIE Wir-Form.
-- NIEMALS Inhalte wiederholen die in der Skills-Tabelle stehen. Das Portrait erzaehlt das Gesamtbild, die Tabelle zeigt den Detailabgleich.
+STIL:
+- ICH-Form. Immer. ("Ich betreue...", "Ich erkenne...", "Ich schaetze...")
+- Schreibe wie ein Top-Vertriebler der einen Geschaeftsfuehrer ueberzeugt — nicht wie ein Sachbearbeiter der informiert.
+- Konkret statt abstrakt: "erstellt eigenstaendig Monatsabschluesse fuer 4 Gesellschaften nach HGB und IFRS" statt "hat umfangreiche Erfahrung im Rechnungswesen".
+- Jeder Satz muss Information tragen oder Neugier wecken. Kein Fuelltext.
+- Plain-Text, kein HTML, kein Markdown, keine Aufzaehlungszeichen.
+
+TABU:
+- Den Namen des Kandidaten nennen — schreibe "der Kandidat" oder "mein Kandidat".
+- Den Firmennamen des Arbeitgebers nennen — beschreibe die Art des Unternehmens.
+- Floskeln: "umfangreiche Erfahrung", "fundierte Kenntnisse", "beeindruckende Kombination", "ideale Besetzung", "breites Spektrum", "unterstreicht", "in der Lage", "hervorzuheben ist", "zeichnet sich aus", "bringt mit".
+- Word, Excel, MS-Office erwaehnen.
+- Inhalte wiederholen, die in der Skills-Tabelle stehen.
 
 Antworte NUR mit JSON: {{"subject": "Betreffzeile (max 8 Woerter)", "body_text": "Der E-Mail-Text"}}"""
 
@@ -460,7 +472,7 @@ Staerken aus Abgleich: {json.dumps(skills_comparison.get('strengths', []), ensur
 
                 logger.info("Generating presentation email (single-call approach)...")
 
-                result = await _call_gpt4o(
+                result = await _call_opus(
                     system_prompt=email_prompt,
                     user_message=email_user,
                     max_tokens=2000,
@@ -473,7 +485,7 @@ Staerken aus Abgleich: {json.dumps(skills_comparison.get('strengths', []), ensur
             found_violations = _check_forbidden_phrases(body_text)
             if found_violations:
                 logger.warning(f"E-Mail enthaelt {len(found_violations)} verbotene Phrasen: {found_violations[:5]}. Rewrite...")
-                rewrite_result = await _call_gpt4o(
+                rewrite_result = await _call_opus(
                     system_prompt="Du bist ein Lektor fuer professionelle Geschaefts-E-Mails im Recruiting-Bereich. Deine Aufgabe: Ersetze generische Floskeln durch konkrete, spezifische Aussagen.",
                     user_message=f"""Schreibe den folgenden E-Mail-Text um. Ersetze JEDE der markierten Phrasen durch eine konkrete, spezifische Formulierung.
 
@@ -531,7 +543,7 @@ ORIGINAL-TEXT:
             logger.error(f"generate_presentation_email fehlgeschlagen: {e}", exc_info=True)
             return {
                 "subject": f"{primary_role} - Kandidatenvorstellung",
-                "body_text": f"{anrede},\n\nIch moechte Ihnen einen qualifizierten Kandidaten vorstellen.\n\n[FEHLER: GPT-Call fehlgeschlagen: {str(e)[:200]}]\n\n--\n{PLAIN_TEXT_SIGNATURE}",
+                "body_text": f"{anrede},\n\nIch moechte Ihnen einen qualifizierten Kandidaten vorstellen.\n\n[FEHLER: Opus-Call fehlgeschlagen: {str(e)[:200]}]\n\n--\n{PLAIN_TEXT_SIGNATURE}",
                 "body_html": "",
             }
 
@@ -946,56 +958,49 @@ def _check_forbidden_phrases(text: str) -> list[str]:
     return [phrase for phrase in FORBIDDEN_PHRASES if phrase in text_lower]
 
 
-async def _call_gpt4o(
+async def _call_opus(
     system_prompt: str,
     user_message: str,
-    max_tokens: int = 1000,
+    max_tokens: int = 2000,
     temperature: float = 0.5,
 ) -> str:
-    """OpenAI API-Call ueber httpx (kein DB-Session waehrend Call!). Versucht gpt-4o, Fallback gpt-4o-mini."""
-    models_to_try = ["gpt-4o", "gpt-4o-mini"]
-    last_error = None
-
-    for model in models_to_try:
-        try:
-            async with httpx.AsyncClient(timeout=90.0) as client:
-                resp = await client.post(
-                    "https://api.openai.com/v1/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {settings.openai_api_key}",
-                        "Content-Type": "application/json",
-                    },
-                    json={
-                        "model": model,
-                        "messages": [
-                            {"role": "system", "content": system_prompt},
-                            {"role": "user", "content": user_message},
-                        ],
-                        "max_tokens": max_tokens,
-                        "temperature": temperature,
-                    },
-                )
-                resp.raise_for_status()
-                data = resp.json()
-                logger.info(f"OpenAI Call erfolgreich mit Modell: {model}")
-                return data["choices"][0]["message"]["content"].strip()
-        except httpx.HTTPStatusError as e:
-            last_error = e
-            logger.warning(f"OpenAI {model} fehlgeschlagen ({e.response.status_code}): {e.response.text[:300]}")
-            if e.response.status_code == 429:
-                raise  # Kein Guthaben → kein Fallback hilft
-            continue  # Naechstes Modell versuchen
-        except Exception as e:
-            last_error = e
-            logger.warning(f"OpenAI {model} Fehler: {e}")
-            continue
-
-    logger.error(f"Alle OpenAI-Modelle fehlgeschlagen. Letzter Fehler: {last_error}")
-    raise last_error or RuntimeError("Kein OpenAI-Modell verfuegbar")
+    """Claude Opus 4.6 API-Call ueber httpx (kein DB-Session waehrend Call!)."""
+    try:
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            resp = await client.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={
+                    "x-api-key": settings.anthropic_api_key,
+                    "anthropic-version": "2023-06-01",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": "claude-opus-4-0-20250514",
+                    "max_tokens": max_tokens,
+                    "temperature": temperature,
+                    "system": system_prompt,
+                    "messages": [
+                        {"role": "user", "content": user_message},
+                    ],
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            content = data["content"][0]["text"].strip()
+            input_tokens = data.get("usage", {}).get("input_tokens", 0)
+            output_tokens = data.get("usage", {}).get("output_tokens", 0)
+            logger.info(f"Opus Call erfolgreich — Input: {input_tokens}, Output: {output_tokens} Tokens")
+            return content
+    except httpx.HTTPStatusError as e:
+        logger.error(f"Opus API-Fehler ({e.response.status_code}): {e.response.text[:500]}")
+        raise
+    except Exception as e:
+        logger.error(f"Opus Call fehlgeschlagen: {e}")
+        raise
 
 
 def _parse_json_safe(text: str) -> dict:
-    """Parst JSON aus GPT-Response (mit Fallback fuer ```json``` Bloecke)."""
+    """Parst JSON aus Opus-Response (mit Fallback fuer ```json``` Bloecke)."""
     text = text.strip()
 
     # Direkt JSON
@@ -1016,4 +1021,4 @@ def _parse_json_safe(text: str) -> dict:
         end = text.rindex("}") + 1
         return json.loads(text[start:end])
 
-    raise ValueError(f"Konnte kein JSON aus GPT-Response parsen: {text[:200]}")
+    raise ValueError(f"Konnte kein JSON aus Opus-Response parsen: {text[:200]}")
