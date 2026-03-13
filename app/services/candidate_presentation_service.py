@@ -366,89 +366,83 @@ Antworte NUR mit JSON: {{"subject": "Re: ...", "body_text": "..."}}"""
 
             else:
                 # ══════════════════════════════════════════════════
-                # TWO-STEP APPROACH fuer Step 1 (Erstvorstellung)
-                # Step A: Fakten-Extraktion (kurz, fokussiert)
-                # Step B: E-Mail schreiben (NUR mit extrahierten Fakten)
+                # SINGLE-CALL: Kandidaten-Vorstellungs-E-Mail
+                # GPT bekommt den vollen Kontext und schreibt die
+                # E-Mail in einem Durchgang.
                 # ══════════════════════════════════════════════════
 
-                # ── STEP A: Analyse-Call — 3 beste Matching-Fakten extrahieren ──
-                analysis_prompt = f"""Du bist ein erfahrener Personalberater. Analysiere die Kandidaten-Daten und die Stellenanforderungen.
+                home_office_info = f"Home-Office-Wunsch: {home_office}" if home_office else ""
 
-AUFGABE: Finde die 3 beeindruckendsten konkreten Fakten ueber den Kandidaten, die DIREKT zu den Anforderungen dieser Stelle passen.
+                email_prompt = f"""Du bist Milad Hamdard, Senior Personalberater bei Sincirus.
+Du hast mit dem Kandidaten ein ausfuehrliches Qualifizierungsgespraech gefuehrt.
+Jetzt schreibst du eine E-Mail an den Ansprechpartner des Unternehmens, um den Kandidaten vorzustellen.
 
-REGELN:
-- Jeder Fakt MUSS eine konkrete Zahl enthalten (Jahre, Anzahl Buchungskreise, Mandanten, Umsatzvolumen, Teamgroesse etc.)
-- Jeder Fakt MUSS sich auf eine SPEZIFISCHE Anforderung der Stelle beziehen
-- Wenn das Transkript/Gespraech Details enthaelt, bevorzuge diese (Insider-Wissen!)
-- KEINE Firmennamen des Kandidaten nennen — nur beschreiben WAS er tut
-- KEIN "umfangreiche Erfahrung", "fundierte Kenntnisse" oder aehnliche Floskeln
-- Wenn keine Zahl vorhanden, beschreibe die Taetigkeit so KONKRET dass klar ist was der Kandidat taeglich macht
+Schreibe so, als haettest du dich stundenlang mit der Stellenausschreibung und dem Kandidaten beschaeftigt.
+Schreibe so, als waerst du ein interner HR-Mitarbeiter, der den Kandidaten persoenlich auf diese Stelle geprueft hat und ihn jetzt dem Fachbereich vorstellt.
+Jede Aussage ueber den Kandidaten muss belegt sein — mit Dauer (Jahren), Tiefe (taeglich/woechentlich, eigenstaendig/im Team, Volumen, Anzahl) oder konkreter Taetigkeit.
+Kein Satz darf ohne Beleg stehen. Wenn du keine konkrete Zahl oder Beschreibung findest, lass den Punkt weg.
 
-Antworte NUR mit JSON:
-{{"fakten": ["Fakt 1 mit Zahl", "Fakt 2 mit Zahl", "Fakt 3 mit Zahl"], "einstieg_hook": "1 Satz der zeigt dass du die Stelle VERSTANDEN hast — was das Unternehmen WIRKLICH braucht (nicht den Jobtitel wiederholen)"}}"""
+AUFBAU DER E-MAIL:
 
-                analysis_user = f"""STELLE:
+1. "{anrede},"
+   "Ich hoffe, es geht Ihnen gut."
+   Dann ein Uebergangssatz der zeigt, dass du die Stellenanzeige gelesen hast — beziehe dich auf eine KONKRETE Anforderung oder Aufgabe aus der Stelle (nicht den Jobtitel wiederholen).
+   Dann: "Ich betreue aktuell einen Kandidaten, der..." — mit einem konkreten Detail das sofort Aufmerksamkeit erzeugt.
+
+2. Kernabsatz (4-6 Saetze). Beginne mit "In meinem persoenlichen Gespraech mit dem Kandidaten..." oder "Aus meinem ausfuehrlichen Austausch weiss ich...".
+   In diesem Absatz gehst du auf die wichtigsten Anforderungen der Stelle ein und beschreibst fuer JEDE, was der Kandidat dazu mitbringt.
+   Jede Aussage enthaelt: WAS der Kandidat tut + WIE LANGE + WIE TIEF (z.B. "erstellt seit 4 Jahren eigenstaendig Monats- und Jahresabschluesse nach HGB fuer 3 Gesellschaften" statt "hat Erfahrung in der Abschlusserstellung").
+   Wenn das Qualifizierungsgespraech/Transkript Details enthaelt die nicht im Lebenslauf stehen, nutze diese bevorzugt — das ist dein Insider-Wissen.
+
+3. Schreibe GENAU: {{{{SKILLS_TABLE}}}}
+
+4. Rahmendaten (jeweils eigene Zeile, NUR wenn vorhanden):
+   {"Verfuegbarkeit: " + notice_period if notice_period else ""}
+   {"Gehaltsvorstellung: " + salary_range if salary_range else ""}
+   {drive_info}
+   {home_office_info}
+
+5. Abschluss: "Unter welchen Voraussetzungen darf ich Ihnen das vollstaendige Profil unseres Kandidaten weiterleiten?"
+
+ABSOLUTE VERBOTE:
+- NIEMALS den Namen des aktuellen oder frueheren Arbeitgebers des Kandidaten nennen. Beschreibe stattdessen die Art des Unternehmens (z.B. "mittelstaendisches Produktionsunternehmen", "internationaler Konzern", "Steuerberatungskanzlei mit 200 Mandanten").
+- NIEMALS generische Floskeln: "umfangreiche Erfahrung", "fundierte Kenntnisse", "breites Spektrum", "kommunikativ und teamfaehig", "ideale Ergaenzung", "von Vorteil".
+- NIEMALS Word, Excel, PowerPoint, MS-Office, Outlook erwaehnen.
+- NIEMALS HTML, Markdown, Aufzaehlungszeichen, Spiegelstriche oder Formatierung verwenden.
+- NIEMALS Wir-Form ("Wir betreuen..."). IMMER Ich-Form ("Ich betreue...").
+- NIEMALS den Jobtitel der Stelle woertlich als Einstieg verwenden ("Sie suchen einen Finanzbuchhalter...").
+- NIEMALS negative Wechselgruende oder Kritik am aktuellen Arbeitgeber erwaehnen.
+
+STIL:
+- Reiner Plain-Text, keine Formatierung.
+- Kurze, klare Saetze. Jeder Satz hat einen Zweck.
+- Fachlich praezise, nicht werblich.
+- Der Leser soll nach dem Lesen ein konkretes Bild vom Kandidaten haben: Was kann er, wie tief, wie lange.
+
+Antworte NUR mit JSON: {{"subject": "Betreffzeile (max 8 Woerter)", "body_text": "Der E-Mail-Text"}}"""
+
+                email_user = f"""STELLE:
 Titel: {extracted_job_data.get('job_title', '')}
 Firma: {extracted_job_data.get('company_name', '')}
-Anforderungen: {json.dumps(extracted_job_data.get('requirements', []), ensure_ascii=False)[:800]}
+Anforderungen: {json.dumps(extracted_job_data.get('requirements', []), ensure_ascii=False)[:1200]}
 Zusammenfassung: {extracted_job_data.get('description_summary', '')}
 
 KANDIDAT:
 Rolle: {primary_role}
-Berufserfahrung: {json.dumps(candidate_data.get('work_history', []), ensure_ascii=False)[:2500]}
+Berufserfahrung: {json.dumps(candidate_data.get('work_history', []), ensure_ascii=False)[:3000]}
 Skills: {json.dumps(candidate_data.get('skills', []), ensure_ascii=False)[:600]}
 ERP: {candidate_data.get('erp', '')}
 IT-Skills: {candidate_data.get('it_skills', '')}
-Staerken: {json.dumps(skills_comparison.get('strengths', []), ensure_ascii=False)}
+Staerken aus Abgleich: {json.dumps(skills_comparison.get('strengths', []), ensure_ascii=False)}
 {qualification_context}"""
 
-                analysis_result = await _call_gpt4o(
-                    system_prompt=analysis_prompt,
-                    user_message=analysis_user,
-                    max_tokens=600,
-                    temperature=0.3,  # Niedrig — praezise Fakten, kein Kreativitaets-Rauschen
-                )
-                analysis_data = _parse_json_safe(analysis_result)
-                fakten = analysis_data.get("fakten", [])
-                einstieg_hook = analysis_data.get("einstieg_hook", "")
-
-                logger.info(f"Step A Fakten extrahiert: {len(fakten)} Fakten, Hook: {einstieg_hook[:80]}...")
-
-                # ── STEP B: E-Mail schreiben — NUR mit den 3 Fakten ──
-                email_prompt = f"""Du bist Milad Hamdard, Senior Personalberater bei Sincirus. Du schreibst eine kurze, beeindruckende E-Mail an einen Entscheider.
-
-Du hast GENAU 3 konkrete Fakten ueber deinen Kandidaten. Schreibe eine E-Mail die NUR diese Fakten verwendet. Erfinde NICHTS dazu.
-
-STRUKTUR:
-1. "{anrede},"
-   Einstieg: {einstieg_hook}
-   Dann: "Ich betreue aktuell einen Kandidaten, der..." (mit konkretem Detail aus den Fakten).
-
-2. Kernabsatz (3-4 Saetze). Beginne mit "In meinem persoenlichen Gespraech..." oder "Aus meinem Austausch weiss ich...". Jeder Satz verbindet eine Stellen-Anforderung mit einem der 3 Fakten.
-
-3. Schreibe GENAU: {{{{SKILLS_TABLE}}}}
-
-4. Rahmendaten:
-   Verfuegbarkeit: {notice_period or 'auf Anfrage'}
-   Gehaltsvorstellung: {salary_range or 'auf Anfrage'}
-   {drive_info or ''}
-   {"Home-Office-Wunsch: " + home_office if home_office else ""}
-
-5. "Gerne sende ich Ihnen ein detailliertes Kandidatenprofil zu. Fuer ein kurzes Telefonat stehe ich Ihnen jederzeit zur Verfuegung."
-
-DEINE 3 FAKTEN (verwende NUR diese, erfinde NICHTS dazu):
-{chr(10).join(f'{i+1}. {f}' for i, f in enumerate(fakten[:3]))}
-
-VERBOTEN: Firmennamen des Arbeitgebers, "umfangreiche Erfahrung", "fundierte Kenntnisse", "kommunikativ und teamfaehig", "ideale Ergaenzung", Word/Excel/MS-Office, HTML, Markdown, Spiegelstriche, Wir-Form, negative Wechselgruende.
-ICH-Form, reiner Text, kurze Saetze.
-
-Antworte NUR mit JSON: {{"subject": "Betreffzeile (max 8 Woerter)", "body_text": "Der E-Mail-Text"}}"""
+                logger.info("Generating presentation email (single-call approach)...")
 
                 result = await _call_gpt4o(
                     system_prompt=email_prompt,
-                    user_message="Schreibe die E-Mail. Verwende NUR die 3 gegebenen Fakten, erfinde nichts dazu.",
-                    max_tokens=1500,
-                    temperature=0.6,
+                    user_message=email_user,
+                    max_tokens=2000,
+                    temperature=0.5,
                 )
                 data = _parse_json_safe(result)
                 body_text = data.get("body_text", "")
