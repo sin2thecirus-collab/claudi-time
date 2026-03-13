@@ -534,12 +534,23 @@ async def parse_cv_for_quickadd(
 
     # Text extrahieren
     async with CVParserService(db) as parser:
-        cv_text = parser.extract_text_from_pdf(pdf_bytes)
-        if not cv_text:
-            return {"success": False, "message": "Konnte keinen Text aus dem PDF extrahieren"}
+        cv_text = None
+        try:
+            cv_text = parser.extract_text_from_pdf(pdf_bytes)
+        except ValueError:
+            pass  # Kein Text → Vision-Fallback
 
-        # OpenAI Parsing (synchron warten)
-        parse_result = await parser.parse_cv_text(cv_text)
+        if cv_text and len(cv_text.strip()) >= 50:
+            # Standard: Text-basiertes Parsing
+            parse_result = await parser.parse_cv_text(cv_text)
+        else:
+            # Fallback: Vision-Parsing (gescannte/Bild-PDFs)
+            try:
+                pdf_images = parser.extract_images_from_pdf(pdf_bytes)
+                parse_result = await parser.parse_cv_with_vision(pdf_images)
+                cv_text = parse_result.raw_text or "[Vision-Parse]"
+            except (ValueError, Exception) as e:
+                return {"success": False, "message": f"PDF konnte nicht verarbeitet werden: {e}"}
 
     if not parse_result.success or not parse_result.data:
         return {
