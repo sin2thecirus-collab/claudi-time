@@ -222,22 +222,26 @@ IT-Skills: {candidate_data.get('it_skills', '')}"""
 - Beginne den Text mit "Ich hoffe, es geht Ihnen gut."
 - Stelle den Kandidaten in 2-3 Saetzen kurz vor (Rolle: {primary_role})
 - Dann ein Skills-Vergleich als PLAIN-TEXT-TABELLE mit 3 Spalten.
-  EXAKTES Format (mit Leerzeichen ausrichten, Monospace-freundlich):
+  EXAKTES Format (Spalten mit MINDESTENS 4 Leerzeichen trennen):
 
-  Anforderung                          Kandidat                              Bewertung
-  ------------------------------------ ------------------------------------- ---------
-  [Anforderung aus Job]                [Echte Qualifikation des Kandidaten]  ✓
-  [Anforderung aus Job]                Nicht vorhanden                       ✗
+  Anforderung              Kandidat                    Bewertung
+  ------------------------  --------------------------  ---------
+  Kaufm. Ausbildung         StFA bei Wiebecke           ✓
+  BiBu-Weiterbildung        Nicht vorhanden             ✗
+  MS Office                 Outlook, Word, Excel        ✓
+  DATEV                     Vorhanden                   ✓
+  Englischkenntnisse        Keine Angaben               ✗
 
   REGELN fuer die Tabelle:
   - Erste Zeile ist die Kopfzeile (Anforderung / Kandidat / Bewertung)
   - Zweite Zeile ist eine Trennlinie aus Bindestrichen (----)
   - Danach eine Zeile pro Anforderung
-  - Spalten mit Leerzeichen ausrichten (KEINE Pipe-Zeichen |)
+  - MINDESTENS 4 Leerzeichen zwischen den Spalten (KEINE Pipe-Zeichen |)
   - Bewertungs-Spalte: ✓ (erfuellt), ○ (teilweise), ✗ (nicht vorhanden)
   - WICHTIG: Verwende die ECHTEN Daten aus den Skills-Vergleich-Daten unten, KEINE Platzhalter!
-  - In der Kandidat-Spalte: Echte Firmennamen, echte Qualifikationen, echte Software-Kenntnisse
-  - Anforderungen kurz fassen (max 35 Zeichen pro Spalte)
+  - Anforderungen KUERZEN auf max 25 Zeichen (z.B. "Kaufm. Ausbildung" statt "Abgeschlossene kaufmaennische Ausbildung")
+  - Kandidat-Spalte max 28 Zeichen (z.B. "StFA bei Wiebecke" statt "Ausbildung zur Steuerfachangestellten bei Wiebecke & Partner PartG mbB")
+  - Zusammengehoerige Anforderungen ZUSAMMENFASSEN (nicht splitten!)
   - Maximal 8 Zeilen
 - Nach der Tabelle: Fahrzeit ({drive_info or 'noch nicht berechnet'}), Verfuegbarkeit ({notice_period or 'auf Anfrage'}), Gehaltsrahmen ({salary_range or 'auf Anfrage'})
 - Schliesse mit: "Ich wuerde mich freuen, Ihnen weitere Details zukommen zu lassen."
