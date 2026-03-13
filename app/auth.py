@@ -111,6 +111,7 @@ PUBLIC_PATHS = frozenset({
     "/login",
     "/privacy",
     "/favicon.ico",
+    "/debug/pymupdf",
 })
 
 PUBLIC_PREFIXES = (

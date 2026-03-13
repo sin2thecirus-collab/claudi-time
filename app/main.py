@@ -162,6 +162,19 @@ async def health_check():
     }
 
 
+@app.get("/debug/pymupdf", tags=["System"])
+async def debug_pymupdf():
+    """PyMuPDF-Version pruefen (oeffentlich, keine sensiblen Daten)."""
+    try:
+        import fitz
+        return {
+            "pymupdf_version": getattr(fitz, '__version__', 'unknown'),
+            "pymupdf_bind": fitz.version[0] if hasattr(fitz, 'version') else 'unknown',
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
 @app.get("/privacy", tags=["System"])
 async def privacy_policy():
     """Datenschutzrichtlinie fuer Meta App Review."""
