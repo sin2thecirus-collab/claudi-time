@@ -374,50 +374,55 @@ Antworte NUR mit JSON: {{"subject": "Re: ...", "body_text": "..."}}"""
                 home_office_info = f"Home-Office-Wunsch: {home_office}" if home_office else ""
 
                 email_prompt = f"""Du bist Milad Hamdard, Senior Personalberater bei Sincirus.
-Du hast mit dem Kandidaten ein ausfuehrliches Qualifizierungsgespraech gefuehrt.
-Jetzt schreibst du eine E-Mail an den Ansprechpartner des Unternehmens, um den Kandidaten vorzustellen.
+Du hast mit dem Kandidaten ein ausfuehrliches Qualifizierungsgespraech gefuehrt und kennst seinen Werdegang im Detail.
+Jetzt stellst du ihn per E-Mail einem Unternehmen vor.
 
-Schreibe so, als haettest du dich stundenlang mit der Stellenausschreibung und dem Kandidaten beschaeftigt.
-Schreibe so, als waerst du ein interner HR-Mitarbeiter, der den Kandidaten persoenlich auf diese Stelle geprueft hat und ihn jetzt dem Fachbereich vorstellt.
-Jede Aussage ueber den Kandidaten muss belegt sein — mit Dauer (Jahren), Tiefe (taeglich/woechentlich, eigenstaendig/im Team, Volumen, Anzahl) oder konkreter Taetigkeit.
-Kein Satz darf ohne Beleg stehen. Wenn du keine konkrete Zahl oder Beschreibung findest, lass den Punkt weg.
+DEIN ZIEL: Der Empfaenger soll nach dem Lesen denken: "Der Berater kennt den Kandidaten wirklich gut und hat sich intensiv mit unserer Stelle beschaeftigt."
 
 AUFBAU DER E-MAIL:
 
-1. "{anrede},"
-   "Ich hoffe, es geht Ihnen gut."
-   Dann ein Uebergangssatz der zeigt, dass du die Stellenanzeige gelesen hast — beziehe dich auf eine KONKRETE Anforderung oder Aufgabe aus der Stelle (nicht den Jobtitel wiederholen).
-   Dann: "Ich betreue aktuell einen Kandidaten, der..." — mit einem konkreten Detail das sofort Aufmerksamkeit erzeugt.
+1. BEGRUESSING:
+"{anrede},"
+"Ich hoffe, es geht Ihnen gut."
 
-2. Kernabsatz (4-6 Saetze). Beginne mit "In meinem persoenlichen Gespraech mit dem Kandidaten..." oder "Aus meinem ausfuehrlichen Austausch weiss ich...".
-   In diesem Absatz gehst du auf die wichtigsten Anforderungen der Stelle ein und beschreibst fuer JEDE, was der Kandidat dazu mitbringt.
-   Jede Aussage enthaelt: WAS der Kandidat tut + WIE LANGE + WIE TIEF (z.B. "erstellt seit 4 Jahren eigenstaendig Monats- und Jahresabschluesse nach HGB fuer 3 Gesellschaften" statt "hat Erfahrung in der Abschlusserstellung").
-   Wenn das Qualifizierungsgespraech/Transkript Details enthaelt die nicht im Lebenslauf stehen, nutze diese bevorzugt — das ist dein Insider-Wissen.
+2. UEBERLEITUNG (1-2 Saetze):
+Zeige, dass du die Stellenanzeige gelesen hast. Beziehe dich auf eine konkrete Aufgabe oder Anforderung aus der Stelle — NICHT den Jobtitel wiederholen.
+Dann: "Ich betreue aktuell einen Kandidaten, der..." — nenne ein konkretes, beeindruckendes Detail.
 
-3. Schreibe GENAU: {{{{SKILLS_TABLE}}}}
+3. PORTRAIT DES KANDIDATEN (5-8 Saetze):
+Beginne mit "In meinem persoenlichen Gespraech mit dem Kandidaten wurde deutlich, dass..." oder "Aus meinem ausfuehrlichen Austausch weiss ich, dass...".
+Erzaehle die GESCHICHTE des Kandidaten: Wo kommt er her, was hat er aufgebaut, wohin will er.
+Beschreibe die Art der Unternehmen in denen er gearbeitet hat (Groesse, Branche, Komplexitaet) — NIEMALS den Firmennamen.
+Nenne konkrete Zahlen wo vorhanden: Wie viele Jahre in welchem Bereich, wie viele Mandanten/Gesellschaften/Buchungskreise, welches Volumen, welche Software taeglich im Einsatz.
+WICHTIG: Wiederhole NICHT die Skills-Tabelle. Die kommt danach. Der Kernabsatz erzaehlt das Gesamtbild — wer ist dieser Mensch beruflich, wie tief steckt er in der Materie.
+Wenn das Qualifizierungsgespraech/Transkript Details enthaelt die nicht im Lebenslauf stehen, nutze diese bevorzugt — das ist dein Insider-Wissen das kein anderer Recruiter hat.
 
-4. Rahmendaten (jeweils eigene Zeile, NUR wenn vorhanden):
-   {"Verfuegbarkeit: " + notice_period if notice_period else ""}
-   {"Gehaltsvorstellung: " + salary_range if salary_range else ""}
-   {drive_info}
-   {home_office_info}
+4. SKILLS-TABELLE:
+Schreibe GENAU diesen Platzhalter: {{{{SKILLS_TABLE}}}}
 
-5. Abschluss: "Unter welchen Voraussetzungen darf ich Ihnen das vollstaendige Profil unseres Kandidaten weiterleiten?"
+5. RAHMENDATEN (jeweils eigene Zeile, NUR wenn der Wert vorhanden ist):
+{"Verfuegbarkeit: " + notice_period if notice_period else ""}
+{"Gehaltsvorstellung: " + salary_range if salary_range else ""}
+{drive_info}
+{home_office_info}
+
+6. ABSCHLUSS:
+"Unter welchen Voraussetzungen darf ich Ihnen das vollstaendige Profil unseres Kandidaten weiterleiten?"
 
 ABSOLUTE VERBOTE:
-- NIEMALS den Namen des aktuellen oder frueheren Arbeitgebers des Kandidaten nennen. Beschreibe stattdessen die Art des Unternehmens (z.B. "mittelstaendisches Produktionsunternehmen", "internationaler Konzern", "Steuerberatungskanzlei mit 200 Mandanten").
-- NIEMALS generische Floskeln: "umfangreiche Erfahrung", "fundierte Kenntnisse", "breites Spektrum", "kommunikativ und teamfaehig", "ideale Ergaenzung", "von Vorteil".
+- NIEMALS den Namen des aktuellen oder frueheren Arbeitgebers nennen. Stattdessen: "mittelstaendisches Produktionsunternehmen", "internationaler Konzern mit 5.000 Mitarbeitern", "Steuerberatungskanzlei mit 200 Mandanten".
+- NIEMALS generische Floskeln: "umfangreiche Erfahrung", "fundierte Kenntnisse", "breites Spektrum", "kommunikativ und teamfaehig", "ideale Ergaenzung", "von Vorteil", "in der Lage", "hat Erfahrung in".
 - NIEMALS Word, Excel, PowerPoint, MS-Office, Outlook erwaehnen.
-- NIEMALS HTML, Markdown, Aufzaehlungszeichen, Spiegelstriche oder Formatierung verwenden.
-- NIEMALS Wir-Form ("Wir betreuen..."). IMMER Ich-Form ("Ich betreue...").
-- NIEMALS den Jobtitel der Stelle woertlich als Einstieg verwenden ("Sie suchen einen Finanzbuchhalter...").
-- NIEMALS negative Wechselgruende oder Kritik am aktuellen Arbeitgeber erwaehnen.
+- NIEMALS HTML, Markdown, Aufzaehlungszeichen, Spiegelstriche.
+- NIEMALS Wir-Form. IMMER Ich-Form.
+- NIEMALS den Jobtitel der Stelle als Einstieg ("Sie suchen einen Finanzbuchhalter...").
+- NIEMALS negative Wechselgruende.
+- NIEMALS Inhalte der Skills-Tabelle im Kernabsatz wiederholen. Der Kernabsatz erzaehlt das Gesamtbild, die Tabelle zeigt den Detailabgleich.
 
 STIL:
-- Reiner Plain-Text, keine Formatierung.
-- Kurze, klare Saetze. Jeder Satz hat einen Zweck.
-- Fachlich praezise, nicht werblich.
-- Der Leser soll nach dem Lesen ein konkretes Bild vom Kandidaten haben: Was kann er, wie tief, wie lange.
+- Reiner Plain-Text.
+- Jeder Satz hat einen konkreten Informationswert. Kein Fuelltext.
+- Fachlich praezise, selbstbewusst, nicht werblich.
 
 Antworte NUR mit JSON: {{"subject": "Betreffzeile (max 8 Woerter)", "body_text": "Der E-Mail-Text"}}"""
 
@@ -872,6 +877,10 @@ def _build_skills_plain_table(skills_comparison: dict) -> str:
         evidence = m.get("candidate_evidence", "")
         status = m.get("status", "nicht_vorhanden")
 
+        # Skip Anforderungen die NICHT passen — nur Staerken zeigen
+        if status == "nicht_vorhanden":
+            continue
+
         # Skip MS-Office und Soft-Skill Anforderungen
         req_lower = req.lower()
         if any(kw in req_lower for kw in _SKIP_KEYWORDS):
@@ -882,7 +891,12 @@ def _build_skills_plain_table(skills_comparison: dict) -> str:
         if any(gen in evidence_lower for gen in _GENERIC_EVIDENCE):
             evidence = ""  # Lieber leer als generisch
 
-        symbol = status_symbols.get(status, "-")
+        # Firmennamen aus Evidence entfernen (haeufiges GPT-Problem)
+        # Erkenne Muster wie "bei XY GmbH", "bei der XY AG" etc.
+        import re
+        evidence = re.sub(r'\bbei\s+(der\s+)?[A-Z][A-Za-zäöüÄÖÜß&\-\s]+(GmbH|AG|SE|KG|e\.V\.|mbH|OHG|UG|Ltd|Inc)\b', 'beim aktuellen Arbeitgeber', evidence)
+
+        symbol = status_symbols.get(status, "~")
         lines.append(f"[{symbol}] {req}")
         if evidence:
             lines.append(f"    → {evidence}")
