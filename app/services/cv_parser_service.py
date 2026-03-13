@@ -211,48 +211,37 @@ class CVParserService:
         Raises:
             ValueError: Bei Extraktions-Fehler
         """
-        import re
-
-        # Versuch 1: PyMuPDF (schnell, funktioniert bei den meisten PDFs)
-        full_text = ""
         try:
             import fitz  # PyMuPDF
+        except ImportError:
+            raise ValueError("PyMuPDF (fitz) nicht installiert")
+
+        try:
             doc = fitz.open(stream=pdf_bytes, filetype="pdf")
             text_parts = []
+
             for page in doc:
                 text = page.get_text()
                 if text:
                     text_parts.append(text)
+
             doc.close()
+
             full_text = "\n\n".join(text_parts)
-        except Exception as e:
-            logger.warning(f"PyMuPDF Extraktion fehlgeschlagen: {e}")
 
-        # Null-Bytes und andere Kontrollzeichen entfernen (PostgreSQL-kompatibel)
-        full_text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", full_text)
+            # Null-Bytes und andere Kontrollzeichen entfernen (PostgreSQL-kompatibel)
+            import re
+            full_text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", full_text)
 
-        if full_text.strip() and len(full_text.strip()) >= 50:
+            if not full_text.strip():
+                raise ValueError("PDF enthält keinen extrahierbaren Text")
+
             return full_text
 
-        # Versuch 2: pdfplumber (robust bei CIDFont/Type1/Identity-H Encodings)
-        try:
-            import pdfplumber
-            import io
-            with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
-                text_parts = []
-                for page in pdf.pages:
-                    text = page.extract_text()
-                    if text:
-                        text_parts.append(text)
-                full_text = "\n\n".join(text_parts)
-                full_text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", full_text)
-                if full_text.strip() and len(full_text.strip()) >= 50:
-                    logger.info("pdfplumber Fallback erfolgreich (PyMuPDF konnte keinen Text extrahieren)")
-                    return full_text
         except Exception as e:
-            logger.warning(f"pdfplumber Fallback fehlgeschlagen: {e}")
-
-        raise ValueError("PDF enthält keinen extrahierbaren Text")
+            if "PDF" in str(e) or "fitz" in str(e):
+                raise ValueError(f"PDF-Verarbeitung fehlgeschlagen: {e}")
+            raise
 
     def extract_images_from_pdf(self, pdf_bytes: bytes, max_pages: int = 3) -> list[bytes]:
         """Rendert PDF-Seiten als PNG-Bilder (für Vision-Fallback).
