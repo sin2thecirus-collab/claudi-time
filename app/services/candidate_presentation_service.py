@@ -201,6 +201,19 @@ Antworte NUR mit einem JSON-Objekt:
     "overall_assessment": "1-2 Saetze Gesamtbewertung"
 }"""
 
+        # Optionale Felder nur einfuegen wenn vorhanden
+        extra_sections = ""
+        if candidate_data.get("key_activities"):
+            extra_sections += f"\nKerntaetigkeiten: {candidate_data['key_activities']}"
+        if candidate_data.get("desired_positions"):
+            extra_sections += f"\nGewuenschte Positionen: {candidate_data['desired_positions']}"
+        if candidate_data.get("change_motivation"):
+            extra_sections += f"\nWechselmotivation: {candidate_data['change_motivation']}"
+        if candidate_data.get("education"):
+            extra_sections += f"\nAusbildung: {json.dumps(candidate_data['education'], ensure_ascii=False)[:500]}"
+        if candidate_data.get("languages"):
+            extra_sections += f"\nSprachen: {json.dumps(candidate_data['languages'], ensure_ascii=False)}"
+
         user_msg = f"""STELLENANFORDERUNGEN:
 Titel: {extracted_job_data.get('job_title', '')}
 Anforderungen: {json.dumps(extracted_job_data.get('requirements', []), ensure_ascii=False)}
@@ -211,7 +224,7 @@ Berufserfahrung: {json.dumps(candidate_data.get('work_history', []), ensure_asci
 Skills: {json.dumps(candidate_data.get('skills', []), ensure_ascii=False)[:1000]}
 Klassifizierung: {json.dumps(candidate_data.get('classification_data', {}), ensure_ascii=False)[:500]}
 ERP-Systeme: {candidate_data.get('erp', '')}
-IT-Skills: {candidate_data.get('it_skills', '')}"""
+IT-Skills: {candidate_data.get('it_skills', '')}{extra_sections}"""
 
         try:
             result = await _call_gpt4o(
@@ -265,19 +278,69 @@ IT-Skills: {candidate_data.get('it_skills', '')}"""
             if drive_time.get("transit_min"):
                 drive_info += f", ca. {drive_time['transit_min']} Min. (OEPNV)"
 
-        step_instructions = {
-            1: f"""Schreibe die ERSTE Vorstellungs-E-Mail. WICHTIG: KEINE Tabelle schreiben!
+        # Qualifizierungs-Daten aufbereiten (nur wenn vorhanden)
+        change_motivation = candidate_data.get("change_motivation", "")
+        key_activities = candidate_data.get("key_activities", "")
+        desired_positions = candidate_data.get("desired_positions", "")
+        call_summary = candidate_data.get("call_summary", "")
+        home_office = candidate_data.get("home_office_days", "")
+        education = candidate_data.get("education", [])
+        languages = candidate_data.get("languages", {})
 
-Inhalt:
-- Beginne mit "{anrede},"
-- Beginne den Text mit "Ich hoffe, es geht Ihnen gut."
-- Stelle den Kandidaten in 2-3 Saetzen kurz vor (Rolle: {primary_role})
-- Schreibe dann GENAU den Platzhalter: {{{{SKILLS_TABLE}}}}
-  (Die Tabelle wird automatisch eingefuegt, du musst sie NICHT schreiben!)
-- Nach dem Platzhalter: Fahrzeit ({drive_info or 'noch nicht berechnet'}), Verfuegbarkeit ({notice_period or 'auf Anfrage'}), Gehaltsrahmen ({salary_range or 'auf Anfrage'})
-- Schliesse mit: "Ich wuerde mich freuen, Ihnen weitere Details zukommen zu lassen."
-- KEIN PDF-Anhang erwaehnen (wird erst bei Interesse geschickt)
-- WICHTIG: Reiner Text fuer die Absaetze. Die Tabelle wird automatisch als {{{{SKILLS_TABLE}}}} eingefuegt.""",
+        # Kontext-Block nur mit vorhandenen Daten
+        qualification_context = ""
+        if call_summary:
+            qualification_context += f"\nGESPRAECHSZUSAMMENFASSUNG (aus Qualifizierungsgespraech):\n{call_summary}\n"
+        if change_motivation:
+            qualification_context += f"\nWECHSELMOTIVATION: {change_motivation}\n"
+        if key_activities:
+            qualification_context += f"\nKERNTAETIGKEITEN (aktuelle/letzte Stelle): {key_activities}\n"
+        if desired_positions:
+            qualification_context += f"\nGEWUENSCHTE POSITIONEN: {desired_positions}\n"
+        if home_office:
+            qualification_context += f"\nHOME-OFFICE WUNSCH: {home_office}\n"
+        if education:
+            edu_str = json.dumps(education, ensure_ascii=False)[:400]
+            qualification_context += f"\nAUSBILDUNG: {edu_str}\n"
+        if languages:
+            qualification_context += f"\nSPRACHEN: {json.dumps(languages, ensure_ascii=False)}\n"
+
+        step_instructions = {
+            1: f"""Schreibe die ERSTE Vorstellungs-E-Mail. Ziel: Der Empfaenger soll sofort erkennen, dass ich mich INTENSIV mit der Stelle UND dem Kandidaten beschaeftigt habe.
+
+STRUKTUR (in dieser Reihenfolge):
+
+1. ANREDE + EINSTIEG:
+   - "{anrede},"
+   - 1 Satz: Bezug auf die konkrete Stelle (Jobtitel + Firma)
+   - Beispiel-Stil: "Bezugnehmend auf Ihre ausgeschriebene Position als [Jobtitel] moechte ich Ihnen einen Kandidaten vorstellen, der fachlich und persoenlich hervorragend zu Ihrem Anforderungsprofil passt."
+
+2. KANDIDATEN-VORSTELLUNG (2-3 Saetze):
+   - WAS macht der Kandidat aktuell? (aus Kerntaetigkeiten/Berufserfahrung)
+   - WARUM passt er zu DIESER Stelle? (konkrete Verbindung Kandidat ↔ Stellenanforderungen)
+   - Wenn Wechselmotivation vorhanden: WARUM sucht der Kandidat eine Veraenderung? (1 Satz, authentisch)
+
+3. FACHLICHER VERGLEICH:
+   - Schreibe GENAU den Platzhalter: {{{{SKILLS_TABLE}}}}
+   - (Die Tabelle wird automatisch eingefuegt)
+
+4. RAHMENDATEN:
+   - Verfuegbarkeit: {notice_period or 'auf Anfrage'}
+   - Gehaltsvorstellung: {salary_range or 'auf Anfrage'}
+   - Fahrzeit: {drive_info or 'noch nicht berechnet'}
+   {"- Home-Office: " + home_office if home_office else ""}
+
+5. ABSCHLUSS:
+   - "Gerne sende ich Ihnen auf Wunsch ein detailliertes Kandidatenprofil zu."
+   - "Fuer einen kurzen telefonischen Austausch stehe ich Ihnen jederzeit zur Verfuegung."
+
+WICHTIGE REGELN:
+- KEINE Tabelle schreiben, NUR den Platzhalter {{{{SKILLS_TABLE}}}}
+- Verwende die ECHTEN Daten des Kandidaten (Berufserfahrung, Kerntaetigkeiten)
+- Jeder Satz muss einen KONKRETEN Bezug zur Stelle oder zum Kandidaten haben
+- KEINE generischen Floskeln wie "hervorragender Kandidat" ohne Beleg
+- KEIN PDF-Anhang erwaehnen
+- Reiner Text fuer die Absaetze (kein Markdown, kein HTML)""",
 
             2: f"""Schreibe das ERSTE Follow-Up (Tag 3). Kurz und direkt:
 - Beginne mit "{anrede},"
@@ -297,23 +360,32 @@ Inhalt:
 
         system_prompt = f"""Du bist Milad Hamdard, Senior Personalberater bei Sincirus (Rechnungswesen & Controlling).
 
+DEIN ZIEL: Schreibe eine E-Mail, die den Empfaenger beeindruckt — er soll denken: "Dieser Personalberater hat sich wirklich mit der Stelle und dem Kandidaten beschaeftigt." Jeder Satz zeigt Fachkenntnis und konkrete Passung.
+
 WICHTIGE REGELN:
 - IMMER ICH-Form ("Ich betreue...", "Ich erkenne..."), NIEMALS Wir-Form
-- Professionell aber persoenlich
-- Keine Floskeln wie "im Auftrag meines Kunden"
+- Professionell, kompetent, auf Augenhoehe
+- KEINE generischen Floskeln ohne konkreten Inhalt
 - KEINE Tabelle schreiben! Stattdessen den Platzhalter {{{{SKILLS_TABLE}}}} verwenden
 - KEIN Markdown, keine **fett** Formatierung
+- Jeder Satz muss KONKRETEN Bezug zum Kandidaten ODER zur Stelle haben
 
 {step_instructions.get(step, step_instructions[1])}
 
 KANDIDATEN-DATEN:
 Rolle: {primary_role}
+Berufserfahrung: {json.dumps(candidate_data.get('work_history', []), ensure_ascii=False)[:2000]}
+Skills: {json.dumps(candidate_data.get('skills', []), ensure_ascii=False)[:800]}
+ERP: {candidate_data.get('erp', '')}
+IT-Skills: {candidate_data.get('it_skills', '')}
 Gesamtbewertung: {skills_comparison.get('overall_assessment', '')}
-
+Staerken: {json.dumps(skills_comparison.get('strengths', []), ensure_ascii=False)}
+{qualification_context}
 JOB-DATEN:
 Titel: {extracted_job_data.get('job_title', '')}
 Firma: {extracted_job_data.get('company_name', '')}
 Stadt: {extracted_job_data.get('city', '')}
+Anforderungen: {json.dumps(extracted_job_data.get('requirements', []), ensure_ascii=False)[:800]}
 
 Antworte NUR mit einem JSON-Objekt:
 {{"subject": "Betreffzeile (max 8 Woerter)", "body_text": "Der E-Mail-Text mit {{{{SKILLS_TABLE}}}} Platzhalter"}}"""
@@ -657,6 +729,14 @@ Antworte NUR mit einem JSON-Objekt:
             "it_skills": candidate.it_skills or "",
             "salary": candidate.salary or "",
             "notice_period": candidate.notice_period or "",
+            # Qualifizierungsgespraech-Daten (keine persoenlichen Daten!)
+            "change_motivation": candidate.change_motivation or "",
+            "desired_positions": candidate.desired_positions or "",
+            "key_activities": candidate.key_activities or "",
+            "call_summary": candidate.call_summary or "",
+            "home_office_days": candidate.home_office_days or "",
+            "languages": candidate.languages or {},
+            "education": candidate.education or [],
         }
 
 
