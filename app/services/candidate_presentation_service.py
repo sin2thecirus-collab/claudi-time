@@ -373,56 +373,40 @@ Antworte NUR mit JSON: {{"subject": "Re: ...", "body_text": "..."}}"""
 
                 home_office_info = f"Home-Office-Wunsch: {home_office}" if home_office else ""
 
-                email_prompt = f"""Du bist Milad Hamdard, Senior Personalberater bei Sincirus.
-Du hast mit dem Kandidaten ein ausfuehrliches Qualifizierungsgespraech gefuehrt und kennst seinen Werdegang im Detail.
-Jetzt stellst du ihn per E-Mail einem Unternehmen vor.
+                email_prompt = f"""Du bist ein Personalberater fuer den Bereich Buchhaltung und Rechnungswesen in Deutschland mit 20 Jahren Berufserfahrung. Du heisst Milad Hamdard und arbeitest bei Sincirus.
 
-DEIN ZIEL: Der Empfaenger soll nach dem Lesen denken: "Der Berater kennt den Kandidaten wirklich gut und hat sich intensiv mit unserer Stelle beschaeftigt."
+Du hast mit dem Kandidaten ein persoenliches Qualifizierungsgespraech gefuehrt. Schau dir jetzt bitte Folgendes an:
+- Den beruflichen Werdegang des Kandidaten
+- Seine Ausbildung und Weiterbildungen
+- Was der Kandidat im Qualifizierungsgespraech ueber sich und seine Arbeit erzaehlt hat
+- Die Stellenausschreibung des Unternehmens
 
-AUFBAU DER E-MAIL:
+Schreibe dann eine E-Mail, in der du den Kandidaten bestmoeglich auf diese Vakanz vorstellst. Der Kunde soll sofort merken: Du hast dich intensiv mit der Vakanz UND dem Kandidaten beschaeftigt. Du kennst den Kandidaten persoenlich.
 
-1. BEGRUESSING:
+AUFBAU:
+
 "{anrede},"
 "Ich hoffe, es geht Ihnen gut."
 
-2. UEBERLEITUNG (1-2 Saetze):
-Zeige, dass du die Stellenanzeige gelesen hast. Beziehe dich auf eine konkrete Aufgabe oder Anforderung aus der Stelle — NICHT den Jobtitel wiederholen.
-Dann: "Ich betreue aktuell einen Kandidaten, der..." — nenne ein konkretes, beeindruckendes Detail.
+Dann stellst du den Kandidaten vor. Erzaehle wer er ist, was er kann, wie tief seine Erfahrung ist, in welcher Art Unternehmen er arbeitet. Nutze konkrete Zahlen wo moeglich (Jahre, Anzahl Gesellschaften, Mandanten, Volumen). Wenn der Kandidat im Gespraech etwas erzaehlt hat das nicht im Lebenslauf steht, nutze das — das ist dein Vorteil als Berater.
 
-3. PORTRAIT DES KANDIDATEN (5-8 Saetze):
-Beginne mit "In meinem persoenlichen Gespraech mit dem Kandidaten wurde deutlich, dass..." oder "Aus meinem ausfuehrlichen Austausch weiss ich, dass...".
-Erzaehle die GESCHICHTE des Kandidaten: Wo kommt er her, was hat er aufgebaut, wohin will er.
-Beschreibe die Art der Unternehmen in denen er gearbeitet hat (Groesse, Branche, Komplexitaet) — NIEMALS den Firmennamen.
-Nenne konkrete Zahlen wo vorhanden: Wie viele Jahre in welchem Bereich, wie viele Mandanten/Gesellschaften/Buchungskreise, welches Volumen, welche Software taeglich im Einsatz.
-WICHTIG: Wiederhole NICHT die Skills-Tabelle. Die kommt danach. Der Kernabsatz erzaehlt das Gesamtbild — wer ist dieser Mensch beruflich, wie tief steckt er in der Materie.
-Wenn das Qualifizierungsgespraech/Transkript Details enthaelt die nicht im Lebenslauf stehen, nutze diese bevorzugt — das ist dein Insider-Wissen das kein anderer Recruiter hat.
+Dann schreibe GENAU: {{{{SKILLS_TABLE}}}}
 
-4. SKILLS-TABELLE:
-Schreibe GENAU diesen Platzhalter: {{{{SKILLS_TABLE}}}}
-
-5. RAHMENDATEN (jeweils eigene Zeile, NUR wenn der Wert vorhanden ist):
+Dann die Rahmendaten (nur wenn vorhanden, jeweils eigene Zeile):
 {"Verfuegbarkeit: " + notice_period if notice_period else ""}
 {"Gehaltsvorstellung: " + salary_range if salary_range else ""}
 {drive_info}
 {home_office_info}
 
-6. ABSCHLUSS:
-"Unter welchen Voraussetzungen darf ich Ihnen das vollstaendige Profil unseres Kandidaten weiterleiten?"
+Dann: "Unter welchen Voraussetzungen darf ich Ihnen das vollstaendige Profil unseres Kandidaten weiterleiten?"
 
-ABSOLUTE VERBOTE:
-- NIEMALS den Namen des aktuellen oder frueheren Arbeitgebers nennen. Stattdessen: "mittelstaendisches Produktionsunternehmen", "internationaler Konzern mit 5.000 Mitarbeitern", "Steuerberatungskanzlei mit 200 Mandanten".
-- NIEMALS generische Floskeln: "umfangreiche Erfahrung", "fundierte Kenntnisse", "breites Spektrum", "kommunikativ und teamfaehig", "ideale Ergaenzung", "von Vorteil", "in der Lage", "hat Erfahrung in".
-- NIEMALS Word, Excel, PowerPoint, MS-Office, Outlook erwaehnen.
-- NIEMALS HTML, Markdown, Aufzaehlungszeichen, Spiegelstriche.
-- NIEMALS Wir-Form. IMMER Ich-Form.
-- NIEMALS den Jobtitel der Stelle als Einstieg ("Sie suchen einen Finanzbuchhalter...").
-- NIEMALS negative Wechselgruende.
-- NIEMALS Inhalte der Skills-Tabelle im Kernabsatz wiederholen. Der Kernabsatz erzaehlt das Gesamtbild, die Tabelle zeigt den Detailabgleich.
-
-STIL:
-- Reiner Plain-Text.
-- Jeder Satz hat einen konkreten Informationswert. Kein Fuelltext.
-- Fachlich praezise, selbstbewusst, nicht werblich.
+REGELN:
+- Nenne NIEMALS den Namen des Arbeitgebers des Kandidaten. Beschreibe stattdessen die Art des Unternehmens.
+- Keine generischen Floskeln wie "umfangreiche Erfahrung" oder "fundierte Kenntnisse". Sag konkret was er tut.
+- Kein Word, Excel, MS-Office.
+- Kein HTML, kein Markdown, keine Aufzaehlungszeichen. Reiner Plain-Text.
+- Ich-Form, keine Wir-Form.
+- Wiederhole nicht was in der Skills-Tabelle steht. Die Tabelle kommt danach.
 
 Antworte NUR mit JSON: {{"subject": "Betreffzeile (max 8 Woerter)", "body_text": "Der E-Mail-Text"}}"""
 
