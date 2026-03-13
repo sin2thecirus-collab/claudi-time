@@ -917,7 +917,7 @@ async def _call_gpt4o(
                     "Content-Type": "application/json",
                 },
                 json={
-                    "model": "gpt-4o-2024-11-20",
+                    "model": "gpt-4.5-preview",
                     "messages": [
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_message},
