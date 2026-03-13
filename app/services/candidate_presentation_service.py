@@ -326,10 +326,25 @@ IT-Skills: {candidate_data.get('it_skills', '')}{extra_sections}"""
         if home_office:
             qualification_context += f"\nHOME-OFFICE WUNSCH: {home_office}\n"
         if education:
-            edu_str = json.dumps(education, ensure_ascii=False)[:400]
+            edu_str = json.dumps(education, ensure_ascii=False)[:600]
             qualification_context += f"\nAUSBILDUNG: {edu_str}\n"
+        further_education = candidate_data.get("further_education", [])
+        if further_education:
+            qualification_context += f"\nWEITERBILDUNGEN: {json.dumps(further_education, ensure_ascii=False)[:600]}\n"
+        v2_certs = candidate_data.get("v2_certifications", [])
+        if v2_certs:
+            qualification_context += f"\nZERTIFIKATE: {json.dumps(v2_certs, ensure_ascii=False)}\n"
         if languages:
             qualification_context += f"\nSPRACHEN: {json.dumps(languages, ensure_ascii=False)}\n"
+        key_activities = candidate_data.get("key_activities", "")
+        if key_activities:
+            qualification_context += f"\nKERNTAETIGKEITEN (vom Kandidaten im Gespraech genannt): {key_activities}\n"
+        candidate_notes = candidate_data.get("candidate_notes", "")
+        if candidate_notes:
+            qualification_context += f"\nRECRUITER-NOTIZEN: {candidate_notes}\n"
+        preferred_industries = candidate_data.get("preferred_industries", "")
+        if preferred_industries:
+            qualification_context += f"\nBEVORZUGTE BRANCHEN: {preferred_industries}\n"
 
         # ── Follow-Up Templates (Step 2 + 3) ──
         followup_instructions = {
@@ -408,17 +423,37 @@ VERBOTE:
 
 Antworte NUR mit JSON: {{"subject": "Betreffzeile (max 8 Woerter)", "body_text": "Der E-Mail-Text"}}"""
 
+                # Zusaetzliche Kandidaten-Infos zusammenbauen
+                current_pos = candidate_data.get('current_position', '')
+                erp_main = candidate_data.get('erp_main', '')
+                employment = candidate_data.get('employment_type', '')
+                part_time = candidate_data.get('part_time_hours', '')
+                industries = candidate_data.get('v2_industries', [])
+
+                extra_info = ""
+                if current_pos:
+                    extra_info += f"Aktuelle Position: {current_pos}\n"
+                if erp_main:
+                    extra_info += f"Haupt-ERP: {erp_main}\n"
+                if employment:
+                    extra_info += f"Beschaeftigungsart: {employment}"
+                    if part_time:
+                        extra_info += f" ({part_time})"
+                    extra_info += "\n"
+                if industries:
+                    extra_info += f"Branchen: {json.dumps(industries, ensure_ascii=False)}\n"
+
                 email_user = f"""STELLE:
 Titel: {extracted_job_data.get('job_title', '')}
 Firma: {extracted_job_data.get('company_name', '')}
-Anforderungen: {json.dumps(extracted_job_data.get('requirements', []), ensure_ascii=False)[:1200]}
+Anforderungen: {json.dumps(extracted_job_data.get('requirements', []), ensure_ascii=False)[:1500]}
 Zusammenfassung: {extracted_job_data.get('description_summary', '')}
 
 KANDIDAT:
-Rolle: {primary_role}
-Berufserfahrung: {json.dumps(candidate_data.get('work_history', []), ensure_ascii=False)[:3000]}
-Skills: {json.dumps(candidate_data.get('skills', []), ensure_ascii=False)[:600]}
-ERP: {candidate_data.get('erp', '')}
+{extra_info}Rolle: {primary_role}
+Berufserfahrung: {json.dumps(candidate_data.get('work_history', []), ensure_ascii=False)[:5000]}
+Skills: {json.dumps(candidate_data.get('skills', []), ensure_ascii=False)[:800]}
+ERP-Systeme: {candidate_data.get('erp', '')}
 IT-Skills: {candidate_data.get('it_skills', '')}
 Staerken aus Abgleich: {json.dumps(skills_comparison.get('strengths', []), ensure_ascii=False)}
 {qualification_context}"""
@@ -782,18 +817,28 @@ ORIGINAL-TEXT:
             "skills": candidate.skills or [],
             "classification_data": candidate.classification_data or {},
             "erp": candidate.erp or "",
+            "erp_main": candidate.erp_main or "",
             "it_skills": candidate.it_skills or "",
             "salary": candidate.salary or "",
             "notice_period": candidate.notice_period or "",
-            # Qualifizierungsgespraech-Daten (keine persoenlichen Daten!)
+            "current_position": candidate.current_position or "",
+            "employment_type": candidate.employment_type or "",
+            "part_time_hours": candidate.part_time_hours or "",
+            # Qualifizierungsgespraech-Daten
             "change_motivation": candidate.change_motivation or "",
             "desired_positions": candidate.desired_positions or "",
             "key_activities": candidate.key_activities or "",
             "call_summary": candidate.call_summary or "",
             "call_transcript": candidate.call_transcript or "",
             "home_office_days": candidate.home_office_days or "",
+            "preferred_industries": candidate.preferred_industries or "",
+            "candidate_notes": candidate.candidate_notes or "",
+            # Ausbildung + Weiterbildung + Zertifikate
             "languages": candidate.languages or {},
             "education": candidate.education or [],
+            "further_education": candidate.further_education or [],
+            "v2_certifications": candidate.v2_certifications or [],
+            "v2_industries": candidate.v2_industries or [],
         }
 
 
