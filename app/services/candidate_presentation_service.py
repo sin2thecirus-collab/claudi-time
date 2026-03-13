@@ -964,38 +964,29 @@ async def _call_opus(
     max_tokens: int = 2000,
     temperature: float = 0.5,
 ) -> str:
-    """Claude Opus 4.6 API-Call ueber httpx (kein DB-Session waehrend Call!)."""
+    """Claude Opus API-Call via Anthropic SDK (kein DB-Session waehrend Call!)."""
+    from anthropic import AsyncAnthropic
+
+    if not settings.anthropic_api_key:
+        raise ValueError("Anthropic API Key nicht konfiguriert (ANTHROPIC_API_KEY)")
+
+    client = AsyncAnthropic(api_key=settings.anthropic_api_key)
+
     try:
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            resp = await client.post(
-                "https://api.anthropic.com/v1/messages",
-                headers={
-                    "x-api-key": settings.anthropic_api_key,
-                    "anthropic-version": "2023-06-01",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": "claude-opus-4-0-20250514",
-                    "max_tokens": max_tokens,
-                    "temperature": temperature,
-                    "system": system_prompt,
-                    "messages": [
-                        {"role": "user", "content": user_message},
-                    ],
-                },
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            content = data["content"][0]["text"].strip()
-            input_tokens = data.get("usage", {}).get("input_tokens", 0)
-            output_tokens = data.get("usage", {}).get("output_tokens", 0)
-            logger.info(f"Opus Call erfolgreich — Input: {input_tokens}, Output: {output_tokens} Tokens")
-            return content
-    except httpx.HTTPStatusError as e:
-        logger.error(f"Opus API-Fehler ({e.response.status_code}): {e.response.text[:500]}")
-        raise
+        response = await client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=max_tokens,
+            temperature=temperature,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_message}],
+        )
+        content = response.content[0].text.strip()
+        input_tokens = response.usage.input_tokens
+        output_tokens = response.usage.output_tokens
+        logger.info(f"Claude Call erfolgreich — Model: claude-sonnet-4-20250514, Input: {input_tokens}, Output: {output_tokens} Tokens")
+        return content
     except Exception as e:
-        logger.error(f"Opus Call fehlgeschlagen: {e}")
+        logger.error(f"Claude Call fehlgeschlagen: {e}")
         raise
 
 
