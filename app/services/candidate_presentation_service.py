@@ -308,84 +308,8 @@ IT-Skills: {candidate_data.get('it_skills', '')}{extra_sections}"""
         if languages:
             qualification_context += f"\nSPRACHEN: {json.dumps(languages, ensure_ascii=False)}\n"
 
-        step_instructions = {
-            1: f"""Schreibe eine Vorstellungs-E-Mail die beim Empfaenger einen WOW-Effekt ausloest.
-
-DEINE AUSGANGSSITUATION:
-Du hast die Stellenausschreibung Satz fuer Satz analysiert. Du hast ein langes Qualifizierungsgespraech mit dem Kandidaten gefuehrt. Du weisst Dinge ueber diesen Kandidaten, die kein anderer Personalberater weiss — weil du ihm persoenlich zugehoert hast. Dieses Insiderwissen ist dein groesster Vorteil. Der Kunde soll nach dem Lesen denken: "Dieser Berater hat sich WIRKLICH mit meiner Stelle befasst und kennt den Kandidaten persoenlich — das ist nicht einfach ein weitergeleiteter Lebenslauf."
-
-BEVOR DU SCHREIBST — ANALYSIERE ZUERST (intern, nicht in der E-Mail):
-1. Was sind die 3 WICHTIGSTEN Anforderungen dieser konkreten Stelle?
-2. Welche konkreten Fakten aus dem Gespraech/Berufserfahrung belegen, dass der Kandidat GENAU DAS kann?
-3. Gibt es ZAHLEN die ich nutzen kann? (Jahre, Teamgroesse, Buchungskreise, Mandanten, Umsatzvolumen)
-4. Welche Software-Kenntnisse sind fuer DIESE Stelle relevant?
-Nur wenn du das beantwortet hast, fang an zu schreiben.
-
-STRUKTUR (5 Bloecke, EXAKT in dieser Reihenfolge):
-
-1. ANREDE + EINSTIEG (2 Saetze, KEIN Small-Talk):
-   "{anrede},"
-   Zeige im ERSTEN Satz, dass du die Stelle VERSTANDEN hast. Fasse die Kern-Anforderung in eigenen Worten zusammen — NICHT die Stellenbezeichnung kopieren, sondern was das Unternehmen WIRKLICH braucht.
-   Dann: "Ich betreue aktuell einen Kandidaten, der genau das seit [KONKRETE Zahl] Jahren in der Praxis umsetzt."
-   WICHTIG: Nenne NIEMALS den Firmennamen des Kandidaten. Nur was er TUT.
-
-2. DAS INSIDER-WISSEN (Kernabsatz, 4-6 Saetze — DER WICHTIGSTE TEIL):
-   Hier nutzt du dein Wissen aus dem persoenlichen Gespraech. JEDER Satz folgt diesem Muster:
-   "[Job-Anforderung] — [konkreter Fakt vom Kandidaten]"
-
-   Beispiel fuer GUTEN Satz: "Sie suchen jemanden der Monatsabschluesse nach HGB eigenstaendig erstellt — mein Kandidat verantwortet seit 3 Jahren die kompletten Monats- und Quartalsabschluesse fuer 4 Buchungskreise und bereitet die Jahresabschlussarbeiten fuer den Wirtschaftspruefer vor."
-
-   Beispiel fuer SCHLECHTEN Satz (VERBOTEN): "Der Kandidat hat umfangreiche Erfahrung in der Buchhaltung und ist kommunikativ und teamfaehig."
-
-   REGELN fuer diesen Block:
-   - Beginne mit "In meinem persoenlichen Gespraech..." oder "Aus meinem Austausch weiss ich..."
-   - Jeder Satz MUSS eine KONKRETE Zahl oder ein konkretes Detail enthalten
-   - Jeder Satz MUSS sich auf eine Anforderung der KONKRETEN Stelle beziehen
-   - Wenn du keine konkrete Zahl hast, beschreibe die Aufgabe so detailliert dass es nicht generisch klingt
-   - Software NUR erwaehnen wenn die Stelle sie fordert UND der Kandidat sie nutzt
-
-3. FACHLICHER VERGLEICH:
-   Schreibe GENAU diesen Platzhalter: {{{{SKILLS_TABLE}}}}
-   (Die Vergleichstabelle wird automatisch eingefuegt — KEINE eigene Tabelle schreiben!)
-
-4. RAHMENDATEN (kompakt, als Fliesstext oder kurze Zeilen):
-   Verfuegbarkeit: {notice_period or 'auf Anfrage'}
-   Gehaltsvorstellung: {salary_range or 'auf Anfrage'}
-   {drive_info or ''}
-   {"Home-Office-Wunsch: " + home_office if home_office else ""}
-
-5. ABSCHLUSS (1-2 Saetze, selbstbewusst):
-   "Gerne sende ich Ihnen ein detailliertes Kandidatenprofil zu. Fuer ein kurzes Telefonat stehe ich Ihnen jederzeit zur Verfuegung."
-
-WECHSELMOTIVATION — GOLDENE REGEL:
-Formuliere IMMER POSITIV. Negative Gruende (Probleme, Konflikte, Unzufriedenheit) werden NIEMALS erwaehnt.
-Stattdessen: "Der Kandidat moechte sich gezielt in Richtung [Ziel] weiterentwickeln" oder "Er sucht ein Umfeld mit [positiver Aspekt]."
-Wenn nur negative Motivation vorhanden ist: Motivation KOMPLETT WEGLASSEN, stattdessen fachliche Passung beschreiben.
-
-VERBOTENE WOERTER UND PHRASEN (wenn eines davon in deinem Text vorkommt, schreibe den Text NEU):
-"umfangreiche Erfahrung", "fundierte Kenntnisse", "hervorragender Kandidat", "ideale Ergaenzung",
-"bringt alles mit", "erfuellt alle Anforderungen", "bereichern koennte", "umfassende Kenntnisse",
-"kommunikativ und teamfaehig", "arbeitet gerne im Team", "ist zudem kommunikativ",
-"hat umfangreiche Erfahrung mit", "sehr gut Deutsch und Englisch",
-"nicht nur... sondern auch", "darueber hinaus verfuegt", "zusaetzlich hat er",
-"was ihn zu einem idealen Kandidaten macht", "die sich direkt decken",
-"insbesondere auch", "wenn es erforderlich war",
-"ich beziehe mich auf", "ich habe einen Kandidaten identifiziert",
-"schätzt es als das beste", "was ihm besonders wichtig ist"
-
-WEITERE VERBOTE:
-- NIEMALS den aktuellen/frueheren Arbeitgeber des Kandidaten nennen — der Kunde darf ihn NICHT identifizieren
-- NIEMALS negative Wechselgruende erwaehnen
-- NIEMALS Word/Excel/MS-Office als Skill erwaehnen — das ist selbstverstaendlich fuer jeden Buchhalter
-- KEINE Aufzaehlungen mit Spiegelstrichen — nur Fliesstext
-- KEIN Markdown, KEIN HTML, KEINE **fett** Formatierung
-- KEIN PDF-Anhang erwaehnen
-- NICHT den Kandidaten beim Namen nennen
-- NICHT "Sehr geehrte Damen und Herren, ich beziehe mich auf..." — direkt mit der Stelle einsteigen
-
-SELBST-CHECK VOR DER ANTWORT:
-Pruefe deinen Text auf JEDES verbotene Wort/Phrase aus der Liste oben. Wenn du eines findest, formuliere den Satz um. Pruefe ob JEDER Satz im Kernabsatz ein konkretes Detail enthaelt. Wenn ein Satz auch ueber einen anderen Kandidaten geschrieben werden koennte, ist er zu generisch — schreibe ihn um.""",
-
+        # ── Follow-Up Templates (Step 2 + 3) ──
+        followup_instructions = {
             2: f"""Schreibe das ERSTE Follow-Up (Tag 3). Kurz und direkt:
 - Beginne mit "{anrede},"
 - "Ich melde mich kurz zurueck bezueglich meiner Nachricht von letzter Woche."
@@ -402,53 +326,109 @@ Pruefe deinen Text auf JEDES verbotene Wort/Phrase aus der Liste oben. Wenn du e
 - Maximal 50 Woerter""",
         }
 
-        system_prompt = f"""Du bist Milad Hamdard, Senior Personalberater bei Sincirus, spezialisiert auf Finance & Accounting (Rechnungswesen, Controlling, Steuern).
+        try:
+            if step in (2, 3):
+                # ── Follow-Ups: Einfacher Single-Call (kurz genug) ──
+                followup_prompt = f"""Du bist Milad Hamdard, Senior Personalberater bei Sincirus. ICH-Form, kein HTML, kein Markdown.
+{followup_instructions[step]}
+Antworte NUR mit JSON: {{"subject": "Re: ...", "body_text": "..."}}"""
+                result = await _call_gpt4o(
+                    system_prompt=followup_prompt,
+                    user_message="Generiere das Follow-Up.",
+                    max_tokens=500,
+                    temperature=0.5,
+                )
+                data = _parse_json_safe(result)
+                body_text = data.get("body_text", "")
 
-DEINE IDENTITAET:
-Du bist kein Recruiter der Lebenslaeufe weiterleitet. Du bist ein Berater der seine Kandidaten PERSOENLICH kennt — du hast ein ausfuehrliches Qualifizierungsgespraech gefuehrt, du weisst was der Kandidat taeglich tut, was er kann, was er will. Und du hast die Stellenausschreibung genau gelesen und verstanden was das Unternehmen WIRKLICH braucht.
+            else:
+                # ══════════════════════════════════════════════════
+                # TWO-STEP APPROACH fuer Step 1 (Erstvorstellung)
+                # Step A: Fakten-Extraktion (kurz, fokussiert)
+                # Step B: E-Mail schreiben (NUR mit extrahierten Fakten)
+                # ══════════════════════════════════════════════════
 
-DEIN SCHREIBSTIL:
-- ICH-Form: "Ich betreue...", "In meinem Gespraech...", "Aus meinem Austausch weiss ich..."
-- NIEMALS Wir-Form
-- Schreibe auf Augenhoehe mit Entscheidern — selbstbewusst, nicht unterwuerfig
-- Kurze, praegnante Saetze. Kein Geschwafel. Keine Fuellwoerter.
-- JEDER Satz muss ein konkretes Detail enthalten das NUR auf diesen Kandidaten und DIESE Stelle zutrifft
-- Wenn ein Satz auch ueber jeden anderen Buchhalter geschrieben werden koennte, ist er WERTLOS — loeschen oder umschreiben
-- KEIN HTML! Die E-Mail ist reiner Text. Der Platzhalter {{{{SKILLS_TABLE}}}} wird automatisch ersetzt
-- KEIN Markdown, keine **fett** Formatierung
-- NIEMALS den Firmennamen des aktuellen Arbeitgebers des Kandidaten nennen
-- NIEMALS Word, Excel oder MS-Office als Skill erwaehnen — das ist Standard und entwertet den Kandidaten
+                # ── STEP A: Analyse-Call — 3 beste Matching-Fakten extrahieren ──
+                analysis_prompt = f"""Du bist ein erfahrener Personalberater. Analysiere die Kandidaten-Daten und die Stellenanforderungen.
 
-{step_instructions.get(step, step_instructions[1])}
+AUFGABE: Finde die 3 beeindruckendsten konkreten Fakten ueber den Kandidaten, die DIREKT zu den Anforderungen dieser Stelle passen.
 
-KANDIDATEN-DATEN:
-Rolle: {primary_role}
-Berufserfahrung: {json.dumps(candidate_data.get('work_history', []), ensure_ascii=False)[:2000]}
-Skills: {json.dumps(candidate_data.get('skills', []), ensure_ascii=False)[:800]}
-ERP: {candidate_data.get('erp', '')}
-IT-Skills: {candidate_data.get('it_skills', '')}
-Gesamtbewertung: {skills_comparison.get('overall_assessment', '')}
-Staerken: {json.dumps(skills_comparison.get('strengths', []), ensure_ascii=False)}
-{qualification_context}
-JOB-DATEN:
+REGELN:
+- Jeder Fakt MUSS eine konkrete Zahl enthalten (Jahre, Anzahl Buchungskreise, Mandanten, Umsatzvolumen, Teamgroesse etc.)
+- Jeder Fakt MUSS sich auf eine SPEZIFISCHE Anforderung der Stelle beziehen
+- Wenn das Transkript/Gespraech Details enthaelt, bevorzuge diese (Insider-Wissen!)
+- KEINE Firmennamen des Kandidaten nennen — nur beschreiben WAS er tut
+- KEIN "umfangreiche Erfahrung", "fundierte Kenntnisse" oder aehnliche Floskeln
+- Wenn keine Zahl vorhanden, beschreibe die Taetigkeit so KONKRET dass klar ist was der Kandidat taeglich macht
+
+Antworte NUR mit JSON:
+{{"fakten": ["Fakt 1 mit Zahl", "Fakt 2 mit Zahl", "Fakt 3 mit Zahl"], "einstieg_hook": "1 Satz der zeigt dass du die Stelle VERSTANDEN hast — was das Unternehmen WIRKLICH braucht (nicht den Jobtitel wiederholen)"}}"""
+
+                analysis_user = f"""STELLE:
 Titel: {extracted_job_data.get('job_title', '')}
 Firma: {extracted_job_data.get('company_name', '')}
-Stadt: {extracted_job_data.get('city', '')}
 Anforderungen: {json.dumps(extracted_job_data.get('requirements', []), ensure_ascii=False)[:800]}
+Zusammenfassung: {extracted_job_data.get('description_summary', '')}
 
-Antworte NUR mit einem JSON-Objekt:
-{{"subject": "Betreffzeile (max 8 Woerter)", "body_text": "Der E-Mail-Text mit {{{{SKILLS_TABLE}}}} Platzhalter"}}"""
+KANDIDAT:
+Rolle: {primary_role}
+Berufserfahrung: {json.dumps(candidate_data.get('work_history', []), ensure_ascii=False)[:2500]}
+Skills: {json.dumps(candidate_data.get('skills', []), ensure_ascii=False)[:600]}
+ERP: {candidate_data.get('erp', '')}
+IT-Skills: {candidate_data.get('it_skills', '')}
+Staerken: {json.dumps(skills_comparison.get('strengths', []), ensure_ascii=False)}
+{qualification_context}"""
 
-        try:
-            # Erster Versuch
-            result = await _call_gpt4o(
-                system_prompt=system_prompt,
-                user_message="Generiere die E-Mail. Denke daran: KEIN Firmenname des Arbeitgebers, KEINE generischen Floskeln, JEDER Satz mit konkretem Fakt.",
-                max_tokens=2000,
-                temperature=0.7,
-            )
-            data = _parse_json_safe(result)
-            body_text = data.get("body_text", "")
+                analysis_result = await _call_gpt4o(
+                    system_prompt=analysis_prompt,
+                    user_message=analysis_user,
+                    max_tokens=600,
+                    temperature=0.3,  # Niedrig — praezise Fakten, kein Kreativitaets-Rauschen
+                )
+                analysis_data = _parse_json_safe(analysis_result)
+                fakten = analysis_data.get("fakten", [])
+                einstieg_hook = analysis_data.get("einstieg_hook", "")
+
+                logger.info(f"Step A Fakten extrahiert: {len(fakten)} Fakten, Hook: {einstieg_hook[:80]}...")
+
+                # ── STEP B: E-Mail schreiben — NUR mit den 3 Fakten ──
+                email_prompt = f"""Du bist Milad Hamdard, Senior Personalberater bei Sincirus. Du schreibst eine kurze, beeindruckende E-Mail an einen Entscheider.
+
+Du hast GENAU 3 konkrete Fakten ueber deinen Kandidaten. Schreibe eine E-Mail die NUR diese Fakten verwendet. Erfinde NICHTS dazu.
+
+STRUKTUR:
+1. "{anrede},"
+   Einstieg: {einstieg_hook}
+   Dann: "Ich betreue aktuell einen Kandidaten, der..." (mit konkretem Detail aus den Fakten).
+
+2. Kernabsatz (3-4 Saetze). Beginne mit "In meinem persoenlichen Gespraech..." oder "Aus meinem Austausch weiss ich...". Jeder Satz verbindet eine Stellen-Anforderung mit einem der 3 Fakten.
+
+3. Schreibe GENAU: {{{{SKILLS_TABLE}}}}
+
+4. Rahmendaten:
+   Verfuegbarkeit: {notice_period or 'auf Anfrage'}
+   Gehaltsvorstellung: {salary_range or 'auf Anfrage'}
+   {drive_info or ''}
+   {"Home-Office-Wunsch: " + home_office if home_office else ""}
+
+5. "Gerne sende ich Ihnen ein detailliertes Kandidatenprofil zu. Fuer ein kurzes Telefonat stehe ich Ihnen jederzeit zur Verfuegung."
+
+DEINE 3 FAKTEN (verwende NUR diese, erfinde NICHTS dazu):
+{chr(10).join(f'{i+1}. {f}' for i, f in enumerate(fakten[:3]))}
+
+VERBOTEN: Firmennamen des Arbeitgebers, "umfangreiche Erfahrung", "fundierte Kenntnisse", "kommunikativ und teamfaehig", "ideale Ergaenzung", Word/Excel/MS-Office, HTML, Markdown, Spiegelstriche, Wir-Form, negative Wechselgruende.
+ICH-Form, reiner Text, kurze Saetze.
+
+Antworte NUR mit JSON: {{"subject": "Betreffzeile (max 8 Woerter)", "body_text": "Der E-Mail-Text"}}"""
+
+                result = await _call_gpt4o(
+                    system_prompt=email_prompt,
+                    user_message="Schreibe die E-Mail. Verwende NUR die 3 gegebenen Fakten, erfinde nichts dazu.",
+                    max_tokens=1500,
+                    temperature=0.6,
+                )
+                data = _parse_json_safe(result)
+                body_text = data.get("body_text", "")
 
             # Qualitaets-Check: Verbotene Phrasen im Output?
             found_violations = _check_forbidden_phrases(body_text)
