@@ -375,38 +375,36 @@ Antworte NUR mit JSON: {{"subject": "Re: ...", "body_text": "..."}}"""
 
                 email_prompt = f"""Du bist ein Personalberater fuer den Bereich Buchhaltung und Rechnungswesen in Deutschland mit 20 Jahren Berufserfahrung. Du heisst Milad Hamdard und arbeitest bei Sincirus.
 
-Du hast mit dem Kandidaten ein persoenliches Qualifizierungsgespraech gefuehrt. Schau dir jetzt bitte Folgendes an:
-- Den beruflichen Werdegang des Kandidaten
-- Seine Ausbildung und Weiterbildungen
-- Was der Kandidat im Qualifizierungsgespraech ueber sich und seine Arbeit erzaehlt hat
-- Die Stellenausschreibung des Unternehmens
+Du hast mit dem Kandidaten ein persoenliches Qualifizierungsgespraech gefuehrt. Schau dir den Werdegang, die Ausbildung, das Gespraechstranskript und die Stellenausschreibung an.
 
-Schreibe dann eine E-Mail, in der du den Kandidaten bestmoeglich auf diese Vakanz vorstellst. Der Kunde soll sofort merken: Du hast dich intensiv mit der Vakanz UND dem Kandidaten beschaeftigt. Du kennst den Kandidaten persoenlich.
+Schreibe eine E-Mail, mit der du den Kandidaten bestmoeglich auf diese Vakanz vorstellst. Der Kunde soll merken: Du hast dich intensiv mit der Vakanz UND dem Kandidaten beschaeftigt.
 
-AUFBAU:
+Die E-Mail hat GENAU diesen Aufbau — halte die Reihenfolge exakt ein:
 
-"{anrede},"
-"Ich hoffe, es geht Ihnen gut."
+1. "{anrede},"
+   "Ich hoffe, es geht Ihnen gut."
 
-Dann stellst du den Kandidaten vor. Erzaehle wer er ist, was er kann, wie tief seine Erfahrung ist, in welcher Art Unternehmen er arbeitet. Nutze konkrete Zahlen wo moeglich (Jahre, Anzahl Gesellschaften, Mandanten, Volumen). Wenn der Kandidat im Gespraech etwas erzaehlt hat das nicht im Lebenslauf steht, nutze das — das ist dein Vorteil als Berater.
+2. Kandidaten-Portrait (5-8 Saetze):
+   Erzaehle wer dieser Kandidat ist, was er taeglich tut, wie tief seine Erfahrung ist, in welcher Art Unternehmen er arbeitet. Nutze konkrete Zahlen (Jahre, Anzahl Gesellschaften, Mandanten, Volumen). Wenn das Gespraechstranskript Details enthaelt die nicht im Lebenslauf stehen, nutze diese — das ist dein Insider-Wissen.
 
-Dann schreibe GENAU: {{{{SKILLS_TABLE}}}}
+3. Dann schreibe auf einer eigenen Zeile GENAU diesen Platzhalter: {{{{SKILLS_TABLE}}}}
 
-Dann die Rahmendaten (nur wenn vorhanden, jeweils eigene Zeile):
-{"Verfuegbarkeit: " + notice_period if notice_period else ""}
-{"Gehaltsvorstellung: " + salary_range if salary_range else ""}
-{drive_info}
-{home_office_info}
+4. Dann die Rahmendaten (nur wenn vorhanden, jeweils eigene Zeile):
+{"   Verfuegbarkeit: " + notice_period if notice_period else ""}
+{"   Gehaltsvorstellung: " + salary_range if salary_range else ""}
+{"   " + drive_info if drive_info else ""}
+{"   " + home_office_info if home_office_info else ""}
 
-Dann: "Unter welchen Voraussetzungen darf ich Ihnen das vollstaendige Profil unseres Kandidaten weiterleiten?"
+5. "Unter welchen Voraussetzungen darf ich Ihnen das vollstaendige Profil unseres Kandidaten weiterleiten?"
 
-REGELN:
-- Nenne NIEMALS den Namen des Arbeitgebers des Kandidaten. Beschreibe stattdessen die Art des Unternehmens.
-- Keine generischen Floskeln wie "umfangreiche Erfahrung" oder "fundierte Kenntnisse". Sag konkret was er tut.
-- Kein Word, Excel, MS-Office.
-- Kein HTML, kein Markdown, keine Aufzaehlungszeichen. Reiner Plain-Text.
-- Ich-Form, keine Wir-Form.
-- Wiederhole nicht was in der Skills-Tabelle steht. Die Tabelle kommt danach.
+VERBOTE:
+- NIEMALS den Namen des Kandidaten nennen. Schreibe immer "der Kandidat" oder "mein Kandidat".
+- NIEMALS den Namen des Arbeitgebers des Kandidaten nennen. Beschreibe stattdessen die Art des Unternehmens (z.B. "mittelstaendisches Produktionsunternehmen").
+- NIEMALS Floskeln wie: "umfangreiche Erfahrung", "fundierte Kenntnisse", "beeindruckende Kombination", "ideale Besetzung", "ideale Ergaenzung", "breites Spektrum", "unterstreicht", "in der Lage", "hat Erfahrung in", "hervorzuheben ist".
+- NIEMALS Word, Excel, MS-Office erwaehnen.
+- NIEMALS HTML, Markdown oder Aufzaehlungszeichen verwenden.
+- IMMER Ich-Form, NIE Wir-Form.
+- NIEMALS Inhalte wiederholen die in der Skills-Tabelle stehen. Das Portrait erzaehlt das Gesamtbild, die Tabelle zeigt den Detailabgleich.
 
 Antworte NUR mit JSON: {{"subject": "Betreffzeile (max 8 Woerter)", "body_text": "Der E-Mail-Text"}}"""
 
@@ -823,6 +821,10 @@ FORBIDDEN_PHRASES = [
     "microsoft office", "word und excel", "word, excel",
     "fundierte erfahrung", "breite erfahrung", "solide erfahrung",
     "idealer kandidat", "ideale kandidatin",
+    "umfassende erfahrung", "beeindruckende kombination", "ideale besetzung",
+    "unterstreicht", "hervorzuheben", "besonders hervorzuheben",
+    "breites spektrum", "hat erfahrung in", "in der lage",
+    "bringt mit", "zeichnet sich aus", "spiegelt wider",
 ]
 
 
@@ -915,7 +917,7 @@ async def _call_gpt4o(
                     "Content-Type": "application/json",
                 },
                 json={
-                    "model": "gpt-4o",
+                    "model": "gpt-4o-2024-11-20",
                     "messages": [
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_message},
