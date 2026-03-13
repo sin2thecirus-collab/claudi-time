@@ -974,7 +974,7 @@ async def _call_opus(
 
     try:
         response = await client.messages.create(
-            model="claude-opus-4-0-20250514",
+            model="claude-sonnet-4-20250514",
             max_tokens=max_tokens,
             temperature=temperature,
             system=system_prompt,
@@ -983,7 +983,7 @@ async def _call_opus(
         content = response.content[0].text.strip()
         input_tokens = response.usage.input_tokens
         output_tokens = response.usage.output_tokens
-        logger.info(f"Claude Call erfolgreich — Model: claude-opus-4-0-20250514, Input: {input_tokens}, Output: {output_tokens} Tokens")
+        logger.info(f"Claude Call erfolgreich — Model: claude-sonnet-4-20250514, Input: {input_tokens}, Output: {output_tokens} Tokens")
         return content
     except Exception as e:
         logger.error(f"Claude Call fehlgeschlagen: {e}")
