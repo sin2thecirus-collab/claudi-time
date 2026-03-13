@@ -204,7 +204,7 @@ Antworte NUR mit einem JSON-Objekt:
         # Optionale Felder nur einfuegen wenn vorhanden
         extra_sections = ""
         if candidate_data.get("call_transcript"):
-            extra_sections += f"\nQualifizierungsgespraech: {candidate_data['call_transcript'][:3000]}"
+            extra_sections += f"\nQualifizierungsgespraech: {candidate_data['call_transcript']}"
         elif candidate_data.get("key_activities"):
             extra_sections += f"\nKerntaetigkeiten: {candidate_data['key_activities']}"
         if candidate_data.get("desired_positions"):
@@ -293,7 +293,7 @@ IT-Skills: {candidate_data.get('it_skills', '')}{extra_sections}"""
         # Transkript hat Prioritaet, dann call_summary als Fallback
         qualification_context = ""
         if call_transcript:
-            qualification_context += f"\nQUALIFIZIERUNGSGESPRAECH (Transkript):\n{call_transcript[:4000]}\n"
+            qualification_context += f"\nQUALIFIZIERUNGSGESPRAECH (Transkript):\n{call_transcript}\n"
         elif call_summary:
             qualification_context += f"\nGESPRAECHSZUSAMMENFASSUNG (aus Qualifizierungsgespraech):\n{call_summary}\n"
         if change_motivation:
