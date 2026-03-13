@@ -473,6 +473,10 @@ app.include_router(new_match_center_router)
 from app.api.routes_presentation import router as presentation_router
 app.include_router(presentation_router)
 
+# Direkte Kandidaten-Vorstellung (/api/presentations/direct/...)
+from app.api.routes_candidate_presentation import router as candidate_presentation_router
+app.include_router(candidate_presentation_router)
+
 # Status & Query API (/api/status/overview, /api/status/geodaten, /api/status/profiling, ...)
 app.include_router(status_router, prefix="/api")
 

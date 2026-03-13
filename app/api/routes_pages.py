@@ -277,6 +277,11 @@ async def candidate_detail(
             "_is_legacy": True,
         })
 
+    # Mailboxes fuer Vorstellungs-Modal
+    import json
+    from app.services.presentation_service import MAILBOXES
+    mailboxes_json = json.dumps([{"email": mb["email"], "label": mb["label"]} for mb in MAILBOXES])
+
     return templates.TemplateResponse(
         "candidate_detail.html",
         {
@@ -287,6 +292,7 @@ async def candidate_detail(
             "todos_json": todos_serialized,
             "email_drafts_json": drafts_serialized,
             "seq_emails_json": seq_emails_serialized,
+            "mailboxes_json": mailboxes_json,
         }
     )
 

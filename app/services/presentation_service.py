@@ -28,12 +28,16 @@ from app.models.match import Match
 logger = logging.getLogger(__name__)
 
 # ── Verfuegbare Mailboxes (fix konfiguriert) ──
+# Domain-Zuordnung: sincirus.com (M365), sincirus-karriere.de (IONOS), jobs-sincirus.com (IONOS)
 MAILBOXES = [
-    {"email": "hamdard@sincirus.com", "label": "Outlook (Haupt)", "type": "outlook"},
-    {"email": "hamdard@sincirus-karriere.de", "label": "IONOS Karriere", "type": "ionos"},
-    {"email": "m.hamdard@sincirus-karriere.de", "label": "IONOS M.Karriere", "type": "ionos"},
-    {"email": "m.hamdard@jobs-sincirus.de", "label": "IONOS M.Jobs", "type": "ionos"},
-    {"email": "hamdard@jobs-sincirus.de", "label": "IONOS Jobs", "type": "ionos"},
+    {"email": "hamdard@sincirus.com", "label": "Outlook (Haupt)", "type": "outlook", "domain": "sincirus.com"},
+    {"email": "m.hamdard@sincirus.com", "label": "M365 M.", "type": "outlook", "domain": "sincirus.com"},
+    {"email": "milad-hamdard@sincirus.com", "label": "M365 ML-", "type": "outlook", "domain": "sincirus.com"},
+    {"email": "milad.hamdard@sincirus.com", "label": "M365 ML.", "type": "outlook", "domain": "sincirus.com"},
+    {"email": "hamdard@sincirus-karriere.de", "label": "IONOS Karriere", "type": "ionos", "domain": "sincirus-karriere.de"},
+    {"email": "m.hamdard@sincirus-karriere.de", "label": "IONOS M.Karriere", "type": "ionos", "domain": "sincirus-karriere.de"},
+    {"email": "m.hamdard@jobs-sincirus.com", "label": "IONOS M.Jobs", "type": "ionos", "domain": "jobs-sincirus.com"},
+    {"email": "hamdard@jobs-sincirus.com", "label": "IONOS Jobs", "type": "ionos", "domain": "jobs-sincirus.com"},
 ]
 
 

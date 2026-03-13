@@ -486,7 +486,7 @@
 {% set city_display = '' if city_invalid else raw_city %}
 {# ── End Data Quality ── #}
 
-<div class="kd-wrap min-h-screen" x-data="{ activeTab: 'uebersicht', showPipelineModal: false, pipelineStatus: '{{ candidate.pipeline_status or 'new' }}' }">
+<div class="kd-wrap min-h-screen" x-data="{ activeTab: 'uebersicht', showPipelineModal: false, showDirectPresentationModal: false, pipelineStatus: '{{ candidate.pipeline_status or 'new' }}' }">
 
     {# ── Sticky Header ── #}
     <div class="kd-sticky-header">
@@ -505,6 +505,7 @@
                 <button type="button" onclick="triggerNichtErreicht('{{ candidate.id }}')" class="kd-quickbtn" style="background:var(--pp-orangeSoft); color:var(--pp-orange); border:1px solid rgba(234,179,8,0.25);" id="btn-nicht-erreicht" title="E-Mail-Sequenz starten (3 Emails &uuml;ber 5 Tage)">&#x1F4E7; Nicht erreicht</button>
                 {% endif %}
                 <button type="button" @click="showPipelineModal = true" class="kd-quickbtn kd-quickbtn-primary">&#x1F680; Pipeline</button>
+                <button type="button" @click="showDirectPresentationModal = true" class="kd-quickbtn" style="background:linear-gradient(135deg, rgba(168,85,247,0.15), rgba(139,92,246,0.15)); color:#a855f7; border:1px solid rgba(168,85,247,0.3); font-weight:600;" title="Kandidat direkt bei einem Unternehmen vorstellen">&#x1F4E9; Kandidat vorstellen</button>
                 <button type="button" onclick="findJobsForCandidate('{{ candidate.id }}')" class="kd-quickbtn" style="background:var(--pp-accentSoft); color:var(--pp-accent); border:1px solid rgba(99,102,241,0.25);" id="btn-jobs-finden" title="Claude Matching: Passende Jobs fuer diesen Kandidaten finden">&#x1F50D; Jobs finden</button>
                 <button type="button" onclick="sendToMarketing('{{ candidate.id }}')" class="kd-quickbtn" style="background:linear-gradient(135deg, rgba(34,197,94,0.12), rgba(16,185,129,0.12)); color:#059669; border:1px solid rgba(34,197,94,0.3); font-weight:600;" id="btn-send-marketing" title="Profil-PDF + Transkript an Marketing-Agentur (Google Drive) senden">&#x1F4E4; An Marketing</button>
                 <button type="button" onclick="deleteCandidate('{{ candidate.id }}', '{{ display_name }}')" class="kd-quickbtn kd-quickbtn-danger">&#x1F5D1;</button>
@@ -624,6 +625,9 @@
             <span style="font-size:11px;font-weight:700;background:var(--pp-accentSoft);color:var(--pp-accent);padding:1px 7px;border-radius:99px;margin-left:4px;">{{ seq_emails_json | length }}</span>
             {% endif %}
         </button>
+        <button type="button" @click="activeTab = 'vorstellungen'" class="kd-tab-btn" :class="activeTab === 'vorstellungen' ? 'active' : ''">
+            <span>&#x1F4E9;</span> Vorstellungen
+        </button>
         <button type="button" @click="activeTab = 'dateien'" class="kd-tab-btn" :class="activeTab === 'dateien' ? 'active' : ''">
             <span>&#x1F4CE;</span> Dateien
         </button>
@@ -661,6 +665,168 @@
                     {% endfor %}
                 </div>
                 <button type="button" @click="showPipelineModal = false" class="w-full mt-4 py-2.5 rounded-xl text-sm font-bold cursor-pointer" style="background:var(--pp-surfaceHover); border:1px solid var(--pp-border); color:var(--pp-textMuted); font-family:inherit;">Abbrechen</button>
+            </div>
+        </div>
+    </template>
+
+    {# ══════════════ DIREKTE VORSTELLUNG MODAL ══════════════ #}
+    <template x-if="showDirectPresentationModal">
+        <div style="position:fixed; inset:0; z-index:200; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.5); backdrop-filter:blur(4px);" @click.self="showDirectPresentationModal = false" @close-presentation-modal.window="showDirectPresentationModal = false">
+            <div x-data="directPresentationModal()" style="background:var(--pp-surface); border-radius:20px; padding:32px; width:min(90vw,720px); max-height:85vh; overflow-y:auto; box-shadow:0 25px 50px rgba(0,0,0,0.3); border:1px solid var(--pp-border);">
+                {# Header #}
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+                    <h3 style="margin:0; font-size:1.2rem; font-weight:700; color:var(--pp-text);">
+                        &#x1F4E9; Kandidat vorstellen
+                    </h3>
+                    <button type="button" @click="reset(); $dispatch('close-presentation-modal')" style="background:none; border:none; font-size:1.4rem; cursor:pointer; color:var(--pp-textMuted); padding:4px 8px;">&times;</button>
+                </div>
+
+                {# Progress Steps #}
+                <div style="display:flex; gap:8px; margin-bottom:24px;">
+                    <template x-for="s in [
+                        {n:1, label:'Stellentext'},
+                        {n:2, label:'Analyse'},
+                        {n:3, label:'E-Mail'},
+                        {n:4, label:'Fertig'}
+                    ]">
+                        <div :style="'flex:1; height:4px; border-radius:2px; background:' + (s.n <= step ? 'var(--pp-accent)' : 'var(--pp-border)')"></div>
+                    </template>
+                </div>
+                <div style="display:flex; gap:8px; margin-bottom:24px;">
+                    <template x-for="s in [
+                        {n:1, label:'Stellentext'},
+                        {n:2, label:'Analyse'},
+                        {n:3, label:'E-Mail'},
+                        {n:4, label:'Fertig'}
+                    ]">
+                        <span :style="'flex:1; text-align:center; font-size:0.7rem; font-weight:' + (s.n === step ? '700' : '400') + '; color:' + (s.n <= step ? 'var(--pp-accent)' : 'var(--pp-textMuted)')" x-text="s.label"></span>
+                    </template>
+                </div>
+
+                {# ── Step 1: Stellentext eingeben ── #}
+                <div x-show="step === 1">
+                    <p style="font-size:0.85rem; color:var(--pp-textMuted); margin-bottom:12px;">Stellenanzeige hier einf&uuml;gen — GPT-4o extrahiert automatisch Firma, Kontaktdaten und Anforderungen.</p>
+                    <textarea x-model="jobText" placeholder="Stellentext hier einf&uuml;gen..." rows="12" style="width:100%; border-radius:12px; border:1px solid var(--pp-border); padding:14px; font-size:0.85rem; font-family:inherit; background:var(--pp-bg); color:var(--pp-text); resize:vertical;"></textarea>
+                    <button type="button" @click="analyzeJob()" :disabled="loading || !jobText.trim()" style="margin-top:16px; width:100%; padding:12px; border-radius:12px; border:none; font-weight:700; font-size:0.9rem; cursor:pointer; font-family:inherit; background:linear-gradient(135deg, #6366f1, #8b5cf6); color:white;" :style="loading ? 'opacity:0.6;cursor:wait;' : ''">
+                        <span x-show="!loading">&#x1F50D; Analysieren</span>
+                        <span x-show="loading">&#x23F3; GPT-4o analysiert...</span>
+                    </button>
+                </div>
+
+                {# ── Step 2: Analyse-Ergebnis + Skills ── #}
+                <div x-show="step === 2">
+                    {# Spam-Warnung #}
+                    <template x-if="spamCheck && spamCheck.blocked">
+                        <div style="background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:12px; padding:14px; margin-bottom:16px;">
+                            <span style="font-weight:700; color:#ef4444;">&#x26A0; Spam-Schutz:</span>
+                            <span style="color:var(--pp-text); font-size:0.85rem;" x-text="spamCheck.reason"></span>
+                            <template x-if="spamCheck.level === 'yellow'">
+                                <label style="display:flex; align-items:center; gap:6px; margin-top:8px; font-size:0.8rem; color:var(--pp-textMuted);"><input type="checkbox" x-model="spamCheck.override"> Trotzdem senden</label>
+                            </template>
+                        </div>
+                    </template>
+
+                    {# Extrahierte Daten #}
+                    <div style="background:var(--pp-bg); border:1px solid var(--pp-border); border-radius:12px; padding:16px; margin-bottom:16px;">
+                        <h4 style="margin:0 0 12px; font-size:0.9rem; font-weight:700;">Extrahierte Daten</h4>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:0.8rem;">
+                            <div><span style="color:var(--pp-textMuted);">Firma:</span> <strong x-text="extractedData?.company_name || '—'"></strong></div>
+                            <div><span style="color:var(--pp-textMuted);">Stadt:</span> <span x-text="extractedData?.city || '—'"></span></div>
+                            <div><span style="color:var(--pp-textMuted);">Position:</span> <span x-text="extractedData?.job_title || '—'"></span></div>
+                            <div><span style="color:var(--pp-textMuted);">Kontakt:</span> <span x-text="extractedData?.contact_name || '—'"></span></div>
+                            <div><span style="color:var(--pp-textMuted);">E-Mail:</span> <span x-text="extractedData?.contact_email || '—'"></span></div>
+                            <div><span style="color:var(--pp-textMuted);">Domain:</span> <span x-text="extractedData?.domain || '—'"></span></div>
+                        </div>
+                    </div>
+
+                    {# Skills-Vergleich #}
+                    <template x-if="skillsComparison && skillsComparison.matches">
+                        <div style="background:var(--pp-bg); border:1px solid var(--pp-border); border-radius:12px; padding:16px; margin-bottom:16px;">
+                            <h4 style="margin:0 0 12px; font-size:0.9rem; font-weight:700;">Skills-Vergleich</h4>
+                            <table style="width:100%; font-size:0.8rem; border-collapse:collapse;">
+                                <thead>
+                                    <tr style="border-bottom:1px solid var(--pp-border);">
+                                        <th style="text-align:left; padding:6px 8px; color:var(--pp-textMuted); font-weight:600;">Anforderung</th>
+                                        <th style="text-align:left; padding:6px 8px; color:var(--pp-textMuted); font-weight:600;">Kandidat</th>
+                                        <th style="text-align:center; padding:6px 8px; color:var(--pp-textMuted); font-weight:600;">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="m in skillsComparison.matches">
+                                        <tr style="border-bottom:1px solid var(--pp-border);">
+                                            <td style="padding:6px 8px;" x-text="m.requirement"></td>
+                                            <td style="padding:6px 8px;" x-text="m.candidate_evidence"></td>
+                                            <td style="padding:6px 8px; text-align:center;">
+                                                <span x-show="m.status === 'erfuellt'" style="color:#22c55e;">&#x2713;</span>
+                                                <span x-show="m.status === 'teilweise'" style="color:#f59e0b;">&#x25CB;</span>
+                                                <span x-show="m.status === 'nicht_vorhanden'" style="color:#ef4444;">&#x2717;</span>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                            <template x-if="skillsComparison.overall_assessment">
+                                <p style="margin:12px 0 0; font-size:0.8rem; color:var(--pp-textMuted);" x-text="skillsComparison.overall_assessment"></p>
+                            </template>
+                        </div>
+                    </template>
+
+                    <div style="display:flex; gap:12px;">
+                        <button type="button" @click="step = 1" style="flex:1; padding:12px; border-radius:12px; border:1px solid var(--pp-border); background:var(--pp-surface); color:var(--pp-text); font-weight:600; font-size:0.85rem; cursor:pointer; font-family:inherit;">&#x2190; Zur&uuml;ck</button>
+                        <button type="button" @click="generateEmail()" :disabled="loading || (spamCheck && spamCheck.blocked && spamCheck.level === 'red')" style="flex:2; padding:12px; border-radius:12px; border:none; font-weight:700; font-size:0.9rem; cursor:pointer; font-family:inherit; background:linear-gradient(135deg, #6366f1, #8b5cf6); color:white;" :style="loading ? 'opacity:0.6;cursor:wait;' : ''">
+                            <span x-show="!loading">&#x1F4E7; E-Mail generieren</span>
+                            <span x-show="loading">&#x23F3; GPT-4o generiert...</span>
+                        </button>
+                    </div>
+                </div>
+
+                {# ── Step 3: E-Mail Vorschau ── #}
+                <div x-show="step === 3">
+                    <div style="margin-bottom:16px;">
+                        <label style="font-size:0.8rem; font-weight:600; color:var(--pp-textMuted); display:block; margin-bottom:6px;">Betreff</label>
+                        <input type="text" x-model="emailData.subject" style="width:100%; border-radius:10px; border:1px solid var(--pp-border); padding:10px 14px; font-size:0.85rem; font-family:inherit; background:var(--pp-bg); color:var(--pp-text);">
+                    </div>
+                    <div style="margin-bottom:16px;">
+                        <label style="font-size:0.8rem; font-weight:600; color:var(--pp-textMuted); display:block; margin-bottom:6px;">E-Mail-Text</label>
+                        <textarea x-model="emailData.body_text" rows="14" style="width:100%; border-radius:10px; border:1px solid var(--pp-border); padding:14px; font-size:0.85rem; font-family:inherit; background:var(--pp-bg); color:var(--pp-text); resize:vertical;"></textarea>
+                    </div>
+                    <div style="display:flex; gap:12px; margin-bottom:16px;">
+                        <div style="flex:1;">
+                            <label style="font-size:0.8rem; font-weight:600; color:var(--pp-textMuted); display:block; margin-bottom:6px;">Postfach</label>
+                            <select x-model="selectedMailbox" style="width:100%; border-radius:10px; border:1px solid var(--pp-border); padding:10px 14px; font-size:0.85rem; font-family:inherit; background:var(--pp-bg); color:var(--pp-text);">
+                                <template x-for="mb in mailboxes">
+                                    <option :value="mb.email" x-text="mb.label + ' (' + mb.email + ')'"></option>
+                                </template>
+                            </select>
+                        </div>
+                        <div style="flex:1;">
+                            <label style="font-size:0.8rem; font-weight:600; color:var(--pp-textMuted); display:block; margin-bottom:6px;">An</label>
+                            <input type="text" :value="extractedData?.contact_email || ('info@' + (extractedData?.domain || 'unbekannt.de'))" disabled style="width:100%; border-radius:10px; border:1px solid var(--pp-border); padding:10px 14px; font-size:0.85rem; font-family:inherit; background:var(--pp-surfaceHover); color:var(--pp-textMuted);">
+                        </div>
+                    </div>
+                    <p style="font-size:0.75rem; color:var(--pp-textMuted); margin-bottom:16px;">&#x2139; Kein PDF-Anhang bei Erstvorstellung (Spam-Schutz). Reply-To: hamdard@sincirus.com</p>
+                    <div style="display:flex; gap:12px;">
+                        <button type="button" @click="step = 2" style="flex:1; padding:12px; border-radius:12px; border:1px solid var(--pp-border); background:var(--pp-surface); color:var(--pp-text); font-weight:600; font-size:0.85rem; cursor:pointer; font-family:inherit;">&#x2190; Zur&uuml;ck</button>
+                        <button type="button" @click="sendEmail()" :disabled="loading" style="flex:2; padding:12px; border-radius:12px; border:none; font-weight:700; font-size:0.9rem; cursor:pointer; font-family:inherit; background:linear-gradient(135deg, #22c55e, #16a34a); color:white;" :style="loading ? 'opacity:0.6;cursor:wait;' : ''">
+                            <span x-show="!loading">&#x1F4E8; Absenden (Draft)</span>
+                            <span x-show="loading">&#x23F3; Wird erstellt...</span>
+                        </button>
+                    </div>
+                </div>
+
+                {# ── Step 4: Bestaetigung ── #}
+                <div x-show="step === 4" style="text-align:center; padding:20px 0;">
+                    <div style="font-size:3rem; margin-bottom:12px;">&#x2705;</div>
+                    <h4 style="margin:0 0 8px; font-size:1.1rem; font-weight:700; color:var(--pp-text);">Vorstellung erstellt!</h4>
+                    <p style="font-size:0.85rem; color:var(--pp-textMuted); margin-bottom:8px;" x-text="'Firma: ' + (extractedData?.company_name || '') + ' | Status: Draft'"></p>
+                    <template x-if="sendResult && sendResult.presentation_id">
+                        <p style="font-size:0.8rem; color:var(--pp-accent);">n8n versendet die E-Mail und plant Follow-Ups (Tag 3 + Tag 7).</p>
+                    </template>
+                    <div style="display:flex; gap:12px; margin-top:24px; justify-content:center;">
+                        <button type="button" @click="reset(); step = 1;" style="padding:10px 24px; border-radius:12px; border:1px solid var(--pp-border); background:var(--pp-surface); color:var(--pp-text); font-weight:600; font-size:0.85rem; cursor:pointer; font-family:inherit;">Weitere Vorstellung</button>
+                        <button type="button" @click="reset(); $dispatch('close-presentation-modal'); setTimeout(function(){ document.querySelector('[x-data]').__x.$data.activeTab = 'vorstellungen'; }, 100);" style="padding:10px 24px; border-radius:12px; border:none; background:var(--pp-accent); color:white; font-weight:700; font-size:0.85rem; cursor:pointer; font-family:inherit;">Zum Vorstellungen-Tab</button>
+                    </div>
+                </div>
             </div>
         </div>
     </template>
@@ -2310,6 +2476,107 @@
                 {# ── Automatisierungs-Aufgaben: ENTFERNT — Tasks sind jetzt alle im Aufgaben-Tab vereint ── #}
             </div>
 
+            {# ═══ TAB: Vorstellungen (Unternehmensvorstellungen) ═══ #}
+            <div x-show="activeTab === 'vorstellungen'" x-cloak x-data="vorstellungenTab()" x-init="loadPresentations()" style="display:flex; flex-direction:column; gap:20px;">
+
+                {# CSV-Bulk-Upload Button #}
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h3 style="font-size:16px; font-weight:700; color:var(--pp-text); margin:0;">Unternehmensvorstellungen</h3>
+                    <div style="display:flex; gap:8px;">
+                        <button type="button" @click="showDirectPresentationModal = true" class="kd-quickbtn" style="background:linear-gradient(135deg, rgba(168,85,247,0.15), rgba(139,92,246,0.15)); color:#a855f7; border:1px solid rgba(168,85,247,0.3); font-size:13px;">&#x2795; Manuell vorstellen</button>
+                        <button type="button" @click="showCsvUpload = !showCsvUpload" class="kd-quickbtn" style="background:linear-gradient(135deg, rgba(34,197,94,0.12), rgba(16,185,129,0.12)); color:#059669; border:1px solid rgba(34,197,94,0.3); font-size:13px;">&#x1F4C1; CSV-Bulk-Upload</button>
+                    </div>
+                </div>
+
+                {# CSV-Upload Panel #}
+                <div x-show="showCsvUpload" x-cloak style="background:rgba(14,16,25,0.6); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:20px;">
+                    <div style="display:flex; flex-direction:column; gap:12px;">
+                        <label style="font-size:13px; color:var(--pp-textMuted);">CSV-Datei hochladen (advertsdata.com Tab-Format)</label>
+                        <input type="file" accept=".csv,.tsv,.txt" @change="handleCsvUpload($event)" style="font-size:13px; color:var(--pp-text);">
+                        <template x-if="csvPreview && csvPreview.rows">
+                            <div>
+                                <p style="font-size:13px; color:var(--pp-text); margin:8px 0;">
+                                    <span style="color:var(--pp-green);" x-text="csvPreview.sendable + ' sendbar'"></span> &middot;
+                                    <span style="color:var(--pp-orange);" x-text="csvPreview.skipped + ' uebersprungen'"></span> &middot;
+                                    Gesamt: <span x-text="csvPreview.total_rows"></span>
+                                </p>
+                                <div style="max-height:300px; overflow-y:auto; border:1px solid rgba(255,255,255,0.06); border-radius:8px;">
+                                    <table style="width:100%; font-size:12px; border-collapse:collapse;">
+                                        <thead><tr style="background:rgba(255,255,255,0.03);">
+                                            <th style="padding:6px 8px; text-align:left; color:var(--pp-textMuted);">Firma</th>
+                                            <th style="padding:6px 8px; text-align:left; color:var(--pp-textMuted);">Position</th>
+                                            <th style="padding:6px 8px; text-align:left; color:var(--pp-textMuted);">Stadt</th>
+                                            <th style="padding:6px 8px; text-align:center; color:var(--pp-textMuted);">Status</th>
+                                        </tr></thead>
+                                        <tbody>
+                                            <template x-for="row in csvPreview.rows" :key="row._row_index">
+                                                <tr style="border-top:1px solid rgba(255,255,255,0.04);">
+                                                    <td style="padding:6px 8px; color:var(--pp-text);" x-text="row.company_name"></td>
+                                                    <td style="padding:6px 8px; color:var(--pp-text);" x-text="row.position"></td>
+                                                    <td style="padding:6px 8px; color:var(--pp-textMuted);" x-text="row.city"></td>
+                                                    <td style="padding:6px 8px; text-align:center;">
+                                                        <span x-show="row.can_send" style="color:var(--pp-green); font-weight:600;">&#x2713;</span>
+                                                        <span x-show="!row.can_send" style="color:var(--pp-orange); font-size:11px;" x-text="row.skip_reason"></span>
+                                                    </td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <button type="button" @click="startBulk()" class="kd-quickbtn kd-quickbtn-primary" style="margin-top:12px;" :disabled="bulkRunning || csvPreview.sendable === 0">
+                                    <span x-show="!bulkRunning">&#x1F680; Bulk-Versand starten (<span x-text="csvPreview.sendable"></span> E-Mails)</span>
+                                    <span x-show="bulkRunning">&#x23F3; Verarbeite... <span x-text="bulkProgress.processed"></span>/<span x-text="bulkProgress.total_rows"></span></span>
+                                </button>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                {# Vorstellungen-Liste #}
+                <template x-if="loading">
+                    <p style="color:var(--pp-textMuted); font-size:13px; text-align:center; padding:40px 0;">Lade Vorstellungen...</p>
+                </template>
+                <template x-if="!loading && presentations.length === 0">
+                    <div style="text-align:center; padding:60px 20px; color:var(--pp-textMuted);">
+                        <div style="font-size:48px; margin-bottom:12px;">&#x1F4E9;</div>
+                        <p style="font-size:15px;">Noch keine Vorstellungen gesendet</p>
+                        <p style="font-size:13px; margin-top:4px;">Nutzen Sie "Kandidat vorstellen" oder den CSV-Bulk-Upload.</p>
+                    </div>
+                </template>
+                <template x-if="!loading && presentations.length > 0">
+                    <div style="display:flex; flex-direction:column; gap:10px;">
+                        <template x-for="p in presentations" :key="p.id">
+                            <div style="background:rgba(14,16,25,0.6); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:16px; cursor:pointer;" @click="p._expanded = !p._expanded">
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <div style="display:flex; align-items:center; gap:10px;">
+                                        <a :href="'/unternehmen/' + p.company_id" @click.stop style="color:var(--pp-accent); font-weight:600; font-size:14px; text-decoration:none;" x-text="p.company_name"></a>
+                                        <span style="font-size:12px; color:var(--pp-textMuted);" x-text="p.company_city"></span>
+                                    </div>
+                                    <div style="display:flex; align-items:center; gap:8px;">
+                                        <span style="font-size:11px; padding:2px 8px; border-radius:99px; font-weight:600;"
+                                              :style="p.status === 'responded' ? 'background:rgba(34,197,94,0.15); color:#22c55e;' :
+                                                       p.status === 'sent' ? 'background:rgba(59,130,246,0.15); color:#3b82f6;' :
+                                                       p.status === 'draft' ? 'background:rgba(234,179,8,0.15); color:#eab308;' :
+                                                       p.status === 'cancelled' ? 'background:rgba(239,68,68,0.15); color:#ef4444;' :
+                                                       'background:rgba(255,255,255,0.06); color:var(--pp-textMuted);'"
+                                              x-text="p.status"></span>
+                                        <span style="font-size:11px; color:var(--pp-textMuted);" x-text="p.created_at ? new Date(p.created_at).toLocaleDateString('de-DE') : ''"></span>
+                                    </div>
+                                </div>
+                                <div x-show="p._expanded" x-cloak style="margin-top:12px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.06);">
+                                    <div style="font-size:12px; color:var(--pp-textMuted); margin-bottom:4px;">
+                                        <strong>An:</strong> <span x-text="p.email_to"></span> &middot;
+                                        <strong>Von:</strong> <span x-text="p.mailbox_used"></span> &middot;
+                                        <strong>Betreff:</strong> <span x-text="p.email_subject"></span>
+                                    </div>
+                                    <pre style="font-size:12px; color:var(--pp-text); white-space:pre-wrap; background:rgba(0,0,0,0.2); padding:12px; border-radius:8px; margin-top:8px; max-height:300px; overflow-y:auto;" x-text="p.email_body_text"></pre>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+            </div>
+
             {# ═══ TAB: Dateien ═══ #}
             <div x-show="activeTab === 'dateien'" x-cloak x-data="fileManager()" style="display:flex; flex-direction:column; gap:20px;">
 
@@ -3376,6 +3643,201 @@ function stopEmailSequence(candidateId) {
         if (typeof showToast === 'function') showToast('Fehler: ' + err.message, 'error');
         console.error('Sequenz-Stop Fehler:', err);
     });
+}
+
+// ==================== Vorstellungen-Tab ====================
+function vorstellungenTab() {
+    var candidateId = '{{ candidate.id }}';
+    return {
+        presentations: [],
+        loading: true,
+        showCsvUpload: false,
+        csvPreview: null,
+        bulkRunning: false,
+        bulkProgress: { processed: 0, total_rows: 0 },
+        _bulkPollTimer: null,
+
+        async loadPresentations() {
+            try {
+                var resp = await fetch('/api/presentations/direct/candidate/' + candidateId);
+                var data = await resp.json();
+                this.presentations = (data.presentations || []).map(function(p) { p._expanded = false; return p; });
+            } catch(e) {
+                console.error('Vorstellungen laden fehlgeschlagen:', e);
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        async handleCsvUpload(event) {
+            var file = event.target.files[0];
+            if (!file) return;
+            var formData = new FormData();
+            formData.append('file', file);
+            formData.append('candidate_id', candidateId);
+            try {
+                var resp = await fetch('/api/presentations/direct/bulk/upload?candidate_id=' + candidateId, {
+                    method: 'POST',
+                    body: formData,
+                });
+                this.csvPreview = await resp.json();
+            } catch(e) {
+                alert('CSV-Upload fehlgeschlagen: ' + e.message);
+            }
+        },
+
+        async startBulk() {
+            if (!this.csvPreview || this.bulkRunning) return;
+            this.bulkRunning = true;
+            var sendableRows = this.csvPreview.rows.filter(function(r) { return r.can_send; });
+            try {
+                var resp = await fetch('/api/presentations/direct/bulk/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ candidate_id: candidateId, rows: sendableRows }),
+                });
+                var data = await resp.json();
+                this.bulkProgress = { processed: 0, total_rows: data.total_rows };
+                this._pollBulkStatus(data.batch_id);
+            } catch(e) {
+                alert('Bulk-Start fehlgeschlagen: ' + e.message);
+                this.bulkRunning = false;
+            }
+        },
+
+        _pollBulkStatus(batchId) {
+            var self = this;
+            self._bulkPollTimer = setInterval(async function() {
+                try {
+                    var resp = await fetch('/api/presentations/direct/bulk/' + batchId + '/status');
+                    var data = await resp.json();
+                    self.bulkProgress = data;
+                    if (data.status === 'completed' || data.status === 'failed') {
+                        clearInterval(self._bulkPollTimer);
+                        self.bulkRunning = false;
+                        self.loadPresentations();
+                    }
+                } catch(e) {
+                    clearInterval(self._bulkPollTimer);
+                    self.bulkRunning = false;
+                }
+            }, 2000);
+        }
+    };
+}
+
+// ==================== Direkte Vorstellung Modal ====================
+function directPresentationModal() {
+    var candidateId = '{{ candidate.id }}';
+    var mailboxes = {{ mailboxes_json | default('[]') | safe }};
+    return {
+        step: 1,
+        loading: false,
+        jobText: '',
+        extractedData: null,
+        skillsComparison: null,
+        driveTime: null,
+        spamCheck: null,
+        emailData: { subject: '', body_text: '' },
+        selectedMailbox: mailboxes.length > 0 ? mailboxes[0].email : '',
+        mailboxes: mailboxes,
+        sendResult: null,
+
+        async analyzeJob() {
+            if (!this.jobText.trim()) return;
+            this.loading = true;
+            try {
+                // Step 1: Job-Text analysieren
+                var resp = await fetch('/api/presentations/direct/extract-job', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ job_posting_text: this.jobText }),
+                });
+                var data = await resp.json();
+                this.extractedData = data;
+                this.spamCheck = data.spam_check || null;
+
+                // Step 2: Skills-Match
+                var matchResp = await fetch('/api/presentations/direct/skills-match', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ candidate_id: candidateId, extracted_job_data: data }),
+                });
+                this.skillsComparison = await matchResp.json();
+                this.step = 2;
+            } catch(e) {
+                alert('Analyse fehlgeschlagen: ' + e.message);
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        async generateEmail() {
+            this.loading = true;
+            try {
+                var resp = await fetch('/api/presentations/direct/generate-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        candidate_id: candidateId,
+                        extracted_job_data: this.extractedData,
+                        skills_comparison: this.skillsComparison,
+                        drive_time: this.driveTime,
+                        step: 1,
+                    }),
+                });
+                this.emailData = await resp.json();
+                this.step = 3;
+            } catch(e) {
+                alert('E-Mail-Generierung fehlgeschlagen: ' + e.message);
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        async sendEmail() {
+            this.loading = true;
+            try {
+                var resp = await fetch('/api/presentations/direct/send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        candidate_id: candidateId,
+                        company_name: this.extractedData.company_name,
+                        city: this.extractedData.city,
+                        contact_name: this.extractedData.contact_name,
+                        contact_salutation: this.extractedData.contact_salutation,
+                        contact_email: this.extractedData.contact_email,
+                        email_to: this.extractedData.contact_email || 'info@' + (this.extractedData.domain || 'unbekannt.de'),
+                        email_from: this.selectedMailbox,
+                        email_subject: this.emailData.subject,
+                        email_body_text: this.emailData.body_text,
+                        mailbox_used: this.selectedMailbox,
+                        job_posting_text: this.jobText,
+                        extracted_job_data: this.extractedData,
+                        skills_comparison: this.skillsComparison,
+                    }),
+                });
+                this.sendResult = await resp.json();
+                this.step = 4;
+            } catch(e) {
+                alert('Senden fehlgeschlagen: ' + e.message);
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        reset() {
+            this.step = 1;
+            this.jobText = '';
+            this.extractedData = null;
+            this.skillsComparison = null;
+            this.driveTime = null;
+            this.spamCheck = null;
+            this.emailData = { subject: '', body_text: '' };
+            this.sendResult = null;
+        }
+    };
 }
 
 // ==================== Dateien-Manager ====================

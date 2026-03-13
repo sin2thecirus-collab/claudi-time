@@ -97,6 +97,26 @@ class ClientPresentation(Base):
         UUID(as_uuid=True),
         ForeignKey("company_contacts.id", ondelete="SET NULL"),
     )
+    batch_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("presentation_batches.id", ondelete="SET NULL"),
+    )
+
+    # Quelle der Vorstellung
+    source: Mapped[str] = mapped_column(
+        String(20), default="match_center", server_default="match_center"
+    )  # match_center / candidate_direct / csv_bulk
+
+    # Direkte Vorstellung: Job-Text + extrahierte Daten
+    job_posting_text: Mapped[str | None] = mapped_column(Text)
+    extracted_job_data: Mapped[dict | None] = mapped_column(JSONB)  # GPT-extrahierte Daten
+    skills_comparison: Mapped[dict | None] = mapped_column(JSONB)  # Qualitativer Vergleich
+
+    # Reply-To + Response-Typ
+    reply_to_email: Mapped[str | None] = mapped_column(
+        String(500), default="hamdard@sincirus.com", server_default="hamdard@sincirus.com"
+    )
+    response_type: Mapped[str | None] = mapped_column(String(20))  # bounce / auto_reply / genuine_reply
 
     # E-Mail-Inhalte
     email_to: Mapped[str] = mapped_column(String(500), nullable=False)
@@ -179,6 +199,9 @@ class ClientPresentation(Base):
     )
     pipeline_entry: Mapped["ATSPipelineEntry | None"] = relationship(
         "ATSPipelineEntry", foreign_keys=[pipeline_entry_id]
+    )
+    batch: Mapped["PresentationBatch | None"] = relationship(
+        "PresentationBatch", foreign_keys=[batch_id]
     )
 
     # Indizes
