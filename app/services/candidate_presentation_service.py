@@ -203,7 +203,9 @@ Antworte NUR mit einem JSON-Objekt:
 
         # Optionale Felder nur einfuegen wenn vorhanden
         extra_sections = ""
-        if candidate_data.get("key_activities"):
+        if candidate_data.get("call_transcript"):
+            extra_sections += f"\nQualifizierungsgespraech: {candidate_data['call_transcript'][:3000]}"
+        elif candidate_data.get("key_activities"):
             extra_sections += f"\nKerntaetigkeiten: {candidate_data['key_activities']}"
         if candidate_data.get("desired_positions"):
             extra_sections += f"\nGewuenschte Positionen: {candidate_data['desired_positions']}"
@@ -280,21 +282,22 @@ IT-Skills: {candidate_data.get('it_skills', '')}{extra_sections}"""
 
         # Qualifizierungs-Daten aufbereiten (nur wenn vorhanden)
         change_motivation = candidate_data.get("change_motivation", "")
-        key_activities = candidate_data.get("key_activities", "")
-        desired_positions = candidate_data.get("desired_positions", "")
+        call_transcript = candidate_data.get("call_transcript", "")
         call_summary = candidate_data.get("call_summary", "")
+        desired_positions = candidate_data.get("desired_positions", "")
         home_office = candidate_data.get("home_office_days", "")
         education = candidate_data.get("education", [])
         languages = candidate_data.get("languages", {})
 
         # Kontext-Block nur mit vorhandenen Daten
+        # Transkript hat Prioritaet, dann call_summary als Fallback
         qualification_context = ""
-        if call_summary:
+        if call_transcript:
+            qualification_context += f"\nQUALIFIZIERUNGSGESPRAECH (Transkript):\n{call_transcript[:4000]}\n"
+        elif call_summary:
             qualification_context += f"\nGESPRAECHSZUSAMMENFASSUNG (aus Qualifizierungsgespraech):\n{call_summary}\n"
         if change_motivation:
             qualification_context += f"\nWECHSELMOTIVATION: {change_motivation}\n"
-        if key_activities:
-            qualification_context += f"\nKERNTAETIGKEITEN (aktuelle/letzte Stelle): {key_activities}\n"
         if desired_positions:
             qualification_context += f"\nGEWUENSCHTE POSITIONEN: {desired_positions}\n"
         if home_office:
@@ -316,9 +319,10 @@ STRUKTUR (in dieser Reihenfolge):
    - Beispiel-Stil: "Bezugnehmend auf Ihre ausgeschriebene Position als [Jobtitel] moechte ich Ihnen einen Kandidaten vorstellen, der fachlich und persoenlich hervorragend zu Ihrem Anforderungsprofil passt."
 
 2. KANDIDATEN-VORSTELLUNG (2-3 Saetze):
-   - WAS macht der Kandidat aktuell? (aus Kerntaetigkeiten/Berufserfahrung)
+   - WAS macht der Kandidat aktuell? (aus Qualifizierungsgespraech/Berufserfahrung)
    - WARUM passt er zu DIESER Stelle? (konkrete Verbindung Kandidat ↔ Stellenanforderungen)
    - Wenn Wechselmotivation vorhanden: WARUM sucht der Kandidat eine Veraenderung? (1 Satz, authentisch)
+   - Nutze Details aus dem Qualifizierungsgespraech fuer authentische, spezifische Formulierungen
 
 3. FACHLICHER VERGLEICH:
    - Schreibe GENAU den Platzhalter: {{{{SKILLS_TABLE}}}}
@@ -336,7 +340,7 @@ STRUKTUR (in dieser Reihenfolge):
 
 WICHTIGE REGELN:
 - KEINE Tabelle schreiben, NUR den Platzhalter {{{{SKILLS_TABLE}}}}
-- Verwende die ECHTEN Daten des Kandidaten (Berufserfahrung, Kerntaetigkeiten)
+- Verwende die ECHTEN Daten des Kandidaten (Berufserfahrung, Qualifizierungsgespraech)
 - Jeder Satz muss einen KONKRETEN Bezug zur Stelle oder zum Kandidaten haben
 - KEINE generischen Floskeln wie "hervorragender Kandidat" ohne Beleg
 - KEIN PDF-Anhang erwaehnen
@@ -734,6 +738,7 @@ Antworte NUR mit einem JSON-Objekt:
             "desired_positions": candidate.desired_positions or "",
             "key_activities": candidate.key_activities or "",
             "call_summary": candidate.call_summary or "",
+            "call_transcript": candidate.call_transcript or "",
             "home_office_days": candidate.home_office_days or "",
             "languages": candidate.languages or {},
             "education": candidate.education or [],
