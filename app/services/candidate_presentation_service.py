@@ -226,9 +226,8 @@ IT-Skills: {candidate_data.get('it_skills', '')}"""
 
   Anforderung                          Kandidat                              Bewertung
   ------------------------------------ ------------------------------------- ---------
-  Kaufmaennische Ausbildung            Steuerfachangestellte bei XY          ✓
-  Bilanzbuchhalter-Weiterbildung       Nicht vorhanden                       ✗
-  MS Office                            Outlook, Word, Excel                  ✓
+  [Anforderung aus Job]                [Echte Qualifikation des Kandidaten]  ✓
+  [Anforderung aus Job]                Nicht vorhanden                       ✗
 
   REGELN fuer die Tabelle:
   - Erste Zeile ist die Kopfzeile (Anforderung / Kandidat / Bewertung)
@@ -236,6 +235,8 @@ IT-Skills: {candidate_data.get('it_skills', '')}"""
   - Danach eine Zeile pro Anforderung
   - Spalten mit Leerzeichen ausrichten (KEINE Pipe-Zeichen |)
   - Bewertungs-Spalte: ✓ (erfuellt), ○ (teilweise), ✗ (nicht vorhanden)
+  - WICHTIG: Verwende die ECHTEN Daten aus den Skills-Vergleich-Daten unten, KEINE Platzhalter!
+  - In der Kandidat-Spalte: Echte Firmennamen, echte Qualifikationen, echte Software-Kenntnisse
   - Anforderungen kurz fassen (max 35 Zeichen pro Spalte)
   - Maximal 8 Zeilen
 - Nach der Tabelle: Fahrzeit ({drive_info or 'noch nicht berechnet'}), Verfuegbarkeit ({notice_period or 'auf Anfrage'}), Gehaltsrahmen ({salary_range or 'auf Anfrage'})
