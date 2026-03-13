@@ -123,6 +123,7 @@ class ClientPresentation(Base):
     email_from: Mapped[str] = mapped_column(String(500), nullable=False)
     email_subject: Mapped[str] = mapped_column(String(500), nullable=False)
     email_body_text: Mapped[str | None] = mapped_column(Text)
+    email_body_html: Mapped[str | None] = mapped_column(Text)
     email_signature_html: Mapped[str | None] = mapped_column(Text)
     mailbox_used: Mapped[str | None] = mapped_column(String(100))  # z.B. "hamdard@sincirus-karriere.de"
 

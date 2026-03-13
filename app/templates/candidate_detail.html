@@ -787,8 +787,9 @@
                         <input type="text" x-model="emailData.subject" style="width:100%; border-radius:10px; border:1px solid var(--pp-border); padding:10px 14px; font-size:0.85rem; font-family:inherit; background:var(--pp-bg); color:var(--pp-text);">
                     </div>
                     <div style="margin-bottom:16px;">
-                        <label style="font-size:0.8rem; font-weight:600; color:var(--pp-textMuted); display:block; margin-bottom:6px;">E-Mail-Text</label>
-                        <textarea x-model="emailData.body_text" rows="14" style="width:100%; border-radius:10px; border:1px solid var(--pp-border); padding:14px; font-size:0.85rem; font-family:inherit; background:var(--pp-bg); color:var(--pp-text); resize:vertical;"></textarea>
+                        <label style="font-size:0.8rem; font-weight:600; color:var(--pp-textMuted); display:block; margin-bottom:6px;">E-Mail-Vorschau</label>
+                        <div x-show="emailData.body_html" x-html="emailData.body_html" style="width:100%; border-radius:10px; border:1px solid var(--pp-border); padding:14px; font-size:0.85rem; background:#fff; color:#1f2937; max-height:500px; overflow-y:auto;"></div>
+                        <textarea x-show="!emailData.body_html" x-model="emailData.body_text" rows="14" style="width:100%; border-radius:10px; border:1px solid var(--pp-border); padding:14px; font-size:0.85rem; font-family:inherit; background:var(--pp-bg); color:var(--pp-text); resize:vertical;"></textarea>
                     </div>
                     <div style="display:flex; gap:12px; margin-bottom:16px;">
                         <div style="flex:1;">
@@ -3738,7 +3739,7 @@ function directPresentationModal() {
         skillsComparison: null,
         driveTime: null,
         spamCheck: null,
-        emailData: { subject: '', body_text: '' },
+        emailData: { subject: '', body_text: '', body_html: '' },
         selectedMailbox: mailboxes.length > 0 ? mailboxes[0].email : '',
         mailboxes: mailboxes,
         sendResult: null,
@@ -3812,6 +3813,7 @@ function directPresentationModal() {
                         email_from: this.selectedMailbox,
                         email_subject: this.emailData.subject,
                         email_body_text: this.emailData.body_text,
+                        email_body_html: this.emailData.body_html || '',
                         mailbox_used: this.selectedMailbox,
                         job_posting_text: this.jobText,
                         extracted_job_data: this.extractedData,
@@ -3834,7 +3836,7 @@ function directPresentationModal() {
             this.skillsComparison = null;
             this.driveTime = null;
             this.spamCheck = null;
-            this.emailData = { subject: '', body_text: '' };
+            this.emailData = { subject: '', body_text: '', body_html: '' };
             this.sendResult = null;
         }
     };

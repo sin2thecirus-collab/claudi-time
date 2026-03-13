@@ -40,6 +40,55 @@ www.sincirus.com
 Ballindamm 3, 20095 Hamburg
 """.strip()
 
+# ── HTML Signatur ──
+HTML_SIGNATURE = """
+<p style="margin-top:24px;color:#555;font-size:13px;border-top:1px solid #ddd;padding-top:12px;">
+Milad Hamdard<br>
+Senior Personalberater | Rechnungswesen &amp; Controlling<br>
+040 238 345 320 &nbsp;|&nbsp; +49 176 8000 47 41<br>
+<a href="mailto:hamdard@sincirus.com" style="color:#2563eb;">hamdard@sincirus.com</a><br>
+<a href="https://www.sincirus.com" style="color:#2563eb;">www.sincirus.com</a><br>
+Ballindamm 3, 20095 Hamburg
+</p>
+""".strip()
+
+
+def _build_skills_html_table(skills_comparison: dict) -> str:
+    """Baut eine HTML-Tabelle aus den Skills-Vergleich-Daten."""
+    matches = skills_comparison.get("matches", [])
+    if not matches:
+        return ""
+
+    status_icons = {
+        "erfuellt": ("&#10003;", "#16a34a", "#f0fdf4"),       # Gruen
+        "teilweise": ("&#9675;", "#d97706", "#fffbeb"),        # Amber
+        "nicht_vorhanden": ("&#10007;", "#dc2626", "#fef2f2"), # Rot
+    }
+
+    rows = ""
+    for m in matches:
+        req = m.get("requirement", "")
+        evidence = m.get("candidate_evidence", "")
+        status = m.get("status", "nicht_vorhanden")
+        icon, color, bg = status_icons.get(status, status_icons["nicht_vorhanden"])
+
+        rows += f"""<tr style="border-bottom:1px solid #e5e7eb;">
+<td style="padding:8px 12px;font-size:13px;">{req}</td>
+<td style="padding:8px 12px;font-size:13px;">{evidence}</td>
+<td style="padding:8px 12px;text-align:center;font-size:16px;color:{color};background:{bg};font-weight:bold;">{icon}</td>
+</tr>"""
+
+    return f"""<table style="width:100%;border-collapse:collapse;border:1px solid #d1d5db;margin:16px 0;font-family:Arial,sans-serif;">
+<thead>
+<tr style="background:#f3f4f6;">
+<th style="padding:10px 12px;text-align:left;font-size:13px;font-weight:600;border-bottom:2px solid #d1d5db;width:35%;">Anforderung</th>
+<th style="padding:10px 12px;text-align:left;font-size:13px;font-weight:600;border-bottom:2px solid #d1d5db;width:50%;">Kandidat</th>
+<th style="padding:10px 12px;text-align:center;font-size:13px;font-weight:600;border-bottom:2px solid #d1d5db;width:15%;">Bewertung</th>
+</tr>
+</thead>
+<tbody>{rows}</tbody>
+</table>"""
+
 
 # ── Pydantic Models fuer GPT-Responses ──
 
@@ -217,36 +266,18 @@ IT-Skills: {candidate_data.get('it_skills', '')}"""
                 drive_info += f", ca. {drive_time['transit_min']} Min. (OEPNV)"
 
         step_instructions = {
-            1: f"""Schreibe die ERSTE Vorstellungs-E-Mail. Inhalt:
+            1: f"""Schreibe die ERSTE Vorstellungs-E-Mail. WICHTIG: KEINE Tabelle schreiben!
+
+Inhalt:
 - Beginne mit "{anrede},"
 - Beginne den Text mit "Ich hoffe, es geht Ihnen gut."
 - Stelle den Kandidaten in 2-3 Saetzen kurz vor (Rolle: {primary_role})
-- Dann ein Skills-Vergleich als PLAIN-TEXT-TABELLE mit 3 Spalten.
-  EXAKTES Format (Spalten mit MINDESTENS 4 Leerzeichen trennen):
-
-  Anforderung              Kandidat                    Bewertung
-  ------------------------  --------------------------  ---------
-  Kaufm. Ausbildung         StFA bei Wiebecke           ✓
-  BiBu-Weiterbildung        Nicht vorhanden             ✗
-  MS Office                 Outlook, Word, Excel        ✓
-  DATEV                     Vorhanden                   ✓
-  Englischkenntnisse        Keine Angaben               ✗
-
-  REGELN fuer die Tabelle:
-  - Erste Zeile ist die Kopfzeile (Anforderung / Kandidat / Bewertung)
-  - Zweite Zeile ist eine Trennlinie aus Bindestrichen (----)
-  - Danach eine Zeile pro Anforderung
-  - MINDESTENS 4 Leerzeichen zwischen den Spalten (KEINE Pipe-Zeichen |)
-  - Bewertungs-Spalte: ✓ (erfuellt), ○ (teilweise), ✗ (nicht vorhanden)
-  - WICHTIG: Verwende die ECHTEN Daten aus den Skills-Vergleich-Daten unten, KEINE Platzhalter!
-  - Anforderungen KUERZEN auf max 25 Zeichen (z.B. "Kaufm. Ausbildung" statt "Abgeschlossene kaufmaennische Ausbildung")
-  - Kandidat-Spalte max 28 Zeichen (z.B. "StFA bei Wiebecke" statt "Ausbildung zur Steuerfachangestellten bei Wiebecke & Partner PartG mbB")
-  - Zusammengehoerige Anforderungen ZUSAMMENFASSEN (nicht splitten!)
-  - Maximal 8 Zeilen
-- Nach der Tabelle: Fahrzeit ({drive_info or 'noch nicht berechnet'}), Verfuegbarkeit ({notice_period or 'auf Anfrage'}), Gehaltsrahmen ({salary_range or 'auf Anfrage'})
+- Schreibe dann GENAU den Platzhalter: {{{{SKILLS_TABLE}}}}
+  (Die Tabelle wird automatisch eingefuegt, du musst sie NICHT schreiben!)
+- Nach dem Platzhalter: Fahrzeit ({drive_info or 'noch nicht berechnet'}), Verfuegbarkeit ({notice_period or 'auf Anfrage'}), Gehaltsrahmen ({salary_range or 'auf Anfrage'})
 - Schliesse mit: "Ich wuerde mich freuen, Ihnen weitere Details zukommen zu lassen."
 - KEIN PDF-Anhang erwaehnen (wird erst bei Interesse geschickt)
-- WICHTIG: Reiner Plain-Text! Kein Markdown, keine Pipe-Tabellen, keine **fett** Formatierung.""",
+- WICHTIG: Reiner Text fuer die Absaetze. Die Tabelle wird automatisch als {{{{SKILLS_TABLE}}}} eingefuegt.""",
 
             2: f"""Schreibe das ERSTE Follow-Up (Tag 3). Kurz und direkt:
 - Beginne mit "{anrede},"
@@ -268,16 +299,16 @@ IT-Skills: {candidate_data.get('it_skills', '')}"""
 
 WICHTIGE REGELN:
 - IMMER ICH-Form ("Ich betreue...", "Ich erkenne..."), NIEMALS Wir-Form
-- Reiner Plain-Text (KEIN HTML, KEIN Markdown)
 - Professionell aber persoenlich
 - Keine Floskeln wie "im Auftrag meines Kunden"
-- Skills-Vergleich als mit Leerzeichen ausgerichtete Tabelle (KEINE Pipe-Zeichen |, Spalten mit Spaces trennen)
+- KEINE Tabelle schreiben! Stattdessen den Platzhalter {{{{SKILLS_TABLE}}}} verwenden
+- KEIN Markdown, keine **fett** Formatierung
 
 {step_instructions.get(step, step_instructions[1])}
 
 KANDIDATEN-DATEN:
 Rolle: {primary_role}
-Skills-Vergleich: {json.dumps(skills_comparison, ensure_ascii=False)[:2000]}
+Gesamtbewertung: {skills_comparison.get('overall_assessment', '')}
 
 JOB-DATEN:
 Titel: {extracted_job_data.get('job_title', '')}
@@ -285,7 +316,7 @@ Firma: {extracted_job_data.get('company_name', '')}
 Stadt: {extracted_job_data.get('city', '')}
 
 Antworte NUR mit einem JSON-Objekt:
-{{"subject": "Betreffzeile (max 8 Woerter)", "body_text": "Der E-Mail-Text"}}"""
+{{"subject": "Betreffzeile (max 8 Woerter)", "body_text": "Der E-Mail-Text mit {{{{SKILLS_TABLE}}}} Platzhalter"}}"""
 
         try:
             result = await _call_gpt4o(
@@ -294,21 +325,51 @@ Antworte NUR mit einem JSON-Objekt:
                 max_tokens=1500,
             )
             data = _parse_json_safe(result)
+            body_text = data.get("body_text", "")
 
-            # Signatur anhaengen
-            body = data.get("body_text", "")
-            if PLAIN_TEXT_SIGNATURE not in body:
-                body = body.rstrip() + "\n\n--\n" + PLAIN_TEXT_SIGNATURE
+            # HTML-Tabelle aus Skills-Vergleich bauen
+            skills_table_html = _build_skills_html_table(skills_comparison)
+
+            # Text in HTML konvertieren: Absaetze -> <p> Tags
+            # {{SKILLS_TABLE}} Platzhalter durch echte HTML-Tabelle ersetzen
+            paragraphs = body_text.split("\n\n")
+            html_parts = []
+            for p in paragraphs:
+                p = p.strip()
+                if not p:
+                    continue
+                if "SKILLS_TABLE" in p or "{SKILLS_TABLE}" in p:
+                    html_parts.append(skills_table_html)
+                else:
+                    # Zeilenumbrueche innerhalb eines Absatzes als <br> behalten
+                    p_html = p.replace("\n", "<br>")
+                    html_parts.append(f'<p style="margin:0 0 12px 0;font-size:14px;line-height:1.6;color:#1f2937;">{p_html}</p>')
+
+            # Falls kein Platzhalter im Text war, Tabelle nach dem ersten Absatz einfuegen
+            if skills_table_html and skills_table_html not in "\n".join(html_parts):
+                html_parts.insert(min(2, len(html_parts)), skills_table_html)
+
+            body_html = f"""<div style="font-family:Arial,sans-serif;max-width:650px;">
+{"".join(html_parts)}
+{HTML_SIGNATURE}
+</div>"""
+
+            # Plain-Text Fallback (fuer Vorschau + Alt-Text)
+            plain_body = body_text.replace("{{SKILLS_TABLE}}", "").replace("{SKILLS_TABLE}", "")
+            if PLAIN_TEXT_SIGNATURE not in plain_body:
+                plain_body = plain_body.rstrip() + "\n\n--\n" + PLAIN_TEXT_SIGNATURE
 
             return {
                 "subject": data.get("subject", f"{primary_role} fuer {extracted_job_data.get('company_name', 'Ihre Stelle')}"),
-                "body_text": body,
+                "body_text": plain_body,
+                "body_html": body_html,
             }
         except Exception as e:
             logger.error(f"generate_presentation_email fehlgeschlagen: {e}")
             return {
                 "subject": f"{primary_role} - Kandidatenvorstellung",
                 "body_text": f"{anrede},\n\nIch moechte Ihnen einen qualifizierten Kandidaten vorstellen.\n\n--\n{PLAIN_TEXT_SIGNATURE}",
+                "body_html": "",
             }
 
     # ═══════════════════════════════════════════════════════════════
@@ -331,6 +392,7 @@ Antworte NUR mit einem JSON-Objekt:
         extracted_job_data: Optional[dict] = None,
         skills_comparison: Optional[dict] = None,
         batch_id: Optional[UUID] = None,
+        email_body_html: str = "",
     ) -> ClientPresentation:
         """Erstellt eine neue Presentation mit status=draft.
 
@@ -346,6 +408,7 @@ Antworte NUR mit einem JSON-Objekt:
             email_from=email_from,
             email_subject=email_subject,
             email_body_text=email_body_text,
+            email_body_html=email_body_html or None,
             mailbox_used=mailbox_used,
             presentation_mode="ai_generated",
             pdf_attached=False,  # Kein PDF bei Erstmail (Spam-Trigger)

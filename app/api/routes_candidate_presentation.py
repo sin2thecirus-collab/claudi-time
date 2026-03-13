@@ -64,6 +64,7 @@ class SendPresentationRequest(BaseModel):
     email_from: str
     email_subject: str
     email_body_text: str
+    email_body_html: str = ""
     mailbox_used: str
     job_posting_text: Optional[str] = None
     extracted_job_data: Optional[dict] = None
@@ -207,6 +208,7 @@ async def send_presentation(req: SendPresentationRequest, db: AsyncSession = Dep
         email_from=req.email_from,
         email_subject=req.email_subject,
         email_body_text=req.email_body_text,
+        email_body_html=req.email_body_html,
         mailbox_used=req.mailbox_used,
         source="candidate_direct",
         job_posting_text=req.job_posting_text,
@@ -403,6 +405,7 @@ async def _trigger_direct_n8n(presentation, contact_name: str = "") -> bool:
         "email_from": presentation.email_from,
         "email_subject": presentation.email_subject,
         "email_body_text": presentation.email_body_text,
+        "email_body_html": presentation.email_body_html or "",
         "email_signature_html": None,
         "mailbox_used": presentation.mailbox_used,
         "pdf_attached": False,
@@ -411,7 +414,7 @@ async def _trigger_direct_n8n(presentation, contact_name: str = "") -> bool:
         "presentation_mode": "ai_generated",
         "contact_name": contact_name,
         "reply_to": presentation.reply_to_email or "hamdard@sincirus.com",
-        "email_format": "plain_text",
+        "email_format": "html" if presentation.email_body_html else "plain_text",
         "source": presentation.source,
         "followup_schedule": {"step2_days": 3, "step3_days": 7},
     }
