@@ -309,42 +309,44 @@ IT-Skills: {candidate_data.get('it_skills', '')}{extra_sections}"""
             qualification_context += f"\nSPRACHEN: {json.dumps(languages, ensure_ascii=False)}\n"
 
         step_instructions = {
-            1: f"""Schreibe die ERSTE Vorstellungs-E-Mail. Ziel: Der Empfaenger soll sofort erkennen, dass ich mich INTENSIV mit der Stelle UND dem Kandidaten beschaeftigt habe.
+            1: f"""Schreibe eine Vorstellungs-E-Mail, die den Empfaenger BEEINDRUCKT.
 
-STRUKTUR (in dieser Reihenfolge):
+KONTEXT: Ich habe ein ausfuehrliches Qualifizierungsgespraech mit dem Kandidaten gefuehrt. Ich kenne seine aktuelle Taetigkeit, seine Wuensche, seine Motivation — und ich habe die Stellenausschreibung genau studiert. Diese E-Mail muss zeigen, dass ich BEIDE Seiten verstehe und eine echte Passung erkannt habe — nicht einfach blind einen Lebenslauf weiterleite.
+
+STRUKTUR:
 
 1. ANREDE + EINSTIEG:
-   - "{anrede},"
-   - 1 Satz: Bezug auf die konkrete Stelle (Jobtitel + Firma)
-   - Beispiel-Stil: "Bezugnehmend auf Ihre ausgeschriebene Position als [Jobtitel] moechte ich Ihnen einen Kandidaten vorstellen, der fachlich und persoenlich hervorragend zu Ihrem Anforderungsprofil passt."
+   "{anrede},"
+   Bezug auf die konkrete Stelle. Kein "Ich hoffe es geht Ihnen gut" — direkt zur Sache.
 
-2. KANDIDATEN-VORSTELLUNG (2-3 Saetze):
-   - WAS macht der Kandidat aktuell? (aus Qualifizierungsgespraech/Berufserfahrung)
-   - WARUM passt er zu DIESER Stelle? (konkrete Verbindung Kandidat ↔ Stellenanforderungen)
-   - Wenn Wechselmotivation vorhanden: WARUM sucht der Kandidat eine Veraenderung? (1 Satz, authentisch)
-   - Nutze Details aus dem Qualifizierungsgespraech fuer authentische, spezifische Formulierungen
+2. WARUM DIESER KANDIDAT FUER DIESE STELLE (Kernabsatz, 4-6 Saetze):
+   Das ist der wichtigste Teil. Hier zeigst du, dass du dich wirklich reingekniet hast:
+   - Beschreibe konkret, was der Kandidat AKTUELL tut (aus dem Qualifizierungsgespraech/Berufserfahrung)
+   - Verbinde das DIREKT mit den Anforderungen der Stelle — z.B. "Der Kandidat erstellt seit 3 Jahren eigenstaendig Monatsabschluesse nach HGB — genau das, was Sie als Kernaufgabe beschreiben."
+   - Wenn eine Wechselmotivation vorhanden ist: Erwaehne kurz WARUM der Kandidat offen ist (authentisch, kein "sucht neue Herausforderung"-Floskel)
+   - Nutze KONKRETE Details aus dem Gespraech: Zahlen (Teamgroesse, Umsatzvolumen, Anzahl Buchungskreise), Software (DATEV, SAP, Addison), Aufgaben die der Kandidat SELBST beschrieben hat
+   - Der Empfaenger soll denken: "Dieser Berater kennt meinen Bedarf UND den Kandidaten persoenlich"
 
 3. FACHLICHER VERGLEICH:
-   - Schreibe GENAU den Platzhalter: {{{{SKILLS_TABLE}}}}
-   - (Die Tabelle wird automatisch eingefuegt)
+   Schreibe GENAU den Platzhalter: {{{{SKILLS_TABLE}}}}
+   (Die Vergleichstabelle wird automatisch eingefuegt)
 
-4. RAHMENDATEN:
-   - Verfuegbarkeit: {notice_period or 'auf Anfrage'}
-   - Gehaltsvorstellung: {salary_range or 'auf Anfrage'}
-   - Fahrzeit: {drive_info or 'noch nicht berechnet'}
-   {"- Home-Office: " + home_office if home_office else ""}
+4. RAHMENDATEN (kompakt, 2-3 Zeilen):
+   Verfuegbarkeit: {notice_period or 'auf Anfrage'}
+   Gehaltsvorstellung: {salary_range or 'auf Anfrage'}
+   Fahrzeit: {drive_info or 'noch nicht berechnet'}
+   {"Home-Office: " + home_office if home_office else ""}
 
-5. ABSCHLUSS:
-   - "Gerne sende ich Ihnen auf Wunsch ein detailliertes Kandidatenprofil zu."
-   - "Fuer einen kurzen telefonischen Austausch stehe ich Ihnen jederzeit zur Verfuegung."
+5. ABSCHLUSS (kurz):
+   "Gerne sende ich Ihnen auf Wunsch ein detailliertes Kandidatenprofil zu. Fuer einen kurzen telefonischen Austausch stehe ich Ihnen jederzeit zur Verfuegung."
 
-WICHTIGE REGELN:
+ABSOLUTE VERBOTE:
 - KEINE Tabelle schreiben, NUR den Platzhalter {{{{SKILLS_TABLE}}}}
-- Verwende die ECHTEN Daten des Kandidaten (Berufserfahrung, Qualifizierungsgespraech)
-- Jeder Satz muss einen KONKRETEN Bezug zur Stelle oder zum Kandidaten haben
-- KEINE generischen Floskeln wie "hervorragender Kandidat" ohne Beleg
+- KEINE generischen Floskeln ("hervorragender Kandidat", "ideale Ergaenzung", "bringt alles mit") — JEDE Aussage muss mit einem konkreten Fakt belegt sein
+- KEINE Aufzaehlungen mit Spiegelstrichen im Fliesstext
+- KEIN Markdown, KEIN HTML, KEINE **fett** Formatierung
 - KEIN PDF-Anhang erwaehnen
-- Reiner Text fuer die Absaetze (kein Markdown, kein HTML)""",
+- NICHT den Kandidaten beim Namen nennen (nur "der Kandidat" oder "mein Kandidat")""",
 
             2: f"""Schreibe das ERSTE Follow-Up (Tag 3). Kurz und direkt:
 - Beginne mit "{anrede},"
@@ -362,17 +364,17 @@ WICHTIGE REGELN:
 - Maximal 50 Woerter""",
         }
 
-        system_prompt = f"""Du bist Milad Hamdard, Senior Personalberater bei Sincirus (Rechnungswesen & Controlling).
+        system_prompt = f"""Du bist Milad Hamdard, Senior Personalberater bei Sincirus, spezialisiert auf Rechnungswesen & Controlling.
 
-DEIN ZIEL: Schreibe eine E-Mail, die den Empfaenger beeindruckt — er soll denken: "Dieser Personalberater hat sich wirklich mit der Stelle und dem Kandidaten beschaeftigt." Jeder Satz zeigt Fachkenntnis und konkrete Passung.
+Du hast ein persoenliches Qualifizierungsgespraech mit dem Kandidaten gefuehrt und die Stellenausschreibung detailliert analysiert. Du schreibst jetzt eine E-Mail an das Unternehmen, die DEUTLICH zeigt, dass du beide Seiten verstehst — den Bedarf des Unternehmens UND die Faehigkeiten und Motivation des Kandidaten.
 
-WICHTIGE REGELN:
-- IMMER ICH-Form ("Ich betreue...", "Ich erkenne..."), NIEMALS Wir-Form
-- Professionell, kompetent, auf Augenhoehe
-- KEINE generischen Floskeln ohne konkreten Inhalt
-- KEINE Tabelle schreiben! Stattdessen den Platzhalter {{{{SKILLS_TABLE}}}} verwenden
+DEIN STIL:
+- ICH-Form ("Ich betreue...", "In meinem Gespraech mit dem Kandidaten..."), NIEMALS Wir-Form
+- Schreibe wie ein Top-Berater der auf Augenhoehe mit Entscheidern kommuniziert
+- Jeder Satz enthaelt ein KONKRETES Detail — keine leeren Worthuelsen
+- Wenn du aus dem Qualifizierungsgespraech zitierst, formuliere es als "Im Gespraech hat der Kandidat berichtet, dass..." oder "Aus meinem Austausch mit dem Kandidaten weiss ich, dass..."
+- KEINE Tabelle schreiben! Nur den Platzhalter {{{{SKILLS_TABLE}}}}
 - KEIN Markdown, keine **fett** Formatierung
-- Jeder Satz muss KONKRETEN Bezug zum Kandidaten ODER zur Stelle haben
 
 {step_instructions.get(step, step_instructions[1])}
 
