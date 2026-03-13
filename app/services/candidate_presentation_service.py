@@ -954,7 +954,7 @@ async def _call_gpt4o(
 ) -> str:
     """GPT-4o API-Call ueber httpx (kein DB-Session waehrend Call!)."""
     try:
-        async with httpx.AsyncClient(timeout=45.0) as client:
+        async with httpx.AsyncClient(timeout=90.0) as client:
             resp = await client.post(
                 "https://api.openai.com/v1/chat/completions",
                 headers={
@@ -962,7 +962,7 @@ async def _call_gpt4o(
                     "Content-Type": "application/json",
                 },
                 json={
-                    "model": "gpt-4o",
+                    "model": "gpt-5.4",
                     "messages": [
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_message},
