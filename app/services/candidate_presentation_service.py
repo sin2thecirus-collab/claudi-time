@@ -663,15 +663,23 @@ ORIGINAL-TEXT:
             html_body = _plaintext_to_html(_strip_opus_signature(body_text.replace("{{SKILLS_TABLE}}", skills_table_text).replace("{SKILLS_TABLE}", skills_table_text)))
             html_body += "\n" + HTML_SIGNATURE
 
+            # Kandidaten-ID (Short-ID: erste 8 Zeichen) in Betreffzeile
+            cid = candidate_data.get("candidate_id", "")
+            short_id = cid[:8] if cid else "?"
+            opus_subject = data.get("subject", f"{primary_role} fuer {extracted_job_data.get('company_name', 'Ihre Stelle')}")
+            subject_with_id = f"{opus_subject} [Ref: {short_id}]"
+
             return {
-                "subject": data.get("subject", f"{primary_role} fuer {extracted_job_data.get('company_name', 'Ihre Stelle')}"),
+                "subject": subject_with_id,
                 "body_text": plain_body,
                 "body_html": html_body,
             }
         except Exception as e:
             logger.error(f"generate_presentation_email fehlgeschlagen: {e}", exc_info=True)
+            cid = candidate_data.get("candidate_id", "")
+            short_id = cid[:8] if cid else "?"
             return {
-                "subject": f"{primary_role} - Kandidatenvorstellung",
+                "subject": f"{primary_role} - Kandidatenvorstellung [Ref: {short_id}]",
                 "body_text": f"{anrede},\n\nIch moechte Ihnen einen qualifizierten Kandidaten vorstellen.\n\n[FEHLER: Opus-Call fehlgeschlagen: {str(e)[:200]}]\n\n--\n{PLAIN_TEXT_SIGNATURE}",
                 "body_html": "",
             }
