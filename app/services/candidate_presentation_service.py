@@ -133,31 +133,56 @@ def _plaintext_to_html(text: str) -> str:
             html_parts.append('<p>' + '<br>\n'.join(para_buf) + '</p>')
             para_buf.clear()
 
+    # Erkennung ob wir im "Abgleich"-Block sind (Anforderungen als Bullets)
+    in_abgleich = False
+
     for line in lines:
         s = line.strip()
 
-        if s.startswith('•') or s.startswith('* ') or (s.startswith('- ') and len(s) > 3):
+        # Abgleich-Ueberschrift erkennen
+        if ('abgleich' in s.lower() or 'anforderungen' in s.lower()) and len(s) < 80:
+            if in_list:
+                html_parts.append('</ul>')
+                in_list = False
+            flush_para()
+            html_parts.append(f'<p><b>{s}</b></p>')
+            in_abgleich = True
+            continue
+
+        # Explizite Bullets (•, *, -)
+        is_bullet = s.startswith('•') or s.startswith('* ') or (s.startswith('- ') and len(s) > 3)
+
+        # Implizite Bullets: Im Abgleich-Block, Zeile hat "Wort: Text" Format
+        # (Opus schreibt manchmal "Bilanzbuchhalter (IHK): Der Kandidat..." ohne •)
+        if not is_bullet and in_abgleich and ':' in s and len(s) > 20:
+            colon_pos = s.index(':')
+            before_colon = s[:colon_pos].strip()
+            # Vor dem Doppelpunkt steht ein Label (1-8 Woerter, keine Zahl am Anfang)
+            word_count = len(before_colon.split())
+            if 1 <= word_count <= 8 and not before_colon[0].isdigit():
+                is_bullet = True
+
+        if is_bullet:
             if not in_list:
                 flush_para()
-                html_parts.append('<ul>')
+                html_parts.append('<ul style="margin:8px 0;padding-left:24px;">')
                 in_list = True
             bullet = s.lstrip('•*-').strip()
             if ':' in bullet:
                 k, v = bullet.split(':', 1)
                 bullet = f'<b>{k}</b>:{v}'
-            html_parts.append(f'<li>{bullet}</li>')
+            html_parts.append(f'<li style="margin-bottom:6px;">{bullet}</li>')
         else:
             if in_list:
                 html_parts.append('</ul>')
                 in_list = False
+                in_abgleich = False
             if s == '':
                 flush_para()
+                if in_abgleich:
+                    in_abgleich = False
             else:
-                if 'aetigkeitsabgleich' in s.lower() or 'ätigkeitsabgleich' in s.lower():
-                    flush_para()
-                    html_parts.append(f'<p><b>{s}</b></p>')
-                else:
-                    para_buf.append(s)
+                para_buf.append(s)
 
     if in_list:
         html_parts.append('</ul>')
@@ -486,16 +511,18 @@ AUFBAU DER E-MAIL (exakt diese Reihenfolge):
    Nenne den genauen Stellentitel und sage, dass du einen passenden Kandidaten vorstellen moechtest. Dann in 1-2 Saetzen das Wichtigste: Wer ist der Kandidat (Rolle, Erfahrungslevel, Art des aktuellen Arbeitgebers)? Was macht ihn fuer DIESE Stelle relevant?
    Beispiel: "Fuer Ihre Vakanz als Internationaler Finanzbuchhalter moechte ich Ihnen eine Kandidatin vorstellen, die aktuell die operative Finanzbuchhaltung fuer 17 Gesellschaften einer Energieunternehmensgruppe eigenstaendig verantwortet."
 
-3. Taetigkeitsabgleich:
-   Gehe die wichtigsten Anforderungen der Stelle durch und zeige fuer JEDE, was der Kandidat konkret mitbringt. Nutze Aufzaehlungszeichen (•). Format:
-   • [Anforderung aus der Stelle]: [was der Kandidat dazu konkret kann, mit Beleg aus Werdegang/Transkript]
+3. "Im Abgleich mit Ihren Anforderungen:" (genau diese Ueberschrift)
+   Dann JEDE Anforderung als Bullet-Point. JEDE Zeile MUSS mit dem Zeichen • beginnen. Format:
+   • Anforderung: Was der Kandidat dazu konkret kann
+   • Naechste Anforderung: Beleg aus Werdegang/Transkript
 
-   Beispiele fuer gute Eintraege:
+   Beispiele (beachte: JEDE Zeile beginnt mit •):
    • Debitoren- und Kreditorenbuchhaltung: aktueller Schwerpunkt Kreditoren bei 30 Mandanten, zusaetzlich debitorische Erfahrung aus der Kanzlei
    • Monats- und Jahresabschluesse: erstellt eigenstaendig Jahresabschluesse, arbeitet aktuell am Monatsabschluss mit
    • Umsatzsteuervoranmeldungen: fester Bestandteil der bisherigen Taetigkeit in der Steuerkanzlei
 
-   WICHTIG: Nur Anforderungen auflisten, zu denen der Kandidat etwas vorweisen kann. Keine Luecken zeigen.
+   PFLICHT: JEDE Anforderung beginnt mit • (Aufzaehlungszeichen). KEINE Anforderung ohne •. KEIN Fliesstext fuer Anforderungen.
+   Nur Anforderungen auflisten, zu denen der Kandidat etwas vorweisen kann. Keine Luecken zeigen.
 
 4. IT/ERP-Kenntnisse:
    Liste die relevanten Systeme auf — sowohl was die Stelle fordert als auch was der Kandidat beherrscht.
