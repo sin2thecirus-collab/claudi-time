@@ -221,7 +221,7 @@ class CVParserService:
             text_parts = []
 
             for page in doc:
-                text = page.get_text()
+                text = page.get_text(sort=True)  # sort=True: Textbloecke visuell sortieren (oben→unten, links→rechts) — verhindert falsche Zuordnung von Bullets zu Firmen
                 if text:
                     text_parts.append(text)
 
