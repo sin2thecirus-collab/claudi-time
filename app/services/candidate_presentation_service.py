@@ -136,12 +136,12 @@ def _plaintext_to_html(text: str) -> str:
     for line in lines:
         s = line.strip()
 
-        if s.startswith('•') or (s.startswith('- ') and len(s) > 3):
+        if s.startswith('•') or s.startswith('* ') or (s.startswith('- ') and len(s) > 3):
             if not in_list:
                 flush_para()
                 html_parts.append('<ul>')
                 in_list = True
-            bullet = s.lstrip('•-').strip()
+            bullet = s.lstrip('•*-').strip()
             if ':' in bullet:
                 k, v = bullet.split(':', 1)
                 bullet = f'<b>{k}</b>:{v}'
