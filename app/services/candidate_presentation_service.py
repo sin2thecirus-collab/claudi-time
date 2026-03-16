@@ -388,30 +388,35 @@ Antworte NUR mit JSON: {{"subject": "Re: ...", "body_text": "..."}}"""
 
                 home_office_info = f"Home-Office-Wunsch: {home_office}" if home_office else ""
 
-                email_prompt = f"""Du bist Milad Hamdard, Senior Personalberater bei Sincirus in Hamburg, spezialisiert auf Buchhaltung und Rechnungswesen. Du hast diesen Kandidaten persoenlich qualifiziert.
+                email_prompt = f"""Du bist Milad Hamdard. Du bist kein Sachbearbeiter — du bist ein Top-Vertriebler im Personalbereich. Dein Job: Kunden so neugierig auf einen Kandidaten machen, dass sie sofort das Profil anfordern.
 
-DEIN ZIEL: Der Kunde soll nach dem Lesen denken "Den will ich kennenlernen." Nicht informieren — VERKAUFEN. Jeder Satz muss Neugier wecken oder einen konkreten Mehrwert fuer den Kunden transportieren.
+DENKWEISE: Du hast diesen Kandidaten persoenlich qualifiziert. Du KENNST ihn. Du weisst Dinge ueber ihn, die in keinem Lebenslauf stehen. Schreibe wie jemand der begeistert ist von dem was er gefunden hat — nicht wie jemand der eine Stellenbeschreibung abarbeitet.
 
-AUFBAU (exakt diese Reihenfolge):
+AUFBAU (exakt diese Reihenfolge, NICHTS weglassen, NICHTS hinzufuegen):
 
 1. "{anrede},"
    "Ich hoffe, es geht Ihnen gut."
 
 2. Kandidaten-Portrait (5-8 Saetze):
-   Male ein Bild von diesem Kandidaten, das den Kunden sofort packt. Starte mit dem staerksten Argument — dem einen Detail, das diesen Kandidaten fuer GENAU DIESE Stelle besonders macht.
 
-   Nutze ALLES was du hast:
-   - Aus dem Werdegang: Stationen, Dauer, Branchen, Aufstieg
-   - Aus den Skills: Fachliche Tiefe, Software, Spezialisierungen
-   - Aus dem Gespraechstranskript (wenn vorhanden): Das ist deine Geheimwaffe. Hier stehen Details die kein Lebenslauf zeigt — wie viele Gesellschaften er betreut, wie gross sein Team ist, welches Volumen er verantwortet, warum er wechseln will, was ihn antreibt.
+   ERSTER SATZ = HOOK. Das eine Detail, das diesen Kandidaten fuer genau diese Stelle besonders macht. Kein generischer Einstieg wie "Ich betreue einen Kandidaten der...". Stattdessen direkt rein:
 
-   Wenn konkrete Zahlen verfuegbar sind, nutze sie (Jahre, Gesellschaften, Mandanten, Team-Groesse, Volumen). Wenn nicht, beschreibe die Tiefe seiner Erfahrung anhand seiner Stationen.
+   SCHLECHT: "Ich betreue eine Bilanzbuchhalterin, die derzeit eigenverantwortlich 30 Mandanten betreut."
+   GUT: "In meinem letzten Gespraech mit einer Bilanzbuchhalterin hat mich ueberrascht, wie souveraen sie 30 Mandanten parallel steuert — vom Einzelunternehmer bis zur GmbH mit 8-stelligem Umsatz, jeweils mit eigenstaendiger Jahresabschlusserstellung."
 
-   Beschreibe die Art des Unternehmens (Branche, Groesse), NICHT den Firmennamen.
+   Der Unterschied: SCHLECHT listet Fakten auf. GUT erzaehlt eine Geschichte, macht neugierig, zeigt TIEFE.
 
-3. Dann schreibe auf einer eigenen Zeile GENAU diesen Platzhalter: {{{{SKILLS_TABLE}}}}
+   Deine Quellen (nutze ALLE, die verfuegbar sind):
+   - WERDEGANG: Nicht nur auflisten — interpretieren. Was sagt die Karriere ueber die Person? Aufstieg? Stabilitaet? Branchenwechsel die Vielseitigkeit zeigen?
+   - GESPRAECHSTRANSKRIPT/ZUSAMMENFASSUNG: Deine Geheimwaffe. Hier stecken die goldenen Details — Teamgroesse, Volumen, Anzahl Gesellschaften, Mandantenstruktur, persoenliche Motivation. Wenn vorhanden, MUSS mindestens ein Detail daraus in der Mail stehen.
+   - KERNTAETIGKEITEN: Was macht der Kandidat taeglich KONKRET? Nicht "Finanzbuchhaltung" sondern "bucht eigenstaendig 4 Gesellschaften, stimmt Intercompany ab, erstellt die UStVA".
+   - WECHSELMOTIVATION: Wenn vorhanden — zeigt dem Kunden: dieser Kandidat ist ERREICHBAR und hat einen echten Grund.
 
-4. Dann die Rahmendaten (nur wenn vorhanden, jeweils eigene Zeile):
+   WICHTIG: Beschreibe die Art des Arbeitgebers (Branche, Groesse), NICHT den Firmennamen.
+
+3. Auf einer eigenen Zeile GENAU dieser Platzhalter: {{{{SKILLS_TABLE}}}}
+
+4. Rahmendaten (nur vorhandene, je eigene Zeile):
 {"   Verfuegbarkeit: " + notice_period if notice_period else ""}
 {"   Gehaltsvorstellung: " + salary_range if salary_range else ""}
 {"   " + drive_info if drive_info else ""}
@@ -419,19 +424,19 @@ AUFBAU (exakt diese Reihenfolge):
 
 5. "Unter welchen Voraussetzungen darf ich Ihnen das vollstaendige Profil unseres Kandidaten weiterleiten?"
 
-STIL:
-- ICH-Form. Immer. ("Ich betreue...", "Ich erkenne...", "Ich schaetze...")
-- Schreibe wie ein Top-Vertriebler der einen Geschaeftsfuehrer ueberzeugt — nicht wie ein Sachbearbeiter der informiert.
-- Konkret statt abstrakt: "erstellt eigenstaendig Monatsabschluesse fuer 4 Gesellschaften nach HGB und IFRS" statt "hat umfangreiche Erfahrung im Rechnungswesen".
-- Jeder Satz muss Information tragen oder Neugier wecken. Kein Fuelltext.
-- Plain-Text, kein HTML, kein Markdown, keine Aufzaehlungszeichen.
+QUALITAETSTEST — pruefe JEDEN Satz bevor du ihn schreibst:
+- Wuerde ein Geschaeftsfuehrer nach diesem Satz weiterlesen? Wenn nein, streichen.
+- Steht etwas Konkretes drin (eine Zahl, eine Taetigkeit, ein Detail)? Wenn nein, umschreiben.
+- Koennte dieser Satz ueber JEDEN Buchhalter geschrieben werden? Wenn ja, er ist zu generisch — weg damit.
 
-TABU:
-- Den Namen des Kandidaten nennen — schreibe "der Kandidat" oder "mein Kandidat".
-- Den Firmennamen des Arbeitgebers nennen — beschreibe die Art des Unternehmens.
-- Floskeln: "umfangreiche Erfahrung", "fundierte Kenntnisse", "beeindruckende Kombination", "ideale Besetzung", "breites Spektrum", "unterstreicht", "in der Lage", "hervorzuheben ist", "zeichnet sich aus", "bringt mit".
-- Word, Excel, MS-Office erwaehnen.
-- Inhalte wiederholen, die in der Skills-Tabelle stehen.
+ABSOLUTE VERBOTE (ein einziger Verstoss = E-Mail wertlos):
+- NIEMALS den Namen des Kandidaten nennen. Immer "der Kandidat" / "mein Kandidat" / "die Kandidatin" / "meine Kandidatin".
+- NIEMALS den Firmennamen des aktuellen Arbeitgebers nennen.
+- NIEMALS diese Woerter/Phrasen verwenden: "umfangreiche Erfahrung", "fundierte Kenntnisse", "beeindruckende Kombination", "ideale Besetzung", "ideale Ergaenzung", "breites Spektrum", "unterstreicht", "in der Lage", "hervorzuheben ist", "zeichnet sich aus", "bringt mit", "theoretische Fundierung", "erforderliche Sorgfalt", "systematische Herangehensweise", "tiefgreifende Expertise", "umfassendes Verstaendnis", "wertvolle Bereicherung", "solide Grundlage", "reibungslose Integration", "nahtlose Einarbeitung", "ueberzeugendes Profil".
+- NIEMALS Word, Excel, MS-Office erwaehnen.
+- NIEMALS Wir-Form. IMMER Ich-Form.
+- NIEMALS Inhalte wiederholen die in der Skills-Tabelle stehen.
+- NIEMALS HTML, Markdown oder Aufzaehlungszeichen.
 
 Antworte NUR mit JSON: {{"subject": "Betreffzeile (max 8 Woerter)", "body_text": "Der E-Mail-Text"}}"""
 
@@ -882,6 +887,18 @@ FORBIDDEN_PHRASES = [
     "unterstreicht", "hervorzuheben", "besonders hervorzuheben",
     "breites spektrum", "hat erfahrung in", "in der lage",
     "bringt mit", "zeichnet sich aus", "spiegelt wider",
+    # Neue Floskeln die durchgekommen sind (Session 16.03.2026)
+    "theoretische fundierung", "erforderliche sorgfalt",
+    "systematische herangehensweise", "tiefgreifende expertise",
+    "umfassendes verstaendnis", "umfassendes verständnis",
+    "wertvolle bereicherung", "solide grundlage",
+    "reibungslose integration", "nahtlose einarbeitung",
+    "ueberzeugendes profil", "überzeugendes profil",
+    "ideale ergaenzung", "ideale ergänzung",
+    "ich erkenne in ihr", "ich erkenne in ihm",
+    "erforderlich ist", "erforderlich sind",
+    "genau die qualifikationen", "genau das richtige profil",
+    "faehigkeit komplexe", "fähigkeit komplexe",
 ]
 
 
@@ -920,8 +937,8 @@ def _build_skills_plain_table(skills_comparison: dict) -> str:
         evidence = m.get("candidate_evidence", "")
         status = m.get("status", "nicht_vorhanden")
 
-        # Skip Anforderungen die NICHT passen — nur Staerken zeigen
-        if status == "nicht_vorhanden":
+        # NUR volle Treffer zeigen — keine Schwaechen, keine Teilmatches
+        if status in ("nicht_vorhanden", "teilweise"):
             continue
 
         # Skip MS-Office und Soft-Skill Anforderungen
