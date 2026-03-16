@@ -536,7 +536,7 @@ AUFBAU DER E-MAIL (exakt diese Reihenfolge):
    - Home-Office-Wunsch (wenn vorhanden)
    Nur erwaehnen was tatsaechlich als Daten vorliegt. Nichts erfinden. Nichts aus dem CV uebernehmen was nicht im Transkript bestaetigt wurde.
 
-7. "Bei Interesse lasse ich Ihnen gerne die vollstaendigen Unterlagen zukommen. Unter welchen Voraussetzungen darf ich Ihnen das vollstaendige Profil weiterleiten?"
+7. "Bei Interesse sende ich Ihnen gerne das vollstaendige Profil zu — eine kurze Rueckmeldung genuegt."
 
 STIL:
 - Ich-Form, professionell, sachlich aber engagiert
