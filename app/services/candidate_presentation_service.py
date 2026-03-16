@@ -90,6 +90,82 @@ def _build_skills_html_table(skills_comparison: dict) -> str:
 </table>"""
 
 
+def _strip_opus_signature(text: str) -> str:
+    """Entfernt von Opus generierte Grussformeln/Signaturen am Ende.
+
+    Opus generiert oft 'Mit freundlichen Gruessen / Milad Hamdard / Sincirus...'
+    Das muss raus, weil die echte Signatur automatisch angehaengt wird.
+    """
+    import re
+    patterns = [
+        r'\n*Mit freundlichen Gr[uü][sß]en\s*\n.*$',
+        r'\n*Freundliche Gr[uü][sß]e\s*\n.*$',
+        r'\n*Beste Gr[uü][sß]e\s*\n.*$',
+        r'\n*Viele Gr[uü][sß]e\s*\n.*$',
+        r'\n*Herzliche Gr[uü][sß]e\s*\n.*$',
+        r'\n*Mit besten Gr[uü][sß]en\s*\n.*$',
+    ]
+    for pat in patterns:
+        text = re.sub(pat, '', text, flags=re.DOTALL | re.IGNORECASE)
+    return text.rstrip()
+
+
+def _plaintext_to_html(text: str) -> str:
+    """Konvertiert Plain-Text E-Mail in minimales HTML.
+
+    Bewusst leicht gehalten — keine Inline-Styles, keine Bilder,
+    kein heavy CSS. Nur Standard-Tags die jeder E-Mail-Client kennt
+    und die KEINE Spam-Filter triggern:
+    - <p> fuer Absaetze
+    - <ul><li> fuer Bullet-Points
+    - <b> fuer Ueberschriften (Taetigkeitsabgleich)
+    """
+    from html import escape
+
+    text = escape(text)
+    lines = text.split('\n')
+    html_parts = []
+    in_list = False
+    para_buf = []
+
+    def flush_para():
+        if para_buf:
+            html_parts.append('<p>' + '<br>\n'.join(para_buf) + '</p>')
+            para_buf.clear()
+
+    for line in lines:
+        s = line.strip()
+
+        if s.startswith('•') or (s.startswith('- ') and len(s) > 3):
+            if not in_list:
+                flush_para()
+                html_parts.append('<ul>')
+                in_list = True
+            bullet = s.lstrip('•-').strip()
+            if ':' in bullet:
+                k, v = bullet.split(':', 1)
+                bullet = f'<b>{k}</b>:{v}'
+            html_parts.append(f'<li>{bullet}</li>')
+        else:
+            if in_list:
+                html_parts.append('</ul>')
+                in_list = False
+            if s == '':
+                flush_para()
+            else:
+                if 'aetigkeitsabgleich' in s.lower() or 'ätigkeitsabgleich' in s.lower():
+                    flush_para()
+                    html_parts.append(f'<p><b>{s}</b></p>')
+                else:
+                    para_buf.append(s)
+
+    if in_list:
+        html_parts.append('</ul>')
+    flush_para()
+
+    return '\n'.join(html_parts)
+
+
 # ── Pydantic Models fuer GPT-Responses ──
 
 class ExtractedJobData(BaseModel):
@@ -451,8 +527,9 @@ VERBOTE:
 - NIEMALS Word/Excel/MS-Office erwaehnen
 - NIEMALS Wir-Form
 - NIEMALS Anforderungen zeigen, die der Kandidat NICHT erfuellt
+- NIEMALS eine Signatur oder Grussformel am Ende schreiben (KEINE "Mit freundlichen Gruessen", KEIN Name, KEINE Kontaktdaten) — die Signatur wird automatisch angehaengt
 
-Antworte NUR mit JSON: {{"subject": "Betreffzeile (max 8 Woerter)", "body_text": "Der E-Mail-Text"}}"""
+Antworte NUR mit JSON: {{"subject": "Betreffzeile (max 8 Woerter)", "body_text": "Der E-Mail-Text (OHNE Signatur/Grussformel am Ende)"}}"""
 
                 # Zusaetzliche Kandidaten-Infos zusammenbauen
                 current_pos = candidate_data.get('current_position', '')
@@ -560,20 +637,21 @@ ORIGINAL-TEXT:
             # {{SKILLS_TABLE}} Platzhalter durch Plain-Text-Tabelle ersetzen
             plain_body = body_text.replace("{{SKILLS_TABLE}}", skills_table_text).replace("{SKILLS_TABLE}", skills_table_text)
 
-            # DEAKTIVIERT: Opus generiert den Taetigkeitsabgleich selbst, keine Python-Tabelle einfuegen
-            # if skills_table_text and skills_table_text not in plain_body:
-            #     paragraphs = plain_body.split("\n\n")
-            #     insert_pos = min(2, len(paragraphs))
-            #     paragraphs.insert(insert_pos, skills_table_text)
-            #     plain_body = "\n\n".join(paragraphs)
+            # Opus-generierte Signatur/Grussformel entfernen (Doppel-Signatur verhindern)
+            plain_body = _strip_opus_signature(plain_body)
 
+            # Echte Signatur anhaengen
             if PLAIN_TEXT_SIGNATURE not in plain_body:
                 plain_body = plain_body.rstrip() + "\n\n--\n" + PLAIN_TEXT_SIGNATURE
+
+            # Minimales HTML generieren (nur <p>, <ul>, <b> — kein Spam-Trigger)
+            html_body = _plaintext_to_html(_strip_opus_signature(body_text.replace("{{SKILLS_TABLE}}", skills_table_text).replace("{SKILLS_TABLE}", skills_table_text)))
+            html_body += "\n" + HTML_SIGNATURE
 
             return {
                 "subject": data.get("subject", f"{primary_role} fuer {extracted_job_data.get('company_name', 'Ihre Stelle')}"),
                 "body_text": plain_body,
-                "body_html": "",  # KEIN HTML — Plain-Text E-Mail
+                "body_html": html_body,
             }
         except Exception as e:
             logger.error(f"generate_presentation_email fehlgeschlagen: {e}", exc_info=True)
