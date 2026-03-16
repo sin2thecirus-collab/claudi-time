@@ -3806,9 +3806,13 @@ function directPresentationModal() {
         async sendEmail() {
             this.loading = true;
             try {
+                var csrf = document.cookie.match(/pp_csrf=([^;]+)/);
                 var resp = await fetch('/api/presentations/direct/send', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(csrf ? {'X-CSRF-Token': csrf[1]} : {}),
+                    },
                     body: JSON.stringify({
                         candidate_id: candidateId,
                         company_name: this.extractedData.company_name,
@@ -3827,9 +3831,19 @@ function directPresentationModal() {
                         skills_comparison: this.skillsComparison,
                     }),
                 });
+                if (!resp.ok) {
+                    var errData = await resp.json().catch(function() { return {}; });
+                    console.error('[DirectPresentation] sendEmail HTTP error:', resp.status, errData);
+                    throw new Error(errData.detail || errData.message || 'Server-Fehler ' + resp.status);
+                }
                 this.sendResult = await resp.json();
+                if (this.sendResult.n8n_triggered === false) {
+                    console.error('[DirectPresentation] n8n not triggered:', this.sendResult);
+                    alert('Vorstellung gespeichert, aber E-Mail konnte NICHT gesendet werden. Bitte n8n-Konfiguration pruefen.');
+                }
                 this.step = 4;
             } catch(e) {
+                console.error('[DirectPresentation] sendEmail error:', e);
                 alert('Senden fehlgeschlagen: ' + e.message);
             } finally {
                 this.loading = false;

@@ -215,15 +215,36 @@ async def send_presentation(req: SendPresentationRequest, db: AsyncSession = Dep
         extracted_job_data=req.extracted_job_data,
         skills_comparison=req.skills_comparison,
     )
+
+    # KRITISCH: Alle Daten als Dict extrahieren BEVOR db.commit()!
+    # Nach commit() ist das ORM-Objekt expired — async SQLAlchemy kann
+    # expired Attribute NICHT lazy-loaden (MissingGreenlet Error).
+    presentation_dict = {
+        "id": str(presentation.id),
+        "candidate_id": str(presentation.candidate_id) if presentation.candidate_id else None,
+        "company_id": str(presentation.company_id) if presentation.company_id else None,
+        "contact_id": str(presentation.contact_id) if presentation.contact_id else None,
+        "email_to": presentation.email_to,
+        "email_from": presentation.email_from,
+        "email_subject": presentation.email_subject,
+        "email_body_text": presentation.email_body_text,
+        "email_body_html": getattr(presentation, "email_body_html", "") or "",
+        "mailbox_used": presentation.mailbox_used,
+        "reply_to_email": getattr(presentation, "reply_to_email", None) or "hamdard@sincirus.com",
+        "source": getattr(presentation, "source", "candidate_direct"),
+        "status": presentation.status,
+    }
+    company_id_str = str(company.id)
+
     await db.commit()
 
-    # n8n triggern (Presentation-Daten als Payload, erweitert fuer direkte Vorstellung)
-    n8n_success = await _trigger_direct_n8n(presentation, req.contact_name)
+    # n8n triggern (Dict statt ORM-Objekt — nach commit expired!)
+    n8n_success = await _trigger_direct_n8n(presentation_dict, req.contact_name)
 
     return {
-        "presentation_id": str(presentation.id),
-        "company_id": str(company.id),
-        "status": presentation.status,
+        "presentation_id": presentation_dict["id"],
+        "company_id": company_id_str,
+        "status": presentation_dict["status"],
         "n8n_triggered": n8n_success,
         "domain_warning": domain_warning,
     }
@@ -387,35 +408,42 @@ async def bulk_status(batch_id: str, db: AsyncSession = Depends(get_db)):
 # HELPER: n8n Trigger fuer direkte Vorstellung
 # ═══════════════════════════════════════════════════════════════
 
-async def _trigger_direct_n8n(presentation, contact_name: str = "") -> bool:
-    """Triggert n8n Workflow fuer direkte Vorstellung (Plain-Text, kein PDF)."""
+async def _trigger_direct_n8n(presentation_data: dict, contact_name: str = "") -> bool:
+    """Triggert n8n Workflow fuer direkte Vorstellung (Plain-Text, kein PDF).
+
+    Args:
+        presentation_data: Dict mit Presentation-Daten (KEIN ORM-Objekt!)
+        contact_name: Name des Ansprechpartners
+    """
     if not settings.n8n_webhook_url:
         logger.warning("_trigger_direct_n8n: n8n_webhook_url nicht konfiguriert")
         return False
 
     webhook_url = f"{settings.n8n_webhook_url}/webhook/kunde-vorstellen"
+    pres_id = presentation_data["id"]
+    email_body_html = presentation_data.get("email_body_html", "") or ""
 
     payload = {
-        "presentation_id": str(presentation.id),
+        "presentation_id": pres_id,
         "match_id": None,
-        "candidate_id": str(presentation.candidate_id) if presentation.candidate_id else None,
-        "company_id": str(presentation.company_id) if presentation.company_id else None,
-        "contact_id": str(presentation.contact_id) if presentation.contact_id else None,
-        "email_to": presentation.email_to,
-        "email_from": presentation.email_from,
-        "email_subject": presentation.email_subject,
-        "email_body_text": presentation.email_body_text,
-        "email_body_html": presentation.email_body_html or "",
+        "candidate_id": presentation_data.get("candidate_id"),
+        "company_id": presentation_data.get("company_id"),
+        "contact_id": presentation_data.get("contact_id"),
+        "email_to": presentation_data.get("email_to"),
+        "email_from": presentation_data.get("email_from"),
+        "email_subject": presentation_data.get("email_subject"),
+        "email_body_text": presentation_data.get("email_body_text"),
+        "email_body_html": email_body_html,
         "email_signature_html": None,
-        "mailbox_used": presentation.mailbox_used,
+        "mailbox_used": presentation_data.get("mailbox_used"),
         "pdf_attached": False,
         "pdf_base64": None,
         "pdf_filename": None,
         "presentation_mode": "ai_generated",
         "contact_name": contact_name,
-        "reply_to": presentation.reply_to_email or "hamdard@sincirus.com",
-        "email_format": "html" if presentation.email_body_html else "plain_text",
-        "source": presentation.source,
+        "reply_to": presentation_data.get("reply_to_email", "hamdard@sincirus.com"),
+        "email_format": "html" if email_body_html else "plain_text",
+        "source": presentation_data.get("source", "candidate_direct"),
         "followup_schedule": {"step2_days": 3, "step3_days": 7},
     }
 
@@ -428,13 +456,13 @@ async def _trigger_direct_n8n(presentation, contact_name: str = "") -> bool:
             resp = await client.post(webhook_url, json=payload, headers=headers)
 
         if resp.status_code == 200:
-            logger.info(f"n8n getriggert fuer Presentation {presentation.id}")
+            logger.info(f"n8n getriggert fuer Presentation {pres_id}")
             return True
         else:
             logger.error(f"n8n Fehler: Status={resp.status_code}, Body={resp.text[:300]}")
             return False
     except Exception as e:
-        logger.error(f"n8n Trigger fehlgeschlagen: {e}")
+        logger.error(f"n8n Trigger fehlgeschlagen fuer {pres_id}: {e}")
         return False
 
 
