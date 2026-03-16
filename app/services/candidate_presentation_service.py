@@ -641,7 +641,7 @@ ORIGINAL-TEXT:
             company_id=company_id,
             contact_id=contact_id,
             candidate_id=candidate_id,
-            direction=CorrespondenceDirection.OUTGOING,
+            direction=CorrespondenceDirection.OUTBOUND,
             channel="email",
             subject=email_subject,
             content=email_body_text[:500],

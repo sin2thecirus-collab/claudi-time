@@ -449,6 +449,55 @@ async def send_presentation(
         logger.error(f"send_presentation fehlgeschlagen: {e}")
         raise HTTPException(status_code=500, detail=f"Fehler beim Erstellen der Vorstellung: {e}")
 
+    # KRITISCH: create_presentation() hat intern db.commit() aufgerufen.
+    # In async SQLAlchemy sind ORM-Attribute nach commit() EXPIRED und
+    # koennen NICHT lazy-loaded werden (MissingGreenlet Error!).
+    # Deshalb: refresh() ODER Dict direkt aus body + presentation.id bauen.
+    # Wir nutzen body-Daten (die wir schon haben) + presentation.id via refresh.
+    try:
+        await db.refresh(presentation)
+    except Exception as e:
+        # Fallback: Dict aus body-Daten bauen (presentation.id ist ggf. nicht verfuegbar)
+        logger.warning(f"presentation refresh fehlgeschlagen: {e} — nutze body-Daten als Fallback")
+        # Wir brauchen zumindest die presentation_id aus der DB
+        from sqlalchemy import text
+        row = await db.execute(
+            text("SELECT id FROM client_presentations WHERE match_id = :mid ORDER BY created_at DESC LIMIT 1"),
+            {"mid": str(body.match_id)},
+        )
+        pres_row = row.first()
+        presentation_id = str(pres_row[0]) if pres_row else "unknown"
+        presentation_dict = {
+            "id": presentation_id,
+            "match_id": str(body.match_id),
+            "candidate_id": None,
+            "job_id": None,
+            "company_id": None,
+            "contact_id": str(body.contact_id) if body.contact_id else None,
+            "email_to": body.email_to,
+            "email_from": body.email_from,
+            "email_subject": body.email_subject,
+            "email_body_text": body.email_body_text,
+            "email_signature_html": body.email_signature_html,
+            "mailbox_used": body.mailbox_used,
+            "pdf_r2_key": body.pdf_r2_key,
+            "pdf_attached": body.pdf_attached,
+            "presentation_mode": body.presentation_mode,
+        }
+        contact_name = None
+        n8n_success = await _trigger_n8n_workflow(presentation_dict, contact_name)
+        return {
+            "success": True,
+            "presentation_id": presentation_id,
+            "n8n_triggered": n8n_success,
+            "status": "sent",
+            "message": (
+                "Vorstellung erstellt und E-Mail-Versand gestartet"
+                if n8n_success
+                else "Vorstellung erstellt, aber E-Mail-Versand konnte nicht gestartet werden."
+            ),
+        }
+
     # Kontakt-Name fuer n8n ermitteln
     contact_name = None
     if body.contact_id:
@@ -461,8 +510,7 @@ async def send_presentation(
         if contact:
             contact_name = contact.full_name
 
-    # ALLE Presentation-Daten als Dict extrahieren BEVOR der Commit
-    # (Nach commit() ist das ORM-Objekt expired → DetachedInstanceError!)
+    # Presentation-Daten als Dict extrahieren (nach refresh sind Attribute wieder verfuegbar)
     presentation_id = str(presentation.id)
     presentation_status = presentation.status
     presentation_dict = {
@@ -482,9 +530,6 @@ async def send_presentation(
         "pdf_attached": presentation.pdf_attached,
         "presentation_mode": presentation.presentation_mode,
     }
-
-    # DB-Session explizit abschliessen vor dem HTTP-Call
-    await db.commit()
 
     # n8n Workflow triggern (HTTP-Call — KEINE DB-Session offen!)
     # Nutzt presentation_dict statt ORM-Objekt (nach commit expired!)
