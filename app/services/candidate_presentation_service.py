@@ -314,34 +314,34 @@ IT-Skills: {candidate_data.get('it_skills', '')}{extra_sections}"""
 
         # Kontext-Block nur mit vorhandenen Daten
         # Transkript hat Prioritaet, dann call_summary als Fallback
+        # Qualifizierungsdaten als eigener Block — DAS ist die Geheimwaffe
         qualification_context = ""
+        has_conversation_data = False
+
+        if call_transcript or call_summary or key_activities or change_motivation:
+            qualification_context += "\n═══ QUALIFIZIERUNGSGESPRAECH (Milad ↔ Kandidat) ═══"
+            qualification_context += "\nHier stehen Details die NICHT im Lebenslauf stehen — nutze sie!\n"
+            has_conversation_data = True
+
         if call_transcript:
-            qualification_context += f"\nQUALIFIZIERUNGSGESPRAECH (Transkript):\n{call_transcript}\n"
+            qualification_context += f"\nTRANSKRIPT DES GESPRAECHS:\n{call_transcript}\n"
         elif call_summary:
-            qualification_context += f"\nGESPRAECHSZUSAMMENFASSUNG (aus Qualifizierungsgespraech):\n{call_summary}\n"
-        if change_motivation:
-            qualification_context += f"\nWECHSELMOTIVATION: {change_motivation}\n"
-        if desired_positions:
-            qualification_context += f"\nGEWUENSCHTE POSITIONEN: {desired_positions}\n"
-        if home_office:
-            qualification_context += f"\nHOME-OFFICE WUNSCH: {home_office}\n"
-        if education:
-            edu_str = json.dumps(education, ensure_ascii=False)[:600]
-            qualification_context += f"\nAUSBILDUNG: {edu_str}\n"
-        further_education = candidate_data.get("further_education", [])
-        if further_education:
-            qualification_context += f"\nWEITERBILDUNGEN: {json.dumps(further_education, ensure_ascii=False)[:600]}\n"
-        v2_certs = candidate_data.get("v2_certifications", [])
-        if v2_certs:
-            qualification_context += f"\nZERTIFIKATE: {json.dumps(v2_certs, ensure_ascii=False)}\n"
-        if languages:
-            qualification_context += f"\nSPRACHEN: {json.dumps(languages, ensure_ascii=False)}\n"
+            qualification_context += f"\nZUSAMMENFASSUNG DES GESPRAECHS:\n{call_summary}\n"
+
         key_activities = candidate_data.get("key_activities", "")
         if key_activities:
-            qualification_context += f"\nKERNTAETIGKEITEN (vom Kandidaten im Gespraech genannt): {key_activities}\n"
+            qualification_context += f"\nKERNTAETIGKEITEN (Kandidat hat im Gespraech beschrieben was er taeglich tut):\n{key_activities}\n"
+
+        if change_motivation:
+            qualification_context += f"\nWECHSELMOTIVATION (warum der Kandidat wechseln will): {change_motivation}\n"
+
+        if desired_positions:
+            qualification_context += f"\nGEWUENSCHTE POSITIONEN: {desired_positions}\n"
+
         candidate_notes = candidate_data.get("candidate_notes", "")
         if candidate_notes:
-            qualification_context += f"\nRECRUITER-NOTIZEN: {candidate_notes}\n"
+            qualification_context += f"\nRECRUITER-NOTIZEN (Milads persoenliche Einschaetzung): {candidate_notes}\n"
+
         preferred_industries = candidate_data.get("preferred_industries", "")
         if preferred_industries:
             qualification_context += f"\nBEVORZUGTE BRANCHEN: {preferred_industries}\n"
@@ -388,55 +388,68 @@ Antworte NUR mit JSON: {{"subject": "Re: ...", "body_text": "..."}}"""
 
                 home_office_info = f"Home-Office-Wunsch: {home_office}" if home_office else ""
 
-                email_prompt = f"""Du bist Milad Hamdard. Du bist kein Sachbearbeiter — du bist ein Top-Vertriebler im Personalbereich. Dein Job: Kunden so neugierig auf einen Kandidaten machen, dass sie sofort das Profil anfordern.
+                email_prompt = f"""Du bist Milad Hamdard, Personalberater bei Sincirus in Hamburg (Buchhaltung & Rechnungswesen). Du hast diesen Kandidaten persoenlich qualifiziert — du kennst ihn aus einem Telefonat, nicht nur vom Lebenslauf.
 
-DENKWEISE: Du hast diesen Kandidaten persoenlich qualifiziert. Du KENNST ihn. Du weisst Dinge ueber ihn, die in keinem Lebenslauf stehen. Schreibe wie jemand der begeistert ist von dem was er gefunden hat — nicht wie jemand der eine Stellenbeschreibung abarbeitet.
+DEINE AUFGABE: Schreibe eine E-Mail, die dem Kunden zeigt: "Dieser Personalberater hat meine Stelle verstanden UND den Kandidaten wirklich kennengelernt." Der Kunde soll bei JEDER Anforderung seiner Stelle sehen, was der Kandidat konkret mitbringt.
 
-AUFBAU (exakt diese Reihenfolge, NICHTS weglassen, NICHTS hinzufuegen):
+SO GEHST DU VOR (intern, BEVOR du schreibst):
+1. Lies die Stellenausschreibung und extrahiere JEDE einzelne Taetigkeit/Anforderung
+2. Durchsuche dann ALLE Kandidaten-Daten nach Belegen fuer jede Anforderung:
+   - Werdegang: Welche Stationen zeigen diese Taetigkeit? Wie lange? Wie eigenstaendig?
+   - Transkript/Gespraechszusammenfassung: Hat der Kandidat sich zu dieser Taetigkeit geaeussert? Wie detailliert? Zahlen?
+   - Kerntaetigkeiten: Wird die Taetigkeit als aktuelle Kernaufgabe genannt?
+   - Skills + ERP/IT: Welche Systeme beherrscht der Kandidat? Wie gut (aus Transkript)?
+3. Bewerte: Wie SENIOR ist der Kandidat in jeder Taetigkeit? (eigenstaendig vs. unterstuetzend, Jahre, Volumen)
+
+AUFBAU DER E-MAIL (exakt diese Reihenfolge):
 
 1. "{anrede},"
    "Ich hoffe, es geht Ihnen gut."
 
-2. Kandidaten-Portrait (5-8 Saetze):
+2. Einleitung (2-3 Saetze):
+   Nenne den genauen Stellentitel und sage, dass du einen passenden Kandidaten vorstellen moechtest. Dann in 1-2 Saetzen das Wichtigste: Wer ist der Kandidat (Rolle, Erfahrungslevel, Art des aktuellen Arbeitgebers)? Was macht ihn fuer DIESE Stelle relevant?
+   Beispiel: "Fuer Ihre Vakanz als Internationaler Finanzbuchhalter moechte ich Ihnen eine Kandidatin vorstellen, die aktuell die operative Finanzbuchhaltung fuer 17 Gesellschaften einer Energieunternehmensgruppe eigenstaendig verantwortet."
 
-   ERSTER SATZ = HOOK. Das eine Detail, das diesen Kandidaten fuer genau diese Stelle besonders macht. Kein generischer Einstieg wie "Ich betreue einen Kandidaten der...". Stattdessen direkt rein:
+3. Taetigkeitsabgleich:
+   Gehe die wichtigsten Anforderungen der Stelle durch und zeige fuer JEDE, was der Kandidat konkret mitbringt. Nutze Aufzaehlungszeichen (•). Format:
+   • [Anforderung aus der Stelle]: [was der Kandidat dazu konkret kann, mit Beleg aus Werdegang/Transkript]
 
-   SCHLECHT: "Ich betreue eine Bilanzbuchhalterin, die derzeit eigenverantwortlich 30 Mandanten betreut."
-   GUT: "In meinem letzten Gespraech mit einer Bilanzbuchhalterin hat mich ueberrascht, wie souveraen sie 30 Mandanten parallel steuert — vom Einzelunternehmer bis zur GmbH mit 8-stelligem Umsatz, jeweils mit eigenstaendiger Jahresabschlusserstellung."
+   Beispiele fuer gute Eintraege:
+   • Debitoren- und Kreditorenbuchhaltung: aktueller Schwerpunkt Kreditoren bei 30 Mandanten, zusaetzlich debitorische Erfahrung aus der Kanzlei
+   • Monats- und Jahresabschluesse: erstellt eigenstaendig Jahresabschluesse, arbeitet aktuell am Monatsabschluss mit
+   • Umsatzsteuervoranmeldungen: fester Bestandteil der bisherigen Taetigkeit in der Steuerkanzlei
 
-   Der Unterschied: SCHLECHT listet Fakten auf. GUT erzaehlt eine Geschichte, macht neugierig, zeigt TIEFE.
+   WICHTIG: Nur Anforderungen auflisten, zu denen der Kandidat etwas vorweisen kann. Keine Luecken zeigen.
 
-   Deine Quellen (nutze ALLE, die verfuegbar sind):
-   - WERDEGANG: Nicht nur auflisten — interpretieren. Was sagt die Karriere ueber die Person? Aufstieg? Stabilitaet? Branchenwechsel die Vielseitigkeit zeigen?
-   - GESPRAECHSTRANSKRIPT/ZUSAMMENFASSUNG: Deine Geheimwaffe. Hier stecken die goldenen Details — Teamgroesse, Volumen, Anzahl Gesellschaften, Mandantenstruktur, persoenliche Motivation. Wenn vorhanden, MUSS mindestens ein Detail daraus in der Mail stehen.
-   - KERNTAETIGKEITEN: Was macht der Kandidat taeglich KONKRET? Nicht "Finanzbuchhaltung" sondern "bucht eigenstaendig 4 Gesellschaften, stimmt Intercompany ab, erstellt die UStVA".
-   - WECHSELMOTIVATION: Wenn vorhanden — zeigt dem Kunden: dieser Kandidat ist ERREICHBAR und hat einen echten Grund.
+4. IT/ERP-Kenntnisse:
+   Liste die relevanten Systeme auf — sowohl was die Stelle fordert als auch was der Kandidat beherrscht.
+   Beispiel: "Systeme: DATEV FIBU, DATEV Lodas, SAP — insbesondere DATEV setzt sie sehr sicher ein."
+   Wenn im Transkript steht, wie gut der Kandidat ein System beherrscht, nutze das.
 
-   WICHTIG: Beschreibe die Art des Arbeitgebers (Branche, Groesse), NICHT den Firmennamen.
+5. Wenn vorhanden — ein besonderes Detail das den Kandidaten von anderen abhebt (z.B. Sprachkenntnisse fuer internationale Stelle, Branchenerfahrung die perfekt passt, Weiterbildung die Entwicklungspotenzial zeigt). Kein Zwang — nur wenn es wirklich relevant ist.
 
-3. Auf einer eigenen Zeile GENAU dieser Platzhalter: {{{{SKILLS_TABLE}}}}
+6. Rahmendaten (nur vorhandene, je eigene Zeile):
+{"   • Standort / Fahrzeit: " + drive_info if drive_info else ""}
+{"   • Verfuegbarkeit: " + notice_period if notice_period else ""}
+{"   • Gehaltsvorstellung: " + salary_range if salary_range else ""}
+{"   • " + home_office_info if home_office_info else ""}
 
-4. Rahmendaten (nur vorhandene, je eigene Zeile):
-{"   Verfuegbarkeit: " + notice_period if notice_period else ""}
-{"   Gehaltsvorstellung: " + salary_range if salary_range else ""}
-{"   " + drive_info if drive_info else ""}
-{"   " + home_office_info if home_office_info else ""}
+7. "Bei Interesse lasse ich Ihnen gerne die vollstaendigen Unterlagen zukommen. Unter welchen Voraussetzungen darf ich Ihnen das vollstaendige Profil weiterleiten?"
 
-5. "Unter welchen Voraussetzungen darf ich Ihnen das vollstaendige Profil unseres Kandidaten weiterleiten?"
+STIL:
+- Ich-Form, professionell, sachlich aber engagiert
+- Konkret statt abstrakt — Zahlen, Taetigkeiten, Systeme statt Adjektive
+- Aufzaehlungszeichen (•) fuer den Taetigkeitsabgleich
+- Plain-Text (kein HTML, kein Markdown ausser •)
+- Der Kunde soll das Gefuehl haben: "Der hat sich wirklich mit meiner Stelle befasst"
 
-QUALITAETSTEST — pruefe JEDEN Satz bevor du ihn schreibst:
-- Wuerde ein Geschaeftsfuehrer nach diesem Satz weiterlesen? Wenn nein, streichen.
-- Steht etwas Konkretes drin (eine Zahl, eine Taetigkeit, ein Detail)? Wenn nein, umschreiben.
-- Koennte dieser Satz ueber JEDEN Buchhalter geschrieben werden? Wenn ja, er ist zu generisch — weg damit.
-
-ABSOLUTE VERBOTE (ein einziger Verstoss = E-Mail wertlos):
-- NIEMALS den Namen des Kandidaten nennen. Immer "der Kandidat" / "mein Kandidat" / "die Kandidatin" / "meine Kandidatin".
-- NIEMALS den Firmennamen des aktuellen Arbeitgebers nennen.
-- NIEMALS diese Woerter/Phrasen verwenden: "umfangreiche Erfahrung", "fundierte Kenntnisse", "beeindruckende Kombination", "ideale Besetzung", "ideale Ergaenzung", "breites Spektrum", "unterstreicht", "in der Lage", "hervorzuheben ist", "zeichnet sich aus", "bringt mit", "theoretische Fundierung", "erforderliche Sorgfalt", "systematische Herangehensweise", "tiefgreifende Expertise", "umfassendes Verstaendnis", "wertvolle Bereicherung", "solide Grundlage", "reibungslose Integration", "nahtlose Einarbeitung", "ueberzeugendes Profil".
-- NIEMALS Word, Excel, MS-Office erwaehnen.
-- NIEMALS Wir-Form. IMMER Ich-Form.
-- NIEMALS Inhalte wiederholen die in der Skills-Tabelle stehen.
-- NIEMALS HTML, Markdown oder Aufzaehlungszeichen.
+VERBOTE:
+- NIEMALS den Namen des Kandidaten nennen ("der Kandidat" / "die Kandidatin")
+- NIEMALS den Firmennamen des aktuellen Arbeitgebers nennen (stattdessen: Art des Unternehmens)
+- NIEMALS Floskeln: "umfangreiche Erfahrung", "fundierte Kenntnisse", "ideale Besetzung", "breites Spektrum", "zeichnet sich aus", "bringt mit", "in der Lage", "hervorzuheben ist", "solide Grundlage", "wertvolle Bereicherung", "ueberzeugendes Profil"
+- NIEMALS Word/Excel/MS-Office erwaehnen
+- NIEMALS Wir-Form
+- NIEMALS Anforderungen zeigen, die der Kandidat NICHT erfuellt
 
 Antworte NUR mit JSON: {{"subject": "Betreffzeile (max 8 Woerter)", "body_text": "Der E-Mail-Text"}}"""
 
@@ -460,19 +473,29 @@ Antworte NUR mit JSON: {{"subject": "Betreffzeile (max 8 Woerter)", "body_text":
                 if industries:
                     extra_info += f"Branchen: {json.dumps(industries, ensure_ascii=False)}\n"
 
-                email_user = f"""STELLE:
+                email_user = f"""═══ STELLENAUSSCHREIBUNG ═══
 Titel: {extracted_job_data.get('job_title', '')}
 Firma: {extracted_job_data.get('company_name', '')}
-Anforderungen: {json.dumps(extracted_job_data.get('requirements', []), ensure_ascii=False)[:1500]}
-Zusammenfassung: {extracted_job_data.get('description_summary', '')}
+Taetigkeiten/Anforderungen: {json.dumps(extracted_job_data.get('requirements', []), ensure_ascii=False)[:2000]}
+Stellenbeschreibung: {extracted_job_data.get('description_summary', '')}
 
-KANDIDAT:
+═══ KANDIDAT: WERDEGANG (chronologisch) ═══
 {extra_info}Rolle: {primary_role}
-Berufserfahrung: {json.dumps(candidate_data.get('work_history', []), ensure_ascii=False)[:5000]}
-Skills: {json.dumps(candidate_data.get('skills', []), ensure_ascii=False)[:800]}
+{json.dumps(candidate_data.get('work_history', []), ensure_ascii=False)[:6000]}
+
+═══ KANDIDAT: FACHLICHE SKILLS ═══
+Skills: {json.dumps(candidate_data.get('skills', []), ensure_ascii=False)[:1000]}
 ERP-Systeme: {candidate_data.get('erp', '')}
 IT-Skills: {candidate_data.get('it_skills', '')}
-Staerken aus Abgleich: {json.dumps(skills_comparison.get('strengths', []), ensure_ascii=False)}
+
+═══ KANDIDAT: AUSBILDUNG & ZERTIFIKATE ═══
+{json.dumps(candidate_data.get('education', []), ensure_ascii=False)[:600]}
+Weiterbildungen: {json.dumps(candidate_data.get('further_education', []), ensure_ascii=False)[:600]}
+Zertifikate: {json.dumps(candidate_data.get('v2_certifications', []), ensure_ascii=False)[:400]}
+Sprachen: {json.dumps(candidate_data.get('languages', {{}}), ensure_ascii=False)}
+
+═══ ABGLEICH-ERGEBNIS (Staerken des Kandidaten) ═══
+{json.dumps(skills_comparison.get('strengths', []), ensure_ascii=False)}
 {qualification_context}"""
 
                 logger.info("Generating presentation email (single-call approach)...")
