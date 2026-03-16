@@ -560,12 +560,12 @@ ORIGINAL-TEXT:
             # {{SKILLS_TABLE}} Platzhalter durch Plain-Text-Tabelle ersetzen
             plain_body = body_text.replace("{{SKILLS_TABLE}}", skills_table_text).replace("{SKILLS_TABLE}", skills_table_text)
 
-            # Falls kein Platzhalter im Text war, Tabelle nach dem zweiten Absatz einfuegen
-            if skills_table_text and skills_table_text not in plain_body:
-                paragraphs = plain_body.split("\n\n")
-                insert_pos = min(2, len(paragraphs))
-                paragraphs.insert(insert_pos, skills_table_text)
-                plain_body = "\n\n".join(paragraphs)
+            # DEAKTIVIERT: Opus generiert den Taetigkeitsabgleich selbst, keine Python-Tabelle einfuegen
+            # if skills_table_text and skills_table_text not in plain_body:
+            #     paragraphs = plain_body.split("\n\n")
+            #     insert_pos = min(2, len(paragraphs))
+            #     paragraphs.insert(insert_pos, skills_table_text)
+            #     plain_body = "\n\n".join(paragraphs)
 
             if PLAIN_TEXT_SIGNATURE not in plain_body:
                 plain_body = plain_body.rstrip() + "\n\n--\n" + PLAIN_TEXT_SIGNATURE

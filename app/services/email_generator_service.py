@@ -1,11 +1,11 @@
 """EmailGeneratorService — KI-generierte Vorstellungs-E-Mails + Fallback-Kaskade.
 
 Generiert professionelle Vorstellungs-E-Mails fuer Kandidaten an Unternehmen
-mittels Claude Sonnet. Verwaltet die Follow-Up-Sequenz (2 Tage + 3 Tage)
-und die Fallback-E-Mail-Kaskade (bewerber@, karriere@, hr@ etc.).
+mittels Claude Opus 4.6 (Taetigkeitsabgleich-Prompt). Verwaltet die Follow-Up-
+Sequenz (2 Tage + 3 Tage) und die Fallback-E-Mail-Kaskade (bewerber@, karriere@, hr@ etc.).
 
 Ablauf:
-1. generate_presentation_email() — Claude generiert initiale Vorstellungs-E-Mail
+1. generate_presentation_email() — Claude Opus generiert initiale Vorstellungs-E-Mail
 2. generate_followup_email() — Claude generiert Follow-Up-Erinnerungen
 3. generate_fallback_emails() — Fallback-Adressen fuer Domains ohne Ansprechpartner
 4. get_html_signature() — Sincirus HTML-Signatur fuer E-Mail-Versand
@@ -53,14 +53,14 @@ class EmailGeneratorService:
         self.db = db
 
     # ══════════════════════════════════════════════════════════════
-    #  METHODE 1: Initiale Vorstellungs-E-Mail (Claude Sonnet)
+    #  METHODE 1: Initiale Vorstellungs-E-Mail (Claude Opus 4.6)
     # ══════════════════════════════════════════════════════════════
 
     async def generate_presentation_email(self, match_id: UUID) -> dict:
-        """Generiert eine professionelle Vorstellungs-E-Mail mit Claude Sonnet.
+        """Generiert eine professionelle Vorstellungs-E-Mail mit Claude Opus 4.6.
 
-        Laedt Match mit Job + Candidate + Company + Contact Daten,
-        erstellt einen strukturierten Prompt und laesst Claude die E-Mail generieren.
+        Laedt Match mit ALLEN Kandidaten- und Job-Daten, erstellt einen
+        Taetigkeitsabgleich-Prompt und laesst Opus die E-Mail generieren.
 
         Args:
             match_id: UUID des Matches
@@ -96,7 +96,7 @@ class EmailGeneratorService:
             )
             contact = contact_result.scalar_one_or_none()
 
-        # 2. Prompt-Daten zusammenstellen
+        # 2. ALLE Daten als Dicts extrahieren (DB-Session schliessen vor API-Call!)
         company_name = company.name if company else job.company_name or "Unternehmen"
         company_city = (company.city if company else None) or job.city or ""
 
@@ -108,25 +108,56 @@ class EmailGeneratorService:
 
         job_title = job.position or "Fachkraft"
         job_city = getattr(job, "display_city", "") or job.city or ""
+        job_text = job.job_text or ""
+        job_tasks = job.job_tasks or ""
+        job_industry = job.industry or ""
+        job_classification = job.classification_data or {}
 
-        # Kandidaten-Daten (ANONYMISIERT — kein Name!)
+        # Kandidaten-Daten (ANONYMISIERT — KEIN Name, Email, Telefon, Adresse!)
         candidate_ref = self._build_candidate_reference(candidate)
         candidate_position = candidate.current_position or "Fachkraft im Rechnungswesen"
         candidate_city = candidate.city or "nicht angegeben"
+        candidate_erp = ", ".join(candidate.erp) if candidate.erp else ""
+        candidate_it_skills = ", ".join(candidate.it_skills) if candidate.it_skills else ""
+        candidate_skills = ", ".join(candidate.skills) if candidate.skills else ""
+        years_experience = candidate.v2_years_experience or ""
+
+        # Werdegang (work_history als strukturierter Text)
+        work_history_text = self._format_work_history(candidate.work_history)
+
+        # Ausbildung
+        education_text = self._format_education(candidate.education)
+
+        # Qualifizierungsgespraech-Daten
+        call_summary = candidate.call_summary or ""
+        call_transcript = candidate.call_transcript or ""
+        key_activities = candidate.key_activities or ""
+        change_motivation = candidate.change_motivation or ""
+
+        # Sprachen
+        languages_text = self._format_languages(candidate.languages)
+
+        # Zertifizierungen
+        certifications = candidate.v2_certifications or []
+        certifications_text = ", ".join(certifications) if isinstance(certifications, list) else str(certifications)
+
+        # Rahmendaten
+        salary = candidate.salary or ""
+        notice_period = candidate.notice_period or ""
+        home_office_days = candidate.home_office_days or ""
+        employment_type = candidate.employment_type or ""
 
         # Fahrzeit
-        drive_time_car = match.drive_time_car_min or "nicht berechnet"
-        drive_time_transit = match.drive_time_transit_min or "nicht berechnet"
+        drive_time_car = match.drive_time_car_min
+        drive_time_transit = match.drive_time_transit_min
 
-        # Match-Staerken aus v2_score_breakdown oder ai_strengths
+        # Match-KI-Daten
         match_strengths = self._extract_strengths(match)
         match_explanation = match.ai_explanation or ""
 
-        # ERP-Systeme
-        candidate_erp = ", ".join(candidate.erp) if candidate.erp else "nicht angegeben"
-
-        # Berufserfahrung
-        years_experience = candidate.v2_years_experience or "nicht angegeben"
+        # Klassifizierung
+        candidate_classification = candidate.classification_data or {}
+        primary_role = candidate_classification.get("primary_role", "")
 
         # 3. Claude Prompt erstellen
         prompt = self._build_presentation_prompt(
@@ -136,22 +167,39 @@ class EmailGeneratorService:
             contact_name=contact_name,
             job_title=job_title,
             job_city=job_city,
+            job_text=job_text,
+            job_tasks=job_tasks,
+            job_industry=job_industry,
             candidate_ref=candidate_ref,
             candidate_position=candidate_position,
             candidate_city=candidate_city,
+            candidate_erp=candidate_erp,
+            candidate_it_skills=candidate_it_skills,
+            candidate_skills=candidate_skills,
+            years_experience=years_experience,
+            work_history_text=work_history_text,
+            education_text=education_text,
+            call_summary=call_summary,
+            key_activities=key_activities,
+            change_motivation=change_motivation,
+            languages_text=languages_text,
+            certifications_text=certifications_text,
+            salary=salary,
+            notice_period=notice_period,
+            home_office_days=home_office_days,
+            employment_type=employment_type,
             drive_time_car=drive_time_car,
             drive_time_transit=drive_time_transit,
             match_strengths=match_strengths,
             match_explanation=match_explanation,
-            candidate_erp=candidate_erp,
-            years_experience=years_experience,
+            primary_role=primary_role,
         )
 
-        # 4. Claude API Call
+        # 4. Claude Opus API Call
         try:
             result = await self._call_claude(prompt)
         except Exception as e:
-            logger.error(f"Claude API Fehler bei Match {match_id}: {e}")
+            logger.error(f"Claude Opus API Fehler bei Match {match_id}: {e}")
             # Fallback: Manuell generierte E-Mail
             result = self._fallback_presentation_email(
                 company_name=company_name,
@@ -392,7 +440,10 @@ class EmailGeneratorService:
     # ══════════════════════════════════════════════════════════════
 
     async def _call_claude(self, prompt: str) -> dict:
-        """Ruft Claude Sonnet auf und parst die JSON-Antwort.
+        """Ruft Claude Opus 4.6 auf und parst die JSON-Antwort.
+
+        Nutzt den dedizierten Opus API Key (ANTHROPIC_OPUS_API_KEY),
+        Fallback auf den Standard-Key (ANTHROPIC_API_KEY).
 
         Args:
             prompt: Der vollstaendige Prompt fuer Claude
@@ -404,14 +455,15 @@ class EmailGeneratorService:
             ValueError: Wenn die Antwort kein gueltiges JSON enthaelt
             Exception: Bei API-Fehlern
         """
-        if not settings.anthropic_api_key:
-            raise ValueError("Anthropic API Key nicht konfiguriert (ANTHROPIC_API_KEY)")
+        api_key = settings.anthropic_opus_api_key or settings.anthropic_api_key
+        if not api_key:
+            raise ValueError("Anthropic API Key nicht konfiguriert (ANTHROPIC_OPUS_API_KEY oder ANTHROPIC_API_KEY)")
 
-        client = AsyncAnthropic(api_key=settings.anthropic_api_key)
+        client = AsyncAnthropic(api_key=api_key)
 
         response = await client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=1024,
+            model="claude-opus-4-6",
+            max_tokens=2048,
             messages=[{"role": "user", "content": prompt}],
         )
 
@@ -479,57 +531,146 @@ class EmailGeneratorService:
         contact_name: str,
         job_title: str,
         job_city: str,
+        job_text: str,
+        job_tasks: str,
+        job_industry: str,
         candidate_ref: str,
         candidate_position: str,
         candidate_city: str,
-        drive_time_car: int | str,
-        drive_time_transit: int | str,
+        candidate_erp: str,
+        candidate_it_skills: str,
+        candidate_skills: str,
+        years_experience: int | str,
+        work_history_text: str,
+        education_text: str,
+        call_summary: str,
+        key_activities: str,
+        change_motivation: str,
+        languages_text: str,
+        certifications_text: str,
+        salary: str,
+        notice_period: str,
+        home_office_days: str,
+        employment_type: str,
+        drive_time_car: int | None,
+        drive_time_transit: int | None,
         match_strengths: str,
         match_explanation: str,
-        candidate_erp: str,
-        years_experience: int | str,
+        primary_role: str,
     ) -> str:
-        """Erstellt den Claude-Prompt fuer die Vorstellungs-E-Mail."""
+        """Erstellt den Opus-optimierten Taetigkeitsabgleich-Prompt."""
 
-        anrede_hinweis = ""
+        # Anrede bestimmen
         if contact_salutation and contact_name and contact_name != "Unbekannt":
-            anrede_hinweis = f"Ansprechpartner ist bekannt: {contact_salutation} {contact_name}. Beginne mit persoenlicher Anrede."
+            anrede = f"Sehr geehrte{'r' if contact_salutation.strip().lower() in ('herr', 'mr', 'm') else ''} {contact_salutation} {contact_name}"
         else:
-            anrede_hinweis = "Kein Ansprechpartner bekannt. Beginne mit 'Guten Tag'."
+            anrede = "Guten Tag"
 
-        return f"""Du bist ein erfahrener Personalberater bei Sincirus in Hamburg.
-Schreibe eine professionelle Vorstellungs-E-Mail fuer einen Kandidaten.
+        # Fahrzeit-Info
+        fahrzeit_parts = []
+        if isinstance(drive_time_car, int):
+            fahrzeit_parts.append(f"{drive_time_car} Min mit dem Auto")
+        if isinstance(drive_time_transit, int):
+            fahrzeit_parts.append(f"{drive_time_transit} Min mit OEPNV")
+        fahrzeit_text = " / ".join(fahrzeit_parts) if fahrzeit_parts else "nicht berechnet"
 
-Kontext:
-- Unternehmen: {company_name} ({company_city})
-- {anrede_hinweis}
-- Position: {job_title}
-- Kandidat-Referenz: {candidate_ref} (KEIN Name!)
-- Aktuelle Position: {candidate_position}
-- Stadt: {candidate_city}
-- Fahrzeit: {drive_time_car} Min Auto / {drive_time_transit} Min Bahn
-- Staerken: {match_strengths}
-- KI-Begruendung: {match_explanation}
-- ERP-Systeme: {candidate_erp}
-- Berufserfahrung: {years_experience} Jahre
+        # Job-Anforderungen aus job_text extrahieren (die ersten 3000 Zeichen)
+        job_desc = job_text[:3000] if job_text else ""
+        if job_tasks:
+            job_desc = f"AUFGABEN:\n{job_tasks}\n\nVOLLSTAENDIGE STELLENANZEIGE:\n{job_desc}"
 
-Regeln:
-1. Schreibe in der Sie-Form
-2. Klartext, KEIN HTML im Body
-3. Verwende KEINEN Kandidaten-Namen (anonymisiert!)
-4. Nutze die Referenznummer {candidate_ref}
-5. Strukturiere den Vergleich als tabellenartige Gegenuberstellung:
-   Position:     {job_title}
-   Kandidat:     {candidate_position}
-   Standort:     {candidate_city} -> {job_city} ({drive_time_car} Min)
-   ERP:          {candidate_erp}
-   Erfahrung:    {years_experience} Jahre
-6. Halte die E-Mail kurz (max 15 Zeilen Body)
-7. Ende mit "Ich freue mich auf Ihre Rueckmeldung"
-8. KEIN Gruss am Ende (kommt in der Signatur)
+        # Kandidaten-Daten zusammenbauen
+        kandidat_daten = f"AKTUELLE POSITION: {candidate_position}"
+        if work_history_text:
+            kandidat_daten += f"\n\nWERDEGANG:\n{work_history_text}"
+        if key_activities:
+            kandidat_daten += f"\n\nKERNTAETIGKEITEN (vom Kandidaten bestaetigt):\n{key_activities}"
+        if call_summary:
+            kandidat_daten += f"\n\nGESPRAECHSZUSAMMENFASSUNG:\n{call_summary}"
+        if candidate_erp:
+            kandidat_daten += f"\n\nERP-SYSTEME: {candidate_erp}"
+        if candidate_it_skills:
+            kandidat_daten += f"\nIT-KENNTNISSE: {candidate_it_skills}"
+        if candidate_skills:
+            kandidat_daten += f"\nWEITERE SKILLS: {candidate_skills}"
+        if education_text:
+            kandidat_daten += f"\n\nAUSBILDUNG:\n{education_text}"
+        if certifications_text:
+            kandidat_daten += f"\nZERTIFIZIERUNGEN: {certifications_text}"
+        if languages_text:
+            kandidat_daten += f"\nSPRACHEN: {languages_text}"
+        if years_experience:
+            kandidat_daten += f"\nBERUFSERFAHRUNG: {years_experience} Jahre"
+        if primary_role:
+            kandidat_daten += f"\nPRIMAERE ROLLE: {primary_role}"
 
-Gib zurueck als JSON:
-{{"subject": "...", "body_text": "..."}}"""
+        # Rahmendaten
+        rahmendaten_parts = []
+        rahmendaten_parts.append(f"Standort: {candidate_city} → {job_city} ({fahrzeit_text})")
+        if notice_period:
+            rahmendaten_parts.append(f"Verfuegbarkeit: {notice_period}")
+        if salary:
+            rahmendaten_parts.append(f"Gehaltsvorstellung: {salary}")
+        if home_office_days:
+            rahmendaten_parts.append(f"Home-Office: {home_office_days}")
+        if employment_type:
+            rahmendaten_parts.append(f"Arbeitszeit: {employment_type}")
+        rahmendaten_text = "\n".join(f"• {r}" for r in rahmendaten_parts)
+
+        prompt = f"""Du bist Milad Hamdard, Senior Personalberater bei Sincirus in Hamburg. Du schreibst eine Vorstellungs-E-Mail an ein Unternehmen, um einen Kandidaten fuer eine offene Stelle vorzuschlagen.
+
+═══ STELLENANZEIGE ═══
+Unternehmen: {company_name} ({company_city})
+Position: {job_title}
+Branche: {job_industry}
+
+{job_desc}
+
+═══ KANDIDAT (Referenz: {candidate_ref}) ═══
+{kandidat_daten}
+
+═══ RAHMENDATEN ═══
+{rahmendaten_text}
+
+═══ KI-MATCHING-ERGEBNIS ═══
+Staerken: {match_strengths}
+Begruendung: {match_explanation}
+
+═══ DEINE AUFGABE ═══
+
+Schreibe eine vertrieblich starke Vorstellungs-E-Mail. Du MUSST einen TAETIGKEITSABGLEICH machen:
+
+Gehe JEDE wichtige Anforderung aus der Stellenanzeige einzeln durch und zeige, was der Kandidat KONKRET dafuer mitbringt. Belege es mit Fakten aus dem Werdegang, den Kerntaetigkeiten oder der Gespraechszusammenfassung. Schreibe KEINE leeren Worthuelsen.
+
+═══ AUFBAU DER E-MAIL ═══
+
+1. ANREDE: "{anrede}"
+2. EINLEITUNG: "Ich hoffe, es geht Ihnen gut." Dann 1-2 Saetze: Wer du bist, welche Position, dass du einen passenden Kandidaten hast.
+3. TAETIGKEITSABGLEICH: Bullet-Points (•). Pro Anforderung aus der Stelle:
+   • [Anforderung]: [Was der Kandidat konkret mitbringt, mit Beleg aus Werdegang/Gespraech]
+   Beispiel: "• Monats- und Jahresabschluesse: Ihr Kandidat erstellt seit 4 Jahren eigenstaendig Monats- und Jahresabschluesse nach HGB bei [Firma aus Werdegang]"
+4. IT/ERP-ABGLEICH (wenn relevant): Welche Systeme der Kandidat beherrscht vs. was gefordert ist.
+5. RAHMENDATEN als Aufzaehlungspunkte:
+{rahmendaten_text}
+6. ABSCHLUSS: "Bei Interesse lasse ich Ihnen gerne die vollstaendigen Unterlagen zukommen. Ich freue mich auf Ihre Rueckmeldung."
+7. KEIN Gruss am Ende (kommt automatisch in der Signatur).
+
+═══ STIL-REGELN ═══
+- IMMER Ich-Form ("Ich betreue...", "Ich erkenne..."), NIEMALS Wir-Form
+- Sie-Form gegenueber dem Empfaenger
+- Klartext (KEIN HTML, keine Markdown-Formatierung, nur • fuer Aufzaehlungen)
+- KEIN Kandidatenname — nur "Ihr Kandidat" oder "mein Kandidat" oder Referenz {candidate_ref}
+- KEINE Floskeln wie "bringt mit", "theoretische Fundierung", "systematische Herangehensweise"
+- KEINE Schulnoten-Sprache ("gut", "sehr gut", "befriedigend")
+- Schreibe wie ein erfahrener Recruiter der den Kandidaten persoenlich kennt
+- Nenne KONKRETE Fakten: Firmennamen aus dem Werdegang, Jahre, Systeme, Taetigkeiten
+- Die E-Mail soll den Empfaenger UEBERZEUGEN, nicht informieren
+
+═══ AUSGABEFORMAT ═══
+Antworte NUR mit diesem JSON (keine Erklaerung, kein Markdown-Codeblock):
+{{"subject": "Kandidatenvorstellung: {candidate_ref} — {job_title} ({company_city})", "body_text": "..."}}"""
+
+        return prompt
 
     def _build_followup_prompt_step2(
         self,
@@ -689,6 +830,71 @@ Gib zurueck als JSON:
     # ══════════════════════════════════════════════════════════════
     #  PRIVATE: Hilfsfunktionen
     # ══════════════════════════════════════════════════════════════
+
+    def _format_work_history(self, work_history: dict | list | None) -> str:
+        """Formatiert work_history als lesbaren Text (KEINE persoenlichen Daten!)."""
+        if not work_history:
+            return ""
+        entries = work_history if isinstance(work_history, list) else [work_history]
+        parts = []
+        for entry in entries[:8]:  # Max 8 Eintraege
+            if isinstance(entry, dict):
+                company = entry.get("company", entry.get("firma", ""))
+                position = entry.get("position", entry.get("titel", ""))
+                period = entry.get("period", entry.get("zeitraum", ""))
+                tasks = entry.get("tasks", entry.get("aufgaben", entry.get("beschreibung", "")))
+                line = f"- {position}"
+                if company:
+                    line += f" bei {company}"
+                if period:
+                    line += f" ({period})"
+                if tasks:
+                    if isinstance(tasks, list):
+                        tasks = "; ".join(tasks[:5])
+                    line += f"\n  Taetigkeiten: {tasks[:300]}"
+                parts.append(line)
+            elif isinstance(entry, str):
+                parts.append(f"- {entry[:200]}")
+        return "\n".join(parts)
+
+    def _format_education(self, education: dict | list | None) -> str:
+        """Formatiert Ausbildung als lesbaren Text."""
+        if not education:
+            return ""
+        entries = education if isinstance(education, list) else [education]
+        parts = []
+        for entry in entries[:5]:
+            if isinstance(entry, dict):
+                degree = entry.get("degree", entry.get("abschluss", ""))
+                school = entry.get("school", entry.get("institution", entry.get("schule", "")))
+                field = entry.get("field", entry.get("fachrichtung", ""))
+                line = f"- {degree}"
+                if field:
+                    line += f" in {field}"
+                if school:
+                    line += f" ({school})"
+                parts.append(line)
+            elif isinstance(entry, str):
+                parts.append(f"- {entry[:200]}")
+        return "\n".join(parts)
+
+    def _format_languages(self, languages: dict | list | None) -> str:
+        """Formatiert Sprachen als Text."""
+        if not languages:
+            return ""
+        if isinstance(languages, list):
+            parts = []
+            for lang in languages:
+                if isinstance(lang, dict):
+                    name = lang.get("language", lang.get("sprache", ""))
+                    level = lang.get("level", lang.get("niveau", ""))
+                    parts.append(f"{name} ({level})" if level else name)
+                elif isinstance(lang, str):
+                    parts.append(lang)
+            return ", ".join(parts)
+        if isinstance(languages, dict):
+            return ", ".join(f"{k}: {v}" for k, v in languages.items())
+        return str(languages)
 
     async def _load_match_with_relations(self, match_id: UUID) -> Match | None:
         """Laedt einen Match mit Job und Kandidat (eager loading)."""
