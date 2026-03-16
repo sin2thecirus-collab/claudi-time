@@ -160,6 +160,16 @@ async def send_presentation(req: SendPresentationRequest, db: AsyncSession = Dep
         _step = "parse_candidate_id"
         candidate_id = uuid.UUID(req.candidate_id)
 
+        # Blocklist-Check: Empfaenger-Domain pruefen
+        _step = "blocklist_check"
+        from app.api.routes_presentation_reply import is_domain_blocked
+        recipient_blocked = await is_domain_blocked(db, req.email_to)
+        if recipient_blocked:
+            raise HTTPException(
+                status_code=409,
+                detail="Domain ist auf der Blockliste",
+            )
+
         # Domain-Kapazitaet pruefen
         _step = "import_domain_protection"
         from app.services.domain_protection_service import check_domain_capacity, get_domain_for_company
@@ -252,14 +262,35 @@ async def send_presentation(req: SendPresentationRequest, db: AsyncSession = Dep
         _step = "db_commit"
         await db.commit()
 
-        # n8n triggern
+        # n8n triggern (DB-Session ist bereits geschlossen — Railway 30s Timeout!)
         _step = "trigger_n8n"
         n8n_success = await _trigger_direct_n8n(presentation_dict, req.contact_name)
+
+        # Status auf "sent" aktualisieren wenn n8n erfolgreich
+        final_status = presentation_dict["status"]
+        if n8n_success:
+            _step = "update_status_sent"
+            try:
+                from app.models.client_presentation import ClientPresentation
+                from sqlalchemy import update
+
+                async with async_session_maker() as db_update:
+                    await db_update.execute(
+                        update(ClientPresentation)
+                        .where(ClientPresentation.id == uuid.UUID(presentation_dict["id"]))
+                        .values(status="sent")
+                    )
+                    await db_update.commit()
+                final_status = "sent"
+                logger.info(f"Presentation {presentation_dict['id']} Status → sent")
+            except Exception as e:
+                logger.error(f"Status-Update auf 'sent' fehlgeschlagen: {e}")
+                # n8n hat trotzdem gesendet — nicht den ganzen Request failen lassen
 
         return {
             "presentation_id": presentation_dict["id"],
             "company_id": company_id_str,
-            "status": presentation_dict["status"],
+            "status": final_status,
             "n8n_triggered": n8n_success,
             "domain_warning": domain_warning,
         }

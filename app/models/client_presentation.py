@@ -152,6 +152,11 @@ class ClientPresentation(Base):
     client_response_raw: Mapped[str | None] = mapped_column(Text)  # Original-E-Mail-Text
     responded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
+    # Reply-Tracking (replied_positive, replied_negative, deletion_requested, auto_reply_ignored)
+    reply_status: Mapped[str | None] = mapped_column(String(30))
+    reply_received_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    reply_body_preview: Mapped[str | None] = mapped_column(Text)  # Erste 500 Zeichen der Antwort
+
     # Spaeter-melden: Wiedervorlage-Datum
     callback_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 

@@ -477,6 +477,10 @@ app.include_router(presentation_router)
 from app.api.routes_candidate_presentation import router as candidate_presentation_router
 app.include_router(candidate_presentation_router)
 
+# Presentation Reply Monitor (/api/presentations/reply/...)
+from app.api.routes_presentation_reply import router as presentation_reply_router
+app.include_router(presentation_reply_router)
+
 # Status & Query API (/api/status/overview, /api/status/geodaten, /api/status/profiling, ...)
 app.include_router(status_router, prefix="/api")
 

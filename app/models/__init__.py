@@ -38,6 +38,7 @@ from app.models.client_presentation import (
     PresentationStatus,
 )
 from app.models.presentation_batch import PresentationBatch
+from app.models.email_blocklist import EmailBlocklist
 from app.models.unassigned_call import UnassignedCall
 
 __all__ = [
@@ -92,4 +93,5 @@ __all__ = [
     "ClientResponseCategory",
     "AcquisitionCall",
     "AcquisitionEmail",
+    "EmailBlocklist",
 ]
