@@ -280,6 +280,128 @@ async def get_modal_data(
     return data
 
 
+@router.get("/api/presentations/debug-send-check")
+async def debug_send_check(
+    db: AsyncSession = Depends(get_db),
+):
+    """Debug-Endpoint: Prueft ob alle Voraussetzungen fuer E-Mail-Versand erfuellt sind.
+
+    Rufe diesen Endpoint auf BEVOR du auf 'Senden' klickst.
+    Zeigt genau, was funktioniert und was nicht.
+    """
+    checks = {}
+
+    # 1. n8n Webhook URL konfiguriert?
+    n8n_url = settings.n8n_webhook_url
+    checks["n8n_webhook_url_configured"] = {
+        "status": "OK" if n8n_url else "FEHLER",
+        "value": n8n_url if n8n_url else "NICHT GESETZT",
+        "detail": "N8N_WEBHOOK_URL muss in Railway gesetzt sein" if not n8n_url else None,
+    }
+
+    # 2. n8n API Token konfiguriert?
+    n8n_token = settings.n8n_api_token
+    checks["n8n_api_token_configured"] = {
+        "status": "OK" if n8n_token else "WARNUNG",
+        "value": f"{n8n_token[:8]}..." if n8n_token else "NICHT GESETZT",
+        "detail": "Optional aber empfohlen fuer Authentifizierung" if not n8n_token else None,
+    }
+
+    # 3. n8n Webhook erreichbar?
+    webhook_url = f"{n8n_url}/webhook/kunde-vorstellen" if n8n_url else None
+    checks["n8n_webhook_reachable"] = {"status": "NICHT GEPRUEFT", "url": webhook_url}
+
+    if n8n_url:
+        try:
+            headers = {}
+            if n8n_token:
+                headers["Authorization"] = f"Bearer {n8n_token}"
+            # HEAD/GET Request zum Testen (n8n Webhooks antworten auf GET mit "Webhook is not for GET")
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.get(
+                    webhook_url,
+                    headers=headers,
+                )
+            # n8n gibt bei aktiven Webhooks verschiedene Status-Codes:
+            # 200 = Test-Trigger aktiv, 404 = Webhook nicht registriert, 405 = POST-only (normal!)
+            if resp.status_code in (200, 405):
+                checks["n8n_webhook_reachable"] = {
+                    "status": "OK",
+                    "url": webhook_url,
+                    "http_status": resp.status_code,
+                    "detail": "Webhook ist erreichbar und aktiv",
+                }
+            elif resp.status_code == 404:
+                checks["n8n_webhook_reachable"] = {
+                    "status": "FEHLER",
+                    "url": webhook_url,
+                    "http_status": 404,
+                    "detail": "Webhook '/webhook/kunde-vorstellen' existiert NICHT in n8n! "
+                              "Der Workflow muss in n8n aktiviert sein.",
+                    "response_body": resp.text[:300],
+                }
+            else:
+                checks["n8n_webhook_reachable"] = {
+                    "status": "WARNUNG",
+                    "url": webhook_url,
+                    "http_status": resp.status_code,
+                    "detail": f"Unerwarteter Status-Code {resp.status_code}",
+                    "response_body": resp.text[:300],
+                }
+        except httpx.TimeoutException:
+            checks["n8n_webhook_reachable"] = {
+                "status": "FEHLER",
+                "url": webhook_url,
+                "detail": "TIMEOUT — n8n antwortet nicht innerhalb 10s",
+            }
+        except Exception as e:
+            checks["n8n_webhook_reachable"] = {
+                "status": "FEHLER",
+                "url": webhook_url,
+                "detail": f"Verbindungsfehler: {str(e)}",
+            }
+
+    # 4. Anthropic Opus Key (fuer E-Mail-Generierung)
+    opus_key = settings.anthropic_opus_api_key
+    std_key = settings.anthropic_api_key
+    checks["anthropic_opus_key"] = {
+        "status": "OK" if opus_key else ("WARNUNG" if std_key else "FEHLER"),
+        "value": f"{opus_key[:12]}..." if opus_key else ("Fallback auf Standard-Key" if std_key else "NICHT GESETZT"),
+    }
+
+    # 5. DB-Verbindung pruefen
+    try:
+        from sqlalchemy import text
+        result = await db.execute(text("SELECT 1"))
+        checks["database"] = {"status": "OK", "detail": "PostgreSQL erreichbar"}
+    except Exception as e:
+        checks["database"] = {"status": "FEHLER", "detail": str(e)}
+
+    # 6. Zusammenfassung
+    all_ok = all(
+        c.get("status") == "OK"
+        for key, c in checks.items()
+        if key in ("n8n_webhook_url_configured", "n8n_webhook_reachable", "database")
+    )
+
+    return {
+        "send_will_work": all_ok,
+        "summary": (
+            "Alle Checks bestanden — E-Mail-Versand sollte funktionieren"
+            if all_ok
+            else "PROBLEME ERKANNT — E-Mail wird vermutlich NICHT versendet. Siehe Details."
+        ),
+        "checks": checks,
+        "flow_explanation": {
+            "1_klick_senden": "Frontend ruft POST /api/presentations/send auf",
+            "2_db_erstellen": "Backend erstellt ClientPresentation in DB (das klappt immer)",
+            "3_n8n_trigger": f"Backend ruft {webhook_url or 'NICHT KONFIGURIERT'} auf",
+            "4_n8n_sendet": "n8n empfaengt Payload und sendet E-Mail via Outlook/IONOS SMTP",
+            "5_callback": "n8n meldet Erfolg zurueck an POST /api/presentations/{{id}}/sent",
+        },
+    }
+
+
 @router.post("/api/presentations/send")
 async def send_presentation(
     body: SendPresentationRequest,
