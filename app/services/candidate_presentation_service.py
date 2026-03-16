@@ -428,11 +428,12 @@ AUFBAU DER E-MAIL (exakt diese Reihenfolge):
 
 5. Wenn vorhanden — ein besonderes Detail das den Kandidaten von anderen abhebt (z.B. Sprachkenntnisse fuer internationale Stelle, Branchenerfahrung die perfekt passt, Weiterbildung die Entwicklungspotenzial zeigt). Kein Zwang — nur wenn es wirklich relevant ist.
 
-6. Rahmendaten (nur vorhandene, je eigene Zeile):
-{"   • Standort / Fahrzeit: " + drive_info if drive_info else ""}
-{"   • Verfuegbarkeit: " + notice_period if notice_period else ""}
-{"   • Gehaltsvorstellung: " + salary_range if salary_range else ""}
-{"   • " + home_office_info if home_office_info else ""}
+6. Rahmendaten — schreibe einen kurzen Absatz (keine Aufzaehlung) mit den vorhandenen Infos:
+   - Standort des Kandidaten und Fahrzeit zum Unternehmen (wenn Fahrzeit-Daten vorhanden). Bewerte ob die Entfernung passt, z.B. "Die Kandidatin wohnt in Hamburg und waere in ca. 25 Minuten mit dem Auto bei Ihnen."
+   - Verfuegbarkeit / Kuendigungsfrist (wenn vorhanden)
+   - Gehaltsvorstellung (wenn vorhanden)
+   - Home-Office-Wunsch (wenn vorhanden)
+   Nur erwaehnen was tatsaechlich als Daten vorliegt. Nichts erfinden.
 
 7. "Bei Interesse lasse ich Ihnen gerne die vollstaendigen Unterlagen zukommen. Unter welchen Voraussetzungen darf ich Ihnen das vollstaendige Profil weiterleiten?"
 
@@ -492,7 +493,14 @@ IT-Skills: {candidate_data.get('it_skills', '')}
 {json.dumps(candidate_data.get('education', []), ensure_ascii=False)[:600]}
 Weiterbildungen: {json.dumps(candidate_data.get('further_education', []), ensure_ascii=False)[:600]}
 Zertifikate: {json.dumps(candidate_data.get('v2_certifications', []), ensure_ascii=False)[:400]}
-Sprachen: {json.dumps(candidate_data.get('languages', {{}}), ensure_ascii=False)}
+Sprachen: {json.dumps(candidate_data.get('languages') or dict(), ensure_ascii=False)}
+
+═══ STANDORT & FAHRZEIT ═══
+Standort Firma: {extracted_job_data.get('city', 'unbekannt')}
+{f"Fahrzeit Kandidat → Firma: {drive_info}" if drive_info else "Fahrzeit: nicht berechnet"}
+{f"Home-Office-Wunsch: {home_office}" if home_office else ""}
+{f"Verfuegbarkeit: {notice_period}" if notice_period else ""}
+{f"Gehaltsvorstellung: {salary_range}" if salary_range else ""}
 
 ═══ ABGLEICH-ERGEBNIS (Staerken des Kandidaten) ═══
 {json.dumps(skills_comparison.get('strengths', []), ensure_ascii=False)}
