@@ -637,15 +637,14 @@ ORIGINAL-TEXT:
         await db.flush()
 
         # Triple-Doku: CompanyCorrespondence erstellen
+        # ACHTUNG: CompanyCorrespondence hat KEIN candidate_id, content, channel, notes Feld!
+        # Nur: company_id, contact_id, direction, subject, body
         correspondence = CompanyCorrespondence(
             company_id=company_id,
             contact_id=contact_id,
-            candidate_id=candidate_id,
             direction=CorrespondenceDirection.OUTBOUND,
-            channel="email",
             subject=email_subject,
-            content=email_body_text[:500],
-            notes=f"Direkte Vorstellung (source={source})",
+            body=email_body_text[:500],
         )
         db.add(correspondence)
         await db.flush()
