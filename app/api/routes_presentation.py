@@ -91,7 +91,7 @@ class FallbackResultRequest(BaseModel):
 
 # ── n8n Workflow Trigger ─────────────────────────────────────
 
-async def _trigger_n8n_workflow(presentation, contact_name: str | None = None) -> bool:
+async def _trigger_n8n_workflow(presentation_data: dict, contact_name: str | None = None) -> bool:
     """Triggert den n8n Workflow fuer Kunde-Vorstellen.
 
     Sendet alle relevanten Daten als JSON-Payload an den n8n Webhook.
@@ -99,7 +99,7 @@ async def _trigger_n8n_workflow(presentation, contact_name: str | None = None) -
     base64 im Payload mitgesendet (n8n erstellt daraus den Anhang).
 
     Args:
-        presentation: ClientPresentation Record
+        presentation_data: Dict mit Presentation-Daten (KEIN ORM-Objekt! Muss vor db.commit() extrahiert werden)
         contact_name: Name des Ansprechpartners (optional)
 
     Returns:
@@ -113,11 +113,12 @@ async def _trigger_n8n_workflow(presentation, contact_name: str | None = None) -
         return False
 
     webhook_url = f"{settings.n8n_webhook_url}/webhook/kunde-vorstellen"
+    pres_id = presentation_data["id"]
 
     # PDF generieren wenn angefordert
     pdf_base64 = None
     pdf_filename = None
-    if presentation.pdf_attached and presentation.candidate_id:
+    if presentation_data.get("pdf_attached") and presentation_data.get("candidate_id"):
         try:
             import base64
             from app.database import async_session_maker
@@ -126,12 +127,12 @@ async def _trigger_n8n_workflow(presentation, contact_name: str | None = None) -
             async with async_session_maker() as pdf_db:
                 pdf_service = ProfilePdfService(pdf_db)
                 pdf_bytes = await pdf_service.generate_profile_pdf(
-                    presentation.candidate_id
+                    presentation_data["candidate_id"]
                 )
                 pdf_base64 = base64.b64encode(pdf_bytes).decode("utf-8")
                 pdf_filename = "Kandidatenprofil.pdf"
                 logger.info(
-                    f"PDF generiert fuer Presentation {presentation.id} "
+                    f"PDF generiert fuer Presentation {pres_id} "
                     f"({len(pdf_bytes)} bytes)"
                 )
         except Exception as e:
@@ -141,21 +142,21 @@ async def _trigger_n8n_workflow(presentation, contact_name: str | None = None) -
             )
 
     payload = {
-        "presentation_id": str(presentation.id),
-        "match_id": str(presentation.match_id) if presentation.match_id else None,
-        "candidate_id": str(presentation.candidate_id) if presentation.candidate_id else None,
-        "job_id": str(presentation.job_id) if presentation.job_id else None,
-        "company_id": str(presentation.company_id) if presentation.company_id else None,
-        "contact_id": str(presentation.contact_id) if presentation.contact_id else None,
-        "email_to": presentation.email_to,
-        "email_from": presentation.email_from,
-        "email_subject": presentation.email_subject,
-        "email_body_text": presentation.email_body_text,
-        "email_signature_html": presentation.email_signature_html,
-        "mailbox_used": presentation.mailbox_used,
-        "pdf_r2_key": presentation.pdf_r2_key,
-        "pdf_attached": presentation.pdf_attached,
-        "presentation_mode": presentation.presentation_mode,
+        "presentation_id": presentation_data["id"],
+        "match_id": presentation_data.get("match_id"),
+        "candidate_id": presentation_data.get("candidate_id"),
+        "job_id": presentation_data.get("job_id"),
+        "company_id": presentation_data.get("company_id"),
+        "contact_id": presentation_data.get("contact_id"),
+        "email_to": presentation_data.get("email_to"),
+        "email_from": presentation_data.get("email_from"),
+        "email_subject": presentation_data.get("email_subject"),
+        "email_body_text": presentation_data.get("email_body_text"),
+        "email_signature_html": presentation_data.get("email_signature_html"),
+        "mailbox_used": presentation_data.get("mailbox_used"),
+        "pdf_r2_key": presentation_data.get("pdf_r2_key"),
+        "pdf_attached": presentation_data.get("pdf_attached"),
+        "presentation_mode": presentation_data.get("presentation_mode"),
         "contact_name": contact_name,
         "pdf_base64": pdf_base64,
         "pdf_filename": pdf_filename,
@@ -175,7 +176,7 @@ async def _trigger_n8n_workflow(presentation, contact_name: str | None = None) -
 
         if resp.status_code == 200:
             logger.info(
-                f"n8n Workflow getriggert fuer Presentation {presentation.id} "
+                f"n8n Workflow getriggert fuer Presentation {pres_id} "
                 f"(Status={resp.status_code})"
             )
             return True
@@ -188,12 +189,12 @@ async def _trigger_n8n_workflow(presentation, contact_name: str | None = None) -
 
     except httpx.TimeoutException:
         logger.error(
-            f"n8n Workflow Trigger Timeout fuer Presentation {presentation.id}"
+            f"n8n Workflow Trigger Timeout fuer Presentation {pres_id}"
         )
         return False
     except Exception as e:
         logger.error(
-            f"n8n Workflow Trigger Fehler fuer Presentation {presentation.id}: {e}"
+            f"n8n Workflow Trigger Fehler fuer Presentation {pres_id}: {e}"
         )
         return False
 
@@ -322,14 +323,22 @@ async def debug_send_check(
                     webhook_url,
                     headers=headers,
                 )
-            # n8n gibt bei aktiven Webhooks verschiedene Status-Codes:
-            # 200 = Test-Trigger aktiv, 404 = Webhook nicht registriert, 405 = POST-only (normal!)
-            if resp.status_code in (200, 405):
+            # n8n gibt bei aktiven POST-only Webhooks auf GET-Anfrage:
+            # 200 = Test-Trigger aktiv, 405 = POST-only (normal!)
+            # 404 mit "POST request" in Body = Webhook EXISTIERT, akzeptiert nur POST → OK!
+            # 404 ohne "POST request" = Webhook nicht registriert → FEHLER
+            resp_text = resp.text[:300]
+            is_post_only_404 = (
+                resp.status_code == 404
+                and "POST request" in resp_text
+            )
+            if resp.status_code in (200, 405) or is_post_only_404:
                 checks["n8n_webhook_reachable"] = {
                     "status": "OK",
                     "url": webhook_url,
                     "http_status": resp.status_code,
-                    "detail": "Webhook ist erreichbar und aktiv",
+                    "detail": "Webhook ist erreichbar und aktiv (POST-only)" if is_post_only_404
+                              else "Webhook ist erreichbar und aktiv",
                 }
             elif resp.status_code == 404:
                 checks["n8n_webhook_reachable"] = {
@@ -338,7 +347,7 @@ async def debug_send_check(
                     "http_status": 404,
                     "detail": "Webhook '/webhook/kunde-vorstellen' existiert NICHT in n8n! "
                               "Der Workflow muss in n8n aktiviert sein.",
-                    "response_body": resp.text[:300],
+                    "response_body": resp_text,
                 }
             else:
                 checks["n8n_webhook_reachable"] = {
@@ -452,16 +461,34 @@ async def send_presentation(
         if contact:
             contact_name = contact.full_name
 
-    # Presentation-Daten als Dict extrahieren BEVOR der n8n-Call
-    # (Railway killt idle DB-Sessions nach 30s)
+    # ALLE Presentation-Daten als Dict extrahieren BEVOR der Commit
+    # (Nach commit() ist das ORM-Objekt expired → DetachedInstanceError!)
     presentation_id = str(presentation.id)
     presentation_status = presentation.status
+    presentation_dict = {
+        "id": str(presentation.id),
+        "match_id": str(presentation.match_id) if presentation.match_id else None,
+        "candidate_id": str(presentation.candidate_id) if presentation.candidate_id else None,
+        "job_id": str(presentation.job_id) if presentation.job_id else None,
+        "company_id": str(presentation.company_id) if presentation.company_id else None,
+        "contact_id": str(presentation.contact_id) if presentation.contact_id else None,
+        "email_to": presentation.email_to,
+        "email_from": presentation.email_from,
+        "email_subject": presentation.email_subject,
+        "email_body_text": presentation.email_body_text,
+        "email_signature_html": presentation.email_signature_html,
+        "mailbox_used": presentation.mailbox_used,
+        "pdf_r2_key": presentation.pdf_r2_key,
+        "pdf_attached": presentation.pdf_attached,
+        "presentation_mode": presentation.presentation_mode,
+    }
 
     # DB-Session explizit abschliessen vor dem HTTP-Call
     await db.commit()
 
     # n8n Workflow triggern (HTTP-Call — KEINE DB-Session offen!)
-    n8n_success = await _trigger_n8n_workflow(presentation, contact_name)
+    # Nutzt presentation_dict statt ORM-Objekt (nach commit expired!)
+    n8n_success = await _trigger_n8n_workflow(presentation_dict, contact_name)
 
     if n8n_success:
         logger.info(

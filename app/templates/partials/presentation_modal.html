@@ -1,6 +1,6 @@
 <!-- Presentation Modal — Kunde Vorstellen -->
 <div x-data="presentationModal()"
-     x-effect="if (showPresentationModal && currentMatchId && currentMatchId !== matchId) { matchId = currentMatchId; reinit(); }"
+     x-effect="if (showPresentationModal && currentMatchId) { if (currentMatchId !== matchId) { matchId = currentMatchId; reinit(); } else { sent = false; error = null; } }"
      class="p-6">
 
     <!-- ═══════ HEADER ═══════ -->
@@ -526,6 +526,7 @@ function presentationModal() {
                     this.emailTo = result.fallback_email;
                 }
             } catch (e) {
+                console.error('[PresentationModal] reinit error:', e);
                 this.error = e.message || 'Fehler beim Laden der Modal-Daten';
             } finally {
                 this.loading = false;
@@ -569,6 +570,7 @@ function presentationModal() {
                     this.signatureHtml = result.signature_html;
                 }
             } catch (e) {
+                console.error('[PresentationModal] generateEmail error:', e);
                 this.error = e.message || 'Fehler bei der KI-Generierung';
             } finally {
                 this.generating = false;
@@ -603,15 +605,19 @@ function presentationModal() {
                 });
                 if (!resp.ok) {
                     const errData = await resp.json().catch(() => ({}));
+                    console.error('[PresentationModal] sendPresentation HTTP error:', resp.status, errData);
                     throw new Error(errData.detail || errData.message || 'Senden fehlgeschlagen');
                 }
                 const result = await resp.json();
-                this.sent = true;
                 if (result.n8n_triggered === false) {
-                    this.error = 'Vorstellung gespeichert, aber E-Mail konnte nicht gesendet werden. Bitte n8n pruefen.';
+                    console.error('[PresentationModal] n8n not triggered:', result);
+                    this.error = 'E-Mail konnte NICHT gesendet werden. Der n8n-Workflow ist nicht erreichbar. Bitte pruefen Sie die n8n-Konfiguration.';
+                } else {
+                    this.sent = true;
+                    setTimeout(() => { this.$dispatch('close-presentation'); }, 2500);
                 }
-                setTimeout(() => { this.$dispatch('close-presentation'); }, 2500);
             } catch (e) {
+                console.error('[PresentationModal] sendPresentation error:', e);
                 this.error = e.message || 'Fehler beim Senden';
             } finally {
                 this.sending = false;
@@ -646,15 +652,19 @@ function presentationModal() {
                 });
                 if (!resp.ok) {
                     const errData = await resp.json().catch(() => ({}));
+                    console.error('[PresentationModal] sendCustom HTTP error:', resp.status, errData);
                     throw new Error(errData.detail || errData.message || 'Senden fehlgeschlagen');
                 }
                 const result = await resp.json();
-                this.sent = true;
                 if (result.n8n_triggered === false) {
-                    this.error = 'Vorstellung gespeichert, aber E-Mail konnte nicht gesendet werden. Bitte n8n pruefen.';
+                    console.error('[PresentationModal] n8n not triggered:', result);
+                    this.error = 'E-Mail konnte NICHT gesendet werden. Der n8n-Workflow ist nicht erreichbar. Bitte pruefen Sie die n8n-Konfiguration.';
+                } else {
+                    this.sent = true;
+                    setTimeout(() => { this.$dispatch('close-presentation'); }, 2500);
                 }
-                setTimeout(() => { this.$dispatch('close-presentation'); }, 2500);
             } catch (e) {
+                console.error('[PresentationModal] sendCustom error:', e);
                 this.error = e.message || 'Fehler beim Senden';
             } finally {
                 this.sending = false;
