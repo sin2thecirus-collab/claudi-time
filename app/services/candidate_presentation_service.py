@@ -113,12 +113,8 @@ def _strip_opus_signature(text: str) -> str:
 def _plaintext_to_html(text: str) -> str:
     """Konvertiert Plain-Text E-Mail in minimales HTML.
 
-    Bewusst leicht gehalten — keine Inline-Styles, keine Bilder,
-    kein heavy CSS. Nur Standard-Tags die jeder E-Mail-Client kennt
-    und die KEINE Spam-Filter triggern:
-    - <p> fuer Absaetze
-    - <ul><li> fuer Bullet-Points
-    - <b> fuer Ueberschriften (Taetigkeitsabgleich)
+    Jede Textzeile wird ein eigener <p>-Absatz. Bullets werden zu <ul><li>.
+    Abgleich-Ueberschriften werden fett. Leerzeilen erzeugen Abstand.
     """
     from html import escape
 
@@ -126,67 +122,58 @@ def _plaintext_to_html(text: str) -> str:
     lines = text.split('\n')
     html_parts = []
     in_list = False
-    para_buf = []
-
-    def flush_para():
-        if para_buf:
-            html_parts.append('<p>' + '<br>\n'.join(para_buf) + '</p>')
-            para_buf.clear()
-
-    # Erkennung ob wir im "Abgleich"-Block sind (Anforderungen als Bullets)
     in_abgleich = False
 
     for line in lines:
         s = line.strip()
+
+        # Leerzeile = Abstand
+        if s == '':
+            if in_list:
+                html_parts.append('</ul>')
+                in_list = False
+                in_abgleich = False
+            continue
 
         # Abgleich-Ueberschrift erkennen
         if ('abgleich' in s.lower() or 'anforderungen' in s.lower()) and len(s) < 80:
             if in_list:
                 html_parts.append('</ul>')
                 in_list = False
-            flush_para()
-            html_parts.append(f'<p><b>{s}</b></p>')
+            html_parts.append(f'<p style="margin-top:16px;margin-bottom:4px;"><b>{s}</b></p>')
             in_abgleich = True
             continue
 
         # Explizite Bullets (•, *, -)
         is_bullet = s.startswith('•') or s.startswith('* ') or (s.startswith('- ') and len(s) > 3)
 
-        # Implizite Bullets: Im Abgleich-Block, Zeile hat "Wort: Text" Format
-        # (Opus schreibt manchmal "Bilanzbuchhalter (IHK): Der Kandidat..." ohne •)
+        # Implizite Bullets: Im Abgleich-Block, Zeile hat "Label: Text" Format
         if not is_bullet and in_abgleich and ':' in s and len(s) > 20:
             colon_pos = s.index(':')
             before_colon = s[:colon_pos].strip()
-            # Vor dem Doppelpunkt steht ein Label (1-8 Woerter, keine Zahl am Anfang)
             word_count = len(before_colon.split())
-            if 1 <= word_count <= 8 and not before_colon[0].isdigit():
+            if 1 <= word_count <= 8 and before_colon and not before_colon[0].isdigit():
                 is_bullet = True
 
         if is_bullet:
             if not in_list:
-                flush_para()
                 html_parts.append('<ul style="margin:8px 0;padding-left:24px;">')
                 in_list = True
             bullet = s.lstrip('•*-').strip()
             if ':' in bullet:
                 k, v = bullet.split(':', 1)
                 bullet = f'<b>{k}</b>:{v}'
-            html_parts.append(f'<li style="margin-bottom:6px;">{bullet}</li>')
+            html_parts.append(f'<li style="margin-bottom:8px;">{bullet}</li>')
         else:
             if in_list:
                 html_parts.append('</ul>')
                 in_list = False
                 in_abgleich = False
-            if s == '':
-                flush_para()
-                if in_abgleich:
-                    in_abgleich = False
-            else:
-                para_buf.append(s)
+            # Jede Textzeile = eigener Absatz (kein Buffering mehr)
+            html_parts.append(f'<p style="margin:0 0 10px 0;">{s}</p>')
 
     if in_list:
         html_parts.append('</ul>')
-    flush_para()
 
     return '\n'.join(html_parts)
 
@@ -545,6 +532,7 @@ STIL:
 - Konkret statt abstrakt — Zahlen, Taetigkeiten, Systeme statt Adjektive
 - Aufzaehlungszeichen (•) fuer den Taetigkeitsabgleich
 - Plain-Text (kein HTML, kein Markdown ausser •)
+- WICHTIG FORMATIERUNG: Setze eine LEERZEILE zwischen jedem Abschnitt (Begruessing, Einleitung, Abgleich-Ueberschrift, nach dem letzten Bullet, Systeme, Besonderes, Rahmendaten, Schlusssatz). Ohne Leerzeilen klebt alles zusammen.
 - Der Kunde soll das Gefuehl haben: "Der hat sich wirklich mit meiner Stelle befasst"
 
 VERBOTE:
