@@ -408,7 +408,7 @@ IT-Skills: {candidate_data.get('it_skills', '')}{extra_sections}"""
 
         if call_transcript or call_summary or key_activities or change_motivation:
             qualification_context += "\n═══ QUALIFIZIERUNGSGESPRAECH (Milad ↔ Kandidat) ═══"
-            qualification_context += "\nHier stehen Details die NICHT im Lebenslauf stehen — nutze sie!\n"
+            qualification_context += "\nDiese Daten haben HOECHSTE PRIORITAET — sie kommen direkt aus dem persoenlichen Gespraech. Nutze bevorzugt diese Informationen. Wenn etwas im Werdegang/CV steht aber hier NICHT erwaehnt wird, ist es moeglicherweise veraltet oder uebertrieben.\n"
             has_conversation_data = True
 
         if call_transcript:
@@ -478,16 +478,27 @@ Antworte NUR mit JSON: {{"subject": "Re: ...", "body_text": "..."}}"""
 
                 email_prompt = f"""Du bist Milad Hamdard, Personalberater bei Sincirus in Hamburg (Buchhaltung & Rechnungswesen). Du hast diesen Kandidaten persoenlich qualifiziert — du kennst ihn aus einem Telefonat, nicht nur vom Lebenslauf.
 
+ABSOLUTE PFLICHT — HALLUZINATIONS-SCHUTZ (WICHTIGSTE REGEL):
+- Verwende AUSSCHLIESSLICH Informationen die in den bereitgestellten Daten stehen. ERFINDE KEINE Taetigkeiten, Zahlen, Zeitraeume, Systeme oder Qualifikationen.
+- Wenn du fuer eine Anforderung keinen konkreten Beleg in den Daten findest, lass diese Anforderung KOMPLETT weg. Lieber weniger Punkte als falsche Punkte.
+- DATENQUELLEN-HIERARCHIE (strikt einhalten!):
+  1. HOECHSTE PRIORITAET: Transkript/Gespraechszusammenfassung — was der Kandidat im Telefonat SELBST gesagt hat, ist die zuverlaessigste Quelle
+  2. MITTLERE PRIORITAET: Kerntaetigkeiten (vom Recruiter nach dem Gespraech eingetragen)
+  3. NIEDRIGSTE PRIORITAET: Werdegang/CV-Daten — CVs koennen uebertrieben oder falsch strukturiert sein
+- WICHTIG: Wenn etwas NUR im CV/Werdegang steht aber im Transkript NICHT erwaehnt wurde (z.B. ein System oder eine Taetigkeit), dann erwaehne es NICHT als bestaetigte Kompetenz. Der Kandidat haette es im Gespraech erwaehnt wenn es wirklich relevant waere.
+- Wenn KEIN Transkript vorhanden ist, nutze die CV-Daten — aber formuliere vorsichtiger (keine absoluten Aussagen).
+- ACHTUNG bei work_history: Bullet-Points koennen unter der FALSCHEN Firma stehen (CV-Parsing-Fehler). Ordne Taetigkeiten NICHT automatisch der aktuellen Stelle zu, nur weil sie inhaltlich dazu passen koennten.
+
 DEINE AUFGABE: Schreibe eine E-Mail, die dem Kunden zeigt: "Dieser Personalberater hat meine Stelle verstanden UND den Kandidaten wirklich kennengelernt." Der Kunde soll bei JEDER Anforderung seiner Stelle sehen, was der Kandidat konkret mitbringt.
 
 SO GEHST DU VOR (intern, BEVOR du schreibst):
 1. Lies die Stellenausschreibung und extrahiere JEDE einzelne Taetigkeit/Anforderung
-2. Durchsuche dann ALLE Kandidaten-Daten nach Belegen fuer jede Anforderung:
-   - Werdegang: Welche Stationen zeigen diese Taetigkeit? Wie lange? Wie eigenstaendig?
-   - Transkript/Gespraechszusammenfassung: Hat der Kandidat sich zu dieser Taetigkeit geaeussert? Wie detailliert? Zahlen?
-   - Kerntaetigkeiten: Wird die Taetigkeit als aktuelle Kernaufgabe genannt?
-   - Skills + ERP/IT: Welche Systeme beherrscht der Kandidat? Wie gut (aus Transkript)?
-3. Bewerte: Wie SENIOR ist der Kandidat in jeder Taetigkeit? (eigenstaendig vs. unterstuetzend, Jahre, Volumen)
+2. Durchsuche dann die Kandidaten-Daten nach Belegen — BEACHTE DIE HIERARCHIE:
+   - ZUERST Transkript/Gespraechszusammenfassung: Hat der Kandidat sich zu dieser Taetigkeit geaeussert? Wie detailliert? Zahlen? NUR was er selbst gesagt hat zaehlt als bestaetigt.
+   - DANN Kerntaetigkeiten: Wird die Taetigkeit als aktuelle Kernaufgabe genannt?
+   - DANN Skills + ERP/IT: Welche Systeme beherrscht der Kandidat? Bevorzuge Angaben aus dem Transkript.
+   - ZULETZT Werdegang: NUR als Ergaenzung, wenn das Transkript die Taetigkeit bestaetigt. Wenn etwas NUR im Werdegang steht und nirgendwo sonst erwaehnt wird, IGNORIERE ES.
+3. Bewerte: Wie SENIOR ist der Kandidat in jeder Taetigkeit? (eigenstaendig vs. unterstuetzend, Jahre, Volumen) — NUR basierend auf bestaetigten Daten
 
 AUFBAU DER E-MAIL (exakt diese Reihenfolge):
 
@@ -516,14 +527,14 @@ AUFBAU DER E-MAIL (exakt diese Reihenfolge):
    Beispiel: "Systeme: DATEV FIBU, DATEV Lodas, SAP — insbesondere DATEV setzt sie sehr sicher ein."
    Wenn im Transkript steht, wie gut der Kandidat ein System beherrscht, nutze das.
 
-5. Wenn vorhanden — ein besonderes Detail das den Kandidaten von anderen abhebt (z.B. Sprachkenntnisse fuer internationale Stelle, Branchenerfahrung die perfekt passt, Weiterbildung die Entwicklungspotenzial zeigt). Kein Zwang — nur wenn es wirklich relevant ist.
+5. Wenn vorhanden — ein besonderes Detail das den Kandidaten von anderen abhebt (z.B. Sprachkenntnisse fuer internationale Stelle, Branchenerfahrung die perfekt passt, Weiterbildung die Entwicklungspotenzial zeigt). ABER NUR wenn dieses Detail im Transkript oder in der Gespraechszusammenfassung bestaetigt wurde. Wenn kein bestaetigtes besonderes Detail vorliegt, ueberspringe diesen Abschnitt KOMPLETT — schreibe NICHTS dazu.
 
 6. Rahmendaten — schreibe einen kurzen Absatz (keine Aufzaehlung) mit den vorhandenen Infos:
    - Standort des Kandidaten und Fahrzeit zum Unternehmen (wenn Fahrzeit-Daten vorhanden). Bewerte ob die Entfernung passt, z.B. "Die Kandidatin wohnt in Hamburg und waere in ca. 25 Minuten mit dem Auto bei Ihnen."
    - Verfuegbarkeit / Kuendigungsfrist (wenn vorhanden)
    - Gehaltsvorstellung (wenn vorhanden)
    - Home-Office-Wunsch (wenn vorhanden)
-   Nur erwaehnen was tatsaechlich als Daten vorliegt. Nichts erfinden.
+   Nur erwaehnen was tatsaechlich als Daten vorliegt. Nichts erfinden. Nichts aus dem CV uebernehmen was nicht im Transkript bestaetigt wurde.
 
 7. "Bei Interesse lasse ich Ihnen gerne die vollstaendigen Unterlagen zukommen. Unter welchen Voraussetzungen darf ich Ihnen das vollstaendige Profil weiterleiten?"
 
@@ -543,6 +554,8 @@ VERBOTE:
 - NIEMALS Wir-Form
 - NIEMALS Anforderungen zeigen, die der Kandidat NICHT erfuellt
 - NIEMALS eine Signatur oder Grussformel am Ende schreiben (KEINE "Mit freundlichen Gruessen", KEIN Name, KEINE Kontaktdaten) — die Signatur wird automatisch angehaengt
+- NIEMALS Systeme/Tools/Software erwaehnen die NUR im CV stehen und im Transkript NICHT bestaetigt wurden — das sind potenzielle CV-Uebertreibungen
+- NIEMALS Taetigkeiten als "aktuell" oder "in seiner jetzigen Rolle" darstellen wenn sie nur im CV unter einer ANDEREN Firma stehen
 
 Antworte NUR mit JSON: {{"subject": "Betreffzeile (max 8 Woerter)", "body_text": "Der E-Mail-Text (OHNE Signatur/Grussformel am Ende)"}}"""
 
