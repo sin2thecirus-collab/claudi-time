@@ -21,6 +21,7 @@ from typing import Optional
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -153,101 +154,128 @@ async def generate_email(req: GenerateEmailRequest, db: AsyncSession = Depends(g
 @router.post("/send")
 async def send_presentation(req: SendPresentationRequest, db: AsyncSession = Depends(get_db)):
     """Erstellt Presentation (draft) + triggert n8n Workflow."""
-    candidate_id = uuid.UUID(req.candidate_id)
+    import traceback as _tb
+    _step = "init"
+    try:
+        _step = "parse_candidate_id"
+        candidate_id = uuid.UUID(req.candidate_id)
 
-    # Domain-Kapazitaet pruefen
-    from app.services.domain_protection_service import check_domain_capacity, get_domain_for_company
-    domain_check = await check_domain_capacity(db, req.email_from)
-    if not domain_check["allowed"]:
-        raise HTTPException(
-            status_code=429,
-            detail=f"Domain-Limit erreicht: {domain_check['domain']} — {domain_check['sent_today']}/{domain_check['limit']} heute. Bitte morgen erneut versuchen.",
+        # Domain-Kapazitaet pruefen
+        _step = "import_domain_protection"
+        from app.services.domain_protection_service import check_domain_capacity, get_domain_for_company
+
+        _step = "check_domain_capacity"
+        domain_check = await check_domain_capacity(db, req.email_from)
+        if not domain_check["allowed"]:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Domain-Limit erreicht: {domain_check['domain']} — {domain_check['sent_today']}/{domain_check['limit']} heute. Bitte morgen erneut versuchen.",
+            )
+
+        # Domain-Konsistenz: Warnung wenn Firma zuvor von anderer Domain kontaktiert
+        _step = "get_domain_for_company"
+        previous_domain = await get_domain_for_company(db, req.company_name)
+        selected_domain = req.email_from.split("@", 1)[1].lower() if "@" in req.email_from else ""
+        domain_warning = None
+        if previous_domain and previous_domain != selected_domain:
+            domain_warning = f"Achtung: Firma wurde zuvor von {previous_domain} kontaktiert, jetzt {selected_domain}"
+            logger.warning(f"Domain-Konsistenz: {domain_warning}")
+
+        # Company finden/erstellen
+        _step = "import_company_service"
+        from app.services.company_service import CompanyService
+
+        _step = "get_or_create_company"
+        company_svc = CompanyService(db)
+        company = await company_svc.get_or_create_by_name(
+            req.company_name,
+            city=req.city,
+            domain=req.extracted_job_data.get("domain", "") if req.extracted_job_data else "",
         )
+        if not company:
+            raise HTTPException(status_code=409, detail="Firma ist auf der Blacklist")
 
-    # Domain-Konsistenz: Warnung wenn Firma zuvor von anderer Domain kontaktiert
-    previous_domain = await get_domain_for_company(db, req.company_name)
-    selected_domain = req.email_from.split("@", 1)[1].lower() if "@" in req.email_from else ""
-    domain_warning = None
-    if previous_domain and previous_domain != selected_domain:
-        domain_warning = f"Achtung: Firma wurde zuvor von {previous_domain} kontaktiert, jetzt {selected_domain}"
-        logger.warning(f"Domain-Konsistenz: {domain_warning}")
+        # Contact erstellen wenn Daten vorhanden
+        _step = "create_contact"
+        contact_id = None
+        if req.contact_email:
+            from app.models.company_contact import CompanyContact
+            contact = CompanyContact(
+                company_id=company.id,
+                first_name=req.contact_name.split()[0] if req.contact_name else "",
+                last_name=req.contact_name.split()[-1] if req.contact_name and " " in req.contact_name else "",
+                email=req.contact_email,
+                salutation=req.contact_salutation,
+            )
+            db.add(contact)
+            await db.flush()
+            contact_id = contact.id
 
-    # Company finden/erstellen
-    from app.services.company_service import CompanyService
-    company_svc = CompanyService(db)
-    company = await company_svc.get_or_create_by_name(
-        req.company_name,
-        city=req.city,
-        domain=req.extracted_job_data.get("domain", "") if req.extracted_job_data else "",
-    )
-    if not company:
-        raise HTTPException(status_code=409, detail="Firma ist auf der Blacklist")
-
-    # Contact erstellen wenn Daten vorhanden
-    contact_id = None
-    if req.contact_email:
-        from app.models.company_contact import CompanyContact
-        contact = CompanyContact(
+        # Presentation erstellen (draft)
+        _step = "create_presentation"
+        presentation = await CandidatePresentationService.create_direct_presentation(
+            db=db,
+            candidate_id=candidate_id,
             company_id=company.id,
-            first_name=req.contact_name.split()[0] if req.contact_name else "",
-            last_name=req.contact_name.split()[-1] if req.contact_name and " " in req.contact_name else "",
-            email=req.contact_email,
-            salutation=req.contact_salutation,
+            contact_id=contact_id,
+            email_to=req.email_to,
+            email_from=req.email_from,
+            email_subject=req.email_subject,
+            email_body_text=req.email_body_text,
+            email_body_html=req.email_body_html,
+            mailbox_used=req.mailbox_used,
+            source="candidate_direct",
+            job_posting_text=req.job_posting_text,
+            extracted_job_data=req.extracted_job_data,
+            skills_comparison=req.skills_comparison,
         )
-        db.add(contact)
-        await db.flush()
-        contact_id = contact.id
 
-    # Presentation erstellen (draft)
-    presentation = await CandidatePresentationService.create_direct_presentation(
-        db=db,
-        candidate_id=candidate_id,
-        company_id=company.id,
-        contact_id=contact_id,
-        email_to=req.email_to,
-        email_from=req.email_from,
-        email_subject=req.email_subject,
-        email_body_text=req.email_body_text,
-        email_body_html=req.email_body_html,
-        mailbox_used=req.mailbox_used,
-        source="candidate_direct",
-        job_posting_text=req.job_posting_text,
-        extracted_job_data=req.extracted_job_data,
-        skills_comparison=req.skills_comparison,
-    )
+        # KRITISCH: Alle Daten als Dict extrahieren BEVOR db.commit()!
+        _step = "extract_dict"
+        presentation_dict = {
+            "id": str(presentation.id),
+            "candidate_id": str(presentation.candidate_id) if presentation.candidate_id else None,
+            "company_id": str(presentation.company_id) if presentation.company_id else None,
+            "contact_id": str(presentation.contact_id) if presentation.contact_id else None,
+            "email_to": presentation.email_to,
+            "email_from": presentation.email_from,
+            "email_subject": presentation.email_subject,
+            "email_body_text": presentation.email_body_text,
+            "email_body_html": getattr(presentation, "email_body_html", "") or "",
+            "mailbox_used": presentation.mailbox_used,
+            "reply_to_email": getattr(presentation, "reply_to_email", None) or "hamdard@sincirus.com",
+            "source": getattr(presentation, "source", "candidate_direct"),
+            "status": presentation.status,
+        }
+        company_id_str = str(company.id)
 
-    # KRITISCH: Alle Daten als Dict extrahieren BEVOR db.commit()!
-    # Nach commit() ist das ORM-Objekt expired — async SQLAlchemy kann
-    # expired Attribute NICHT lazy-loaden (MissingGreenlet Error).
-    presentation_dict = {
-        "id": str(presentation.id),
-        "candidate_id": str(presentation.candidate_id) if presentation.candidate_id else None,
-        "company_id": str(presentation.company_id) if presentation.company_id else None,
-        "contact_id": str(presentation.contact_id) if presentation.contact_id else None,
-        "email_to": presentation.email_to,
-        "email_from": presentation.email_from,
-        "email_subject": presentation.email_subject,
-        "email_body_text": presentation.email_body_text,
-        "email_body_html": getattr(presentation, "email_body_html", "") or "",
-        "mailbox_used": presentation.mailbox_used,
-        "reply_to_email": getattr(presentation, "reply_to_email", None) or "hamdard@sincirus.com",
-        "source": getattr(presentation, "source", "candidate_direct"),
-        "status": presentation.status,
-    }
-    company_id_str = str(company.id)
+        _step = "db_commit"
+        await db.commit()
 
-    await db.commit()
+        # n8n triggern
+        _step = "trigger_n8n"
+        n8n_success = await _trigger_direct_n8n(presentation_dict, req.contact_name)
 
-    # n8n triggern (Dict statt ORM-Objekt — nach commit expired!)
-    n8n_success = await _trigger_direct_n8n(presentation_dict, req.contact_name)
-
-    return {
-        "presentation_id": presentation_dict["id"],
-        "company_id": company_id_str,
-        "status": presentation_dict["status"],
-        "n8n_triggered": n8n_success,
-        "domain_warning": domain_warning,
-    }
+        return {
+            "presentation_id": presentation_dict["id"],
+            "company_id": company_id_str,
+            "status": presentation_dict["status"],
+            "n8n_triggered": n8n_success,
+            "domain_warning": domain_warning,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"send_presentation FAILED at step={_step}: {type(e).__name__}: {e}\n{_tb.format_exc()}")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "send_failed",
+                "step": _step,
+                "exception": type(e).__name__,
+                "message": str(e)[:500],
+            },
+        )
 
 
 # ═══════════════════════════════════════════════════════════════
