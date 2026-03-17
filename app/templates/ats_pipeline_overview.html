@@ -10,7 +10,7 @@
    ═══════════════════════════════════════════════════ */
 
 /* === STEP 1: Neutralize base.html interference === */
-/* These styles are in {% block head %} so they ONLY load on this page */
+/* These styles only load on this page (inside head block) */
 /* No :has() needed — direct body targeting is safe here */
 body {
     zoom: 1 !important;
