@@ -1,6 +1,6 @@
 FROM python:3.11-slim AS base
 
-# Build: 2026-03-18-v5 - Force cache bust phase select styling
+# Build: 2026-03-18-v6
 # Arbeitsverzeichnis setzen
 WORKDIR /app
 
