@@ -239,17 +239,21 @@ body::after {
 
 /* Phase Select in Table */
 .pcc .pcc-phase-select {
-    padding: 5px 8px !important;
-    border-radius: 8px !important;
+    padding: 6px 12px !important;
+    border-radius: 20px !important;
     font-size: 11px !important;
     font-weight: 600 !important;
     cursor: pointer !important;
     border: none !important;
     outline: none !important;
+    letter-spacing: 0.02em !important;
+    transition: opacity 0.2s !important;
 }
+.pcc .pcc-phase-select:hover { opacity: 0.85 !important; }
 .pcc .pcc-phase-select option {
     background: #111827 !important;
     color: #f1f5f9 !important;
+    padding: 8px !important;
 }
 
 /* Notif Badge */
