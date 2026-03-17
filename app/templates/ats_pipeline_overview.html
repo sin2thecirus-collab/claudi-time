@@ -584,9 +584,10 @@ body::after {
 
                         {# Row 0: Firma / Job (nur bei Alle Prozesse) #}
                         <template x-if="!activePos">
-                            <div style="font-size: 10px; color: var(--pp-textMuted); margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid rgba(99,102,241,0.1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                                <span style="color: var(--pp-text); font-weight: 600;" x-text="card.company"></span>
-                                <span style="color: var(--pp-textDim);" x-text="' · ' + card.job_title"></span>
+                            <div style="margin: -10px -10px 8px -10px; padding: 6px 10px; border-radius: 12px 12px 0 0; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
+                                 :style="'background: ' + getAvatarGradient(card.company).split(',')[0] + '20; border-bottom: 1px solid ' + getAvatarGradient(card.company).split(',')[0] + '30'">
+                                <span style="font-weight: 700; letter-spacing: 0.02em;" :style="'color: ' + getAvatarGradient(card.company).split(',')[0]" x-text="card.company"></span>
+                                <span style="color: var(--pp-textMuted); font-weight: 400;" x-text="' · ' + card.job_title"></span>
                             </div>
                         </template>
 
