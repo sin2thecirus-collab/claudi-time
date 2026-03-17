@@ -27,8 +27,11 @@
     --pp-surface3: #1e2340;
     --pp-text: #f1f5f9;
     --pp-textMuted: #94a3b8;
+    --pp-ff: 'Inter', -apple-system, system-ui, sans-serif;
     font-family: 'Inter', -apple-system, system-ui, sans-serif !important;
+    background: #0a0e1a !important;
 }
+.pcc, .pcc * { font-family: 'Inter', -apple-system, system-ui, sans-serif !important; }
 
 /* Scrollbar */
 .pcc ::-webkit-scrollbar { width: 5px; height: 5px; }
@@ -102,6 +105,8 @@
     transition: all 0.2s; border: 1px solid transparent;
 }
 .pcc-tree:hover { background: rgba(99, 102, 241, 0.08); border-color: rgba(99, 102, 241, 0.15); }
+/* Sidebar avatars always visible */
+.pcc-tree [style*="border-radius: 9px"] { box-shadow: 0 0 8px rgba(255,255,255,0.1), inset 0 0 0 1px rgba(255,255,255,0.15); }
 .pcc-tree:hover .pcc-pin { opacity: 1 !important; }
 .pcc-tree.active { background: rgba(99, 102, 241, 0.12); border-color: rgba(99, 102, 241, 0.25); }
 
