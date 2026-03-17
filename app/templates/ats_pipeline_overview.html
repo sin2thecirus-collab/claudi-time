@@ -10,23 +10,21 @@
    ═══════════════════════════════════════════════════ */
 
 /* === STEP 1: Neutralize base.html interference === */
-/* Remove zoom scaling */
-body:has(.pcc) {
+/* These styles are in {% block head %} so they ONLY load on this page */
+/* No :has() needed — direct body targeting is safe here */
+body {
     zoom: 1 !important;
     background: #0a0e1a !important;
 }
-/* Hide aurora gradient background */
-body:has(.pcc)::before {
+body::before {
     display: none !important;
 }
-/* Hide grain overlay */
-body:has(.pcc)::after {
+body::after {
     display: none !important;
 }
-/* Remove glass effect from base.html */
-body:has(.pcc) .bg-white,
-body:has(.pcc) [style*="background:var(--pp-surface)"],
-body:has(.pcc) [style*="background: var(--pp-surface)"] {
+.bg-white,
+[style*="background:var(--pp-surface)"],
+[style*="background: var(--pp-surface)"] {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
 }
