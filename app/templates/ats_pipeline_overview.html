@@ -87,6 +87,7 @@
     transition: all 0.2s; border: 1px solid transparent;
 }
 .pcc-tree:hover { background: rgba(99, 102, 241, 0.08); border-color: rgba(99, 102, 241, 0.15); }
+.pcc-tree:hover .pcc-pin { opacity: 1 !important; }
 .pcc-tree.active { background: rgba(99, 102, 241, 0.12); border-color: rgba(99, 102, 241, 0.25); }
 
 /* Quick Action */
@@ -258,14 +259,38 @@
             </div>
         </div>
 
-        {# Recently Active / All Jobs #}
+        {# ── ANGEPINNT ── #}
+        <template x-if="pinnedPositions.length > 0">
+            <div style="margin-bottom: 16px;">
+                <div style="font-size: 10px; font-weight: 700; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.06em; padding: 0 6px; margin-bottom: 8px; display: flex; align-items: center; gap: 5px;">
+                    <svg width="10" height="10" fill="#f59e0b" stroke="#f59e0b" stroke-width="1"><polygon points="5,1 6.2,3.8 9.3,4 7,6.2 7.6,9.2 5,7.6 2.4,9.2 3,6.2 0.7,4 3.8,3.8"/></svg>
+                    Angepinnt
+                </div>
+                <template x-for="pos in pinnedPositions" :key="pos.id + '_pin'">
+                    <div class="pcc-tree" :class="activePosition === pos.id ? 'active' : ''" @click="setActivePosition(pos.id)"
+                         style="display: flex; align-items: center; gap: 10px; margin-bottom: 3px;">
+                        <div style="width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: white; flex-shrink: 0;"
+                             :style="'background: linear-gradient(135deg, ' + getAvatarGradient(pos.company) + ')'">
+                            <span x-text="getInitials(pos.company)"></span>
+                        </div>
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" x-text="pos.company + ' \u00b7 ' + pos.name"></div>
+                            <div style="font-size: 10px; color: var(--pp-textMuted);" x-text="pos.candidates + ' Kandidaten'"></div>
+                        </div>
+                        <span @click.stop="togglePin(pos.id)" style="cursor: pointer; font-size: 14px; color: #f59e0b; flex-shrink: 0;" title="Entpinnen">&#9733;</span>
+                    </div>
+                </template>
+            </div>
+        </template>
+
+        {# ── STELLEN ── #}
         <div style="margin-bottom: 16px;">
             <div style="font-size: 10px; font-weight: 700; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.06em; padding: 0 6px; margin-bottom: 8px; display: flex; align-items: center; gap: 5px;">
                 <svg width="10" height="10" fill="none" stroke="#64748b" stroke-width="2"><circle cx="5" cy="5" r="4"/><path d="M5 3v2l1.5 1"/></svg>
                 Stellen
             </div>
 
-            <template x-for="pos in filteredPositions" :key="pos.id">
+            <template x-for="pos in unpinnedPositions" :key="pos.id">
                 <div class="pcc-tree" :class="activePosition === pos.id ? 'active' : ''" @click="setActivePosition(pos.id)"
                      style="display: flex; align-items: center; gap: 10px; margin-bottom: 3px;">
                     <div style="width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: white; flex-shrink: 0;"
@@ -273,13 +298,14 @@
                         <span x-text="getInitials(pos.company)"></span>
                     </div>
                     <div style="flex: 1; min-width: 0;">
-                        <div style="font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" x-text="pos.company + ' &middot; ' + pos.name"></div>
+                        <div style="font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" x-text="pos.company + ' \u00b7 ' + pos.name"></div>
                         <div style="display: flex; align-items: center; gap: 6px;">
                             <span style="font-size: 10px; color: var(--pp-textMuted);" x-text="pos.candidates + ' Kandidaten'"></span>
                             <span style="width: 4px; height: 4px; border-radius: 50%;"
                                   :style="'background: ' + (pos.candidates > 0 ? '#10b981' : '#64748b')"></span>
                         </div>
                     </div>
+                    <span class="pcc-pin" @click.stop="togglePin(pos.id)" style="cursor: pointer; font-size: 14px; color: #4b5563; flex-shrink: 0; opacity: 0; transition: opacity 0.15s;" title="Anpinnen">&#9734;</span>
                 </div>
             </template>
         </div>
@@ -802,8 +828,26 @@ function pipelineCommandCenter() {
         addResults: [],
         addSearching: false,
         positions,
+        pinnedIds: JSON.parse(localStorage.getItem('pcc_pinned') || '[]'),
 
         init() { console.log('Pipeline Command Center geladen:', positions.length, 'Positionen'); },
+
+        togglePin(id) {
+            const idx = this.pinnedIds.indexOf(id);
+            if (idx >= 0) this.pinnedIds.splice(idx, 1);
+            else this.pinnedIds.push(id);
+            localStorage.setItem('pcc_pinned', JSON.stringify(this.pinnedIds));
+        },
+        isPinned(id) { return this.pinnedIds.includes(id); },
+
+        get pinnedPositions() {
+            const q = this.sidebarSearch.toLowerCase().trim();
+            return positions.filter(p => this.pinnedIds.includes(p.id) && (!q || p.name.toLowerCase().includes(q) || p.company.toLowerCase().includes(q)));
+        },
+        get unpinnedPositions() {
+            const q = this.sidebarSearch.toLowerCase().trim();
+            return positions.filter(p => !this.pinnedIds.includes(p.id) && (!q || p.name.toLowerCase().includes(q) || p.company.toLowerCase().includes(q)));
+        },
 
         get activePos() { return positions.find(p => p.id === this.activePosition) || null; },
 
