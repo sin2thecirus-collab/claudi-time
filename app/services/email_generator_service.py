@@ -102,9 +102,11 @@ class EmailGeneratorService:
 
         contact_salutation = ""
         contact_name = ""
+        contact_last_name = ""
         if contact:
             contact_salutation = contact.salutation or ""
             contact_name = contact.full_name or ""
+            contact_last_name = contact.last_name or ""
 
         job_title = job.position or "Fachkraft"
         job_city = getattr(job, "display_city", "") or job.city or ""
@@ -163,12 +165,12 @@ class EmailGeneratorService:
         candidate_classification = candidate.classification_data or {}
         primary_role = candidate_classification.get("primary_role", "")
 
-        # 3. Claude Prompt erstellen
+        # 3. Claude Prompt erstellen (Anrede: NUR Nachname, z.B. "Hallo Frau Timm")
         prompt = self._build_presentation_prompt(
             company_name=company_name,
             company_city=company_city,
             contact_salutation=contact_salutation,
-            contact_name=contact_name,
+            contact_name=contact_last_name or contact_name,
             job_title=job_title,
             job_city=job_city,
             job_text=job_text,
@@ -211,7 +213,7 @@ class EmailGeneratorService:
                 company_name=company_name,
                 company_city=company_city,
                 contact_salutation=contact_salutation,
-                contact_name=contact_name,
+                contact_name=contact_last_name or contact_name,
                 job_title=job_title,
                 job_city=job_city,
                 candidate_ref=candidate_ref,

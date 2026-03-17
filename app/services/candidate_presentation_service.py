@@ -376,10 +376,19 @@ IT-Skills: {candidate_data.get('it_skills', '')}{extra_sections}"""
             {"subject": "...", "body_text": "..."}
         """
         contact_name = extracted_job_data.get("contact_name", "")
+        contact_firstname = extracted_job_data.get("contact_firstname", "")
         contact_salutation = extracted_job_data.get("contact_salutation", "")
 
+        # Nachnamen extrahieren: contact_name = "Christin Timm" → "Timm"
         if contact_name and contact_salutation:
-            anrede = f"Hallo {contact_salutation} {contact_name}"
+            # Vorname entfernen um nur den Nachnamen zu bekommen
+            last_name = contact_name.strip()
+            if contact_firstname and last_name.lower().startswith(contact_firstname.strip().lower()):
+                last_name = last_name[len(contact_firstname):].strip()
+            elif " " in last_name:
+                # Fallback: letztes Wort = Nachname
+                last_name = last_name.split()[-1]
+            anrede = f"Hallo {contact_salutation} {last_name}"
         else:
             anrede = "Sehr geehrte Damen und Herren"
 
