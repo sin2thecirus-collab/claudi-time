@@ -73,15 +73,15 @@ body::after {
 
 /* Pipeline Column */
 .pcc-col {
-    min-width: 260px; max-width: 260px; flex-shrink: 0;
+    flex: 1 1 0; min-width: 0;
 }
 
 /* Candidate Card */
 .pcc-card {
     background: linear-gradient(135deg, #1e2340, #141828) !important;
     border: 1px solid rgba(99, 102, 241, 0.18);
-    border-radius: 14px;
-    padding: 14px;
+    border-radius: 12px;
+    padding: 10px;
     cursor: grab;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
@@ -204,7 +204,7 @@ body::after {
 .pcc-view-btn.active { background: rgba(99,102,241,0.2) !important; color: #a5b4fc !important; }
 
 /* Board scroll */
-.pcc-board { overflow-x: auto; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; gap: 14px; background: linear-gradient(180deg, rgba(15,20,37,0.5) 0%, rgba(10,14,26,0) 100%); }
+.pcc-board { overflow-x: hidden; gap: 6px; background: linear-gradient(180deg, rgba(15,20,37,0.5) 0%, rgba(10,14,26,0) 100%); }
 .pcc-board[style*="display: none"] { display: none !important; }
 .pcc-board:not([style*="display: none"]) { display: flex !important; }
 
