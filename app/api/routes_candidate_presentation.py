@@ -253,7 +253,7 @@ async def send_presentation(req: SendPresentationRequest, db: AsyncSession = Dep
             "email_body_text": presentation.email_body_text,
             "email_body_html": getattr(presentation, "email_body_html", "") or "",
             "mailbox_used": presentation.mailbox_used,
-            "reply_to_email": getattr(presentation, "reply_to_email", None) or "hamdard@sincirus.com",
+            "reply_to_email": getattr(presentation, "reply_to_email", None) or presentation.email_from or "hamdard@sincirus.com",
             "source": getattr(presentation, "source", "candidate_direct"),
             "status": presentation.status,
         }
@@ -266,10 +266,12 @@ async def send_presentation(req: SendPresentationRequest, db: AsyncSession = Dep
         _step = "trigger_n8n"
         n8n_success = await _trigger_direct_n8n(presentation_dict, req.contact_name)
 
-        # Status auf "sent" aktualisieren wenn n8n erfolgreich
+        # Status auf "sending" setzen — "sent" kommt erst durch n8n Callback
+        # (POST /api/presentations/{id}/sent wird von n8n NACH erfolgreichem
+        #  SMTP/Outlook-Versand aufgerufen und setzt dann status="sent" + sent_at)
         final_status = presentation_dict["status"]
         if n8n_success:
-            _step = "update_status_sent"
+            _step = "update_status_sending"
             try:
                 from app.models.client_presentation import ClientPresentation
                 from sqlalchemy import update
@@ -278,13 +280,13 @@ async def send_presentation(req: SendPresentationRequest, db: AsyncSession = Dep
                     await db_update.execute(
                         update(ClientPresentation)
                         .where(ClientPresentation.id == uuid.UUID(presentation_dict["id"]))
-                        .values(status="sent")
+                        .values(status="sending")
                     )
                     await db_update.commit()
-                final_status = "sent"
-                logger.info(f"Presentation {presentation_dict['id']} Status → sent")
+                final_status = "sending"
+                logger.info(f"Presentation {presentation_dict['id']} Status → sending (n8n Callback setzt 'sent')")
             except Exception as e:
-                logger.error(f"Status-Update auf 'sent' fehlgeschlagen: {e}")
+                logger.error(f"Status-Update auf 'sending' fehlgeschlagen: {e}")
                 # n8n hat trotzdem gesendet — nicht den ganzen Request failen lassen
 
         return {
@@ -500,7 +502,7 @@ async def _trigger_direct_n8n(presentation_data: dict, contact_name: str = "") -
         "pdf_filename": None,
         "presentation_mode": "ai_generated",
         "contact_name": contact_name,
-        "reply_to": presentation_data.get("reply_to_email", "hamdard@sincirus.com"),
+        "reply_to": presentation_data.get("reply_to_email") or presentation_data.get("email_from") or "hamdard@sincirus.com",
         "email_format": "html" if email_body_html else "plain_text",
         "source": presentation_data.get("source", "candidate_direct"),
         "followup_schedule": {"step2_days": 3, "step3_days": 7},
