@@ -147,6 +147,10 @@ class EmailGeneratorService:
         home_office_days = candidate.home_office_days or ""
         employment_type = candidate.employment_type or ""
 
+        # Pendelzeit-Praeferenz (Fallback wenn keine Google Maps Fahrzeit)
+        commute_max = candidate.commute_max or ""
+        commute_transport = candidate.commute_transport or ""
+
         # Fahrzeit
         drive_time_car = match.drive_time_car_min
         drive_time_transit = match.drive_time_transit_min
@@ -190,6 +194,8 @@ class EmailGeneratorService:
             employment_type=employment_type,
             drive_time_car=drive_time_car,
             drive_time_transit=drive_time_transit,
+            commute_max=commute_max,
+            commute_transport=commute_transport,
             match_strengths=match_strengths,
             match_explanation=match_explanation,
             primary_role=primary_role,
@@ -554,9 +560,11 @@ class EmailGeneratorService:
         employment_type: str,
         drive_time_car: int | None,
         drive_time_transit: int | None,
-        match_strengths: str,
-        match_explanation: str,
-        primary_role: str,
+        commute_max: str = "",
+        commute_transport: str = "",
+        match_strengths: str = "",
+        match_explanation: str = "",
+        primary_role: str = "",
     ) -> str:
         """Erstellt den Opus-optimierten Taetigkeitsabgleich-Prompt."""
 
@@ -566,13 +574,24 @@ class EmailGeneratorService:
         else:
             anrede = "Guten Tag"
 
-        # Fahrzeit-Info
+        # Fahrzeit-Info (Google Maps exakt, Fallback: Pendelzeit-Praeferenz)
         fahrzeit_parts = []
         if isinstance(drive_time_car, int):
-            fahrzeit_parts.append(f"{drive_time_car} Min mit dem Auto")
+            fahrzeit_parts.append(f"ca. {drive_time_car} Min. mit dem Auto")
         if isinstance(drive_time_transit, int):
-            fahrzeit_parts.append(f"{drive_time_transit} Min mit OEPNV")
-        fahrzeit_text = " / ".join(fahrzeit_parts) if fahrzeit_parts else "nicht berechnet"
+            fahrzeit_parts.append(f"ca. {drive_time_transit} Min. mit oeffentlichen Verkehrsmitteln")
+        if fahrzeit_parts:
+            fahrzeit_text = ", ".join(fahrzeit_parts)
+        elif commute_max or commute_transport:
+            # Fallback auf Kandidaten-Pendelzeit
+            pendel_parts = []
+            if commute_max:
+                pendel_parts.append(f"max. {commute_max}")
+            if commute_transport:
+                pendel_parts.append(f"mit {commute_transport}")
+            fahrzeit_text = f"Pendelbereitschaft: {' '.join(pendel_parts)}"
+        else:
+            fahrzeit_text = "nicht verfuegbar"
 
         # Job-Anforderungen aus job_text extrahieren (die ersten 3000 Zeichen)
         job_desc = job_text[:3000] if job_text else ""
@@ -604,13 +623,13 @@ class EmailGeneratorService:
         if primary_role:
             kandidat_daten += f"\nPRIMAERE ROLLE: {primary_role}"
 
-        # Rahmendaten
+        # Rahmendaten als Aufzaehlungsliste
         rahmendaten_parts = []
-        rahmendaten_parts.append(f"Standort: {candidate_city} → {job_city} ({fahrzeit_text})")
+        rahmendaten_parts.append(f"Fahrweg: {candidate_city} → {job_city} — {fahrzeit_text}")
         if notice_period:
             rahmendaten_parts.append(f"Verfuegbarkeit: {notice_period}")
         if salary:
-            rahmendaten_parts.append(f"Gehaltsvorstellung: {salary}")
+            rahmendaten_parts.append(f"Gehalt: {salary}")
         if home_office_days:
             rahmendaten_parts.append(f"Home-Office: {home_office_days}")
         if employment_type:
