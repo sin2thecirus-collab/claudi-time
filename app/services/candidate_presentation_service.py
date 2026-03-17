@@ -676,11 +676,11 @@ ORIGINAL-TEXT:
             html_body = _plaintext_to_html(_strip_opus_signature(body_text.replace("{{SKILLS_TABLE}}", skills_table_text).replace("{SKILLS_TABLE}", skills_table_text)))
             html_body += "\n" + HTML_SIGNATURE
 
-            # Kandidaten-ID (Short-ID: erste 8 Zeichen) in Betreffzeile
-            cid = candidate_data.get("candidate_id", "")
-            short_id = cid[:8] if cid else "?"
+            # Kandidaten-Nummer (interne ID aus MT) in Betreffzeile
+            cand_nr = candidate_data.get("candidate_number")
+            ref_tag = f" [Kandidaten-ID: {cand_nr}]" if cand_nr else ""
             opus_subject = data.get("subject", f"{primary_role} fuer {extracted_job_data.get('company_name', 'Ihre Stelle')}")
-            subject_with_id = f"{opus_subject} [Ref: {short_id}]"
+            subject_with_id = f"{opus_subject}{ref_tag}"
 
             return {
                 "subject": subject_with_id,
@@ -689,10 +689,10 @@ ORIGINAL-TEXT:
             }
         except Exception as e:
             logger.error(f"generate_presentation_email fehlgeschlagen: {e}", exc_info=True)
-            cid = candidate_data.get("candidate_id", "")
-            short_id = cid[:8] if cid else "?"
+            cand_nr = candidate_data.get("candidate_number")
+            ref_tag = f" [Kandidaten-ID: {cand_nr}]" if cand_nr else ""
             return {
-                "subject": f"{primary_role} - Kandidatenvorstellung [Ref: {short_id}]",
+                "subject": f"{primary_role} - Kandidatenvorstellung{ref_tag}",
                 "body_text": f"{anrede},\n\nIch moechte Ihnen einen qualifizierten Kandidaten vorstellen.\n\n[FEHLER: Opus-Call fehlgeschlagen: {str(e)[:200]}]\n\n--\n{PLAIN_TEXT_SIGNATURE}",
                 "body_html": "",
             }
@@ -974,6 +974,7 @@ ORIGINAL-TEXT:
 
         return {
             "candidate_id": str(candidate_id),
+            "candidate_number": candidate.candidate_number,
             "work_history": candidate.work_history or [],
             "skills": candidate.skills or [],
             "classification_data": candidate.classification_data or {},
