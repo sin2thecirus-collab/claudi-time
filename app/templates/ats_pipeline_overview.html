@@ -328,7 +328,7 @@ body::after {
                     <div class="pcc-tree" :class="activePosition === pos.id ? 'active' : ''" @click="setActivePosition(pos.id)"
                          style="display: flex; align-items: center; gap: 10px; margin-bottom: 3px;">
                         <div class="pcc-avatar" style="width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: white; flex-shrink: 0;"
-                             :style="'background: linear-gradient(135deg, ' + getAvatarGradient(pos.company) + ')'">
+                             :style="{background: 'linear-gradient(135deg, ' + getAvatarGradient(pos.company) + ')'}">
                             <span x-text="getInitials(pos.company)"></span>
                         </div>
                         <div style="flex: 1; min-width: 0;">
@@ -355,7 +355,7 @@ body::after {
                 <div class="pcc-tree" :class="activePosition === pos.id ? 'active' : ''" @click="setActivePosition(pos.id)"
                      style="display: flex; align-items: center; gap: 10px; margin-bottom: 3px;">
                     <div class="pcc-avatar" style="width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: white; flex-shrink: 0;"
-                         :style="'background: linear-gradient(135deg, ' + getAvatarGradient(pos.company) + ')'">
+                         :style="{background: 'linear-gradient(135deg, ' + getAvatarGradient(pos.company) + ')'}">
                         <span x-text="getInitials(pos.company)"></span>
                     </div>
                     <div style="flex: 1; min-width: 0;">
@@ -382,7 +382,7 @@ body::after {
                     <div class="pcc-tree" @click="setActivePosition(aj.id)"
                          style="display: flex; align-items: center; gap: 10px; margin-bottom: 3px; background: rgba(244,63,94,0.05); border-color: rgba(244,63,94,0.15);">
                         <div class="pcc-avatar" style="width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: white; flex-shrink: 0;"
-                             :style="'background: linear-gradient(135deg, ' + getAvatarGradient(aj.company) + ')'">
+                             :style="{background: 'linear-gradient(135deg, ' + getAvatarGradient(aj.company) + ')'}">
                             <span x-text="getInitials(aj.company)"></span>
                         </div>
                         <div style="flex: 1; min-width: 0;">
@@ -552,7 +552,7 @@ body::after {
                         {# Row 1: Avatar + Name + Score Ring #}
                         <div style="display: flex; align-items: flex-start; gap: 10px; margin-top: 4px;">
                             <div class="pcc-avatar" style="width: 38px; height: 38px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: white; flex-shrink: 0;"
-                                 :style="'background: linear-gradient(135deg, ' + getAvatarGradient(card.name) + ')'">
+                                 :style="{background: 'linear-gradient(135deg, ' + getAvatarGradient(card.name) + ')'}">
                                 <span x-text="card.avatar"></span>
                             </div>
                             <div style="flex: 1; min-width: 0;">
@@ -653,7 +653,7 @@ body::after {
                             <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border);">
                                 <div style="display: flex; align-items: center; gap: 10px;">
                                     <div class="pcc-avatar" style="width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: 700; flex-shrink: 0;"
-                                         :style="'background: linear-gradient(135deg, ' + getAvatarGradient(c.name) + ')'">
+                                         :style="{background: 'linear-gradient(135deg, ' + getAvatarGradient(c.name) + ')'}">
                                         <span x-text="c.avatar"></span>
                                     </div>
                                     <div>
@@ -715,7 +715,7 @@ body::after {
             {# Avatar + Name #}
             <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
                 <div class="pcc-avatar" style="width: 56px; height: 56px; border-radius: 14px; display: flex; align-items: center; justify-content: center; color: white; font-size: 20px; font-weight: 700;"
-                     :style="'background: linear-gradient(135deg, ' + getAvatarGradient(selectedCard.name) + ')'">
+                     :style="{background: 'linear-gradient(135deg, ' + getAvatarGradient(selectedCard.name) + ')'}">
                     <span x-text="selectedCard.avatar"></span>
                 </div>
                 <div>
@@ -830,7 +830,7 @@ body::after {
                          :style="r.already_in_pipeline ? 'opacity: 0.4; pointer-events: none;' : ''"
                          @mouseenter="$el.style.background='rgba(99,102,241,0.08)'" @mouseleave="$el.style.background='transparent'">
                         <div class="pcc-avatar" style="width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: 700; flex-shrink: 0;"
-                             :style="'background: linear-gradient(135deg, ' + getAvatarGradient(r.name) + ')'">
+                             :style="{background: 'linear-gradient(135deg, ' + getAvatarGradient(r.name) + ')'}">
                             <span x-text="r.name.split(' ').map(w => w[0]).join('').substring(0,2).toUpperCase()"></span>
                         </div>
                         <div style="flex: 1; min-width: 0;">
