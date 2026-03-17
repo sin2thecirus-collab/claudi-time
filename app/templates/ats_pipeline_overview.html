@@ -62,27 +62,29 @@ body::after {
 
 /* Glass Morphism */
 .pcc-glass {
-    background: linear-gradient(135deg, rgba(26, 31, 53, 0.9), rgba(17, 24, 39, 0.8));
+    background: linear-gradient(135deg, rgba(30, 35, 60, 0.95), rgba(20, 27, 45, 0.85));
     backdrop-filter: blur(20px);
-    border: 1px solid var(--pcc-border);
+    border: 1px solid rgba(99, 102, 241, 0.18);
     border-radius: 16px;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.25), 0 0 1px rgba(99,102,241,0.2);
 }
-.pcc-glass:hover { border-color: var(--pcc-border-hover); transform: translateY(-1px); }
+.pcc-glass:hover { border-color: var(--pcc-border-hover); transform: translateY(-1px); box-shadow: 0 6px 24px rgba(0,0,0,0.3), 0 0 12px rgba(99,102,241,0.12); }
 
 /* Pipeline Column */
 .pcc-col { min-width: 260px; max-width: 260px; flex-shrink: 0; }
 
-/* Candidate Card — EXACT preview match */
+/* Candidate Card */
 .pcc-card {
-    background: linear-gradient(135deg, rgba(26, 31, 53, 0.95), rgba(15, 20, 40, 0.9));
-    border: 1px solid rgba(99, 102, 241, 0.1);
+    background: linear-gradient(135deg, rgba(30, 35, 58, 0.97), rgba(18, 24, 45, 0.92));
+    border: 1px solid rgba(99, 102, 241, 0.14);
     border-radius: 14px;
     padding: 14px;
     cursor: grab;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.2), 0 0 1px rgba(99,102,241,0.15);
 }
 .pcc-card::before {
     content: '';
@@ -115,7 +117,7 @@ body::after {
 .pcc-score svg { position: absolute; top: 0; left: 0; transform: rotate(-90deg); }
 
 /* Glow Effects */
-.glow-indigo { box-shadow: 0 0 20px rgba(99, 102, 241, 0.15), inset 0 1px 0 rgba(255,255,255,0.05); }
+.glow-indigo { box-shadow: 0 0 24px rgba(99, 102, 241, 0.2), inset 0 1px 0 rgba(255,255,255,0.08); }
 .glow-emerald { box-shadow: 0 0 20px rgba(16, 185, 129, 0.15); }
 .glow-amber { box-shadow: 0 0 20px rgba(245, 158, 11, 0.15); }
 .glow-rose { box-shadow: 0 0 20px rgba(244, 63, 94, 0.15); }
@@ -126,13 +128,13 @@ body::after {
     padding: 8px 12px; border-radius: 10px; cursor: pointer;
     transition: all 0.2s; border: 1px solid transparent;
 }
-.pcc-tree:hover { background: rgba(99, 102, 241, 0.08); border-color: rgba(99, 102, 241, 0.15); }
+.pcc-tree:hover { background: rgba(99, 102, 241, 0.1); border-color: rgba(99, 102, 241, 0.2); box-shadow: 0 2px 8px rgba(99,102,241,0.08); }
 /* Sidebar + Card Avatars */
 .pcc-avatar {
     /* Clean — no extra effects, just the gradient */
 }
 .pcc-tree:hover .pcc-pin { opacity: 1 !important; }
-.pcc-tree.active { background: rgba(99, 102, 241, 0.12); border-color: rgba(99, 102, 241, 0.25); }
+.pcc-tree.active { background: rgba(99, 102, 241, 0.14); border-color: rgba(99, 102, 241, 0.3); box-shadow: 0 2px 12px rgba(99,102,241,0.1); }
 
 /* Quick Action */
 .pcc-qact {
