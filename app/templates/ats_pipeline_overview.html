@@ -1,642 +1,921 @@
 {% extends "base.html" %}
 
-{% block title %}Pipeline - Pulspoint{% endblock %}
+{% block title %}Pipeline Command Center - Pulspoint{% endblock %}
 
 {% block head %}
 <style>
-    .pipeline-wrap ::-webkit-scrollbar { width: 6px; height: 6px; }
-    .pipeline-wrap ::-webkit-scrollbar-track { background: transparent; }
-    .pipeline-wrap ::-webkit-scrollbar-thumb { background: var(--pp-border); border-radius: 3px; }
+/* ═══════════════════════════════════════════════════
+   PIPELINE COMMAND CENTER — CRM 2058
+   ═══════════════════════════════════════════════════ */
 
-    @keyframes slideInRight {
-        from { transform: translateX(100%); opacity: 0 }
-        to   { transform: translateX(0);    opacity: 1 }
-    }
-    @keyframes fadeUp {
-        from { opacity: 0; transform: translateY(12px); }
-        to   { opacity: 1; transform: translateY(0); }
-    }
-    .anim-slide-in { animation: slideInRight 0.3s ease-out forwards; }
-    .anim-fade-up  { animation: fadeUp 0.4s ease-out forwards; }
+/* Custom Properties (overlay on base.html pp-vars) */
+.pcc {
+    --pcc-indigo: #6366f1;
+    --pcc-cyan: #06b6d4;
+    --pcc-emerald: #10b981;
+    --pcc-amber: #f59e0b;
+    --pcc-rose: #f43f5e;
+    --pcc-purple: #a855f7;
+    --pcc-blue: #3b82f6;
+    --pcc-glass: rgba(17, 24, 39, 0.7);
+    --pcc-border: rgba(99, 102, 241, 0.15);
+    --pcc-border-hover: rgba(99, 102, 241, 0.35);
+}
 
-    .card-hover { transition: all 0.2s cubic-bezier(0.4,0,0.2,1); }
-    .card-hover:hover {
-        border-color: var(--pp-border);
-        box-shadow: 0 4px 16px rgba(0,0,0,0.25);
-        transform: translateY(-2px);
-    }
+/* Scrollbar */
+.pcc ::-webkit-scrollbar { width: 5px; height: 5px; }
+.pcc ::-webkit-scrollbar-track { background: transparent; }
+.pcc ::-webkit-scrollbar-thumb { background: rgba(99, 102, 241, 0.3); border-radius: 10px; }
 
-    .funnel-bar { transition: width 0.8s cubic-bezier(0.4,0,0.2,1); }
+/* Glass Morphism */
+.pcc-glass {
+    background: linear-gradient(135deg, rgba(26, 31, 53, 0.9), rgba(17, 24, 39, 0.8));
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--pcc-border);
+    border-radius: 16px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.pcc-glass:hover { border-color: var(--pcc-border-hover); transform: translateY(-1px); }
+
+/* Pipeline Column */
+.pcc-col { min-width: 260px; max-width: 260px; flex-shrink: 0; }
+
+/* Candidate Card */
+.pcc-card {
+    background: linear-gradient(135deg, rgba(26, 31, 53, 0.95), rgba(15, 20, 40, 0.9));
+    border: 1px solid rgba(99, 102, 241, 0.1);
+    border-radius: 14px;
+    padding: 14px;
+    cursor: grab;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+.pcc-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    border-radius: 14px 14px 0 0;
+    opacity: 0.8;
+}
+.pcc-card:hover {
+    border-color: rgba(99, 102, 241, 0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.3), 0 0 20px rgba(99, 102, 241, 0.1);
+}
+.pcc-card.dragging { opacity: 0.5; transform: rotate(2deg) scale(1.02); }
+
+/* Stage Colors */
+.stage-sent::before { background: linear-gradient(90deg, #6366f1, #818cf8); }
+.stage-feedback::before { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+.stage-interview_1::before { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+.stage-interview_2::before { background: linear-gradient(90deg, #8b5cf6, #a78bfa); }
+.stage-interview_3::before { background: linear-gradient(90deg, #d946ef, #e879f9); }
+.stage-offer::before { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+.stage-placed::before { background: linear-gradient(90deg, #10b981, #34d399); }
+.stage-rejected::before { background: linear-gradient(90deg, #64748b, #94a3b8); }
+.stage-matched::before { background: linear-gradient(90deg, #06b6d4, #22d3ee); }
+
+/* Score Ring */
+.pcc-score { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; position: relative; flex-shrink: 0; }
+.pcc-score svg { position: absolute; top: 0; left: 0; transform: rotate(-90deg); }
+
+/* Sidebar */
+.pcc-tree {
+    padding: 8px 12px; border-radius: 10px; cursor: pointer;
+    transition: all 0.2s; border: 1px solid transparent;
+}
+.pcc-tree:hover { background: rgba(99, 102, 241, 0.08); border-color: rgba(99, 102, 241, 0.15); }
+.pcc-tree.active { background: rgba(99, 102, 241, 0.12); border-color: rgba(99, 102, 241, 0.25); }
+
+/* Quick Action */
+.pcc-qact {
+    width: 30px; height: 30px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all 0.2s;
+    background: rgba(99, 102, 241, 0.08); border: 1px solid transparent;
+}
+.pcc-qact:hover { background: rgba(99, 102, 241, 0.2); border-color: rgba(99, 102, 241, 0.3); transform: scale(1.1); }
+
+/* Sparkline */
+.pcc-spark { display: flex; align-items: flex-end; gap: 2px; height: 24px; }
+.pcc-spark-bar {
+    width: 4px; border-radius: 2px;
+    background: linear-gradient(to top, rgba(99, 102, 241, 0.3), rgba(99, 102, 241, 0.7));
+    transition: height 0.3s;
+}
+
+/* Detail Panel */
+.pcc-detail {
+    position: fixed; top: 0; right: -480px; width: 480px; height: 100vh;
+    background: linear-gradient(180deg, var(--pp-surface) 0%, var(--pp-bg) 100%);
+    border-left: 1px solid var(--pcc-border); z-index: 1001;
+    transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow-y: auto;
+}
+.pcc-detail.open { right: 0; }
+.pcc-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
+    z-index: 1000; opacity: 0; pointer-events: none;
+    transition: opacity 0.3s;
+}
+.pcc-backdrop.open { opacity: 1; pointer-events: auto; }
+
+/* Pulse */
+@keyframes pcc-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+.pcc-pulse { animation: pcc-pulse 2s ease-in-out infinite; }
+
+/* Tags */
+.pcc-tag {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 6px;
+    font-size: 11px; font-weight: 500;
+    background: rgba(99, 102, 241, 0.1);
+    color: #a5b4fc;
+    border: 1px solid rgba(99, 102, 241, 0.15);
+}
+
+/* Gradient text */
+.pcc-gradient {
+    background: linear-gradient(135deg, #818cf8, #06b6d4);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* Board scroll */
+.pcc-board { overflow-x: auto; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; }
+
+/* Action Footer */
+.pcc-actions { margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(99, 102, 241, 0.08); display: flex; gap: 8px; }
+.pcc-abtn {
+    flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 7px 0; border-radius: 9px; font-size: 11px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s; position: relative;
+}
+.pcc-abtn:hover { transform: translateY(-1px); }
+.pcc-abtn-k { background: rgba(99,102,241,0.08); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.15); }
+.pcc-abtn-k:hover { background: rgba(99,102,241,0.15); border-color: rgba(99,102,241,0.3); }
+.pcc-abtn-c { background: rgba(245,158,11,0.08); color: #fcd34d; border: 1px solid rgba(245,158,11,0.15); }
+.pcc-abtn-c:hover { background: rgba(245,158,11,0.15); border-color: rgba(245,158,11,0.3); }
+
+/* Popup */
+.pcc-popup {
+    display: none; position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+    background: var(--pp-surface3); border: 1px solid rgba(99,102,241,0.25); border-radius: 12px;
+    padding: 6px; box-shadow: 0 8px 30px rgba(0,0,0,0.5); z-index: 20; min-width: 130px;
+}
+.pcc-abtn:hover .pcc-popup { display: block; }
+.pcc-pop-item {
+    display: flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 8px;
+    font-size: 12px; font-weight: 500; cursor: pointer; transition: background 0.15s; white-space: nowrap;
+}
+.pcc-pop-item:hover { background: rgba(99,102,241,0.12); }
+
+/* Notif Badge */
+.pcc-badge {
+    position: absolute; top: -4px; right: -4px; width: 18px; height: 18px; border-radius: 50%;
+    background: #f43f5e; color: white; font-size: 10px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    border: 2px solid var(--pp-bg);
+}
+
+/* Add Modal */
+.pcc-modal-bg {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px); z-index: 2000;
+    display: flex; align-items: center; justify-content: center;
+}
+.pcc-modal {
+    background: var(--pp-surface); border: 1px solid var(--pcc-border);
+    border-radius: 16px; width: 480px; max-height: 80vh; overflow: hidden;
+    box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+}
 </style>
 {% endblock %}
 
 {% block content %}
-{# -- Pipeline Data als JSON fuer Alpine.js -- #}
-{% set phases_config = [
-    {"id": "sent",        "label": "Vorgestellt",  "color": "#6366f1", "bg": "rgba(99,102,241,0.12)"},
-    {"id": "interview_1", "label": "Interview 1",  "color": "#0ea5e9", "bg": "rgba(14,165,233,0.12)"},
-    {"id": "interview_2", "label": "Interview 2",  "color": "#8b5cf6", "bg": "rgba(139,92,246,0.12)"},
-    {"id": "interview_3", "label": "Interview 3",  "color": "#d946ef", "bg": "rgba(217,70,239,0.12)"},
-    {"id": "offer",       "label": "Angebot",      "color": "#f59e0b", "bg": "rgba(245,158,11,0.12)"},
-    {"id": "placed",      "label": "Platziert",    "color": "#10b981", "bg": "rgba(16,185,129,0.12)"},
-    {"id": "rejected",    "label": "Abgesagt",     "color": "#94a3b8", "bg": "rgba(148,163,184,0.08)"}
+{# ═══ Pipeline Data ═══ #}
+{% set PHASES = [
+    {"id":"sent","label":"Vorgestellt","color":"#6366f1","light":"#a5b4fc","bg":"rgba(99,102,241,0.15)"},
+    {"id":"feedback","label":"Feedback","color":"#f59e0b","light":"#fcd34d","bg":"rgba(245,158,11,0.15)"},
+    {"id":"interview_1","label":"Interview 1","color":"#3b82f6","light":"#93c5fd","bg":"rgba(59,130,246,0.15)"},
+    {"id":"interview_2","label":"Interview 2","color":"#8b5cf6","light":"#c4b5fd","bg":"rgba(139,92,246,0.15)"},
+    {"id":"interview_3","label":"Interview 3","color":"#d946ef","light":"#e879f9","bg":"rgba(217,70,239,0.15)"},
+    {"id":"offer","label":"Angebot","color":"#f59e0b","light":"#fcd34d","bg":"rgba(245,158,11,0.15)"},
+    {"id":"placed","label":"Platziert","color":"#10b981","light":"#6ee7b7","bg":"rgba(16,185,129,0.15)"},
+    {"id":"rejected","label":"Abgesagt","color":"#64748b","light":"#94a3b8","bg":"rgba(148,163,184,0.08)"}
 ] %}
 
-{% set avatar_colors = ["#6366f1","#0ea5e9","#8b5cf6","#d946ef","#f59e0b","#10b981","#ef4444","#ec4899","#14b8a6","#f97316"] %}
+<div class="pcc" style="display: grid; grid-template-columns: 280px 1fr; height: calc(100vh - 56px); overflow: hidden;"
+     x-data="pipelineCommandCenter()" x-init="init()">
 
-<div class="pipeline-wrap min-h-screen"
-     style="background: var(--pp-bg);"
-     x-data="pipelineApp()"
-     x-init="init()">
+{# ════════════════════════════════════════════
+   SIDEBAR
+   ════════════════════════════════════════════ #}
+<aside style="background: linear-gradient(180deg, var(--pp-surface) 0%, var(--pp-bg) 100%); border-right: 1px solid var(--pcc-border); display: flex; flex-direction: column; overflow: hidden;">
 
-    {# ════════════════════════════════════════════════════
-       HEADER
-    ════════════════════════════════════════════════════ #}
-    <div class="px-7 pt-6 pb-0">
-        <div class="flex items-center justify-between mb-6">
+    {# Sidebar Header #}
+    <div style="padding: 20px 16px 12px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
             <div>
-                <h1 class="text-[26px] font-bold text-[var(--pp-text)] tracking-tight leading-tight">Pipeline</h1>
-                <p class="text-[13px] text-[var(--pp-textMuted)] mt-1 font-medium"
-                   x-text="activePos ? activePos.company : '{{ total_jobs }} aktive Stelle{{ 'n' if total_jobs != 1 else '' }}'">
-                </p>
+                <h2 style="font-size: 18px; font-weight: 800; letter-spacing: -0.02em;" class="pcc-gradient">Pipeline</h2>
+                <span style="font-size: 11px; color: var(--pp-textMuted);">Command Center</span>
             </div>
-            <div class="flex items-center gap-3">
-                {# Suche #}
-                <div class="relative">
-                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-[14px] text-[var(--pp-textDim)] pointer-events-none">&#x2315;</span>
-                    <input type="text"
-                           x-model="searchQuery"
-                           placeholder="Kandidat suchen..."
-                           class="pl-9 pr-4 py-2.5 rounded-[10px] border border-[var(--pp-border)] text-[13px] w-[220px] outline-none text-[var(--pp-text)] font-medium placeholder:text-[var(--pp-text4)]"
-                           style="background: var(--pp-surface);">
+            <div style="position: relative;">
+                <div class="pcc-qact" @click="showAddModal = true" style="background: rgba(99,102,241,0.12);">
+                    <svg width="16" height="16" fill="none" stroke="#818cf8" stroke-width="2"><path d="M8 3v10M3 8h10"/></svg>
                 </div>
-                {# Board / Tabelle Toggle #}
-                <div class="flex rounded-[10px] p-[3px]" style="background: var(--pp-surface);">
-                    <button @click="view = 'board'"
-                            :class="view === 'board' ? 'text-[var(--pp-text)]' : 'text-[var(--pp-textMuted)]'"
-                            :style="view === 'board' ? 'background: var(--pp-surfaceHover);' : 'background: transparent;'"
-                            class="px-4 py-2 rounded-lg text-[12px] font-semibold cursor-pointer transition-all">Board</button>
-                    <button @click="view = 'table'"
-                            :class="view === 'table' ? 'text-[var(--pp-text)]' : 'text-[var(--pp-textMuted)]'"
-                            :style="view === 'table' ? 'background: var(--pp-surfaceHover);' : 'background: transparent;'"
-                            class="px-4 py-2 rounded-lg text-[12px] font-semibold cursor-pointer transition-all">Tabelle</button>
-                </div>
+                <template x-if="attentionJobs.length > 0">
+                    <div class="pcc-badge" x-text="attentionJobs.length" style="font-size:9px;"></div>
+                </template>
             </div>
         </div>
 
-        {# ════════════════════════════════════════════════════
-           POSITION TABS
-        ════════════════════════════════════════════════════ #}
-        {% if positions|length > 0 %}
-        <div class="flex gap-2 mb-5 flex-wrap">
-            {% for pos in positions %}
-            <button @click="setActivePosition('{{ pos.id }}')"
-                    :class="activePosition === '{{ pos.id }}'
-                        ? 'border border-[var(--pp-accent)] text-[var(--pp-text)]'
-                        : 'border border-[var(--pp-border)] text-[var(--pp-textMuted)] hover:border-[var(--pp-text4)]'"
-                    :style="activePosition === '{{ pos.id }}' ? 'background: var(--pp-accentSoft);' : 'background: var(--pp-surface);'"
-                    class="px-4 py-2 rounded-[10px] text-[13px] font-semibold cursor-pointer flex items-center gap-2 transition-all">
-                {{ pos.name }}
-                <span :class="activePosition === '{{ pos.id }}'
-                           ? 'text-[var(--pp-text)]'
-                           : 'text-[var(--pp-textMuted)]'"
-                      :style="activePosition === '{{ pos.id }}' ? 'background: var(--pp-accent);' : 'background: var(--pp-surface3);'"
-                      class="text-[11px] font-bold px-[7px] py-[1px] rounded-md">
-                    {{ pos.candidates }}
-                </span>
-                {% if not pos.active %}
-                <span class="text-[10px] text-[var(--pp-textDim)] font-medium">pausiert</span>
-                {% endif %}
-            </button>
-            {% endfor %}
+        {# Sidebar Search #}
+        <div style="position: relative;">
+            <svg style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%);" width="14" height="14" fill="none" stroke="#64748b" stroke-width="2"><circle cx="6" cy="6" r="5"/><path d="M10 10l3.5 3.5"/></svg>
+            <input type="text" x-model="sidebarSearch" placeholder="Firma oder Job suchen..." style="width: 100%; padding: 8px 10px 8px 32px; background: rgba(99,102,241,0.06); border: 1px solid rgba(99,102,241,0.12); border-radius: 10px; color: var(--pp-text); font-size: 12px; outline: none;">
         </div>
-        {% endif %}
+    </div>
 
-        {# ════════════════════════════════════════════════════
-           METRIC CARDS
-        ════════════════════════════════════════════════════ #}
-        <div class="flex gap-3 mb-6">
-            {# In Pipeline #}
-            <div class="flex-1 min-w-[150px] rounded-[12px] p-[18px_20px] border border-[var(--pp-border)] anim-fade-up" style="background: var(--pp-surface);">
-                <div class="flex items-center justify-between mb-2">
-                    <span class="text-[11.5px] text-[var(--pp-textMuted)] font-medium">In Pipeline</span>
-                    <span class="text-[18px]">&#x1F465;</span>
-                </div>
-                <div class="text-[28px] font-bold text-[var(--pp-text)] tracking-tight leading-none" x-text="metrics.inPipeline"></div>
-                <div class="text-[11px] text-[var(--pp-accent)] font-semibold mt-1.5">aktive Kandidaten</div>
+    {# Sidebar Content #}
+    <div style="flex: 1; overflow-y: auto; padding: 0 10px 16px;">
+
+        {# All Processes #}
+        <div class="pcc-tree" @click="activePosition = null" :class="activePosition === null ? 'active' : ''"
+             style="margin-bottom: 12px; display: flex; align-items: center; gap: 10px; background: rgba(6,182,212,0.08); border-color: rgba(6,182,212,0.2);">
+            <div style="width: 32px; height: 32px; border-radius: 10px; background: linear-gradient(135deg, #06b6d4, #3b82f6); display: flex; align-items: center; justify-content: center;">
+                <svg width="16" height="16" fill="none" stroke="white" stroke-width="2"><path d="M2 4h12M2 8h12M2 12h12"/></svg>
             </div>
-            {# Platziert #}
-            <div class="flex-1 min-w-[150px] rounded-[12px] p-[18px_20px] border border-[var(--pp-border)] anim-fade-up" style="background: var(--pp-surface); animation-delay: 100ms;">
-                <div class="flex items-center justify-between mb-2">
-                    <span class="text-[11.5px] text-[var(--pp-textMuted)] font-medium">Platziert</span>
-                    <span class="text-[18px]">&#x1F3AF;</span>
-                </div>
-                <div class="text-[28px] font-bold text-[var(--pp-text)] tracking-tight leading-none" x-text="metrics.placed"></div>
-                <div class="text-[11px] text-[var(--pp-green)] font-semibold mt-1.5">erfolgreich</div>
+            <div>
+                <div style="font-size: 13px; font-weight: 600;">Alle Prozesse</div>
+                <div style="font-size: 11px; color: var(--pp-textMuted);" x-text="positions.length + ' Jobs &middot; ' + totalCandidates + ' Kandidaten'"></div>
             </div>
-            {# Durchschn. Tage #}
-            <div class="flex-1 min-w-[150px] rounded-[12px] p-[18px_20px] border border-[var(--pp-border)] anim-fade-up" style="background: var(--pp-surface); animation-delay: 200ms;">
-                <div class="flex items-center justify-between mb-2">
-                    <span class="text-[11.5px] text-[var(--pp-textMuted)] font-medium">&empty; Tage / Phase</span>
-                    <span class="text-[18px]">&#x23F1;</span>
-                </div>
-                <div class="text-[28px] font-bold text-[var(--pp-text)] tracking-tight leading-none" x-text="metrics.avgDays"></div>
-                <div class="text-[11px] font-semibold mt-1.5"
-                     :style="metrics.avgDays <= 5 ? 'color: var(--pp-green)' : 'color: var(--pp-orange)'"
-                     x-text="metrics.avgDays <= 5 ? 'Guter Durchlauf' : 'Achtung: Stau m\u00f6glich'"></div>
+        </div>
+
+        {# Recently Active / All Jobs #}
+        <div style="margin-bottom: 16px;">
+            <div style="font-size: 10px; font-weight: 700; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.06em; padding: 0 6px; margin-bottom: 8px; display: flex; align-items: center; gap: 5px;">
+                <svg width="10" height="10" fill="none" stroke="#64748b" stroke-width="2"><circle cx="5" cy="5" r="4"/><path d="M5 3v2l1.5 1"/></svg>
+                Stellen
             </div>
-            {# Conversion #}
-            <div class="flex-1 min-w-[150px] rounded-[12px] p-[18px_20px] border border-[var(--pp-border)] anim-fade-up" style="background: var(--pp-surface); animation-delay: 300ms;">
-                <div class="flex items-center justify-between mb-2">
-                    <span class="text-[11.5px] text-[var(--pp-textMuted)] font-medium">Conversion</span>
-                    <span class="text-[18px]">&#x1F4C8;</span>
+
+            <template x-for="pos in filteredPositions" :key="pos.id">
+                <div class="pcc-tree" :class="activePosition === pos.id ? 'active' : ''" @click="setActivePosition(pos.id)"
+                     style="display: flex; align-items: center; gap: 10px; margin-bottom: 3px;">
+                    <div style="width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: white; flex-shrink: 0;"
+                         :style="'background: linear-gradient(135deg, ' + getAvatarGradient(pos.company) + ')'">
+                        <span x-text="getInitials(pos.company)"></span>
+                    </div>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" x-text="pos.company + ' &middot; ' + pos.name"></div>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span style="font-size: 10px; color: var(--pp-textMuted);" x-text="pos.candidates + ' Kandidaten'"></span>
+                            <span style="width: 4px; height: 4px; border-radius: 50%;"
+                                  :style="'background: ' + (pos.candidates > 0 ? '#10b981' : '#64748b')"></span>
+                        </div>
+                    </div>
                 </div>
-                <div class="text-[28px] font-bold text-[var(--pp-text)] tracking-tight leading-none" x-text="metrics.conversion + '%'"></div>
-                <div class="text-[11px] text-[var(--pp-purple)] font-semibold mt-1.5">Vorgestellt &rarr; IV1</div>
+            </template>
+        </div>
+
+        {# Attention Needed #}
+        <template x-if="attentionJobs.length > 0">
+            <div>
+                <div style="font-size: 10px; font-weight: 700; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.06em; padding: 0 6px; margin-bottom: 8px; display: flex; align-items: center; gap: 5px;">
+                    <svg width="10" height="10" fill="none" stroke="#f43f5e" stroke-width="2"><path d="M5 1v5M5 8v1"/></svg>
+                    Handlungsbedarf
+                </div>
+                <template x-for="aj in attentionJobs" :key="aj.id + '_attn'">
+                    <div class="pcc-tree" @click="setActivePosition(aj.id)"
+                         style="display: flex; align-items: center; gap: 10px; margin-bottom: 3px; background: rgba(244,63,94,0.05); border-color: rgba(244,63,94,0.15);">
+                        <div style="width: 30px; height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: white; flex-shrink: 0;"
+                             :style="'background: linear-gradient(135deg, ' + getAvatarGradient(aj.company) + ')'">
+                            <span x-text="getInitials(aj.company)"></span>
+                        </div>
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" x-text="aj.company + ' &middot; ' + aj.name"></div>
+                            <div style="display: flex; align-items: center; gap: 4px;">
+                                <span style="width: 5px; height: 5px; border-radius: 50%; background: #f43f5e;" class="pcc-pulse"></span>
+                                <span style="font-size: 10px; color: #fb7185;" x-text="aj.attentionReason"></span>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </template>
+
+    </div>
+
+    {# Sidebar Footer #}
+    <div style="padding: 12px 16px; border-top: 1px solid var(--pcc-border); background: rgba(99,102,241,0.03);">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <div style="text-align: center;">
+                <div style="font-size: 20px; font-weight: 800; color: #818cf8;" x-text="globalMetrics.inPipeline"></div>
+                <div style="font-size: 10px; color: var(--pp-textMuted);">Aktive Prozesse</div>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 20px; font-weight: 800; color: #10b981;" x-text="globalMetrics.placed"></div>
+                <div style="font-size: 10px; color: var(--pp-textMuted);">Platziert</div>
+            </div>
+        </div>
+    </div>
+</aside>
+
+{# ════════════════════════════════════════════
+   MAIN CONTENT
+   ════════════════════════════════════════════ #}
+<main style="display: flex; flex-direction: column; overflow: hidden;">
+
+    {# Top Bar #}
+    <div style="padding: 16px 24px; border-bottom: 1px solid var(--pcc-border); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;">
+        <div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <h1 style="font-size: 20px; font-weight: 800; letter-spacing: -0.02em; color: var(--pp-text);"
+                    x-text="activePos ? activePos.company : 'Alle Prozesse'"></h1>
+                <template x-if="activePos">
+                    <span style="color: var(--pp-textMuted); font-size: 14px;">/</span>
+                </template>
+                <template x-if="activePos">
+                    <span style="color: #818cf8; font-weight: 600; font-size: 15px;" x-text="activePos.name"></span>
+                </template>
+                <template x-if="activePos && activePos.active">
+                    <span style="background: rgba(16,185,129,0.15); color: #34d399; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;">OFFEN</span>
+                </template>
+            </div>
+            <div style="font-size: 12px; color: var(--pp-textMuted); margin-top: 2px;"
+                 x-text="activePos ? (filteredCandidates.length + ' Kandidaten in Pipeline') : (totalCandidates + ' Kandidaten in ' + positions.length + ' Jobs')"></div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+            {# Search #}
+            <div style="position: relative;">
+                <svg style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%);" width="14" height="14" fill="none" stroke="#64748b" stroke-width="2"><circle cx="6" cy="6" r="5"/><path d="M10 10l3.5 3.5"/></svg>
+                <input type="text" x-model="searchQuery" placeholder="Kandidat suchen..."
+                       style="padding: 7px 12px 7px 32px; background: rgba(99,102,241,0.06); border: 1px solid rgba(99,102,241,0.12); border-radius: 10px; color: var(--pp-text); font-size: 12px; outline: none; width: 200px;">
+            </div>
+            {# View Toggle #}
+            <div style="display: flex; background: rgba(99,102,241,0.08); border-radius: 10px; padding: 3px; border: 1px solid rgba(99,102,241,0.12);">
+                <button @click="view = 'board'" :style="view === 'board' ? 'background: rgba(99,102,241,0.2); color: #a5b4fc;' : 'background: transparent; color: var(--pp-textMuted);'"
+                        style="padding: 5px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; border: none; cursor: pointer;">Board</button>
+                <button @click="view = 'table'" :style="view === 'table' ? 'background: rgba(99,102,241,0.2); color: #a5b4fc;' : 'background: transparent; color: var(--pp-textMuted);'"
+                        style="padding: 5px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; border: none; cursor: pointer;">Tabelle</button>
+            </div>
+            {# Add Candidate #}
+            <template x-if="activePosition">
+                <button @click="showAddModal = true"
+                        style="padding: 7px 16px; background: linear-gradient(135deg, #6366f1, #4f46e5); border: none; border-radius: 10px; color: white; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 3v8M3 7h8"/></svg>
+                    Kandidat hinzuf&uuml;gen
+                </button>
+            </template>
+        </div>
+    </div>
+
+    {# KPI Bar #}
+    <div style="padding: 12px 24px; border-bottom: 1px solid rgba(99,102,241,0.08); display: flex; gap: 16px; flex-shrink: 0;">
+        {# In Pipeline #}
+        <div class="pcc-glass" style="flex: 1; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;">
+            <div>
+                <div style="font-size: 10px; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.05em;">In Pipeline</div>
+                <div style="font-size: 24px; font-weight: 800; color: #818cf8; line-height: 1.1;" x-text="metrics.inPipeline"></div>
+            </div>
+            <div class="pcc-spark">
+                <template x-for="h in sparkData" :key="h"><div class="pcc-spark-bar" :style="'height:' + h + 'px'"></div></template>
+            </div>
+        </div>
+        {# Placed #}
+        <div class="pcc-glass" style="flex: 1; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;">
+            <div>
+                <div style="font-size: 10px; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.05em;">Platziert</div>
+                <div style="font-size: 24px; font-weight: 800; color: #10b981; line-height: 1.1;" x-text="metrics.placed"></div>
+            </div>
+            <div style="width: 36px; height: 36px; border-radius: 50%; background: rgba(16,185,129,0.12); display: flex; align-items: center; justify-content: center;">
+                <svg width="18" height="18" fill="none" stroke="#10b981" stroke-width="2"><path d="M4 9l4 4 6-8"/></svg>
+            </div>
+        </div>
+        {# Avg Days #}
+        <div class="pcc-glass" style="flex: 1; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;">
+            <div>
+                <div style="font-size: 10px; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.05em;">&empty; Tage / Phase</div>
+                <div style="display: flex; align-items: baseline; gap: 6px;">
+                    <span style="font-size: 24px; font-weight: 800; line-height: 1.1;"
+                          :style="'color: ' + (metrics.avgDays <= 5 ? '#10b981' : '#f59e0b')"
+                          x-text="metrics.avgDays"></span>
+                    <span style="font-size: 11px; font-weight: 600;"
+                          :style="'color: ' + (metrics.avgDays <= 5 ? '#34d399' : '#fbbf24')"
+                          x-text="metrics.avgDays <= 5 ? 'Gut' : 'Achtung'"></span>
+                </div>
+            </div>
+            <div style="width: 36px; height: 36px; border-radius: 50%; background: rgba(245,158,11,0.12); display: flex; align-items: center; justify-content: center;">
+                <svg width="18" height="18" fill="none" stroke="#f59e0b" stroke-width="2"><circle cx="9" cy="9" r="7"/><path d="M9 5v4l3 2"/></svg>
+            </div>
+        </div>
+        {# Conversion #}
+        <div class="pcc-glass" style="flex: 1; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;">
+            <div>
+                <div style="font-size: 10px; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.05em;">Conversion</div>
+                <div style="font-size: 24px; font-weight: 800; color: #06b6d4; line-height: 1.1;" x-text="metrics.conversion + '%'"></div>
+            </div>
+            <div style="width: 36px; height: 36px; border-radius: 50%; background: rgba(6,182,212,0.12); display: flex; align-items: center; justify-content: center;">
+                <svg width="18" height="18" fill="none" stroke="#06b6d4" stroke-width="2"><path d="M2 14l4-5 3 3 5-8"/></svg>
             </div>
         </div>
     </div>
 
-    {# ════════════════════════════════════════════════════
+    {# ════════════════════════════════════════════
        BOARD VIEW
-    ════════════════════════════════════════════════════ #}
-    <div x-show="view === 'board'" class="px-7 pb-6">
+       ════════════════════════════════════════════ #}
+    <div x-show="view === 'board'" class="pcc-board" style="flex: 1; padding: 16px 24px; display: flex; gap: 14px;">
 
-        {# Kanban Columns #}
-        <div class="flex gap-3 overflow-x-auto pb-5">
-            {% for phase in phases_config %}
-            <div class="flex-1 min-w-[200px] max-w-[280px]"
-                 x-show="true">
-
-                {# Column Header #}
-                <div class="flex items-center justify-between mb-3 px-1">
-                    <div class="flex items-center gap-2">
-                        <div class="w-[10px] h-[10px] rounded-[3px]" style="background: {{ phase.color }};"></div>
-                        <span class="text-[13px] font-bold text-[var(--pp-text)] tracking-tight">{{ phase.label }}</span>
-                    </div>
-                    <div class="text-[12px] font-bold w-[26px] h-[26px] rounded-lg flex items-center justify-center"
-                         style="background: {{ phase.color }}18; color: {{ phase.color }};"
-                         x-text="candidatesInPhase('{{ phase.id }}').length">
-                    </div>
+        {% for phase in PHASES %}
+        <div class="pcc-col" x-show="'{{ phase.id }}' !== 'rejected' || candidatesInPhase('rejected').length > 0">
+            {# Column Header #}
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; padding: 0 4px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="width: 10px; height: 10px; border-radius: 4px; background: linear-gradient(135deg, {{ phase.color }}, {{ phase.light }});"></div>
+                    <span style="font-size: 13px; font-weight: 700; color: var(--pp-text);">{{ phase.label }}</span>
                 </div>
-
-                {# Column Body (Drop Zone) #}
-                <div class="rounded-[12px] p-2 min-h-[120px] flex flex-col gap-2"
-                     style="background: var(--pp-surface); border: 1px dashed {{ phase.color }}30;"
-                     @dragover.prevent="$el.style.borderColor = '{{ phase.color }}'"
-                     @dragleave="$el.style.borderColor = '{{ phase.color }}30'"
-                     @drop="handleDrop($event, '{{ phase.id }}')">
-
-                    {# Candidate Cards #}
-                    <template x-for="card in candidatesInPhase('{{ phase.id }}')" :key="card.entry_id">
-                        <div @click="selectCandidate(card)"
-                             draggable="true"
-                             @dragstart="handleDragStart($event, card)"
-                             @dragend="handleDragEnd($event)"
-                             class="rounded-[10px] p-[14px_16px] cursor-pointer border border-[var(--pp-border)] card-hover"
-                             style="background: var(--pp-surfaceHover);">
-
-                            {# Avatar + Name #}
-                            <div class="flex items-center gap-2.5 mb-2.5">
-                                <div class="w-9 h-9 rounded-[10px] flex items-center justify-center text-white text-[13px] font-bold tracking-wide flex-shrink-0"
-                                     :style="'background:' + getAvatarColor(card.id)">
-                                    <span x-text="card.avatar"></span>
-                                </div>
-                                <div class="min-w-0 flex-1">
-                                    <div class="font-semibold text-[13.5px] text-[var(--pp-text)] leading-tight truncate" x-text="card.name"></div>
-                                    <div class="text-[11.5px] text-[var(--pp-textMuted)] mt-0.5 truncate" x-text="card.role"></div>
-                                </div>
-                            </div>
-
-                            {# Stars + Days #}
-                            <div class="flex items-center justify-between">
-                                {# Star Rating #}
-                                <div class="flex gap-[2px]">
-                                    <template x-for="i in 5" :key="i">
-                                        <span class="text-[11px]" :style="'color:' + (i <= card.rating ? '#f59e0b' : 'var(--pp-text4)')">&#9733;</span>
-                                    </template>
-                                </div>
-                                {# Days Indicator #}
-                                <template x-if="card.phase !== 'placed' && card.phase !== 'rejected'">
-                                    <div class="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-[2px] rounded-[10px]"
-                                         :style="'color:' + daysColor(card.days) + '; background:' + daysColor(card.days) + '12'">
-                                        <span class="w-1.5 h-1.5 rounded-full inline-block" :style="'background:' + daysColor(card.days)"></span>
-                                        <span x-text="card.days + 'd'"></span>
-                                    </div>
-                                </template>
-                            </div>
-
-                            {# Tags (ERP + Salary) #}
-                            <div class="flex gap-1.5 mt-2.5 flex-wrap">
-                                <template x-if="card.erp">
-                                    <span class="text-[10.5px] px-2 py-[2px] rounded-md text-[var(--pp-textMuted)] font-medium"
-                                          style="background: var(--pp-surface3);"
-                                          x-text="card.erp"></span>
-                                </template>
-                                <template x-if="card.salary">
-                                    <span class="text-[10.5px] px-2 py-[2px] rounded-md text-[var(--pp-textMuted)] font-medium"
-                                          style="background: var(--pp-surface3);"
-                                          x-text="card.salary"></span>
-                                </template>
-                            </div>
-                        </div>
-                    </template>
-
-                    {# Empty State #}
-                    <template x-if="candidatesInPhase('{{ phase.id }}').length === 0">
-                        <div class="flex items-center justify-center h-20 text-[var(--pp-textDim)] text-[12px] italic">
-                            Keine Kandidaten
-                        </div>
-                    </template>
-
-                </div>
+                <span style="background: {{ phase.bg }}; color: {{ phase.light }}; padding: 2px 10px; border-radius: 20px; font-size: 12px; font-weight: 700;"
+                      x-text="candidatesInPhase('{{ phase.id }}').length"></span>
             </div>
-            {% endfor %}
-        </div>
 
-        {# -- Conversion Funnel (Chevron Flow) -- #}
-        <div class="mt-4">
-            <div class="rounded-[12px] border border-[var(--pp-border)]" style="background: var(--pp-surface); padding:20px 24px 28px;">
-                <div class="text-[13px] font-bold text-[var(--pp-text)] mb-5 tracking-tight">Conversion Funnel</div>
-                <div style="display:flex; align-items:stretch; position:relative;">
-                    {% for phase in phases_config %}
-                    {% if phase.id != 'rejected' %}
-                    <div style="flex:1; position:relative; z-index:{{ 10 - loop.index0 }};">
-                        <div style="
-                            background: {{ phase.color }};
-                            height:54px;
-                            display:flex; flex-direction:column; align-items:center; justify-content:center;
-                            {% if loop.index0 == 0 %}clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%);
-                            padding: 8px 20px 8px 14px;
-                            border-radius: 8px 0 0 8px;
-                            {% elif phase.id == 'placed' %}clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 12px 50%);
-                            padding: 8px 14px 8px 22px;
-                            border-radius: 0 8px 8px 0;
-                            {% else %}clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%, 12px 50%);
-                            padding: 8px 20px 8px 22px;
-                            {% endif %}
-                        ">
-                            <span style="color:#fff; font-size:16px; font-weight:700; line-height:1;" x-text="funnelCount('{{ phase.id }}')"></span>
-                            <span style="color:rgba(255,255,255,0.72); font-size:9.5px; font-weight:600; margin-top:3px; letter-spacing:0.02em;">{{ phase.label }}</span>
+            {# Drop Zone #}
+            <div style="display: flex; flex-direction: column; gap: 10px; min-height: 200px; padding: 8px; border: 2px dashed {{ phase.color }}18; border-radius: 14px; transition: border-color 0.2s;"
+                 @dragover.prevent="$el.style.borderColor = '{{ phase.color }}'"
+                 @dragleave="$el.style.borderColor = '{{ phase.color }}18'"
+                 @drop="handleDrop($event, '{{ phase.id }}'); $el.style.borderColor = '{{ phase.color }}18'">
+
+                {# Cards #}
+                <template x-for="card in candidatesInPhase('{{ phase.id }}')" :key="card.entry_id">
+                    <div class="pcc-card" :class="'stage-{{ phase.id }}'"
+                         draggable="true"
+                         @click="selectCandidate(card)"
+                         @dragstart="handleDragStart($event, card)"
+                         @dragend="handleDragEnd($event)">
+
+                        {# WOW Badge #}
+                        <template x-if="card.wow">
+                            <div style="position: absolute; top: 8px; right: 10px;">
+                                <span style="background: linear-gradient(135deg, #f59e0b, #ef4444); color: white; padding: 2px 8px; border-radius: 6px; font-size: 9px; font-weight: 800; letter-spacing: 0.05em;">WOW</span>
+                            </div>
+                        </template>
+
+                        {# Avatar + Name + Score #}
+                        <div style="display: flex; align-items: flex-start; gap: 10px; margin-top: 4px;">
+                            <div style="width: 38px; height: 38px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: white; flex-shrink: 0;"
+                                 :style="'background: linear-gradient(135deg, ' + getAvatarGradient(card.name) + ')'">
+                                <span x-text="card.avatar"></span>
+                            </div>
+                            <div style="flex: 1; min-width: 0;">
+                                <div style="font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--pp-text);" x-text="card.name"></div>
+                                <div style="font-size: 11px; color: var(--pp-textMuted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" x-text="card.role"></div>
+                            </div>
+                            <template x-if="card.score">
+                                <div class="pcc-score" :style="'color: ' + scoreColor(card.score)">
+                                    <svg width="36" height="36" viewBox="0 0 36 36">
+                                        <circle cx="18" cy="18" r="15" fill="none" :stroke="scoreColor(card.score) + '25'" stroke-width="3"/>
+                                        <circle cx="18" cy="18" r="15" fill="none" :stroke="scoreColor(card.score)" stroke-width="3" :stroke-dasharray="scoreDash(card.score) + ' 94'" stroke-linecap="round"/>
+                                    </svg>
+                                    <span x-text="card.score"></span>
+                                </div>
+                            </template>
                         </div>
-                        {% if phase.id != 'placed' %}
-                        <div style="position:absolute; bottom:-20px; right:-4px; z-index:20;">
-                            <span style="font-size:10px; font-weight:700;"
-                                  :style="funnelConvRate('{{ phase.id }}') >= 50 ? 'color: var(--pp-green)' : 'color: var(--pp-orange)'"
-                                  x-text="funnelConvRateStr('{{ phase.id }}')"></span>
+
+                        {# Tags: ERP, Drive Time, Salary #}
+                        <div style="display: flex; align-items: center; gap: 6px; margin-top: 10px; flex-wrap: wrap;">
+                            <template x-if="card.erp">
+                                <span class="pcc-tag">
+                                    <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 1v8M1 5h8"/></svg>
+                                    <span x-text="card.erp"></span>
+                                </span>
+                            </template>
+                            <template x-if="card.drive_time_car">
+                                <span class="pcc-tag" :style="'background: ' + (card.drive_time_car <= 20 ? 'rgba(16,185,129,0.1)' : card.drive_time_car <= 40 ? 'rgba(245,158,11,0.1)' : 'rgba(148,163,184,0.1)') + '; color: ' + (card.drive_time_car <= 20 ? '#6ee7b7' : card.drive_time_car <= 40 ? '#fcd34d' : '#94a3b8') + '; border-color: ' + (card.drive_time_car <= 20 ? 'rgba(16,185,129,0.15)' : card.drive_time_car <= 40 ? 'rgba(245,158,11,0.15)' : 'rgba(148,163,184,0.15)')">
+                                    <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="5" r="4"/><path d="M5 3v2l1.5 1"/></svg>
+                                    <span x-text="card.drive_time_car + ' Min'"></span>
+                                </span>
+                            </template>
+                            <template x-if="card.salary">
+                                <span class="pcc-tag" style="background: rgba(245,158,11,0.1); color: #fcd34d; border-color: rgba(245,158,11,0.15);">
+                                    <span x-text="card.salary"></span>
+                                </span>
+                            </template>
                         </div>
-                        {% endif %}
+
+                        {# Days Indicator #}
+                        <template x-if="card.phase !== 'placed' && card.phase !== 'rejected'">
+                            <div style="display: flex; align-items: center; gap: 4px; font-size: 11px; margin-top: 10px;"
+                                 :style="'color: ' + daysColor(card.days)">
+                                <div style="width: 6px; height: 6px; border-radius: 50%;" :style="'background: ' + daysColor(card.days)" :class="card.days > 7 ? 'pcc-pulse' : ''"></div>
+                                <span x-text="card.days + ' Tage in dieser Phase'"></span>
+                            </div>
+                        </template>
+
+                        {# Action Buttons #}
+                        <div class="pcc-actions" @click.stop>
+                            <div class="pcc-abtn pcc-abtn-k">
+                                <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6.5" cy="4" r="3"/><path d="M1 12c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/></svg>
+                                Kandidat
+                                <svg width="8" height="8" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 3l3 3 3-3"/></svg>
+                                <div class="pcc-popup">
+                                    <a :href="'mailto:'" class="pcc-pop-item" style="color: #a5b4fc; text-decoration: none;"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 3.5l6 4 6-4M1 3.5v7.5h12V3.5H1z"/></svg>Email senden</a>
+                                    <div class="pcc-pop-item" style="color: #6ee7b7;"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 2h2l1.2 2.5L4.5 5.7a6.5 6.5 0 003.3 3.3L9 7.8l2.5 1.2v2a1 1 0 01-1 1C5.5 12 2 8.5 2 3.5a1 1 0 011-1z"/></svg>Anrufen</div>
+                                    <a :href="'https://wa.me/'" target="_blank" class="pcc-pop-item" style="color: #86efac; text-decoration: none;"><svg width="14" height="14" fill="currentColor" stroke="none" viewBox="0 0 24 24"><path d="M17.5 14.4l-2-1c-.3-.1-.5-.1-.7.1l-.9 1.1c-.2.2-.3.2-.6.1-1.5-.7-2.7-1.7-3.6-3-.3-.3-.2-.5 0-.7l.6-.7c.2-.2.2-.4.1-.6L9.5 7c-.2-.5-.5-.5-.7-.5h-.6c-.2 0-.6.1-.9.4C6.5 7.7 6 8.6 6 10c0 1.3.9 2.6 1 2.8.2.2 3.2 5 7.8 6.9 1.1.5 1.9.7 2.6.9.8.2 1.5.2 2.1.1.6-.1 2-1 2.3-1.8.3-.8.3-1.5.2-1.7-.1-.1-.3-.2-.5-.3z"/></svg>WhatsApp</a>
+                                </div>
+                            </div>
+                            <div class="pcc-abtn pcc-abtn-c">
+                                <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.5" y="2" width="10" height="9" rx="1.5"/><path d="M4 6h5M4 8.5h3"/></svg>
+                                Kunde
+                                <svg width="8" height="8" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 3l3 3 3-3"/></svg>
+                                <div class="pcc-popup">
+                                    <div class="pcc-pop-item" style="color: #fcd34d;"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 3.5l6 4 6-4M1 3.5v7.5h12V3.5H1z"/></svg>Email senden</div>
+                                    <div class="pcc-pop-item" style="color: #fcd34d;"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 2h2l1.2 2.5L4.5 5.7a6.5 6.5 0 003.3 3.3L9 7.8l2.5 1.2v2a1 1 0 01-1 1C5.5 12 2 8.5 2 3.5a1 1 0 011-1z"/></svg>Anrufen</div>
+                                    <div class="pcc-pop-item" style="color: #cbd5e1;"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 1.5h10v8l-3 2.5H2V1.5zM5 5h4M5 7.5h2.5"/></svg>Notiz</div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    {% endif %}
-                    {% endfor %}
-                </div>
+                </template>
+
+                {# Empty State #}
+                <template x-if="candidatesInPhase('{{ phase.id }}').length === 0">
+                    <div style="display: flex; align-items: center; justify-content: center; height: 80px; color: var(--pp-textDim); font-size: 12px; font-style: italic;">
+                        Kandidaten hierher ziehen
+                    </div>
+                </template>
             </div>
         </div>
+        {% endfor %}
     </div>
 
-    {# ════════════════════════════════════════════════════
+    {# ════════════════════════════════════════════
        TABLE VIEW
-    ════════════════════════════════════════════════════ #}
-    <div x-show="view === 'table'" class="px-7 pb-6">
-        <div class="rounded-[12px] border border-[var(--pp-border)] overflow-hidden" style="background: var(--pp-surface);">
-            <table class="w-full text-[13px]" style="border-collapse: collapse;">
+       ════════════════════════════════════════════ #}
+    <div x-show="view === 'table'" style="flex: 1; overflow-y: auto; padding: 16px 24px;">
+        <div style="border: 1px solid var(--pcc-border); border-radius: 14px; overflow: hidden; background: var(--pp-surface);">
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
                 <thead>
                     <tr style="background: var(--pp-bg);">
-                        <th class="px-4 py-3 text-left font-semibold text-[var(--pp-textMuted)] text-[11.5px] uppercase tracking-wider border-b border-[var(--pp-border)]">Kandidat</th>
-                        <th class="px-4 py-3 text-left font-semibold text-[var(--pp-textMuted)] text-[11.5px] uppercase tracking-wider border-b border-[var(--pp-border)]">Rolle</th>
-                        <th class="px-4 py-3 text-left font-semibold text-[var(--pp-textMuted)] text-[11.5px] uppercase tracking-wider border-b border-[var(--pp-border)]">Phase</th>
-                        <th class="px-4 py-3 text-left font-semibold text-[var(--pp-textMuted)] text-[11.5px] uppercase tracking-wider border-b border-[var(--pp-border)]">Gehalt</th>
-                        <th class="px-4 py-3 text-left font-semibold text-[var(--pp-textMuted)] text-[11.5px] uppercase tracking-wider border-b border-[var(--pp-border)]">K&uuml;ndigungsfrist</th>
-                        <th class="px-4 py-3 text-left font-semibold text-[var(--pp-textMuted)] text-[11.5px] uppercase tracking-wider border-b border-[var(--pp-border)]">ERP</th>
-                        <th class="px-4 py-3 text-left font-semibold text-[var(--pp-textMuted)] text-[11.5px] uppercase tracking-wider border-b border-[var(--pp-border)]">Tage</th>
-                        <th class="px-4 py-3 text-left font-semibold text-[var(--pp-textMuted)] text-[11.5px] uppercase tracking-wider border-b border-[var(--pp-border)]">Bewertung</th>
+                        <th style="padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--pcc-border);">Kandidat</th>
+                        <th style="padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--pcc-border);">Firma / Job</th>
+                        <th style="padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--pcc-border);">Phase</th>
+                        <th style="padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--pcc-border);">Score</th>
+                        <th style="padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--pcc-border);">Fahrzeit</th>
+                        <th style="padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--pcc-border);">Gehalt</th>
+                        <th style="padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--pcc-border);">Tage</th>
                     </tr>
                 </thead>
                 <tbody>
                     <template x-for="c in filteredCandidates" :key="c.entry_id">
-                        <tr @click="selectCandidate(c)"
-                            class="cursor-pointer transition-colors"
-                            style="color: var(--pp-text);"
-                            onmouseover="this.style.background='var(--pp-surfaceHover)'"
-                            onmouseout="this.style.background='transparent'">
-                            <td class="px-4 py-3 border-b border-[var(--pp-border)]">
-                                <div class="flex items-center gap-2.5">
-                                    <div class="w-8 h-8 rounded-lg flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0"
-                                         :style="'background:' + getAvatarColor(c.id)">
+                        <tr @click="selectCandidate(c)" style="cursor: pointer; transition: background 0.15s; color: var(--pp-text);"
+                            @mouseenter="$el.style.background='var(--pp-surfaceHover)'" @mouseleave="$el.style.background='transparent'">
+                            <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border);">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <div style="width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: 700; flex-shrink: 0;"
+                                         :style="'background: linear-gradient(135deg, ' + getAvatarGradient(c.name) + ')'">
                                         <span x-text="c.avatar"></span>
                                     </div>
-                                    <span class="font-semibold text-[var(--pp-text)]" x-text="c.name"></span>
-                                </div>
-                            </td>
-                            <td class="px-4 py-3 border-b border-[var(--pp-border)] text-[var(--pp-textMuted)]" x-text="c.role"></td>
-                            <td class="px-4 py-3 border-b border-[var(--pp-border)]">
-                                <span class="inline-flex items-center gap-1.5 px-2.5 py-[3px] rounded-lg text-[12px] font-semibold"
-                                      :style="'background:' + getPhaseConfig(c.phase).bg + '; color:' + getPhaseConfig(c.phase).color">
-                                    <span class="w-1.5 h-1.5 rounded-sm" :style="'background:' + getPhaseConfig(c.phase).color"></span>
-                                    <span x-text="getPhaseConfig(c.phase).label"></span>
-                                </span>
-                            </td>
-                            <td class="px-4 py-3 border-b border-[var(--pp-border)] font-semibold text-[var(--pp-text)]" x-text="c.salary || '-'"></td>
-                            <td class="px-4 py-3 border-b border-[var(--pp-border)] text-[var(--pp-textMuted)]" x-text="c.notice || '-'"></td>
-                            <td class="px-4 py-3 border-b border-[var(--pp-border)]">
-                                <span x-show="c.erp"
-                                      class="px-2 py-[2px] rounded-md text-[11.5px] font-medium text-[var(--pp-textMuted)]"
-                                      style="background: var(--pp-surface3);"
-                                      x-text="c.erp"></span>
-                                <span x-show="!c.erp" class="text-[var(--pp-textDim)]">-</span>
-                            </td>
-                            <td class="px-4 py-3 border-b border-[var(--pp-border)]">
-                                <template x-if="c.phase !== 'placed' && c.phase !== 'rejected'">
-                                    <div class="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-[2px] rounded-[10px]"
-                                         :style="'color:' + daysColor(c.days) + '; background:' + daysColor(c.days) + '12'">
-                                        <span class="w-1.5 h-1.5 rounded-full inline-block" :style="'background:' + daysColor(c.days)"></span>
-                                        <span x-text="c.days + 'd'"></span>
+                                    <div>
+                                        <div style="font-weight: 600;" x-text="c.name"></div>
+                                        <div style="font-size: 11px; color: var(--pp-textMuted);" x-text="c.role"></div>
                                     </div>
-                                </template>
-                            </td>
-                            <td class="px-4 py-3 border-b border-[var(--pp-border)]">
-                                <div class="flex gap-[2px]">
-                                    <template x-for="i in 5" :key="i">
-                                        <span class="text-[11px]" :style="'color:' + (i <= c.rating ? '#f59e0b' : 'var(--pp-text4)')">&#9733;</span>
-                                    </template>
                                 </div>
+                            </td>
+                            <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border); color: var(--pp-textMuted);">
+                                <span x-text="c.company"></span>
+                                <template x-if="c.job_title"><span style="color: var(--pp-textDim);" x-text="' / ' + c.job_title"></span></template>
+                            </td>
+                            <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border);">
+                                <span style="padding: 3px 10px; border-radius: 8px; font-size: 11px; font-weight: 600;"
+                                      :style="'background: ' + getPhaseConfig(c.phase).bg + '; color: ' + getPhaseConfig(c.phase).light"
+                                      x-text="getPhaseConfig(c.phase).label"></span>
+                            </td>
+                            <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border); font-weight: 700;"
+                                :style="'color: ' + (c.score ? scoreColor(c.score) : 'var(--pp-textDim)')"
+                                x-text="c.score || '-'"></td>
+                            <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border); color: var(--pp-textMuted);"
+                                x-text="c.drive_time_car ? c.drive_time_car + ' Min' : '-'"></td>
+                            <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border); color: var(--pp-text); font-weight: 600;"
+                                x-text="c.salary || '-'"></td>
+                            <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border);">
+                                <template x-if="c.phase !== 'placed' && c.phase !== 'rejected'">
+                                    <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px;"
+                                          :style="'color: ' + daysColor(c.days) + '; background: ' + daysColor(c.days) + '15'">
+                                        <span style="width: 5px; height: 5px; border-radius: 50%; display: inline-block;" :style="'background: ' + daysColor(c.days)"></span>
+                                        <span x-text="c.days + 'd'"></span>
+                                    </span>
+                                </template>
                             </td>
                         </tr>
                     </template>
                     <template x-if="filteredCandidates.length === 0">
-                        <tr>
-                            <td colspan="8" class="px-4 py-12 text-center text-[var(--pp-textDim)] text-sm">
-                                <template x-if="searchQuery">
-                                    <span>Keine Kandidaten f&uuml;r "<span x-text="searchQuery"></span>" gefunden</span>
-                                </template>
-                                <template x-if="!searchQuery">
-                                    <span>Keine Kandidaten in dieser Position</span>
-                                </template>
-                            </td>
-                        </tr>
+                        <tr><td colspan="7" style="padding: 48px 14px; text-align: center; color: var(--pp-textDim); font-size: 14px;">Keine Kandidaten</td></tr>
                     </template>
                 </tbody>
             </table>
         </div>
     </div>
 
-    {# ════════════════════════════════════════════════════
-       DETAIL PANEL (Slide-in von rechts)
-    ════════════════════════════════════════════════════ #}
+</main>
+
+{# ════════════════════════════════════════════
+   DETAIL PANEL
+   ════════════════════════════════════════════ #}
+<div class="pcc-backdrop" :class="selectedCard ? 'open' : ''" @click="selectedCard = null"></div>
+<div class="pcc-detail" :class="selectedCard ? 'open' : ''" style="padding: 32px 28px;">
     <template x-if="selectedCard">
         <div>
-            {# Backdrop #}
-            <div @click="selectedCard = null"
-                 class="fixed inset-0 z-[999]"
-                 style="background: rgba(0,0,0,0.5);">
+            {# Close #}
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                <span style="font-size: 12px; font-weight: 600; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.08em;">Kandidaten-Detail</span>
+                <button @click="selectedCard = null" style="background: var(--pp-surfaceHover); border: none; border-radius: 8px; width: 32px; height: 32px; cursor: pointer; color: var(--pp-textMuted); font-size: 16px; display: flex; align-items: center; justify-content: center;">&#x2715;</button>
             </div>
-            {# Panel #}
-            <div class="fixed top-0 right-0 bottom-0 w-[400px] z-[1000] overflow-y-auto anim-slide-in"
-                 style="background: var(--pp-surface); box-shadow: -8px 0 40px rgba(0,0,0,0.5); padding: 32px 28px;">
 
-                {# Close + Header #}
-                <div class="flex justify-between items-center mb-7">
-                    <span class="text-[12px] font-semibold text-[var(--pp-textMuted)] uppercase tracking-[0.08em]">Kandidaten-Detail</span>
-                    <button @click="selectedCard = null"
-                            class="border-none rounded-lg w-8 h-8 cursor-pointer text-[16px] text-[var(--pp-textMuted)] flex items-center justify-center"
-                            style="background: var(--pp-surfaceHover);"
-                            onmouseover="this.style.background='var(--pp-surface3)'"
-                            onmouseout="this.style.background='var(--pp-surfaceHover)'">
-                        &#x2715;
-                    </button>
+            {# Avatar + Name #}
+            <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
+                <div style="width: 56px; height: 56px; border-radius: 14px; display: flex; align-items: center; justify-content: center; color: white; font-size: 20px; font-weight: 700;"
+                     :style="'background: linear-gradient(135deg, ' + getAvatarGradient(selectedCard.name) + ')'">
+                    <span x-text="selectedCard.avatar"></span>
                 </div>
+                <div>
+                    <div style="font-size: 20px; font-weight: 800; color: var(--pp-text); letter-spacing: -0.02em;" x-text="selectedCard.name"></div>
+                    <div style="font-size: 14px; color: var(--pp-textMuted); margin-top: 2px;" x-text="selectedCard.role"></div>
+                </div>
+            </div>
 
-                {# Avatar + Name #}
-                <div class="flex items-center gap-4 mb-6">
-                    <div class="w-14 h-14 rounded-[12px] flex items-center justify-center text-white text-[20px] font-bold"
-                         :style="'background:' + getAvatarColor(selectedCard.id)">
-                        <span x-text="selectedCard.avatar"></span>
+            {# Phase + Score #}
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px;">
+                <span style="padding: 4px 14px; border-radius: 10px; font-size: 13px; font-weight: 600;"
+                      :style="'background: ' + getPhaseConfig(selectedCard.phase).bg + '; color: ' + getPhaseConfig(selectedCard.phase).light"
+                      x-text="getPhaseConfig(selectedCard.phase).label"></span>
+                <template x-if="selectedCard.score">
+                    <span style="font-size: 13px; font-weight: 700;" :style="'color: ' + scoreColor(selectedCard.score)"
+                          x-text="'Score: ' + selectedCard.score"></span>
+                </template>
+                <template x-if="selectedCard.wow">
+                    <span style="background: linear-gradient(135deg, #f59e0b, #ef4444); color: white; padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 800;">WOW</span>
+                </template>
+            </div>
+
+            {# Detail Rows #}
+            <div style="display: flex; flex-direction: column;">
+                <template x-for="row in detailRows" :key="row.label">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--pcc-border);">
+                        <span style="font-size: 13px; color: var(--pp-textMuted); font-weight: 500;" x-text="row.label"></span>
+                        <span style="font-size: 13px; color: var(--pp-text); font-weight: 600;" x-text="row.value"></span>
                     </div>
-                    <div>
-                        <div class="text-[20px] font-bold text-[var(--pp-text)] tracking-tight" x-text="selectedCard.name"></div>
-                        <div class="text-[14px] text-[var(--pp-textMuted)] mt-0.5" x-text="selectedCard.role"></div>
-                    </div>
-                </div>
+                </template>
+            </div>
 
-                {# Phase Badge #}
-                <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-[10px] mb-6"
-                     :style="'background:' + getPhaseConfig(selectedCard.phase).bg">
-                    <div class="w-2 h-2 rounded-[3px]" :style="'background:' + getPhaseConfig(selectedCard.phase).color"></div>
-                    <span class="text-[13px] font-semibold" :style="'color:' + getPhaseConfig(selectedCard.phase).color"
-                          x-text="getPhaseConfig(selectedCard.phase).label"></span>
-                </div>
+            {# Notes #}
+            <div style="margin-top: 24px;">
+                <div style="font-size: 12px; font-weight: 600; color: var(--pp-textMuted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.06em;">Notizen</div>
+                <div style="border-radius: 10px; padding: 14px; font-size: 13px; color: var(--pp-textMuted); line-height: 1.6; background: var(--pp-bg); border: 1px solid var(--pcc-border);"
+                     x-text="selectedCard.notes || 'Keine Notizen'"></div>
+            </div>
 
-                {# Detail Rows #}
-                <div class="flex flex-col gap-0">
-                    <template x-for="item in detailRows" :key="item.label">
-                        <div class="flex justify-between items-center py-3 border-b border-[var(--pp-border)]">
-                            <span class="text-[13px] text-[var(--pp-textMuted)] font-medium" x-text="item.label"></span>
-                            <template x-if="item.type === 'stars'">
-                                <div class="flex gap-[2px]">
-                                    <template x-for="i in 5" :key="i">
-                                        <span class="text-[11px]" :style="'color:' + (i <= selectedCard.rating ? '#f59e0b' : 'var(--pp-text4)')">&#9733;</span>
-                                    </template>
-                                </div>
-                            </template>
-                            <template x-if="item.type !== 'stars'">
-                                <span class="text-[13px] text-[var(--pp-text)] font-semibold" x-text="item.value"></span>
-                            </template>
-                        </div>
-                    </template>
-                </div>
-
-                {# Notizen #}
-                <div class="mt-6">
-                    <div class="text-[12px] font-semibold text-[var(--pp-textMuted)] mb-2 uppercase tracking-[0.06em]">Notizen</div>
-                    <div class="rounded-[10px] p-4 text-[13px] text-[var(--pp-textMuted)] leading-relaxed border border-[var(--pp-border)]"
-                         style="background: var(--pp-bg);"
-                         x-text="selectedCard.notes || 'Keine Notizen'"></div>
-                </div>
-
-                {# Action Buttons #}
-                <div class="flex gap-2.5 mt-7">
-                    <a :href="'/kandidaten/' + selectedCard.id"
-                       class="flex-1 py-3 rounded-[10px] text-white text-[13px] font-semibold text-center no-underline"
-                       style="background: var(--pp-accent); letter-spacing: -0.01em;">
-                        Profil &ouml;ffnen &rarr;
-                    </a>
-                    <button @click="selectedCard = null"
-                            class="px-4 py-3 rounded-[10px] text-[var(--pp-textMuted)] border-none text-[13px] font-semibold cursor-pointer"
-                            style="background: var(--pp-surfaceHover);"
-                            onmouseover="this.style.background='var(--pp-surface3)'"
-                            onmouseout="this.style.background='var(--pp-surfaceHover)'">
-                        Schlie&szlig;en
-                    </button>
-                </div>
+            {# Actions #}
+            <div style="display: flex; gap: 10px; margin-top: 28px;">
+                <a :href="'/kandidaten/' + selectedCard.id"
+                   style="flex: 1; padding: 12px; background: linear-gradient(135deg, #6366f1, #4f46e5); border-radius: 12px; color: white; font-size: 13px; font-weight: 600; text-align: center; text-decoration: none;">
+                    Profil &ouml;ffnen &rarr;
+                </a>
+                <button @click="selectedCard = null"
+                        style="padding: 12px 20px; background: var(--pp-surfaceHover); border: none; border-radius: 12px; color: var(--pp-textMuted); font-size: 13px; font-weight: 600; cursor: pointer;">
+                    Schlie&szlig;en
+                </button>
             </div>
         </div>
     </template>
+</div>
 
-    {# ════════════════════════════════════════════════════
-       EMPTY STATE (keine Positionen)
-    ════════════════════════════════════════════════════ #}
-    {% if positions|length == 0 %}
-    <div class="px-7 py-16 text-center">
-        <div class="w-14 h-14 mx-auto rounded-full flex items-center justify-center mb-4" style="background: var(--pp-surfaceHover);">
-            <svg class="w-7 h-7" style="color: var(--pp-textDim);" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0M12 12.75h.008v.008H12v-.008z" />
-            </svg>
+{# ════════════════════════════════════════════
+   ADD CANDIDATE MODAL
+   ════════════════════════════════════════════ #}
+<template x-if="showAddModal">
+    <div class="pcc-modal-bg" @click.self="showAddModal = false; addSearch = ''; addResults = [];">
+        <div class="pcc-modal">
+            <div style="padding: 20px 24px; border-bottom: 1px solid var(--pcc-border);">
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <h3 style="font-size: 16px; font-weight: 700; color: var(--pp-text);">Kandidat hinzuf&uuml;gen</h3>
+                    <button @click="showAddModal = false; addSearch = ''; addResults = [];"
+                            style="background: var(--pp-surfaceHover); border: none; border-radius: 8px; width: 32px; height: 32px; cursor: pointer; color: var(--pp-textMuted); font-size: 14px;">&#x2715;</button>
+                </div>
+                <div style="margin-top: 12px; position: relative;">
+                    <svg style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%);" width="16" height="16" fill="none" stroke="#64748b" stroke-width="2"><circle cx="7" cy="7" r="5.5"/><path d="M11 11l3 3"/></svg>
+                    <input type="text" x-model="addSearch" @input.debounce.300ms="searchCandidates()"
+                           placeholder="Name, E-Mail oder Position suchen..."
+                           style="width: 100%; padding: 10px 14px 10px 38px; background: rgba(99,102,241,0.06); border: 1px solid rgba(99,102,241,0.15); border-radius: 12px; color: var(--pp-text); font-size: 13px; outline: none;">
+                </div>
+            </div>
+            <div style="max-height: 400px; overflow-y: auto; padding: 8px;">
+                <template x-if="addSearching">
+                    <div style="padding: 32px; text-align: center; color: var(--pp-textDim); font-size: 13px;">Suche...</div>
+                </template>
+                <template x-if="!addSearching && addResults.length === 0 && addSearch.length >= 2">
+                    <div style="padding: 32px; text-align: center; color: var(--pp-textDim); font-size: 13px;">Keine Kandidaten gefunden</div>
+                </template>
+                <template x-if="!addSearching && addSearch.length < 2">
+                    <div style="padding: 32px; text-align: center; color: var(--pp-textDim); font-size: 13px;">Mindestens 2 Zeichen eingeben</div>
+                </template>
+                <template x-for="r in addResults" :key="r.id">
+                    <div @click="addCandidateToJob(r.id)" style="display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 10px; cursor: pointer; transition: background 0.15s;"
+                         :style="r.already_in_pipeline ? 'opacity: 0.4; pointer-events: none;' : ''"
+                         @mouseenter="$el.style.background='rgba(99,102,241,0.08)'" @mouseleave="$el.style.background='transparent'">
+                        <div style="width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: 700; flex-shrink: 0;"
+                             :style="'background: linear-gradient(135deg, ' + getAvatarGradient(r.name) + ')'">
+                            <span x-text="r.name.split(' ').map(w => w[0]).join('').substring(0,2).toUpperCase()"></span>
+                        </div>
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-size: 13px; font-weight: 600; color: var(--pp-text);" x-text="r.name"></div>
+                            <div style="font-size: 11px; color: var(--pp-textMuted);" x-text="r.role + (r.city ? ' &middot; ' + r.city : '')"></div>
+                        </div>
+                        <template x-if="r.already_in_pipeline">
+                            <span style="font-size: 10px; color: var(--pp-textDim); font-weight: 600;">Bereits drin</span>
+                        </template>
+                        <template x-if="!r.already_in_pipeline">
+                            <svg width="16" height="16" fill="none" stroke="#6366f1" stroke-width="2"><path d="M8 3v10M3 8h10"/></svg>
+                        </template>
+                    </div>
+                </template>
+            </div>
         </div>
-        <p class="text-base font-medium text-[var(--pp-text)]">Keine Jobs in der Pipeline</p>
-        <p class="mt-1 text-sm text-[var(--pp-textMuted)]">F&uuml;ge Stellen zur Pipeline hinzu, um Kandidaten zu tracken</p>
-        <a href="/ats/stellen"
-           class="mt-5 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors"
-           style="background: var(--pp-accent);"
-           onmouseover="this.style.background='#2563EB'"
-           onmouseout="this.style.background='var(--pp-accent)'">
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
-            Stellen verwalten
-        </a>
     </div>
-    {% endif %}
+</template>
+
+{# Empty State #}
+{% if positions|length == 0 %}
+<div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 16px;">
+    <div style="width: 64px; height: 64px; border-radius: 50%; background: var(--pp-surfaceHover); display: flex; align-items: center; justify-content: center;">
+        <svg width="28" height="28" fill="none" stroke="var(--pp-textDim)" stroke-width="1.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0M12 12.75h.008v.008H12v-.008z"/>
+        </svg>
+    </div>
+    <p style="font-size: 16px; font-weight: 600; color: var(--pp-text);">Keine Jobs in der Pipeline</p>
+    <p style="font-size: 14px; color: var(--pp-textMuted);">F&uuml;ge Stellen zur Pipeline hinzu um Kandidaten zu tracken</p>
+    <a href="/ats/stellen" style="margin-top: 8px; display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; border-radius: 12px; font-size: 14px; font-weight: 600; text-decoration: none;">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3v10M3 8h10"/></svg>
+        Stellen verwalten
+    </a>
+</div>
+{% endif %}
 
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-function pipelineApp() {
-    // ── Daten aus Jinja2 ──
+function pipelineCommandCenter() {
     const positions = {{ positions | tojson | safe }};
     const pipelineByJob = {{ pipeline_by_job | tojson | safe }};
     const PHASES = [
-        {id:"sent",        label:"Vorgestellt",  color:"#6366f1", bg:"rgba(99,102,241,0.12)"},
-        {id:"interview_1", label:"Interview 1",  color:"#0ea5e9", bg:"rgba(14,165,233,0.12)"},
-        {id:"interview_2", label:"Interview 2",  color:"#8b5cf6", bg:"rgba(139,92,246,0.12)"},
-        {id:"interview_3", label:"Interview 3",  color:"#d946ef", bg:"rgba(217,70,239,0.12)"},
-        {id:"offer",       label:"Angebot",      color:"#f59e0b", bg:"rgba(245,158,11,0.12)"},
-        {id:"placed",      label:"Platziert",    color:"#10b981", bg:"rgba(16,185,129,0.12)"},
-        {id:"rejected",    label:"Abgesagt",     color:"#94a3b8", bg:"rgba(148,163,184,0.08)"},
+        {id:"matched",label:"Gematcht",color:"#06b6d4",light:"#22d3ee",bg:"rgba(6,182,212,0.15)"},
+        {id:"sent",label:"Vorgestellt",color:"#6366f1",light:"#a5b4fc",bg:"rgba(99,102,241,0.15)"},
+        {id:"feedback",label:"Feedback",color:"#f59e0b",light:"#fcd34d",bg:"rgba(245,158,11,0.15)"},
+        {id:"interview_1",label:"Interview 1",color:"#3b82f6",light:"#93c5fd",bg:"rgba(59,130,246,0.15)"},
+        {id:"interview_2",label:"Interview 2",color:"#8b5cf6",light:"#c4b5fd",bg:"rgba(139,92,246,0.15)"},
+        {id:"interview_3",label:"Interview 3",color:"#d946ef",light:"#e879f9",bg:"rgba(217,70,239,0.15)"},
+        {id:"offer",label:"Angebot",color:"#f59e0b",light:"#fcd34d",bg:"rgba(245,158,11,0.15)"},
+        {id:"placed",label:"Platziert",color:"#10b981",light:"#6ee7b7",bg:"rgba(16,185,129,0.15)"},
+        {id:"rejected",label:"Abgesagt",color:"#64748b",light:"#94a3b8",bg:"rgba(148,163,184,0.08)"},
     ];
-    const AVATAR_COLORS = ["#6366f1","#0ea5e9","#8b5cf6","#d946ef","#f59e0b","#10b981","#ef4444","#ec4899","#14b8a6","#f97316"];
+    const GRADIENTS = [
+        ["#6366f1","#4f46e5"],["#06b6d4","#0ea5e9"],["#10b981","#059669"],["#f59e0b","#ef4444"],
+        ["#8b5cf6","#7c3aed"],["#f43f5e","#e11d48"],["#ec4899","#db2777"],["#14b8a6","#0d9488"],
+        ["#3b82f6","#2563eb"],["#a855f7","#9333ea"],
+    ];
 
     return {
-        // State
         activePosition: positions.length > 0 ? positions[0].id : null,
         selectedCard: null,
         view: 'board',
         searchQuery: '',
+        sidebarSearch: '',
         draggedCard: null,
+        showAddModal: false,
+        addSearch: '',
+        addResults: [],
+        addSearching: false,
+        positions,
 
-        // Computed-like references
-        positions: positions,
+        init() { console.log('Pipeline Command Center geladen:', positions.length, 'Positionen'); },
 
-        init() {
-            console.log('Pipeline JSX-Design geladen:', positions.length, 'Positionen');
+        get activePos() { return positions.find(p => p.id === this.activePosition) || null; },
+
+        setActivePosition(id) { this.activePosition = id; this.selectedCard = null; },
+
+        get totalCandidates() {
+            let t = 0;
+            for (const k in pipelineByJob) t += pipelineByJob[k].length;
+            return t;
         },
 
-        // ── Position Tabs ──
-        get activePos() {
-            return positions.find(p => p.id === this.activePosition) || null;
+        get filteredPositions() {
+            const q = this.sidebarSearch.toLowerCase().trim();
+            if (!q) return positions;
+            return positions.filter(p => p.name.toLowerCase().includes(q) || p.company.toLowerCase().includes(q));
         },
 
-        setActivePosition(id) {
-            this.activePosition = id;
-            this.selectedCard = null;
-        },
-
-        // ── Alle Kandidaten der aktiven Position (gefiltert) ──
         get allCandidates() {
-            if (!this.activePosition) return [];
-            return pipelineByJob[this.activePosition] || [];
+            if (this.activePosition) return pipelineByJob[this.activePosition] || [];
+            let all = [];
+            for (const k in pipelineByJob) all = all.concat(pipelineByJob[k]);
+            return all;
         },
 
         get filteredCandidates() {
             const q = this.searchQuery.toLowerCase().trim();
             if (!q) return this.allCandidates;
-            return this.allCandidates.filter(c =>
-                c.name.toLowerCase().includes(q) ||
-                c.role.toLowerCase().includes(q)
-            );
+            return this.allCandidates.filter(c => c.name.toLowerCase().includes(q) || c.role.toLowerCase().includes(q) || (c.company || '').toLowerCase().includes(q));
         },
 
-        candidatesInPhase(phaseId) {
-            return this.filteredCandidates.filter(c => c.phase === phaseId);
+        candidatesInPhase(phaseId) { return this.filteredCandidates.filter(c => c.phase === phaseId); },
+
+        get attentionJobs() {
+            const items = [];
+            for (const pos of positions) {
+                const cards = pipelineByJob[pos.id] || [];
+                for (const c of cards) {
+                    if (c.days > 7 && c.phase !== 'placed' && c.phase !== 'rejected') {
+                        items.push({ ...pos, attentionReason: c.name + ': ' + c.days + ' Tage in ' + this.getPhaseConfig(c.phase).label });
+                        break;
+                    }
+                }
+            }
+            return items;
         },
 
-        // ── Metrics ──
         get metrics() {
             const all = this.filteredCandidates;
             const inPipeline = all.filter(c => c.phase !== 'rejected' && c.phase !== 'placed').length;
             const placed = all.filter(c => c.phase === 'placed').length;
-            const totalDays = all.reduce((sum, c) => sum + c.days, 0);
-            const avgDays = all.length > 0 ? Math.round(totalDays / all.length) : 0;
-
-            // Conversion: Vorgestellt -> IV1
-            const sentCount = all.filter(c => c.phase === 'sent').length;
-            const iv1Count = all.filter(c => c.phase === 'interview_1').length;
-            const totalSentOrBeyond = all.filter(c => c.phase !== 'rejected').length;
-            const conversion = totalSentOrBeyond > 0 && sentCount > 0
-                ? Math.round((iv1Count / sentCount) * 100)
-                : (totalSentOrBeyond > 0 ? Math.round((all.filter(c => ['interview_1','interview_2','interview_3','offer','placed'].includes(c.phase)).length / totalSentOrBeyond) * 100) : 0);
-
+            const activeDays = all.filter(c => c.phase !== 'rejected' && c.phase !== 'placed');
+            const avgDays = activeDays.length > 0 ? Math.round(activeDays.reduce((s,c) => s + c.days, 0) / activeDays.length * 10) / 10 : 0;
+            const sent = all.filter(c => c.phase === 'sent').length;
+            const beyondSent = all.filter(c => ['interview_1','interview_2','interview_3','offer','placed'].includes(c.phase)).length;
+            const conversion = sent + beyondSent > 0 ? Math.round((beyondSent / (sent + beyondSent)) * 100) : 0;
             return { inPipeline, placed, avgDays, conversion };
         },
 
-        // ── Funnel ──
-        funnelCount(phaseId) {
-            return this.candidatesInPhase(phaseId).length;
+        get globalMetrics() {
+            let all = [];
+            for (const k in pipelineByJob) all = all.concat(pipelineByJob[k]);
+            return {
+                inPipeline: all.filter(c => c.phase !== 'rejected' && c.phase !== 'placed').length,
+                placed: all.filter(c => c.phase === 'placed').length,
+            };
         },
 
-        funnelWidth(phaseId) {
-            const counts = PHASES.filter(p => p.id !== 'rejected').map(p => this.candidatesInPhase(p.id).length);
-            const maxCount = Math.max(...counts, 1);
-            const count = this.candidatesInPhase(phaseId).length;
-            return Math.max((count / maxCount) * 100, 8);
-        },
-
-        funnelConvRate(phaseId) {
-            const phasesNoRej = PHASES.filter(p => p.id !== 'rejected');
-            const idx = phasesNoRej.findIndex(p => p.id === phaseId);
-            if (idx < 0 || idx >= phasesNoRej.length - 1) return null;
-            const current = this.candidatesInPhase(phaseId).length;
-            const next = this.candidatesInPhase(phasesNoRej[idx + 1].id).length;
-            return current > 0 ? Math.round((next / current) * 100) : 0;
-        },
-
-        funnelConvRateStr(phaseId) {
-            const rate = this.funnelConvRate(phaseId);
-            return rate !== null ? rate + '% \u2192' : '';
-        },
-
-        // ── Detail Panel ──
-        selectCandidate(card) {
-            this.selectedCard = card;
+        get sparkData() {
+            const vals = [8,14,10,18,22,16];
+            vals.push(Math.max(this.metrics.inPipeline * 3, 4));
+            return vals;
         },
 
         get detailRows() {
             if (!this.selectedCard) return [];
             const c = this.selectedCard;
-            return [
-                { label: 'Gehaltswunsch', value: c.salary || '-', type: 'text' },
-                { label: 'K\u00fcndigungsfrist', value: c.notice || '-', type: 'text' },
-                { label: 'ERP-Kenntnisse', value: c.erp || '-', type: 'text' },
-                { label: 'Tage in Phase', value: c.days + ' Tage', type: 'text' },
-                { label: 'Bewertung', value: '', type: 'stars' },
+            const rows = [
+                { label: 'Firma', value: c.company || '-' },
+                { label: 'Job', value: c.job_title || '-' },
+                { label: 'Standort', value: c.location || c.city || '-' },
+                { label: 'Gehaltswunsch', value: c.salary || '-' },
+                { label: 'Fahrzeit (Auto)', value: c.drive_time_car ? c.drive_time_car + ' Min' : '-' },
+                { label: 'ERP-Kenntnisse', value: c.erp || '-' },
+                { label: 'K\u00fcndigungsfrist', value: c.notice || '-' },
+                { label: 'Tage in Phase', value: c.days + ' Tage' },
             ];
+            if (c.empfehlung) rows.push({ label: 'Empfehlung', value: c.empfehlung });
+            return rows;
         },
 
-        // ── Helpers ──
-        getAvatarColor(id) {
-            // Einfacher Hash aus der ID
-            let hash = 0;
-            const s = String(id);
-            for (let i = 0; i < s.length; i++) {
-                hash = s.charCodeAt(i) + ((hash << 5) - hash);
-            }
-            return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+        selectCandidate(card) { this.selectedCard = card; },
+
+        // Helpers
+        getPhaseConfig(id) { return PHASES.find(p => p.id === id) || { id, label: id, color: '#94a3b8', light: '#94a3b8', bg: 'rgba(148,163,184,0.08)' }; },
+
+        getAvatarGradient(name) {
+            let h = 0;
+            const s = String(name || '');
+            for (let i = 0; i < s.length; i++) h = s.charCodeAt(i) + ((h << 5) - h);
+            const g = GRADIENTS[Math.abs(h) % GRADIENTS.length];
+            return g[0] + ', ' + g[1];
         },
 
-        getPhaseConfig(phaseId) {
-            return PHASES.find(p => p.id === phaseId) || { id: phaseId, label: phaseId, color: '#94a3b8', bg: 'rgba(148,163,184,0.08)' };
+        getInitials(name) {
+            if (!name) return '?';
+            return name.split(/[\s&]+/).filter(Boolean).map(w => w[0]).join('').substring(0,2).toUpperCase();
         },
+
+        scoreColor(score) {
+            if (score >= 80) return '#10b981';
+            if (score >= 60) return '#f59e0b';
+            return '#f43f5e';
+        },
+
+        scoreDash(score) { return Math.round((score / 100) * 94); },
 
         daysColor(days) {
             if (days > 7) return '#ef4444';
@@ -644,7 +923,7 @@ function pipelineApp() {
             return '#10b981';
         },
 
-        // ── Drag & Drop ──
+        // Drag & Drop
         handleDragStart(event, card) {
             this.draggedCard = card;
             event.dataTransfer.setData('text/plain', card.entry_id);
@@ -659,35 +938,65 @@ function pipelineApp() {
 
         async handleDrop(event, newPhase) {
             event.preventDefault();
-            event.currentTarget.style.borderColor = '';
             if (!this.draggedCard) return;
             const entryId = this.draggedCard.entry_id;
             const oldPhase = this.draggedCard.phase;
             if (oldPhase === newPhase) return;
-
-            // Optimistic Update
             this.draggedCard.phase = newPhase;
-
             try {
-                const response = await fetch(`/api/ats/pipeline/entries/${entryId}/stage`, {
+                const r = await fetch('/api/ats/pipeline/entries/' + entryId + '/stage', {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ stage: newPhase })
                 });
-                if (response.ok) {
-                    if (typeof showToast === 'function') {
-                        showToast(this.draggedCard.name + ' verschoben', 'success');
-                    }
+                if (r.ok) {
+                    if (typeof showToast === 'function') showToast(this.draggedCard.name + ' verschoben', 'success');
                 } else {
-                    // Revert
                     this.draggedCard.phase = oldPhase;
-                    if (typeof showToast === 'function') {
-                        showToast('Fehler beim Verschieben', 'error');
-                    }
+                    if (typeof showToast === 'function') showToast('Fehler beim Verschieben', 'error');
                 }
-            } catch (err) {
+            } catch (e) {
                 this.draggedCard.phase = oldPhase;
-                console.error('D&D error:', err);
+                console.error('D&D error:', e);
+            }
+        },
+
+        // Add Candidate
+        async searchCandidates() {
+            if (this.addSearch.length < 2) { this.addResults = []; return; }
+            this.addSearching = true;
+            try {
+                const jobParam = this.activePosition ? '&job_id=' + this.activePosition : '';
+                const r = await fetch('/ats/pipeline/search-candidates?q=' + encodeURIComponent(this.addSearch) + jobParam);
+                this.addResults = await r.json();
+            } catch (e) { console.error(e); this.addResults = []; }
+            this.addSearching = false;
+        },
+
+        async addCandidateToJob(candidateId) {
+            if (!this.activePosition) {
+                if (typeof showToast === 'function') showToast('Bitte zuerst einen Job ausw\u00e4hlen', 'error');
+                return;
+            }
+            try {
+                const r = await fetch('/api/ats/pipeline/' + this.activePosition + '/candidates', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ candidate_id: candidateId, stage: 'sent' })
+                });
+                if (r.ok) {
+                    if (typeof showToast === 'function') showToast('Kandidat hinzugef\u00fcgt', 'success');
+                    this.showAddModal = false;
+                    this.addSearch = '';
+                    this.addResults = [];
+                    window.location.reload();
+                } else {
+                    const data = await r.json().catch(() => ({}));
+                    if (typeof showToast === 'function') showToast(data.detail || 'Fehler', 'error');
+                }
+            } catch (e) {
+                console.error(e);
+                if (typeof showToast === 'function') showToast('Netzwerkfehler', 'error');
             }
         },
     };

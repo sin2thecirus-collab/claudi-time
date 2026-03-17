@@ -53,6 +53,37 @@ async def ats_main(
     result = await db.execute(query)
     jobs_in_pipeline = result.scalars().all()
 
+    # ── Match-Daten separat laden ──
+    from app.models.match import Match
+
+    match_pairs = []
+    for job in jobs_in_pipeline:
+        if job.source_job_id:
+            for entry in job.pipeline_entries:
+                if entry.candidate_id:
+                    match_pairs.append((job.source_job_id, entry.candidate_id))
+
+    match_data_map = {}  # key: "{job_id}_{candidate_id}" -> match data
+    if match_pairs:
+        from sqlalchemy import or_, and_
+        match_query = select(Match).where(
+            or_(*[
+                and_(Match.job_id == pair[0], Match.candidate_id == pair[1])
+                for pair in match_pairs
+            ])
+        )
+        match_result = await db.execute(match_query)
+        for m in match_result.scalars().all():
+            key = f"{m.job_id}_{m.candidate_id}"
+            match_data_map[key] = {
+                "score": round(m.ai_score * 100) if m.ai_score else (round(m.v2_score) if m.v2_score else None),
+                "drive_time_car": m.drive_time_car_min,
+                "drive_time_transit": m.drive_time_transit_min,
+                "wow": m.wow_faktor or False,
+                "empfehlung": m.empfehlung,
+                "matching_method": m.matching_method,
+            }
+
     # ── Positions (fuer Tabs) ──
     positions = []
     for job in jobs_in_pipeline:
@@ -86,6 +117,10 @@ async def ats_main(
             avatar = f"{fn}{ln}"
             # ERP als komma-separierter String (fuer Tags)
             erp_str = ", ".join(c.erp) if c.erp else ""
+            # Match-Daten fuer diesen Kandidaten + Job
+            match_key = f"{job.source_job_id}_{c.id}" if job.source_job_id else None
+            match_info = match_data_map.get(match_key, {}) if match_key else {}
+
             cards.append({
                 "id": str(c.id),
                 "entry_id": str(entry.id),
@@ -101,6 +136,16 @@ async def ats_main(
                 "rating": c.rating or 0,
                 "notes": entry.notes or "",
                 "city": c.city or "",
+                "score": match_info.get("score"),
+                "drive_time_car": match_info.get("drive_time_car"),
+                "drive_time_transit": match_info.get("drive_time_transit"),
+                "wow": match_info.get("wow", False),
+                "empfehlung": match_info.get("empfehlung"),
+                "matching_method": match_info.get("matching_method"),
+                "company": job.company.name if job.company else "",
+                "job_title": job.title,
+                "job_id": str(job.id),
+                "location": job.location_city or c.city or "",
             })
         pipeline_by_job[job_id_str] = cards
 
@@ -368,3 +413,49 @@ async def ats_call_notes_page(
             "call_type": call_type,
         },
     })
+
+
+@router.get("/ats/pipeline/search-candidates")
+async def search_candidates_for_pipeline(
+    request: Request,
+    q: str = Query("", min_length=2),
+    job_id: UUID | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Kandidaten suchen fuer Pipeline Quick-Add."""
+    from sqlalchemy import select, or_, func
+    from app.models.candidate import Candidate
+    from app.models.ats_pipeline import ATSPipelineEntry
+
+    search_term = q.lower()
+    query = select(Candidate).where(
+        or_(
+            func.lower(Candidate.first_name + ' ' + Candidate.last_name).contains(search_term),
+            func.lower(Candidate.email).contains(search_term),
+            func.lower(Candidate.current_position).contains(search_term),
+        )
+    ).limit(10)
+
+    result = await db.execute(query)
+    candidates = result.scalars().all()
+
+    # Pruefen welche bereits in der Pipeline sind (fuer diesen Job)
+    existing_ids = set()
+    if job_id:
+        existing_q = select(ATSPipelineEntry.candidate_id).where(
+            ATSPipelineEntry.ats_job_id == job_id
+        )
+        existing_result = await db.execute(existing_q)
+        existing_ids = {str(row[0]) for row in existing_result.all()}
+
+    return [
+        {
+            "id": str(c.id),
+            "name": c.full_name,
+            "role": c.current_position or c.hotlist_job_title or "-",
+            "city": c.city or "",
+            "erp": ", ".join(c.erp) if c.erp else "",
+            "already_in_pipeline": str(c.id) in existing_ids,
+        }
+        for c in candidates
+    ]
