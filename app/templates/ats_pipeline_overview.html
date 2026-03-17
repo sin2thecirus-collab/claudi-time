@@ -8,7 +8,7 @@
    PIPELINE COMMAND CENTER — CRM 2058
    ═══════════════════════════════════════════════════ */
 
-/* Custom Properties (overlay on base.html pp-vars) */
+/* Custom Properties — EXACT preview.html match */
 .pcc {
     --pcc-indigo: #6366f1;
     --pcc-cyan: #06b6d4;
@@ -20,6 +20,14 @@
     --pcc-glass: rgba(17, 24, 39, 0.7);
     --pcc-border: rgba(99, 102, 241, 0.15);
     --pcc-border-hover: rgba(99, 102, 241, 0.35);
+    /* Override base.html colors to match preview exactly */
+    --pp-bg: #0a0e1a;
+    --pp-surface: #111827;
+    --pp-surfaceHover: #232842;
+    --pp-surface3: #1e2340;
+    --pp-text: #f1f5f9;
+    --pp-textMuted: #94a3b8;
+    font-family: 'Inter', -apple-system, system-ui, sans-serif !important;
 }
 
 /* Scrollbar */
@@ -40,17 +48,16 @@
 /* Pipeline Column */
 .pcc-col { min-width: 260px; max-width: 260px; flex-shrink: 0; }
 
-/* Candidate Card */
+/* Candidate Card — EXACT preview match */
 .pcc-card {
     background: linear-gradient(135deg, rgba(26, 31, 53, 0.95), rgba(15, 20, 40, 0.9));
-    border: 1px solid rgba(99, 102, 241, 0.15);
+    border: 1px solid rgba(99, 102, 241, 0.1);
     border-radius: 14px;
     padding: 14px;
     cursor: grab;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
-    overflow: visible;
-    box-shadow: 0 0 20px rgba(99, 102, 241, 0.08), inset 0 1px 0 rgba(255,255,255,0.04);
+    overflow: hidden;
 }
 .pcc-card::before {
     content: '';
@@ -58,13 +65,12 @@
     top: 0; left: 0; right: 0;
     height: 3px;
     border-radius: 14px 14px 0 0;
-    opacity: 1;
-    z-index: 1;
+    opacity: 0.8;
 }
 .pcc-card:hover {
-    border-color: rgba(99, 102, 241, 0.35);
+    border-color: rgba(99, 102, 241, 0.3);
     transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.3), 0 0 25px rgba(99, 102, 241, 0.15);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.3), 0 0 20px rgba(99, 102, 241, 0.1);
 }
 .pcc-card.dragging { opacity: 0.5; transform: rotate(2deg) scale(1.02); }
 
@@ -119,7 +125,7 @@
 /* Detail Panel */
 .pcc-detail {
     position: fixed; top: 0; right: -480px; width: 480px; height: 100vh;
-    background: linear-gradient(180deg, var(--pp-surface) 0%, var(--pp-bg) 100%);
+    background: linear-gradient(180deg, #111827 0%, #0a0e1a 100%);
     border-left: 1px solid var(--pcc-border); z-index: 1001;
     transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     overflow-y: auto;
@@ -237,7 +243,7 @@
 {# ════════════════════════════════════════════
    SIDEBAR
    ════════════════════════════════════════════ #}
-<aside style="background: linear-gradient(180deg, var(--pp-surface) 0%, var(--pp-bg) 100%); border-right: 1px solid var(--pcc-border); display: flex; flex-direction: column; overflow: hidden;">
+<aside style="background: linear-gradient(180deg, #0f1425 0%, #0a0e1a 100%); border-right: 1px solid var(--pcc-border); display: flex; flex-direction: column; overflow: hidden;">
 
     {# Sidebar Header #}
     <div style="padding: 20px 16px 12px;">
@@ -851,9 +857,9 @@ function pipelineCommandCenter() {
         {id:"rejected",label:"Abgesagt",color:"#64748b",light:"#94a3b8",bg:"rgba(148,163,184,0.08)"},
     ];
     const GRADIENTS = [
-        ["#6366f1","#4f46e5"],["#06b6d4","#0ea5e9"],["#10b981","#059669"],["#f59e0b","#ef4444"],
-        ["#8b5cf6","#7c3aed"],["#f43f5e","#e11d48"],["#ec4899","#db2777"],["#14b8a6","#0d9488"],
-        ["#3b82f6","#2563eb"],["#a855f7","#9333ea"],
+        ["#818cf8","#6366f1"],["#22d3ee","#06b6d4"],["#34d399","#10b981"],["#fbbf24","#f59e0b"],
+        ["#a78bfa","#8b5cf6"],["#fb7185","#f43f5e"],["#f472b6","#ec4899"],["#2dd4bf","#14b8a6"],
+        ["#60a5fa","#3b82f6"],["#c084fc","#a855f7"],
     ];
 
     return {
