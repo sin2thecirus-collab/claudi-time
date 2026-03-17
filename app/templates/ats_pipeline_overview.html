@@ -599,7 +599,7 @@ body::after {
                         <div class="pcc-actions" @click.stop x-data="{kOpen: false, cOpen: false}">
                             <div class="pcc-abtn pcc-abtn-k" :class="kOpen && 'open'" @click="kOpen = !kOpen; cOpen = false" @click.away="kOpen = false">
                                 <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6.5" cy="4" r="3"/><path d="M1 12c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/></svg>
-                                Kandidat
+                                Kandi
                                 <svg width="8" height="8" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 3l3 3 3-3"/></svg>
                                 <div class="pcc-popup" @click.stop>
                                     <div class="pcc-pop-item" style="color: #a5b4fc;" @click="if(card.email) window.location.href='mailto:'+card.email; kOpen=false"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 3.5l6 4 6-4M1 3.5v7.5h12V3.5H1z"/></svg>Email senden</div>
@@ -609,7 +609,7 @@ body::after {
                             </div>
                             <div class="pcc-abtn pcc-abtn-c" :class="cOpen && 'open'" @click="cOpen = !cOpen; kOpen = false" @click.away="cOpen = false">
                                 <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.5" y="2" width="10" height="9" rx="1.5"/><path d="M4 6h5M4 8.5h3"/></svg>
-                                Kunde
+                                AP
                                 <svg width="8" height="8" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 3l3 3 3-3"/></svg>
                                 <div class="pcc-popup" @click.stop>
                                     <div class="pcc-pop-item" style="color: #fcd34d;" @click="if(card.company_email) window.location.href='mailto:'+card.company_email; cOpen=false"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 3.5l6 4 6-4M1 3.5v7.5h12V3.5H1z"/></svg>Email senden</div>
