@@ -223,10 +223,13 @@ body::after {
 
 /* Popup */
 .pcc-popup {
-    display: none; position: fixed; z-index: 9999;
+    display: none; position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
     background: var(--pp-surface3); border: 1px solid rgba(99,102,241,0.25); border-radius: 12px;
-    padding: 6px; box-shadow: 0 8px 30px rgba(0,0,0,0.5); min-width: 160px;
+    padding: 6px; box-shadow: 0 8px 30px rgba(0,0,0,0.5); z-index: 50; min-width: 160px;
 }
+.pcc-abtn { overflow: visible; }
+.pcc-card { overflow: visible !important; }
+.pcc-col { overflow: visible; }
 .pcc-abtn.open .pcc-popup { display: block; }
 .pcc-pop-item {
     display: flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 8px;
@@ -596,8 +599,8 @@ body::after {
                         </div>
 
                         {# Row 4: Kandidat + Kunde Action Buttons with Click Dropdowns #}
-                        <div class="pcc-actions" @click.stop x-data="{kOpen: false, cOpen: false, posPopup(el) { const r = el.getBoundingClientRect(); const p = el.querySelector('.pcc-popup'); if(p) { p.style.left = r.left + 'px'; p.style.bottom = (window.innerHeight - r.top + 6) + 'px'; } }}">
-                            <div class="pcc-abtn pcc-abtn-k" :class="kOpen && 'open'" @click="kOpen = !kOpen; cOpen = false; if(kOpen) $nextTick(() => posPopup($el))" @click.away="kOpen = false">
+                        <div class="pcc-actions" @click.stop x-data="{kOpen: false, cOpen: false}">
+                            <div class="pcc-abtn pcc-abtn-k" :class="kOpen && 'open'" @click="kOpen = !kOpen; cOpen = false" @click.away="kOpen = false">
                                 <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6.5" cy="4" r="3"/><path d="M1 12c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/></svg>
                                 Kandi
                                 <svg width="8" height="8" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 3l3 3 3-3"/></svg>
@@ -607,7 +610,7 @@ body::after {
                                     <div class="pcc-pop-item" style="color: #86efac;" @click="if(card.phone) window.open('https://wa.me/'+card.phone.replace(/[^0-9]/g,''),'_blank'); kOpen=false"><svg width="14" height="14" fill="currentColor" stroke="none" viewBox="0 0 24 24"><path d="M17.5 14.4l-2-1c-.3-.1-.5-.1-.7.1l-.9 1.1c-.2.2-.3.2-.6.1-1.5-.7-2.7-1.7-3.6-3-.3-.3-.2-.5 0-.7l.6-.7c.2-.2.2-.4.1-.6L9.5 7c-.2-.5-.5-.5-.7-.5h-.6c-.2 0-.6.1-.9.4C6.5 7.7 6 8.6 6 10c0 1.3.9 2.6 1 2.8.2.2 3.2 5 7.8 6.9 1.1.5 1.9.7 2.6.9.8.2 1.5.2 2.1.1.6-.1 2-1 2.3-1.8.3-.8.3-1.5.2-1.7-.1-.1-.3-.2-.5-.3z"/></svg>WhatsApp</div>
                                 </div>
                             </div>
-                            <div class="pcc-abtn pcc-abtn-c" :class="cOpen && 'open'" @click="cOpen = !cOpen; kOpen = false; if(cOpen) $nextTick(() => posPopup($el))" @click.away="cOpen = false">
+                            <div class="pcc-abtn pcc-abtn-c" :class="cOpen && 'open'" @click="cOpen = !cOpen; kOpen = false" @click.away="cOpen = false">
                                 <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.5" y="2" width="10" height="9" rx="1.5"/><path d="M4 6h5M4 8.5h3"/></svg>
                                 AP
                                 <svg width="8" height="8" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 3l3 3 3-3"/></svg>
