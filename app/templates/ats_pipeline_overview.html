@@ -72,7 +72,12 @@ body::after {
 .pcc-glass:hover { border-color: rgba(99, 102, 241, 0.4); transform: translateY(-1px); box-shadow: 0 6px 28px rgba(0,0,0,0.4), 0 0 16px rgba(99,102,241,0.15); }
 
 /* Pipeline Column */
-.pcc-col { min-width: 260px; max-width: 260px; flex-shrink: 0; }
+.pcc-col {
+    min-width: 260px; max-width: 260px; flex-shrink: 0;
+    background: rgba(99, 102, 241, 0.02);
+    border-right: 1px solid rgba(99, 102, 241, 0.06);
+    padding: 0 8px;
+}
 
 /* Candidate Card */
 .pcc-card {
@@ -202,7 +207,7 @@ body::after {
 .pcc-view-btn.active { background: rgba(99,102,241,0.2) !important; color: #a5b4fc !important; }
 
 /* Board scroll */
-.pcc-board { overflow-x: auto; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; gap: 14px; }
+.pcc-board { overflow-x: auto; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; gap: 14px; background: linear-gradient(180deg, rgba(15,20,37,0.5) 0%, rgba(10,14,26,0) 100%); }
 .pcc-board[style*="display: none"] { display: none !important; }
 .pcc-board:not([style*="display: none"]) { display: flex !important; }
 
@@ -274,7 +279,7 @@ body::after {
 {# ════════════════════════════════════════════
    SIDEBAR
    ════════════════════════════════════════════ #}
-<aside style="background: linear-gradient(180deg, #0f1425 0%, #0a0e1a 100%); border-right: 1px solid var(--pcc-border); display: flex; flex-direction: column; overflow: hidden;">
+<aside style="background: linear-gradient(180deg, #141a30 0%, #0e1222 100%); border-right: 1px solid rgba(99,102,241,0.15); display: flex; flex-direction: column; overflow: hidden;">
 
     {# Sidebar Header #}
     <div style="padding: 20px 16px 12px;">
@@ -530,10 +535,10 @@ body::after {
             </div>
 
             {# Drop Zone #}
-            <div style="display: flex; flex-direction: column; gap: 10px; min-height: 200px; padding: 8px; border: 2px dashed {{ phase.color }}18; border-radius: 14px; transition: border-color 0.2s;"
+            <div style="display: flex; flex-direction: column; gap: 10px; min-height: 200px; padding: 8px; border: 2px dashed {{ phase.color }}30; border-radius: 14px; transition: border-color 0.2s; background: rgba(99,102,241,0.015);"
                  @dragover.prevent="$el.style.borderColor = '{{ phase.color }}'"
-                 @dragleave="$el.style.borderColor = '{{ phase.color }}18'"
-                 @drop="handleDrop($event, '{{ phase.id }}'); $el.style.borderColor = '{{ phase.color }}18'">
+                 @dragleave="$el.style.borderColor = '{{ phase.color }}30'"
+                 @drop="handleDrop($event, '{{ phase.id }}'); $el.style.borderColor = '{{ phase.color }}30'">
 
                 {# Cards #}
                 <template x-for="card in candidatesInPhase('{{ phase.id }}')" :key="card.entry_id">
