@@ -14,7 +14,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional
 from uuid import UUID
 
-import pytz
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import select, delete, func, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -169,7 +169,7 @@ Ballindamm 3, 20095 Hamburg
 
 def _is_business_hours() -> bool:
     """Prueft ob aktuelle Zeit in Geschaeftszeiten liegt (8:00-18:00 Mo-Fr, Europe/Berlin)."""
-    berlin = pytz.timezone("Europe/Berlin")
+    berlin = ZoneInfo("Europe/Berlin")
     now = datetime.now(berlin)
     # Mo=0, Fr=4
     if now.weekday() > 4:  # Sa/So
@@ -179,7 +179,7 @@ def _is_business_hours() -> bool:
 
 def _next_business_morning() -> datetime:
     """Gibt den naechsten Werktag 8:00 Uhr zurueck (Europe/Berlin)."""
-    berlin = pytz.timezone("Europe/Berlin")
+    berlin = ZoneInfo("Europe/Berlin")
     now = datetime.now(berlin)
     # Naechster Werktag
     next_day = now + timedelta(days=1)

@@ -587,6 +587,8 @@ async def _trigger_direct_n8n(presentation_data: dict, contact_name: str = "") -
         "email_format": "html" if email_body_html else "plain_text",
         "source": presentation_data.get("source", "candidate_direct"),
         "followup_schedule": {"step2_days": 3, "step3_days": 7},
+        # Token fuer n8n Callback (damit n8n sich beim Rueckruf authentifizieren kann)
+        "callback_auth_token": f"Bearer {settings.n8n_api_token}" if settings.n8n_api_token else "",
     }
 
     headers = {}
