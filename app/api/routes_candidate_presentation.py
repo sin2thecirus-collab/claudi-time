@@ -106,9 +106,11 @@ class SendPresentationRequest(BaseModel):
 
 class DriveTimeRequest(BaseModel):
     candidate_id: str
-    dest_lat: float
-    dest_lng: float
+    dest_lat: Optional[float] = None
+    dest_lng: Optional[float] = None
     dest_plz: str = ""
+    company_name: str = ""  # Firma in DB suchen → deren Koordinaten nehmen
+    city: str = ""          # Zusaetzlich zur Firma-Suche
 
 class BulkStartRequest(BaseModel):
     candidate_id: str
@@ -363,9 +365,16 @@ async def send_presentation(req: SendPresentationRequest, db: AsyncSession = Dep
 
 @router.post("/calculate-drive-time")
 async def calculate_drive_time(req: DriveTimeRequest, db: AsyncSession = Depends(get_db)):
-    """Fahrzeit Kandidat → Firma berechnen."""
+    """Fahrzeit Kandidat → Firma berechnen.
+
+    Drei Wege die Firma-Koordinaten zu finden:
+    1. dest_lat/dest_lng direkt angegeben → nutzen
+    2. company_name angegeben → Firma in DB suchen → deren Koordinaten
+    3. address + city angegeben → Geocoden via Google Maps
+    """
     from app.services.distance_matrix_service import DistanceMatrixService
     from app.models.candidate import Candidate
+    from app.models.company import Company
     from sqlalchemy import select, func
 
     candidate_id = uuid.UUID(req.candidate_id)
@@ -382,15 +391,41 @@ async def calculate_drive_time(req: DriveTimeRequest, db: AsyncSession = Depends
     if not cand or not cand.lat or not cand.lng:
         return {"error": "Kandidat hat keine Koordinaten", "car_min": None, "transit_min": None}
 
+    # Firma-Koordinaten bestimmen (3 Wege)
+    dest_lat = req.dest_lat
+    dest_lng = req.dest_lng
+    dest_plz = req.dest_plz
+
+    # Weg 2: Firma in DB suchen
+    if (not dest_lat or not dest_lng) and req.company_name:
+        company_query = select(
+            func.ST_Y(func.ST_GeomFromWKB(Company.location_coords)).label("lat"),
+            func.ST_X(func.ST_GeomFromWKB(Company.location_coords)).label("lng"),
+            Company.plz,
+        ).where(func.lower(Company.name) == req.company_name.strip().lower())
+        if req.city:
+            company_query = company_query.where(func.lower(Company.city) == req.city.strip().lower())
+        company_query = company_query.limit(1)
+        comp_result = await db.execute(company_query)
+        comp = comp_result.first()
+        if comp and comp.lat and comp.lng:
+            dest_lat = comp.lat
+            dest_lng = comp.lng
+            dest_plz = comp.plz or dest_plz
+            logger.info(f"Firma '{req.company_name}' in DB gefunden: {dest_lat}, {dest_lng}")
+
+    if not dest_lat or not dest_lng:
+        return {"error": "Firma-Koordinaten nicht ermittelbar", "car_min": None, "transit_min": None}
+
     # Drive-Time berechnen (OHNE DB-Session!)
     dm_service = DistanceMatrixService.get_instance()
     dt_result = await dm_service.get_drive_time(
         origin_lat=cand.lat,
         origin_lng=cand.lng,
         origin_plz=cand.plz or "",
-        dest_lat=req.dest_lat,
-        dest_lng=req.dest_lng,
-        dest_plz=req.dest_plz,
+        dest_lat=dest_lat,
+        dest_lng=dest_lng,
+        dest_plz=dest_plz,
     )
 
     return {

@@ -3773,6 +3773,28 @@ function directPresentationModal() {
                     body: JSON.stringify({ candidate_id: candidateId, extracted_job_data: data }),
                 });
                 this.skillsComparison = await matchResp.json();
+
+                // Step 3: Fahrzeit automatisch berechnen (Google Maps)
+                try {
+                    var dtResp = await fetch('/api/presentations/direct/calculate-drive-time', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            candidate_id: candidateId,
+                            company_name: data.company_name || '',
+                            city: data.city || '',
+                            dest_plz: data.plz || '',
+                        }),
+                    });
+                    var dtData = await dtResp.json();
+                    if (dtData.car_min || dtData.transit_min) {
+                        this.driveTime = dtData;
+                        console.log('[Presentation] Fahrzeit berechnet:', dtData);
+                    }
+                } catch(dtErr) {
+                    console.warn('[Presentation] Fahrzeit konnte nicht berechnet werden:', dtErr);
+                }
+
                 this.step = 2;
             } catch(e) {
                 alert('Analyse fehlgeschlagen: ' + e.message);
