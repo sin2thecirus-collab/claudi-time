@@ -2847,6 +2847,31 @@
 </div>
 {% endif %}
 
+{# Dokument-Vorschau Slide-Over Panel (identisch zum CV-Preview) #}
+<div id="doc-preview-overlay" class="hidden" style="z-index: 9999; position: fixed; top: 0; left: 0; right: 0; bottom: 0; zoom: calc(1 / 1.15);">
+    <div class="doc-overlay-bg transition-opacity duration-300 ease-in-out opacity-0" style="position: absolute; inset: 0; background: rgba(0,0,0,0.7); cursor: pointer;" onclick="closeDocPreview()"></div>
+    <div style="position: absolute; top: 0; right: 0; bottom: 0; width: 100%; max-width: 42rem; pointer-events: none;">
+        <div id="doc-preview-panel" style="pointer-events: auto; height: 100%; transform: translateX(100%); transition: transform 300ms ease-in-out;">
+            <div style="display: flex; flex-direction: column; height: 100%; box-shadow: -4px 0 24px rgba(0,0,0,0.4); font-family: 'Outfit', sans-serif; background: var(--pp-surface);">
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; background: var(--pp-surfaceHover); border-bottom: 1px solid var(--pp-border);">
+                    <div>
+                        <h2 style="font-size: 16px; font-weight: 700; margin: 0; color: var(--pp-text);" id="doc-preview-title">Dokument</h2>
+                        <p style="font-size: 13px; margin: 2px 0 0; color: var(--pp-textDim);" id="doc-preview-subtitle"></p>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <a id="doc-preview-download" href="#" class="kd-quickbtn" style="font-size: 11.5px; padding: 7px 12px; text-decoration:none;">&#x2B07; Download</a>
+                        <a id="doc-preview-newtab" href="#" target="_blank" class="kd-quickbtn" style="font-size: 11.5px; padding: 7px 12px; text-decoration:none;">&#x2197; Neuer Tab</a>
+                        <button type="button" onclick="closeDocPreview()" style="background: var(--pp-surface); border: 1px solid var(--pp-border); border-radius: 8px; width: 36px; height: 36px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--pp-textMuted); font-size: 18px; font-weight: bold; z-index: 10;">&#x2715;</button>
+                    </div>
+                </div>
+                <div style="flex: 1; overflow: hidden; position: relative;">
+                    <iframe id="doc-preview-iframe" src="" style="width: 100%; height: 100%; border: 0;" title="Dokument-Vorschau"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -3958,7 +3983,7 @@ function fileManager() {
         },
 
         downloadFile(doc) {
-            window.open('/api/candidates/documents/' + doc.id + '/download', '_blank');
+            openDocPreview(doc);
         },
 
         deleteFile(doc) {
@@ -4460,9 +4485,74 @@ function closeCvPreview() {
 
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
+        var docOverlay = document.getElementById('doc-preview-overlay');
+        if (docOverlay && !docOverlay.classList.contains('hidden')) { closeDocPreview(); return; }
         var overlay = document.getElementById('cv-preview-overlay');
         if (overlay && !overlay.classList.contains('hidden')) closeCvPreview();
     }
 });
+
+// ==================== Dokument-Vorschau ====================
+var _docBlobUrl = null;
+
+function openDocPreview(doc) {
+    var overlay = document.getElementById('doc-preview-overlay');
+    var panel = document.getElementById('doc-preview-panel');
+    var iframe = document.getElementById('doc-preview-iframe');
+    var titleEl = document.getElementById('doc-preview-title');
+    var subtitleEl = document.getElementById('doc-preview-subtitle');
+    var downloadBtn = document.getElementById('doc-preview-download');
+    var newtabBtn = document.getElementById('doc-preview-newtab');
+
+    // Alte Blob-URL aufraeumen
+    if (_docBlobUrl) { URL.revokeObjectURL(_docBlobUrl); _docBlobUrl = null; }
+
+    // Titel setzen
+    titleEl.textContent = doc.filename || 'Dokument';
+    subtitleEl.textContent = doc.notes || '';
+
+    // Download + Neuer-Tab Links
+    var baseUrl = '/api/candidates/documents/' + doc.id + '/download';
+    downloadBtn.href = baseUrl + '?mode=attachment';
+    newtabBtn.href = baseUrl;
+
+    // Panel oeffnen
+    iframe.src = 'about:blank';
+    overlay.classList.remove('hidden');
+    requestAnimationFrame(function() {
+        overlay.querySelector('.doc-overlay-bg').style.opacity = '1';
+        panel.style.transform = 'translateX(0)';
+    });
+    document.body.style.overflow = 'hidden';
+
+    // Dokument per fetch laden → Blob-URL fuer iframe
+    fetch(baseUrl, { credentials: 'same-origin' })
+        .then(function(resp) {
+            if (!resp.ok) throw new Error('Dokument laden fehlgeschlagen: ' + resp.status);
+            return resp.blob();
+        })
+        .then(function(blob) {
+            _docBlobUrl = URL.createObjectURL(blob);
+            iframe.src = _docBlobUrl;
+        })
+        .catch(function(err) {
+            console.error('Dokument-Vorschau Fehler:', err);
+            iframe.srcdoc = '<html><body style="display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#181A23;color:#E8E9ED;font-family:sans-serif;"><div style="text-align:center;"><p style="font-size:18px;">Dokument konnte nicht geladen werden</p><p style="font-size:13px;color:#9CA3AF;margin-top:8px;">Bitte versuche es ueber "Neuer Tab" oder "Download"</p></div></body></html>';
+        });
+}
+
+function closeDocPreview() {
+    var overlay = document.getElementById('doc-preview-overlay');
+    var panel = document.getElementById('doc-preview-panel');
+    var iframe = document.getElementById('doc-preview-iframe');
+    panel.style.transform = 'translateX(100%)';
+    overlay.querySelector('.doc-overlay-bg').style.opacity = '0';
+    setTimeout(function() {
+        overlay.classList.add('hidden');
+        iframe.src = 'about:blank';
+        if (_docBlobUrl) { URL.revokeObjectURL(_docBlobUrl); _docBlobUrl = null; }
+    }, 300);
+    document.body.style.overflow = '';
+}
 </script>
 {% endblock %}

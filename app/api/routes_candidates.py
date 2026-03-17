@@ -2705,8 +2705,12 @@ async def upload_candidate_document(
 
 
 @router.get("/documents/{document_id}/download")
-async def download_candidate_document(document_id: UUID, db: AsyncSession = Depends(get_db)):
-    """Laedt ein Kandidaten-Dokument aus R2 herunter."""
+async def download_candidate_document(
+    document_id: UUID,
+    mode: str = "inline",
+    db: AsyncSession = Depends(get_db),
+):
+    """Laedt ein Kandidaten-Dokument aus R2 (inline=Vorschau, attachment=Download)."""
     from app.models.candidate_document import CandidateDocument
 
     doc = await db.get(CandidateDocument, document_id)
@@ -2726,10 +2730,21 @@ async def download_candidate_document(document_id: UUID, db: AsyncSession = Depe
         raise HTTPException(status_code=500, detail=f"Download fehlgeschlagen: {e}")
 
     import io
+    from urllib.parse import quote
+
+    # RFC 5987: ASCII-Fallback + UTF-8 encoded filename
+    ascii_name = doc.filename.encode("ascii", "replace").decode("ascii")
+    utf8_name = quote(doc.filename, safe="")
+    disposition = mode if mode in ("inline", "attachment") else "inline"
+    cd_header = f'{disposition}; filename="{ascii_name}"; filename*=UTF-8\'\'{utf8_name}'
+
     return StreamingResponse(
         io.BytesIO(content),
         media_type=doc.mime_type or "application/octet-stream",
-        headers={"Content-Disposition": f'attachment; filename="{doc.filename}"'},
+        headers={
+            "Content-Disposition": cd_header,
+            "Cache-Control": "private, max-age=300",
+        },
     )
 
 
