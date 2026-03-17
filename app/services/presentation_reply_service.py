@@ -10,9 +10,11 @@ Wird von n8n aufgerufen (alle 15 Min), klassifiziert Kunden-Antworten per GPT-4o
 import json
 import logging
 import random
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 from uuid import UUID
+
+import pytz
 
 from sqlalchemy import select, delete, func, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -74,6 +76,31 @@ WICHTIGE REGELN:
 - DELETION_REQUEST nur wenn EXPLIZIT Loeschung/Abmeldung verlangt wird — "kein Interesse" allein ist NEGATIVE, nicht DELETION_REQUEST
 - Ignoriere E-Mail-Signaturen und Disclaimer bei der Klassifikation
 
+BEISPIELE FUER GRENZFAELLE (alle POSITIVE!):
+
+Beispiel 1: "Aktuell haben wir keinen Bedarf, aber schicken Sie uns gerne das Profil."
+→ POSITIVE (Kunde will Profil sehen = Interesse!)
+
+Beispiel 2: "Die Stelle ist bereits besetzt, aber wir suchen fuer eine andere Position jemanden. Koennen Sie mir mehr dazu sagen?"
+→ POSITIVE (neues Geschaeft moeglich!)
+
+Beispiel 3: "Danke fuer den Vorschlag. Gerade passt es zeitlich nicht, aber behalten Sie uns gerne im Hinterkopf."
+→ POSITIVE (Kunde will zukuenftigen Kontakt = Beziehungspflege!)
+
+Beispiel 4: "Wir haben eine eigene Recruiting-Abteilung, nehmen aber bei spezialisierten Profilen gerne Vorschlaege an."
+→ POSITIVE (offen fuer Zusammenarbeit!)
+
+Beispiel 5: "Rufen Sie mich bitte dazu an" oder "Koennen wir kurz telefonieren?"
+→ POSITIVE (direktes Interesse an Kontakt!)
+
+Beispiel 6: "Interessant. Was sind die Gehaltsvorstellungen?" oder "Wann waere der Kandidat verfuegbar?"
+→ POSITIVE (konkrete Rueckfragen = hohes Interesse!)
+
+Beispiel 7: "Nein danke, kein Interesse." oder "Bitte senden Sie uns keine weiteren Profile."
+→ NEGATIVE (klare, eindeutige Absage ohne jede Oeffnung)
+
+WICHTIG: Im Zweifel IMMER POSITIVE waehlen! Eine falsche NEGATIVE-Klassifikation fuehrt zu automatischer Absage und Geschaeftsverlust. Eine falsche POSITIVE-Klassifikation fuehrt nur dazu dass Milad eine Mail manuell beantwortet — das ist viel weniger schlimm.
+
 Antworte als JSON:
 {"category": "POSITIVE|NEGATIVE|DELETION_REQUEST|AUTO_REPLY", "confidence": 0.0-1.0, "reason": "Kurze Begruendung (1 Satz)", "absender_anrede": "Hallo Frau/Herr Nachname", "absender_nachname": "Nachname"}
 
@@ -134,6 +161,31 @@ hamdard@sincirus.com
 www.sincirus.com
 Ballindamm 3, 20095 Hamburg
 """.strip()
+
+
+# ═══════════════════════════════════════════════════════════════
+#  GESCHAEFTSZEITEN-HELPER
+# ═══════════════════════════════════════════════════════════════
+
+def _is_business_hours() -> bool:
+    """Prueft ob aktuelle Zeit in Geschaeftszeiten liegt (8:00-18:00 Mo-Fr, Europe/Berlin)."""
+    berlin = pytz.timezone("Europe/Berlin")
+    now = datetime.now(berlin)
+    # Mo=0, Fr=4
+    if now.weekday() > 4:  # Sa/So
+        return False
+    return 8 <= now.hour < 18
+
+
+def _next_business_morning() -> datetime:
+    """Gibt den naechsten Werktag 8:00 Uhr zurueck (Europe/Berlin)."""
+    berlin = pytz.timezone("Europe/Berlin")
+    now = datetime.now(berlin)
+    # Naechster Werktag
+    next_day = now + timedelta(days=1)
+    while next_day.weekday() > 4:  # Sa/So ueberspringen
+        next_day += timedelta(days=1)
+    return next_day.replace(hour=8, minute=0, second=0, microsecond=0)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -474,9 +526,10 @@ class PresentationReplyService:
         """Sendet eine freundliche Absage-Antwort per GPT-4o-mini.
 
         KEINE DB-Session offen waehrend des Sendens!
+        Routing: sincirus.com -> Microsoft Graph, IONOS-Domains -> SMTP.
         """
         try:
-            from app.services.email_service import MicrosoftGraphClient
+            from app.services.ionos_smtp_client import IonosSmtpClient, is_ionos_mailbox
 
             # GPT-4o-mini generiert die Antwort mit korrekter Anrede
             body_text = await PresentationReplyService._generate_reply_text(
@@ -489,17 +542,32 @@ class PresentationReplyService:
             if not reply_subject.lower().startswith(("re:", "aw:")):
                 reply_subject = f"Re: {reply_subject}"
 
-            body_html = _format_reply_html(body_text)
+            effective_from = mailbox_used or "hamdard@sincirus.com"
 
-            result = await MicrosoftGraphClient.send_email(
-                to_email=to_email,
-                subject=reply_subject,
-                body_html=body_html,
-                from_email="hamdard@sincirus.com",
-            )
+            if is_ionos_mailbox(effective_from):
+                # IONOS SMTP Versand (sincirus-karriere.de, jobs-sincirus.com)
+                from app.config import settings as app_settings
+                plain_body = body_text + "\n\n--\n" + PLAIN_TEXT_SIGNATURE
+                result = await IonosSmtpClient.send_email(
+                    to_email=to_email,
+                    subject=reply_subject,
+                    body_plain=plain_body,
+                    from_email=effective_from,
+                    password=app_settings.ionos_smtp_password,
+                )
+            else:
+                # Microsoft Graph Versand (sincirus.com)
+                from app.services.email_service import MicrosoftGraphClient
+                body_html = _format_reply_html(body_text)
+                result = await MicrosoftGraphClient.send_email(
+                    to_email=to_email,
+                    subject=reply_subject,
+                    body_html=body_html,
+                    from_email=effective_from,
+                )
 
             if result.get("success"):
-                logger.info(f"Negative Auto-Reply gesendet an {to_email}")
+                logger.info(f"Negative Auto-Reply gesendet an {to_email} von {effective_from}")
                 return {"success": True, "reply_text": body_text, "error": None}
             else:
                 error = result.get("error", "Unbekannt")
@@ -518,13 +586,15 @@ class PresentationReplyService:
         original_subject: str,
         anrede: str = "Hallo",
         reply_body: str = "",
+        mailbox_used: str = "hamdard@sincirus.com",
     ) -> dict:
         """Sendet eine Loeschbestaetigung per GPT-4o-mini.
 
         KEINE DB-Session offen waehrend des Sendens!
+        Routing: sincirus.com -> Microsoft Graph, IONOS-Domains -> SMTP.
         """
         try:
-            from app.services.email_service import MicrosoftGraphClient
+            from app.services.ionos_smtp_client import IonosSmtpClient, is_ionos_mailbox
 
             body_text = await PresentationReplyService._generate_reply_text(
                 reply_type="deletion",
@@ -536,17 +606,32 @@ class PresentationReplyService:
             if not reply_subject.lower().startswith(("re:", "aw:")):
                 reply_subject = f"Re: {reply_subject}"
 
-            body_html = _format_reply_html(body_text)
+            effective_from = mailbox_used or "hamdard@sincirus.com"
 
-            result = await MicrosoftGraphClient.send_email(
-                to_email=to_email,
-                subject=reply_subject,
-                body_html=body_html,
-                from_email="hamdard@sincirus.com",
-            )
+            if is_ionos_mailbox(effective_from):
+                # IONOS SMTP Versand (sincirus-karriere.de, jobs-sincirus.com)
+                from app.config import settings as app_settings
+                plain_body = body_text + "\n\n--\n" + PLAIN_TEXT_SIGNATURE
+                result = await IonosSmtpClient.send_email(
+                    to_email=to_email,
+                    subject=reply_subject,
+                    body_plain=plain_body,
+                    from_email=effective_from,
+                    password=app_settings.ionos_smtp_password,
+                )
+            else:
+                # Microsoft Graph Versand (sincirus.com)
+                from app.services.email_service import MicrosoftGraphClient
+                body_html = _format_reply_html(body_text)
+                result = await MicrosoftGraphClient.send_email(
+                    to_email=to_email,
+                    subject=reply_subject,
+                    body_html=body_html,
+                    from_email=effective_from,
+                )
 
             if result.get("success"):
-                logger.info(f"Loeschbestaetigung gesendet an {to_email}")
+                logger.info(f"Loeschbestaetigung gesendet an {to_email} von {effective_from}")
                 return {"success": True, "reply_text": body_text, "error": None}
             else:
                 error = result.get("error", "Unbekannt")
@@ -821,6 +906,25 @@ class PresentationReplyService:
             )
 
             category = classification["category"]
+            confidence = classification.get("confidence", 0.0)
+
+            # ── Confidence-Gate: Bei niedriger Sicherheit IMMER als POSITIVE behandeln ──
+            # → Milad entscheidet manuell, kein automatisches Handeln
+            if confidence < 0.80 and category in ("NEGATIVE", "DELETION_REQUEST"):
+                original_category = category
+                logger.warning(
+                    f"Confidence-Gate: {original_category} mit confidence={confidence:.2f} "
+                    f"von {email_from} → eskaliere als POSITIVE (Milad entscheidet)"
+                )
+                category = "POSITIVE"
+                classification["original_category"] = original_category
+                classification["category"] = "POSITIVE"
+                classification["confidence_override"] = True
+                classification["reason"] = (
+                    f"[CONFIDENCE-GATE: Original={original_category}, "
+                    f"Confidence={confidence:.2f}] {classification.get('reason', '')}"
+                )
+
             anrede = classification.get("absender_anrede", "Hallo")
             result["category"] = category
             result["details"]["classification"] = classification
@@ -872,30 +976,64 @@ class PresentationReplyService:
 
             # ── NEGATIVE: Auto-Reply senden (KEINE DB-Session!) ──
             if category == "NEGATIVE":
-                send_result = await PresentationReplyService.send_negative_auto_reply(
-                    to_email=email_from,
-                    original_subject=email_subject,
-                    mailbox_used=presentation_data.get("mailbox_used", "hamdard@sincirus.com"),
-                    anrede=anrede,
-                    reply_body=email_body,
-                )
-                result["details"]["auto_reply"] = send_result
+                if _is_business_hours():
+                    # Innerhalb Geschaeftszeiten → sofort senden
+                    send_result = await PresentationReplyService.send_negative_auto_reply(
+                        to_email=email_from,
+                        original_subject=email_subject,
+                        mailbox_used=presentation_data.get("mailbox_used", "hamdard@sincirus.com"),
+                        anrede=anrede,
+                        reply_body=email_body,
+                    )
+                    result["details"]["auto_reply"] = send_result
 
-                if send_result.get("success"):
-                    # Auto-Reply in DB markieren (eigene Session)
-                    reply_text = send_result.get("reply_text", "")
+                    if send_result.get("success"):
+                        # Auto-Reply in DB markieren (eigene Session)
+                        reply_text = send_result.get("reply_text", "")
 
+                        async with async_session_maker() as db:
+                            await PresentationReplyService.mark_auto_reply_sent(
+                                db=db,
+                                presentation_id=presentation_data["id"],
+                                reply_text=reply_text,
+                            )
+                        # Session geschlossen!
+
+                        result["action_taken"] = "sequence_stopped_negative_replied"
+                    else:
+                        result["action_taken"] = "sequence_stopped_negative_reply_failed"
+                else:
+                    # Ausserhalb Geschaeftszeiten → verzoegern bis naechster Werktag 8:00
+                    scheduled_at = _next_business_morning()
                     async with async_session_maker() as db:
-                        await PresentationReplyService.mark_auto_reply_sent(
-                            db=db,
-                            presentation_id=presentation_data["id"],
-                            reply_text=reply_text,
+                        from app.models.client_presentation import ClientPresentation
+                        pres_id_uuid = UUID(presentation_data["id"])
+                        pres_result = await db.execute(
+                            select(ClientPresentation).where(ClientPresentation.id == pres_id_uuid)
                         )
+                        pres = pres_result.scalar_one_or_none()
+                        if pres:
+                            # Pending-Info in client_response_text speichern (JSONB-artig, kein Migration noetig)
+                            pending_data = {
+                                "auto_reply_pending": True,
+                                "auto_reply_scheduled_at": scheduled_at.astimezone(timezone.utc).isoformat(),
+                                "auto_reply_type": "negative",
+                                "auto_reply_to": email_from,
+                                "auto_reply_subject": email_subject,
+                                "auto_reply_anrede": anrede,
+                                "auto_reply_body_context": email_body[:500],
+                                "mailbox_used": presentation_data.get("mailbox_used", "hamdard@sincirus.com"),
+                            }
+                            pres.client_response_text = json.dumps(pending_data)
+                            await db.commit()
                     # Session geschlossen!
 
-                    result["action_taken"] = "sequence_stopped_negative_replied"
-                else:
-                    result["action_taken"] = "sequence_stopped_negative_reply_failed"
+                    result["action_taken"] = "sequence_stopped_negative_reply_scheduled"
+                    result["details"]["scheduled_at"] = scheduled_at.isoformat()
+                    logger.info(
+                        f"NEGATIVE Auto-Reply fuer {email_from} verzoegert bis "
+                        f"{scheduled_at.isoformat()} (ausserhalb Geschaeftszeiten)"
+                    )
 
                 return result
 
@@ -954,16 +1092,57 @@ class PresentationReplyService:
                                 await db.commit()
                         # Session geschlossen!
 
-                # Loeschbestaetigung senden (KEINE DB-Session!)
-                confirm_result = await PresentationReplyService.send_deletion_confirmation(
-                    to_email=email_from,
-                    original_subject=email_subject,
-                    anrede=anrede,
-                    reply_body=email_body,
-                )
-                result["details"]["confirmation_email"] = confirm_result
+                # Loeschbestaetigung senden — DSGVO-Loeschung ist SOFORT,
+                # aber Bestaetigungs-E-Mail nur in Geschaeftszeiten
+                if _is_business_hours():
+                    confirm_result = await PresentationReplyService.send_deletion_confirmation(
+                        to_email=email_from,
+                        original_subject=email_subject,
+                        anrede=anrede,
+                        reply_body=email_body,
+                        mailbox_used=presentation_data.get("mailbox_used", "hamdard@sincirus.com"),
+                    )
+                    result["details"]["confirmation_email"] = confirm_result
+                    result["action_taken"] = "deletion_completed" if confirm_result.get("success") else "deletion_done_email_failed"
+                else:
+                    # Bestaetigungs-E-Mail verzoegern (Loeschung ist bereits passiert!)
+                    scheduled_at = _next_business_morning()
+                    # Da Company bereits geloescht ist, Pending-Info im Result speichern
+                    # und in einer noch existierenden Presentation (falls vorhanden) markieren
+                    try:
+                        async with async_session_maker() as db:
+                            from app.models.client_presentation import ClientPresentation
+                            pres_id_uuid = UUID(presentation_data["id"])
+                            pres_result = await db.execute(
+                                select(ClientPresentation).where(ClientPresentation.id == pres_id_uuid)
+                            )
+                            pres = pres_result.scalar_one_or_none()
+                            if pres:
+                                pending_data = {
+                                    "auto_reply_pending": True,
+                                    "auto_reply_scheduled_at": scheduled_at.astimezone(timezone.utc).isoformat(),
+                                    "auto_reply_type": "deletion_confirmation",
+                                    "auto_reply_to": email_from,
+                                    "auto_reply_subject": email_subject,
+                                    "auto_reply_anrede": anrede,
+                                    "auto_reply_body_context": email_body[:500],
+                                }
+                                pres.client_response_text = json.dumps(pending_data)
+                                await db.commit()
+                        # Session geschlossen!
+                    except Exception as sched_err:
+                        # Presentation koennte durch GDPR-Loeschung bereits weg sein
+                        logger.warning(
+                            f"Konnte Pending-Info nicht speichern (Presentation evtl. geloescht): {sched_err}"
+                        )
 
-                result["action_taken"] = "deletion_completed" if confirm_result.get("success") else "deletion_done_email_failed"
+                    result["action_taken"] = "deletion_done_email_scheduled"
+                    result["details"]["scheduled_at"] = scheduled_at.isoformat()
+                    logger.info(
+                        f"DELETION Bestaetigungs-E-Mail fuer {email_from} verzoegert bis "
+                        f"{scheduled_at.isoformat()} (ausserhalb Geschaeftszeiten, Loeschung bereits erfolgt)"
+                    )
+
                 return result
 
         except Exception as e:
