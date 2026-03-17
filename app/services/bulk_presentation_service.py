@@ -54,9 +54,9 @@ def parse_csv(file_bytes: bytes) -> list[dict]:
         for csv_col, field_name in COL_MAPPING.items():
             mapped[field_name] = (raw_row.get(csv_col) or "").strip()
 
-        # Kontaktname zusammensetzen
-        first = mapped.pop("contact_firstname", "")
-        last = mapped.pop("contact_lastname", "")
+        # Kontaktname zusammensetzen (Einzelfelder AUCH behalten!)
+        first = mapped.get("contact_firstname", "")
+        last = mapped.get("contact_lastname", "")
         mapped["contact_name"] = f"{first} {last}".strip()
 
         # Nur Zeilen mit Firma UND Position
@@ -198,30 +198,41 @@ async def process_bulk(
                 # 2. Company erstellen/finden (eigene Session)
                 async with async_session_maker() as db:
                     company_svc = CompanyService(db)
+
+                    # Adresse zusammenbauen (PLZ + Strasse + Ort)
+                    address_parts = [p for p in [
+                        row.get("address", ""),
+                        row.get("plz", ""),
+                        row.get("city", ""),
+                    ] if p and p.strip()]
+                    full_address = ", ".join(address_parts) if address_parts else ""
+
                     company = await company_svc.get_or_create_by_name(
                         row.get("company_name", ""),
                         city=row.get("city", ""),
                         domain=row.get("domain", ""),
+                        address=full_address,
                     )
                     if not company:
                         await _update_batch_row(async_session_maker, batch_id, row_index, "skipped_blacklist", None)
                         continue
                     company_id = company.id
 
-                    # Contact erstellen wenn Daten vorhanden
+                    # Contact erstellen/finden (mit Duplikat-Erkennung + Auto-Anrede)
                     contact_id = None
                     contact_email = row.get("contact_email", "")
-                    if contact_email:
-                        from app.models.company_contact import CompanyContact
-                        contact = CompanyContact(
+                    first_name = row.get("contact_firstname", "").strip()
+                    last_name = row.get("contact_lastname", "").strip()
+                    if contact_email or first_name or last_name:
+                        contact = await company_svc.get_or_create_contact(
                             company_id=company_id,
-                            first_name=row.get("contact_name", "").split()[0] if row.get("contact_name") else "",
-                            last_name=row.get("contact_name", "").split()[-1] if row.get("contact_name") else "",
-                            email=contact_email,
-                            salutation=row.get("contact_salutation", ""),
+                            first_name=first_name or None,
+                            last_name=last_name or None,
+                            email=contact_email or None,
+                            phone=row.get("contact_phone", "") or None,
+                            salutation=row.get("contact_salutation", "") or None,
+                            source="csv_bulk",
                         )
-                        db.add(contact)
-                        await db.flush()
                         contact_id = contact.id
                     await db.commit()
                 # Session geschlossen!

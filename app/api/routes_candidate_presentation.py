@@ -36,6 +36,38 @@ settings = get_settings()
 router = APIRouter(prefix="/api/presentations/direct", tags=["Direkte Vorstellung"])
 
 
+def _split_contact_name(full_name: str) -> tuple[str, str]:
+    """Teilt einen vollen Namen in Vorname + Nachname auf.
+
+    Beruecksichtigt Anrede-Praefixe (Herr, Frau, Dr., Prof.) die
+    NICHT als Vorname gezaehlt werden sollen.
+
+    Beispiele:
+        "Max Müller" → ("Max", "Müller")
+        "Herr Müller" → ("", "Müller")
+        "Frau Dr. Anna Schmidt" → ("Anna", "Schmidt")
+        "Max" → ("Max", "")
+        "" → ("", "")
+    """
+    if not full_name or not full_name.strip():
+        return ("", "")
+
+    # Anrede-Praefixe entfernen
+    prefixes = {"herr", "frau", "hr.", "fr.", "dr.", "prof.", "prof", "dr"}
+    parts = full_name.strip().split()
+    clean_parts = [p for p in parts if p.lower().rstrip(".") not in prefixes and p.lower() not in prefixes]
+
+    if not clean_parts:
+        # Nur Praefixe, kein echter Name
+        return ("", full_name.strip())
+    elif len(clean_parts) == 1:
+        # Nur ein Wort → als Nachname behandeln
+        return ("", clean_parts[0])
+    else:
+        # Erstes Wort = Vorname, Rest = Nachname
+        return (clean_parts[0], " ".join(clean_parts[1:]))
+
+
 # ── Request/Response Models ──
 
 class ExtractJobRequest(BaseModel):
@@ -61,6 +93,7 @@ class SendPresentationRequest(BaseModel):
     contact_name: str = ""
     contact_salutation: str = ""
     contact_email: str = ""
+    contact_phone: str = ""
     email_to: str
     email_from: str
     email_subject: str
@@ -197,28 +230,41 @@ async def send_presentation(req: SendPresentationRequest, db: AsyncSession = Dep
 
         _step = "get_or_create_company"
         company_svc = CompanyService(db)
+
+        # Adresse aus extracted_job_data zusammenbauen
+        ejd = req.extracted_job_data or {}
+        company_address = ejd.get("address", "")
+        company_plz = ejd.get("plz", "")
+        company_domain = ejd.get("domain", "")
+        # PLZ + Ort + Strasse → vollstaendige Adresse
+        address_parts = [p for p in [company_address, company_plz, req.city] if p and p.strip()]
+        full_address = ", ".join(address_parts) if address_parts else ""
+
         company = await company_svc.get_or_create_by_name(
             req.company_name,
             city=req.city,
-            domain=req.extracted_job_data.get("domain", "") if req.extracted_job_data else "",
+            domain=company_domain,
+            address=full_address,
         )
         if not company:
             raise HTTPException(status_code=409, detail="Firma ist auf der Blacklist")
 
-        # Contact erstellen wenn Daten vorhanden
+        # Contact erstellen/finden (mit Duplikat-Erkennung + Auto-Anrede)
         _step = "create_contact"
         contact_id = None
-        if req.contact_email:
-            from app.models.company_contact import CompanyContact
-            contact = CompanyContact(
+        if req.contact_email or req.contact_name:
+            # Name korrekt aufteilen (Vorname / Nachname)
+            first_name, last_name = _split_contact_name(req.contact_name)
+
+            contact = await company_svc.get_or_create_contact(
                 company_id=company.id,
-                first_name=req.contact_name.split()[0] if req.contact_name else "",
-                last_name=req.contact_name.split()[-1] if req.contact_name and " " in req.contact_name else "",
-                email=req.contact_email,
-                salutation=req.contact_salutation,
+                first_name=first_name,
+                last_name=last_name,
+                email=req.contact_email or None,
+                phone=req.contact_phone or None,
+                salutation=req.contact_salutation or None,
+                source="vorstellung",
             )
-            db.add(contact)
-            await db.flush()
             contact_id = contact.id
 
         # Presentation erstellen (draft)

@@ -251,19 +251,64 @@ class CompanyService:
     async def get_or_create_contact(
         self, company_id: UUID, first_name: str | None, last_name: str | None, **kwargs
     ) -> CompanyContact:
-        """Sucht oder erstellt einen Kontakt (fuer CSV Import)."""
-        # Suche nach Name bei gleicher Company
-        query = select(CompanyContact).where(CompanyContact.company_id == company_id)
-        if first_name:
-            query = query.where(func.lower(CompanyContact.first_name) == first_name.strip().lower())
-        if last_name:
-            query = query.where(func.lower(CompanyContact.last_name) == last_name.strip().lower())
+        """Sucht oder erstellt einen Kontakt (fuer CSV Import + Vorstellung).
 
-        result = await self.db.execute(query.limit(1))
-        contact = result.scalars().first()
+        Duplikat-Erkennung:
+        1. Wenn E-Mail vorhanden → Suche nach E-Mail bei gleicher Company (staerkstes Signal)
+        2. Sonst → Suche nach Name bei gleicher Company
+        3. Bei existierendem Kontakt: fehlende Felder nachfuellen (nicht ueberschreiben!)
+        """
+        email = kwargs.get("email")
 
-        if contact:
-            return contact
+        # Prioritaet 1: E-Mail-basierte Suche (eindeutigstes Merkmal)
+        if email and str(email).strip():
+            result = await self.db.execute(
+                select(CompanyContact).where(
+                    CompanyContact.company_id == company_id,
+                    func.lower(CompanyContact.email) == email.strip().lower(),
+                ).limit(1)
+            )
+            contact = result.scalars().first()
+            if contact:
+                # Fehlende Felder nachfuellen
+                updated = False
+                if first_name and not contact.first_name:
+                    contact.first_name = first_name.strip()
+                    updated = True
+                if last_name and not contact.last_name:
+                    contact.last_name = last_name.strip()
+                    updated = True
+                for field in ("phone", "salutation", "source"):
+                    val = kwargs.get(field)
+                    if val and str(val).strip() and not getattr(contact, field, None):
+                        setattr(contact, field, val)
+                        updated = True
+                if updated:
+                    await self.db.flush()
+                return contact
+
+        # Prioritaet 2: Name-basierte Suche
+        if first_name or last_name:
+            query = select(CompanyContact).where(CompanyContact.company_id == company_id)
+            if first_name:
+                query = query.where(func.lower(CompanyContact.first_name) == first_name.strip().lower())
+            if last_name:
+                query = query.where(func.lower(CompanyContact.last_name) == last_name.strip().lower())
+
+            result = await self.db.execute(query.limit(1))
+            contact = result.scalars().first()
+
+            if contact:
+                # Fehlende Felder nachfuellen
+                updated = False
+                for field in ("email", "phone", "salutation", "source"):
+                    val = kwargs.get(field)
+                    if val and str(val).strip() and not getattr(contact, field, None):
+                        setattr(contact, field, val)
+                        updated = True
+                if updated:
+                    await self.db.flush()
+                return contact
 
         # Auto-Gender: Anrede aus Vorname ableiten wenn nicht gesetzt
         from app.utils.gender_inference import apply_salutation_if_missing
