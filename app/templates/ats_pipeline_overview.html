@@ -237,6 +237,21 @@ body::after {
 }
 .pcc-pop-item:hover { background: rgba(99,102,241,0.12); }
 
+/* Phase Select in Table */
+.pcc .pcc-phase-select {
+    padding: 5px 8px !important;
+    border-radius: 8px !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    border: none !important;
+    outline: none !important;
+}
+.pcc .pcc-phase-select option {
+    background: #111827 !important;
+    color: #f1f5f9 !important;
+}
+
 /* Notif Badge */
 .pcc-badge {
     position: absolute; top: -4px; right: -4px; width: 18px; height: 18px; border-radius: 50%;
@@ -672,11 +687,10 @@ body::after {
                             <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border); color: var(--pp-text); font-weight: 500;" x-text="c.company || '-'"></td>
                             <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border); color: var(--pp-textMuted);" x-text="c.job_title || '-'"></td>
                             <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border);" @click.stop>
-                                <select :value="c.phase" @change="changePhase(c, $event.target.value)"
-                                        style="padding: 5px 8px; border-radius: 8px; font-size: 11px; font-weight: 600; cursor: pointer; border: none; outline: none;"
-                                        :style="'background: ' + getPhaseConfig(c.phase).bg + '; color: ' + getPhaseConfig(c.phase).light">
+                                <select class="pcc-phase-select" :value="c.phase" @change="changePhase(c, $event.target.value)"
+                                        :style="'background: ' + getPhaseConfig(c.phase).bg + ' !important; color: ' + getPhaseConfig(c.phase).light + ' !important'">
                                     {% for phase in PHASES %}
-                                    <option value="{{ phase.id }}" :selected="c.phase === '{{ phase.id }}'" style="background: #111827; color: #f1f5f9;">{{ phase.label }}</option>
+                                    <option value="{{ phase.id }}" :selected="c.phase === '{{ phase.id }}'">{{ phase.label }}</option>
                                     {% endfor %}
                                 </select>
                             </td>
