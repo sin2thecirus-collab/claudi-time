@@ -1155,25 +1155,70 @@ async def _call_opus(
 
 
 def _parse_json_safe(text: str) -> dict:
-    """Parst JSON aus Opus-Response (mit Fallback fuer ```json``` Bloecke)."""
+    """Parst JSON aus Opus-Response (mit Fallback fuer ```json``` Bloecke und Regex)."""
+    import re
     text = text.strip()
 
-    # Direkt JSON
+    # Versuch 1: Direkt JSON
     try:
         return json.loads(text)
     except json.JSONDecodeError:
         pass
 
-    # ```json ... ```
+    # Versuch 2: ```json ... ```
     if "```json" in text:
-        start = text.index("```json") + 7
-        end = text.index("```", start)
-        return json.loads(text[start:end].strip())
+        try:
+            start = text.index("```json") + 7
+            end = text.index("```", start)
+            return json.loads(text[start:end].strip())
+        except (json.JSONDecodeError, ValueError):
+            pass
 
-    # { ... } extrahieren
+    # Versuch 3: { ... } extrahieren
     if "{" in text:
-        start = text.index("{")
-        end = text.rindex("}") + 1
-        return json.loads(text[start:end])
+        try:
+            start = text.index("{")
+            end = text.rindex("}") + 1
+            return json.loads(text[start:end])
+        except (json.JSONDecodeError, ValueError):
+            pass
+
+    # Versuch 4: Regex-Fallback — subject und body_text einzeln extrahieren
+    # Opus gibt manchmal body_text mit unescaped Zeichen zurueck die JSON brechen
+    logger.warning("JSON-Parse fehlgeschlagen, versuche Regex-Extraktion...")
+    result = {}
+
+    # Subject extrahieren: "subject": "..."
+    subject_match = re.search(r'"subject"\s*:\s*"((?:[^"\\]|\\.)*)"', text)
+    if subject_match:
+        result["subject"] = subject_match.group(1).replace('\\"', '"').replace('\\n', '\n')
+
+    # body_text extrahieren: Alles zwischen "body_text": " und dem letzten "} oder "\n}
+    # Strategie: Finde den Start von body_text und nimm alles bis zum Ende des JSON-Objekts
+    body_match = re.search(r'"body_text"\s*:\s*"', text)
+    if body_match:
+        body_start = body_match.end()
+        # Finde das Ende: letztes "\n} oder "} im Text
+        # Gehe rueckwaerts vom Ende des Textes und suche das schliessende Pattern
+        remaining = text[body_start:]
+        # Suche das letzte unescaped " gefolgt von optional Whitespace und }
+        # Rueckwaerts suchen: letztes Vorkommen von "\n}" oder "}"
+        end_patterns = [
+            remaining.rfind('"\n}'),
+            remaining.rfind('"}'),
+            remaining.rfind('" }'),
+            remaining.rfind('"\r\n}'),
+        ]
+        end_pos = max(p for p in end_patterns if p >= 0) if any(p >= 0 for p in end_patterns) else -1
+
+        if end_pos >= 0:
+            raw_body = remaining[:end_pos]
+            # Unescape was wir koennen
+            body_text = raw_body.replace('\\n', '\n').replace('\\t', '\t').replace('\\"', '"').replace('\\\\', '\\')
+            result["body_text"] = body_text
+
+    if result.get("body_text"):
+        logger.info(f"Regex-Extraktion erfolgreich: subject={'subject' in result}, body_text={len(result.get('body_text', ''))} Zeichen")
+        return result
 
     raise ValueError(f"Konnte kein JSON aus Opus-Response parsen: {text[:200]}")
