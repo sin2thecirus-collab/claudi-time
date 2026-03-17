@@ -74,9 +74,6 @@ body::after {
 /* Pipeline Column */
 .pcc-col {
     min-width: 260px; max-width: 260px; flex-shrink: 0;
-    background: rgba(99, 102, 241, 0.02);
-    border-right: 1px solid rgba(99, 102, 241, 0.06);
-    padding: 0 8px;
 }
 
 /* Candidate Card */
@@ -262,15 +259,15 @@ body::after {
 {% block content %}
 {# ═══ Pipeline Data ═══ #}
 {% set PHASES = [
-    {"id":"matched","label":"Gematcht","color":"#06b6d4","light":"#22d3ee","bg":"rgba(6,182,212,0.15)"},
-    {"id":"sent","label":"Vorgestellt","color":"#6366f1","light":"#a5b4fc","bg":"rgba(99,102,241,0.15)"},
-    {"id":"feedback","label":"Feedback","color":"#f59e0b","light":"#fcd34d","bg":"rgba(245,158,11,0.15)"},
-    {"id":"interview_1","label":"Interview 1","color":"#3b82f6","light":"#93c5fd","bg":"rgba(59,130,246,0.15)"},
-    {"id":"interview_2","label":"Interview 2","color":"#8b5cf6","light":"#c4b5fd","bg":"rgba(139,92,246,0.15)"},
-    {"id":"interview_3","label":"Interview 3","color":"#d946ef","light":"#e879f9","bg":"rgba(217,70,239,0.15)"},
-    {"id":"offer","label":"Angebot","color":"#f59e0b","light":"#fcd34d","bg":"rgba(245,158,11,0.15)"},
-    {"id":"placed","label":"Platziert","color":"#10b981","light":"#6ee7b7","bg":"rgba(16,185,129,0.15)"},
-    {"id":"rejected","label":"Abgesagt","color":"#64748b","light":"#94a3b8","bg":"rgba(148,163,184,0.08)"}
+    {"id":"matched","label":"Gematcht","color":"#06b6d4","light":"#22d3ee","mid":"#22d3ee","bg":"rgba(6,182,212,0.15)"},
+    {"id":"sent","label":"Vorgestellt","color":"#6366f1","light":"#a5b4fc","mid":"#818cf8","bg":"rgba(99,102,241,0.15)"},
+    {"id":"feedback","label":"Feedback","color":"#f59e0b","light":"#fcd34d","mid":"#fbbf24","bg":"rgba(245,158,11,0.15)"},
+    {"id":"interview_1","label":"Interview 1","color":"#3b82f6","light":"#93c5fd","mid":"#60a5fa","bg":"rgba(59,130,246,0.15)"},
+    {"id":"interview_2","label":"Interview 2","color":"#8b5cf6","light":"#c4b5fd","mid":"#a78bfa","bg":"rgba(139,92,246,0.15)"},
+    {"id":"interview_3","label":"Interview 3","color":"#d946ef","light":"#e879f9","mid":"#e879f9","bg":"rgba(217,70,239,0.15)"},
+    {"id":"offer","label":"Angebot","color":"#f59e0b","light":"#fcd34d","mid":"#fbbf24","bg":"rgba(245,158,11,0.15)"},
+    {"id":"placed","label":"Platziert","color":"#10b981","light":"#6ee7b7","mid":"#34d399","bg":"rgba(16,185,129,0.15)"},
+    {"id":"rejected","label":"Abgesagt","color":"#64748b","light":"#94a3b8","mid":"#94a3b8","bg":"rgba(148,163,184,0.08)"}
 ] %}
 
 <div class="pcc" style="display: grid; grid-template-columns: 280px 1fr; height: calc(100vh - 56px); overflow: hidden;"
@@ -527,7 +524,7 @@ body::after {
             {# Column Header #}
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; padding: 0 4px;">
                 <div style="display: flex; align-items: center; gap: 8px;">
-                    <div style="width: 10px; height: 10px; border-radius: 4px; background: linear-gradient(135deg, {{ phase.color }}, {{ phase.light }});"></div>
+                    <div style="width: 10px; height: 10px; border-radius: 4px; background: linear-gradient(135deg, {{ phase.color }}, {{ phase.mid }});"></div>
                     <span style="font-size: 13px; font-weight: 700; color: var(--pp-text);">{{ phase.label }}</span>
                 </div>
                 <span style="background: {{ phase.bg }}; color: {{ phase.light }}; padding: 2px 10px; border-radius: 20px; font-size: 12px; font-weight: 700;"
