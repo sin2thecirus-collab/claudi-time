@@ -288,6 +288,7 @@ class CompanyFullCreate(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     domain: str | None = None
     address: str | None = None
+    postal_code: str | None = None
     city: str | None = None
     phone: str | None = None
 
@@ -323,6 +324,7 @@ async def create_company_full(
             "name": data.name,
             "domain": data.domain,
             "address": data.address,
+            "postal_code": data.postal_code,
             "city": data.city,
             "phone": data.phone,
         }.items() if v is not None

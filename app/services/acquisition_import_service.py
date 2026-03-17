@@ -508,6 +508,7 @@ class AcquisitionImportService:
             company = await self.company_service.get_or_create_by_name(
                 name=_trunc(company_name, "company_name"),
                 address=_trunc(_get_field(row, COL_MAPPING["street"]), "street_address"),
+                postal_code=_trunc(_get_field(row, COL_MAPPING["plz"]), "postal_code"),
                 city=_trunc(city, "city"),
                 phone=_trunc(_get_mapped_field(row, "company_phone"), "phone"),
                 domain=_trunc(_get_field(row, COL_MAPPING["domain"]), "domain"),

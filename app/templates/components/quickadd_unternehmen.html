@@ -4,6 +4,7 @@
     form: {
         name: '',
         address: '',
+        postal_code: '',
         city: '',
         domain: '',
         phone: '',
@@ -65,13 +66,20 @@
         </legend>
         <div>
             <label class="block text-xs font-medium text-gray-600 mb-1">Adresse</label>
-            <textarea x-model="form.address" rows="2" placeholder="z.B. Musterstr. 1, 80331 Muenchen"
+            <textarea x-model="form.address" rows="2" placeholder="z.B. Musterstr. 1"
                       class="w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm"></textarea>
         </div>
-        <div>
-            <label class="block text-xs font-medium text-gray-600 mb-1">Stadt</label>
-            <input type="text" x-model="form.city" placeholder="Stadt"
-                   class="w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm">
+        <div class="grid grid-cols-3 gap-3">
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">PLZ</label>
+                <input type="text" x-model="form.postal_code" placeholder="z.B. 20095" maxlength="5"
+                       class="w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm">
+            </div>
+            <div class="col-span-2">
+                <label class="block text-xs font-medium text-gray-600 mb-1">Stadt</label>
+                <input type="text" x-model="form.city" placeholder="z.B. Hamburg"
+                       class="w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm">
+            </div>
         </div>
     </fieldset>
 

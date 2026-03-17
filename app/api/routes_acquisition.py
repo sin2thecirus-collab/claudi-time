@@ -95,6 +95,8 @@ class ManualLeadRequest(BaseModel):
     position: str
     city: str | None = None
     postal_code: str | None = None
+    # Firmen-PLZ (separat von Job-PLZ)
+    company_postal_code: str | None = None
     # Firmen-Kontaktdaten (Zentrale)
     company_phone: str | None = None
     company_email: str | None = None
@@ -712,6 +714,8 @@ async def create_manual_lead(
 
     # 1. Company finden oder erstellen (Blacklist-Check inbegriffen)
     company_extra = {"city": body.city}
+    if body.company_postal_code and body.company_postal_code.strip():
+        company_extra["postal_code"] = body.company_postal_code.strip()
     if body.company_phone and body.company_phone.strip():
         company_extra["phone"] = body.company_phone.strip()
     if body.company_email and body.company_email.strip():

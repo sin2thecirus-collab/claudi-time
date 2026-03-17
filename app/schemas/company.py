@@ -15,6 +15,7 @@ class CompanyBase(BaseModel):
     name: str = Field(min_length=1, max_length=255, description="Firmenname")
     domain: str | None = Field(default=None, max_length=255, description="Website/Domain")
     address: str | None = Field(default=None, description="Vollstaendige Adresse")
+    postal_code: str | None = Field(default=None, max_length=10, description="PLZ")
     city: str | None = Field(default=None, max_length=100, description="Stadt (fuer Suche)")
     phone: str | None = Field(default=None, max_length=100, description="Telefon Zentrale")
     employee_count: str | None = Field(
@@ -35,6 +36,7 @@ class CompanyUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=255)
     domain: str | None = Field(default=None, max_length=255)
     address: str | None = Field(default=None)
+    postal_code: str | None = Field(default=None, max_length=10)
     city: str | None = Field(default=None, max_length=100)
     phone: str | None = Field(default=None, max_length=100)
     employee_count: str | None = Field(default=None, max_length=50)
@@ -49,6 +51,7 @@ class CompanyResponse(BaseModel):
     name: str
     domain: str | None
     address: str | None
+    postal_code: str | None
     city: str | None
     phone: str | None
     employee_count: str | None

@@ -776,9 +776,15 @@
                         <label class="aq-label">Firmenname *</label>
                         <input type="text" x-model="mlCompanyName" required placeholder="z.B. Mustermann GmbH" class="aq-input">
                     </div>
-                    <div>
-                        <label class="aq-label">Stadt</label>
-                        <input type="text" x-model="mlCity" placeholder="z.B. Hamburg" class="aq-input">
+                    <div style="display:grid;grid-template-columns:80px 1fr;gap:6px;">
+                        <div>
+                            <label class="aq-label">PLZ</label>
+                            <input type="text" x-model="mlCompanyPostalCode" placeholder="20095" maxlength="5" class="aq-input">
+                        </div>
+                        <div>
+                            <label class="aq-label">Stadt</label>
+                            <input type="text" x-model="mlCity" placeholder="z.B. Hamburg" class="aq-input">
+                        </div>
                     </div>
                 </div>
                 <div class="aq-grid-2 aq-mb-16">
@@ -1493,6 +1499,7 @@ function akquisePage() {
         mlExtracted: false,
         mlExtractError: '',
         mlCompanyName: '',
+        mlCompanyPostalCode: '',
         mlCity: '',
         mlCompanyPhone: '',
         mlCompanyEmail: '',
@@ -1845,6 +1852,7 @@ function akquisePage() {
                     position: this.mlPosition.trim(),
                     city: this.mlCity.trim() || null,
                     postal_code: this.mlPostalCode.trim() || null,
+                    company_postal_code: this.mlCompanyPostalCode.trim() || null,
                     company_phone: this.mlCompanyPhone.trim() || null,
                     company_email: this.mlCompanyEmail.trim() || null,
                     notes: this.mlNotes.trim() || null,

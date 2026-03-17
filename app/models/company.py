@@ -38,6 +38,7 @@ class Company(Base):
 
     # Adresse (ein Feld fuer einfaches Kopieren)
     address: Mapped[str | None] = mapped_column(Text)
+    postal_code: Mapped[str | None] = mapped_column(String(10))
     city: Mapped[str | None] = mapped_column(String(100))
 
     # Telefon Zentrale

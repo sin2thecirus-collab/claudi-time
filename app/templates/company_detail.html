@@ -393,7 +393,7 @@
                     </div>
                     <div class="kd-meta-row">
                         {% if company.city and company.city|string|lower|trim not in invalid_vals %}
-                            <span class="kd-meta-badge">📍 {{ company.city }}</span>
+                            <span class="kd-meta-badge">📍 {% if company.postal_code %}{{ company.postal_code }} {% endif %}{{ company.city }}</span>
                         {% endif %}
                         {% if company.address and company.address|string|lower|trim not in invalid_vals %}
                             <span class="kd-meta-badge">🏠 {{ company.address }}</span>
