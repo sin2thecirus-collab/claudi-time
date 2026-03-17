@@ -152,6 +152,16 @@
     -webkit-text-fill-color: transparent;
 }
 
+/* View Toggle Buttons */
+.pcc-view-toggle { display: flex; background: rgba(99,102,241,0.08); border-radius: 10px; padding: 3px; border: 1px solid rgba(99,102,241,0.12); gap: 2px; }
+.pcc-view-btn {
+    padding: 5px 14px !important; border-radius: 8px !important; font-size: 12px !important;
+    font-weight: 600 !important; border: none !important; cursor: pointer !important;
+    background: transparent; color: var(--pp-textMuted); transition: all 0.2s;
+    white-space: nowrap;
+}
+.pcc-view-btn.active { background: rgba(99,102,241,0.2) !important; color: #a5b4fc !important; }
+
 /* Board scroll */
 .pcc-board { overflow-x: auto; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; gap: 14px; }
 .pcc-board[style*="display: none"] { display: none !important; }
@@ -398,13 +408,10 @@
                        style="padding: 7px 12px 7px 32px; background: rgba(99,102,241,0.06); border: 1px solid rgba(99,102,241,0.12); border-radius: 10px; color: var(--pp-text); font-size: 12px; outline: none; width: 200px;">
             </div>
             {# View Toggle #}
-            <div style="display: flex; background: rgba(99,102,241,0.08); border-radius: 10px; padding: 3px; border: 1px solid rgba(99,102,241,0.12);">
-                <button @click="view = 'board'" :style="view === 'board' ? 'background: rgba(99,102,241,0.2); color: #a5b4fc;' : 'background: transparent; color: var(--pp-textMuted);'"
-                        style="padding: 5px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; border: none; cursor: pointer;">Board</button>
-                <button @click="view = 'table'" :style="view === 'table' ? 'background: rgba(99,102,241,0.2); color: #a5b4fc;' : 'background: transparent; color: var(--pp-textMuted);'"
-                        style="padding: 5px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; border: none; cursor: pointer;">Tabelle</button>
-                <button :style="'background: transparent; color: var(--pp-textMuted);'"
-                        style="padding: 5px 14px; border-radius: 8px; font-size: 12px; font-weight: 500; border: none; cursor: pointer;">Timeline</button>
+            <div class="pcc-view-toggle">
+                <button class="pcc-view-btn" :class="view === 'board' ? 'active' : ''" @click="view = 'board'">Board</button>
+                <button class="pcc-view-btn" :class="view === 'table' ? 'active' : ''" @click="view = 'table'">Tabelle</button>
+                <button class="pcc-view-btn">Timeline</button>
             </div>
             {# Add Candidate — immer sichtbar #}
             <button @click="showAddModal = true; addJobId = activePosition || (positions.length > 0 ? positions[0].id : null); addStage = 'sent'"
