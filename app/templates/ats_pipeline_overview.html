@@ -237,6 +237,50 @@ body::after {
 }
 .pcc-pop-item:hover { background: rgba(99,102,241,0.12); }
 
+/* Delete Button */
+.pcc-del-btn {
+    width: 28px; height: 28px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all 0.2s;
+    background: rgba(239, 68, 68, 0.06); border: 1px solid rgba(239, 68, 68, 0.12);
+    color: #94a3b8; flex-shrink: 0;
+}
+.pcc-del-btn:hover { background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.3); color: #fca5a5; }
+
+/* Swimlane Layout (Alle Prozesse) */
+.pcc-swimlane {
+    background: linear-gradient(135deg, #1e2340, #161b30);
+    border: 1px solid rgba(99, 102, 241, 0.12);
+    border-radius: 16px;
+    overflow: hidden;
+}
+.pcc-swim-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 20px;
+    background: rgba(99, 102, 241, 0.04);
+    border-bottom: 1px solid rgba(99, 102, 241, 0.08);
+    transition: background 0.2s;
+}
+.pcc-swim-header:hover { background: rgba(99, 102, 241, 0.08); }
+.pcc-swim-cards {
+    display: flex; gap: 10px; padding: 14px 16px;
+    overflow-x: auto; overflow-y: visible;
+}
+.pcc-swim-cards::-webkit-scrollbar { height: 4px; }
+.pcc-swim-cards::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.2); border-radius: 4px; }
+.pcc-swim-card {
+    flex: 0 0 200px; min-width: 180px;
+    background: linear-gradient(135deg, #141828, #111520);
+    border: 1px solid rgba(99, 102, 241, 0.15);
+    border-radius: 12px;
+    padding: 12px;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s;
+    overflow: visible;
+}
+.pcc-swim-card:hover { border-color: rgba(99, 102, 241, 0.3); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.3); }
+
 /* Phase Select in Table */
 .pcc .pcc-phase-select {
     padding: 6px 14px !important;
@@ -547,7 +591,9 @@ body::after {
     {# ════════════════════════════════════════════
        BOARD VIEW
        ════════════════════════════════════════════ #}
-    <div x-show="view === 'board'" class="pcc-board" style="flex: 1; padding: 16px 24px;">
+
+    {# ── BOARD: Einzelne Position ausgewählt (klassisches Kanban) ── #}
+    <div x-show="view === 'board' && activePos" class="pcc-board" style="flex: 1; padding: 16px 24px;">
 
         {% for phase in PHASES %}
         <div class="pcc-col" x-show="'{{ phase.id }}' !== 'rejected' || candidatesInPhase('rejected').length > 0">
@@ -573,21 +619,13 @@ body::after {
                          draggable="true"
                          @click="selectCandidate(card)"
                          @dragstart="handleDragStart($event, card)"
-                         @dragend="handleDragEnd($event)">
+                         @dragend="handleDragEnd($event)"
+                         x-data="{kOpen: false, cOpen: false, confirmDel: false}">
 
-                        {# WOW Badge — absolute positioned #}
+                        {# WOW Badge #}
                         <template x-if="card.wow">
                             <div style="position: absolute; top: 8px; right: 10px;">
                                 <span style="background: linear-gradient(135deg, #f59e0b, #ef4444); color: white; padding: 2px 8px; border-radius: 6px; font-size: 9px; font-weight: 800; letter-spacing: 0.05em;">WOW</span>
-                            </div>
-                        </template>
-
-                        {# Row 0: Firma / Job (nur bei Alle Prozesse) #}
-                        <template x-if="!activePos">
-                            <div style="margin: -10px -10px 8px -10px; padding: 6px 10px; border-radius: 12px 12px 0 0; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
-                                 :style="'background: ' + getAvatarGradient(card.company).split(',')[0] + '20; border-bottom: 1px solid ' + getAvatarGradient(card.company).split(',')[0] + '30'">
-                                <span style="font-weight: 700; letter-spacing: 0.02em;" :style="'color: ' + getAvatarGradient(card.company).split(',')[0]" x-text="card.company"></span>
-                                <span style="color: var(--pp-textMuted); font-weight: 400;" x-text="' · ' + card.job_title"></span>
                             </div>
                         </template>
 
@@ -612,7 +650,7 @@ body::after {
                             </template>
                         </div>
 
-                        {# Row 2: Tags — ERP, Drive Time, Salary #}
+                        {# Row 2: Tags #}
                         <template x-if="card.erp || card.drive_time_car || card.salary">
                             <div style="display: flex; align-items: center; gap: 6px; margin-top: 10px; flex-wrap: wrap;">
                                 <template x-if="card.erp">
@@ -627,15 +665,15 @@ body::after {
                             </div>
                         </template>
 
-                        {# Row 3: Days Indicator #}
+                        {# Row 3: Days #}
                         <div style="display: flex; align-items: center; gap: 4px; font-size: 11px; margin-top: 10px;"
                              :style="'color: ' + daysColor(card.days)">
                             <div style="width: 6px; height: 6px; border-radius: 50%;" :style="'background: ' + daysColor(card.days)" :class="card.days <= 3 ? 'pcc-pulse' : ''"></div>
                             <span x-text="card.days + ' Tage in dieser Phase'"></span>
                         </div>
 
-                        {# Row 4: Kandidat + Kunde Action Buttons with Click Dropdowns #}
-                        <div class="pcc-actions" @click.stop x-data="{kOpen: false, cOpen: false}">
+                        {# Row 4: Actions + Delete #}
+                        <div class="pcc-actions" @click.stop>
                             <div class="pcc-abtn pcc-abtn-k" :class="kOpen && 'open'" @click="kOpen = !kOpen; cOpen = false" @click.away="kOpen = false">
                                 <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6.5" cy="4" r="3"/><path d="M1 12c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/></svg>
                                 Kandi
@@ -656,6 +694,16 @@ body::after {
                                     <div class="pcc-pop-item" style="color: #cbd5e1;" @click="selectCandidate(card); cOpen=false"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 1.5h10v8l-3 2.5H2V1.5zM5 5h4M5 7.5h2.5"/></svg>Notiz</div>
                                 </div>
                             </div>
+                            {# Delete Button #}
+                            <div class="pcc-del-btn" @click="confirmDel ? deleteEntry(card) : (confirmDel = true)" @click.away="confirmDel = false"
+                                 :style="confirmDel ? 'background: rgba(239,68,68,0.2); border-color: rgba(239,68,68,0.4); color: #fca5a5;' : ''">
+                                <template x-if="!confirmDel">
+                                    <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                </template>
+                                <template x-if="confirmDel">
+                                    <span style="font-size: 9px; font-weight: 700; letter-spacing: 0.03em;">Sicher?</span>
+                                </template>
+                            </div>
                         </div>
                     </div>
                 </template>
@@ -669,6 +717,132 @@ body::after {
             </div>
         </div>
         {% endfor %}
+    </div>
+
+    {# ── BOARD: Alle Prozesse (Swimlane pro Job) ── #}
+    <div x-show="view === 'board' && !activePos" style="flex: 1; overflow-y: auto; padding: 16px 24px;">
+
+        <template x-for="pos in positions" :key="pos.id">
+            <div class="pcc-swimlane" style="margin-bottom: 20px;">
+                {# Swimlane Header — Firma + Job #}
+                <div class="pcc-swim-header" @click="setActivePosition(pos.id)" style="cursor: pointer;">
+                    <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;">
+                        <div style="width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: white; flex-shrink: 0;"
+                             :style="{background: 'linear-gradient(135deg, ' + getAvatarGradient(pos.company) + ')'}">
+                            <span x-text="getInitials(pos.company)"></span>
+                        </div>
+                        <div style="min-width: 0;">
+                            <div style="font-size: 14px; font-weight: 700; color: var(--pp-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" x-text="pos.company"></div>
+                            <div style="font-size: 11px; color: var(--pp-textMuted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" x-text="pos.name + (pos.location ? ' · ' + pos.location : '')"></div>
+                        </div>
+                    </div>
+                    {# Phase-Badges im Header #}
+                    <div style="display: flex; gap: 4px; flex-shrink: 0;">
+                        <template x-for="ph in PHASES.filter(p => p.id !== 'rejected')" :key="ph.id">
+                            <template x-if="candidatesForJobInPhase(pos.id, ph.id).length > 0">
+                                <span style="padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 700;"
+                                      :style="'background: ' + ph.bg + '; color: ' + ph.light"
+                                      x-text="ph.label.substring(0,3) + ' ' + candidatesForJobInPhase(pos.id, ph.id).length"></span>
+                            </template>
+                        </template>
+                    </div>
+                    <svg width="16" height="16" fill="none" stroke="var(--pp-textMuted)" stroke-width="2" style="flex-shrink: 0;"><path d="M6 4l4 4-4 4"/></svg>
+                </div>
+
+                {# Swimlane Cards — horizontal scroll #}
+                <div class="pcc-swim-cards" x-show="(pipelineByJob[pos.id] || []).length > 0">
+                    <template x-for="card in (pipelineByJob[pos.id] || [])" :key="card.entry_id">
+                        <div class="pcc-swim-card" :class="'stage-' + card.phase"
+                             @click="selectCandidate(card)"
+                             draggable="true"
+                             @dragstart="handleDragStart($event, card)"
+                             @dragend="handleDragEnd($event)"
+                             x-data="{kOpen: false, cOpen: false, confirmDel: false}">
+
+                            {# Phase indicator line #}
+                            <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: 10px 10px 0 0;"
+                                 :style="'background: ' + getPhaseConfig(card.phase).color"></div>
+
+                            {# Phase label pill #}
+                            <div style="margin-bottom: 8px;">
+                                <span style="font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.05em;"
+                                      :style="'background: ' + getPhaseConfig(card.phase).bg + '; color: ' + getPhaseConfig(card.phase).light"
+                                      x-text="getPhaseConfig(card.phase).label"></span>
+                                <template x-if="card.wow">
+                                    <span style="background: linear-gradient(135deg, #f59e0b, #ef4444); color: white; padding: 2px 6px; border-radius: 6px; font-size: 8px; font-weight: 800; margin-left: 4px;">WOW</span>
+                                </template>
+                            </div>
+
+                            {# Avatar + Name + Score #}
+                            <div style="display: flex; align-items: flex-start; gap: 8px;">
+                                <div style="width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: white; flex-shrink: 0;"
+                                     :style="{background: 'linear-gradient(135deg, ' + getAvatarGradient(card.name) + ')'}">
+                                    <span x-text="card.avatar"></span>
+                                </div>
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="font-size: 12px; font-weight: 700; color: var(--pp-text); word-break: break-word; line-height: 1.3;" x-text="card.name"></div>
+                                    <div style="font-size: 10px; color: var(--pp-textMuted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" x-text="card.role"></div>
+                                </div>
+                                <template x-if="card.score">
+                                    <div class="pcc-score" style="width: 32px; height: 32px;" :style="'color: ' + scoreColor(card.score)">
+                                        <svg width="32" height="32" viewBox="0 0 36 36">
+                                            <circle cx="18" cy="18" r="15" fill="none" :stroke="scoreColor(card.score) + '25'" stroke-width="3"/>
+                                            <circle cx="18" cy="18" r="15" fill="none" :stroke="scoreColor(card.score)" stroke-width="3" :stroke-dasharray="scoreDash(card.score) + ' 94'" stroke-linecap="round"/>
+                                        </svg>
+                                        <span style="font-size: 10px;" x-text="card.score"></span>
+                                    </div>
+                                </template>
+                            </div>
+
+                            {# Tags compact #}
+                            <template x-if="card.erp || card.drive_time_car || card.salary">
+                                <div style="display: flex; gap: 4px; margin-top: 8px; flex-wrap: wrap;">
+                                    <template x-if="card.erp">
+                                        <span class="pcc-tag" style="font-size: 10px; padding: 1px 6px;" x-text="card.erp"></span>
+                                    </template>
+                                    <template x-if="card.drive_time_car">
+                                        <span class="pcc-tag" style="font-size: 10px; padding: 1px 6px;" :style="'color: ' + (card.drive_time_car <= 20 ? '#6ee7b7' : card.drive_time_car <= 40 ? '#fcd34d' : '#94a3b8')" x-text="card.drive_time_car + ' Min'"></span>
+                                    </template>
+                                    <template x-if="card.salary">
+                                        <span class="pcc-tag" style="font-size: 10px; padding: 1px 6px; color: #fcd34d;" x-text="card.salary"></span>
+                                    </template>
+                                </div>
+                            </template>
+
+                            {# Days + Delete #}
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px;">
+                                <div style="display: flex; align-items: center; gap: 4px; font-size: 10px;"
+                                     :style="'color: ' + daysColor(card.days)">
+                                    <div style="width: 5px; height: 5px; border-radius: 50%;" :style="'background: ' + daysColor(card.days)"></div>
+                                    <span x-text="card.days + 'd'"></span>
+                                </div>
+                                <div class="pcc-del-btn" style="width: 22px; height: 22px; border-radius: 6px;" @click.stop="confirmDel ? deleteEntry(card) : (confirmDel = true)" @click.away="confirmDel = false"
+                                     :style="confirmDel ? 'background: rgba(239,68,68,0.25); border-color: rgba(239,68,68,0.4); color: #fca5a5;' : ''">
+                                    <template x-if="!confirmDel">
+                                        <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                    </template>
+                                    <template x-if="confirmDel">
+                                        <span style="font-size: 7px; font-weight: 800;">!</span>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                {# Empty state #}
+                <div x-show="(pipelineByJob[pos.id] || []).length === 0" style="padding: 12px 20px; font-size: 12px; color: var(--pp-textDim); font-style: italic;">
+                    Keine Kandidaten in der Pipeline
+                </div>
+            </div>
+        </template>
+
+        {# Empty — keine Positionen #}
+        <template x-if="positions.length === 0">
+            <div style="display: flex; align-items: center; justify-content: center; height: 300px; color: var(--pp-textDim); font-size: 14px;">
+                Keine Jobs in der Pipeline
+            </div>
+        </template>
     </div>
 
     {# ════════════════════════════════════════════
@@ -687,6 +861,7 @@ body::after {
                         <th style="padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--pcc-border);">Fahrzeit</th>
                         <th style="padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--pcc-border);">Gehalt</th>
                         <th style="padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--pcc-border);">Tage</th>
+                        <th style="padding: 10px 14px; text-align: center; font-size: 11px; font-weight: 600; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--pcc-border); width: 50px;"></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -731,10 +906,21 @@ body::after {
                                     </span>
                                 </template>
                             </td>
+                            <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border); text-align: center;" @click.stop x-data="{confirmDel: false}">
+                                <div class="pcc-del-btn" style="margin: 0 auto;" @click="confirmDel ? deleteEntry(c) : (confirmDel = true)" @click.away="confirmDel = false"
+                                     :style="confirmDel ? 'background: rgba(239,68,68,0.2); border-color: rgba(239,68,68,0.4); color: #fca5a5;' : ''">
+                                    <template x-if="!confirmDel">
+                                        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                    </template>
+                                    <template x-if="confirmDel">
+                                        <span style="font-size: 9px; font-weight: 700; color: #fca5a5;">Sicher?</span>
+                                    </template>
+                                </div>
+                            </td>
                         </tr>
                     </template>
                     <template x-if="filteredCandidates.length === 0">
-                        <tr><td colspan="8" style="padding: 48px 14px; text-align: center; color: var(--pp-textDim); font-size: 14px;">Keine Kandidaten</td></tr>
+                        <tr><td colspan="9" style="padding: 48px 14px; text-align: center; color: var(--pp-textDim); font-size: 14px;">Keine Kandidaten</td></tr>
                     </template>
                 </tbody>
             </table>
@@ -1001,6 +1187,32 @@ function pipelineCommandCenter() {
         },
 
         candidatesInPhase(phaseId) { return this.filteredCandidates.filter(c => c.phase === phaseId); },
+
+        candidatesForJobInPhase(jobId, phaseId) {
+            return (pipelineByJob[jobId] || []).filter(c => c.phase === phaseId);
+        },
+
+        PHASES,
+
+        async deleteEntry(card) {
+            try {
+                const r = await fetch('/api/ats/pipeline/entries/' + card.entry_id, { method: 'DELETE' });
+                if (r.ok) {
+                    // Aus pipelineByJob entfernen
+                    for (const k in pipelineByJob) {
+                        const idx = pipelineByJob[k].findIndex(c => c.entry_id === card.entry_id);
+                        if (idx >= 0) { pipelineByJob[k].splice(idx, 1); break; }
+                    }
+                    if (this.selectedCard && this.selectedCard.entry_id === card.entry_id) this.selectedCard = null;
+                    if (typeof showToast === 'function') showToast(card.name + ' entfernt', 'success');
+                } else {
+                    if (typeof showToast === 'function') showToast('Fehler beim L\u00f6schen', 'error');
+                }
+            } catch (e) {
+                console.error('Delete error:', e);
+                if (typeof showToast === 'function') showToast('Fehler beim L\u00f6schen', 'error');
+            }
+        },
 
         get attentionJobs() {
             const items = [];
