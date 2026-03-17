@@ -239,20 +239,28 @@ body::after {
 
 /* Phase Select in Table */
 .pcc .pcc-phase-select {
-    padding: 6px 12px !important;
-    border-radius: 20px !important;
+    padding: 6px 14px !important;
+    border-radius: 8px !important;
     font-size: 11px !important;
-    font-weight: 600 !important;
+    font-weight: 700 !important;
     cursor: pointer !important;
     border: none !important;
     outline: none !important;
-    letter-spacing: 0.02em !important;
-    transition: opacity 0.2s !important;
+    letter-spacing: 0.03em !important;
+    text-transform: uppercase !important;
+    color: white !important;
+    transition: all 0.2s ease !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25) !important;
 }
-.pcc .pcc-phase-select:hover { opacity: 0.85 !important; }
+.pcc .pcc-phase-select:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.35) !important;
+}
 .pcc .pcc-phase-select option {
-    background: #111827 !important;
+    background: #1e293b !important;
     color: #f1f5f9 !important;
+    text-transform: none !important;
+    font-weight: 500 !important;
     padding: 8px !important;
 }
 
@@ -692,7 +700,7 @@ body::after {
                             <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border); color: var(--pp-textMuted);" x-text="c.job_title || '-'"></td>
                             <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border);" @click.stop>
                                 <select class="pcc-phase-select" :value="c.phase" @change="changePhase(c, $event.target.value)"
-                                        :style="'background: ' + getPhaseConfig(c.phase).bg + ' !important; color: ' + getPhaseConfig(c.phase).light + ' !important'">
+                                        :style="'background: ' + getPhaseConfig(c.phase).color + ' !important'">
                                     {% for phase in PHASES %}
                                     <option value="{{ phase.id }}" :selected="c.phase === '{{ phase.id }}'">{{ phase.label }}</option>
                                     {% endfor %}
