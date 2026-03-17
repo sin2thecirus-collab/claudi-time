@@ -6,9 +6,32 @@
 <style>
 /* ═══════════════════════════════════════════════════
    PIPELINE COMMAND CENTER — CRM 2058
+   FULL ISOLATION from base.html
    ═══════════════════════════════════════════════════ */
 
-/* Custom Properties — EXACT preview.html match */
+/* === STEP 1: Neutralize base.html interference === */
+/* Remove zoom scaling */
+body:has(.pcc) {
+    zoom: 1 !important;
+    background: #0a0e1a !important;
+}
+/* Hide aurora gradient background */
+body:has(.pcc)::before {
+    display: none !important;
+}
+/* Hide grain overlay */
+body:has(.pcc)::after {
+    display: none !important;
+}
+/* Remove glass effect from base.html */
+body:has(.pcc) .bg-white,
+body:has(.pcc) [style*="background:var(--pp-surface)"],
+body:has(.pcc) [style*="background: var(--pp-surface)"] {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* === STEP 2: PCC Custom Properties === */
 .pcc {
     --pcc-indigo: #6366f1;
     --pcc-cyan: #06b6d4;
@@ -20,7 +43,6 @@
     --pcc-glass: rgba(17, 24, 39, 0.7);
     --pcc-border: rgba(99, 102, 241, 0.15);
     --pcc-border-hover: rgba(99, 102, 241, 0.35);
-    /* Override base.html colors to match preview exactly */
     --pp-bg: #0a0e1a;
     --pp-surface: #111827;
     --pp-surfaceHover: #232842;
@@ -30,6 +52,8 @@
     --pp-ff: 'Inter', -apple-system, system-ui, sans-serif;
     font-family: 'Inter', -apple-system, system-ui, sans-serif !important;
     background: #0a0e1a !important;
+    position: relative;
+    z-index: 1;
 }
 .pcc, .pcc * { font-family: 'Inter', -apple-system, system-ui, sans-serif !important; }
 
