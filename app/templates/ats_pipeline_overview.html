@@ -672,18 +672,13 @@ body::after {
                             <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border); color: var(--pp-text); font-weight: 500;" x-text="c.company || '-'"></td>
                             <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border); color: var(--pp-textMuted);" x-text="c.job_title || '-'"></td>
                             <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border);" @click.stop>
-                                <div style="position: relative; display: inline-flex; align-items: center;">
-                                    <div style="width: 7px; height: 7px; border-radius: 50%; position: absolute; left: 10px; pointer-events: none;"
-                                         :style="'background: ' + getPhaseConfig(c.phase).color"></div>
-                                    <svg style="position: absolute; right: 8px; pointer-events: none;" width="8" height="8" fill="none" stroke="currentColor" stroke-width="2" :style="'color: ' + getPhaseConfig(c.phase).light"><path d="M1 3l3 3 3-3"/></svg>
-                                    <select :value="c.phase" @change="changePhase(c, $event.target.value)"
-                                            style="padding: 6px 22px 6px 24px; border-radius: 10px; font-size: 11px; font-weight: 600; cursor: pointer; border: none; outline: none; -webkit-appearance: none; -moz-appearance: none; appearance: none;"
-                                            :style="'background: ' + getPhaseConfig(c.phase).bg + '; color: ' + getPhaseConfig(c.phase).light">
-                                        {% for phase in PHASES %}
-                                        <option value="{{ phase.id }}" :selected="c.phase === '{{ phase.id }}'" style="background: #111827; color: #f1f5f9;">{{ phase.label }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
+                                <select :value="c.phase" @change="changePhase(c, $event.target.value)"
+                                        style="padding: 5px 8px; border-radius: 8px; font-size: 11px; font-weight: 600; cursor: pointer; border: none; outline: none;"
+                                        :style="'background: ' + getPhaseConfig(c.phase).bg + '; color: ' + getPhaseConfig(c.phase).light">
+                                    {% for phase in PHASES %}
+                                    <option value="{{ phase.id }}" :selected="c.phase === '{{ phase.id }}'" style="background: #111827; color: #f1f5f9;">{{ phase.label }}</option>
+                                    {% endfor %}
+                                </select>
                             </td>
                             <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border); font-weight: 700;"
                                 :style="'color: ' + (c.score ? scoreColor(c.score) : 'var(--pp-textDim)')"
