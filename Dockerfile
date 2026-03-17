@@ -1,6 +1,6 @@
 FROM python:3.11-slim AS base
 
-# Build: 2026-02-20-v2 - Fix: pip install Layer von app/ Code getrennt (Railway Build-Fix)
+# Build: 2026-03-17-v3 - Force cache bust for template CSS fixes
 # Arbeitsverzeichnis setzen
 WORKDIR /app
 
