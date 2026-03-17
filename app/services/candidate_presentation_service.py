@@ -187,9 +187,11 @@ class ExtractedJobData(BaseModel):
     plz: str = ""
     address: str = ""
     domain: str = ""
-    contact_name: str = ""
+    contact_name: str = ""        # VOLLSTAENDIGER Name (Vorname + Nachname)
+    contact_firstname: str = ""   # Vorname (separat)
     contact_salutation: str = ""  # Herr / Frau / leer
     contact_email: str = ""
+    contact_phone: str = ""       # Telefonnummer des Ansprechpartners
     job_title: str = ""
     requirements: list[str] = Field(default_factory=list)
     description_summary: str = ""
@@ -249,9 +251,11 @@ Antworte NUR mit einem JSON-Objekt (kein Markdown, keine Erklaerung):
     "plz": "PLZ (5-stellig)",
     "address": "Strasse + Hausnummer (wenn vorhanden)",
     "domain": "Website-Domain (ohne https://, wenn erkennbar)",
-    "contact_name": "NACHNAME des Ansprechpartners (ohne Vorname, ohne Herr/Frau)",
+    "contact_name": "VOLLSTAENDIGER Name: Vorname + Nachname (z.B. 'Andreas Medicus', NICHT nur Nachname)",
+    "contact_firstname": "NUR der Vorname (z.B. 'Andreas')",
     "contact_salutation": "Herr oder Frau (aus Text oder Vorname ableiten)",
     "contact_email": "E-Mail des Ansprechpartners (wenn vorhanden)",
+    "contact_phone": "Telefonnummer des Ansprechpartners (wenn vorhanden)",
     "job_title": "Exakter Jobtitel",
     "requirements": ["Anforderung 1", "Anforderung 2", ...],
     "description_summary": "1-2 Saetze Zusammenfassung der Stelle"

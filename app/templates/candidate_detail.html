@@ -739,8 +739,9 @@
                             <div><span style="color:var(--pp-textMuted);">Firma:</span> <strong x-text="extractedData?.company_name || '—'"></strong></div>
                             <div><span style="color:var(--pp-textMuted);">Stadt:</span> <span x-text="extractedData?.city || '—'"></span></div>
                             <div><span style="color:var(--pp-textMuted);">Position:</span> <span x-text="extractedData?.job_title || '—'"></span></div>
-                            <div><span style="color:var(--pp-textMuted);">Kontakt:</span> <span x-text="extractedData?.contact_name || '—'"></span></div>
+                            <div><span style="color:var(--pp-textMuted);">Kontakt:</span> <span x-text="(extractedData?.contact_salutation ? extractedData.contact_salutation + ' ' : '') + (extractedData?.contact_name || '—')"></span></div>
                             <div><span style="color:var(--pp-textMuted);">E-Mail:</span> <span x-text="extractedData?.contact_email || '—'"></span></div>
+                            <div><span style="color:var(--pp-textMuted);">Telefon:</span> <span x-text="extractedData?.contact_phone || '—'"></span></div>
                             <div><span style="color:var(--pp-textMuted);">Domain:</span> <span x-text="extractedData?.domain || '—'"></span></div>
                         </div>
                     </div>
@@ -3820,6 +3821,7 @@ function directPresentationModal() {
                         contact_name: this.extractedData.contact_name,
                         contact_salutation: this.extractedData.contact_salutation,
                         contact_email: this.extractedData.contact_email,
+                        contact_phone: this.extractedData.contact_phone || '',
                         email_to: this.extractedData.contact_email || 'info@' + (this.extractedData.domain || 'unbekannt.de'),
                         email_from: this.selectedMailbox,
                         email_subject: this.emailData.subject,
