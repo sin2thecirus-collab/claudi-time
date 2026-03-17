@@ -1,6 +1,6 @@
 FROM python:3.11-slim AS base
 
-# Build: 2026-03-17-v3 - Force cache bust for template CSS fixes
+# Build: 2026-03-18-v4 - Force cache bust
 # Arbeitsverzeichnis setzen
 WORKDIR /app
 
