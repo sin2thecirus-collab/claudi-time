@@ -672,10 +672,14 @@ body::after {
                                 <span x-text="c.company"></span>
                                 <template x-if="c.job_title"><span style="color: var(--pp-textDim);" x-text="' / ' + c.job_title"></span></template>
                             </td>
-                            <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border);">
-                                <span style="padding: 3px 10px; border-radius: 8px; font-size: 11px; font-weight: 600;"
-                                      :style="'background: ' + getPhaseConfig(c.phase).bg + '; color: ' + getPhaseConfig(c.phase).light"
-                                      x-text="getPhaseConfig(c.phase).label"></span>
+                            <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border);" @click.stop>
+                                <select :value="c.phase" @change="changePhase(c, $event.target.value)"
+                                        style="padding: 3px 6px; border-radius: 8px; font-size: 11px; font-weight: 600; cursor: pointer; border: none; outline: none; appearance: auto;"
+                                        :style="'background: ' + getPhaseConfig(c.phase).bg + '; color: ' + getPhaseConfig(c.phase).light">
+                                    <template x-for="p in PHASES" :key="p.id">
+                                        <option :value="p.id" x-text="p.label" :selected="c.phase === p.id"></option>
+                                    </template>
+                                </select>
                             </td>
                             <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border); font-weight: 700;"
                                 :style="'color: ' + (c.score ? scoreColor(c.score) : 'var(--pp-textDim)')"
@@ -1089,6 +1093,29 @@ function pipelineCommandCenter() {
             } catch (e) {
                 this.draggedCard.phase = oldPhase;
                 console.error('D&D error:', e);
+            }
+        },
+
+        // Change Phase (Table View)
+        async changePhase(card, newPhase) {
+            const oldPhase = card.phase;
+            if (oldPhase === newPhase) return;
+            card.phase = newPhase;
+            try {
+                const r = await fetch('/api/ats/pipeline/entries/' + card.entry_id + '/stage', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ stage: newPhase })
+                });
+                if (r.ok) {
+                    if (typeof showToast === 'function') showToast(card.name + ' → ' + this.getPhaseConfig(newPhase).label, 'success');
+                } else {
+                    card.phase = oldPhase;
+                    if (typeof showToast === 'function') showToast('Fehler beim Verschieben', 'error');
+                }
+            } catch (e) {
+                card.phase = oldPhase;
+                console.error('Phase change error:', e);
             }
         },
 
