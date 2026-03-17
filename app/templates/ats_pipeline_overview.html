@@ -582,6 +582,14 @@ body::after {
                             </div>
                         </template>
 
+                        {# Row 0: Firma / Job (nur bei Alle Prozesse) #}
+                        <template x-if="!activePos">
+                            <div style="font-size: 10px; color: var(--pp-textMuted); margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid rgba(99,102,241,0.1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                <span style="color: var(--pp-text); font-weight: 600;" x-text="card.company"></span>
+                                <span style="color: var(--pp-textDim);" x-text="' · ' + card.job_title"></span>
+                            </div>
+                        </template>
+
                         {# Row 1: Avatar + Name + Score Ring #}
                         <div style="display: flex; align-items: flex-start; gap: 10px; margin-top: 4px;">
                             <div class="pcc-avatar" style="width: 38px; height: 38px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: white; flex-shrink: 0;"
