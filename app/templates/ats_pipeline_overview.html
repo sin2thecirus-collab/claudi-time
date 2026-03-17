@@ -670,9 +670,9 @@ body::after {
             <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
                 <thead>
                     <tr style="background: var(--pp-bg);">
-                        <th style="padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--pcc-border);">Kandidat</th>
                         <th style="padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--pcc-border);">Firma</th>
                         <th style="padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--pcc-border);">Job</th>
+                        <th style="padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--pcc-border);">Kandidat</th>
                         <th style="padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--pcc-border);">Phase</th>
                         <th style="padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--pcc-border);">Score</th>
                         <th style="padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--pcc-border);">Fahrzeit</th>
@@ -684,6 +684,8 @@ body::after {
                     <template x-for="c in filteredCandidates" :key="c.entry_id">
                         <tr @click="selectCandidate(c)" style="cursor: pointer; transition: background 0.15s; color: var(--pp-text);"
                             @mouseenter="$el.style.background='var(--pp-surfaceHover)'" @mouseleave="$el.style.background='transparent'">
+                            <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border); color: var(--pp-text); font-weight: 500;" x-text="c.company || '-'"></td>
+                            <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border); color: var(--pp-textMuted);" x-text="c.job_title || '-'"></td>
                             <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border);">
                                 <div style="display: flex; align-items: center; gap: 10px;">
                                     <div class="pcc-avatar" style="width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: 700; flex-shrink: 0;"
@@ -696,8 +698,6 @@ body::after {
                                     </div>
                                 </div>
                             </td>
-                            <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border); color: var(--pp-text); font-weight: 500;" x-text="c.company || '-'"></td>
-                            <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border); color: var(--pp-textMuted);" x-text="c.job_title || '-'"></td>
                             <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border);" @click.stop>
                                 <select class="pcc-phase-select" :value="c.phase" @change="changePhase(c, $event.target.value)"
                                         :style="'background: ' + getPhaseConfig(c.phase).color + ' !important'">
