@@ -529,12 +529,12 @@ AUFBAU DER E-MAIL (exakt diese Reihenfolge):
 
 5. Wenn vorhanden — ein besonderes Detail das den Kandidaten von anderen abhebt (z.B. Sprachkenntnisse fuer internationale Stelle, Branchenerfahrung die perfekt passt, Weiterbildung die Entwicklungspotenzial zeigt). ABER NUR wenn dieses Detail im Transkript oder in der Gespraechszusammenfassung bestaetigt wurde. Wenn kein bestaetigtes besonderes Detail vorliegt, ueberspringe diesen Abschnitt KOMPLETT — schreibe NICHTS dazu.
 
-6. Rahmendaten — schreibe einen kurzen Absatz (keine Aufzaehlung) mit den vorhandenen Infos:
-   - Standort des Kandidaten und Fahrzeit zum Unternehmen (wenn Fahrzeit-Daten vorhanden). Bewerte ob die Entfernung passt, z.B. "Die Kandidatin wohnt in Hamburg und waere in ca. 25 Minuten mit dem Auto bei Ihnen."
-   - Verfuegbarkeit / Kuendigungsfrist (wenn vorhanden)
-   - Gehaltsvorstellung (wenn vorhanden)
-   - Home-Office-Wunsch (wenn vorhanden)
-   Nur erwaehnen was tatsaechlich als Daten vorliegt. Nichts erfinden. Nichts aus dem CV uebernehmen was nicht im Transkript bestaetigt wurde.
+6. Rahmendaten — als Aufzaehlungsliste mit • (Bullet-Points), JEDER Punkt in einer eigenen Zeile:
+   • Fahrweg: Wenn konkrete Fahrzeiten vorliegen (Auto/OEPNV in Minuten), schreibe z.B. "Fahrweg: ca. 25 Min. mit dem Auto, ca. 35 Min. mit oeffentlichen Verkehrsmitteln". Wenn KEINE berechnete Fahrzeit vorliegt aber Pendelzeit-Praeferenzen existieren, schreibe stattdessen die Pendelbereitschaft des Kandidaten, z.B. "Pendelbereitschaft: bis 30 Min. mit dem Auto und oeffentlichen Verkehrsmitteln"
+   • Verfuegbarkeit: Kuendigungsfrist oder fruehester Starttermin (wenn vorhanden)
+   • Gehalt: Gehaltsvorstellung brutto p.a. (wenn vorhanden)
+   • Home-Office: Wunsch des Kandidaten (wenn vorhanden)
+   Nur Punkte auflisten zu denen tatsaechlich Daten vorliegen. Nichts erfinden. JEDER Punkt beginnt mit •.
 
 7. "Bei Interesse sende ich Ihnen gerne das vollstaendige Profil zu — eine kurze Rueckmeldung genuegt."
 
@@ -602,10 +602,15 @@ Sprachen: {json.dumps(candidate_data.get('languages') or dict(), ensure_ascii=Fa
 
 ═══ STANDORT & FAHRZEIT ═══
 Standort Firma: {extracted_job_data.get('city', 'unbekannt')}
-{f"Fahrzeit Kandidat → Firma: {drive_info}" if drive_info else "Fahrzeit: nicht berechnet"}
-{f"Home-Office-Wunsch: {home_office}" if home_office else ""}
+{f"BERECHNETE Fahrzeit (Google Maps, exakt): {drive_info}" if drive_info else "Fahrzeit: nicht berechnet (keine Koordinaten verfuegbar)"}
+{f"Pendelzeit-Praeferenz des Kandidaten: max. {candidate_data.get('commute_max', '')}" if candidate_data.get('commute_max') else ""}
+{f"Verkehrsmittel des Kandidaten: {candidate_data.get('commute_transport', '')}" if candidate_data.get('commute_transport') else ""}
+WICHTIG: Wenn eine BERECHNETE Fahrzeit vorliegt, verwende DIESE (exakt in Minuten). Wenn KEINE berechnete Fahrzeit vorliegt, verwende stattdessen die Pendelzeit-Praeferenz als Fallback.
+
+═══ RAHMENDATEN ═══
 {f"Verfuegbarkeit: {notice_period}" if notice_period else ""}
 {f"Gehaltsvorstellung: {salary_range}" if salary_range else ""}
+{f"Home-Office-Wunsch: {home_office}" if home_office else ""}
 
 ═══ ABGLEICH-ERGEBNIS (Staerken des Kandidaten) ═══
 {json.dumps(skills_comparison.get('strengths', []), ensure_ascii=False)}
@@ -1001,6 +1006,9 @@ ORIGINAL-TEXT:
             "further_education": candidate.further_education or [],
             "v2_certifications": candidate.v2_certifications or [],
             "v2_industries": candidate.v2_industries or [],
+            # Pendelzeit + Verkehrsmittel (Fallback wenn keine Fahrzeit berechnet)
+            "commute_max": candidate.commute_max or "",
+            "commute_transport": candidate.commute_transport or "",
         }
 
 
