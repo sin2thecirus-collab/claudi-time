@@ -43,6 +43,7 @@ class IonosSmtpClient:
         from_email: str,
         password: str,
         in_reply_to: str | None = None,
+        reply_to: str | None = None,
     ) -> dict:
         """Sendet eine E-Mail via IONOS SMTP.
 
@@ -53,6 +54,7 @@ class IonosSmtpClient:
             from_email: Absender (IONOS-Mailbox)
             password: SMTP-Passwort fuer diese Mailbox
             in_reply_to: Message-ID fuer Thread-Linking (optional)
+            reply_to: Reply-To-Adresse (default: hamdard@sincirus.com)
 
         Returns:
             {"success": bool, "message_id": str | None, "error": str | None}
@@ -68,6 +70,7 @@ class IonosSmtpClient:
         msg["From"] = from_email
         msg["To"] = to_email
         msg["Subject"] = subject
+        msg["Reply-To"] = reply_to or "hamdard@sincirus.com"
         msg.set_content(body_plain)
 
         # Thread-Linking Header

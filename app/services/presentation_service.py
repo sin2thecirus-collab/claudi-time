@@ -785,6 +785,10 @@ class PresentationService:
         if not presentation.sent_at:
             presentation.sent_at = now
 
+        # Status auf "sent" setzen (KRITISCH: ohne das bleibt status auf "draft"/"sending")
+        if presentation.status in ("draft", "sending"):
+            presentation.status = "sent"
+
         if n8n_execution_id:
             presentation.n8n_execution_id = n8n_execution_id
 

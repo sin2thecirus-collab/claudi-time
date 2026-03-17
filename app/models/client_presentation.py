@@ -33,6 +33,7 @@ class PresentationStatus(str, enum.Enum):
     """Status einer Kundenvorstellung."""
 
     DRAFT = "draft"                    # Entwurf (noch nicht gesendet)
+    SENDING = "sending"                # n8n sendet gerade (Zwischenstatus)
     SENT = "sent"                      # Initiale E-Mail gesendet
     FOLLOWUP_1 = "followup_1"         # 1. Erinnerung gesendet (nach 2 Tagen)
     FOLLOWUP_2 = "followup_2"         # 2. Erinnerung gesendet (nach 3 weiteren Tagen)

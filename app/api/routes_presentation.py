@@ -160,6 +160,8 @@ async def _trigger_n8n_workflow(presentation_data: dict, contact_name: str | Non
         "contact_name": contact_name,
         "pdf_base64": pdf_base64,
         "pdf_filename": pdf_filename,
+        # Reply-To: IMMER hamdard@sincirus.com (damit Antworten im Hauptpostfach landen)
+        "reply_to": "hamdard@sincirus.com",
         # Token fuer n8n Callback (damit n8n sich beim Rueckruf authentifizieren kann)
         "callback_auth_token": f"Bearer {settings.n8n_api_token}" if settings.n8n_api_token else "",
     }

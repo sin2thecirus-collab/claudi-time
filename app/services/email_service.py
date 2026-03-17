@@ -86,6 +86,7 @@ class MicrosoftGraphClient:
         subject: str,
         body_html: str,
         from_email: Optional[str] = None,
+        reply_to: Optional[str] = None,
     ) -> dict:
         """Sendet eine Email via Microsoft Graph API.
 
@@ -103,6 +104,9 @@ class MicrosoftGraphClient:
 
         graph_url = f"https://graph.microsoft.com/v1.0/users/{sender}/sendMail"
 
+        # Reply-To: IMMER hamdard@sincirus.com (damit Antworten im Hauptpostfach landen)
+        reply_to_addr = reply_to or "hamdard@sincirus.com"
+
         payload = {
             "message": {
                 "subject": subject,
@@ -112,6 +116,9 @@ class MicrosoftGraphClient:
                 },
                 "toRecipients": [
                     {"emailAddress": {"address": to_email}}
+                ],
+                "replyTo": [
+                    {"emailAddress": {"address": reply_to_addr}}
                 ],
             },
             "saveToSentItems": True,
