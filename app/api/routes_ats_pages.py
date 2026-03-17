@@ -162,12 +162,26 @@ async def ats_main(
                 selected_company_name = c.name
                 break
 
+    # PHASES fuer Jinja-Template (Spalten-Rendering mit Farben)
+    PHASES = [
+        {"id": "matched", "label": "Gematcht", "color": "#06b6d4", "light": "#22d3ee", "bg": "rgba(6,182,212,0.15)"},
+        {"id": "sent", "label": "Vorgestellt", "color": "#6366f1", "light": "#a5b4fc", "bg": "rgba(99,102,241,0.15)"},
+        {"id": "feedback", "label": "Feedback", "color": "#f59e0b", "light": "#fcd34d", "bg": "rgba(245,158,11,0.15)"},
+        {"id": "interview_1", "label": "Interview 1", "color": "#3b82f6", "light": "#93c5fd", "bg": "rgba(59,130,246,0.15)"},
+        {"id": "interview_2", "label": "Interview 2", "color": "#8b5cf6", "light": "#c4b5fd", "bg": "rgba(139,92,246,0.15)"},
+        {"id": "interview_3", "label": "Interview 3", "color": "#d946ef", "light": "#e879f9", "bg": "rgba(217,70,239,0.15)"},
+        {"id": "offer", "label": "Angebot", "color": "#f59e0b", "light": "#fcd34d", "bg": "rgba(245,158,11,0.15)"},
+        {"id": "placed", "label": "Platziert", "color": "#10b981", "light": "#6ee7b7", "bg": "rgba(16,185,129,0.15)"},
+        {"id": "rejected", "label": "Abgesagt", "color": "#64748b", "light": "#94a3b8", "bg": "rgba(148,163,184,0.08)"},
+    ]
+
     return templates.TemplateResponse("ats_pipeline_overview.html", {
         "request": request,
         "positions": positions,
         "pipeline_by_job": pipeline_by_job,
         "stages": PIPELINE_STAGE_ORDER,
         "stage_labels": PIPELINE_STAGE_LABELS,
+        "PHASES": PHASES,
         "all_companies": [{"id": str(c.id), "name": c.name} for c in all_companies],
         "selected_company_id": str(company_id) if company_id else None,
         "selected_company_name": selected_company_name,
