@@ -4,8 +4,8 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Boolean, DateTime, Enum, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -101,6 +101,16 @@ class ATSPipelineEntry(Base):
     drive_time_car_min: Mapped[int | None] = mapped_column(Integer, nullable=True)
     drive_time_transit_min: Mapped[int | None] = mapped_column(Integer, nullable=True)
     drive_time_car_km: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    # Interview-Scheduling
+    interview_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    interview_type: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    interview_location: Mapped[str | None] = mapped_column(Text, nullable=True)
+    interview_hint: Mapped[str | None] = mapped_column(Text, nullable=True)
+    interview_participants: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    interview_invite_by: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    interview_invite_sent: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    interview_event_id: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     # Details
     rejection_reason: Mapped[str | None] = mapped_column(Text)

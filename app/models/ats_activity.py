@@ -28,6 +28,8 @@ class ActivityType(str, enum.Enum):
     CANDIDATE_RESPONSE = "candidate_response"
     TODO_AUTO_COMPLETED = "todo_auto_completed"
     TODO_CANCELLED = "todo_cancelled"
+    INTERVIEW_SCHEDULED = "interview_scheduled"
+    INTERVIEW_CANCELLED = "interview_cancelled"
 
 
 # Deutsche Labels fuer UI
@@ -46,6 +48,8 @@ ACTIVITY_TYPE_LABELS = {
     ActivityType.CANDIDATE_RESPONSE: "Kandidaten-Antwort",
     ActivityType.TODO_AUTO_COMPLETED: "Aufgabe auto-erledigt",
     ActivityType.TODO_CANCELLED: "Aufgabe abgebrochen",
+    ActivityType.INTERVIEW_SCHEDULED: "Interview geplant",
+    ActivityType.INTERVIEW_CANCELLED: "Interview abgesagt",
 }
 
 # Icons fuer UI (Heroicons Name)
@@ -64,6 +68,8 @@ ACTIVITY_TYPE_ICONS = {
     ActivityType.CANDIDATE_RESPONSE: "chat-bubble-left-right",
     ActivityType.TODO_AUTO_COMPLETED: "sparkles",
     ActivityType.TODO_CANCELLED: "x-circle",
+    ActivityType.INTERVIEW_SCHEDULED: "calendar-days",
+    ActivityType.INTERVIEW_CANCELLED: "calendar-days",
 }
 
 

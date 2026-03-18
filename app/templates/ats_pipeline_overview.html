@@ -796,14 +796,27 @@ body::after {
                             </div>
                         </template>
 
-                        {# Row 3: Days #}
+                        {# Row 3: Interview-Termin (falls in Interview-Phase) #}
+                        <template x-if="card.interview_at && card.phase.startsWith('interview_')">
+                            <div @click.stop="editInterview(card)" style="display: flex; align-items: center; gap: 6px; font-size: 11px; margin-top: 8px; padding: 6px 8px; background: rgba(59,130,246,0.08); border-radius: 8px; cursor: pointer; transition: background 0.2s;"
+                                 @mouseenter="$el.style.background='rgba(59,130,246,0.15)'" @mouseleave="$el.style.background='rgba(59,130,246,0.08)'"
+                                 :style="'color: ' + interviewDateColor(card.interview_at)">
+                                📅 <span x-text="formatInterviewDate(card.interview_at)"></span>
+                                · <span x-text="card.interview_type === 'digital' ? '💻 Teams' : '🏢 Vor Ort'"></span>
+                                <template x-if="card.interview_invite_sent">
+                                    <span style="color: #22c55e; margin-left: 2px;">✓</span>
+                                </template>
+                            </div>
+                        </template>
+
+                        {# Row 4: Days #}
                         <div style="display: flex; align-items: center; gap: 4px; font-size: 11px; margin-top: 10px;"
                              :style="'color: ' + daysColor(card.days)">
                             <div style="width: 6px; height: 6px; border-radius: 50%;" :style="'background: ' + daysColor(card.days)" :class="card.days <= 3 ? 'pcc-pulse' : ''"></div>
                             <span x-text="card.days + ' Tage in dieser Phase'"></span>
                         </div>
 
-                        {# Row 4: Actions + Delete #}
+                        {# Row 5: Actions + Delete #}
                         <div class="pcc-actions" @click.stop>
                             <div class="pcc-abtn pcc-abtn-k" :class="kOpen && 'open'" @click="kOpen = !kOpen; cOpen = false" @click.away="kOpen = false">
                                 <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6.5" cy="4" r="3"/><path d="M1 12c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/></svg>
@@ -1280,6 +1293,171 @@ body::after {
 </template>
 
 {# ════════════════════════════════════════════
+   INTERVIEW-SCHEDULING MODAL
+   ════════════════════════════════════════════ #}
+<template x-if="interviewModal">
+    <div class="pcc-modal-bg" @click.self="interviewModal = false" style="z-index: 1200;">
+        <div class="pcc-modal" style="max-width: 580px; width: 95%;">
+            {# Header #}
+            <div class="pcc-modal-header">
+                <div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 20px;">📅</span>
+                        <h3 style="font-size: 16px; font-weight: 700; color: var(--pp-text);"
+                            x-text="(interviewExisting ? 'Interview bearbeiten' : 'Interview planen') + (interviewEntry ? ' — ' + interviewEntry.name : '')"></h3>
+                    </div>
+                    <p style="font-size: 12px; color: var(--pp-textMuted); margin-top: 4px;"
+                       x-text="interviewEntry ? interviewEntry.company + ' · ' + interviewEntry.job_title : ''"></p>
+                </div>
+                <button class="pcc-modal-close" @click="interviewModal = false">&#x2715;</button>
+            </div>
+
+            <div style="padding: 16px 20px; max-height: 70vh; overflow-y: auto;">
+                {# ── Datum + Uhrzeit ── #}
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+                    <div>
+                        <label style="font-size: 12px; font-weight: 600; color: var(--pp-text); margin-bottom: 4px; display: block;">Datum *</label>
+                        <input type="date" x-model="interviewData.date" required
+                            style="width: 100%; padding: 10px 12px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.15); border-radius: 10px; color: var(--pp-text); font-size: 13px; outline: none; color-scheme: dark;">
+                    </div>
+                    <div>
+                        <label style="font-size: 12px; font-weight: 600; color: var(--pp-text); margin-bottom: 4px; display: block;">Uhrzeit *</label>
+                        <input type="time" x-model="interviewData.time" required
+                            style="width: 100%; padding: 10px 12px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.15); border-radius: 10px; color: var(--pp-text); font-size: 13px; outline: none; color-scheme: dark;">
+                    </div>
+                </div>
+
+                {# ── Art des Gesprächs ── #}
+                <div style="margin-bottom: 16px;">
+                    <label style="font-size: 12px; font-weight: 600; color: var(--pp-text); margin-bottom: 8px; display: block;">Art des Gesprächs</label>
+                    <div style="display: flex; gap: 10px;">
+                        <label @click="interviewData.type = 'digital'"
+                            :style="interviewData.type === 'digital' ? 'background: rgba(99,102,241,0.15); border-color: #6366f1;' : ''"
+                            style="flex: 1; padding: 10px 14px; border: 1px solid rgba(99,102,241,0.15); border-radius: 10px; cursor: pointer; text-align: center; font-size: 13px; color: var(--pp-text); transition: all 0.2s;">
+                            💻 Digital (Teams)
+                        </label>
+                        <label @click="interviewData.type = 'vor_ort'"
+                            :style="interviewData.type === 'vor_ort' ? 'background: rgba(99,102,241,0.15); border-color: #6366f1;' : ''"
+                            style="flex: 1; padding: 10px 14px; border: 1px solid rgba(99,102,241,0.15); border-radius: 10px; cursor: pointer; text-align: center; font-size: 13px; color: var(--pp-text); transition: all 0.2s;">
+                            🏢 Vor Ort
+                        </label>
+                    </div>
+                </div>
+
+                {# ── Digital: Info ── #}
+                <div x-show="interviewData.type === 'digital'" style="margin-bottom: 16px; padding: 12px 14px; background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.2); border-radius: 10px;">
+                    <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #93c5fd;">
+                        🔗 Teams-Link wird automatisch generiert und an alle Teilnehmer verschickt
+                    </div>
+                </div>
+
+                {# ── Vor Ort: Adresse + Hinweis ── #}
+                <template x-if="interviewData.type === 'vor_ort'">
+                    <div style="margin-bottom: 16px;">
+                        <label style="font-size: 12px; font-weight: 600; color: var(--pp-text); margin-bottom: 4px; display: block;">Adresse</label>
+                        <input type="text" x-model="interviewData.location" placeholder="Firmenadresse..."
+                            style="width: 100%; padding: 10px 12px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.15); border-radius: 10px; color: var(--pp-text); font-size: 13px; outline: none; margin-bottom: 4px;">
+                        <template x-if="!interviewData.location">
+                            <div style="font-size: 11px; color: #f59e0b;">⚠ Keine Firmenadresse hinterlegt — bitte manuell eingeben</div>
+                        </template>
+                        <div style="margin-top: 8px;">
+                            <label style="font-size: 12px; font-weight: 600; color: var(--pp-text); margin-bottom: 4px; display: block;">Hinweis zum Empfang</label>
+                            <input type="text" x-model="interviewData.hint" placeholder="z.B. Bitte am Empfang melden"
+                                style="width: 100%; padding: 10px 12px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.15); border-radius: 10px; color: var(--pp-text); font-size: 13px; outline: none;">
+                        </div>
+                    </div>
+                </template>
+
+                {# ── Teilnehmer (Firma) ── #}
+                <div style="margin-bottom: 16px;">
+                    <label style="font-size: 12px; font-weight: 600; color: var(--pp-text); margin-bottom: 8px; display: block;">Teilnehmer seitens der Firma</label>
+
+                    {# Aus Kontakten hinzufuegen #}
+                    <template x-if="interviewContacts.length > 0">
+                        <div style="margin-bottom: 8px;">
+                            <select @change="if ($event.target.value) { ivAddFromContact($event.target.value); $event.target.value = ''; }"
+                                style="width: 100%; padding: 8px 12px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.15); border-radius: 8px; color: var(--pp-text); font-size: 12px; outline: none;">
+                                <option value="">Aus Kontakten hinzufügen...</option>
+                                <template x-for="ct in interviewContacts" :key="ct.id">
+                                    <option :value="ct.id" x-text="(ct.salutation ? ct.salutation + ' ' : '') + ct.full_name + (ct.position ? ' (' + ct.position + ')' : '')"></option>
+                                </template>
+                            </select>
+                        </div>
+                    </template>
+
+                    {# Hinzugefuegte Teilnehmer Liste #}
+                    <template x-for="(p, idx) in interviewData.participants" :key="idx">
+                        <div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: rgba(99,102,241,0.06); border-radius: 8px; margin-bottom: 4px; font-size: 12px; color: var(--pp-text);">
+                            <span style="flex: 1;" x-text="(p.anrede ? p.anrede + ' ' : '') + (p.vorname ? p.vorname + ' ' : '') + p.nachname + (p.rolle ? ' (' + p.rolle + ')' : '') + (p.email ? ' — ' + p.email : '')"></span>
+                            <button @click="ivRemoveParticipant(idx)" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 14px; padding: 2px;">✕</button>
+                        </div>
+                    </template>
+
+                    {# Manuell hinzufuegen #}
+                    <div style="margin-top: 8px; padding: 10px; background: rgba(99,102,241,0.03); border: 1px dashed rgba(99,102,241,0.15); border-radius: 8px;">
+                        <div style="font-size: 11px; color: var(--pp-textMuted); margin-bottom: 6px;">Manuell hinzufügen:</div>
+                        <div style="display: grid; grid-template-columns: 80px 1fr 1fr; gap: 6px; margin-bottom: 6px;">
+                            <select x-model="ivNewAnrede" style="padding: 6px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.12); border-radius: 6px; color: var(--pp-text); font-size: 11px; outline: none;">
+                                <option value="">Anrede</option>
+                                <option>Herr</option>
+                                <option>Frau</option>
+                            </select>
+                            <input type="text" x-model="ivNewVorname" placeholder="Vorname" style="padding: 6px 8px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.12); border-radius: 6px; color: var(--pp-text); font-size: 11px; outline: none;">
+                            <input type="text" x-model="ivNewNachname" placeholder="Nachname *" style="padding: 6px 8px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.12); border-radius: 6px; color: var(--pp-text); font-size: 11px; outline: none;">
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px;">
+                            <input type="email" x-model="ivNewEmail" placeholder="E-Mail" style="padding: 6px 8px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.12); border-radius: 6px; color: var(--pp-text); font-size: 11px; outline: none;">
+                            <input type="text" x-model="ivNewRolle" placeholder="Rolle (z.B. CFO)" style="padding: 6px 8px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.12); border-radius: 6px; color: var(--pp-text); font-size: 11px; outline: none;">
+                            <button @click="ivAddManual()" :disabled="!ivNewNachname.trim()"
+                                style="padding: 6px 12px; background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.3); border-radius: 6px; color: #a5b4fc; font-size: 11px; font-weight: 600; cursor: pointer;">+</button>
+                        </div>
+                    </div>
+                </div>
+
+                {# ── Wer lädt ein? ── #}
+                <div style="margin-bottom: 16px;">
+                    <label style="font-size: 12px; font-weight: 600; color: var(--pp-text); margin-bottom: 8px; display: block;">Wer lädt ein?</label>
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <label @click="if (interviewEntry && interviewEntry.candidate_email) interviewData.invite_by = 'recruiter'"
+                            :style="interviewData.invite_by === 'recruiter' ? 'background: rgba(99,102,241,0.15); border-color: #6366f1;' : ''"
+                            :class="{'opacity-50 pointer-events-none': interviewEntry && !interviewEntry.candidate_email}"
+                            style="padding: 10px 14px; border: 1px solid rgba(99,102,241,0.15); border-radius: 10px; cursor: pointer; font-size: 13px; color: var(--pp-text); transition: all 0.2s;">
+                            📧 Ich — Einladung geht automatisch raus
+                            <template x-if="interviewEntry && !interviewEntry.candidate_email">
+                                <span style="display: block; font-size: 11px; color: #f59e0b; margin-top: 4px;">⚠ Kandidat hat keine E-Mail — Einladung nicht möglich</span>
+                            </template>
+                        </label>
+                        <label @click="interviewData.invite_by = 'kunde'"
+                            :style="interviewData.invite_by === 'kunde' ? 'background: rgba(99,102,241,0.15); border-color: #6366f1;' : ''"
+                            style="padding: 10px 14px; border: 1px solid rgba(99,102,241,0.15); border-radius: 10px; cursor: pointer; font-size: 13px; color: var(--pp-text); transition: all 0.2s;">
+                            🏢 Kunde — nur intern vermerken
+                        </label>
+                    </div>
+                    <template x-if="interviewExisting && interviewEntry && interviewEntry.interview_invite_sent">
+                        <div style="margin-top: 6px; font-size: 11px; color: #f59e0b;">⚠ Einladung wurde bereits verschickt. Bei Änderung wird eine neue gesendet.</div>
+                    </template>
+                </div>
+            </div>
+
+            {# ── Footer ── #}
+            <div style="padding: 14px 20px; border-top: 1px solid rgba(99,102,241,0.08); display: flex; justify-content: flex-end; gap: 10px;">
+                <template x-if="!interviewExisting">
+                    <button @click="interviewModal = false" style="padding: 10px 20px; border-radius: 10px; font-size: 13px; font-weight: 600; border: 1px solid rgba(99,102,241,0.15); background: transparent; color: var(--pp-textMuted); cursor: pointer;">
+                        Überspringen
+                    </button>
+                </template>
+                <button @click="submitInterview()" :disabled="interviewSaving || !interviewData.date || !interviewData.time"
+                    style="padding: 10px 24px; border-radius: 10px; font-size: 13px; font-weight: 700; border: none; cursor: pointer; transition: all 0.2s;"
+                    :style="(!interviewData.date || !interviewData.time) ? 'background: rgba(99,102,241,0.1); color: var(--pp-textMuted);' : 'background: linear-gradient(135deg, #6366f1, #4f46e5); color: white;'">
+                    <span x-show="interviewSaving">⏳</span>
+                    <span x-text="interviewExisting ? 'Interview aktualisieren' : 'Interview planen'"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+</template>
+
+{# ════════════════════════════════════════════
    RAWTEXT-IMPORT MODAL
    ════════════════════════════════════════════ #}
 <template x-if="showRawtextModal">
@@ -1716,6 +1894,15 @@ function pipelineCommandCenter() {
         addStage: 'sent',
         positions,
         pinnedIds: JSON.parse(localStorage.getItem('pcc_pinned') || '[]'),
+        // Interview-Scheduling
+        interviewModal: false,
+        interviewEntry: null,
+        interviewExisting: false,
+        interviewData: { date: '', time: '', type: 'digital', location: '', hint: '', participants: [], invite_by: 'recruiter' },
+        interviewSaving: false,
+        interviewContacts: [],
+        // Teilnehmer manuell hinzufuegen
+        ivNewAnrede: '', ivNewVorname: '', ivNewNachname: '', ivNewEmail: '', ivNewRolle: '',
 
         init() { console.log('Pipeline Command Center geladen:', positions.length, 'Positionen'); },
 
@@ -1934,7 +2121,11 @@ function pipelineCommandCenter() {
                     body: JSON.stringify({ stage: newPhase })
                 });
                 if (r.ok) {
+                    const data = await r.json();
                     if (typeof showToast === 'function') showToast(this.draggedCard.name + ' verschoben', 'success');
+                    if (data.needs_interview) {
+                        this._openInterviewModal(this.draggedCard, data);
+                    }
                 } else {
                     this.draggedCard.phase = oldPhase;
                     if (typeof showToast === 'function') showToast('Fehler beim Verschieben', 'error');
@@ -1957,7 +2148,11 @@ function pipelineCommandCenter() {
                     body: JSON.stringify({ stage: newPhase })
                 });
                 if (r.ok) {
+                    const data = await r.json();
                     if (typeof showToast === 'function') showToast(card.name + ' → ' + this.getPhaseConfig(newPhase).label, 'success');
+                    if (data.needs_interview) {
+                        this._openInterviewModal(card, data);
+                    }
                 } else {
                     card.phase = oldPhase;
                     if (typeof showToast === 'function') showToast('Fehler beim Verschieben', 'error');
@@ -1966,6 +2161,133 @@ function pipelineCommandCenter() {
                 card.phase = oldPhase;
                 console.error('Phase change error:', e);
             }
+        },
+
+        // ── Interview-Scheduling ──────────────────────────
+        async _openInterviewModal(card, stageData) {
+            this.interviewEntry = card;
+            this.interviewExisting = false;
+            const addr = [stageData.company_address, stageData.company_postal_code, stageData.company_city].filter(Boolean).join(', ');
+            this.interviewData = {
+                date: '', time: '', type: 'digital',
+                location: addr, hint: '',
+                participants: [], invite_by: 'recruiter'
+            };
+            this.interviewContacts = [];
+            this.ivNewAnrede = ''; this.ivNewVorname = ''; this.ivNewNachname = ''; this.ivNewEmail = ''; this.ivNewRolle = '';
+            if (stageData.company_id) {
+                try {
+                    const cr = await fetch('/api/ats/pipeline/company-contacts/' + stageData.company_id);
+                    if (cr.ok) this.interviewContacts = await cr.json();
+                } catch (e) { console.error('Contacts load error:', e); }
+            }
+            this.interviewModal = true;
+        },
+
+        async editInterview(card) {
+            try {
+                const r = await fetch('/api/ats/pipeline/entries/' + card.entry_id + '/interview');
+                if (!r.ok) return;
+                const d = await r.json();
+                this.interviewEntry = card;
+                this.interviewExisting = true;
+                this.interviewData = {
+                    date: d.interview_at ? d.interview_at.split('T')[0] : '',
+                    time: d.interview_at ? d.interview_at.split('T')[1]?.substring(0,5) || '' : '',
+                    type: d.interview_type || 'digital',
+                    location: d.interview_location || '',
+                    hint: d.interview_hint || '',
+                    participants: d.interview_participants || [],
+                    invite_by: d.interview_invite_by || 'recruiter'
+                };
+                this.ivNewAnrede = ''; this.ivNewVorname = ''; this.ivNewNachname = ''; this.ivNewEmail = ''; this.ivNewRolle = '';
+                // Kontakte laden
+                if (card.company_id) {
+                    const cr = await fetch('/api/ats/pipeline/company-contacts/' + card.company_id);
+                    if (cr.ok) this.interviewContacts = await cr.json();
+                }
+                this.interviewModal = true;
+            } catch (e) { console.error('editInterview error:', e); }
+        },
+
+        ivAddFromContact(contactId) {
+            const ct = this.interviewContacts.find(c => c.id === contactId);
+            if (!ct) return;
+            // Duplikat-Check per Email
+            if (ct.email && this.interviewData.participants.some(p => p.email === ct.email)) return;
+            this.interviewData.participants.push({
+                anrede: ct.salutation || '', vorname: ct.first_name || '',
+                nachname: ct.last_name || '', email: ct.email || '',
+                rolle: ct.position || ''
+            });
+        },
+
+        ivAddManual() {
+            if (!this.ivNewNachname.trim()) return;
+            this.interviewData.participants.push({
+                anrede: this.ivNewAnrede, vorname: this.ivNewVorname,
+                nachname: this.ivNewNachname, email: this.ivNewEmail,
+                rolle: this.ivNewRolle
+            });
+            this.ivNewAnrede = ''; this.ivNewVorname = ''; this.ivNewNachname = ''; this.ivNewEmail = ''; this.ivNewRolle = '';
+        },
+
+        ivRemoveParticipant(idx) { this.interviewData.participants.splice(idx, 1); },
+
+        async submitInterview() {
+            if (!this.interviewData.date || !this.interviewData.time) {
+                if (typeof showToast === 'function') showToast('Datum und Uhrzeit sind Pflicht', 'error');
+                return;
+            }
+            this.interviewSaving = true;
+            const payload = {
+                interview_at: this.interviewData.date + 'T' + this.interviewData.time + ':00',
+                interview_type: this.interviewData.type,
+                interview_location: this.interviewData.type === 'vor_ort' ? this.interviewData.location : null,
+                interview_hint: this.interviewData.type === 'vor_ort' ? this.interviewData.hint : null,
+                interview_participants: this.interviewData.participants,
+                interview_invite_by: this.interviewData.invite_by,
+            };
+            try {
+                const r = await fetch('/api/ats/pipeline/entries/' + this.interviewEntry.entry_id + '/interview', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (r.ok) {
+                    const data = await r.json();
+                    this.interviewEntry.interview_at = payload.interview_at;
+                    this.interviewEntry.interview_type = payload.interview_type;
+                    this.interviewEntry.interview_invite_sent = payload.interview_invite_by === 'recruiter';
+                    if (typeof showToast === 'function') showToast(data.message || 'Interview geplant', 'success');
+                } else {
+                    const err = await r.json().catch(() => ({}));
+                    if (typeof showToast === 'function') showToast(err.detail || 'Fehler', 'error');
+                }
+            } catch (e) {
+                console.error('submitInterview error:', e);
+                if (typeof showToast === 'function') showToast('Fehler beim Planen', 'error');
+            }
+            this.interviewSaving = false;
+            this.interviewModal = false;
+        },
+
+        formatInterviewDate(isoStr) {
+            if (!isoStr) return '';
+            const d = new Date(isoStr);
+            const days = ['So','Mo','Di','Mi','Do','Fr','Sa'];
+            return days[d.getDay()] + ', ' + d.getDate() + '.' + (d.getMonth()+1) + '. · ' + d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
+        },
+
+        interviewDateColor(isoStr) {
+            if (!isoStr) return 'var(--pp-textMuted)';
+            const d = new Date(isoStr);
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const interviewDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+            if (interviewDay < today) return '#ef4444';
+            if (interviewDay.getTime() === today.getTime()) return '#f59e0b';
+            return 'var(--pp-textMuted)';
         },
 
         // Add Candidate

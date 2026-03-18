@@ -47,6 +47,15 @@ class BulkMoveRequest(BaseModel):
     stage: str
 
 
+class ScheduleInterviewRequest(BaseModel):
+    interview_at: datetime
+    interview_type: str  # "vor_ort" / "digital"
+    interview_location: Optional[str] = None
+    interview_hint: Optional[str] = None
+    interview_participants: Optional[list[dict]] = None
+    interview_invite_by: str  # "recruiter" / "kunde"
+
+
 class ParseJobTextRequest(BaseModel):
     raw_text: str
 
@@ -221,6 +230,10 @@ async def get_pipeline(job_id: UUID, db: AsyncSession = Depends(get_db)):
                 "sort_order": entry.sort_order,
                 "stage_changed_at": entry.stage_changed_at.isoformat() if entry.stage_changed_at else None,
                 "created_at": entry.created_at.isoformat() if entry.created_at else None,
+                "interview_at": entry.interview_at.isoformat() if entry.interview_at else None,
+                "interview_type": entry.interview_type,
+                "interview_location": entry.interview_location,
+                "interview_invite_sent": entry.interview_invite_sent,
             })
         result[stage_key] = {
             "label": stage_data["label"],
@@ -285,11 +298,124 @@ async def move_pipeline_stage(
     if not entry:
         raise HTTPException(status_code=404, detail="Pipeline-Eintrag nicht gefunden")
     await db.commit()
-    return {
+
+    response = {
         "id": str(entry.id),
         "stage": entry.stage.value,
         "stage_label": entry.stage_label,
         "message": f"Stage auf '{entry.stage_label}' geaendert",
+        "needs_interview": False,
+    }
+
+    # Bei Interview-Stages: Company-Daten mitliefern fuer Modal
+    if data.stage.startswith("interview_"):
+        response["needs_interview"] = True
+        from app.models.ats_pipeline import ATSPipelineEntry
+        from app.models.ats_job import ATSJob
+        from sqlalchemy.orm import selectinload
+
+        entry_full = await db.execute(
+            select(ATSPipelineEntry)
+            .options(
+                selectinload(ATSPipelineEntry.ats_job).selectinload(ATSJob.company),
+                selectinload(ATSPipelineEntry.candidate),
+            )
+            .where(ATSPipelineEntry.id == entry_id)
+        )
+        entry_obj = entry_full.scalar_one_or_none()
+        if entry_obj:
+            job = entry_obj.ats_job
+            company = job.company if job else None
+            candidate = entry_obj.candidate
+            response["company_address"] = company.address if company else ""
+            response["company_postal_code"] = company.postal_code if company else ""
+            response["company_city"] = company.city if company else ""
+            response["company_id"] = str(company.id) if company else None
+            response["candidate_email"] = candidate.email if candidate else ""
+
+    return response
+
+
+# ── Interview-Scheduling ──────────────────────────────────
+
+
+@router.post("/entries/{entry_id}/interview")
+async def schedule_interview_endpoint(
+    entry_id: UUID,
+    data: ScheduleInterviewRequest,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+):
+    """Plant ein Interview (Datum, Uhrzeit, Art, Teilnehmer) und verschickt optional Einladung."""
+    from app.services.interview_service import schedule_interview, send_interview_invite
+    from app.models.ats_pipeline import ATSPipelineEntry
+
+    entry = await db.get(ATSPipelineEntry, entry_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Pipeline-Eintrag nicht gefunden")
+
+    if not entry.stage.value.startswith("interview_"):
+        raise HTTPException(status_code=400, detail=f"Entry ist in Stage '{entry.stage.value}' — nicht Interview")
+
+    # Validierung: Bei "recruiter" muss Kandidat Email haben
+    if data.interview_invite_by == "recruiter" and entry.candidate_id:
+        from app.models.candidate import Candidate
+        cand = await db.get(Candidate, entry.candidate_id)
+        if not cand or not cand.email:
+            raise HTTPException(status_code=400, detail="Kandidat hat keine E-Mail — Einladung nicht moeglich")
+
+    result = await schedule_interview(
+        entry_id=entry_id,
+        data={
+            "interview_at": data.interview_at,
+            "interview_type": data.interview_type,
+            "interview_location": data.interview_location,
+            "interview_hint": data.interview_hint,
+            "interview_participants": data.interview_participants,
+            "interview_invite_by": data.interview_invite_by,
+        },
+        db=db,
+    )
+
+    if not result["success"]:
+        raise HTTPException(status_code=500, detail=result["error"])
+
+    await db.commit()
+
+    # Background-Task: Einladung senden
+    if data.interview_invite_by == "recruiter":
+        background_tasks.add_task(send_interview_invite, entry_id)
+
+    return {
+        "id": str(entry_id),
+        "interview_at": data.interview_at.isoformat(),
+        "interview_type": data.interview_type,
+        "interview_invite_by": data.interview_invite_by,
+        "invite_will_be_sent": data.interview_invite_by == "recruiter",
+        "message": "Interview geplant" + (" — Einladung wird verschickt" if data.interview_invite_by == "recruiter" else ""),
+    }
+
+
+@router.get("/entries/{entry_id}/interview")
+async def get_interview_details(
+    entry_id: UUID, db: AsyncSession = Depends(get_db),
+):
+    """Gibt Interview-Details zurueck (fuer Modal-Prefill beim Bearbeiten)."""
+    from app.models.ats_pipeline import ATSPipelineEntry
+
+    entry = await db.get(ATSPipelineEntry, entry_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Pipeline-Eintrag nicht gefunden")
+
+    return {
+        "interview_at": entry.interview_at.isoformat() if entry.interview_at else None,
+        "interview_type": entry.interview_type,
+        "interview_location": entry.interview_location,
+        "interview_hint": entry.interview_hint,
+        "interview_participants": entry.interview_participants,
+        "interview_invite_by": entry.interview_invite_by,
+        "interview_invite_sent": entry.interview_invite_sent,
+        "interview_event_id": entry.interview_event_id,
     }
 
 

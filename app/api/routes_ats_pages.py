@@ -154,6 +154,13 @@ async def ats_main(
                 "job_title": job.title,
                 "job_id": str(job.id),
                 "location": job.location_city or c.city or "",
+                "interview_at": entry.interview_at.isoformat() if entry.interview_at else None,
+                "interview_type": entry.interview_type,
+                "interview_invite_sent": entry.interview_invite_sent,
+                "candidate_email": c.email or "",
+                "company_address": job.company.address if job.company else "",
+                "company_postal_code": job.company.postal_code if job.company else "",
+                "company_city": job.company.city if job.company else "",
             })
         pipeline_by_job[job_id_str] = cards
 
