@@ -179,6 +179,9 @@ body::after {
 @keyframes pcc-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 .pcc-pulse { animation: pcc-pulse 2s ease-in-out infinite; }
 
+/* Spinner */
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
 /* Tags */
 .pcc-tag {
     display: inline-flex; align-items: center; gap: 4px;
@@ -451,6 +454,11 @@ body::after {
                 <span style="font-size: 11px; color: var(--pp-textMuted);">Command Center</span>
             </div>
             <div style="display: flex; align-items: center; gap: 6px;">
+                {# Rawtext-Import Button #}
+                <div class="pcc-qact" @click="showRawtextModal = true; rawtextStep = 1; rawtextInput = ''; rawtextData = null; rawtextError = null"
+                     style="background: rgba(16,185,129,0.12);" title="Stelle aus Text erstellen">
+                    <svg width="15" height="15" fill="none" stroke="#34d399" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                </div>
                 <div style="position: relative;">
                     <div class="pcc-qact" @click="showAddModal = true; addJobId = activePosition || (positions.length > 0 ? positions[0].id : null); addStage = 'sent'" style="background: rgba(99,102,241,0.12);">
                         <svg width="16" height="16" fill="none" stroke="#818cf8" stroke-width="2"><path d="M8 3v10M3 8h10"/></svg>
@@ -1155,6 +1163,212 @@ body::after {
 </div>
 
 {# ════════════════════════════════════════════
+   RAWTEXT-IMPORT MODAL
+   ════════════════════════════════════════════ #}
+<template x-if="showRawtextModal">
+    <div class="pcc-modal-bg" @click.self="showRawtextModal = false" style="z-index: 1100;">
+        <div class="pcc-modal" :style="rawtextStep === 2 ? 'max-width: 780px; width: 95%' : 'max-width: 560px'">
+            {# Header #}
+            <div class="pcc-modal-header">
+                <div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <svg width="20" height="20" fill="none" stroke="#34d399" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        <h3 style="font-size: 16px; font-weight: 700; color: var(--pp-text);">Stelle aus Text erstellen</h3>
+                    </div>
+                    <p style="font-size: 12px; color: var(--pp-textMuted); margin-top: 4px;"
+                       x-text="rawtextStep === 1 ? 'Stellentext einfügen und analysieren lassen' : rawtextStep === 2 ? 'Extrahierte Daten prüfen und bearbeiten' : 'Stelle erfolgreich erstellt!'"></p>
+                </div>
+                <button class="pcc-modal-close" @click="showRawtextModal = false">&#x2715;</button>
+            </div>
+
+            {# ── Schritt 1: Text einfügen ── #}
+            <div x-show="rawtextStep === 1" style="padding: 16px 20px;">
+                <textarea x-model="rawtextInput"
+                    placeholder="Stellentext hier einfügen (z.B. von StepStone, Indeed, Unternehmenswebsite)...&#10;&#10;Der Text kann alles enthalten: Stellenbeschreibung, Firmeninfos, Ansprechpartner, Adresse, etc."
+                    style="width: 100%; min-height: 300px; padding: 14px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.15); border-radius: 12px; color: var(--pp-text); font-size: 13px; line-height: 1.6; resize: vertical; outline: none; font-family: inherit;"
+                    @focus="$el.style.borderColor='rgba(99,102,241,0.4)'"
+                    @blur="$el.style.borderColor='rgba(99,102,241,0.15)'"></textarea>
+
+                <template x-if="rawtextError">
+                    <div style="margin-top: 10px; padding: 10px 14px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); border-radius: 10px; color: #fca5a5; font-size: 12px;" x-text="rawtextError"></div>
+                </template>
+
+                <div style="margin-top: 14px; display: flex; justify-content: flex-end;">
+                    <button @click="rawtextAnalyze()" :disabled="rawtextParsing || !rawtextInput || rawtextInput.trim().length < 20"
+                        style="padding: 10px 28px; border-radius: 10px; font-size: 13px; font-weight: 700; border: none; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s;"
+                        :style="rawtextParsing || !rawtextInput || rawtextInput.trim().length < 20
+                            ? 'background: rgba(99,102,241,0.1); color: #64748b; cursor: not-allowed;'
+                            : 'background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; box-shadow: 0 4px 14px rgba(99,102,241,0.3);'">
+                        <template x-if="rawtextParsing">
+                            <svg style="animation: spin 1s linear infinite;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                        </template>
+                        <span x-text="rawtextParsing ? 'Analysiere...' : 'Analysieren'"></span>
+                    </button>
+                </div>
+            </div>
+
+            {# ── Schritt 2: Daten prüfen ── #}
+            <div x-show="rawtextStep === 2" style="padding: 16px 20px; max-height: 65vh; overflow-y: auto;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    {# Linke Spalte: Firma + Kontakt #}
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                            <h4 style="font-size: 13px; font-weight: 700; color: var(--pp-text);">Unternehmen</h4>
+                            <span x-show="rawtextData && !rawtextData.company_is_new" style="padding: 2px 8px; border-radius: 6px; font-size: 10px; font-weight: 600; background: rgba(16,185,129,0.15); color: #34d399;">Gefunden</span>
+                            <span x-show="rawtextData && rawtextData.company_is_new" style="padding: 2px 8px; border-radius: 6px; font-size: 10px; font-weight: 600; background: rgba(99,102,241,0.15); color: #a5b4fc;">Neu</span>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            <div>
+                                <label style="font-size: 11px; color: var(--pp-textMuted); margin-bottom: 3px; display: block;">Firmenname *</label>
+                                <input x-model="rawtextData.company_name" style="width: 100%; padding: 8px 12px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.15); border-radius: 8px; color: var(--pp-text); font-size: 13px; outline: none;">
+                            </div>
+                            <div>
+                                <label style="font-size: 11px; color: var(--pp-textMuted); margin-bottom: 3px; display: block;">Adresse</label>
+                                <input x-model="rawtextData.company_address" style="width: 100%; padding: 8px 12px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.15); border-radius: 8px; color: var(--pp-text); font-size: 13px; outline: none;">
+                            </div>
+                            <div style="display: grid; grid-template-columns: 100px 1fr; gap: 8px;">
+                                <div>
+                                    <label style="font-size: 11px; color: var(--pp-textMuted); margin-bottom: 3px; display: block;">PLZ</label>
+                                    <input x-model="rawtextData.company_postal_code" style="width: 100%; padding: 8px 12px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.15); border-radius: 8px; color: var(--pp-text); font-size: 13px; outline: none;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 11px; color: var(--pp-textMuted); margin-bottom: 3px; display: block;">Stadt</label>
+                                    <input x-model="rawtextData.company_city" style="width: 100%; padding: 8px 12px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.15); border-radius: 8px; color: var(--pp-text); font-size: 13px; outline: none;">
+                                </div>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                <div>
+                                    <label style="font-size: 11px; color: var(--pp-textMuted); margin-bottom: 3px; display: block;">Domain</label>
+                                    <input x-model="rawtextData.company_domain" style="width: 100%; padding: 8px 12px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.15); border-radius: 8px; color: var(--pp-text); font-size: 13px; outline: none;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 11px; color: var(--pp-textMuted); margin-bottom: 3px; display: block;">Telefon</label>
+                                    <input x-model="rawtextData.company_phone" style="width: 100%; padding: 8px 12px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.15); border-radius: 8px; color: var(--pp-text); font-size: 13px; outline: none;">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 18px; display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                            <h4 style="font-size: 13px; font-weight: 700; color: var(--pp-text);">Ansprechpartner</h4>
+                            <span x-show="rawtextData && !rawtextData.contact_is_new && rawtextData.contact_match" style="padding: 2px 8px; border-radius: 6px; font-size: 10px; font-weight: 600; background: rgba(16,185,129,0.15); color: #34d399;">Gefunden</span>
+                            <span x-show="rawtextData && rawtextData.contact_is_new && (rawtextData.contact_first_name || rawtextData.contact_last_name)" style="padding: 2px 8px; border-radius: 6px; font-size: 10px; font-weight: 600; background: rgba(99,102,241,0.15); color: #a5b4fc;">Neu</span>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            <div>
+                                <label style="font-size: 11px; color: var(--pp-textMuted); margin-bottom: 3px; display: block;">Anrede</label>
+                                <select x-model="rawtextData.contact_salutation" style="width: 100%; padding: 8px 12px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.15); border-radius: 8px; color: var(--pp-text); font-size: 13px; outline: none;">
+                                    <option value="">—</option>
+                                    <option value="Herr">Herr</option>
+                                    <option value="Frau">Frau</option>
+                                </select>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                <div>
+                                    <label style="font-size: 11px; color: var(--pp-textMuted); margin-bottom: 3px; display: block;">Vorname</label>
+                                    <input x-model="rawtextData.contact_first_name" style="width: 100%; padding: 8px 12px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.15); border-radius: 8px; color: var(--pp-text); font-size: 13px; outline: none;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 11px; color: var(--pp-textMuted); margin-bottom: 3px; display: block;">Nachname</label>
+                                    <input x-model="rawtextData.contact_last_name" style="width: 100%; padding: 8px 12px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.15); border-radius: 8px; color: var(--pp-text); font-size: 13px; outline: none;">
+                                </div>
+                            </div>
+                            <div>
+                                <label style="font-size: 11px; color: var(--pp-textMuted); margin-bottom: 3px; display: block;">E-Mail</label>
+                                <input x-model="rawtextData.contact_email" style="width: 100%; padding: 8px 12px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.15); border-radius: 8px; color: var(--pp-text); font-size: 13px; outline: none;">
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                <div>
+                                    <label style="font-size: 11px; color: var(--pp-textMuted); margin-bottom: 3px; display: block;">Telefon</label>
+                                    <input x-model="rawtextData.contact_phone" style="width: 100%; padding: 8px 12px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.15); border-radius: 8px; color: var(--pp-text); font-size: 13px; outline: none;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 11px; color: var(--pp-textMuted); margin-bottom: 3px; display: block;">Position</label>
+                                    <input x-model="rawtextData.contact_position" style="width: 100%; padding: 8px 12px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.15); border-radius: 8px; color: var(--pp-text); font-size: 13px; outline: none;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {# Rechte Spalte: Job-Details #}
+                    <div>
+                        <h4 style="font-size: 13px; font-weight: 700; color: var(--pp-text); margin-bottom: 12px;">Stelle</h4>
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            <div>
+                                <label style="font-size: 11px; color: var(--pp-textMuted); margin-bottom: 3px; display: block;">Stellentitel *</label>
+                                <input x-model="rawtextData.job_title" style="width: 100%; padding: 8px 12px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.15); border-radius: 8px; color: var(--pp-text); font-size: 13px; outline: none; font-weight: 600;">
+                            </div>
+                            <div>
+                                <label style="font-size: 11px; color: var(--pp-textMuted); margin-bottom: 3px; display: block;">Beschreibung</label>
+                                <textarea x-model="rawtextData.job_description" rows="5" style="width: 100%; padding: 8px 12px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.15); border-radius: 8px; color: var(--pp-text); font-size: 12px; line-height: 1.5; outline: none; resize: vertical;"></textarea>
+                            </div>
+                            <div>
+                                <label style="font-size: 11px; color: var(--pp-textMuted); margin-bottom: 3px; display: block;">Anforderungen</label>
+                                <textarea x-model="rawtextData.job_requirements" rows="4" style="width: 100%; padding: 8px 12px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.15); border-radius: 8px; color: var(--pp-text); font-size: 12px; line-height: 1.5; outline: none; resize: vertical;"></textarea>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                <div>
+                                    <label style="font-size: 11px; color: var(--pp-textMuted); margin-bottom: 3px; display: block;">Arbeitsform</label>
+                                    <select x-model="rawtextData.employment_type" style="width: 100%; padding: 8px 12px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.15); border-radius: 8px; color: var(--pp-text); font-size: 13px; outline: none;">
+                                        <option value="">—</option>
+                                        <option value="vollzeit">Vollzeit</option>
+                                        <option value="teilzeit">Teilzeit</option>
+                                        <option value="befristet">Befristet</option>
+                                        <option value="freelance">Freelance</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="font-size: 11px; color: var(--pp-textMuted); margin-bottom: 3px; display: block;">Gehalt (Info)</label>
+                                    <input x-model="rawtextData.salary_info" style="width: 100%; padding: 8px 12px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.15); border-radius: 8px; color: var(--pp-text); font-size: 13px; outline: none;" placeholder="z.B. 60.000-75.000€">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <template x-if="rawtextError">
+                    <div style="margin-top: 12px; padding: 10px 14px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); border-radius: 10px; color: #fca5a5; font-size: 12px;" x-text="rawtextError"></div>
+                </template>
+
+                <div style="margin-top: 16px; display: flex; justify-content: space-between; align-items: center;">
+                    <button @click="rawtextStep = 1; rawtextError = null"
+                        style="padding: 8px 18px; border-radius: 8px; font-size: 12px; font-weight: 600; border: 1px solid rgba(99,102,241,0.2); background: transparent; color: var(--pp-textMuted); cursor: pointer;">
+                        ← Zurück
+                    </button>
+                    <button @click="rawtextCreate()" :disabled="rawtextCreating"
+                        style="padding: 10px 28px; border-radius: 10px; font-size: 13px; font-weight: 700; border: none; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s;"
+                        :style="rawtextCreating ? 'background: rgba(16,185,129,0.15); color: #64748b; cursor: not-allowed;' : 'background: linear-gradient(135deg, #10b981, #059669); color: white; box-shadow: 0 4px 14px rgba(16,185,129,0.3);'">
+                        <template x-if="rawtextCreating">
+                            <svg style="animation: spin 1s linear infinite;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                        </template>
+                        <span x-text="rawtextCreating ? 'Erstelle...' : 'Stelle erstellen'"></span>
+                    </button>
+                </div>
+            </div>
+
+            {# ── Schritt 3: Erfolg ── #}
+            <div x-show="rawtextStep === 3" style="padding: 30px 20px; text-align: center;">
+                <div style="width: 56px; height: 56px; border-radius: 50%; background: rgba(16,185,129,0.15); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
+                    <svg width="28" height="28" fill="none" stroke="#34d399" stroke-width="2.5" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
+                </div>
+                <h3 style="font-size: 18px; font-weight: 700; color: var(--pp-text); margin-bottom: 6px;">Stelle erstellt!</h3>
+                <p style="font-size: 13px; color: var(--pp-textMuted); margin-bottom: 24px;" x-text="rawtextCreatedName"></p>
+                <div style="display: flex; gap: 12px; justify-content: center;">
+                    <button @click="rawtextAddCandidate()"
+                        style="padding: 10px 24px; border-radius: 10px; font-size: 13px; font-weight: 700; border: none; cursor: pointer; background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; box-shadow: 0 4px 14px rgba(99,102,241,0.3); display: flex; align-items: center; gap: 8px;">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 1v12M1 7h12"/></svg>
+                        Kandidat hinzufügen
+                    </button>
+                    <button @click="rawtextDone()"
+                        style="padding: 10px 24px; border-radius: 10px; font-size: 13px; font-weight: 600; border: 1px solid rgba(99,102,241,0.2); background: transparent; color: var(--pp-textMuted); cursor: pointer;">
+                        Fertig
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+
+{# ════════════════════════════════════════════
    ADD CANDIDATE MODAL
    ════════════════════════════════════════════ #}
 <template x-if="showAddModal">
@@ -1347,6 +1561,16 @@ function pipelineCommandCenter() {
 
     return {
         sidebarOpen: true,
+        // Rawtext-Import
+        showRawtextModal: false,
+        rawtextStep: 1,
+        rawtextInput: '',
+        rawtextParsing: false,
+        rawtextError: null,
+        rawtextData: null,
+        rawtextCreating: false,
+        rawtextCreatedJobId: null,
+        rawtextCreatedName: '',
         activePosition: null,
         selectedCard: null,
         view: 'table',
@@ -1692,6 +1916,106 @@ function pipelineCommandCenter() {
                 console.error(e);
                 if (typeof showToast === 'function') showToast('Netzwerkfehler', 'error');
             }
+        },
+
+        // ── Rawtext-Import Methoden ──
+        async rawtextAnalyze() {
+            if (!this.rawtextInput || this.rawtextInput.trim().length < 20) {
+                this.rawtextError = 'Bitte füge einen Stellentext ein (min. 20 Zeichen)';
+                return;
+            }
+            this.rawtextParsing = true;
+            this.rawtextError = null;
+            try {
+                const r = await fetch('/api/ats/pipeline/parse-job-text', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ raw_text: this.rawtextInput })
+                });
+                if (!r.ok) {
+                    const d = await r.json().catch(() => ({}));
+                    this.rawtextError = d.detail || 'Analyse fehlgeschlagen';
+                    this.rawtextParsing = false;
+                    return;
+                }
+                this.rawtextData = await r.json();
+                this.rawtextStep = 2;
+            } catch (e) {
+                this.rawtextError = 'Netzwerkfehler — bitte erneut versuchen';
+            }
+            this.rawtextParsing = false;
+        },
+
+        async rawtextCreate() {
+            if (!this.rawtextData) return;
+            const d = this.rawtextData;
+            if (!d.job_title || !d.job_title.trim()) {
+                this.rawtextError = 'Stellentitel ist ein Pflichtfeld';
+                return;
+            }
+            if (!d.company_name || !d.company_name.trim()) {
+                this.rawtextError = 'Firmenname ist ein Pflichtfeld';
+                return;
+            }
+            this.rawtextCreating = true;
+            this.rawtextError = null;
+            try {
+                const body = {
+                    company_name: d.company_name,
+                    company_address: d.company_address,
+                    company_postal_code: d.company_postal_code,
+                    company_city: d.company_city,
+                    company_domain: d.company_domain,
+                    company_phone: d.company_phone,
+                    contact_salutation: d.contact_salutation,
+                    contact_first_name: d.contact_first_name,
+                    contact_last_name: d.contact_last_name,
+                    contact_email: d.contact_email,
+                    contact_phone: d.contact_phone,
+                    contact_position: d.contact_position,
+                    job_title: d.job_title,
+                    job_description: d.job_description,
+                    job_requirements: d.job_requirements,
+                    job_location_city: d.company_city,
+                    job_employment_type: d.employment_type,
+                    job_salary_min: d.salary_min || null,
+                    job_salary_max: d.salary_max || null,
+                    job_priority: 'medium',
+                };
+                if (d.company_match && !d.company_is_new) body.use_existing_company_id = d.company_match.id;
+                if (d.contact_match && !d.contact_is_new) body.use_existing_contact_id = d.contact_match.id;
+
+                const r = await fetch('/api/ats/pipeline/create-from-rawtext', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                if (!r.ok) {
+                    const err = await r.json().catch(() => ({}));
+                    this.rawtextError = err.detail || 'Erstellung fehlgeschlagen';
+                    this.rawtextCreating = false;
+                    return;
+                }
+                const result = await r.json();
+                this.rawtextCreatedJobId = result.ats_job_id;
+                this.rawtextCreatedName = result.job_title + ' bei ' + result.company_name;
+                this.rawtextStep = 3;
+            } catch (e) {
+                this.rawtextError = 'Netzwerkfehler — bitte erneut versuchen';
+            }
+            this.rawtextCreating = false;
+        },
+
+        rawtextAddCandidate() {
+            this.showRawtextModal = false;
+            this.addJobId = this.rawtextCreatedJobId;
+            this.addStage = 'sent';
+            this.showAddModal = true;
+        },
+
+        rawtextDone() {
+            this.showRawtextModal = false;
+            window.location.reload();
         },
     };
 }

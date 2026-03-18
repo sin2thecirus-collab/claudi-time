@@ -1,17 +1,23 @@
 """API-Routen fuer ATS-Pipeline (Kanban)."""
 
 import asyncio
+import hashlib
+import json
 import logging
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
+import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from sqlalchemy import select, update
-
+from app.config import settings
 from app.database import get_db
+from app.models.company import Company, CompanyStatus
+from app.models.company_contact import CompanyContact
 from app.models.match import Match
 from app.services.ats_pipeline_service import ATSPipelineService
 
@@ -24,7 +30,7 @@ router = APIRouter(prefix="/ats/pipeline", tags=["ATS Pipeline"])
 
 class AddCandidateRequest(BaseModel):
     candidate_id: UUID
-    stage: Optional[str] = "sent"  # Default: Vorgestellt (da MATCHED nicht in Pipeline-Uebersicht sichtbar)
+    stage: Optional[str] = "sent"
     notes: Optional[str] = None
 
 
@@ -39,6 +45,75 @@ class ReorderRequest(BaseModel):
 class BulkMoveRequest(BaseModel):
     entry_ids: list[UUID]
     stage: str
+
+
+class ParseJobTextRequest(BaseModel):
+    raw_text: str
+
+
+class CreateFromRawtextRequest(BaseModel):
+    # Company
+    company_name: str
+    company_address: Optional[str] = None
+    company_postal_code: Optional[str] = None
+    company_city: Optional[str] = None
+    company_domain: Optional[str] = None
+    company_phone: Optional[str] = None
+    use_existing_company_id: Optional[UUID] = None
+    # Contact
+    contact_salutation: Optional[str] = None
+    contact_first_name: Optional[str] = None
+    contact_last_name: Optional[str] = None
+    contact_email: Optional[str] = None
+    contact_phone: Optional[str] = None
+    contact_position: Optional[str] = None
+    use_existing_contact_id: Optional[UUID] = None
+    # Job
+    job_title: str
+    job_description: Optional[str] = None
+    job_requirements: Optional[str] = None
+    job_location_city: Optional[str] = None
+    job_employment_type: Optional[str] = None
+    job_salary_min: Optional[int] = None
+    job_salary_max: Optional[int] = None
+    job_priority: Optional[str] = "medium"
+
+
+# ── GPT-4o Prompt fuer Stellentext-Extraktion ─────
+
+RAWTEXT_EXTRACTION_PROMPT = """Du bist ein Experte fuer die Analyse von Stellenanzeigen und Unternehmenstexten.
+Extrahiere strukturierte Daten aus dem folgenden Text.
+
+Antworte NUR mit validem JSON. Kein Markdown, kein erklaerenter Text, keine Code-Bloecke.
+
+JSON-Schema:
+{
+  "company_name": "Firmenname oder null",
+  "company_address": "Strasse + Hausnummer oder null",
+  "company_postal_code": "PLZ (5-stellig) oder null",
+  "company_city": "Stadt oder null",
+  "company_domain": "Website-Domain ohne https:// oder null",
+  "company_phone": "Telefonnummer der Firma oder null",
+  "job_title": "Stellentitel oder null",
+  "job_description": "Aufgabenbeschreibung (komplett uebernehmen) oder null",
+  "job_requirements": "Anforderungen (komplett uebernehmen) oder null",
+  "salary_info": "Gehaltsangabe als Text oder null",
+  "employment_type": "vollzeit oder teilzeit oder befristet oder freelance oder null",
+  "contact_salutation": "Herr oder Frau oder null",
+  "contact_first_name": "Vorname des Ansprechpartners oder null",
+  "contact_last_name": "Nachname des Ansprechpartners oder null",
+  "contact_email": "E-Mail des Ansprechpartners oder null",
+  "contact_phone": "Telefon des Ansprechpartners (nicht Firmentelefon) oder null",
+  "contact_position": "Position/Funktion des Ansprechpartners oder null"
+}
+
+WICHTIGE Regeln:
+- Extrahiere NUR Informationen die EXPLIZIT im Text stehen
+- Erfinde KEINE Daten — wenn etwas nicht im Text steht, setze es auf null
+- Bei Gehaeltern: Uebernimm den originalen Text (z.B. "60.000-75.000 EUR brutto")
+- company_domain: Nur die Domain (z.B. "example.com"), nicht die volle URL
+- Unterscheide zwischen Firmen-Telefon (company_phone) und Ansprechpartner-Telefon (contact_phone)
+- job_description und job_requirements: Uebernimm den Text moeglichst vollstaendig"""
 
 
 # ── Endpoints ────────────────────────────────────
@@ -232,6 +307,227 @@ async def backfill_pipeline_drive_times(
     return {
         "message": f"Fahrzeit-Berechnung fuer {len(entry_ids)} Eintraege gestartet",
         "count": len(entry_ids),
+    }
+
+
+# ── Rawtext-Import Endpoints ────────────────────
+
+@router.post("/parse-job-text")
+async def parse_job_text(data: ParseJobTextRequest, db: AsyncSession = Depends(get_db)):
+    """Analysiert Stellentext mit GPT-4o und prueft DB auf bestehende Firmen/Kontakte."""
+    raw_text = data.raw_text.strip()
+    if not raw_text or len(raw_text) < 20:
+        raise HTTPException(status_code=400, detail="Text ist zu kurz (min. 20 Zeichen)")
+    if len(raw_text) > 15000:
+        raise HTTPException(status_code=400, detail="Text ist zu lang (max. 15.000 Zeichen)")
+
+    if not settings.openai_api_key:
+        raise HTTPException(status_code=503, detail="Kein OpenAI API Key konfiguriert")
+
+    # ── GPT-4o API Call (KEINE DB-Session offen!) ──
+    extracted = {}
+    try:
+        async with httpx.AsyncClient(
+            base_url="https://api.openai.com/v1",
+            headers={"Authorization": f"Bearer {settings.openai_api_key}"},
+            timeout=60.0,
+        ) as client:
+            response = await client.post(
+                "/chat/completions",
+                json={
+                    "model": "gpt-4o",
+                    "messages": [
+                        {"role": "system", "content": RAWTEXT_EXTRACTION_PROMPT},
+                        {"role": "user", "content": raw_text},
+                    ],
+                    "temperature": 0.1,
+                    "max_tokens": 3000,
+                    "response_format": {"type": "json_object"},
+                },
+            )
+            response.raise_for_status()
+            result = response.json()
+            content = result["choices"][0]["message"]["content"]
+            extracted = json.loads(content)
+    except httpx.HTTPStatusError as e:
+        logger.error(f"GPT-4o API Fehler: {e.response.status_code} - {e.response.text[:200]}")
+        raise HTTPException(status_code=502, detail="GPT-4o API Fehler — bitte erneut versuchen")
+    except json.JSONDecodeError:
+        logger.error(f"GPT-4o JSON Parse Fehler: {content[:200] if content else 'leer'}")
+        raise HTTPException(status_code=422, detail="GPT-4o hat kein gueltiges JSON zurueckgegeben")
+    except Exception as e:
+        logger.error(f"GPT-4o Call fehlgeschlagen: {e}", exc_info=True)
+        raise HTTPException(status_code=502, detail=f"GPT-4o Fehler: {str(e)[:100]}")
+
+    # ── DB-Abgleich: Firma + Kontakt suchen ──
+    company_match = None
+    contact_match = None
+    company_name = extracted.get("company_name")
+    contact_email = extracted.get("contact_email")
+    contact_first = extracted.get("contact_first_name")
+    contact_last = extracted.get("contact_last_name")
+
+    if company_name and company_name.strip():
+        result = await db.execute(
+            select(Company.id, Company.name, Company.city, Company.status)
+            .where(func.lower(Company.name) == company_name.strip().lower())
+            .limit(1)
+        )
+        row = result.one_or_none()
+        if row:
+            company_match = {
+                "id": str(row.id),
+                "name": row.name,
+                "city": row.city,
+                "status": row.status.value if row.status else "active",
+            }
+
+            # Kontakt in dieser Firma suchen
+            if contact_email and contact_email.strip():
+                c_result = await db.execute(
+                    select(CompanyContact.id, CompanyContact.first_name, CompanyContact.last_name, CompanyContact.email)
+                    .where(
+                        CompanyContact.company_id == row.id,
+                        func.lower(CompanyContact.email) == contact_email.strip().lower(),
+                    ).limit(1)
+                )
+                c_row = c_result.one_or_none()
+                if c_row:
+                    contact_match = {
+                        "id": str(c_row.id),
+                        "full_name": f"{c_row.first_name or ''} {c_row.last_name or ''}".strip(),
+                        "email": c_row.email,
+                    }
+            elif contact_first and contact_last:
+                c_result = await db.execute(
+                    select(CompanyContact.id, CompanyContact.first_name, CompanyContact.last_name, CompanyContact.email)
+                    .where(
+                        CompanyContact.company_id == row.id,
+                        func.lower(CompanyContact.first_name) == contact_first.strip().lower(),
+                        func.lower(CompanyContact.last_name) == contact_last.strip().lower(),
+                    ).limit(1)
+                )
+                c_row = c_result.one_or_none()
+                if c_row:
+                    contact_match = {
+                        "id": str(c_row.id),
+                        "full_name": f"{c_row.first_name or ''} {c_row.last_name or ''}".strip(),
+                        "email": c_row.email,
+                    }
+
+    return {
+        **extracted,
+        "company_match": company_match,
+        "contact_match": contact_match,
+        "company_is_new": company_match is None,
+        "contact_is_new": contact_match is None,
+    }
+
+
+@router.post("/create-from-rawtext")
+async def create_from_rawtext(
+    data: CreateFromRawtextRequest,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+):
+    """Erstellt Company (falls neu) + Contact (falls neu) + ATSJob aus Rawtext-Daten."""
+    from app.models.job import Job
+    from app.services.ats_job_service import ATSJobService
+    from app.services.company_service import CompanyService
+
+    service = CompanyService(db)
+
+    # ── 1. Company ──
+    if data.use_existing_company_id:
+        company = await db.get(Company, data.use_existing_company_id)
+        if not company:
+            raise HTTPException(status_code=404, detail="Angegebene Firma nicht gefunden")
+    else:
+        company_fields = {
+            k: v for k, v in {
+                "address": data.company_address,
+                "postal_code": data.company_postal_code,
+                "city": data.company_city,
+                "domain": data.company_domain,
+                "phone": data.company_phone,
+            }.items() if v and str(v).strip()
+        }
+        company = await service.get_or_create_by_name(data.company_name, **company_fields)
+        if company is None:
+            raise HTTPException(status_code=409, detail="Firma ist auf der Blacklist")
+
+    # ── 2. Contact ──
+    contact = None
+    if data.use_existing_contact_id:
+        contact = await db.get(CompanyContact, data.use_existing_contact_id)
+    elif data.contact_first_name or data.contact_last_name or data.contact_email:
+        contact_fields = {
+            k: v for k, v in {
+                "salutation": data.contact_salutation,
+                "email": data.contact_email,
+                "phone": data.contact_phone,
+                "position": data.contact_position,
+            }.items() if v and str(v).strip()
+        }
+        contact = await service.get_or_create_contact(
+            company_id=company.id,
+            first_name=data.contact_first_name,
+            last_name=data.contact_last_name,
+            **contact_fields,
+        )
+
+    # ── 3. ATSJob ──
+    ats_service = ATSJobService(db)
+    ats_job = await ats_service.create_job(
+        title=data.job_title,
+        company_id=company.id,
+        contact_id=contact.id if contact else None,
+        description=data.job_description,
+        requirements=data.job_requirements,
+        location_city=data.job_location_city or data.company_city,
+        employment_type=data.job_employment_type,
+        salary_min=data.job_salary_min,
+        salary_max=data.job_salary_max,
+        priority=data.job_priority or "medium",
+        source="Rawtext-Import",
+    )
+
+    # ── 4. Source-Job fuer Matching ──
+    try:
+        hash_input = f"rawtext|{data.company_name.strip().lower()}|{data.job_title.strip().lower()}|{datetime.now(timezone.utc).isoformat()}"
+        content_hash = hashlib.sha256(hash_input.encode("utf-8")).hexdigest()
+        regular_job = Job(
+            company_name=data.company_name.strip()[:255],
+            company_id=company.id,
+            position=data.job_title.strip()[:255],
+            city=data.job_location_city or data.company_city,
+            job_text=data.job_description,
+            employment_type=data.job_employment_type,
+            content_hash=content_hash,
+        )
+        db.add(regular_job)
+        await db.flush()
+    except Exception as e:
+        logger.error(f"Source-Job Erstellung fehlgeschlagen: {e}", exc_info=True)
+        regular_job = None
+
+    await db.commit()
+
+    # Background-Geocoding
+    if regular_job:
+        try:
+            from app.services.geocoding_service import process_job_after_create
+            background_tasks.add_task(process_job_after_create, regular_job.id)
+        except Exception:
+            pass
+
+    return {
+        "ats_job_id": str(ats_job.id),
+        "company_id": str(company.id),
+        "contact_id": str(contact.id) if contact else None,
+        "job_title": ats_job.title,
+        "company_name": company.name,
+        "message": f"Stelle '{ats_job.title}' bei {company.name} erfolgreich erstellt",
     }
 
 
