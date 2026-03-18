@@ -1,6 +1,6 @@
 FROM python:3.11-slim AS base
 
-# Build: 2026-03-18-v13
+# Build: 2026-03-18-v14
 # Arbeitsverzeichnis setzen
 WORKDIR /app
 
