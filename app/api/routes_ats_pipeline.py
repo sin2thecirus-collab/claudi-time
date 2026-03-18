@@ -310,6 +310,62 @@ async def backfill_pipeline_drive_times(
     }
 
 
+# ── Quick-Add Endpoints (Firmen-/Kontaktsuche) ──
+
+@router.get("/search-companies")
+async def search_companies_for_pipeline(
+    q: str = Query(default="", min_length=1),
+    db: AsyncSession = Depends(get_db),
+):
+    """Firmensuche fuer Quick-Add — gibt alle relevanten Felder zurueck."""
+    if not q or len(q.strip()) < 2:
+        return []
+    search_term = f"%{q.strip()}%"
+    result = await db.execute(
+        select(Company)
+        .where(Company.name.ilike(search_term), Company.status != CompanyStatus.BLACKLIST)
+        .order_by(Company.name)
+        .limit(8)
+    )
+    return [
+        {
+            "id": str(c.id),
+            "name": c.name,
+            "address": c.address,
+            "postal_code": c.postal_code,
+            "city": c.city,
+            "domain": c.domain,
+            "phone": c.phone,
+        }
+        for c in result.scalars().all()
+    ]
+
+
+@router.get("/company-contacts/{company_id}")
+async def get_company_contacts_for_pipeline(
+    company_id: UUID, db: AsyncSession = Depends(get_db),
+):
+    """Laedt alle Kontakte einer Firma fuer Dropdown-Auswahl."""
+    result = await db.execute(
+        select(CompanyContact)
+        .where(CompanyContact.company_id == company_id)
+        .order_by(CompanyContact.last_name)
+    )
+    return [
+        {
+            "id": str(c.id),
+            "salutation": c.salutation,
+            "first_name": c.first_name,
+            "last_name": c.last_name,
+            "full_name": f"{c.first_name or ''} {c.last_name or ''}".strip(),
+            "email": c.email,
+            "phone": c.phone,
+            "position": c.position,
+        }
+        for c in result.scalars().all()
+    ]
+
+
 # ── Rawtext-Import Endpoints ────────────────────
 
 @router.post("/parse-job-text")

@@ -454,6 +454,11 @@ body::after {
                 <span style="font-size: 11px; color: var(--pp-textMuted);">Command Center</span>
             </div>
             <div style="display: flex; align-items: center; gap: 6px;">
+                {# Quick-Add Stelle Button #}
+                <div class="pcc-qact" @click="showQuickAddModal = true; qaCompanySearch = ''; qaCompanyResults = []; qaSelectedCompany = null; qaContacts = []; qaSelectedContactId = ''; qaJobTitle = ''; qaJobText = ''; qaError = null"
+                     style="background: rgba(245,158,11,0.12);" title="Stelle manuell hinzufügen">
+                    <svg width="15" height="15" fill="none" stroke="#fbbf24" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+                </div>
                 {# Rawtext-Import Button #}
                 <div class="pcc-qact" @click="showRawtextModal = true; rawtextStep = 1; rawtextInput = ''; rawtextData = null; rawtextError = null"
                      style="background: rgba(16,185,129,0.12);" title="Stelle aus Text erstellen">
@@ -1163,6 +1168,120 @@ body::after {
 </div>
 
 {# ════════════════════════════════════════════
+   QUICK-ADD STELLE MODAL
+   ════════════════════════════════════════════ #}
+<template x-if="showQuickAddModal">
+    <div class="pcc-modal-bg" @click.self="showQuickAddModal = false" style="z-index: 1100;">
+        <div class="pcc-modal" style="max-width: 520px;">
+            {# Header #}
+            <div class="pcc-modal-header">
+                <div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <svg width="20" height="20" fill="none" stroke="#fbbf24" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+                        <h3 style="font-size: 16px; font-weight: 700; color: var(--pp-text);">Stelle hinzufügen</h3>
+                    </div>
+                    <p style="font-size: 12px; color: var(--pp-textMuted); margin-top: 4px;">Unternehmen auswählen und Stelle erstellen</p>
+                </div>
+                <button class="pcc-modal-close" @click="showQuickAddModal = false">&#x2715;</button>
+            </div>
+
+            <div style="padding: 16px 20px;">
+                {# ── Unternehmen suchen ── #}
+                <div style="margin-bottom: 16px;">
+                    <label style="font-size: 12px; font-weight: 600; color: var(--pp-text); margin-bottom: 6px; display: block;">Unternehmen *</label>
+
+                    <template x-if="!qaSelectedCompany">
+                        <div style="position: relative;">
+                            <svg style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%);" width="14" height="14" fill="none" stroke="#64748b" stroke-width="2"><circle cx="6" cy="6" r="5"/><path d="M10 10l3.5 3.5"/></svg>
+                            <input type="text" x-model="qaCompanySearch" @input.debounce.300ms="qaSearchCompany()" placeholder="Firmenname eingeben..."
+                                style="width: 100%; padding: 10px 12px 10px 32px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.15); border-radius: 10px; color: var(--pp-text); font-size: 13px; outline: none;"
+                                @focus="if (qaCompanySearch.length >= 2) qaSearchCompany()">
+
+                            {# Dropdown Ergebnisse #}
+                            <template x-if="qaCompanyResults.length > 0">
+                                <div style="position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: #1e2340; border: 1px solid rgba(99,102,241,0.25); border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,0.5); z-index: 50; max-height: 240px; overflow-y: auto;">
+                                    <template x-for="c in qaCompanyResults" :key="c.id">
+                                        <div @click="qaSelectCompany(c)" style="padding: 10px 14px; cursor: pointer; border-bottom: 1px solid rgba(99,102,241,0.08); transition: background 0.15s;"
+                                             @mouseenter="$el.style.background='rgba(99,102,241,0.1)'" @mouseleave="$el.style.background='transparent'">
+                                            <div style="font-size: 13px; font-weight: 600; color: var(--pp-text);" x-text="c.name"></div>
+                                            <div style="font-size: 11px; color: var(--pp-textMuted); margin-top: 2px;">
+                                                <span x-text="[c.city, c.domain].filter(Boolean).join(' · ') || 'Keine Details'"></span>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+
+                    {# Ausgewählte Firma anzeigen #}
+                    <template x-if="qaSelectedCompany">
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: rgba(16,185,129,0.06); border: 1px solid rgba(16,185,129,0.2); border-radius: 10px;">
+                            <div>
+                                <div style="font-size: 13px; font-weight: 700; color: #34d399;" x-text="qaSelectedCompany.name"></div>
+                                <div style="font-size: 11px; color: var(--pp-textMuted); margin-top: 2px;"
+                                     x-text="[qaSelectedCompany.address, qaSelectedCompany.postal_code, qaSelectedCompany.city].filter(Boolean).join(', ') || 'Keine Adresse'"></div>
+                            </div>
+                            <button @click="qaResetCompany()" style="width: 24px; height: 24px; border-radius: 6px; background: rgba(239,68,68,0.1); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #fca5a5; font-size: 14px;" title="Auswahl aufheben">✕</button>
+                        </div>
+                    </template>
+                </div>
+
+                {# ── Ansprechpartner Dropdown ── #}
+                <template x-if="qaSelectedCompany && qaContacts.length > 0">
+                    <div style="margin-bottom: 16px;">
+                        <label style="font-size: 12px; font-weight: 600; color: var(--pp-text); margin-bottom: 6px; display: block;">Ansprechpartner</label>
+                        <select x-model="qaSelectedContactId"
+                            style="width: 100%; padding: 10px 12px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.15); border-radius: 10px; color: var(--pp-text); font-size: 13px; outline: none;">
+                            <option value="">— Kein Ansprechpartner —</option>
+                            <template x-for="ct in qaContacts" :key="ct.id">
+                                <option :value="ct.id" x-text="ct.full_name + (ct.position ? ' (' + ct.position + ')' : '') + (ct.email ? ' — ' + ct.email : '')"></option>
+                            </template>
+                        </select>
+                    </div>
+                </template>
+
+                {# ── Stellentitel ── #}
+                <div style="margin-bottom: 16px;">
+                    <label style="font-size: 12px; font-weight: 600; color: var(--pp-text); margin-bottom: 6px; display: block;">Stellentitel *</label>
+                    <input type="text" x-model="qaJobTitle" placeholder="z.B. Finanzbuchhalter, Bilanzbuchhalter..."
+                        style="width: 100%; padding: 10px 12px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.15); border-radius: 10px; color: var(--pp-text); font-size: 13px; outline: none; font-weight: 600;">
+                </div>
+
+                {# ── Jobbeschreibung (optional) ── #}
+                <div style="margin-bottom: 16px;">
+                    <label style="font-size: 12px; font-weight: 600; color: var(--pp-text); margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+                        Jobbeschreibung
+                        <span style="font-size: 10px; font-weight: 400; color: var(--pp-textMuted);">(optional — wird per KI extrahiert)</span>
+                    </label>
+                    <textarea x-model="qaJobText" rows="4" placeholder="Stellentext hier einfügen — Beschreibung und Anforderungen werden automatisch extrahiert..."
+                        style="width: 100%; padding: 10px 12px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.15); border-radius: 10px; color: var(--pp-text); font-size: 12px; line-height: 1.5; outline: none; resize: vertical;"></textarea>
+                </div>
+
+                {# Fehler #}
+                <template x-if="qaError">
+                    <div style="margin-bottom: 12px; padding: 10px 14px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); border-radius: 10px; color: #fca5a5; font-size: 12px;" x-text="qaError"></div>
+                </template>
+
+                {# Erstellen Button #}
+                <div style="display: flex; justify-content: flex-end;">
+                    <button @click="qaCreate()" :disabled="qaCreating || !qaSelectedCompany || !qaJobTitle.trim()"
+                        style="padding: 10px 28px; border-radius: 10px; font-size: 13px; font-weight: 700; border: none; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s;"
+                        :style="qaCreating || !qaSelectedCompany || !qaJobTitle.trim()
+                            ? 'background: rgba(245,158,11,0.1); color: #64748b; cursor: not-allowed;'
+                            : 'background: linear-gradient(135deg, #f59e0b, #d97706); color: white; box-shadow: 0 4px 14px rgba(245,158,11,0.3);'">
+                        <template x-if="qaCreating">
+                            <svg style="animation: spin 1s linear infinite;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                        </template>
+                        <span x-text="qaJobParsing ? 'Text wird analysiert...' : qaCreating ? 'Erstelle...' : 'Stelle erstellen'"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+
+{# ════════════════════════════════════════════
    RAWTEXT-IMPORT MODAL
    ════════════════════════════════════════════ #}
 <template x-if="showRawtextModal">
@@ -1561,6 +1680,19 @@ function pipelineCommandCenter() {
 
     return {
         sidebarOpen: true,
+        // Quick-Add Stelle
+        showQuickAddModal: false,
+        qaCompanySearch: '',
+        qaCompanyResults: [],
+        qaCompanySearching: false,
+        qaSelectedCompany: null,
+        qaContacts: [],
+        qaSelectedContactId: '',
+        qaJobTitle: '',
+        qaJobText: '',
+        qaJobParsing: false,
+        qaCreating: false,
+        qaError: null,
         // Rawtext-Import
         showRawtextModal: false,
         rawtextStep: 1,
@@ -1916,6 +2048,99 @@ function pipelineCommandCenter() {
                 console.error(e);
                 if (typeof showToast === 'function') showToast('Netzwerkfehler', 'error');
             }
+        },
+
+        // ── Quick-Add Methoden ──
+        async qaSearchCompany() {
+            const q = this.qaCompanySearch.trim();
+            if (q.length < 2) { this.qaCompanyResults = []; return; }
+            this.qaCompanySearching = true;
+            try {
+                const r = await fetch('/api/ats/pipeline/search-companies?q=' + encodeURIComponent(q));
+                this.qaCompanyResults = r.ok ? await r.json() : [];
+            } catch (e) { this.qaCompanyResults = []; }
+            this.qaCompanySearching = false;
+        },
+
+        async qaSelectCompany(company) {
+            this.qaSelectedCompany = company;
+            this.qaCompanySearch = company.name;
+            this.qaCompanyResults = [];
+            // Kontakte laden
+            try {
+                const r = await fetch('/api/ats/pipeline/company-contacts/' + company.id);
+                this.qaContacts = r.ok ? await r.json() : [];
+            } catch (e) { this.qaContacts = []; }
+            this.qaSelectedContactId = '';
+        },
+
+        qaResetCompany() {
+            this.qaSelectedCompany = null;
+            this.qaContacts = [];
+            this.qaSelectedContactId = '';
+        },
+
+        async qaCreate() {
+            if (!this.qaSelectedCompany) { this.qaError = 'Bitte ein Unternehmen auswählen'; return; }
+            if (!this.qaJobTitle.trim()) { this.qaError = 'Bitte einen Stellentitel eingeben'; return; }
+            this.qaCreating = true;
+            this.qaError = null;
+
+            // Optional: Jobtext per GPT-4o extrahieren
+            let jobDesc = null;
+            let jobReqs = null;
+            if (this.qaJobText.trim().length > 30) {
+                this.qaJobParsing = true;
+                try {
+                    const r = await fetch('/api/ats/pipeline/parse-job-text', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ raw_text: this.qaJobText })
+                    });
+                    if (r.ok) {
+                        const parsed = await r.json();
+                        jobDesc = parsed.job_description;
+                        jobReqs = parsed.job_requirements;
+                    }
+                } catch (e) { /* Kein Problem — Text wird als Beschreibung genommen */ }
+                this.qaJobParsing = false;
+            }
+            if (!jobDesc && this.qaJobText.trim()) jobDesc = this.qaJobText.trim();
+
+            const body = {
+                company_name: this.qaSelectedCompany.name,
+                use_existing_company_id: this.qaSelectedCompany.id,
+                job_title: this.qaJobTitle.trim(),
+                job_description: jobDesc,
+                job_requirements: jobReqs,
+                job_location_city: this.qaSelectedCompany.city,
+                job_priority: 'medium',
+            };
+            if (this.qaSelectedContactId) body.use_existing_contact_id = this.qaSelectedContactId;
+
+            try {
+                const r = await fetch('/api/ats/pipeline/create-from-rawtext', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                if (!r.ok) {
+                    const err = await r.json().catch(() => ({}));
+                    this.qaError = err.detail || 'Erstellung fehlgeschlagen';
+                    this.qaCreating = false;
+                    return;
+                }
+                const result = await r.json();
+                if (typeof showToast === 'function') showToast(result.message, 'success');
+                this.showQuickAddModal = false;
+                // Direkt Add-Candidate Modal öffnen
+                this.addJobId = result.ats_job_id;
+                this.addStage = 'sent';
+                this.showAddModal = true;
+            } catch (e) {
+                this.qaError = 'Netzwerkfehler — bitte erneut versuchen';
+            }
+            this.qaCreating = false;
         },
 
         // ── Rawtext-Import Methoden ──
