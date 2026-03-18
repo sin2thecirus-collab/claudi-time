@@ -105,7 +105,6 @@ body::after {
 
 /* Stage Colors */
 .stage-sent::before { background: linear-gradient(90deg, #6366f1, #818cf8); }
-.stage-feedback::before { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
 .stage-interview_1::before { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
 .stage-interview_2::before { background: linear-gradient(90deg, #8b5cf6, #a78bfa); }
 .stage-interview_3::before { background: linear-gradient(90deg, #d946ef, #e879f9); }
@@ -413,7 +412,6 @@ body::after {
 {% set PHASES = [
     {"id":"matched","label":"Gematcht","color":"#06b6d4","light":"#22d3ee","mid":"#22d3ee","bg":"rgba(6,182,212,0.15)"},
     {"id":"sent","label":"Vorgestellt","color":"#6366f1","light":"#a5b4fc","mid":"#818cf8","bg":"rgba(99,102,241,0.15)"},
-    {"id":"feedback","label":"Feedback","color":"#f59e0b","light":"#fcd34d","mid":"#fbbf24","bg":"rgba(245,158,11,0.15)"},
     {"id":"interview_1","label":"Interview 1","color":"#3b82f6","light":"#93c5fd","mid":"#60a5fa","bg":"rgba(59,130,246,0.15)"},
     {"id":"interview_2","label":"Interview 2","color":"#8b5cf6","light":"#c4b5fd","mid":"#a78bfa","bg":"rgba(139,92,246,0.15)"},
     {"id":"interview_3","label":"Interview 3","color":"#d946ef","light":"#e879f9","mid":"#e879f9","bg":"rgba(217,70,239,0.15)"},
@@ -1545,7 +1543,6 @@ body::after {
                     <select x-model="addStage">
                         <option value="matched">Gematcht</option>
                         <option value="sent" selected>Vorgestellt</option>
-                        <option value="feedback">Feedback</option>
                         <option value="interview_1">Interview 1</option>
                         <option value="interview_2">Interview 2</option>
                         <option value="interview_3">Interview 3</option>
@@ -1664,7 +1661,6 @@ function pipelineCommandCenter() {
     const PHASES = [
         {id:"matched",label:"Gematcht",color:"#06b6d4",light:"#22d3ee",bg:"rgba(6,182,212,0.15)"},
         {id:"sent",label:"Vorgestellt",color:"#6366f1",light:"#a5b4fc",bg:"rgba(99,102,241,0.15)"},
-        {id:"feedback",label:"Feedback",color:"#f59e0b",light:"#fcd34d",bg:"rgba(245,158,11,0.15)"},
         {id:"interview_1",label:"Interview 1",color:"#3b82f6",light:"#93c5fd",bg:"rgba(59,130,246,0.15)"},
         {id:"interview_2",label:"Interview 2",color:"#8b5cf6",light:"#c4b5fd",bg:"rgba(139,92,246,0.15)"},
         {id:"interview_3",label:"Interview 3",color:"#d946ef",light:"#e879f9",bg:"rgba(217,70,239,0.15)"},

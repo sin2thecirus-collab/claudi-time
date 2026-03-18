@@ -29,7 +29,6 @@ class PipelineStage(str, enum.Enum):
 PIPELINE_STAGE_ORDER = [
     PipelineStage.MATCHED,
     PipelineStage.SENT,
-    PipelineStage.FEEDBACK,
     PipelineStage.INTERVIEW_1,
     PipelineStage.INTERVIEW_2,
     PipelineStage.INTERVIEW_3,
