@@ -1185,7 +1185,7 @@ body::after {
                 <button class="pcc-modal-close" @click="showQuickAddModal = false">&#x2715;</button>
             </div>
 
-            <div style="padding: 16px 20px;">
+            <div style="padding: 16px 20px; max-height: 65vh; overflow-y: auto;">
                 {# ── Unternehmen suchen ── #}
                 <div style="margin-bottom: 16px;">
                     <label style="font-size: 12px; font-weight: 600; color: var(--pp-text); margin-bottom: 6px; display: block;">Unternehmen *</label>
@@ -1255,7 +1255,7 @@ body::after {
                         <span style="font-size: 10px; font-weight: 400; color: var(--pp-textMuted);">(optional — wird per KI extrahiert)</span>
                     </label>
                     <textarea x-model="qaJobText" rows="4" placeholder="Stellentext hier einfügen — Beschreibung und Anforderungen werden automatisch extrahiert..."
-                        style="width: 100%; padding: 10px 12px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.15); border-radius: 10px; color: var(--pp-text); font-size: 12px; line-height: 1.5; outline: none; resize: vertical;"></textarea>
+                        style="width: 100%; max-height: 25vh; padding: 10px 12px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.15); border-radius: 10px; color: var(--pp-text); font-size: 12px; line-height: 1.5; outline: none; resize: vertical; overflow-y: auto;"></textarea>
                 </div>
 
                 {# Fehler #}
@@ -1286,7 +1286,7 @@ body::after {
    ════════════════════════════════════════════ #}
 <template x-if="showRawtextModal">
     <div class="pcc-modal-bg" @click.self="showRawtextModal = false" style="z-index: 1100;">
-        <div class="pcc-modal" :style="(rawtextStep === 2 ? 'max-width: 780px; width: 95%;' : 'max-width: 560px;') + ' overflow: hidden;'"
+        <div class="pcc-modal" :style="rawtextStep === 2 ? 'max-width: 780px; width: 95%' : 'max-width: 560px'">
             {# Header #}
             <div class="pcc-modal-header">
                 <div>
@@ -1301,7 +1301,7 @@ body::after {
             </div>
 
             {# ── Schritt 1: Text einfügen ── #}
-            <div x-show="rawtextStep === 1" style="padding: 16px 20px;">
+            <div x-show="rawtextStep === 1" style="padding: 16px 20px; max-height: 65vh; overflow-y: auto;">
                 <textarea x-model="rawtextInput"
                     placeholder="Stellentext hier einfügen (z.B. von StepStone, Indeed, Unternehmenswebsite)...&#10;&#10;Der Text kann alles enthalten: Stellenbeschreibung, Firmeninfos, Ansprechpartner, Adresse, etc."
                     style="width: 100%; min-height: 200px; max-height: 50vh; padding: 14px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.15); border-radius: 12px; color: var(--pp-text); font-size: 13px; line-height: 1.6; resize: vertical; outline: none; font-family: inherit; overflow-y: auto;"
