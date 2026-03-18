@@ -95,8 +95,8 @@ JSON-Schema:
   "company_domain": "Website-Domain ohne https:// oder null",
   "company_phone": "Telefonnummer der Firma oder null",
   "job_title": "Stellentitel oder null",
-  "job_description": "Aufgabenbeschreibung (komplett uebernehmen) oder null",
-  "job_requirements": "Anforderungen (komplett uebernehmen) oder null",
+  "job_description": "Aufgabenbeschreibung — formatiert mit \\n fuer Absaetze und \\n- fuer Aufzaehlungspunkte. Struktur und Gliederung des Originals beibehalten!",
+  "job_requirements": "Anforderungen — formatiert mit \\n fuer Absaetze und \\n- fuer Aufzaehlungspunkte. Struktur und Gliederung des Originals beibehalten!",
   "salary_info": "Gehaltsangabe als Text oder null",
   "employment_type": "vollzeit oder teilzeit oder befristet oder freelance oder null",
   "contact_salutation": "Herr oder Frau oder null",
@@ -113,7 +113,7 @@ WICHTIGE Regeln:
 - Bei Gehaeltern: Uebernimm den originalen Text (z.B. "60.000-75.000 EUR brutto")
 - company_domain: Nur die Domain (z.B. "example.com"), nicht die volle URL
 - Unterscheide zwischen Firmen-Telefon (company_phone) und Ansprechpartner-Telefon (contact_phone)
-- job_description und job_requirements: Uebernimm den Text moeglichst vollstaendig"""
+- job_description und job_requirements: BEHALTE die Struktur bei! Verwende \\n fuer Zeilenumbrueche und \\n- fuer Aufzaehlungspunkte. Wenn im Original Bulletpoints oder nummerierte Listen stehen, uebernimm diese als \\n- Punkt1\\n- Punkt2 etc. NIEMALS alles in einen Fliesstext quetschen!"""
 
 
 # ── Endpoints (statische Pfade VOR {job_id} Wildcard!) ──
