@@ -308,9 +308,65 @@ body::after {
     display: flex; align-items: center; justify-content: center;
 }
 .pcc-modal {
-    background: var(--pp-surface); border: 1px solid var(--pcc-border);
-    border-radius: 16px; width: 480px; max-height: 80vh; overflow: hidden;
-    box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+    background: linear-gradient(180deg, #151a2e, #0f1320); border: 1px solid rgba(99,102,241,0.2);
+    border-radius: 20px; width: 520px; max-height: 80vh; overflow: hidden;
+    box-shadow: 0 25px 60px rgba(0,0,0,0.6), 0 0 40px rgba(99,102,241,0.08);
+}
+.pcc-modal-header {
+    padding: 24px 24px 0; display: flex; align-items: center; justify-content: space-between;
+}
+.pcc-modal-close {
+    width: 32px; height: 32px; border-radius: 10px; border: 1px solid rgba(99,102,241,0.15);
+    background: rgba(99,102,241,0.06); color: var(--pp-textMuted); font-size: 15px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+}
+.pcc-modal-close:hover { background: rgba(99,102,241,0.15); color: var(--pp-text); border-color: rgba(99,102,241,0.3); }
+.pcc-modal-selects {
+    display: flex; gap: 10px; padding: 16px 24px 0;
+}
+.pcc-modal-selects label {
+    font-size: 10px; font-weight: 700; color: var(--pp-textMuted); text-transform: uppercase;
+    letter-spacing: 0.06em; margin-bottom: 6px; display: block;
+}
+.pcc-modal-selects select {
+    width: 100%; padding: 10px 14px; background: rgba(99,102,241,0.06);
+    border: 1px solid rgba(99,102,241,0.15); border-radius: 10px;
+    color: var(--pp-text); font-size: 12px; font-weight: 500; outline: none; appearance: auto;
+    transition: border-color 0.2s;
+}
+.pcc-modal-selects select:focus { border-color: rgba(99,102,241,0.4); }
+.pcc-modal-search {
+    margin: 14px 24px 0; position: relative;
+}
+.pcc-modal-search input {
+    width: 100%; padding: 12px 16px 12px 42px; background: rgba(99,102,241,0.04);
+    border: 1px solid rgba(99,102,241,0.12); border-radius: 12px;
+    color: var(--pp-text); font-size: 13px; font-weight: 500; outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.pcc-modal-search input:focus { border-color: rgba(99,102,241,0.35); box-shadow: 0 0 16px rgba(99,102,241,0.08); }
+.pcc-modal-search input::placeholder { color: #4b5563; }
+.pcc-modal-results { max-height: 380px; overflow-y: auto; padding: 8px 12px 12px; }
+.pcc-modal-row {
+    display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px;
+    cursor: pointer; transition: all 0.15s; border: 1px solid transparent;
+}
+.pcc-modal-row:hover { background: rgba(99,102,241,0.06); border-color: rgba(99,102,241,0.12); }
+.pcc-modal-row.disabled { opacity: 0.35; pointer-events: none; }
+.pcc-modal-row-avatar {
+    width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center;
+    justify-content: center; color: white; font-size: 13px; font-weight: 700; flex-shrink: 0;
+}
+.pcc-modal-row-add {
+    width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center;
+    justify-content: center; flex-shrink: 0; border: 1px solid rgba(99,102,241,0.2);
+    background: rgba(99,102,241,0.08); transition: all 0.2s;
+}
+.pcc-modal-row:hover .pcc-modal-row-add { background: rgba(99,102,241,0.2); border-color: rgba(99,102,241,0.4); }
+.pcc-modal-empty {
+    padding: 40px 20px; text-align: center; color: var(--pp-textDim); font-size: 13px;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
 }
 </style>
 {% endblock %}
@@ -1021,72 +1077,86 @@ body::after {
 <template x-if="showAddModal">
     <div class="pcc-modal-bg" @click.self="showAddModal = false; addSearch = ''; addResults = [];">
         <div class="pcc-modal">
-            <div style="padding: 20px 24px; border-bottom: 1px solid var(--pcc-border);">
-                <div style="display: flex; align-items: center; justify-content: space-between;">
-                    <h3 style="font-size: 16px; font-weight: 700; color: var(--pp-text);">Kandidat hinzuf&uuml;gen</h3>
-                    <button @click="showAddModal = false; addSearch = ''; addResults = [];"
-                            style="background: var(--pp-surfaceHover); border: none; border-radius: 8px; width: 32px; height: 32px; cursor: pointer; color: var(--pp-textMuted); font-size: 14px;">&#x2715;</button>
+            {# Header #}
+            <div class="pcc-modal-header">
+                <div>
+                    <h3 style="font-size: 17px; font-weight: 800; color: var(--pp-text); letter-spacing: -0.02em;">Kandidat hinzuf&uuml;gen</h3>
+                    <p style="font-size: 11px; color: var(--pp-textDim); margin-top: 2px;">Suche nach Name, E-Mail oder Position</p>
                 </div>
-                {# Job-Auswahl #}
-                <div style="margin-top: 12px; display: flex; gap: 10px;">
-                    <div style="flex: 1;">
-                        <label style="font-size: 11px; font-weight: 600; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; display: block;">Stelle</label>
-                        <select x-model="addJobId"
-                                style="width: 100%; padding: 8px 12px; background: rgba(99,102,241,0.06); border: 1px solid rgba(99,102,241,0.15); border-radius: 10px; color: var(--pp-text); font-size: 12px; outline: none; appearance: auto;">
-                            <template x-for="pos in positions" :key="pos.id">
-                                <option :value="pos.id" x-text="pos.company + ' \u2013 ' + pos.name" :selected="pos.id === activePosition"></option>
-                            </template>
-                        </select>
-                    </div>
-                    <div style="width: 140px;">
-                        <label style="font-size: 11px; font-weight: 600; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; display: block;">Phase</label>
-                        <select x-model="addStage"
-                                style="width: 100%; padding: 8px 12px; background: rgba(99,102,241,0.06); border: 1px solid rgba(99,102,241,0.15); border-radius: 10px; color: var(--pp-text); font-size: 12px; outline: none; appearance: auto;">
-                            <option value="matched">Gematcht</option>
-                            <option value="sent" selected>Vorgestellt</option>
-                            <option value="feedback">Feedback</option>
-                            <option value="interview_1">Interview 1</option>
-                            <option value="interview_2">Interview 2</option>
-                            <option value="interview_3">Interview 3</option>
-                            <option value="offer">Angebot</option>
-                        </select>
-                    </div>
+                <button class="pcc-modal-close" @click="showAddModal = false; addSearch = ''; addResults = [];">&#x2715;</button>
+            </div>
+
+            {# Stelle + Phase #}
+            <div class="pcc-modal-selects">
+                <div style="flex: 1;">
+                    <label>Stelle</label>
+                    <select x-model="addJobId">
+                        <template x-for="pos in positions" :key="pos.id">
+                            <option :value="pos.id" x-text="pos.company + ' \u2013 ' + pos.name" :selected="pos.id === activePosition"></option>
+                        </template>
+                    </select>
                 </div>
-                {# Kandidaten-Suche #}
-                <div style="margin-top: 10px; position: relative;">
-                    <svg style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%);" width="16" height="16" fill="none" stroke="#64748b" stroke-width="2"><circle cx="7" cy="7" r="5.5"/><path d="M11 11l3 3"/></svg>
-                    <input type="text" x-model="addSearch" @input.debounce.300ms="searchCandidates()"
-                           placeholder="Name, E-Mail oder Position suchen..."
-                           style="width: 100%; padding: 10px 14px 10px 38px; background: rgba(99,102,241,0.06); border: 1px solid rgba(99,102,241,0.15); border-radius: 12px; color: var(--pp-text); font-size: 13px; outline: none;">
+                <div style="width: 140px;">
+                    <label>Phase</label>
+                    <select x-model="addStage">
+                        <option value="matched">Gematcht</option>
+                        <option value="sent" selected>Vorgestellt</option>
+                        <option value="feedback">Feedback</option>
+                        <option value="interview_1">Interview 1</option>
+                        <option value="interview_2">Interview 2</option>
+                        <option value="interview_3">Interview 3</option>
+                        <option value="offer">Angebot</option>
+                    </select>
                 </div>
             </div>
-            <div style="max-height: 400px; overflow-y: auto; padding: 8px;">
+
+            {# Suche #}
+            <div class="pcc-modal-search">
+                <svg style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); pointer-events: none;" width="16" height="16" fill="none" stroke="#4b5563" stroke-width="2"><circle cx="7" cy="7" r="5.5"/><path d="M11 11l3.5 3.5"/></svg>
+                <input type="text" x-model="addSearch" @input.debounce.300ms="searchCandidates()"
+                       placeholder="Name, E-Mail oder Position suchen...">
+            </div>
+
+            {# Trennlinie #}
+            <div style="margin: 14px 24px 0; border-top: 1px solid rgba(99,102,241,0.1);"></div>
+
+            {# Ergebnisse #}
+            <div class="pcc-modal-results">
                 <template x-if="addSearching">
-                    <div style="padding: 32px; text-align: center; color: var(--pp-textDim); font-size: 13px;">Suche...</div>
+                    <div class="pcc-modal-empty">
+                        <div style="width: 20px; height: 20px; border: 2px solid rgba(99,102,241,0.3); border-top-color: #818cf8; border-radius: 50%; animation: pcc-pulse 0.8s linear infinite;"></div>
+                        <span>Suche l&auml;uft...</span>
+                    </div>
                 </template>
                 <template x-if="!addSearching && addResults.length === 0 && addSearch.length >= 2">
-                    <div style="padding: 32px; text-align: center; color: var(--pp-textDim); font-size: 13px;">Keine Kandidaten gefunden</div>
+                    <div class="pcc-modal-empty">
+                        <svg width="24" height="24" fill="none" stroke="#4b5563" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/><path d="M8 11h6"/></svg>
+                        <span>Keine Kandidaten gefunden</span>
+                    </div>
                 </template>
                 <template x-if="!addSearching && addSearch.length < 2">
-                    <div style="padding: 32px; text-align: center; color: var(--pp-textDim); font-size: 13px;">Mindestens 2 Zeichen eingeben</div>
+                    <div class="pcc-modal-empty">
+                        <svg width="24" height="24" fill="none" stroke="#4b5563" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                        <span>Mindestens 2 Zeichen eingeben</span>
+                    </div>
                 </template>
                 <template x-for="r in addResults" :key="r.id">
-                    <div @click="addCandidateToJob(r.id)" style="display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 10px; cursor: pointer; transition: background 0.15s;"
-                         :style="r.already_in_pipeline ? 'opacity: 0.4; pointer-events: none;' : ''"
-                         @mouseenter="$el.style.background='rgba(99,102,241,0.08)'" @mouseleave="$el.style.background='transparent'">
-                        <div class="pcc-avatar" style="width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: 700; flex-shrink: 0;"
+                    <div class="pcc-modal-row" :class="r.already_in_pipeline ? 'disabled' : ''" @click="addCandidateToJob(r.id)">
+                        <div class="pcc-modal-row-avatar"
                              :style="{background: 'linear-gradient(135deg, ' + getAvatarGradient(r.name) + ')'}">
                             <span x-text="r.name.split(' ').map(w => w[0]).join('').substring(0,2).toUpperCase()"></span>
                         </div>
                         <div style="flex: 1; min-width: 0;">
-                            <div style="font-size: 13px; font-weight: 600; color: var(--pp-text);" x-text="r.name"></div>
-                            <div style="font-size: 11px; color: var(--pp-textMuted);" x-text="r.role + (r.city ? ' &middot; ' + r.city : '')"></div>
+                            <div style="font-size: 13px; font-weight: 600; color: var(--pp-text); line-height: 1.3;" x-text="r.name"></div>
+                            <div style="font-size: 11px; color: var(--pp-textMuted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" x-text="r.role + (r.city ? ' \u00b7 ' + r.city : '')"></div>
                         </div>
                         <template x-if="r.already_in_pipeline">
-                            <span style="font-size: 10px; color: var(--pp-textDim); font-weight: 600;">Bereits drin</span>
+                            <span style="font-size: 10px; color: var(--pp-textDim); font-weight: 600; padding: 4px 10px; border-radius: 6px; background: rgba(148,163,184,0.08); white-space: nowrap;">Bereits drin</span>
                         </template>
                         <template x-if="!r.already_in_pipeline">
-                            <svg width="16" height="16" fill="none" stroke="#6366f1" stroke-width="2"><path d="M8 3v10M3 8h10"/></svg>
+                            <div class="pcc-modal-row-add">
+                                <svg width="14" height="14" fill="none" stroke="#818cf8" stroke-width="2"><path d="M7 3v8M3 7h8"/></svg>
+                            </div>
                         </template>
                     </div>
                 </template>
