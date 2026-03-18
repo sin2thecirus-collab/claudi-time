@@ -423,8 +423,8 @@ body::after {
 {# ════════════════════════════════════════════
    SIDEBAR
    ════════════════════════════════════════════ #}
-<aside style="background: linear-gradient(180deg, #141a30 0%, #0e1222 100%); border-right: 1px solid rgba(99,102,241,0.15); display: flex; flex-direction: column; overflow: hidden; min-width: 0; transition: opacity 0.2s;"
-       :style="sidebarOpen ? 'opacity: 1;' : 'opacity: 0; pointer-events: none;'">
+<aside style="background: linear-gradient(180deg, #141a30 0%, #0e1222 100%); border-right: 1px solid rgba(99,102,241,0.15); display: flex; flex-direction: column; overflow: hidden; min-width: 0; width: 280px; transition: opacity 0.2s;"
+       x-show="sidebarOpen" x-transition:enter="transition-none" x-transition:leave="transition-none"
 
     {# Sidebar Header #}
     <div style="padding: 20px 16px 12px;">
