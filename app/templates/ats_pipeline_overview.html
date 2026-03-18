@@ -416,15 +416,13 @@ body::after {
     {"id":"rejected","label":"Abgesagt","color":"#64748b","light":"#94a3b8","mid":"#94a3b8","bg":"rgba(148,163,184,0.08)"}
 ] %}
 
-<div class="pcc" style="display: grid; height: calc(100vh - 56px); overflow: hidden; transition: grid-template-columns 0.25s ease;"
-     :style="'grid-template-columns: ' + (sidebarOpen ? '280px' : '0px') + ' 1fr'"
+<div class="pcc" style="display: grid; grid-template-columns: 280px 1fr; height: calc(100vh - 56px); overflow: hidden;"
      x-data="pipelineCommandCenter()" x-init="init()">
 
 {# ════════════════════════════════════════════
    SIDEBAR
    ════════════════════════════════════════════ #}
-<aside style="background: linear-gradient(180deg, #141a30 0%, #0e1222 100%); border-right: 1px solid rgba(99,102,241,0.15); display: flex; flex-direction: column; overflow: hidden; min-width: 0; width: 280px; transition: opacity 0.2s;"
-       x-show="sidebarOpen" x-transition:enter="transition-none" x-transition:leave="transition-none"
+<aside style="background: linear-gradient(180deg, #141a30 0%, #0e1222 100%); border-right: 1px solid rgba(99,102,241,0.15); display: flex; flex-direction: column; overflow: hidden;">
 
     {# Sidebar Header #}
     <div style="padding: 20px 16px 12px;">
@@ -572,16 +570,7 @@ body::after {
 
     {# Top Bar #}
     <div style="padding: 16px 24px; border-bottom: 1px solid var(--pcc-border); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;">
-        <div style="display: flex; align-items: center; gap: 12px;">
-            {# Sidebar Toggle #}
-            <button @click="sidebarOpen = !sidebarOpen"
-                    style="width: 32px; height: 32px; border-radius: 8px; border: 1px solid rgba(99,102,241,0.2); background: rgba(99,102,241,0.06); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; flex-shrink: 0;"
-                    :style="sidebarOpen ? '' : 'background: rgba(99,102,241,0.15); border-color: rgba(99,102,241,0.35);'"
-                    :title="sidebarOpen ? 'Sidebar ausblenden' : 'Sidebar einblenden'">
-                <svg x-show="sidebarOpen" width="16" height="16" fill="none" stroke="#818cf8" stroke-width="1.5" viewBox="0 0 24 24"><path d="M3 4h18M3 12h12M3 20h18"/></svg>
-                <svg x-show="!sidebarOpen" width="16" height="16" fill="none" stroke="#818cf8" stroke-width="1.5" viewBox="0 0 24 24"><path d="M3 4h18M3 12h18M3 20h18"/></svg>
-            </button>
-            <div>
+        <div>
             <div style="display: flex; align-items: center; gap: 8px;">
                 <h1 style="font-size: 20px; font-weight: 800; letter-spacing: -0.02em; color: var(--pp-text);"
                     x-text="activePos ? activePos.company : 'Alle Prozesse'"></h1>
@@ -597,7 +586,7 @@ body::after {
             </div>
             <div style="font-size: 12px; color: var(--pp-textMuted); margin-top: 2px;"
                  x-text="activePos ? (filteredCandidates.length + ' Kandidaten in Pipeline') : (totalCandidates + ' Kandidaten in ' + positions.length + ' Jobs')"></div>
-        </div></div>
+        </div>
         <div style="display: flex; align-items: center; gap: 10px;">
             {# Search #}
             <div style="position: relative;">
@@ -1331,7 +1320,6 @@ function pipelineCommandCenter() {
     ];
 
     return {
-        sidebarOpen: true,
         activePosition: null,
         selectedCard: null,
         view: 'table',
