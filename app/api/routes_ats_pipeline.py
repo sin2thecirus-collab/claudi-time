@@ -237,15 +237,38 @@ async def backfill_pipeline_drive_times(
 
 # ── Background Tasks ────────────────────────────
 
+async def _geocode_city(city: str) -> tuple[float, float] | None:
+    """Geocodiert eine Stadt per Nominatim (OpenStreetMap). Returns (lat, lng) oder None."""
+    import httpx
+
+    if not city or not city.strip():
+        return None
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(
+                "https://nominatim.openstreetmap.org/search",
+                params={"q": f"{city.strip()}, Deutschland", "format": "json", "limit": "1"},
+                headers={"User-Agent": "PulspointCRM/1.0"},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            if data:
+                return float(data[0]["lat"]), float(data[0]["lon"])
+    except Exception as e:
+        logger.warning(f"Geocoding fuer '{city}' fehlgeschlagen: {e}")
+    return None
+
+
 async def _calculate_drive_time_for_entry(entry_id: str) -> None:
     """Berechnet Fahrzeit fuer einen einzelnen Pipeline-Eintrag."""
     try:
-        from sqlalchemy import func as sa_func
+        from sqlalchemy import func as sa_func, text
 
         from app.database import async_session_maker
         from app.models.ats_job import ATSJob
         from app.models.ats_pipeline import ATSPipelineEntry
         from app.models.candidate import Candidate
+        from app.models.company import Company
         from app.services.distance_matrix_service import distance_matrix_service
 
         if not distance_matrix_service.has_api_key:
@@ -261,18 +284,41 @@ async def _calculate_drive_time_for_entry(entry_id: str) -> None:
             if not entry or not entry.candidate_id:
                 return
 
-            # Job-Koordinaten laden
+            ats_job_id = entry.ats_job_id
+            candidate_id = entry.candidate_id
+
+            # Job-Koordinaten laden (ATSJob -> Company Fallback)
             job_result = await db.execute(
                 select(
                     sa_func.ST_Y(sa_func.ST_GeomFromWKB(ATSJob.location_coords)).label("job_lat"),
                     sa_func.ST_X(sa_func.ST_GeomFromWKB(ATSJob.location_coords)).label("job_lng"),
                     ATSJob.location_city,
-                ).where(ATSJob.id == entry.ats_job_id)
+                    ATSJob.company_id,
+                ).where(ATSJob.id == ats_job_id)
             )
             job_row = job_result.one_or_none()
-            if not job_row or not job_row.job_lat or not job_row.job_lng:
-                logger.info(f"Pipeline-Entry {entry_id}: Job hat keine Koordinaten")
+            if not job_row:
                 return
+
+            job_lat = job_row.job_lat
+            job_lng = job_row.job_lng
+            job_city = job_row.location_city
+
+            # Fallback 1: Company-Koordinaten
+            if not job_lat or not job_lng:
+                if job_row.company_id:
+                    comp_result = await db.execute(
+                        select(
+                            sa_func.ST_Y(sa_func.ST_GeomFromWKB(Company.location_coords)).label("lat"),
+                            sa_func.ST_X(sa_func.ST_GeomFromWKB(Company.location_coords)).label("lng"),
+                            Company.city,
+                        ).where(Company.id == job_row.company_id)
+                    )
+                    comp_row = comp_result.one_or_none()
+                    if comp_row and comp_row.lat and comp_row.lng:
+                        job_lat, job_lng = comp_row.lat, comp_row.lng
+                    elif comp_row and comp_row.city:
+                        job_city = job_city or comp_row.city
 
             # Kandidaten-Koordinaten laden
             cand_result = await db.execute(
@@ -280,25 +326,65 @@ async def _calculate_drive_time_for_entry(entry_id: str) -> None:
                     sa_func.ST_Y(sa_func.ST_GeomFromWKB(Candidate.address_coords)).label("cand_lat"),
                     sa_func.ST_X(sa_func.ST_GeomFromWKB(Candidate.address_coords)).label("cand_lng"),
                     Candidate.postal_code,
-                ).where(Candidate.id == entry.candidate_id)
+                    Candidate.city.label("cand_city"),
+                ).where(Candidate.id == candidate_id)
             )
             cand_row = cand_result.one_or_none()
-            if not cand_row or not cand_row.cand_lat or not cand_row.cand_lng:
-                logger.info(f"Pipeline-Entry {entry_id}: Kandidat hat keine Koordinaten")
+            if not cand_row:
                 return
 
-        # Session geschlossen — jetzt API-Call
+            cand_lat = cand_row.cand_lat
+            cand_lng = cand_row.cand_lng
+            cand_city = cand_row.cand_city
+
+        # Session geschlossen — jetzt Geocoding falls noetig
+
+        # Fallback 2: Job-Stadt geocoden per Nominatim
+        if (not job_lat or not job_lng) and job_city:
+            coords = await _geocode_city(job_city)
+            if coords:
+                job_lat, job_lng = coords
+                # Koordinaten auf ATSJob speichern fuer naechstes Mal
+                async with async_session_maker() as db_geo:
+                    await db_geo.execute(text(
+                        "UPDATE ats_jobs SET location_coords = ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography WHERE id = :jid"
+                    ), {"lng": job_lng, "lat": job_lat, "jid": str(ats_job_id)})
+                    await db_geo.commit()
+                logger.info(f"ATSJob {ats_job_id}: Geocoded '{job_city}' -> {job_lat},{job_lng}")
+
+        if not job_lat or not job_lng:
+            logger.info(f"Pipeline-Entry {entry_id}: Job hat keine Koordinaten und keine Stadt")
+            return
+
+        # Kandidat geocoden falls noetig
+        if (not cand_lat or not cand_lng) and cand_city:
+            coords = await _geocode_city(cand_city)
+            if coords:
+                cand_lat, cand_lng = coords
+                async with async_session_maker() as db_geo2:
+                    await db_geo2.execute(text(
+                        "UPDATE candidates SET address_coords = ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography WHERE id = :cid"
+                    ), {"lng": cand_lng, "lat": cand_lat, "cid": str(candidate_id)})
+                    await db_geo2.commit()
+                logger.info(f"Kandidat {candidate_id}: Geocoded '{cand_city}' -> {cand_lat},{cand_lng}")
+            # Rate-Limit: 1 Sekunde zwischen Nominatim-Requests
+            await asyncio.sleep(1.0)
+
+        if not cand_lat or not cand_lng:
+            logger.info(f"Pipeline-Entry {entry_id}: Kandidat hat keine Koordinaten und keine Stadt")
+            return
+
+        # Google Maps Fahrzeit berechnen
         result = await distance_matrix_service.get_drive_time(
-            origin_lat=cand_row.cand_lat,
-            origin_lng=cand_row.cand_lng,
+            origin_lat=cand_lat,
+            origin_lng=cand_lng,
             origin_plz=cand_row.postal_code,
-            dest_lat=job_row.job_lat,
-            dest_lng=job_row.job_lng,
-            dest_plz=None,  # ATSJob hat kein PLZ-Feld — Cache basiert auf Kandidaten-PLZ
+            dest_lat=job_lat,
+            dest_lng=job_lng,
+            dest_plz=None,
         )
 
         if result.status in ("ok", "same_plz"):
-            # Ergebnis in DB schreiben (neue Session)
             async with async_session_maker() as db2:
                 await db2.execute(
                     update(ATSPipelineEntry)
