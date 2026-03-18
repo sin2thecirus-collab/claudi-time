@@ -165,6 +165,7 @@ class CandidateResponse(BaseModel):
     call_type: str | None = None
     has_coordinates: bool
     cv_url: str | None
+    cv_stored_path: str | None = None
     cv_parsed_at: datetime | None
     hidden: bool
     is_active: bool

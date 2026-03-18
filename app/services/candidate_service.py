@@ -756,6 +756,7 @@ class CandidateService:
             call_type=candidate.call_type,
             has_coordinates=candidate.address_coords is not None,
             cv_url=candidate.cv_url,
+            cv_stored_path=candidate.cv_stored_path,
             cv_parsed_at=candidate.cv_parsed_at,
             hidden=candidate.hidden,
             is_active=candidate.is_active,
