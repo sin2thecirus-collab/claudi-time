@@ -431,16 +431,16 @@ body::after {
      @mouseenter="$el.style.background='linear-gradient(180deg, #1a2240 0%, #131830 100%)'"
      @mouseleave="$el.style.background='linear-gradient(180deg, #141a30 0%, #0e1222 100%)'"
      title="Sidebar öffnen">
-    {# Chevron-Button oben #}
-    <div style="width: 32px; height: 32px; margin-top: 14px; border-radius: 8px; background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.2); display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
+    {# Chevron-Button #}
+    <div style="width: 30px; height: 30px; margin-top: 16px; border-radius: 8px; background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.2); display: flex; align-items: center; justify-content: center;">
         <svg width="14" height="14" fill="none" stroke="#818cf8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
     </div>
-    {# Vertikaler Text #}
-    <div style="writing-mode: vertical-rl; text-orientation: mixed; margin-top: 16px;">
-        <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; background: linear-gradient(180deg, #818cf8, #06b6d4); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Pipeline</span>
+    {# Dezente Dots #}
+    <div style="display: flex; flex-direction: column; gap: 5px; margin-top: 24px;">
+        <div style="width: 4px; height: 4px; border-radius: 50%; background: rgba(129,140,248,0.4);"></div>
+        <div style="width: 4px; height: 4px; border-radius: 50%; background: rgba(129,140,248,0.25);"></div>
+        <div style="width: 4px; height: 4px; border-radius: 50%; background: rgba(129,140,248,0.15);"></div>
     </div>
-    {# Dezente Linie #}
-    <div style="position: absolute; right: 0; top: 20%; height: 60%; width: 2px; background: linear-gradient(180deg, transparent, rgba(99,102,241,0.3), transparent); border-radius: 2px;"></div>
 </div>
 
 {# ════════════════════════════════════════════
