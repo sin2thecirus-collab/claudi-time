@@ -1,332 +1,739 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - Matching-Tool{% endblock %}
+{% block title %}Dashboard - Pulspoint CRM{% endblock %}
 
 {% block head %}
 <style>
-    /* ── Aurora: Dashboard Glass System ── */
-    @keyframes dashFadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+    /* ══════════════════════════════════════════════════════
+       MISSION CONTROL — Recruiter Command Center
+       Aurora Design System v7 — Evolved
+    ══════════════════════════════════════════════════════ */
 
-    .dash-wrap { animation: dashFadeUp 0.4s cubic-bezier(0.16,1,0.3,1) forwards; }
+    /* ── Foundation ── */
+    @keyframes fadeUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+    @keyframes pulseGlow { 0%,100% { opacity:0.4; } 50% { opacity:1; } }
+    @keyframes slideRight { from { transform:scaleX(0); } to { transform:scaleX(1); } }
+    @keyframes countUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes breathe { 0%,100% { box-shadow:0 0 0 0 rgba(96,165,250,0); } 50% { box-shadow:0 0 0 6px rgba(96,165,250,0.08); } }
+    @keyframes orbitSlow { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
 
-    /* Stats cards → glass morphism */
-    .dash-stats > div {
-        background: rgba(14,16,25,0.65) !important;
-        border: 1px solid rgba(255,255,255,0.07) !important;
-        border-radius: 14px !important;
-        backdrop-filter: blur(16px) saturate(1.3);
-        -webkit-backdrop-filter: blur(16px) saturate(1.3);
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.03);
-        transition: border-color 0.3s, box-shadow 0.3s, transform 0.3s;
-        position: relative; overflow: hidden;
-    }
-    .dash-stats > div::before {
-        content:''; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
-        background:linear-gradient(135deg, rgba(255,255,255,0.025) 0%, transparent 50%);
-    }
-    .dash-stats > div:hover {
-        border-color: rgba(96,165,250,0.2) !important;
-        box-shadow: 0 4px 24px rgba(0,0,0,0.3), 0 0 20px rgba(96,165,250,0.06);
-        transform: translateY(-2px);
-    }
-    .dash-stats dd {
-        font-family: var(--pp-mono) !important;
-    }
+    .mc { --stagger: 0; animation: fadeUp 0.5s cubic-bezier(0.16,1,0.3,1) calc(var(--stagger) * 60ms) both; }
 
-    /* Jobs container → glass */
-    .dash-jobs {
-        background: rgba(14,16,25,0.55) !important;
-        border: 1px solid rgba(255,255,255,0.07) !important;
-        border-radius: 14px !important;
-        backdrop-filter: blur(12px) saturate(1.2);
-        -webkit-backdrop-filter: blur(12px) saturate(1.2);
-        box-shadow: 0 2px 8px rgba(0,0,0,0.25);
-        overflow: hidden;
+    /* ── Ambient Background ── */
+    .mc-ambient {
+        position:fixed; top:0; left:0; right:0; bottom:0; pointer-events:none; z-index:0; overflow:hidden;
+    }
+    .mc-ambient::before {
+        content:''; position:absolute; width:600px; height:600px; top:-200px; right:-100px;
+        background:radial-gradient(circle, rgba(96,165,250,0.04) 0%, transparent 70%);
+        animation: orbitSlow 120s linear infinite;
+    }
+    .mc-ambient::after {
+        content:''; position:absolute; width:500px; height:500px; bottom:-150px; left:-100px;
+        background:radial-gradient(circle, rgba(167,139,250,0.03) 0%, transparent 70%);
+        animation: orbitSlow 90s linear infinite reverse;
     }
 
-    /* Batch actions header → glass */
-    .dash-jobs #batch-actions {
-        border-bottom: 1px solid rgba(255,255,255,0.05) !important;
-        background: rgba(14,16,25,0.3);
-    }
-
-    /* Header icon → glow */
-    .dash-wrap .dash-icon {
-        box-shadow: 0 0 12px rgba(96,165,250,0.15);
-        border: 1px solid rgba(96,165,250,0.15);
-    }
-
-    /* Import button → gradient */
-    .dash-import-btn {
-        background: linear-gradient(135deg, #60A5FA, #3B82F6) !important;
-        box-shadow: 0 2px 8px rgba(96,165,250,0.25);
-        transition: all 0.25s !important;
-    }
-    .dash-import-btn:hover {
-        box-shadow: 0 4px 16px rgba(96,165,250,0.35) !important;
-        transform: translateY(-1px);
-    }
-
-    /* Filter panel → glass */
-    #filter-panel > div, #filter-panel > form {
-        background: rgba(14,16,25,0.4);
+    /* ── Glass Panel ── */
+    .mc-glass {
+        background: rgba(14,16,25,0.6);
         border: 1px solid rgba(255,255,255,0.06);
-        border-radius: 12px;
-        backdrop-filter: blur(8px);
-        padding: 12px 16px;
+        border-radius: 16px;
+        backdrop-filter: blur(20px) saturate(1.3);
+        -webkit-backdrop-filter: blur(20px) saturate(1.3);
+        box-shadow: 0 2px 12px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.02);
+        position: relative;
+        overflow: hidden;
+        transition: border-color 0.3s, box-shadow 0.3s, transform 0.3s;
+    }
+    .mc-glass::before {
+        content:''; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+        background:linear-gradient(135deg, rgba(255,255,255,0.03) 0%, transparent 50%);
+    }
+    .mc-glass:hover {
+        border-color: rgba(96,165,250,0.15);
+        box-shadow: 0 4px 24px rgba(0,0,0,0.3), 0 0 24px rgba(96,165,250,0.04);
     }
 
-    /* Pagination → glass */
-    .dash-jobs [id="job-pagination"] button,
-    .dash-jobs [id="job-pagination"] a {
-        backdrop-filter: blur(4px);
-    }
-
-    /* Select/input inside dashboard → dark glass */
-    .dash-wrap select, .dash-wrap input[type="text"], .dash-wrap input[type="search"] {
-        background: rgba(6,7,11,0.4) !important;
-        border: 1px solid rgba(255,255,255,0.08) !important;
-        color: var(--pp-text) !important;
-        border-radius: 8px !important;
-        transition: all 0.2s;
-    }
-    .dash-wrap select:focus, .dash-wrap input:focus {
-        border-color: rgba(96,165,250,0.4) !important;
-        box-shadow: 0 0 0 3px rgba(96,165,250,0.1), 0 0 12px rgba(96,165,250,0.08) !important;
-        outline: none !important;
-    }
-
-    /* ── Aurora: Stat Card Accents ── */
-    .dash-stat-card {
-        background: rgba(14,16,25,0.65) !important;
-        border: 1px solid rgba(255,255,255,0.06) !important;
-        border-radius: 14px !important;
-        padding: 20px !important;
-        backdrop-filter: blur(16px) saturate(1.3);
-        -webkit-backdrop-filter: blur(16px) saturate(1.3);
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        transition: all 0.3s;
-        position: relative; overflow: hidden;
-    }
-    .dash-stat-card::before {
-        content:''; position:absolute; top:0; left:0; right:0; height:1px;
-        background:linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
-        pointer-events:none;
-    }
-    .dash-stat-card:hover {
-        border-color: rgba(96,165,250,0.2) !important;
-        box-shadow: 0 4px 24px rgba(0,0,0,0.3), 0 0 20px rgba(96,165,250,0.06);
-        transform: translateY(-2px);
-    }
-    .dash-stat-icon {
-        width: 40px; height: 40px; border-radius: 10px;
-        display: flex; align-items: center; justify-content: center;
-        flex-shrink: 0;
-    }
-    .dash-stat-icon.blue { background: rgba(96,165,250,0.12); }
-    .dash-stat-icon.purple { background: rgba(167,139,250,0.12); }
-    .dash-stat-icon.green { background: rgba(34,197,94,0.12); }
-    .dash-stat-icon.amber { background: rgba(251,191,36,0.12); }
-
-    /* ── Aurora: Job Row Glass ── */
-    .dash-job-row {
-        transition: all 0.2s ease;
+    /* ── Hero Greeting ── */
+    .mc-hero {
+        padding: 28px 32px 24px;
         position: relative;
     }
-    .dash-job-row::before {
-        content:''; position:absolute; top:4px; left:0; bottom:4px; width:3px;
-        background:transparent; border-radius:0 2px 2px 0; transition:background 0.2s;
+    .mc-hero-accent {
+        position:absolute; top:0; left:32px; right:32px; height:1px;
+        background:linear-gradient(90deg, transparent, rgba(96,165,250,0.3), rgba(167,139,250,0.2), transparent);
     }
-    .dash-job-row:hover { background:rgba(96,165,250,0.04) !important; }
-    .dash-job-row:hover::before { background:var(--pp-accent); }
+    .mc-greeting { font-size:28px; font-weight:700; color:var(--pp-text); letter-spacing:-0.5px; margin:0; }
+    .mc-greeting span { color:var(--pp-accent); }
+    .mc-date { font-size:13px; color:var(--pp-textDim); margin:4px 0 0; font-family:var(--pp-mono); }
 
-    /* Scrollbar */
-    .dash-wrap ::-webkit-scrollbar { width: 5px; }
-    .dash-wrap ::-webkit-scrollbar-track { background: transparent; }
-    .dash-wrap ::-webkit-scrollbar-thumb { background: rgba(96,165,250,0.15); border-radius: 3px; }
-    .dash-wrap ::-webkit-scrollbar-thumb:hover { background: rgba(96,165,250,0.25); }
+    /* ── KPI Strip ── */
+    .mc-kpi-strip {
+        display:grid; grid-template-columns:repeat(6,1fr); gap:12px;
+    }
+    .mc-kpi {
+        padding:16px 18px;
+        cursor:pointer;
+        text-decoration:none;
+        display:block;
+    }
+    .mc-kpi:hover { transform:translateY(-3px); }
+    .mc-kpi-label { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; color:var(--pp-textDim); margin-bottom:8px; }
+    .mc-kpi-value { font-size:26px; font-weight:700; font-family:var(--pp-mono); color:var(--pp-text); line-height:1; }
+    .mc-kpi-sub { font-size:11px; color:var(--pp-textMuted); margin-top:6px; }
+    .mc-kpi-bar { height:3px; border-radius:2px; margin-top:10px; overflow:hidden; background:rgba(255,255,255,0.04); }
+    .mc-kpi-bar-fill { height:100%; border-radius:2px; transform-origin:left; animation: slideRight 1s cubic-bezier(0.16,1,0.3,1) 0.4s both; }
+
+    /* KPI accent colors */
+    .mc-kpi.blue .mc-kpi-value { color:#60A5FA; }
+    .mc-kpi.blue .mc-kpi-bar-fill { background:linear-gradient(90deg, #60A5FA, #3B82F6); }
+    .mc-kpi.purple .mc-kpi-value { color:#A78BFA; }
+    .mc-kpi.purple .mc-kpi-bar-fill { background:linear-gradient(90deg, #A78BFA, #7C3AED); }
+    .mc-kpi.green .mc-kpi-value { color:#34D399; }
+    .mc-kpi.green .mc-kpi-bar-fill { background:linear-gradient(90deg, #34D399, #059669); }
+    .mc-kpi.amber .mc-kpi-value { color:#FBBF24; }
+    .mc-kpi.amber .mc-kpi-bar-fill { background:linear-gradient(90deg, #FBBF24, #D97706); }
+    .mc-kpi.rose .mc-kpi-value { color:#FB7185; }
+    .mc-kpi.rose .mc-kpi-bar-fill { background:linear-gradient(90deg, #FB7185, #E11D48); }
+    .mc-kpi.cyan .mc-kpi-value { color:#22D3EE; }
+    .mc-kpi.cyan .mc-kpi-bar-fill { background:linear-gradient(90deg, #22D3EE, #0891B2); }
+
+    /* ── Section Headers ── */
+    .mc-section-hdr {
+        display:flex; align-items:center; gap:10px; margin-bottom:16px;
+    }
+    .mc-section-dot {
+        width:8px; height:8px; border-radius:50%;
+        animation: pulseGlow 3s ease-in-out infinite;
+    }
+    .mc-section-title { font-size:14px; font-weight:600; color:var(--pp-text); letter-spacing:0.3px; text-transform:uppercase; }
+    .mc-section-badge {
+        font-size:11px; font-weight:600; font-family:var(--pp-mono);
+        padding:2px 8px; border-radius:6px; margin-left:auto;
+    }
+
+    /* ── Action Items ── */
+    .mc-action {
+        display:flex; align-items:flex-start; gap:12px;
+        padding:12px 16px;
+        border-radius:10px;
+        transition: all 0.2s;
+        cursor:pointer;
+        text-decoration:none;
+        color:inherit;
+    }
+    .mc-action:hover { background:rgba(255,255,255,0.03); }
+    .mc-action-dot {
+        width:10px; height:10px; border-radius:50%; margin-top:4px; flex-shrink:0;
+    }
+    .mc-action-dot.high { background:#F87171; box-shadow:0 0 8px rgba(248,113,113,0.3); }
+    .mc-action-dot.medium { background:#FBBF24; box-shadow:0 0 8px rgba(251,191,36,0.2); }
+    .mc-action-text { font-size:13px; color:var(--pp-text); line-height:1.5; flex:1; }
+    .mc-action-hint { font-size:11px; color:var(--pp-textDim); margin-top:2px; }
+    .mc-action-arrow { color:var(--pp-textDim); margin-top:2px; transition:transform 0.2s, color 0.2s; }
+    .mc-action:hover .mc-action-arrow { transform:translateX(3px); color:var(--pp-accent); }
+
+    /* ── Top Matches ── */
+    .mc-match {
+        display:grid; grid-template-columns:auto 1fr auto; gap:14px; align-items:center;
+        padding:14px 16px;
+        border-radius:10px;
+        transition: all 0.2s;
+        cursor:pointer;
+        text-decoration:none;
+        color:inherit;
+    }
+    .mc-match:hover { background:rgba(96,165,250,0.04); }
+    .mc-match-score {
+        width:48px; height:48px; border-radius:12px;
+        display:flex; align-items:center; justify-content:center;
+        font-size:16px; font-weight:700; font-family:var(--pp-mono);
+    }
+    .mc-match-score.excellent { background:rgba(52,211,153,0.12); color:#34D399; border:1px solid rgba(52,211,153,0.15); }
+    .mc-match-score.good { background:rgba(96,165,250,0.12); color:#60A5FA; border:1px solid rgba(96,165,250,0.15); }
+    .mc-match-score.fair { background:rgba(251,191,36,0.12); color:#FBBF24; border:1px solid rgba(251,191,36,0.15); }
+    .mc-match-name { font-size:14px; font-weight:600; color:var(--pp-text); }
+    .mc-match-job { font-size:12px; color:var(--pp-textMuted); margin-top:2px; }
+    .mc-match-meta { display:flex; gap:12px; margin-top:4px; }
+    .mc-match-tag { font-size:11px; color:var(--pp-textDim); display:flex; align-items:center; gap:4px; }
+    .mc-match-tag svg { width:12px; height:12px; }
+    .mc-match-action { font-size:12px; font-weight:600; color:var(--pp-accent); white-space:nowrap; opacity:0; transition:opacity 0.2s; }
+    .mc-match:hover .mc-match-action { opacity:1; }
+
+    /* ── Pipeline Mini ── */
+    .mc-pipe-stages {
+        display:flex; gap:2px; border-radius:8px; overflow:hidden; height:36px;
+    }
+    .mc-pipe-stage {
+        flex:1; display:flex; align-items:center; justify-content:center;
+        font-size:11px; font-weight:600; font-family:var(--pp-mono);
+        color:rgba(255,255,255,0.7); transition:all 0.2s;
+        cursor:pointer; position:relative; text-decoration:none;
+    }
+    .mc-pipe-stage:hover { filter:brightness(1.3); }
+    .mc-pipe-stage .pipe-label {
+        position:absolute; bottom:-22px; font-size:9px; color:var(--pp-textDim);
+        text-transform:uppercase; letter-spacing:0.5px; white-space:nowrap;
+    }
+
+    /* ── Funnel ── */
+    .mc-funnel-row {
+        display:flex; align-items:center; gap:12px; padding:6px 0;
+    }
+    .mc-funnel-label { font-size:12px; color:var(--pp-textMuted); width:80px; text-align:right; }
+    .mc-funnel-bar { flex:1; height:24px; border-radius:6px; overflow:hidden; background:rgba(255,255,255,0.03); }
+    .mc-funnel-fill { height:100%; border-radius:6px; transition:width 0.8s cubic-bezier(0.16,1,0.3,1); display:flex; align-items:center; padding-left:8px; }
+    .mc-funnel-val { font-size:11px; font-weight:700; font-family:var(--pp-mono); color:rgba(255,255,255,0.9); }
+
+    /* ── Akquise Stats ── */
+    .mc-aq-stat {
+        text-align:center; padding:12px 8px;
+        border-radius:10px; transition:background 0.2s;
+    }
+    .mc-aq-stat:hover { background:rgba(255,255,255,0.03); }
+    .mc-aq-num { font-size:22px; font-weight:700; font-family:var(--pp-mono); color:var(--pp-text); }
+    .mc-aq-label { font-size:10px; font-weight:600; text-transform:uppercase; color:var(--pp-textDim); letter-spacing:0.5px; margin-top:4px; }
+
+    /* ── Wiedervorlagen / Follow-ups ── */
+    .mc-followup {
+        display:flex; align-items:center; gap:12px; padding:10px 14px;
+        border-radius:8px; transition:all 0.2s; cursor:pointer;
+        text-decoration:none; color:inherit;
+    }
+    .mc-followup:hover { background:rgba(251,191,36,0.04); }
+    .mc-followup-time {
+        font-size:11px; font-family:var(--pp-mono); font-weight:600;
+        color:var(--pp-orange); background:rgba(251,191,36,0.08);
+        padding:3px 8px; border-radius:6px; white-space:nowrap;
+    }
+    .mc-followup-info { flex:1; min-width:0; }
+    .mc-followup-company { font-size:13px; font-weight:600; color:var(--pp-text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .mc-followup-contact { font-size:11px; color:var(--pp-textDim); margin-top:1px; }
+
+    /* ── Overnight ── */
+    .mc-overnight-item {
+        display:flex; align-items:center; gap:10px; padding:8px 0;
+    }
+    .mc-overnight-icon {
+        width:28px; height:28px; border-radius:8px;
+        display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    }
+    .mc-overnight-text { font-size:13px; color:var(--pp-text); }
+    .mc-overnight-num { font-family:var(--pp-mono); font-weight:700; }
+
+    /* ── Grid Layouts ── */
+    .mc-grid-main {
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:16px;
+    }
+    .mc-grid-triple {
+        display:grid;
+        grid-template-columns:1fr 1fr 1fr;
+        gap:16px;
+    }
+
+    /* ── Skeleton Loading ── */
+    @keyframes shimmer {
+        0% { background-position:-400px 0; }
+        100% { background-position:400px 0; }
+    }
+    .mc-skeleton {
+        background: linear-gradient(90deg, rgba(255,255,255,0.02) 25%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0.02) 75%);
+        background-size: 800px 100%;
+        animation: shimmer 1.5s infinite;
+        border-radius:8px;
+    }
+
+    /* ── Dividers ── */
+    .mc-divider {
+        height:1px;
+        background:linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+        margin:8px 0;
+    }
+
+    /* ── Empty State ── */
+    .mc-empty {
+        text-align:center; padding:24px 16px;
+        color:var(--pp-textDim); font-size:13px;
+    }
+
+    /* ── Scrollbar ── */
+    .mc-scroll { max-height:320px; overflow-y:auto; }
+    .mc-scroll::-webkit-scrollbar { width:4px; }
+    .mc-scroll::-webkit-scrollbar-track { background:transparent; }
+    .mc-scroll::-webkit-scrollbar-thumb { background:rgba(96,165,250,0.12); border-radius:2px; }
+
+    /* ── Link styles ── */
+    .mc-link { color:var(--pp-accent); text-decoration:none; font-weight:500; transition:color 0.2s; }
+    .mc-link:hover { color:#93C5FD; }
+
+    /* ── Responsive ── */
+    @media (max-width:1280px) {
+        .mc-kpi-strip { grid-template-columns:repeat(3,1fr); }
+        .mc-grid-main { grid-template-columns:1fr; }
+        .mc-grid-triple { grid-template-columns:1fr; }
+    }
+    @media (max-width:768px) {
+        .mc-kpi-strip { grid-template-columns:repeat(2,1fr); }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="dash-wrap" style="display:flex;flex-direction:column;gap:24px;">
-    {# Header #}
-    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;">
-        <div>
-            <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
-                <div class="dash-icon" style="width:40px;height:40px;border-radius:10px;background:var(--pp-accentSoft);display:flex;align-items:center;justify-content:center;">
-                    <svg style="width:20px;height:20px;color:var(--pp-accent);" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0" />
-                    </svg>
-                </div>
-                <h1 style="font-size:26px;font-weight:700;color:var(--pp-text);margin:0;letter-spacing:-0.5px;">
-                    Jobs
-                </h1>
+{# Ambient Background #}
+<div class="mc-ambient"></div>
+
+<div style="position:relative;z-index:1;display:flex;flex-direction:column;gap:16px;"
+     x-data="missionControl()" x-init="init()">
+
+    {# ═══ HERO GREETING ═══ #}
+    <div class="mc mc-glass mc-hero" style="--stagger:0;">
+        <div class="mc-hero-accent"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;">
+            <div>
+                <h1 class="mc-greeting" x-text="greeting + ', Milad'"></h1>
+                <p class="mc-date" x-text="dateStr"></p>
             </div>
-            <p style="font-size:13px;color:var(--pp-textMuted);margin:0;padding-left:52px;">
-                Finde passende Kandidaten fuer offene Stellen
-            </p>
-        </div>
-        <div style="display:flex;align-items:center;gap:10px;">
-            {# Import Button #}
-            <button type="button"
-                    class="dash-import-btn"
-                    onclick="openModal('/partials/import-dialog')"
-                    style="display:inline-flex;align-items:center;gap:6px;padding:9px 18px;font-size:13px;font-weight:600;color:#fff;background:var(--pp-accent);border:none;border-radius:10px;cursor:pointer;transition:all 0.2s;font-family:inherit;"
-                    onmouseover="this.style.background='#2563EB'"
-                    onmouseout="this.style.background='var(--pp-accent)'">
-                <svg style="width:16px;height:16px;" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z" />
-                    <path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z" />
-                </svg>
-                Jobs importieren
-            </button>
-        </div>
-    </div>
-
-    {# Filter Panel #}
-    <div id="filter-panel"
-         hx-get="/partials/filter-panel"
-         hx-trigger="load"
-         hx-swap="innerHTML">
-        {% include 'components/loading_spinner.html' %}
-    </div>
-
-    {# Statistik-Karten #}
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;">
-        <div class="dash-stat-card">
-            <div style="display:flex;align-items:center;">
-                <div class="dash-stat-icon blue">
-                    <svg style="width:20px;height:20px;color:var(--pp-accent);" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0M12 12.75h.008v.008H12v-.008z" />
-                    </svg>
-                </div>
-                <div style="margin-left:16px;flex:1;min-width:0;">
-                    <dt style="font-size:13px;font-weight:500;color:var(--pp-textMuted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Aktive Jobs</dt>
-                    <dd style="font-size:24px;font-weight:600;color:var(--pp-text);margin:0;font-family:var(--pp-mono);"
-                        hx-get="/api/statistics/jobs-count"
-                        hx-trigger="load, jobsUpdated from:body"
-                        hx-swap="innerHTML">
-                        -
-                    </dd>
-                </div>
-            </div>
-        </div>
-
-        <div class="dash-stat-card">
-            <div style="display:flex;align-items:center;">
-                <div class="dash-stat-icon purple">
-                    <svg style="width:20px;height:20px;color:var(--pp-purple);" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
-                    </svg>
-                </div>
-                <div style="margin-left:16px;flex:1;min-width:0;">
-                    <dt style="font-size:13px;font-weight:500;color:var(--pp-textMuted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Aktive Kandidaten</dt>
-                    <dd style="font-size:24px;font-weight:600;color:var(--pp-text);margin:0;font-family:var(--pp-mono);"
-                        hx-get="/api/statistics/candidates-active-count"
-                        hx-trigger="load"
-                        hx-swap="innerHTML">
-                        -
-                    </dd>
-                </div>
-            </div>
-        </div>
-
-        <div class="dash-stat-card">
-            <div style="display:flex;align-items:center;">
-                <div class="dash-stat-icon green">
-                    <svg style="width:20px;height:20px;color:var(--pp-green);" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
-                    </svg>
-                </div>
-                <div style="margin-left:16px;flex:1;min-width:0;">
-                    <dt style="font-size:13px;font-weight:500;color:var(--pp-textMuted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">KI-Checks (30 Tage)</dt>
-                    <dd style="font-size:24px;font-weight:600;color:var(--pp-text);margin:0;font-family:var(--pp-mono);"
-                        hx-get="/api/statistics/ai-checks-count"
-                        hx-trigger="load"
-                        hx-swap="innerHTML">
-                        -
-                    </dd>
-                </div>
-            </div>
-        </div>
-
-        <div class="dash-stat-card">
-            <div style="display:flex;align-items:center;">
-                <div class="dash-stat-icon amber">
-                    <svg style="width:20px;height:20px;color:#fbbf24;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
-                    </svg>
-                </div>
-                <div style="margin-left:16px;flex:1;min-width:0;">
-                    <dt style="font-size:13px;font-weight:500;color:var(--pp-textMuted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Vermittelt (30 Tage)</dt>
-                    <dd style="font-size:24px;font-weight:600;color:var(--pp-text);margin:0;font-family:var(--pp-mono);"
-                        hx-get="/api/statistics/placed-count"
-                        hx-trigger="load"
-                        hx-swap="innerHTML">
-                        -
-                    </dd>
-                </div>
+            <div style="display:flex;align-items:center;gap:10px;">
+                <a href="/akquise"
+                   style="display:inline-flex;align-items:center;gap:6px;padding:9px 18px;font-size:13px;font-weight:600;color:#fff;background:linear-gradient(135deg,#60A5FA,#3B82F6);border:none;border-radius:10px;cursor:pointer;transition:all 0.25s;font-family:inherit;text-decoration:none;box-shadow:0 2px 8px rgba(96,165,250,0.25);"
+                   onmouseover="this.style.boxShadow='0 4px 16px rgba(96,165,250,0.35)';this.style.transform='translateY(-1px)'"
+                   onmouseout="this.style.boxShadow='0 2px 8px rgba(96,165,250,0.25)';this.style.transform='none'">
+                    <svg style="width:16px;height:16px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" /></svg>
+                    Akquise starten
+                </a>
+                <a href="/match-center"
+                   style="display:inline-flex;align-items:center;gap:6px;padding:9px 18px;font-size:13px;font-weight:600;color:var(--pp-accent);background:var(--pp-accentSoft);border:1px solid rgba(96,165,250,0.15);border-radius:10px;cursor:pointer;transition:all 0.2s;font-family:inherit;text-decoration:none;"
+                   onmouseover="this.style.background='rgba(96,165,250,0.18)'"
+                   onmouseout="this.style.background='var(--pp-accentSoft)'">
+                    <svg style="width:16px;height:16px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" /></svg>
+                    Match Center
+                </a>
             </div>
         </div>
     </div>
 
-    {# Jobs Liste #}
-    <div class="dash-jobs" style="background:var(--pp-surface);border:1px solid var(--pp-border);border-radius:12px;">
-        {# Batch-Aktionen Header #}
-        <div id="batch-actions"
-             x-data="{ selectedCount: 0 }"
-             @change.window="if ($event.target.name === 'selected_jobs') { selectedCount = document.querySelectorAll('input[name=selected_jobs]:checked').length }"
-             style="border-bottom:1px solid var(--pp-border);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;">
-            <div style="display:flex;align-items:center;gap:12px;">
-                <label style="display:inline-flex;align-items:center;cursor:pointer;">
-                    <input type="checkbox"
-                           id="select-all-jobs"
-                           style="border-radius:4px;width:16px;height:16px;"
-                           onclick="document.querySelectorAll('input[name=selected_jobs]').forEach(cb => cb.checked = this.checked); this.dispatchEvent(new Event('change', {bubbles: true}))">
-                    <span style="margin-left:8px;font-size:13px;color:var(--pp-textMuted);">Alle auswaehlen</span>
-                </label>
-                <span x-show="selectedCount > 0"
-                      x-text="selectedCount + ' ausgewaehlt'"
-                      style="display:none;font-size:13px;color:var(--pp-accent);font-weight:500;"></span>
+    {# ═══ KPI STRIP ═══ #}
+    <div class="mc-kpi-strip">
+        <a href="/jobs" class="mc mc-glass mc-kpi blue" style="--stagger:1;">
+            <div class="mc-kpi-label">Aktive Jobs</div>
+            <div class="mc-kpi-value" x-text="stats.jobs_active ?? '—'"></div>
+            <div class="mc-kpi-sub" x-show="overnight.new_jobs > 0" x-text="'+' + overnight.new_jobs + ' seit gestern'" style="color:var(--pp-green);"></div>
+            <div class="mc-kpi-bar"><div class="mc-kpi-bar-fill" style="width:100%;"></div></div>
+        </a>
+        <a href="/kandidaten" class="mc mc-glass mc-kpi purple" style="--stagger:2;">
+            <div class="mc-kpi-label">Kandidaten</div>
+            <div class="mc-kpi-value" x-text="stats.candidates_active ?? '—'"></div>
+            <div class="mc-kpi-sub" x-show="overnight.new_candidates > 0" x-text="'+' + overnight.new_candidates + ' neu'" style="color:var(--pp-green);"></div>
+            <div class="mc-kpi-bar"><div class="mc-kpi-bar-fill" style="width:85%;"></div></div>
+        </a>
+        <a href="/match-center" class="mc mc-glass mc-kpi green" style="--stagger:3;">
+            <div class="mc-kpi-label">Matches</div>
+            <div class="mc-kpi-value" x-text="stats.matches_total ?? '—'"></div>
+            <div class="mc-kpi-sub" x-show="overnight.new_matches > 0" x-text="'+' + overnight.new_matches + ' neue'" style="color:var(--pp-green);"></div>
+            <div class="mc-kpi-bar"><div class="mc-kpi-bar-fill" style="width:70%;"></div></div>
+        </a>
+        <a href="/match-center" class="mc mc-glass mc-kpi amber" style="--stagger:4;">
+            <div class="mc-kpi-label">Vermittelt</div>
+            <div class="mc-kpi-value" x-text="stats.matches_placed ?? '—'"></div>
+            <div class="mc-kpi-sub">letzte 30 Tage</div>
+            <div class="mc-kpi-bar"><div class="mc-kpi-bar-fill" style="width:40%;"></div></div>
+        </a>
+        <a href="/akquise" class="mc mc-glass mc-kpi rose" style="--stagger:5;">
+            <div class="mc-kpi-label">Offene Leads</div>
+            <div class="mc-kpi-value" x-text="akquise.open_leads ?? '—'"></div>
+            <div class="mc-kpi-sub" x-text="akquise.calls_today + ' Anrufe heute'" x-show="akquise.calls_today > 0"></div>
+            <div class="mc-kpi-bar"><div class="mc-kpi-bar-fill" style="width:60%;"></div></div>
+        </a>
+        <a href="/ats" class="mc mc-glass mc-kpi cyan" style="--stagger:6;">
+            <div class="mc-kpi-label">In Pipeline</div>
+            <div class="mc-kpi-value" x-text="pipeline.total ?? '—'"></div>
+            <div class="mc-kpi-sub" x-show="pipeline.interviews > 0" x-text="pipeline.interviews + ' im Interview'"></div>
+            <div class="mc-kpi-bar"><div class="mc-kpi-bar-fill" style="width:55%;"></div></div>
+        </a>
+    </div>
+
+    {# ═══ MAIN GRID: Action Items + Top Matches ═══ #}
+    <div class="mc-grid-main">
+        {# — LEFT: Action Items — #}
+        <div class="mc mc-glass" style="--stagger:7;padding:20px 24px;">
+            <div class="mc-section-hdr">
+                <div class="mc-section-dot" style="background:var(--pp-red);"></div>
+                <div class="mc-section-title">Aufgaben heute</div>
+                <div class="mc-section-badge" style="background:var(--pp-redSoft);color:var(--pp-red);"
+                     x-text="actions.length" x-show="actions.length > 0"></div>
             </div>
-            <div x-show="selectedCount > 0" style="display: none;">
-                <button type="button"
-                        hx-delete="/api/jobs/batch"
-                        hx-include="input[name=selected_jobs]:checked"
-                        hx-target="#job-list"
-                        hx-swap="innerHTML"
-                        hx-confirm="Ausgewaehlte Jobs wirklich loeschen?"
-                        style="display:inline-flex;align-items:center;gap:4px;padding:6px 12px;font-size:12px;font-weight:600;color:var(--pp-red);background:var(--pp-redSoft);border:1px solid rgba(239,68,68,0.2);border-radius:8px;cursor:pointer;transition:all 0.15s;"
-                        onmouseover="this.style.background='rgba(239,68,68,0.18)'"
-                        onmouseout="this.style.background='var(--pp-redSoft)'">
-                    <svg style="width:14px;height:14px;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                    </svg>
-                    Loeschen
-                </button>
+            <div class="mc-scroll" style="max-height:300px;">
+                <template x-if="actions.length === 0 && !loading">
+                    <div class="mc-empty">
+                        <svg style="width:32px;height:32px;color:var(--pp-textDim);margin:0 auto 8px;" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        Alles erledigt — guter Tag!
+                    </div>
+                </template>
+                <template x-for="(item, i) in actions" :key="i">
+                    <div>
+                        <a :href="item.match_id ? '/match-center' : '/akquise'" class="mc-action">
+                            <div class="mc-action-dot" :class="item.priority"></div>
+                            <div style="flex:1;min-width:0;">
+                                <div class="mc-action-text" x-text="item.message"></div>
+                                <div class="mc-action-hint" x-text="item.action"></div>
+                            </div>
+                            <svg class="mc-action-arrow" style="width:16px;height:16px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+                        </a>
+                        <div class="mc-divider" x-show="i < actions.length - 1"></div>
+                    </div>
+                </template>
+                {# Skeleton #}
+                <template x-if="loading">
+                    <div style="display:flex;flex-direction:column;gap:12px;padding:4px 0;">
+                        <div class="mc-skeleton" style="height:48px;"></div>
+                        <div class="mc-skeleton" style="height:48px;"></div>
+                        <div class="mc-skeleton" style="height:48px;"></div>
+                    </div>
+                </template>
             </div>
         </div>
 
-        {# Job-Liste Container #}
-        <div id="job-list"
-             hx-get="/partials/job-list"
-             hx-trigger="load, jobsUpdated from:body"
-             hx-swap="innerHTML"
-             style="border-color:var(--pp-border);">
-            {# Skeleton waehrend des Ladens #}
-            <div style="padding:16px;">
-                {% set count = 5 %}
-                {% set type = 'card' %}
-                {% include 'components/skeleton_list.html' %}
+        {# — RIGHT: Top Matches — #}
+        <div class="mc mc-glass" style="--stagger:8;padding:20px 24px;">
+            <div class="mc-section-hdr">
+                <div class="mc-section-dot" style="background:var(--pp-green);"></div>
+                <div class="mc-section-title">Top Matches</div>
+                <a href="/match-center" class="mc-link" style="margin-left:auto;font-size:12px;">Alle anzeigen &rarr;</a>
+            </div>
+            <div class="mc-scroll" style="max-height:300px;">
+                <template x-if="topMatches.length === 0 && !loading">
+                    <div class="mc-empty">Keine unbearbeiteten Top-Matches</div>
+                </template>
+                <template x-for="(m, i) in topMatches" :key="m.match_id">
+                    <div>
+                        <a :href="'/match-center'" class="mc-match">
+                            <div class="mc-match-score"
+                                 :class="m.score >= 85 ? 'excellent' : m.score >= 70 ? 'good' : 'fair'"
+                                 x-text="Math.round(m.score)"></div>
+                            <div style="min-width:0;">
+                                <div class="mc-match-name" x-text="m.candidate_name"></div>
+                                <div class="mc-match-job">
+                                    <span x-text="m.job_position"></span> &middot;
+                                    <a :href="'/unternehmen'" class="mc-link" x-text="m.job_company" @click.stop></a>
+                                </div>
+                                <div class="mc-match-meta">
+                                    <span class="mc-match-tag" x-show="m.job_city">
+                                        <svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" /></svg>
+                                        <span x-text="m.job_city"></span>
+                                    </span>
+                                    <span class="mc-match-tag" x-show="m.drive_time_car_min">
+                                        <svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                        <span x-text="m.drive_time_car_min + ' min'"></span>
+                                    </span>
+                                    <span class="mc-match-tag" x-show="m.distance_km">
+                                        <span x-text="m.distance_km + ' km'"></span>
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="mc-match-action">Ansehen &rarr;</div>
+                        </a>
+                        <div class="mc-divider" x-show="i < topMatches.length - 1"></div>
+                    </div>
+                </template>
+                <template x-if="loading">
+                    <div style="display:flex;flex-direction:column;gap:12px;padding:4px 0;">
+                        <div class="mc-skeleton" style="height:64px;"></div>
+                        <div class="mc-skeleton" style="height:64px;"></div>
+                        <div class="mc-skeleton" style="height:64px;"></div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    {# ═══ SECOND ROW: Pipeline + Outreach Funnel + Akquise Today ═══ #}
+    <div class="mc-grid-triple">
+        {# — ATS PIPELINE — #}
+        <div class="mc mc-glass" style="--stagger:9;padding:20px 24px;">
+            <div class="mc-section-hdr">
+                <div class="mc-section-dot" style="background:var(--pp-purple);"></div>
+                <div class="mc-section-title">ATS Pipeline</div>
+                <a href="/ats/pipeline" class="mc-link" style="margin-left:auto;font-size:12px;">Pipeline &rarr;</a>
+            </div>
+            <div class="mc-pipe-stages" style="margin-bottom:28px;">
+                <a href="/ats/pipeline" class="mc-pipe-stage" style="background:rgba(96,165,250,0.2);" :title="'Gematcht: ' + (pipeline.matched || 0)">
+                    <span x-text="pipeline.matched || 0"></span>
+                    <span class="pipe-label">Gematcht</span>
+                </a>
+                <a href="/ats/pipeline" class="mc-pipe-stage" style="background:rgba(129,140,248,0.2);" :title="'Vorgestellt: ' + (pipeline.sent || 0)">
+                    <span x-text="pipeline.sent || 0"></span>
+                    <span class="pipe-label">Vorgestellt</span>
+                </a>
+                <a href="/ats/pipeline" class="mc-pipe-stage" style="background:rgba(251,191,36,0.2);" :title="'Feedback: ' + (pipeline.feedback || 0)">
+                    <span x-text="pipeline.feedback || 0"></span>
+                    <span class="pipe-label">Feedback</span>
+                </a>
+                <a href="/ats/pipeline" class="mc-pipe-stage" style="background:rgba(167,139,250,0.25);" :title="'Interview: ' + (pipeline.interviews || 0)">
+                    <span x-text="pipeline.interviews || 0"></span>
+                    <span class="pipe-label">Interview</span>
+                </a>
+                <a href="/ats/pipeline" class="mc-pipe-stage" style="background:rgba(52,211,153,0.2);" :title="'Angebot: ' + (pipeline.offer || 0)">
+                    <span x-text="pipeline.offer || 0"></span>
+                    <span class="pipe-label">Angebot</span>
+                </a>
+                <a href="/ats/pipeline" class="mc-pipe-stage" style="background:rgba(34,197,94,0.25);" :title="'Besetzt: ' + (pipeline.placed || 0)">
+                    <span x-text="pipeline.placed || 0"></span>
+                    <span class="pipe-label">Besetzt</span>
+                </a>
+            </div>
+            <div style="margin-top:16px;">
+                <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--pp-textDim);">
+                    <span>Gesamt in Pipeline</span>
+                    <span style="font-family:var(--pp-mono);font-weight:600;color:var(--pp-text);" x-text="pipeline.total || 0"></span>
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--pp-textDim);margin-top:6px;">
+                    <span>Abgelehnt</span>
+                    <span style="font-family:var(--pp-mono);font-weight:600;color:var(--pp-red);" x-text="pipeline.rejected || 0"></span>
+                </div>
             </div>
         </div>
 
-        {# Pagination Container #}
-        <div id="job-pagination"
-             hx-get="/partials/job-pagination"
-             hx-trigger="load, jobsUpdated from:body"
-             hx-swap="innerHTML">
+        {# — OUTREACH FUNNEL — #}
+        <div class="mc mc-glass" style="--stagger:10;padding:20px 24px;">
+            <div class="mc-section-hdr">
+                <div class="mc-section-dot" style="background:var(--pp-accent);"></div>
+                <div class="mc-section-title">Outreach Funnel</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+                <div class="mc-funnel-row">
+                    <div class="mc-funnel-label">Gesendet</div>
+                    <div class="mc-funnel-bar">
+                        <div class="mc-funnel-fill" style="background:rgba(96,165,250,0.3);"
+                             :style="'width:' + funnelPct('sent') + '%'">
+                            <span class="mc-funnel-val" x-text="funnel.sent || 0"></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="mc-funnel-row">
+                    <div class="mc-funnel-label">Antwort</div>
+                    <div class="mc-funnel-bar">
+                        <div class="mc-funnel-fill" style="background:rgba(167,139,250,0.3);"
+                             :style="'width:' + funnelPct('responded') + '%'">
+                            <span class="mc-funnel-val" x-text="funnel.responded || 0"></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="mc-funnel-row">
+                    <div class="mc-funnel-label">Interesse</div>
+                    <div class="mc-funnel-bar">
+                        <div class="mc-funnel-fill" style="background:rgba(52,211,153,0.3);"
+                             :style="'width:' + funnelPct('interested') + '%'">
+                            <span class="mc-funnel-val" x-text="funnel.interested || 0"></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="mc-funnel-row">
+                    <div class="mc-funnel-label">Abgelehnt</div>
+                    <div class="mc-funnel-bar">
+                        <div class="mc-funnel-fill" style="background:rgba(248,113,113,0.3);"
+                             :style="'width:' + funnelPct('declined') + '%'">
+                            <span class="mc-funnel-val" x-text="funnel.declined || 0"></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="mc-funnel-row">
+                    <div class="mc-funnel-label">Keine Antw.</div>
+                    <div class="mc-funnel-bar">
+                        <div class="mc-funnel-fill" style="background:rgba(100,116,139,0.3);"
+                             :style="'width:' + funnelPct('no_response') + '%'">
+                            <span class="mc-funnel-val" x-text="funnel.no_response || 0"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div style="margin-top:14px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.04);display:flex;justify-content:space-between;font-size:12px;">
+                <span style="color:var(--pp-textDim);">Antwortquote</span>
+                <span style="font-family:var(--pp-mono);font-weight:700;color:var(--pp-green);"
+                      x-text="responseRate + '%'"></span>
+            </div>
+        </div>
+
+        {# — AKQUISE TODAY — #}
+        <div class="mc mc-glass" style="--stagger:11;padding:20px 24px;">
+            <div class="mc-section-hdr">
+                <div class="mc-section-dot" style="background:var(--pp-orange);"></div>
+                <div class="mc-section-title">Akquise heute</div>
+                <a href="/akquise" class="mc-link" style="margin-left:auto;font-size:12px;">Akquise &rarr;</a>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:16px;">
+                <div class="mc-aq-stat">
+                    <div class="mc-aq-num" x-text="akquise.calls_today ?? '—'"></div>
+                    <div class="mc-aq-label">Anrufe</div>
+                </div>
+                <div class="mc-aq-stat">
+                    <div class="mc-aq-num" x-text="akquise.reached_today ?? '—'"></div>
+                    <div class="mc-aq-label">Erreicht</div>
+                </div>
+                <div class="mc-aq-stat">
+                    <div class="mc-aq-num" x-text="akquise.qualified_today ?? '—'"></div>
+                    <div class="mc-aq-label">Qualifiziert</div>
+                </div>
+                <div class="mc-aq-stat">
+                    <div class="mc-aq-num" x-text="akquise.emails_today ?? '—'"></div>
+                    <div class="mc-aq-label">E-Mails</div>
+                </div>
+            </div>
+            {# Wiedervorlagen #}
+            <div style="border-top:1px solid rgba(255,255,255,0.04);padding-top:12px;">
+                <div style="font-size:11px;font-weight:600;text-transform:uppercase;color:var(--pp-orange);letter-spacing:0.5px;margin-bottom:8px;">
+                    Wiedervorlagen faellig
+                    <span style="font-family:var(--pp-mono);margin-left:4px;" x-text="'(' + wiedervorlagen.length + ')'" x-show="wiedervorlagen.length > 0"></span>
+                </div>
+                <div class="mc-scroll" style="max-height:140px;">
+                    <template x-if="wiedervorlagen.length === 0 && !loading">
+                        <div class="mc-empty" style="padding:12px;">Keine faelligen Wiedervorlagen</div>
+                    </template>
+                    <template x-for="(w, i) in wiedervorlagen.slice(0, 5)" :key="i">
+                        <a :href="'/akquise'" class="mc-followup">
+                            <div class="mc-followup-time" x-text="w.time || 'Heute'"></div>
+                            <div class="mc-followup-info">
+                                <div class="mc-followup-company" x-text="w.company_name || w.position || 'Unbekannt'"></div>
+                                <div class="mc-followup-contact" x-text="w.contact_name || ''"></div>
+                            </div>
+                        </a>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ═══ THIRD ROW: Overnight Changes + Recent Outreach Responses ═══ #}
+    <div class="mc-grid-main">
+        {# — OVERNIGHT — #}
+        <div class="mc mc-glass" style="--stagger:12;padding:20px 24px;">
+            <div class="mc-section-hdr">
+                <div class="mc-section-dot" style="background:var(--pp-cyan, #22D3EE);"></div>
+                <div class="mc-section-title">Letzte 24 Stunden</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px;">
+                <div class="mc-overnight-item" x-show="overnight.new_jobs > 0">
+                    <div class="mc-overnight-icon" style="background:rgba(96,165,250,0.1);">
+                        <svg style="width:14px;height:14px;color:#60A5FA;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                    </div>
+                    <div class="mc-overnight-text">
+                        <span class="mc-overnight-num" x-text="overnight.new_jobs"></span> neue
+                        <a href="/jobs" class="mc-link">Jobs</a>
+                    </div>
+                </div>
+                <div class="mc-overnight-item" x-show="overnight.classified_high > 0">
+                    <div class="mc-overnight-icon" style="background:rgba(52,211,153,0.1);">
+                        <svg style="width:14px;height:14px;color:#34D399;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </div>
+                    <div class="mc-overnight-text">
+                        <span class="mc-overnight-num" x-text="overnight.classified_high"></span> hochwertige Jobs klassifiziert
+                    </div>
+                </div>
+                <div class="mc-overnight-item" x-show="overnight.new_matches > 0">
+                    <div class="mc-overnight-icon" style="background:rgba(167,139,250,0.1);">
+                        <svg style="width:14px;height:14px;color:#A78BFA;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" /></svg>
+                    </div>
+                    <div class="mc-overnight-text">
+                        <span class="mc-overnight-num" x-text="overnight.new_matches"></span> neue
+                        <a href="/match-center" class="mc-link">Matches</a>
+                    </div>
+                </div>
+                <div class="mc-overnight-item" x-show="overnight.top_matches > 0">
+                    <div class="mc-overnight-icon" style="background:rgba(251,191,36,0.1);">
+                        <svg style="width:14px;height:14px;color:#FBBF24;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" /></svg>
+                    </div>
+                    <div class="mc-overnight-text">
+                        <span class="mc-overnight-num" x-text="overnight.top_matches"></span> Top-Matches (Score 75+)
+                    </div>
+                </div>
+                <div class="mc-overnight-item" x-show="overnight.new_candidates > 0">
+                    <div class="mc-overnight-icon" style="background:rgba(251,113,133,0.1);">
+                        <svg style="width:14px;height:14px;color:#FB7185;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.766z" /></svg>
+                    </div>
+                    <div class="mc-overnight-text">
+                        <span class="mc-overnight-num" x-text="overnight.new_candidates"></span> neue
+                        <a href="/kandidaten" class="mc-link">Kandidaten</a>
+                    </div>
+                </div>
+                <div class="mc-overnight-item" x-show="overnight.outreach_responses > 0">
+                    <div class="mc-overnight-icon" style="background:rgba(52,211,153,0.1);">
+                        <svg style="width:14px;height:14px;color:#34D399;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" /></svg>
+                    </div>
+                    <div class="mc-overnight-text">
+                        <span class="mc-overnight-num" x-text="overnight.outreach_responses"></span> Outreach-Antworten
+                    </div>
+                </div>
+                <template x-if="overnight.new_jobs === 0 && overnight.new_matches === 0 && overnight.new_candidates === 0 && !loading">
+                    <div class="mc-empty" style="padding:16px;">Ruhige Nacht — keine neuen Aktivitaeten</div>
+                </template>
+            </div>
+        </div>
+
+        {# — RECENT RESPONSES — #}
+        <div class="mc mc-glass" style="--stagger:13;padding:20px 24px;">
+            <div class="mc-section-hdr">
+                <div class="mc-section-dot" style="background:var(--pp-green);"></div>
+                <div class="mc-section-title">Letzte Antworten</div>
+            </div>
+            <div class="mc-scroll" style="max-height:240px;">
+                <template x-if="recentResponses.length === 0 && !loading">
+                    <div class="mc-empty">Noch keine Outreach-Antworten</div>
+                </template>
+                <template x-for="(r, i) in recentResponses" :key="i">
+                    <div>
+                        <a href="/match-center" class="mc-action">
+                            <div class="mc-action-dot" :class="r.status === 'interested' ? 'high' : 'medium'"
+                                 :style="r.status === 'interested' ? 'background:var(--pp-green);box-shadow:0 0 8px rgba(52,211,153,0.3);' : r.status === 'declined' ? 'background:var(--pp-red);box-shadow:0 0 8px rgba(248,113,113,0.3);' : ''"></div>
+                            <div style="flex:1;min-width:0;">
+                                <div class="mc-action-text">
+                                    <span x-text="r.candidate_name" style="font-weight:600;"></span>
+                                    <span style="color:var(--pp-textDim);"> &middot; </span>
+                                    <span x-text="r.job_position" style="color:var(--pp-textMuted);"></span>
+                                </div>
+                                <div class="mc-action-hint">
+                                    <span x-text="r.job_company"></span>
+                                    <span x-show="r.status === 'interested'" style="color:var(--pp-green);font-weight:600;"> — Interessiert!</span>
+                                    <span x-show="r.status === 'declined'" style="color:var(--pp-red);"> — Abgelehnt</span>
+                                    <span x-show="r.status === 'responded'" style="color:var(--pp-purple);"> — Antwort</span>
+                                </div>
+                            </div>
+                            <svg class="mc-action-arrow" style="width:16px;height:16px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+                        </a>
+                        <div class="mc-divider" x-show="i < recentResponses.length - 1"></div>
+                    </div>
+                </template>
+                <template x-if="loading">
+                    <div style="display:flex;flex-direction:column;gap:12px;padding:4px 0;">
+                        <div class="mc-skeleton" style="height:44px;"></div>
+                        <div class="mc-skeleton" style="height:44px;"></div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    {# ═══ DATA QUALITY BAR ═══ #}
+    <div class="mc mc-glass" style="--stagger:14;padding:16px 24px;">
+        <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
+            <div style="font-size:12px;font-weight:600;color:var(--pp-textDim);text-transform:uppercase;letter-spacing:0.5px;">System</div>
+            <div style="display:flex;align-items:center;gap:6px;">
+                <div style="width:6px;height:6px;border-radius:50%;background:var(--pp-green);animation:pulseGlow 2s ease-in-out infinite;"></div>
+                <span style="font-size:12px;color:var(--pp-textMuted);">Online</span>
+            </div>
+            <div style="height:16px;width:1px;background:rgba(255,255,255,0.08);"></div>
+            <a href="/statistiken" style="font-size:12px;color:var(--pp-textMuted);text-decoration:none;display:flex;align-items:center;gap:4px;" onmouseover="this.style.color='var(--pp-accent)'" onmouseout="this.style.color='var(--pp-textMuted)'">
+                <span x-text="(stats.jobs_without_matches || 0) + ' Jobs ohne Match'" x-show="stats.jobs_without_matches > 0" style="color:var(--pp-orange);"></span>
+                <span x-show="stats.jobs_without_matches > 0" style="margin:0 4px;">·</span>
+                <span x-text="(stats.candidates_without_address || 0) + ' ohne Adresse'" x-show="stats.candidates_without_address > 0" style="color:var(--pp-red);"></span>
+                <span x-show="stats.jobs_without_matches === 0 && stats.candidates_without_address === 0" style="color:var(--pp-green);">Datenqualitaet OK</span>
+                <svg style="width:12px;height:12px;margin-left:4px;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+            </a>
+            <div style="margin-left:auto;font-size:11px;font-family:var(--pp-mono);color:var(--pp-textDim);"
+                 x-text="'Avg Score: ' + (stats.avg_ai_score ? stats.avg_ai_score.toFixed(1) : '—')"
+                 x-show="stats.avg_ai_score"></div>
         </div>
     </div>
 </div>
@@ -334,15 +741,152 @@
 
 {% block scripts %}
 <script>
-    // Refresh bei erfolgreicher Aktion
-    document.body.addEventListener('htmx:afterRequest', function(evt) {
-        if (evt.detail.successful) {
-            const path = evt.detail.pathInfo?.requestPath || '';
-            // Bei Loeschen/Restore Jobs neu laden
-            if (path.includes('/jobs/') && (evt.detail.requestConfig?.verb === 'DELETE' || path.includes('/restore'))) {
-                htmx.trigger(document.body, 'jobsUpdated');
+function missionControl() {
+    return {
+        loading: true,
+        greeting: '',
+        dateStr: '',
+
+        // Data stores
+        stats: {},
+        overnight: { new_jobs:0, new_candidates:0, new_matches:0, top_matches:0, outreach_responses:0, classified_high:0 },
+        actions: [],
+        topMatches: [],
+        funnel: { sent:0, responded:0, interested:0, declined:0, no_response:0 },
+        recentResponses: [],
+        akquise: { calls_today:0, reached_today:0, qualified_today:0, emails_today:0, open_leads:0 },
+        wiedervorlagen: [],
+        pipeline: { total:0, matched:0, sent:0, feedback:0, interviews:0, offer:0, placed:0, rejected:0 },
+
+        init() {
+            // Greeting
+            const h = new Date().getHours();
+            this.greeting = h < 12 ? 'Guten Morgen' : h < 18 ? 'Guten Tag' : 'Guten Abend';
+
+            // Date
+            const d = new Date();
+            const days = ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'];
+            const months = ['Januar','Februar','Maerz','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+            this.dateStr = days[d.getDay()] + ', ' + d.getDate() + '. ' + months[d.getMonth()] + ' ' + d.getFullYear();
+
+            // Fetch all data in parallel
+            this.loadAll();
+        },
+
+        async loadAll() {
+            this.loading = true;
+            try {
+                const [statsRes, overnightRes, actionsRes, matchesRes, outreachRes, akquiseRes, wvRes, pipelineRes] = await Promise.allSettled([
+                    fetch('/api/statistics/dashboard?days=30').then(r => r.json()),
+                    fetch('/api/briefing/overnight?hours=24').then(r => r.json()),
+                    fetch('/api/briefing/action-items').then(r => r.json()),
+                    fetch('/api/briefing/top-matches?limit=5&min_score=60').then(r => r.json()),
+                    fetch('/api/briefing/outreach-summary').then(r => r.json()),
+                    fetch('/api/akquise/stats').then(r => r.json()),
+                    fetch('/api/akquise/wiedervorlagen').then(r => r.json()),
+                    fetch('/api/status/aufgaben').then(r => r.json()),
+                ]);
+
+                // Stats
+                if (statsRes.status === 'fulfilled') this.stats = statsRes.value;
+
+                // Overnight
+                if (overnightRes.status === 'fulfilled') {
+                    const s = overnightRes.value.summary || {};
+                    this.overnight = {
+                        new_jobs: s.new_jobs || 0,
+                        new_candidates: s.new_candidates || 0,
+                        new_matches: s.new_matches || 0,
+                        top_matches: s.top_matches_score_75_plus || 0,
+                        outreach_responses: s.outreach_responses || 0,
+                        classified_high: s.classified_jobs?.high || 0,
+                    };
+                }
+
+                // Actions
+                if (actionsRes.status === 'fulfilled') this.actions = actionsRes.value.action_items || [];
+
+                // Top Matches
+                if (matchesRes.status === 'fulfilled') this.topMatches = matchesRes.value.items || [];
+
+                // Outreach Funnel
+                if (outreachRes.status === 'fulfilled') {
+                    this.funnel = outreachRes.value.funnel || this.funnel;
+                    this.recentResponses = outreachRes.value.recent_responses || [];
+                }
+
+                // Akquise
+                if (akquiseRes.status === 'fulfilled') this.akquise = akquiseRes.value;
+
+                // Wiedervorlagen
+                if (wvRes.status === 'fulfilled') {
+                    const wvData = wvRes.value;
+                    // API returns grouped by company — flatten
+                    if (Array.isArray(wvData)) {
+                        this.wiedervorlagen = wvData.flatMap(group => {
+                            if (group.jobs) {
+                                return group.jobs.map(j => ({
+                                    company_name: group.company_name,
+                                    position: j.position,
+                                    contact_name: j.contact_name || (group.contacts && group.contacts[0] ? (group.contacts[0].first_name + ' ' + group.contacts[0].last_name) : ''),
+                                    time: j.follow_up_time || 'Heute',
+                                }));
+                            }
+                            return [group];
+                        });
+                    }
+                }
+
+                // Pipeline (from ATS status)
+                if (pipelineRes.status === 'fulfilled') {
+                    const p = pipelineRes.value;
+                    // Pipeline data comes from /status/aufgaben — we need a different approach
+                    // Let's use the overview endpoint for pipeline counts
+                    this.loadPipeline();
+                }
+
+            } catch (e) {
+                console.error('Dashboard load error:', e);
+            } finally {
+                this.loading = false;
             }
-        }
-    });
+        },
+
+        async loadPipeline() {
+            try {
+                const res = await fetch('/api/status/overview');
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.matches) {
+                        const ms = data.matches.matches_by_status || {};
+                        this.pipeline.total = Object.values(ms).reduce((a,b) => a + b, 0);
+                        this.pipeline.matched = ms.new || 0;
+                        this.pipeline.sent = ms.presented || 0;
+                        this.pipeline.placed = ms.placed || 0;
+                        this.pipeline.rejected = ms.rejected || 0;
+                    }
+                    if (data.aufgaben) {
+                        this.pipeline.feedback = data.aufgaben.open || 0;
+                    }
+                }
+            } catch(e) { /* silent */ }
+        },
+
+        // Funnel percentage
+        funnelPct(key) {
+            const max = Math.max(this.funnel.sent || 1, 1);
+            const val = this.funnel[key] || 0;
+            return Math.max(Math.round(val / max * 100), val > 0 ? 8 : 0);
+        },
+
+        // Response rate
+        get responseRate() {
+            const sent = this.funnel.sent || 0;
+            const responded = (this.funnel.responded || 0) + (this.funnel.interested || 0) + (this.funnel.declined || 0);
+            if (sent === 0) return '0';
+            return Math.round(responded / sent * 100);
+        },
+    };
+}
 </script>
 {% endblock %}
