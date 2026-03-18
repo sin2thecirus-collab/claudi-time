@@ -265,6 +265,59 @@ class DistanceMatrixService:
         self._cache.clear()
         return count
 
+    async def get_drive_time_by_address(
+        self,
+        origin_address: str,
+        dest_address: str,
+        origin_plz: str | None = None,
+        dest_plz: str | None = None,
+    ) -> DriveTimeResult:
+        """Fahrzeit Auto + ÖPNV mit Adressen statt Koordinaten.
+
+        Google Maps Distance Matrix API akzeptiert direkt Adressen —
+        kein Geocoding noetig!
+
+        Args:
+            origin_address: Adresse des Startpunkts (z.B. "Musterstr. 1, 80331 München")
+            dest_address: Adresse des Ziels (z.B. "Hauptstr. 5, 82131 Gauting")
+            origin_plz: PLZ fuer Caching (optional)
+            dest_plz: PLZ fuer Caching (optional)
+        """
+        if not self.has_api_key:
+            return DriveTimeResult(status="no_api_key")
+
+        if not origin_address or not dest_address:
+            return DriveTimeResult(status="missing_address")
+
+        # Gleiche PLZ → Kurzschluss
+        if origin_plz and dest_plz and origin_plz == dest_plz:
+            return DriveTimeResult(car_min=5, transit_min=10, car_km=2.0, status="same_plz")
+
+        # Cache-Check
+        cache_key = self._make_cache_key(origin_plz, dest_plz)
+        if cache_key and cache_key in self._cache:
+            self._cache_hits += 1
+            return self._cache[cache_key]
+
+        self._cache_misses += 1
+
+        # API-Calls mit Adressen statt Koordinaten
+        car_result = await self._call_api(origin_address, dest_address, mode="driving")
+        transit_result = await self._call_api(origin_address, dest_address, mode="transit")
+
+        result = DriveTimeResult(
+            car_min=car_result.get("duration_min"),
+            transit_min=transit_result.get("duration_min"),
+            car_km=car_result.get("distance_km"),
+            status="ok" if car_result.get("status") == "OK" else "api_error",
+        )
+
+        # Cache speichern
+        if cache_key and result.status == "ok":
+            self._cache[cache_key] = result
+
+        return result
+
     # ── Private Methods ──────────────────────────────────────
 
     def _make_cache_key(

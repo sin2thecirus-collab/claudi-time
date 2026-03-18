@@ -237,44 +237,22 @@ async def backfill_pipeline_drive_times(
 
 # ── Background Tasks ────────────────────────────
 
-async def _geocode_city(city: str) -> tuple[float, float] | None:
-    """Geocodiert eine Stadt per Nominatim (OpenStreetMap). Returns (lat, lng) oder None."""
-    import httpx
-
-    if not city or not city.strip():
-        return None
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(
-                "https://nominatim.openstreetmap.org/search",
-                params={"q": f"{city.strip()}, Deutschland", "format": "json", "limit": "1"},
-                headers={"User-Agent": "PulspointCRM/1.0"},
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            if data:
-                return float(data[0]["lat"]), float(data[0]["lon"])
-    except Exception as e:
-        logger.warning(f"Geocoding fuer '{city}' fehlgeschlagen: {e}")
-    return None
-
 
 async def _calculate_drive_time_for_entry(entry_id: str) -> None:
     """Berechnet Fahrzeit fuer einen einzelnen Pipeline-Eintrag.
 
-    Fallback-Kette fuer Job-Koordinaten:
-    1. ATSJob.location_coords (PostGIS)
-    2. Source-Job (jobs Tabelle) ueber source_job_id -> location_coords
-    3. Company.location_coords (ueber ATSJob.company_id ODER Source-Job.company_name)
-    4. Nominatim Geocoding der Stadt (ATSJob.location_city)
+    Nutzt Google Maps direkt mit ADRESSEN — kein Geocoding noetig!
 
-    Fallback-Kette fuer Kandidaten-Koordinaten:
-    1. Candidate.address_coords (PostGIS)
-    2. Nominatim Geocoding der Stadt (Candidate.city)
+    Adress-Kette fuer Job/Unternehmen:
+    1. Company-Adresse (Strasse + PLZ + Stadt) — Unternehmen hat IMMER eine Adresse
+    2. ATSJob.location_city als Fallback
+    3. Source-Job Stadt als letzter Fallback
+
+    Adress-Kette fuer Kandidat:
+    1. Kandidat-Adresse (Strasse + PLZ + Stadt)
+    2. Kandidat Stadt als Fallback
     """
     try:
-        from sqlalchemy import func as sa_func, text
-
         from app.database import async_session_maker
         from app.models.ats_job import ATSJob
         from app.models.ats_pipeline import ATSPipelineEntry
@@ -287,16 +265,12 @@ async def _calculate_drive_time_for_entry(entry_id: str) -> None:
             logger.info("Kein Google Maps API Key — ueberspringe Fahrzeit")
             return
 
-        # Daten laden (eigene Session — Railway 30s Timeout!)
-        job_lat = None
-        job_lng = None
-        job_city = None
-        cand_lat = None
-        cand_lng = None
-        cand_city = None
-        cand_plz = None
+        dest_address = None
         dest_plz = None
+        origin_address = None
+        origin_plz = None
 
+        # ── Daten laden (eigene Session — Railway 30s Timeout!) ──
         async with async_session_maker() as db:
             # Entry laden
             entry_result = await db.execute(
@@ -304,16 +278,15 @@ async def _calculate_drive_time_for_entry(entry_id: str) -> None:
             )
             entry = entry_result.scalar_one_or_none()
             if not entry or not entry.candidate_id:
+                logger.info(f"Pipeline-Entry {entry_id}: Kein Kandidat verknuepft")
                 return
 
             ats_job_id = entry.ats_job_id
             candidate_id = entry.candidate_id
 
-            # ── Job-Koordinaten: ATSJob direkt ──
+            # ── ATSJob laden (fuer company_id + source_job_id + city) ──
             job_result = await db.execute(
                 select(
-                    sa_func.ST_Y(sa_func.ST_GeomFromWKB(ATSJob.location_coords)).label("job_lat"),
-                    sa_func.ST_X(sa_func.ST_GeomFromWKB(ATSJob.location_coords)).label("job_lng"),
                     ATSJob.location_city,
                     ATSJob.company_id,
                     ATSJob.source_job_id,
@@ -324,132 +297,94 @@ async def _calculate_drive_time_for_entry(entry_id: str) -> None:
                 logger.warning(f"Pipeline-Entry {entry_id}: ATSJob {ats_job_id} nicht gefunden")
                 return
 
-            job_lat = job_row.job_lat
-            job_lng = job_row.job_lng
-            job_city = job_row.location_city
-            source_job_id = job_row.source_job_id
-            company_id = job_row.company_id
+            # ── ZIEL-ADRESSE: Company hat IMMER eine vollstaendige Adresse ──
+            comp_id = job_row.company_id
 
-            # ── Fallback 1: Source-Job (jobs Tabelle) ──
-            if (not job_lat or not job_lng) and source_job_id:
+            # Falls ATSJob keine company_id hat, ueber Source-Job suchen
+            if not comp_id and job_row.source_job_id:
                 src_result = await db.execute(
-                    select(
-                        sa_func.ST_Y(sa_func.ST_GeomFromWKB(Job.location_coords)).label("lat"),
-                        sa_func.ST_X(sa_func.ST_GeomFromWKB(Job.location_coords)).label("lng"),
-                        Job.postal_code,
-                        Job.city,
-                    ).where(Job.id == source_job_id)
+                    select(Job.company_name, Job.city, Job.postal_code).where(Job.id == job_row.source_job_id)
                 )
                 src_row = src_result.one_or_none()
-                if src_row:
-                    if src_row.lat and src_row.lng:
-                        job_lat, job_lng = src_row.lat, src_row.lng
+                if src_row and src_row.company_name:
+                    # Company per Name finden
+                    comp_by_name = await db.execute(
+                        select(Company.id).where(
+                            Company.name.ilike(src_row.company_name)
+                        ).limit(1)
+                    )
+                    comp_id = comp_by_name.scalar_one_or_none()
+
+                    # Notfalls Source-Job Stadt als Fallback
+                    if not comp_id and src_row.city:
+                        dest_address = f"{src_row.postal_code + ' ' if src_row.postal_code else ''}{src_row.city}, Deutschland"
                         dest_plz = src_row.postal_code
-                        logger.info(f"Pipeline-Entry {entry_id}: Koordinaten vom Source-Job {source_job_id}")
-                    elif src_row.city:
-                        job_city = job_city or src_row.city
 
-            # ── Fallback 2: Company-Koordinaten ──
-            if not job_lat or not job_lng:
-                comp_id_to_check = company_id
-                # Falls ATSJob keine Company hat, versuche Company ueber Source-Job
-                if not comp_id_to_check and source_job_id:
-                    src_comp = await db.execute(
-                        select(Job.company_name).where(Job.id == source_job_id)
-                    )
-                    src_comp_row = src_comp.one_or_none()
-                    if src_comp_row and src_comp_row.company_name:
-                        # Company per Name finden
-                        from app.models.company import Company
-                        comp_by_name = await db.execute(
-                            select(Company.id).where(
-                                Company.name.ilike(src_comp_row.company_name)
-                            ).limit(1)
-                        )
-                        comp_match = comp_by_name.scalar_one_or_none()
-                        if comp_match:
-                            comp_id_to_check = comp_match
+            if comp_id:
+                comp_result = await db.execute(
+                    select(
+                        Company.name, Company.address, Company.postal_code, Company.city,
+                    ).where(Company.id == comp_id)
+                )
+                comp = comp_result.one_or_none()
+                if comp:
+                    # Adresse zusammenbauen: Adresse + PLZ + Stadt
+                    parts = []
+                    if comp.address:
+                        parts.append(comp.address)
+                    if comp.postal_code:
+                        parts.append(comp.postal_code)
+                    if comp.city:
+                        parts.append(comp.city)
+                    if parts:
+                        dest_address = ", ".join(parts) + ", Deutschland"
+                        dest_plz = comp.postal_code
+                        logger.info(f"Pipeline-Entry {entry_id}: Ziel-Adresse von Company '{comp.name}': {dest_address}")
 
-                if comp_id_to_check:
-                    comp_result = await db.execute(
-                        select(
-                            sa_func.ST_Y(sa_func.ST_GeomFromWKB(Company.location_coords)).label("lat"),
-                            sa_func.ST_X(sa_func.ST_GeomFromWKB(Company.location_coords)).label("lng"),
-                            Company.city,
-                            Company.postal_code,
-                        ).where(Company.id == comp_id_to_check)
-                    )
-                    comp_row = comp_result.one_or_none()
-                    if comp_row:
-                        if comp_row.lat and comp_row.lng:
-                            job_lat, job_lng = comp_row.lat, comp_row.lng
-                            dest_plz = comp_row.postal_code
-                            logger.info(f"Pipeline-Entry {entry_id}: Koordinaten von Company {comp_id_to_check}")
-                        elif comp_row.city:
-                            job_city = job_city or comp_row.city
+            # Letzter Fallback: ATSJob location_city
+            if not dest_address and job_row.location_city:
+                dest_address = f"{job_row.location_city}, Deutschland"
+                logger.info(f"Pipeline-Entry {entry_id}: Ziel-Adresse Fallback ATSJob Stadt: {dest_address}")
 
-            # ── Kandidaten-Koordinaten ──
+            # ── KANDIDATEN-ADRESSE ──
             cand_result = await db.execute(
                 select(
-                    sa_func.ST_Y(sa_func.ST_GeomFromWKB(Candidate.address_coords)).label("cand_lat"),
-                    sa_func.ST_X(sa_func.ST_GeomFromWKB(Candidate.address_coords)).label("cand_lng"),
-                    Candidate.postal_code,
-                    Candidate.city.label("cand_city"),
+                    Candidate.street_address, Candidate.postal_code, Candidate.city,
+                    Candidate.first_name, Candidate.last_name,
                 ).where(Candidate.id == candidate_id)
             )
-            cand_row = cand_result.one_or_none()
-            if not cand_row:
+            cand = cand_result.one_or_none()
+            if not cand:
+                logger.warning(f"Pipeline-Entry {entry_id}: Kandidat {candidate_id} nicht gefunden")
                 return
 
-            cand_lat = cand_row.cand_lat
-            cand_lng = cand_row.cand_lng
-            cand_city = cand_row.cand_city
-            cand_plz = cand_row.postal_code
+            # Adresse zusammenbauen
+            cand_parts = []
+            if cand.street_address:
+                cand_parts.append(cand.street_address)
+            if cand.postal_code:
+                cand_parts.append(cand.postal_code)
+            if cand.city:
+                cand_parts.append(cand.city)
+            if cand_parts:
+                origin_address = ", ".join(cand_parts) + ", Deutschland"
+                origin_plz = cand.postal_code
+            else:
+                logger.warning(f"Pipeline-Entry {entry_id}: Kandidat {cand.first_name} {cand.last_name} hat keine Adresse")
+                return
 
-        # Session geschlossen — jetzt Geocoding falls noetig
+        # ── Session geschlossen — Google Maps API Call ──
 
-        # ── Fallback 3: Job-Stadt geocoden per Nominatim ──
-        if (not job_lat or not job_lng) and job_city:
-            coords = await _geocode_city(job_city)
-            if coords:
-                job_lat, job_lng = coords
-                # Koordinaten auf ATSJob speichern fuer naechstes Mal
-                async with async_session_maker() as db_geo:
-                    await db_geo.execute(text(
-                        "UPDATE ats_jobs SET location_coords = ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography WHERE id = :jid"
-                    ), {"lng": job_lng, "lat": job_lat, "jid": str(ats_job_id)})
-                    await db_geo.commit()
-                logger.info(f"ATSJob {ats_job_id}: Geocoded '{job_city}' -> {job_lat},{job_lng}")
-
-        if not job_lat or not job_lng:
-            logger.warning(f"Pipeline-Entry {entry_id}: Keine Job-Koordinaten gefunden (kein ATSJob, Source-Job, Company oder Stadt)")
+        if not dest_address:
+            logger.warning(f"Pipeline-Entry {entry_id}: Keine Ziel-Adresse gefunden (kein Company, kein Stadt)")
             return
 
-        # ── Kandidat geocoden falls noetig ──
-        if (not cand_lat or not cand_lng) and cand_city:
-            coords = await _geocode_city(cand_city)
-            if coords:
-                cand_lat, cand_lng = coords
-                async with async_session_maker() as db_geo2:
-                    await db_geo2.execute(text(
-                        "UPDATE candidates SET address_coords = ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography WHERE id = :cid"
-                    ), {"lng": cand_lng, "lat": cand_lat, "cid": str(candidate_id)})
-                    await db_geo2.commit()
-                logger.info(f"Kandidat {candidate_id}: Geocoded '{cand_city}' -> {cand_lat},{cand_lng}")
-            # Rate-Limit: 1 Sekunde zwischen Nominatim-Requests
-            await asyncio.sleep(1.0)
+        logger.info(f"Pipeline-Entry {entry_id}: Google Maps: '{origin_address}' -> '{dest_address}'")
 
-        if not cand_lat or not cand_lng:
-            logger.warning(f"Pipeline-Entry {entry_id}: Keine Kandidaten-Koordinaten gefunden (keine coords, keine Stadt)")
-            return
-
-        # ── Google Maps Fahrzeit berechnen ──
-        result = await distance_matrix_service.get_drive_time(
-            origin_lat=cand_lat,
-            origin_lng=cand_lng,
-            origin_plz=cand_plz,
-            dest_lat=job_lat,
-            dest_lng=job_lng,
+        result = await distance_matrix_service.get_drive_time_by_address(
+            origin_address=origin_address,
+            dest_address=dest_address,
+            origin_plz=origin_plz,
             dest_plz=dest_plz,
         )
 
@@ -470,7 +405,7 @@ async def _calculate_drive_time_for_entry(entry_id: str) -> None:
                 f"Auto {result.car_min}min, OEPNV {result.transit_min}min, {result.car_km}km"
             )
         else:
-            logger.warning(f"Pipeline-Entry {entry_id}: Fahrzeit-API Fehler: {result.status}")
+            logger.warning(f"Pipeline-Entry {entry_id}: Google Maps Fehler: {result.status}")
 
     except Exception as e:
         logger.error(f"Fahrzeit-Berechnung fuer Pipeline-Entry {entry_id} fehlgeschlagen: {e}", exc_info=True)
