@@ -102,21 +102,12 @@ document.addEventListener('keydown', function(e) {
 
     /* ── Stat Cards — Aurora Glass ── */
     .kl-stat-card {
-        background: rgba(20,25,42,0.55);
-        backdrop-filter: blur(16px) saturate(1.3);
-        -webkit-backdrop-filter: blur(16px) saturate(1.3);
-        border: 1px solid rgba(255,255,255,0.06);
-        border-radius: 14px; padding: 18px 24px; min-width: 140px; text-align: center;
-        position: relative; overflow: hidden;
-        transition: all 250ms ease;
+        background: rgba(20,25,42,0.4);
+        border: 1px solid rgba(255,255,255,0.05);
+        border-radius: 10px; padding: 10px 16px; min-width: 80px; text-align: center;
     }
-    .kl-stat-card::before {
-        content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
-    }
-    .kl-stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
-    .kl-stat-value { font-size: 24px; font-weight: 800; color: var(--pp-text); font-family: var(--pp-mono); }
-    .kl-stat-label { font-size: 11px; font-weight: 600; color: var(--pp-textDim); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 4px; }
+    .kl-stat-value { font-size: 15px; font-weight: 700; color: var(--pp-text); font-family: var(--pp-mono); }
+    .kl-stat-label { font-size: 9.5px; font-weight: 600; color: var(--pp-textDim); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px; }
 
     /* ── Category Chips — Aurora Toggle ── */
     .kl-chip {
@@ -346,7 +337,6 @@ document.addEventListener('keydown', function(e) {
             </div>
             <div>
                 <h1 style="font-size: 24px; font-weight: 700; color: var(--pp-text); letter-spacing: -0.03em; margin: 0; line-height: 1.2;">Kandidaten</h1>
-                <p style="font-size: 13px; color: var(--pp-textMuted); margin-top: 2px;">Alle Kandidaten im System</p>
             </div>
         </div>
 
