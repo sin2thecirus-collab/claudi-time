@@ -2133,7 +2133,15 @@ function pipelineCommandCenter() {
                 const result = await r.json();
                 if (typeof showToast === 'function') showToast(result.message, 'success');
                 this.showQuickAddModal = false;
-                // Direkt Add-Candidate Modal öffnen
+                // Neue Position in die Liste einfuegen damit Dropdown sie zeigt
+                this.positions.unshift({
+                    id: result.ats_job_id,
+                    name: result.job_title,
+                    company: result.company_name,
+                    candidates: 0,
+                    active: true,
+                });
+                // Direkt Add-Candidate Modal oeffnen
                 this.addJobId = result.ats_job_id;
                 this.addStage = 'sent';
                 this.showAddModal = true;
@@ -2224,6 +2232,14 @@ function pipelineCommandCenter() {
                 const result = await r.json();
                 this.rawtextCreatedJobId = result.ats_job_id;
                 this.rawtextCreatedName = result.job_title + ' bei ' + result.company_name;
+                // Neue Position in die Liste einfuegen
+                this.positions.unshift({
+                    id: result.ats_job_id,
+                    name: result.job_title,
+                    company: result.company_name,
+                    candidates: 0,
+                    active: true,
+                });
                 this.rawtextStep = 3;
             } catch (e) {
                 this.rawtextError = 'Netzwerkfehler — bitte erneut versuchen';
