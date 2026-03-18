@@ -55,11 +55,11 @@
 <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
     <colgroup>
         <col class="selection-col hidden" style="width: 44px;">
-        <col style="width: 28%;">  {# Name #}
-        <col style="width: 18%;">  {# Position #}
-        <col style="width: 15%;">  {# Unternehmen #}
-        <col style="width: 12%;">  {# Stadt #}
-        <col style="width: 10%;">  {# Status #}
+        <col style="width: 22%;">  {# Name #}
+        <col style="width: 17%;">  {# Position #}
+        <col style="width: 25%;">  {# Adresse #}
+        <col style="width: 10%;">  {# Stadt #}
+        <col style="width: 9%;">   {# Status #}
         <col style="width: 5%;">   {# CV #}
         <col style="width: 12%;">  {# Aktionen #}
     </colgroup>
@@ -73,7 +73,7 @@
             </th>
             <th class="kl-th" style="padding-left: 18px;">Name</th>
             <th class="kl-th">Position</th>
-            <th class="kl-th">Unternehmen</th>
+            <th class="kl-th">Adresse</th>
             <th class="kl-th">Stadt</th>
             <th class="kl-th">Status</th>
             <th class="kl-th" style="text-align: center;">CV</th>
@@ -134,20 +134,7 @@
                             <span style="font-size: 11px; color: var(--pp-textDim); font-weight: 500;">({{ candidate.age }})</span>
                             {% endif %}
                         </div>
-                        {# Skill Tags (max 3) #}
-                        {% if candidate.it_skills %}
-                        <div style="display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap;">
-                            {% for skill in candidate.it_skills[:3] %}
-                            {% set sk_low = skill | lower %}
-                            {% set is_tech = 'python' in sk_low or 'java' in sk_low or 'react' in sk_low or 'node' in sk_low or 'docker' in sk_low or 'aws' in sk_low or 'azure' in sk_low or 'sql' in sk_low or 'linux' in sk_low or 'git' in sk_low or 'html' in sk_low or 'css' in sk_low or 'typescript' in sk_low or 'c++' in sk_low or 'c#' in sk_low or '.net' in sk_low or 'angular' in sk_low or 'vue' in sk_low or 'kubernetes' in sk_low or 'terraform' in sk_low %}
-                            {% set is_fach = 'sap' in sk_low or 'datev' in sk_low or 'ifrs' in sk_low or 'hgb' in sk_low or 'gaap' in sk_low or 'controlling' in sk_low or 'buchhaltung' in sk_low or 'tagetik' in sk_low or 'lucanet' in sk_low or 'konsolidierung' in sk_low or 'hyperion' in sk_low or 'cognos' in sk_low or 'excel' in sk_low or 'power bi' in sk_low or 'tableau' in sk_low %}
-                            <span class="kl-skill-tag {% if is_tech %}kl-skill-tag-tech{% elif is_fach %}kl-skill-tag-fach{% endif %}">{{ skill }}</span>
-                            {% endfor %}
-                            {% if candidate.it_skills | length > 3 %}
-                            <span style="font-size: 11px; color: var(--pp-textDim); font-weight: 500;">+{{ candidate.it_skills | length - 3 }}</span>
-                            {% endif %}
-                        </div>
-                        {% endif %}
+
                     </div>
                 </div>
             </td>
@@ -167,22 +154,28 @@
                 </div>
             </td>
 
-            {# Company (editable) #}
-            {% set raw_company = candidate.current_company or '' %}
-            {% set company_invalid = raw_company | lower | trim in ['not available', 'n/a', 'na', 'none', 'null', '-', '—', 'kein unternehmen'] %}
-            {% set company_display = '' if company_invalid else raw_company %}
+            {# Adresse (kopierbar) #}
+            {% set raw_street = candidate.street_address or '' %}
+            {% set raw_plz = candidate.postal_code or '' %}
+            {% set raw_addr_city = candidate.city or '' %}
+            {% set addr_parts = [] %}
+            {% if raw_street %}{% set _ = addr_parts.append(raw_street) %}{% endif %}
+            {% if raw_plz or raw_addr_city %}{% set _ = addr_parts.append(((raw_plz ~ ' ' ~ raw_addr_city) | trim)) %}{% endif %}
+            {% set full_address = addr_parts | join(', ') %}
             <td onclick="event.stopPropagation()" style="overflow: hidden;">
-                <div class="inline-edit-wrapper" data-candidate-id="{{ candidate.id }}" data-field="current_company">
-                    <span class="inline-edit-display kl-inline-display"
-                          onclick="startInlineEdit(this)"
-                          title="{{ raw_company if raw_company else 'Klicken zum Bearbeiten' }}"
-                          style="font-size: 13px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; {% if company_display %}color: var(--pp-textMuted);{% else %}color: var(--pp-textDim); font-style: italic;{% endif %}">{{ company_display or '—' }}</span>
-                    <input type="text"
-                           class="inline-edit-input kl-inline-input hidden"
-                           value="{{ company_display }}"
-                           onblur="saveInlineEdit(this)"
-                           onkeydown="handleInlineEditKey(event, this)">
+                {% if full_address %}
+                <div style="display: flex; align-items: center; gap: 6px; overflow: hidden; cursor: pointer;"
+                     onclick="navigator.clipboard.writeText('{{ full_address | e }}').then(function(){if(typeof showToast==='function')showToast('Adresse kopiert!','success')})"
+                     title="Klicken zum Kopieren: {{ full_address | e }}">
+                    <svg style="width: 12px; height: 12px; color: var(--pp-textDim); flex-shrink: 0;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+                    </svg>
+                    <span style="font-size: 12.5px; color: var(--pp-textMuted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ full_address }}</span>
                 </div>
+                {% else %}
+                <span style="font-size: 13px; color: var(--pp-textDim);">—</span>
+                {% endif %}
             </td>
 
             {# City — nur Stadt anzeigen, "Keine Adresse" → "—" #}
@@ -223,15 +216,18 @@
                 {% endif %}
             </td>
 
-            {# CV Indicator #}
+            {# CV Indicator — Dokument mit Haekchen (gruen) #}
             <td style="text-align: center;">
                 {% if candidate.cv_url or candidate.cv_stored_path %}
-                <svg class="kl-cv-yes" style="width: 18px; height: 18px; margin: 0 auto;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                <svg style="width: 20px; height: 20px; margin: 0 auto; color: #10B981;" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" title="CV vorhanden">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.125 2.25h-4.5c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.125 2.25A9 9 0 0119.5 11.25v0" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 15l2 2 4-4" stroke-width="2.2" stroke="#10B981" />
                 </svg>
                 {% else %}
-                <svg class="kl-cv-no" style="width: 18px; height: 18px; margin: 0 auto;" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                <svg style="width: 20px; height: 20px; margin: 0 auto; color: var(--pp-textDim); opacity: 0.4;" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" title="Kein CV">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.125 2.25h-4.5c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.125 2.25A9 9 0 0119.5 11.25v0" />
                 </svg>
                 {% endif %}
             </td>
