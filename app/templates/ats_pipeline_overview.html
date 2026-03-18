@@ -968,7 +968,7 @@ body::after {
                         <th style="padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--pcc-border);">Job</th>
                         <th style="padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--pcc-border);">Kandidat</th>
                         <th style="padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--pcc-border);">Phase</th>
-                        <th style="padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--pcc-border);">Score</th>
+                        <th style="padding: 10px 14px; text-align: center; font-size: 11px; font-weight: 600; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--pcc-border);">Score</th>
                         <th style="padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--pcc-border);">Fahrzeit (Auto/ÖPNV)</th>
                         <th style="padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--pcc-border);">Gehalt</th>
                         <th style="padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--pcc-border);">Tage</th>
@@ -979,19 +979,21 @@ body::after {
                     <template x-for="c in filteredCandidates" :key="c.entry_id">
                         <tr @click="selectCandidate(c)" style="cursor: pointer; transition: background 0.15s; color: var(--pp-text);"
                             @mouseenter="$el.style.background='var(--pp-surfaceHover)'" @mouseleave="$el.style.background='transparent'">
-                            <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border); color: var(--pp-text); font-weight: 500;" @click.stop>
-                                <a :href="c.company_id ? '/unternehmen/' + c.company_id : '#'" x-text="c.company || '-'"
-                                   style="color: var(--pp-text); text-decoration: none; transition: color 0.15s;"
-                                   @mouseenter="$el.style.color='#818cf8'" @mouseleave="$el.style.color='var(--pp-text)'"></a>
+                            <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border); color: var(--pp-text); font-weight: 500;"
+                                @click.stop="if(c.company_id) window.location.href='/unternehmen/' + c.company_id">
+                                <span x-text="c.company || '-'" style="cursor: pointer; transition: color 0.15s;"
+                                      :style="c.company_id ? 'text-decoration: underline; text-decoration-color: transparent;' : ''"
+                                      @mouseenter="if(c.company_id) $el.style.color='#818cf8'" @mouseleave="$el.style.color=''"></span>
                             </td>
-                            <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border); color: var(--pp-textMuted);" @click.stop>
-                                <a :href="'/ats/stellen/' + c.job_id" x-text="c.job_title || '-'"
-                                   style="color: var(--pp-textMuted); text-decoration: none; transition: color 0.15s;"
-                                   @mouseenter="$el.style.color='#818cf8'" @mouseleave="$el.style.color='var(--pp-textMuted)'"></a>
+                            <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border); color: var(--pp-textMuted);"
+                                @click.stop="window.location.href='/ats/stellen/' + c.job_id">
+                                <span x-text="c.job_title || '-'" style="cursor: pointer; transition: color 0.15s;"
+                                      @mouseenter="$el.style.color='#818cf8'" @mouseleave="$el.style.color=''"></span>
                             </td>
-                            <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border);" @click.stop>
-                                <a :href="'/kandidaten/' + c.id" style="display: flex; align-items: center; gap: 10px; text-decoration: none; color: inherit; transition: color 0.15s;"
-                                   @mouseenter="$el.style.color='#818cf8'" @mouseleave="$el.style.color='inherit'">
+                            <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border);"
+                                @click.stop="window.location.href='/kandidaten/' + c.id">
+                                <div style="display: flex; align-items: center; gap: 10px; cursor: pointer; transition: color 0.15s;"
+                                     @mouseenter="$el.style.color='#818cf8'" @mouseleave="$el.style.color=''">
                                     <div class="pcc-avatar" style="width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: 700; flex-shrink: 0;"
                                          :style="{background: 'linear-gradient(135deg, ' + getAvatarGradient(c.name) + ')'}">
                                         <span x-text="c.avatar"></span>
@@ -1000,7 +1002,7 @@ body::after {
                                         <div style="font-weight: 600;" x-text="c.name"></div>
                                         <div style="font-size: 11px; color: var(--pp-textMuted);" x-text="c.role"></div>
                                     </div>
-                                </a>
+                                </div>
                             </td>
                             <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border);" @click.stop>
                                 <select class="pcc-phase-select" :value="c.phase" @change="changePhase(c, $event.target.value)"
@@ -1010,7 +1012,7 @@ body::after {
                                     {% endfor %}
                                 </select>
                             </td>
-                            <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border); font-weight: 700;"
+                            <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border); font-weight: 700; text-align: center;"
                                 :style="'color: ' + (c.score ? scoreColor(c.score) : 'var(--pp-textDim)')"
                                 x-text="c.score || '-'"></td>
                             <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border); color: var(--pp-textMuted);">
@@ -1224,7 +1226,14 @@ body::after {
                     </div>
                 </template>
                 <template x-for="r in addResults" :key="r.id">
-                    <div class="pcc-modal-row" :class="r.already_in_pipeline ? 'disabled' : ''" @click="addCandidateToJob(r.id)">
+                    <div class="pcc-modal-row" :class="r.already_in_pipeline ? 'disabled' : (addSelected.includes(r.id) ? 'selected' : '')"
+                         @click="!r.already_in_pipeline && toggleAddSelect(r.id)"
+                         :style="addSelected.includes(r.id) ? 'background: rgba(99,102,241,0.12); border-color: rgba(99,102,241,0.3);' : ''">
+                        {# Checkbox #}
+                        <div style="width: 20px; height: 20px; border-radius: 6px; border: 2px solid; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s;"
+                             :style="addSelected.includes(r.id) ? 'background: #6366f1; border-color: #6366f1;' : 'border-color: rgba(148,163,184,0.3); background: transparent;'">
+                            <svg x-show="addSelected.includes(r.id)" width="12" height="12" fill="none" stroke="white" stroke-width="2.5"><path d="M2 6l3 3 5-6"/></svg>
+                        </div>
                         <div class="pcc-modal-row-avatar"
                              :style="{background: 'linear-gradient(135deg, ' + getAvatarGradient(r.name) + ')'}">
                             <span x-text="r.name.split(' ').map(w => w[0]).join('').substring(0,2).toUpperCase()"></span>
@@ -1236,13 +1245,33 @@ body::after {
                         <template x-if="r.already_in_pipeline">
                             <span style="font-size: 10px; color: var(--pp-textDim); font-weight: 600; padding: 4px 10px; border-radius: 6px; background: rgba(148,163,184,0.08); white-space: nowrap;">Bereits drin</span>
                         </template>
-                        <template x-if="!r.already_in_pipeline">
+                        <template x-if="!r.already_in_pipeline && !addSelected.includes(r.id)">
                             <div class="pcc-modal-row-add">
                                 <svg width="14" height="14" fill="none" stroke="#818cf8" stroke-width="2"><path d="M7 3v8M3 7h8"/></svg>
                             </div>
                         </template>
                     </div>
                 </template>
+            </div>
+
+            {# Multi-Select Footer: Hinzufuegen-Button #}
+            <div x-show="addSelected.length > 0" x-transition
+                 style="padding: 14px 24px; border-top: 1px solid rgba(99,102,241,0.15); display: flex; align-items: center; justify-content: space-between; background: rgba(99,102,241,0.04);">
+                <span style="font-size: 12px; color: var(--pp-textMuted);">
+                    <strong x-text="addSelected.length" style="color: #818cf8;"></strong> Kandidat(en) ausgew&auml;hlt
+                </span>
+                <div style="display: flex; gap: 8px;">
+                    <button @click="addSelected = []"
+                            style="padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; background: rgba(148,163,184,0.1); color: var(--pp-textMuted); border: none; cursor: pointer;">
+                        Auswahl aufheben
+                    </button>
+                    <button @click="addSelectedCandidates()" :disabled="addBusy"
+                            style="padding: 8px 18px; border-radius: 8px; font-size: 12px; font-weight: 700; background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; border: none; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                        <svg x-show="!addBusy" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 3v8M3 7h8"/></svg>
+                        <div x-show="addBusy" style="width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: pcc-pulse 0.8s linear infinite;"></div>
+                        <span x-text="addBusy ? 'Wird hinzugef\u00fcgt...' : addSelected.length + ' hinzuf\u00fcgen'"></span>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -1302,6 +1331,8 @@ function pipelineCommandCenter() {
         addSearch: '',
         addResults: [],
         addSearching: false,
+        addSelected: [],
+        addBusy: false,
         addJobId: positions.length > 0 ? positions[0].id : null,
         addStage: 'sent',
         positions,
@@ -1570,6 +1601,44 @@ function pipelineCommandCenter() {
             this.addSearching = false;
         },
 
+        toggleAddSelect(candidateId) {
+            const idx = this.addSelected.indexOf(candidateId);
+            if (idx >= 0) this.addSelected.splice(idx, 1);
+            else this.addSelected.push(candidateId);
+        },
+
+        async addSelectedCandidates() {
+            if (!this.addJobId) {
+                if (typeof showToast === 'function') showToast('Bitte zuerst eine Stelle ausw\u00e4hlen', 'error');
+                return;
+            }
+            if (this.addSelected.length === 0) return;
+            this.addBusy = true;
+            let ok = 0, fail = 0;
+            for (const candidateId of this.addSelected) {
+                try {
+                    const r = await fetch('/api/ats/pipeline/' + this.addJobId + '/candidates', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ candidate_id: candidateId, stage: this.addStage })
+                    });
+                    if (r.ok) ok++;
+                    else fail++;
+                } catch (e) { fail++; }
+            }
+            this.addBusy = false;
+            if (ok > 0) {
+                if (typeof showToast === 'function') showToast(ok + ' Kandidat(en) hinzugef\u00fcgt' + (fail > 0 ? ', ' + fail + ' fehlgeschlagen' : ''), ok > 0 ? 'success' : 'error');
+                this.showAddModal = false;
+                this.addSearch = '';
+                this.addResults = [];
+                this.addSelected = [];
+                window.location.reload();
+            } else {
+                if (typeof showToast === 'function') showToast('Alle fehlgeschlagen', 'error');
+            }
+        },
+
         async addCandidateToJob(candidateId) {
             if (!this.addJobId) {
                 if (typeof showToast === 'function') showToast('Bitte zuerst eine Stelle ausw\u00e4hlen', 'error');
@@ -1586,6 +1655,7 @@ function pipelineCommandCenter() {
                     this.showAddModal = false;
                     this.addSearch = '';
                     this.addResults = [];
+                    this.addSelected = [];
                     window.location.reload();
                 } else {
                     const data = await r.json().catch(() => ({}));
