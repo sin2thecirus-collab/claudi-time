@@ -149,6 +149,7 @@ async def ats_main(
                 "email": c.email or "",
                 "phone": c.phone or "",
                 "company": job.company.name if job.company else "",
+                "company_id": str(job.company_id) if job.company_id else None,
                 "company_phone": job.company.phone if job.company else "",
                 "job_title": job.title,
                 "job_id": str(job.id),

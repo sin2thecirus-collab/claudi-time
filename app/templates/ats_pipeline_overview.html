@@ -979,10 +979,19 @@ body::after {
                     <template x-for="c in filteredCandidates" :key="c.entry_id">
                         <tr @click="selectCandidate(c)" style="cursor: pointer; transition: background 0.15s; color: var(--pp-text);"
                             @mouseenter="$el.style.background='var(--pp-surfaceHover)'" @mouseleave="$el.style.background='transparent'">
-                            <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border); color: var(--pp-text); font-weight: 500;" x-text="c.company || '-'"></td>
-                            <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border); color: var(--pp-textMuted);" x-text="c.job_title || '-'"></td>
-                            <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border);">
-                                <div style="display: flex; align-items: center; gap: 10px;">
+                            <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border); color: var(--pp-text); font-weight: 500;" @click.stop>
+                                <a :href="c.company_id ? '/unternehmen/' + c.company_id : '#'" x-text="c.company || '-'"
+                                   style="color: var(--pp-text); text-decoration: none; transition: color 0.15s;"
+                                   @mouseenter="$el.style.color='#818cf8'" @mouseleave="$el.style.color='var(--pp-text)'"></a>
+                            </td>
+                            <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border); color: var(--pp-textMuted);" @click.stop>
+                                <a :href="'/ats/stellen/' + c.job_id" x-text="c.job_title || '-'"
+                                   style="color: var(--pp-textMuted); text-decoration: none; transition: color 0.15s;"
+                                   @mouseenter="$el.style.color='#818cf8'" @mouseleave="$el.style.color='var(--pp-textMuted)'"></a>
+                            </td>
+                            <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border);" @click.stop>
+                                <a :href="'/kandidaten/' + c.id" style="display: flex; align-items: center; gap: 10px; text-decoration: none; color: inherit; transition: color 0.15s;"
+                                   @mouseenter="$el.style.color='#818cf8'" @mouseleave="$el.style.color='inherit'">
                                     <div class="pcc-avatar" style="width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: 700; flex-shrink: 0;"
                                          :style="{background: 'linear-gradient(135deg, ' + getAvatarGradient(c.name) + ')'}">
                                         <span x-text="c.avatar"></span>
@@ -991,7 +1000,7 @@ body::after {
                                         <div style="font-weight: 600;" x-text="c.name"></div>
                                         <div style="font-size: 11px; color: var(--pp-textMuted);" x-text="c.role"></div>
                                     </div>
-                                </div>
+                                </a>
                             </td>
                             <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border);" @click.stop>
                                 <select class="pcc-phase-select" :value="c.phase" @change="changePhase(c, $event.target.value)"
@@ -1282,9 +1291,9 @@ function pipelineCommandCenter() {
     ];
 
     return {
-        activePosition: positions.length > 0 ? positions[0].id : null,
+        activePosition: null,
         selectedCard: null,
-        view: 'board',
+        view: 'table',
         searchQuery: '',
         sidebarSearch: '',
         filterPhases: [],
