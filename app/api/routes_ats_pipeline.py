@@ -1,17 +1,21 @@
 """API-Routen fuer ATS-Pipeline (Kanban)."""
 
+import asyncio
+import logging
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.database import get_db
 from app.models.match import Match
 from app.services.ats_pipeline_service import ATSPipelineService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/ats/pipeline", tags=["ATS Pipeline"])
 
@@ -63,22 +67,25 @@ async def get_pipeline(job_id: UUID, db: AsyncSession = Depends(get_db)):
     except Exception:
         pass  # Fahrzeit ist optional — Pipeline funktioniert auch ohne
 
-    # Entries serialisieren
+    # Entries serialisieren — Pipeline-Entry Fahrzeit hat Vorrang vor Match-Daten
     result = {}
     for stage_key, stage_data in pipeline.items():
         entries = []
         for entry in stage_data["entries"]:
             candidate = entry.candidate
             cand_id_str = str(entry.candidate_id) if entry.candidate_id else None
-            dt = drive_time_map.get(cand_id_str, {})
+            match_dt = drive_time_map.get(cand_id_str, {})
+            # Pipeline-Entry Fahrzeit hat Vorrang
+            car_min = entry.drive_time_car_min if entry.drive_time_car_min is not None else match_dt.get("drive_time_car_min")
+            transit_min = entry.drive_time_transit_min if entry.drive_time_transit_min is not None else match_dt.get("drive_time_transit_min")
             entries.append({
                 "id": str(entry.id),
                 "candidate_id": cand_id_str,
                 "candidate_name": f"{candidate.first_name or ''} {candidate.last_name or ''}".strip() if candidate else "Unbekannt",
                 "candidate_position": candidate.current_position if candidate else None,
                 "candidate_city": candidate.city if candidate else None,
-                "drive_time_car_min": dt.get("drive_time_car_min"),
-                "drive_time_transit_min": dt.get("drive_time_transit_min"),
+                "drive_time_car_min": car_min,
+                "drive_time_transit_min": transit_min,
                 "stage": entry.stage.value,
                 "stage_label": entry.stage_label,
                 "notes": entry.notes,
@@ -97,7 +104,10 @@ async def get_pipeline(job_id: UUID, db: AsyncSession = Depends(get_db)):
 
 @router.post("/{job_id}/candidates")
 async def add_candidate_to_pipeline(
-    job_id: UUID, data: AddCandidateRequest, db: AsyncSession = Depends(get_db)
+    job_id: UUID,
+    data: AddCandidateRequest,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
 ):
     """Fuegt einen Kandidaten zur Pipeline hinzu."""
     service = ATSPipelineService(db)
@@ -116,6 +126,11 @@ async def add_candidate_to_pipeline(
             )
         raise
     await db.commit()
+
+    # Fahrzeit im Background berechnen
+    entry_id = entry.id
+    background_tasks.add_task(_calculate_drive_time_for_entry, str(entry_id))
+
     return {
         "id": str(entry.id),
         "stage": entry.stage.value,
@@ -190,3 +205,134 @@ async def bulk_move_pipeline_entries(
         "stage": data.stage,
         "message": f"{len(entries)} Eintraege verschoben",
     }
+
+
+@router.post("/drive-times/backfill")
+async def backfill_pipeline_drive_times(
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+):
+    """Berechnet Fahrzeit fuer alle Pipeline-Eintraege ohne Fahrzeit."""
+    from app.models.ats_pipeline import ATSPipelineEntry
+
+    # Zaehle Eintraege ohne Fahrzeit
+    result = await db.execute(
+        select(ATSPipelineEntry.id).where(
+            ATSPipelineEntry.drive_time_car_min.is_(None),
+            ATSPipelineEntry.candidate_id.isnot(None),
+        )
+    )
+    entry_ids = [str(row[0]) for row in result.all()]
+
+    if not entry_ids:
+        return {"message": "Alle Pipeline-Eintraege haben bereits Fahrzeit", "count": 0}
+
+    background_tasks.add_task(_backfill_drive_times, entry_ids)
+
+    return {
+        "message": f"Fahrzeit-Berechnung fuer {len(entry_ids)} Eintraege gestartet",
+        "count": len(entry_ids),
+    }
+
+
+# ── Background Tasks ────────────────────────────
+
+async def _calculate_drive_time_for_entry(entry_id: str) -> None:
+    """Berechnet Fahrzeit fuer einen einzelnen Pipeline-Eintrag."""
+    try:
+        from sqlalchemy import func as sa_func
+
+        from app.database import async_session_maker
+        from app.models.ats_job import ATSJob
+        from app.models.ats_pipeline import ATSPipelineEntry
+        from app.models.candidate import Candidate
+        from app.services.distance_matrix_service import distance_matrix_service
+
+        if not distance_matrix_service.has_api_key:
+            logger.info("Kein Google Maps API Key — ueberspringe Fahrzeit")
+            return
+
+        # Daten laden (eigene Session — Railway 30s Timeout!)
+        async with async_session_maker() as db:
+            entry_result = await db.execute(
+                select(ATSPipelineEntry).where(ATSPipelineEntry.id == entry_id)
+            )
+            entry = entry_result.scalar_one_or_none()
+            if not entry or not entry.candidate_id:
+                return
+
+            # Job-Koordinaten laden
+            job_result = await db.execute(
+                select(
+                    sa_func.ST_Y(sa_func.ST_GeomFromWKB(ATSJob.location_coords)).label("job_lat"),
+                    sa_func.ST_X(sa_func.ST_GeomFromWKB(ATSJob.location_coords)).label("job_lng"),
+                    ATSJob.location_city,
+                ).where(ATSJob.id == entry.ats_job_id)
+            )
+            job_row = job_result.one_or_none()
+            if not job_row or not job_row.job_lat or not job_row.job_lng:
+                logger.info(f"Pipeline-Entry {entry_id}: Job hat keine Koordinaten")
+                return
+
+            # Kandidaten-Koordinaten laden
+            cand_result = await db.execute(
+                select(
+                    sa_func.ST_Y(sa_func.ST_GeomFromWKB(Candidate.address_coords)).label("cand_lat"),
+                    sa_func.ST_X(sa_func.ST_GeomFromWKB(Candidate.address_coords)).label("cand_lng"),
+                    Candidate.postal_code,
+                ).where(Candidate.id == entry.candidate_id)
+            )
+            cand_row = cand_result.one_or_none()
+            if not cand_row or not cand_row.cand_lat or not cand_row.cand_lng:
+                logger.info(f"Pipeline-Entry {entry_id}: Kandidat hat keine Koordinaten")
+                return
+
+        # Session geschlossen — jetzt API-Call
+        result = await distance_matrix_service.get_drive_time(
+            origin_lat=cand_row.cand_lat,
+            origin_lng=cand_row.cand_lng,
+            origin_plz=cand_row.postal_code,
+            dest_lat=job_row.job_lat,
+            dest_lng=job_row.job_lng,
+            dest_plz=None,  # ATSJob hat kein PLZ-Feld — Cache basiert auf Kandidaten-PLZ
+        )
+
+        if result.status in ("ok", "same_plz"):
+            # Ergebnis in DB schreiben (neue Session)
+            async with async_session_maker() as db2:
+                await db2.execute(
+                    update(ATSPipelineEntry)
+                    .where(ATSPipelineEntry.id == entry_id)
+                    .values(
+                        drive_time_car_min=result.car_min,
+                        drive_time_transit_min=result.transit_min,
+                        drive_time_car_km=result.car_km,
+                    )
+                )
+                await db2.commit()
+            logger.info(
+                f"Pipeline-Entry {entry_id}: Fahrzeit berechnet — "
+                f"Auto {result.car_min}min, OEPNV {result.transit_min}min"
+            )
+        else:
+            logger.warning(f"Pipeline-Entry {entry_id}: Fahrzeit-API Fehler: {result.status}")
+
+    except Exception as e:
+        logger.error(f"Fahrzeit-Berechnung fuer Pipeline-Entry {entry_id} fehlgeschlagen: {e}")
+
+
+async def _backfill_drive_times(entry_ids: list[str]) -> None:
+    """Backfill: Berechnet Fahrzeit fuer mehrere Pipeline-Eintraege."""
+    logger.info(f"Fahrzeit-Backfill gestartet fuer {len(entry_ids)} Eintraege")
+    success = 0
+    errors = 0
+    for entry_id in entry_ids:
+        try:
+            await _calculate_drive_time_for_entry(entry_id)
+            success += 1
+        except Exception as e:
+            logger.error(f"Backfill-Fehler fuer {entry_id}: {e}")
+            errors += 1
+        # Kleine Pause um Rate-Limits zu vermeiden
+        await asyncio.sleep(0.2)
+    logger.info(f"Fahrzeit-Backfill fertig: {success} OK, {errors} Fehler")

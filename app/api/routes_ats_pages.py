@@ -121,6 +121,10 @@ async def ats_main(
             match_key = f"{job.source_job_id}_{c.id}" if job.source_job_id else None
             match_info = match_data_map.get(match_key, {}) if match_key else {}
 
+            # Pipeline-Entry Fahrzeit hat Vorrang vor Match-Daten
+            dt_car = entry.drive_time_car_min if entry.drive_time_car_min is not None else match_info.get("drive_time_car")
+            dt_transit = entry.drive_time_transit_min if entry.drive_time_transit_min is not None else match_info.get("drive_time_transit")
+
             cards.append({
                 "id": str(c.id),
                 "entry_id": str(entry.id),
@@ -137,8 +141,8 @@ async def ats_main(
                 "notes": entry.notes or "",
                 "city": c.city or "",
                 "score": match_info.get("score"),
-                "drive_time_car": match_info.get("drive_time_car"),
-                "drive_time_transit": match_info.get("drive_time_transit"),
+                "drive_time_car": dt_car,
+                "drive_time_transit": dt_transit,
                 "wow": match_info.get("wow", False),
                 "empfehlung": match_info.get("empfehlung"),
                 "matching_method": match_info.get("matching_method"),

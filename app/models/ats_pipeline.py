@@ -4,7 +4,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import DateTime, Enum, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -97,6 +97,11 @@ class ATSPipelineEntry(Base):
         DateTime(timezone=True),
         server_default=func.now(),
     )
+
+    # Fahrzeit (direkt berechnet via Google Maps)
+    drive_time_car_min: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    drive_time_transit_min: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    drive_time_car_km: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     # Details
     rejection_reason: Mapped[str | None] = mapped_column(Text)

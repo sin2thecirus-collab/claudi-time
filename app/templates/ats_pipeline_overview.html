@@ -748,7 +748,10 @@ body::after {
                                     <span class="pcc-tag"><svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 1v8M1 5h8"/></svg> <span x-text="card.erp"></span></span>
                                 </template>
                                 <template x-if="card.drive_time_car">
-                                    <span class="pcc-tag" :style="'background: ' + (card.drive_time_car <= 20 ? 'rgba(16,185,129,0.1)' : card.drive_time_car <= 40 ? 'rgba(245,158,11,0.1)' : 'rgba(148,163,184,0.1)') + '; color: ' + (card.drive_time_car <= 20 ? '#6ee7b7' : card.drive_time_car <= 40 ? '#fcd34d' : '#94a3b8') + '; border-color: ' + (card.drive_time_car <= 20 ? 'rgba(16,185,129,0.15)' : card.drive_time_car <= 40 ? 'rgba(245,158,11,0.15)' : 'rgba(148,163,184,0.15)')"><svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="5" r="4"/><path d="M5 3v2l1.5 1"/></svg> <span x-text="card.drive_time_car + ' Min'"></span></span>
+                                    <span class="pcc-tag" :style="'background: ' + (card.drive_time_car <= 20 ? 'rgba(16,185,129,0.1)' : card.drive_time_car <= 40 ? 'rgba(245,158,11,0.1)' : 'rgba(148,163,184,0.1)') + '; color: ' + (card.drive_time_car <= 20 ? '#6ee7b7' : card.drive_time_car <= 40 ? '#fcd34d' : '#94a3b8') + '; border-color: ' + (card.drive_time_car <= 20 ? 'rgba(16,185,129,0.15)' : card.drive_time_car <= 40 ? 'rgba(245,158,11,0.15)' : 'rgba(148,163,184,0.15)')"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 7h8M2.5 7V3.5a1 1 0 011-1h3a1 1 0 011 1V7M4 4.5h2"/></svg> <span x-text="card.drive_time_car + ' Min'"></span></span>
+                                </template>
+                                <template x-if="card.drive_time_transit">
+                                    <span class="pcc-tag" style="background: rgba(99,102,241,0.1); color: #a5b4fc; border-color: rgba(99,102,241,0.15);"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="1.5" width="6" height="5.5" rx="1"/><path d="M3.5 8.5L3 7h4l-.5 1.5M4 4h2"/></svg> <span x-text="card.drive_time_transit + ' Min'"></span></span>
                                 </template>
                                 <template x-if="card.salary">
                                     <span class="pcc-tag" style="background: rgba(245,158,11,0.1); color: #fcd34d; border-color: rgba(245,158,11,0.15);" x-text="card.salary"></span>
@@ -886,7 +889,10 @@ body::after {
                                             <span class="pcc-tag"><svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 1v8M1 5h8"/></svg> <span x-text="card.erp"></span></span>
                                         </template>
                                         <template x-if="card.drive_time_car">
-                                            <span class="pcc-tag" :style="'background: ' + (card.drive_time_car <= 20 ? 'rgba(16,185,129,0.1)' : card.drive_time_car <= 40 ? 'rgba(245,158,11,0.1)' : 'rgba(148,163,184,0.1)') + '; color: ' + (card.drive_time_car <= 20 ? '#6ee7b7' : card.drive_time_car <= 40 ? '#fcd34d' : '#94a3b8') + '; border-color: ' + (card.drive_time_car <= 20 ? 'rgba(16,185,129,0.15)' : card.drive_time_car <= 40 ? 'rgba(245,158,11,0.15)' : 'rgba(148,163,184,0.15)')"><svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="5" r="4"/><path d="M5 3v2l1.5 1"/></svg> <span x-text="card.drive_time_car + ' Min'"></span></span>
+                                            <span class="pcc-tag" :style="'background: ' + (card.drive_time_car <= 20 ? 'rgba(16,185,129,0.1)' : card.drive_time_car <= 40 ? 'rgba(245,158,11,0.1)' : 'rgba(148,163,184,0.1)') + '; color: ' + (card.drive_time_car <= 20 ? '#6ee7b7' : card.drive_time_car <= 40 ? '#fcd34d' : '#94a3b8') + '; border-color: ' + (card.drive_time_car <= 20 ? 'rgba(16,185,129,0.15)' : card.drive_time_car <= 40 ? 'rgba(245,158,11,0.15)' : 'rgba(148,163,184,0.15)')"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 7h8M2.5 7V3.5a1 1 0 011-1h3a1 1 0 011 1V7M4 4.5h2"/></svg> <span x-text="card.drive_time_car + ' Min'"></span></span>
+                                        </template>
+                                        <template x-if="card.drive_time_transit">
+                                            <span class="pcc-tag" style="background: rgba(99,102,241,0.1); color: #a5b4fc; border-color: rgba(99,102,241,0.15);"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="1.5" width="6" height="5.5" rx="1"/><path d="M3.5 8.5L3 7h4l-.5 1.5M4 4h2"/></svg> <span x-text="card.drive_time_transit + ' Min'"></span></span>
                                         </template>
                                         <template x-if="card.salary">
                                             <span class="pcc-tag" style="background: rgba(245,158,11,0.1); color: #fcd34d; border-color: rgba(245,158,11,0.15);" x-text="card.salary"></span>
@@ -963,7 +969,7 @@ body::after {
                         <th style="padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--pcc-border);">Kandidat</th>
                         <th style="padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--pcc-border);">Phase</th>
                         <th style="padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--pcc-border);">Score</th>
-                        <th style="padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--pcc-border);">Fahrzeit</th>
+                        <th style="padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--pcc-border);">Fahrzeit (Auto/ÖPNV)</th>
                         <th style="padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--pcc-border);">Gehalt</th>
                         <th style="padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--pcc-border);">Tage</th>
                         <th style="padding: 10px 14px; text-align: center; font-size: 11px; font-weight: 600; color: var(--pp-textMuted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--pcc-border); width: 50px;"></th>
@@ -998,8 +1004,14 @@ body::after {
                             <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border); font-weight: 700;"
                                 :style="'color: ' + (c.score ? scoreColor(c.score) : 'var(--pp-textDim)')"
                                 x-text="c.score || '-'"></td>
-                            <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border); color: var(--pp-textMuted);"
-                                x-text="c.drive_time_car ? c.drive_time_car + ' Min' : '-'"></td>
+                            <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border); color: var(--pp-textMuted);">
+                                <span x-show="c.drive_time_car" :style="'color: ' + (c.drive_time_car <= 20 ? '#6ee7b7' : c.drive_time_car <= 40 ? '#fcd34d' : '#94a3b8')">
+                                    <span x-text="c.drive_time_car + ' Min'"></span>
+                                </span>
+                                <span x-show="c.drive_time_car && c.drive_time_transit" style="color: var(--pp-textDim); margin: 0 2px;">/</span>
+                                <span x-show="c.drive_time_transit" style="color: #a5b4fc;" x-text="c.drive_time_transit + ' Min'"></span>
+                                <span x-show="!c.drive_time_car && !c.drive_time_transit">-</span>
+                            </td>
                             <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border); color: var(--pp-text); font-weight: 600;"
                                 x-text="c.salary || '-'"></td>
                             <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border);">
@@ -1435,6 +1447,7 @@ function pipelineCommandCenter() {
                 { label: 'Standort', value: c.location || c.city || '-' },
                 { label: 'Gehaltswunsch', value: c.salary || '-' },
                 { label: 'Fahrzeit (Auto)', value: c.drive_time_car ? c.drive_time_car + ' Min' : '-' },
+                { label: 'Fahrzeit (ÖPNV)', value: c.drive_time_transit ? c.drive_time_transit + ' Min' : '-' },
                 { label: 'ERP-Kenntnisse', value: c.erp || '-' },
                 { label: 'K\u00fcndigungsfrist', value: c.notice || '-' },
                 { label: 'Tage in Phase', value: c.days + ' Tage' },
