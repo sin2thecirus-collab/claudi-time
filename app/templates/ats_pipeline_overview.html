@@ -1286,7 +1286,7 @@ body::after {
    ════════════════════════════════════════════ #}
 <template x-if="showRawtextModal">
     <div class="pcc-modal-bg" @click.self="showRawtextModal = false" style="z-index: 1100;">
-        <div class="pcc-modal" :style="rawtextStep === 2 ? 'max-width: 780px; width: 95%' : 'max-width: 560px'">
+        <div class="pcc-modal" :style="(rawtextStep === 2 ? 'max-width: 780px; width: 95%;' : 'max-width: 560px;') + ' overflow: hidden;'"
             {# Header #}
             <div class="pcc-modal-header">
                 <div>
@@ -1304,7 +1304,7 @@ body::after {
             <div x-show="rawtextStep === 1" style="padding: 16px 20px;">
                 <textarea x-model="rawtextInput"
                     placeholder="Stellentext hier einfügen (z.B. von StepStone, Indeed, Unternehmenswebsite)...&#10;&#10;Der Text kann alles enthalten: Stellenbeschreibung, Firmeninfos, Ansprechpartner, Adresse, etc."
-                    style="width: 100%; min-height: 300px; padding: 14px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.15); border-radius: 12px; color: var(--pp-text); font-size: 13px; line-height: 1.6; resize: vertical; outline: none; font-family: inherit;"
+                    style="width: 100%; min-height: 200px; max-height: 50vh; padding: 14px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.15); border-radius: 12px; color: var(--pp-text); font-size: 13px; line-height: 1.6; resize: vertical; outline: none; font-family: inherit; overflow-y: auto;"
                     @focus="$el.style.borderColor='rgba(99,102,241,0.4)'"
                     @blur="$el.style.borderColor='rgba(99,102,241,0.15)'"></textarea>
 
