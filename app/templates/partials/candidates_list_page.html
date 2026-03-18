@@ -336,26 +336,6 @@
 {% endif %}
 
 
-{# ── CV-Vorschau Sidebar (identisch wie Kandidaten-Detailseite) ── #}
-<div id="cv-list-overlay" class="hidden" style="z-index: 9999; position: fixed; top: 0; left: 0; right: 0; bottom: 0;">
-    <div class="cv-list-overlay-bg" style="position: absolute; inset: 0; background: rgba(0,0,0,0.7); cursor: pointer; opacity: 0; transition: opacity 300ms ease-in-out;" onclick="closeCvSidebar()"></div>
-    <div style="position: absolute; top: 0; right: 0; bottom: 0; width: 100%; max-width: 42rem; pointer-events: none;">
-        <div id="cv-list-panel" style="pointer-events: auto; height: 100%; transform: translateX(100%); transition: transform 300ms ease-in-out;">
-            <div style="display: flex; flex-direction: column; height: 100%; box-shadow: -4px 0 24px rgba(0,0,0,0.4); background: var(--pp-surface, #1a1b23);">
-                <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; background: var(--pp-surfaceHover, #22232e); border-bottom: 1px solid var(--pp-border, #2d2e3a);">
-                    <div>
-                        <h2 style="font-size: 16px; font-weight: 700; margin: 0; color: var(--pp-text, #e8e9ed);">CV-Vorschau</h2>
-                        <p style="font-size: 13px; margin: 2px 0 0; color: var(--pp-textDim, #6b7280);" id="cv-list-name"></p>
-                    </div>
-                    <button type="button" onclick="closeCvSidebar()" style="background: none; border: none; color: var(--pp-textDim); cursor: pointer; padding: 8px; border-radius: 8px; font-size: 18px; line-height: 1;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='none'">&#x2715;</button>
-                </div>
-                <div style="flex: 1; overflow: hidden; position: relative;">
-                    <iframe id="cv-list-iframe" src="" style="width: 100%; height: 100%; border: 0;" title="CV-Vorschau"></iframe>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 
 {# ════════════════════════════════════════════════════
    JAVASCRIPT - Selection, Batch, Copy, Inline Edit
@@ -763,59 +743,4 @@ function saveInlineEdit(input) {
     });
 }
 
-// ==================== CV Sidebar (Liste) ====================
-var _cvListBlobUrl = null;
-
-function openCvSidebar(candidateId, name) {
-    var overlay = document.getElementById('cv-list-overlay');
-    var panel = document.getElementById('cv-list-panel');
-    var iframe = document.getElementById('cv-list-iframe');
-    var nameEl = document.getElementById('cv-list-name');
-
-    if (_cvListBlobUrl) { URL.revokeObjectURL(_cvListBlobUrl); _cvListBlobUrl = null; }
-
-    nameEl.textContent = name || '';
-    iframe.src = 'about:blank';
-    overlay.classList.remove('hidden');
-    requestAnimationFrame(function() {
-        overlay.querySelector('.cv-list-overlay-bg').style.opacity = '1';
-        panel.style.transform = 'translateX(0)';
-    });
-    document.body.style.overflow = 'hidden';
-
-    fetch('/api/candidates/' + candidateId + '/cv-preview', { credentials: 'same-origin' })
-        .then(function(resp) {
-            if (!resp.ok) throw new Error('CV laden fehlgeschlagen: ' + resp.status);
-            return resp.blob();
-        })
-        .then(function(blob) {
-            _cvListBlobUrl = URL.createObjectURL(blob);
-            iframe.src = _cvListBlobUrl;
-        })
-        .catch(function(err) {
-            console.error('CV-Vorschau Fehler:', err);
-            iframe.srcdoc = '<html><body style="display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#181A23;color:#E8E9ED;font-family:sans-serif;"><div style="text-align:center;"><p style="font-size:18px;">CV konnte nicht geladen werden</p><p style="font-size:13px;color:#9CA3AF;margin-top:8px;">Bitte oeffne das Kandidatenprofil direkt.</p></div></body></html>';
-        });
-}
-
-function closeCvSidebar() {
-    var overlay = document.getElementById('cv-list-overlay');
-    var panel = document.getElementById('cv-list-panel');
-    var iframe = document.getElementById('cv-list-iframe');
-    panel.style.transform = 'translateX(100%)';
-    overlay.querySelector('.cv-list-overlay-bg').style.opacity = '0';
-    setTimeout(function() {
-        overlay.classList.add('hidden');
-        iframe.src = 'about:blank';
-        if (_cvListBlobUrl) { URL.revokeObjectURL(_cvListBlobUrl); _cvListBlobUrl = null; }
-    }, 300);
-    document.body.style.overflow = '';
-}
-
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        var overlay = document.getElementById('cv-list-overlay');
-        if (overlay && !overlay.classList.contains('hidden')) closeCvSidebar();
-    }
-});
 </script>
