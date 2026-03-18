@@ -247,39 +247,24 @@ body::after {
 }
 .pcc-del-btn:hover { background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.3); color: #fca5a5; }
 
-/* Swimlane Layout (Alle Prozesse) */
-.pcc-swimlane {
-    background: linear-gradient(135deg, #1e2340, #161b30);
+/* Phase Filter Pills */
+.pcc-filter-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 12px; border-radius: 8px;
+    font-size: 11px; font-weight: 600; cursor: pointer;
     border: 1px solid rgba(99, 102, 241, 0.12);
-    border-radius: 16px;
-    overflow: hidden;
+    background: transparent; color: var(--pp-textMuted);
+    transition: all 0.2s; white-space: nowrap;
 }
-.pcc-swim-header {
-    display: flex; align-items: center; gap: 12px;
-    padding: 14px 20px;
+.pcc-filter-pill:hover { background: rgba(99, 102, 241, 0.08); border-color: rgba(99, 102, 241, 0.25); color: var(--pp-text); }
+.pcc-filter-pill.active { background: rgba(99, 102, 241, 0.15) !important; border-color: rgba(99, 102, 241, 0.35) !important; color: #a5b4fc !important; }
+
+/* Company Divider (Alle Prozesse Board) */
+.pcc-company-divider {
+    padding: 4px 8px; margin: 6px 0 4px 0; border-radius: 0 6px 6px 0;
     background: rgba(99, 102, 241, 0.04);
-    border-bottom: 1px solid rgba(99, 102, 241, 0.08);
-    transition: background 0.2s;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.pcc-swim-header:hover { background: rgba(99, 102, 241, 0.08); }
-.pcc-swim-cards {
-    display: flex; gap: 10px; padding: 14px 16px;
-    overflow-x: auto; overflow-y: visible;
-}
-.pcc-swim-cards::-webkit-scrollbar { height: 4px; }
-.pcc-swim-cards::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.2); border-radius: 4px; }
-.pcc-swim-card {
-    flex: 0 0 200px; min-width: 180px;
-    background: linear-gradient(135deg, #141828, #111520);
-    border: 1px solid rgba(99, 102, 241, 0.15);
-    border-radius: 12px;
-    padding: 12px;
-    cursor: pointer;
-    position: relative;
-    transition: all 0.2s;
-    overflow: visible;
-}
-.pcc-swim-card:hover { border-color: rgba(99, 102, 241, 0.3); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.3); }
 
 /* Phase Select in Table */
 .pcc .pcc-phase-select {
@@ -537,6 +522,22 @@ body::after {
         </div>
     </div>
 
+    {# Phase Filter Pills #}
+    <div style="padding: 8px 24px 0; display: flex; gap: 6px; flex-wrap: wrap; flex-shrink: 0;">
+        <button class="pcc-filter-pill" :class="!filterPhase ? 'active' : ''" @click="filterPhase = ''">
+            Alle
+        </button>
+        <template x-for="ph in PHASES" :key="ph.id">
+            <button class="pcc-filter-pill" :class="filterPhase === ph.id ? 'active' : ''"
+                    @click="filterPhase = filterPhase === ph.id ? '' : ph.id"
+                    x-show="candidatesInPhaseUnfiltered(ph.id).length > 0 || filterPhase === ph.id">
+                <span style="width: 7px; height: 7px; border-radius: 3px; display: inline-block;" :style="'background: ' + ph.color"></span>
+                <span x-text="ph.label"></span>
+                <span style="opacity: 0.6; font-size: 10px;" x-text="candidatesInPhaseUnfiltered(ph.id).length"></span>
+            </button>
+        </template>
+    </div>
+
     {# KPI Bar #}
     <div style="padding: 12px 24px; border-bottom: 1px solid rgba(99,102,241,0.08); display: flex; gap: 16px; flex-shrink: 0;">
         {# In Pipeline #}
@@ -719,130 +720,144 @@ body::after {
         {% endfor %}
     </div>
 
-    {# ── BOARD: Alle Prozesse (Swimlane pro Job) ── #}
-    <div x-show="view === 'board' && !activePos" style="flex: 1; overflow-y: auto; padding: 16px 24px;">
+    {# ── BOARD: Alle Prozesse (Kanban mit Firmen-Gruppierung) ── #}
+    <div x-show="view === 'board' && !activePos" class="pcc-board" style="flex: 1; padding: 16px 24px;">
 
-        <template x-for="pos in positions" :key="pos.id">
-            <div class="pcc-swimlane" style="margin-bottom: 20px;">
-                {# Swimlane Header — Firma + Job #}
-                <div class="pcc-swim-header" @click="setActivePosition(pos.id)" style="cursor: pointer;">
-                    <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;">
-                        <div style="width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: white; flex-shrink: 0;"
-                             :style="{background: 'linear-gradient(135deg, ' + getAvatarGradient(pos.company) + ')'}">
-                            <span x-text="getInitials(pos.company)"></span>
-                        </div>
-                        <div style="min-width: 0;">
-                            <div style="font-size: 14px; font-weight: 700; color: var(--pp-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" x-text="pos.company"></div>
-                            <div style="font-size: 11px; color: var(--pp-textMuted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" x-text="pos.name + (pos.location ? ' · ' + pos.location : '')"></div>
-                        </div>
-                    </div>
-                    {# Phase-Badges im Header #}
-                    <div style="display: flex; gap: 4px; flex-shrink: 0;">
-                        <template x-for="ph in PHASES.filter(p => p.id !== 'rejected')" :key="ph.id">
-                            <template x-if="candidatesForJobInPhase(pos.id, ph.id).length > 0">
-                                <span style="padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 700;"
-                                      :style="'background: ' + ph.bg + '; color: ' + ph.light"
-                                      x-text="ph.label.substring(0,3) + ' ' + candidatesForJobInPhase(pos.id, ph.id).length"></span>
-                            </template>
-                        </template>
-                    </div>
-                    <svg width="16" height="16" fill="none" stroke="var(--pp-textMuted)" stroke-width="2" style="flex-shrink: 0;"><path d="M6 4l4 4-4 4"/></svg>
+        {% for phase in PHASES %}
+        <div class="pcc-col" x-show="'{{ phase.id }}' !== 'rejected' || candidatesInPhase('rejected').length > 0">
+            {# Column Header #}
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; padding: 0 4px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="width: 10px; height: 10px; border-radius: 4px; background: linear-gradient(135deg, {{ phase.color }}, {{ phase.mid }});"></div>
+                    <span style="font-size: 13px; font-weight: 700; color: var(--pp-text);">{{ phase.label }}</span>
                 </div>
+                <span style="background: {{ phase.bg }}; color: {{ phase.light }}; padding: 2px 10px; border-radius: 20px; font-size: 12px; font-weight: 700;"
+                      x-text="candidatesInPhase('{{ phase.id }}').length"></span>
+            </div>
 
-                {# Swimlane Cards — horizontal scroll #}
-                <div class="pcc-swim-cards" x-show="(pipelineByJob[pos.id] || []).length > 0">
-                    <template x-for="card in (pipelineByJob[pos.id] || [])" :key="card.entry_id">
-                        <div class="pcc-swim-card" :class="'stage-' + card.phase"
-                             @click="selectCandidate(card)"
-                             draggable="true"
-                             @dragstart="handleDragStart($event, card)"
-                             @dragend="handleDragEnd($event)"
-                             x-data="{kOpen: false, cOpen: false, confirmDel: false}">
+            {# Drop Zone mit gruppierten Cards #}
+            <div style="display: flex; flex-direction: column; gap: 6px; min-height: 200px; padding: 8px; border: 2px dashed {{ phase.color }}30; border-radius: 14px; transition: border-color 0.2s; background: rgba(99,102,241,0.015);"
+                 @dragover.prevent="$el.style.borderColor = '{{ phase.color }}'"
+                 @dragleave="$el.style.borderColor = '{{ phase.color }}30'"
+                 @drop="handleDrop($event, '{{ phase.id }}'); $el.style.borderColor = '{{ phase.color }}30'">
 
-                            {# Phase indicator line #}
-                            <div style="position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: 10px 10px 0 0;"
-                                 :style="'background: ' + getPhaseConfig(card.phase).color"></div>
+                {# Gruppierte Cards nach Firma #}
+                <template x-for="group in groupedInPhase('{{ phase.id }}')" :key="group.key">
+                    <div>
+                        {# Firmen-Divider #}
+                        <div class="pcc-company-divider" :style="'border-left: 3px solid ' + getAvatarGradient(group.company).split(',')[0]">
+                            <span style="font-size: 10px; font-weight: 700; letter-spacing: 0.02em;" :style="'color: ' + getAvatarGradient(group.company).split(',')[0]" x-text="group.company"></span>
+                            <span style="font-size: 9px; color: var(--pp-textDim); font-weight: 400;" x-text="' · ' + group.job"></span>
+                        </div>
 
-                            {# Phase label pill #}
-                            <div style="margin-bottom: 8px;">
-                                <span style="font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.05em;"
-                                      :style="'background: ' + getPhaseConfig(card.phase).bg + '; color: ' + getPhaseConfig(card.phase).light"
-                                      x-text="getPhaseConfig(card.phase).label"></span>
+                        {# Cards dieser Firma #}
+                        <template x-for="card in group.cards" :key="card.entry_id">
+                            <div class="pcc-card" :class="'stage-{{ phase.id }}'"
+                                 draggable="true"
+                                 @click="selectCandidate(card)"
+                                 @dragstart="handleDragStart($event, card)"
+                                 @dragend="handleDragEnd($event)"
+                                 x-data="{kOpen: false, cOpen: false, confirmDel: false}"
+                                 style="margin-left: 6px; border-left: 3px solid transparent;"
+                                 :style="'border-left-color: ' + getAvatarGradient(card.company).split(',')[0] + '60'">
+
+                                {# WOW Badge #}
                                 <template x-if="card.wow">
-                                    <span style="background: linear-gradient(135deg, #f59e0b, #ef4444); color: white; padding: 2px 6px; border-radius: 6px; font-size: 8px; font-weight: 800; margin-left: 4px;">WOW</span>
-                                </template>
-                            </div>
-
-                            {# Avatar + Name + Score #}
-                            <div style="display: flex; align-items: flex-start; gap: 8px;">
-                                <div style="width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: white; flex-shrink: 0;"
-                                     :style="{background: 'linear-gradient(135deg, ' + getAvatarGradient(card.name) + ')'}">
-                                    <span x-text="card.avatar"></span>
-                                </div>
-                                <div style="flex: 1; min-width: 0;">
-                                    <div style="font-size: 12px; font-weight: 700; color: var(--pp-text); word-break: break-word; line-height: 1.3;" x-text="card.name"></div>
-                                    <div style="font-size: 10px; color: var(--pp-textMuted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" x-text="card.role"></div>
-                                </div>
-                                <template x-if="card.score">
-                                    <div class="pcc-score" style="width: 32px; height: 32px;" :style="'color: ' + scoreColor(card.score)">
-                                        <svg width="32" height="32" viewBox="0 0 36 36">
-                                            <circle cx="18" cy="18" r="15" fill="none" :stroke="scoreColor(card.score) + '25'" stroke-width="3"/>
-                                            <circle cx="18" cy="18" r="15" fill="none" :stroke="scoreColor(card.score)" stroke-width="3" :stroke-dasharray="scoreDash(card.score) + ' 94'" stroke-linecap="round"/>
-                                        </svg>
-                                        <span style="font-size: 10px;" x-text="card.score"></span>
+                                    <div style="position: absolute; top: 8px; right: 10px;">
+                                        <span style="background: linear-gradient(135deg, #f59e0b, #ef4444); color: white; padding: 2px 8px; border-radius: 6px; font-size: 9px; font-weight: 800; letter-spacing: 0.05em;">WOW</span>
                                     </div>
                                 </template>
-                            </div>
 
-                            {# Tags compact #}
-                            <template x-if="card.erp || card.drive_time_car || card.salary">
-                                <div style="display: flex; gap: 4px; margin-top: 8px; flex-wrap: wrap;">
-                                    <template x-if="card.erp">
-                                        <span class="pcc-tag" style="font-size: 10px; padding: 1px 6px;" x-text="card.erp"></span>
-                                    </template>
-                                    <template x-if="card.drive_time_car">
-                                        <span class="pcc-tag" style="font-size: 10px; padding: 1px 6px;" :style="'color: ' + (card.drive_time_car <= 20 ? '#6ee7b7' : card.drive_time_car <= 40 ? '#fcd34d' : '#94a3b8')" x-text="card.drive_time_car + ' Min'"></span>
-                                    </template>
-                                    <template x-if="card.salary">
-                                        <span class="pcc-tag" style="font-size: 10px; padding: 1px 6px; color: #fcd34d;" x-text="card.salary"></span>
+                                {# Avatar + Name + Score #}
+                                <div style="display: flex; align-items: flex-start; gap: 10px; margin-top: 4px;">
+                                    <div class="pcc-avatar" style="width: 38px; height: 38px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: white; flex-shrink: 0;"
+                                         :style="{background: 'linear-gradient(135deg, ' + getAvatarGradient(card.name) + ')'}">
+                                        <span x-text="card.avatar"></span>
+                                    </div>
+                                    <div style="flex: 1; min-width: 0;">
+                                        <div style="font-size: 13px; font-weight: 700; color: var(--pp-text); word-break: break-word;" x-text="card.name"></div>
+                                        <div style="font-size: 11px; color: var(--pp-textMuted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" x-text="card.role"></div>
+                                    </div>
+                                    <template x-if="card.score">
+                                        <div class="pcc-score" :style="'color: ' + scoreColor(card.score)">
+                                            <svg width="36" height="36" viewBox="0 0 36 36">
+                                                <circle cx="18" cy="18" r="15" fill="none" :stroke="scoreColor(card.score) + '25'" stroke-width="3"/>
+                                                <circle cx="18" cy="18" r="15" fill="none" :stroke="scoreColor(card.score)" stroke-width="3" :stroke-dasharray="scoreDash(card.score) + ' 94'" stroke-linecap="round"/>
+                                            </svg>
+                                            <span x-text="card.score"></span>
+                                        </div>
                                     </template>
                                 </div>
-                            </template>
 
-                            {# Days + Delete #}
-                            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px;">
-                                <div style="display: flex; align-items: center; gap: 4px; font-size: 10px;"
+                                {# Tags #}
+                                <template x-if="card.erp || card.drive_time_car || card.salary">
+                                    <div style="display: flex; align-items: center; gap: 6px; margin-top: 10px; flex-wrap: wrap;">
+                                        <template x-if="card.erp">
+                                            <span class="pcc-tag"><svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 1v8M1 5h8"/></svg> <span x-text="card.erp"></span></span>
+                                        </template>
+                                        <template x-if="card.drive_time_car">
+                                            <span class="pcc-tag" :style="'background: ' + (card.drive_time_car <= 20 ? 'rgba(16,185,129,0.1)' : card.drive_time_car <= 40 ? 'rgba(245,158,11,0.1)' : 'rgba(148,163,184,0.1)') + '; color: ' + (card.drive_time_car <= 20 ? '#6ee7b7' : card.drive_time_car <= 40 ? '#fcd34d' : '#94a3b8') + '; border-color: ' + (card.drive_time_car <= 20 ? 'rgba(16,185,129,0.15)' : card.drive_time_car <= 40 ? 'rgba(245,158,11,0.15)' : 'rgba(148,163,184,0.15)')"><svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="5" r="4"/><path d="M5 3v2l1.5 1"/></svg> <span x-text="card.drive_time_car + ' Min'"></span></span>
+                                        </template>
+                                        <template x-if="card.salary">
+                                            <span class="pcc-tag" style="background: rgba(245,158,11,0.1); color: #fcd34d; border-color: rgba(245,158,11,0.15);" x-text="card.salary"></span>
+                                        </template>
+                                    </div>
+                                </template>
+
+                                {# Days #}
+                                <div style="display: flex; align-items: center; gap: 4px; font-size: 11px; margin-top: 10px;"
                                      :style="'color: ' + daysColor(card.days)">
-                                    <div style="width: 5px; height: 5px; border-radius: 50%;" :style="'background: ' + daysColor(card.days)"></div>
-                                    <span x-text="card.days + 'd'"></span>
+                                    <div style="width: 6px; height: 6px; border-radius: 50%;" :style="'background: ' + daysColor(card.days)" :class="card.days <= 3 ? 'pcc-pulse' : ''"></div>
+                                    <span x-text="card.days + ' Tage in dieser Phase'"></span>
                                 </div>
-                                <div class="pcc-del-btn" style="width: 22px; height: 22px; border-radius: 6px;" @click.stop="confirmDel ? deleteEntry(card) : (confirmDel = true)" @click.away="confirmDel = false"
-                                     :style="confirmDel ? 'background: rgba(239,68,68,0.25); border-color: rgba(239,68,68,0.4); color: #fca5a5;' : ''">
-                                    <template x-if="!confirmDel">
-                                        <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                                    </template>
-                                    <template x-if="confirmDel">
-                                        <span style="font-size: 7px; font-weight: 800;">!</span>
-                                    </template>
+
+                                {# Actions + Delete #}
+                                <div class="pcc-actions" @click.stop>
+                                    <div class="pcc-abtn pcc-abtn-k" :class="kOpen && 'open'" @click="kOpen = !kOpen; cOpen = false" @click.away="kOpen = false">
+                                        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6.5" cy="4" r="3"/><path d="M1 12c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/></svg>
+                                        Kandi
+                                        <svg width="8" height="8" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 3l3 3 3-3"/></svg>
+                                        <div class="pcc-popup" @click.stop>
+                                            <div class="pcc-pop-item" style="color: #a5b4fc;" @click="if(card.email) window.location.href='mailto:'+card.email; kOpen=false"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 3.5l6 4 6-4M1 3.5v7.5h12V3.5H1z"/></svg>Email</div>
+                                            <div class="pcc-pop-item" style="color: #6ee7b7;" @click="if(card.phone) window.location.href='tel:'+card.phone; kOpen=false"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 2h2l1.2 2.5L4.5 5.7a6.5 6.5 0 003.3 3.3L9 7.8l2.5 1.2v2a1 1 0 01-1 1C5.5 12 2 8.5 2 3.5a1 1 0 011-1z"/></svg>Anrufen</div>
+                                            <div class="pcc-pop-item" style="color: #86efac;" @click="if(card.phone) window.open('https://wa.me/'+card.phone.replace(/[^0-9]/g,''),'_blank'); kOpen=false"><svg width="14" height="14" fill="currentColor" stroke="none" viewBox="0 0 24 24"><path d="M17.5 14.4l-2-1c-.3-.1-.5-.1-.7.1l-.9 1.1c-.2.2-.3.2-.6.1-1.5-.7-2.7-1.7-3.6-3-.3-.3-.2-.5 0-.7l.6-.7c.2-.2.2-.4.1-.6L9.5 7c-.2-.5-.5-.5-.7-.5h-.6c-.2 0-.6.1-.9.4C6.5 7.7 6 8.6 6 10c0 1.3.9 2.6 1 2.8.2.2 3.2 5 7.8 6.9 1.1.5 1.9.7 2.6.9.8.2 1.5.2 2.1.1.6-.1 2-1 2.3-1.8.3-.8.3-1.5.2-1.7-.1-.1-.3-.2-.5-.3z"/></svg>WhatsApp</div>
+                                        </div>
+                                    </div>
+                                    <div class="pcc-abtn pcc-abtn-c" :class="cOpen && 'open'" @click="cOpen = !cOpen; kOpen = false" @click.away="cOpen = false">
+                                        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.5" y="2" width="10" height="9" rx="1.5"/><path d="M4 6h5M4 8.5h3"/></svg>
+                                        AP
+                                        <svg width="8" height="8" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 3l3 3 3-3"/></svg>
+                                        <div class="pcc-popup" @click.stop>
+                                            <div class="pcc-pop-item" style="color: #fcd34d;" @click="if(card.company_email) window.location.href='mailto:'+card.company_email; cOpen=false"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 3.5l6 4 6-4M1 3.5v7.5h12V3.5H1z"/></svg>Email</div>
+                                            <div class="pcc-pop-item" style="color: #fcd34d;" @click="if(card.company_phone) window.location.href='tel:'+card.company_phone; cOpen=false"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 2h2l1.2 2.5L4.5 5.7a6.5 6.5 0 003.3 3.3L9 7.8l2.5 1.2v2a1 1 0 01-1 1C5.5 12 2 8.5 2 3.5a1 1 0 011-1z"/></svg>Anrufen</div>
+                                            <div class="pcc-pop-item" style="color: #cbd5e1;" @click="selectCandidate(card); cOpen=false"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 1.5h10v8l-3 2.5H2V1.5zM5 5h4M5 7.5h2.5"/></svg>Notiz</div>
+                                        </div>
+                                    </div>
+                                    {# Delete #}
+                                    <div class="pcc-del-btn" @click="confirmDel ? deleteEntry(card) : (confirmDel = true)" @click.away="confirmDel = false"
+                                         :style="confirmDel ? 'background: rgba(239,68,68,0.2); border-color: rgba(239,68,68,0.4); color: #fca5a5;' : ''">
+                                        <template x-if="!confirmDel">
+                                            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                        </template>
+                                        <template x-if="confirmDel">
+                                            <span style="font-size: 9px; font-weight: 700;">Sicher?</span>
+                                        </template>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </template>
-                </div>
+                        </template>
+                    </div>
+                </template>
 
-                {# Empty state #}
-                <div x-show="(pipelineByJob[pos.id] || []).length === 0" style="padding: 12px 20px; font-size: 12px; color: var(--pp-textDim); font-style: italic;">
-                    Keine Kandidaten in der Pipeline
-                </div>
+                {# Empty State #}
+                <template x-if="candidatesInPhase('{{ phase.id }}').length === 0">
+                    <div style="display: flex; align-items: center; justify-content: center; height: 80px; color: var(--pp-textDim); font-size: 12px; font-style: italic;">
+                        Kandidaten hierher ziehen
+                    </div>
+                </template>
             </div>
-        </template>
-
-        {# Empty — keine Positionen #}
-        <template x-if="positions.length === 0">
-            <div style="display: flex; align-items: center; justify-content: center; height: 300px; color: var(--pp-textDim); font-size: 14px;">
-                Keine Jobs in der Pipeline
-            </div>
-        </template>
+        </div>
+        {% endfor %}
     </div>
 
     {# ════════════════════════════════════════════
@@ -1128,6 +1143,7 @@ function pipelineCommandCenter() {
         view: 'board',
         searchQuery: '',
         sidebarSearch: '',
+        filterPhase: '',
         draggedCard: null,
         showAddModal: false,
         addSearch: '',
@@ -1181,15 +1197,32 @@ function pipelineCommandCenter() {
         },
 
         get filteredCandidates() {
+            let list = this.allCandidates;
+            if (this.filterPhase) list = list.filter(c => c.phase === this.filterPhase);
             const q = this.searchQuery.toLowerCase().trim();
-            if (!q) return this.allCandidates;
-            return this.allCandidates.filter(c => c.name.toLowerCase().includes(q) || c.role.toLowerCase().includes(q) || (c.company || '').toLowerCase().includes(q));
+            if (q) list = list.filter(c => c.name.toLowerCase().includes(q) || c.role.toLowerCase().includes(q) || (c.company || '').toLowerCase().includes(q));
+            return list;
         },
 
         candidatesInPhase(phaseId) { return this.filteredCandidates.filter(c => c.phase === phaseId); },
 
+        candidatesInPhaseUnfiltered(phaseId) {
+            return this.allCandidates.filter(c => c.phase === phaseId);
+        },
+
         candidatesForJobInPhase(jobId, phaseId) {
             return (pipelineByJob[jobId] || []).filter(c => c.phase === phaseId);
+        },
+
+        groupedInPhase(phaseId) {
+            const cards = this.candidatesInPhase(phaseId);
+            const groups = {};
+            for (const c of cards) {
+                const key = (c.company || 'Unbekannt') + '|' + (c.job_title || '');
+                if (!groups[key]) groups[key] = { key, company: c.company || 'Unbekannt', job: c.job_title || '', cards: [] };
+                groups[key].cards.push(c);
+            }
+            return Object.values(groups);
         },
 
         PHASES,
