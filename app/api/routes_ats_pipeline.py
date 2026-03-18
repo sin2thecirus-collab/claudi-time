@@ -530,7 +530,7 @@ async def create_from_rawtext(
             **contact_fields,
         )
 
-    # ── 3. ATSJob ──
+    # ── 3. ATSJob (in_pipeline=True damit sofort in Pipeline-Sidebar sichtbar) ──
     ats_service = ATSJobService(db)
     ats_job = await ats_service.create_job(
         title=data.job_title,
@@ -545,6 +545,9 @@ async def create_from_rawtext(
         priority=data.job_priority or "medium",
         source="Rawtext-Import",
     )
+    # Sofort in Pipeline sichtbar machen
+    ats_job.in_pipeline = True
+    await db.flush()
 
     # ── 4. Source-Job fuer Matching ──
     try:
