@@ -427,13 +427,14 @@ body::after {
    ════════════════════════════════════════════ #}
 <div x-show="!sidebarOpen" x-cloak
      @click="sidebarOpen = true"
-     style="width: 40px; background: linear-gradient(180deg, #141a30 0%, #0e1222 100%); border-right: 1px solid rgba(99,102,241,0.15); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;"
-     @mouseenter="$el.querySelector('.pcc-sb-toggle').style.background='rgba(99,102,241,0.18)'; $el.querySelector('.pcc-sb-toggle').style.borderColor='rgba(99,102,241,0.4)'"
-     @mouseleave="$el.querySelector('.pcc-sb-toggle').style.background='rgba(99,102,241,0.08)'; $el.querySelector('.pcc-sb-toggle').style.borderColor='rgba(99,102,241,0.2)'"
+     style="width: 48px; background: linear-gradient(180deg, #141a30 0%, #0e1222 100%); border-right: 1px solid rgba(99,102,241,0.15); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; cursor: pointer; flex-shrink: 0; padding-top: 18px; gap: 14px;"
+     @mouseenter="$el.style.borderRightColor='rgba(99,102,241,0.35)'; $el.querySelector('.pcc-sb-toggle').style.background='rgba(99,102,241,0.2)'; $el.querySelector('.pcc-sb-toggle').style.borderColor='rgba(99,102,241,0.5)'; $el.querySelector('.pcc-sb-toggle').style.boxShadow='0 0 16px rgba(99,102,241,0.2)'"
+     @mouseleave="$el.style.borderRightColor='rgba(99,102,241,0.15)'; $el.querySelector('.pcc-sb-toggle').style.background='rgba(99,102,241,0.1)'; $el.querySelector('.pcc-sb-toggle').style.borderColor='rgba(99,102,241,0.25)'; $el.querySelector('.pcc-sb-toggle').style.boxShadow='none'"
      title="Sidebar öffnen">
-    <div class="pcc-sb-toggle" style="width: 28px; height: 28px; border-radius: 8px; background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.2); display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
-        <svg width="14" height="14" fill="none" stroke="#818cf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+    <div class="pcc-sb-toggle" style="width: 34px; height: 34px; border-radius: 10px; background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.25); display: flex; align-items: center; justify-content: center; transition: all 0.25s; box-shadow: none;">
+        <svg width="18" height="18" fill="none" stroke="#818cf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
     </div>
+    <div style="width: 3px; height: 32px; border-radius: 3px; background: linear-gradient(180deg, rgba(99,102,241,0.3), rgba(99,102,241,0.05));"></div>
 </div>
 
 {# ════════════════════════════════════════════
