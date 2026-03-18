@@ -4,7 +4,7 @@
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
-# Force rebuild: 2026-01-26-v4
+# Force rebuild: 2026-03-18-v5
 
 [deploy]
 startCommand = "sh start.sh"
