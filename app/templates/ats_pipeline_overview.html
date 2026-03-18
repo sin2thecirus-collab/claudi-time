@@ -172,6 +172,9 @@ body::after {
 }
 .pcc-backdrop.open { opacity: 1; pointer-events: auto; }
 
+/* Alpine x-cloak */
+[x-cloak] { display: none !important; }
+
 /* Pulse */
 @keyframes pcc-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 .pcc-pulse { animation: pcc-pulse 2s ease-in-out infinite; }
@@ -416,13 +419,33 @@ body::after {
     {"id":"rejected","label":"Abgesagt","color":"#64748b","light":"#94a3b8","mid":"#94a3b8","bg":"rgba(148,163,184,0.08)"}
 ] %}
 
-<div class="pcc" style="display: grid; grid-template-columns: 280px 1fr; height: calc(100vh - 56px); overflow: hidden;"
+<div class="pcc" style="display: grid; grid-template-columns: auto 1fr; height: calc(100vh - 56px); overflow: hidden;"
      x-data="pipelineCommandCenter()" x-init="init()">
 
 {# ════════════════════════════════════════════
-   SIDEBAR
+   SIDEBAR — Geschlossener Spalt (nur sichtbar wenn zu)
    ════════════════════════════════════════════ #}
-<aside style="background: linear-gradient(180deg, #141a30 0%, #0e1222 100%); border-right: 1px solid rgba(99,102,241,0.15); display: flex; flex-direction: column; overflow: hidden;">
+<div x-show="!sidebarOpen" x-cloak
+     @click="sidebarOpen = true"
+     style="width: 36px; background: linear-gradient(180deg, #141a30 0%, #0e1222 100%); border-right: 1px solid rgba(99,102,241,0.15); display: flex; flex-direction: column; align-items: center; cursor: pointer; padding-top: 16px; gap: 6px; flex-shrink: 0;"
+     title="Sidebar öffnen">
+    <svg width="18" height="18" fill="none" stroke="#818cf8" stroke-width="2" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+    <span style="writing-mode: vertical-rl; text-orientation: mixed; font-size: 11px; font-weight: 600; color: #818cf8; letter-spacing: 0.05em; margin-top: 4px;">Sidebar</span>
+</div>
+
+{# ════════════════════════════════════════════
+   SIDEBAR — Volle Sidebar (nur sichtbar wenn offen)
+   ════════════════════════════════════════════ #}
+<aside x-show="sidebarOpen" x-cloak
+       style="width: 280px; background: linear-gradient(180deg, #141a30 0%, #0e1222 100%); border-right: 1px solid rgba(99,102,241,0.15); display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0;">
+
+    {# Schliessen-Pfeil oben #}
+    <div @click="sidebarOpen = false"
+         style="display: flex; align-items: center; gap: 6px; padding: 8px 12px; cursor: pointer; border-bottom: 1px solid rgba(99,102,241,0.08); flex-shrink: 0;"
+         title="Sidebar schließen">
+        <svg width="16" height="16" fill="none" stroke="#64748b" stroke-width="2" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+        <span style="font-size: 11px; color: #64748b; font-weight: 500;">Sidebar schließen</span>
+    </div>
 
     {# Sidebar Header #}
     <div style="padding: 20px 16px 12px;">
@@ -1320,6 +1343,7 @@ function pipelineCommandCenter() {
     ];
 
     return {
+        sidebarOpen: true,
         activePosition: null,
         selectedCard: null,
         view: 'table',
