@@ -260,7 +260,18 @@ async def _geocode_city(city: str) -> tuple[float, float] | None:
 
 
 async def _calculate_drive_time_for_entry(entry_id: str) -> None:
-    """Berechnet Fahrzeit fuer einen einzelnen Pipeline-Eintrag."""
+    """Berechnet Fahrzeit fuer einen einzelnen Pipeline-Eintrag.
+
+    Fallback-Kette fuer Job-Koordinaten:
+    1. ATSJob.location_coords (PostGIS)
+    2. Source-Job (jobs Tabelle) ueber source_job_id -> location_coords
+    3. Company.location_coords (ueber ATSJob.company_id ODER Source-Job.company_name)
+    4. Nominatim Geocoding der Stadt (ATSJob.location_city)
+
+    Fallback-Kette fuer Kandidaten-Koordinaten:
+    1. Candidate.address_coords (PostGIS)
+    2. Nominatim Geocoding der Stadt (Candidate.city)
+    """
     try:
         from sqlalchemy import func as sa_func, text
 
@@ -269,6 +280,7 @@ async def _calculate_drive_time_for_entry(entry_id: str) -> None:
         from app.models.ats_pipeline import ATSPipelineEntry
         from app.models.candidate import Candidate
         from app.models.company import Company
+        from app.models.job import Job
         from app.services.distance_matrix_service import distance_matrix_service
 
         if not distance_matrix_service.has_api_key:
@@ -276,7 +288,17 @@ async def _calculate_drive_time_for_entry(entry_id: str) -> None:
             return
 
         # Daten laden (eigene Session — Railway 30s Timeout!)
+        job_lat = None
+        job_lng = None
+        job_city = None
+        cand_lat = None
+        cand_lng = None
+        cand_city = None
+        cand_plz = None
+        dest_plz = None
+
         async with async_session_maker() as db:
+            # Entry laden
             entry_result = await db.execute(
                 select(ATSPipelineEntry).where(ATSPipelineEntry.id == entry_id)
             )
@@ -287,40 +309,86 @@ async def _calculate_drive_time_for_entry(entry_id: str) -> None:
             ats_job_id = entry.ats_job_id
             candidate_id = entry.candidate_id
 
-            # Job-Koordinaten laden (ATSJob -> Company Fallback)
+            # ── Job-Koordinaten: ATSJob direkt ──
             job_result = await db.execute(
                 select(
                     sa_func.ST_Y(sa_func.ST_GeomFromWKB(ATSJob.location_coords)).label("job_lat"),
                     sa_func.ST_X(sa_func.ST_GeomFromWKB(ATSJob.location_coords)).label("job_lng"),
                     ATSJob.location_city,
                     ATSJob.company_id,
+                    ATSJob.source_job_id,
                 ).where(ATSJob.id == ats_job_id)
             )
             job_row = job_result.one_or_none()
             if not job_row:
+                logger.warning(f"Pipeline-Entry {entry_id}: ATSJob {ats_job_id} nicht gefunden")
                 return
 
             job_lat = job_row.job_lat
             job_lng = job_row.job_lng
             job_city = job_row.location_city
+            source_job_id = job_row.source_job_id
+            company_id = job_row.company_id
 
-            # Fallback 1: Company-Koordinaten
+            # ── Fallback 1: Source-Job (jobs Tabelle) ──
+            if (not job_lat or not job_lng) and source_job_id:
+                src_result = await db.execute(
+                    select(
+                        sa_func.ST_Y(sa_func.ST_GeomFromWKB(Job.location_coords)).label("lat"),
+                        sa_func.ST_X(sa_func.ST_GeomFromWKB(Job.location_coords)).label("lng"),
+                        Job.postal_code,
+                        Job.city,
+                    ).where(Job.id == source_job_id)
+                )
+                src_row = src_result.one_or_none()
+                if src_row:
+                    if src_row.lat and src_row.lng:
+                        job_lat, job_lng = src_row.lat, src_row.lng
+                        dest_plz = src_row.postal_code
+                        logger.info(f"Pipeline-Entry {entry_id}: Koordinaten vom Source-Job {source_job_id}")
+                    elif src_row.city:
+                        job_city = job_city or src_row.city
+
+            # ── Fallback 2: Company-Koordinaten ──
             if not job_lat or not job_lng:
-                if job_row.company_id:
+                comp_id_to_check = company_id
+                # Falls ATSJob keine Company hat, versuche Company ueber Source-Job
+                if not comp_id_to_check and source_job_id:
+                    src_comp = await db.execute(
+                        select(Job.company_name).where(Job.id == source_job_id)
+                    )
+                    src_comp_row = src_comp.one_or_none()
+                    if src_comp_row and src_comp_row.company_name:
+                        # Company per Name finden
+                        from app.models.company import Company
+                        comp_by_name = await db.execute(
+                            select(Company.id).where(
+                                Company.name.ilike(src_comp_row.company_name)
+                            ).limit(1)
+                        )
+                        comp_match = comp_by_name.scalar_one_or_none()
+                        if comp_match:
+                            comp_id_to_check = comp_match
+
+                if comp_id_to_check:
                     comp_result = await db.execute(
                         select(
                             sa_func.ST_Y(sa_func.ST_GeomFromWKB(Company.location_coords)).label("lat"),
                             sa_func.ST_X(sa_func.ST_GeomFromWKB(Company.location_coords)).label("lng"),
                             Company.city,
-                        ).where(Company.id == job_row.company_id)
+                            Company.postal_code,
+                        ).where(Company.id == comp_id_to_check)
                     )
                     comp_row = comp_result.one_or_none()
-                    if comp_row and comp_row.lat and comp_row.lng:
-                        job_lat, job_lng = comp_row.lat, comp_row.lng
-                    elif comp_row and comp_row.city:
-                        job_city = job_city or comp_row.city
+                    if comp_row:
+                        if comp_row.lat and comp_row.lng:
+                            job_lat, job_lng = comp_row.lat, comp_row.lng
+                            dest_plz = comp_row.postal_code
+                            logger.info(f"Pipeline-Entry {entry_id}: Koordinaten von Company {comp_id_to_check}")
+                        elif comp_row.city:
+                            job_city = job_city or comp_row.city
 
-            # Kandidaten-Koordinaten laden
+            # ── Kandidaten-Koordinaten ──
             cand_result = await db.execute(
                 select(
                     sa_func.ST_Y(sa_func.ST_GeomFromWKB(Candidate.address_coords)).label("cand_lat"),
@@ -336,10 +404,11 @@ async def _calculate_drive_time_for_entry(entry_id: str) -> None:
             cand_lat = cand_row.cand_lat
             cand_lng = cand_row.cand_lng
             cand_city = cand_row.cand_city
+            cand_plz = cand_row.postal_code
 
         # Session geschlossen — jetzt Geocoding falls noetig
 
-        # Fallback 2: Job-Stadt geocoden per Nominatim
+        # ── Fallback 3: Job-Stadt geocoden per Nominatim ──
         if (not job_lat or not job_lng) and job_city:
             coords = await _geocode_city(job_city)
             if coords:
@@ -353,10 +422,10 @@ async def _calculate_drive_time_for_entry(entry_id: str) -> None:
                 logger.info(f"ATSJob {ats_job_id}: Geocoded '{job_city}' -> {job_lat},{job_lng}")
 
         if not job_lat or not job_lng:
-            logger.info(f"Pipeline-Entry {entry_id}: Job hat keine Koordinaten und keine Stadt")
+            logger.warning(f"Pipeline-Entry {entry_id}: Keine Job-Koordinaten gefunden (kein ATSJob, Source-Job, Company oder Stadt)")
             return
 
-        # Kandidat geocoden falls noetig
+        # ── Kandidat geocoden falls noetig ──
         if (not cand_lat or not cand_lng) and cand_city:
             coords = await _geocode_city(cand_city)
             if coords:
@@ -371,17 +440,17 @@ async def _calculate_drive_time_for_entry(entry_id: str) -> None:
             await asyncio.sleep(1.0)
 
         if not cand_lat or not cand_lng:
-            logger.info(f"Pipeline-Entry {entry_id}: Kandidat hat keine Koordinaten und keine Stadt")
+            logger.warning(f"Pipeline-Entry {entry_id}: Keine Kandidaten-Koordinaten gefunden (keine coords, keine Stadt)")
             return
 
-        # Google Maps Fahrzeit berechnen
+        # ── Google Maps Fahrzeit berechnen ──
         result = await distance_matrix_service.get_drive_time(
             origin_lat=cand_lat,
             origin_lng=cand_lng,
-            origin_plz=cand_row.postal_code,
+            origin_plz=cand_plz,
             dest_lat=job_lat,
             dest_lng=job_lng,
-            dest_plz=None,
+            dest_plz=dest_plz,
         )
 
         if result.status in ("ok", "same_plz"):
@@ -398,13 +467,13 @@ async def _calculate_drive_time_for_entry(entry_id: str) -> None:
                 await db2.commit()
             logger.info(
                 f"Pipeline-Entry {entry_id}: Fahrzeit berechnet — "
-                f"Auto {result.car_min}min, OEPNV {result.transit_min}min"
+                f"Auto {result.car_min}min, OEPNV {result.transit_min}min, {result.car_km}km"
             )
         else:
             logger.warning(f"Pipeline-Entry {entry_id}: Fahrzeit-API Fehler: {result.status}")
 
     except Exception as e:
-        logger.error(f"Fahrzeit-Berechnung fuer Pipeline-Entry {entry_id} fehlgeschlagen: {e}")
+        logger.error(f"Fahrzeit-Berechnung fuer Pipeline-Entry {entry_id} fehlgeschlagen: {e}", exc_info=True)
 
 
 async def _backfill_drive_times(entry_ids: list[str]) -> None:
