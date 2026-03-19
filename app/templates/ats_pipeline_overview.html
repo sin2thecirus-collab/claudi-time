@@ -1426,7 +1426,7 @@ body::after {
                             </div>
                             <div x-show="ivContactOpen" x-transition.opacity
                                 style="margin-top: 4px; background: #1e2340; border: 1px solid rgba(99,102,241,0.25); border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.5); overflow: hidden; z-index: 10; position: relative;">
-                                <template x-for="ct in interviewContacts" :key="ct.id">
+                                <template x-for="ct in interviewContacts.filter(c => !interviewData.participants.some(p => p._contact_id === c.id))" :key="ct.id">
                                     <div @click="ivAddFromContact(ct.id); ivContactOpen = false"
                                         style="padding: 12px 16px; cursor: pointer; border-bottom: 1px solid rgba(99,102,241,0.06); transition: background 0.15s;"
                                         @mouseenter="$el.style.background='rgba(99,102,241,0.08)'" @mouseleave="$el.style.background='transparent'">
@@ -2292,26 +2292,27 @@ function pipelineCommandCenter() {
         ivAddFromContact(contactId) {
             const ct = this.interviewContacts.find(c => c.id === contactId);
             if (!ct) return;
-            // Duplikat-Check per Email
-            if (ct.email && this.interviewData.participants.some(p => p.email === ct.email)) return;
-            this.interviewData.participants.push({
+            // Duplikat-Check per Contact-ID (nicht Email — verschiedene Personen können gleiche Email haben)
+            if (this.interviewData.participants.some(p => p._contact_id === contactId)) return;
+            this.interviewData.participants = [...this.interviewData.participants, {
+                _contact_id: contactId,
                 anrede: ct.salutation || '', vorname: ct.first_name || '',
                 nachname: ct.last_name || '', email: ct.email || '',
                 rolle: ct.position || ''
-            });
+            }];
         },
 
         ivAddManual() {
             if (!this.ivNewNachname.trim()) return;
-            this.interviewData.participants.push({
+            this.interviewData.participants = [...this.interviewData.participants, {
                 anrede: this.ivNewAnrede, vorname: this.ivNewVorname,
                 nachname: this.ivNewNachname, email: this.ivNewEmail,
                 rolle: this.ivNewRolle
-            });
+            }];
             this.ivNewAnrede = ''; this.ivNewVorname = ''; this.ivNewNachname = ''; this.ivNewEmail = ''; this.ivNewRolle = '';
         },
 
-        ivRemoveParticipant(idx) { this.interviewData.participants.splice(idx, 1); },
+        ivRemoveParticipant(idx) { this.interviewData.participants = this.interviewData.participants.filter((_, i) => i !== idx); },
 
         async submitInterview() {
             if (!this.interviewData.date || !this.interviewData.time) {
