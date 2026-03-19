@@ -481,6 +481,11 @@
                             </div>
                             <div id="contact-form" style="display:none" class="kd-iform">
                                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                                    <select id="cf-salutation" class="kd-inp" style="grid-column:span 2;">
+                                        <option value="">Anrede wählen...</option>
+                                        <option value="Herr">Herr</option>
+                                        <option value="Frau">Frau</option>
+                                    </select>
                                     <input type="text" id="cf-first-name" placeholder="Vorname" class="kd-inp">
                                     <input type="text" id="cf-last-name" placeholder="Nachname" class="kd-inp">
                                     <input type="text" id="cf-position" placeholder="Position" class="kd-inp">
@@ -562,6 +567,11 @@
                     </div>
                     <div id="contact-form-tab" style="display:none" class="kd-iform" style="margin:0 24px;">
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                            <select id="cf-salutation-tab" class="kd-inp" style="grid-column:span 2;">
+                                <option value="">Anrede wählen...</option>
+                                <option value="Herr">Herr</option>
+                                <option value="Frau">Frau</option>
+                            </select>
                             <input type="text" id="cf-first-name-tab" placeholder="Vorname" class="kd-inp">
                             <input type="text" id="cf-last-name-tab" placeholder="Nachname" class="kd-inp">
                             <input type="text" id="cf-position-tab" placeholder="Position" class="kd-inp">
@@ -872,6 +882,7 @@ function toggleContactForm(source) {
 function saveContact(source) {
     const suffix = source === 'tab' ? '-tab' : '';
     const data = {
+        salutation: document.getElementById('cf-salutation' + suffix).value || null,
         first_name: document.getElementById('cf-first-name' + suffix).value || null,
         last_name: document.getElementById('cf-last-name' + suffix).value || null,
         position: document.getElementById('cf-position' + suffix).value || null,
@@ -883,7 +894,10 @@ function saveContact(source) {
         .then(() => {
             showToast('Kontakt erstellt', 'success');
             toggleContactForm(source);
-            ['cf-first-name','cf-last-name','cf-position','cf-phone','cf-email'].forEach(id => document.getElementById(id + suffix).value = '');
+            ['cf-salutation','cf-first-name','cf-last-name','cf-position','cf-phone','cf-email'].forEach(id => {
+                var el = document.getElementById(id + suffix);
+                if (el) el.value = '';
+            });
             htmx.trigger('#contacts-container', 'load');
             htmx.trigger('#contacts-container-tab', 'load');
         })
