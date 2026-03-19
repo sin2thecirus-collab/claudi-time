@@ -158,6 +158,10 @@ def parse_csv(file_bytes: bytes) -> list[dict]:
         last = mapped.get("contact_lastname", "")
         mapped["contact_name"] = f"{first} {last}".strip()
 
+        # Beste E-Mail intelligent auswaehlen (alle 3 Spalten pruefen)
+        # Prioritaet: persoenlich (vorname.nachname@) > bewerbung/karriere@ > info/kontakt@
+        mapped["contact_email"] = _pick_best_email(raw_row, mapped.get("contact_email", ""))
+
         # Nur Zeilen mit Firma UND (Position ODER job_text)
         if mapped.get("company_name") and (mapped.get("position") or mapped.get("job_text")):
             rows.append(mapped)
@@ -731,6 +735,55 @@ async def _update_batch_error(session_maker, batch_id: UUID, row_index: int, err
                 await db.commit()
     except Exception as e:
         logger.warning(f"_update_batch_error fehlgeschlagen: {e}")
+
+
+def _pick_best_email(raw_row: dict, current_email: str) -> str:
+    """Waehlt die beste E-Mail-Adresse aus allen verfuegbaren CSV-Spalten.
+
+    Prioritaet:
+    1. Persoenliche E-Mail (vorname.nachname@, vorname@, v.nachname@) — BESTE
+    2. bewerbung@ / karriere@ / recruiting@ — OK
+    3. info@ / kontakt@ / office@ — SCHLECHT, nur als letzter Ausweg
+
+    Prueft alle 3 advertsdata-Spalten: AP-Anzeige, AP-Firma, Firmen-E-Mail
+    """
+    # Alle verfuegbaren E-Mail-Adressen sammeln
+    candidates = []
+    for key in ["E-Mail - AP Anzeige", "E-Mail - AP Firma", "E-Mail"]:
+        email = (raw_row.get(key) or "").strip().lower()
+        if email and "@" in email:
+            candidates.append(email)
+
+    # Fallback: aktuelle gemappte E-Mail
+    if current_email and current_email not in candidates:
+        candidates.append(current_email.strip().lower())
+
+    if not candidates:
+        return current_email or ""
+
+    # Generische Prefixe die SCHLECHT sind
+    bad_prefixes = ("info@", "kontakt@", "office@", "mail@", "post@", "service@")
+    ok_prefixes = ("bewerbung@", "karriere@", "recruiting@", "jobs@", "hr@", "personal@")
+
+    def email_score(email: str) -> int:
+        local = email.split("@")[0]
+        # Persoenlich (vorname.nachname, v.nachname, vorname) = BEST
+        if "." in local and not any(email.startswith(p) for p in bad_prefixes + ok_prefixes):
+            return 3
+        if local and not any(email.startswith(p) for p in bad_prefixes + ok_prefixes):
+            # Einzelner Name ohne Punkt (z.B. heinrich@)
+            return 2
+        if any(email.startswith(p) for p in ok_prefixes):
+            return 1
+        if any(email.startswith(p) for p in bad_prefixes):
+            return 0
+        return 1  # Unbekannt = OK
+
+    # Beste E-Mail waehlen
+    best = max(candidates, key=email_score)
+    if best != current_email:
+        logger.info(f"_pick_best_email: {current_email} → {best} (besserer Kontakt)")
+    return best
 
 
 def _extract_position_from_text(job_text: str) -> str:
