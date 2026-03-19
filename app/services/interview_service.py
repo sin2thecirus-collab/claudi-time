@@ -312,86 +312,66 @@ async def send_interview_invite(entry_id, participants_override: list[dict] | No
                 ort_parts = [p for p in addr_parts if p]
             ort_str = ", ".join(ort_parts) if ort_parts else "wird noch bekannt gegeben"
 
-        # ── Statischer Einladungstext (kein GPT — konsistent + schnell) ──
-        anrede_kandidat = candidate_data.get("anrede", "")
-        vorname_kandidat = candidate_data.get("vorname", "")
-        nachname_kandidat = candidate_data.get("nachname", "")
-        firma_name = company_data.get("name", "Unbekannt")
-        jobtitel = job_data.get("title", "Unbekannt")
-        is_digital = interview_data["type"] == "digital"
+        user_prompt = f"""Erstelle eine Einladungs-E-Mail mit folgenden Daten:
 
-        # Begruessing
-        if anrede_kandidat and nachname_kandidat:
-            anrede_zeile = f"Hallo {anrede_kandidat} {nachname_kandidat},"
-        elif nachname_kandidat:
-            anrede_zeile = f"Hallo {vorname_kandidat} {nachname_kandidat},"
-        else:
-            anrede_zeile = "Hallo,"
+Kandidat Anrede: {candidate_data.get('anrede', '')}
+Kandidat Vorname: {candidate_data.get('vorname', '')}
+Kandidat Nachname: {candidate_data.get('nachname', '')}
+Firma: {company_data.get('name', 'Unbekannt')}
+Jobtitel: {job_data.get('title', 'Unbekannt')}
+Interview-Nummer: {interview_nr}
+Datum: {datum_str}
+Uhrzeit: {uhrzeit_str}
+Art: {'Digitales Gespraech (Microsoft Teams)' if interview_data['type'] == 'digital' else 'Vor-Ort-Gespraech'}
+Ort: {ort_str}
+Empfangs-Hinweis: {interview_data.get('hint', '') or 'keiner'}
 
-        # Interview-Nummer Text
-        interview_nr_text = ""
-        if interview_nr == "2":
-            interview_nr_text = " zweiten"
-        elif interview_nr == "3":
-            interview_nr_text = " dritten"
+Gespraechspartner ({teilnehmer_count} Personen — ALLE muessen im Text erscheinen!):
+{teilnehmer_str or 'werden noch bekannt gegeben'}
 
-        # Teilnehmer-HTML
-        teilnehmer_html = ""
-        if participants:
-            lines = []
-            for p in participants:
-                a = p.get("anrede", "").strip()
-                v = p.get("vorname", "").strip()
-                n = p.get("nachname", "").strip()
-                r = p.get("rolle", "").strip()
-                name = f"{a} {v} {n}".strip() if v else f"{a} {n}".strip()
-                if r:
-                    lines.append(f"&bull; {name} &mdash; {r}")
-                else:
-                    lines.append(f"&bull; {name}")
-            teilnehmer_html = "<br>".join(lines)
+WICHTIG: Es sind {teilnehmer_count} Gespraechspartner — liste ALLE {teilnehmer_count} einzeln auf!"""
 
-        # Digital-Block oder Vor-Ort-Block
-        if is_digital:
-            typ_block = """<p style="margin:0 0 14px 0;">Der Teams-Link ist automatisch in dieser Kalendereinladung enthalten. Wir empfehlen Ihnen, sich etwa 5&ndash;10 Minuten vor dem Termin einzuloggen und kurz Ihre Technik zu &uuml;berpr&uuml;fen &mdash; insbesondere Kamera, Mikrofon und Internetverbindung.</p>
-<p style="margin:0 0 14px 0;">Sollte es wider Erwarten zu technischen Schwierigkeiten kommen, erreichen Sie mich jederzeit unter <strong>0176 8000 4741</strong>.</p>"""
-            art_str = "Digitales Gespr&auml;ch &uuml;ber Microsoft Teams"
-            ort_td = "Microsoft Teams"
-        else:
-            hint_text = interview_data.get("hint", "")
-            hint_html = f"<br>{hint_text}" if hint_text else ""
-            typ_block = f"""<p style="margin:0 0 14px 0;">Die vollst&auml;ndige Adresse finden Sie in den Termindetails oben.{hint_html}</p>"""
-            art_str = "Pers&ouml;nliches Gespr&auml;ch vor Ort"
-            ort_td = ort_str.replace("&", "&amp;")
+        invite_text = {"subject": "", "body_html": ""}
+        try:
+            async with httpx.AsyncClient(
+                base_url="https://api.openai.com/v1",
+                headers={"Authorization": f"Bearer {settings.openai_api_key}"},
+                timeout=30.0,
+            ) as client:
+                resp = await client.post(
+                    "/chat/completions",
+                    json={
+                        "model": "gpt-4o",
+                        "messages": [
+                            {"role": "system", "content": INTERVIEW_INVITE_PROMPT},
+                            {"role": "user", "content": user_prompt},
+                        ],
+                        "temperature": 0.3,
+                        "max_tokens": 2000,
+                        "response_format": {"type": "json_object"},
+                    },
+                )
+                resp.raise_for_status()
+                content = resp.json()["choices"][0]["message"]["content"]
+                invite_text = json.loads(content)
+                logger.info(f"GPT Einladungstext generiert: {invite_text.get('subject', '?')[:60]}")
+        except Exception as e:
+            logger.error(f"GPT Einladungstext Fehler: {e}", exc_info=True)
+            # Fallback: Einfacher Text ohne GPT
+            invite_text = {
+                "subject": f"Bewerbungsgespraech {candidate_data.get('anrede', '')} {candidate_data.get('vorname', '')} {candidate_data.get('nachname', '')} — {company_data.get('name', '')}".replace("  ", " ").strip(),
+                "body_html": f"<p>Hallo {candidate_data.get('anrede', '')} {candidate_data.get('nachname', '')},</p>"
+                f"<p>hiermit lade ich Sie im Auftrag der Firma {company_data.get('name', '')} "
+                f"zum Bewerbungsgespraech ein.</p>"
+                f"<p><strong>Termin:</strong> {datum_str}, {uhrzeit_str}<br>"
+                f"<strong>Art:</strong> {'Digital (Teams)' if interview_data['type'] == 'digital' else 'Vor Ort'}<br>"
+                f"<strong>Ort:</strong> {ort_str}</p>"
+                f"<p>Bei Fragen bin ich erreichbar unter 017680004741.</p>"
+                f"<p>Viel Erfolg!<br>Mit freundlichen Gruessen</p>",
+            }
 
-        # Teilnehmer-Block
-        teilnehmer_block = ""
-        if teilnehmer_html:
-            teilnehmer_block = f"""<p style="margin:0 0 6px 0;"><strong>Ihre Gespr&auml;chspartner:</strong></p>
-<p style="margin:0 0 14px 0;">{teilnehmer_html}</p>"""
-
-        body_html = f"""<p style="margin:0 0 14px 0;">{anrede_zeile}</p>
-<p style="margin:0 0 14px 0;">ich freue mich sehr, Ihnen mitteilen zu d&uuml;rfen, dass unser Kunde, die <strong>{firma_name}</strong>, Sie gerne zu einem{interview_nr_text} Bewerbungsgespr&auml;ch f&uuml;r die Position als <strong>{jobtitel}</strong> einladen m&ouml;chte.</p>
-<p style="margin:0 0 6px 0;"><strong>Termindetails:</strong></p>
-<table style="border-collapse:collapse; margin:0 0 14px 0;">
-<tr><td style="padding:4px 20px 4px 0; color:#666;"><strong>Datum:</strong></td><td>{datum_str}</td></tr>
-<tr><td style="padding:4px 20px 4px 0; color:#666;"><strong>Uhrzeit:</strong></td><td>{uhrzeit_str}</td></tr>
-<tr><td style="padding:4px 20px 4px 0; color:#666;"><strong>Art:</strong></td><td>{art_str}</td></tr>
-<tr><td style="padding:4px 20px 4px 0; color:#666;"><strong>Ort:</strong></td><td>{ort_td}</td></tr>
-</table>
-{typ_block}
-{teilnehmer_block}
-<p style="margin:0 0 14px 0;">Falls Sie den Termin nicht wahrnehmen k&ouml;nnen, geben Sie mir bitte rechtzeitig Bescheid, damit wir gemeinsam einen Alternativtermin finden k&ouml;nnen. Sie erreichen mich jederzeit unter <strong>0176 8000 4741</strong>.</p>
-<p style="margin:0 0 14px 0;">Ich w&uuml;nsche Ihnen viel Erfolg f&uuml;r das Gespr&auml;ch!</p>
-<p style="margin:0 0 0 0;">Mit freundlichen Gr&uuml;&szlig;en</p>"""
-
-        subject = f"Bewerbungsgespr\u00e4ch {anrede_kandidat} {vorname_kandidat} {nachname_kandidat} \u2014 {firma_name}".replace("  ", " ").strip()
-
-        invite_text = {"subject": subject, "body_html": body_html}
-        logger.info(f"Statischer Einladungstext erstellt: {subject[:60]}")
-
-        # GPT-Fallback entfernt — statischer Text ist konsistenter
         # ── Graph API: Calendar Event erstellen (KEIN DB offen!) ──
+        is_digital = interview_data["type"] == "digital"
         event_result = await _create_interview_calendar_event(
             subject=invite_text["subject"],
             start_dt=interview_data["at"],
