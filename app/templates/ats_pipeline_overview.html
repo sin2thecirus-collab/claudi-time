@@ -748,7 +748,7 @@ body::after {
                          @click="selectCandidate(card)"
                          @dragstart="handleDragStart($event, card)"
                          @dragend="handleDragEnd($event)"
-                         x-data="{kOpen: false, cOpen: false, confirmDel: false}">
+                         x-data="{kOpen: false, cOpen: false}">
 
                         {# WOW Badge #}
                         <template x-if="card.wow">
@@ -839,14 +839,8 @@ body::after {
                                 </div>
                             </div>
                             {# Delete Button #}
-                            <div class="pcc-del-btn" @click="confirmDel ? deleteEntry(card) : (confirmDel = true)" @click.away="confirmDel = false"
-                                 :style="confirmDel ? 'background: rgba(239,68,68,0.2); border-color: rgba(239,68,68,0.4); color: #fca5a5;' : ''">
-                                <template x-if="!confirmDel">
-                                    <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                                </template>
-                                <template x-if="confirmDel">
-                                    <span style="font-size: 9px; font-weight: 700; letter-spacing: 0.03em;">Sicher?</span>
-                                </template>
+                            <div class="pcc-del-btn" @click="deleteEntry(card)">
+                                <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                             </div>
                         </div>
                     </div>
@@ -900,7 +894,7 @@ body::after {
                                  @click="selectCandidate(card)"
                                  @dragstart="handleDragStart($event, card)"
                                  @dragend="handleDragEnd($event)"
-                                 x-data="{kOpen: false, cOpen: false, confirmDel: false}"
+                                 x-data="{kOpen: false, cOpen: false}"
                                  style="margin-left: 6px; border-left: 3px solid transparent;"
                                  :style="'border-left-color: ' + getAvatarGradient(card.company).split(',')[0] + '60'">
 
@@ -980,14 +974,8 @@ body::after {
                                         </div>
                                     </div>
                                     {# Delete #}
-                                    <div class="pcc-del-btn" @click="confirmDel ? deleteEntry(card) : (confirmDel = true)" @click.away="confirmDel = false"
-                                         :style="confirmDel ? 'background: rgba(239,68,68,0.2); border-color: rgba(239,68,68,0.4); color: #fca5a5;' : ''">
-                                        <template x-if="!confirmDel">
-                                            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                                        </template>
-                                        <template x-if="confirmDel">
-                                            <span style="font-size: 9px; font-weight: 700;">Sicher?</span>
-                                        </template>
+                                    <div class="pcc-del-btn" @click="deleteEntry(card)">
+                                        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                     </div>
                                 </div>
                             </div>
@@ -1088,15 +1076,9 @@ body::after {
                                     </span>
                                 </template>
                             </td>
-                            <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border); text-align: center;" @click.stop x-data="{confirmDel: false}">
-                                <div class="pcc-del-btn" style="margin: 0 auto;" @click="confirmDel ? deleteEntry(c) : (confirmDel = true)" @click.away="confirmDel = false"
-                                     :style="confirmDel ? 'background: rgba(239,68,68,0.2); border-color: rgba(239,68,68,0.4); color: #fca5a5;' : ''">
-                                    <template x-if="!confirmDel">
-                                        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                                    </template>
-                                    <template x-if="confirmDel">
-                                        <span style="font-size: 9px; font-weight: 700; color: #fca5a5;">Sicher?</span>
-                                    </template>
+                            <td style="padding: 10px 14px; border-bottom: 1px solid var(--pcc-border); text-align: center;" @click.stop>
+                                <div class="pcc-del-btn" style="margin: 0 auto;" @click="deleteEntry(c)">
+                                    <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                 </div>
                             </td>
                         </tr>
@@ -2125,22 +2107,26 @@ function pipelineCommandCenter() {
         PHASES,
 
         async deleteEntry(card) {
+            if (!confirm(card.name + ' aus der Pipeline entfernen?')) return;
             try {
                 const r = await fetch('/api/ats/pipeline/entries/' + card.entry_id, { method: 'DELETE' });
                 if (r.ok) {
-                    // Aus pipelineByJob entfernen
+                    // Aus pipelineByJob entfernen (Neuzuweisung fuer Alpine Reactivity)
                     for (const k in pipelineByJob) {
                         const idx = pipelineByJob[k].findIndex(c => c.entry_id === card.entry_id);
-                        if (idx >= 0) { pipelineByJob[k].splice(idx, 1); break; }
+                        if (idx >= 0) {
+                            pipelineByJob[k] = pipelineByJob[k].filter(c => c.entry_id !== card.entry_id);
+                            break;
+                        }
                     }
                     if (this.selectedCard && this.selectedCard.entry_id === card.entry_id) this.selectedCard = null;
                     if (typeof showToast === 'function') showToast(card.name + ' entfernt', 'success');
                 } else {
-                    if (typeof showToast === 'function') showToast('Fehler beim L\u00f6schen', 'error');
+                    if (typeof showToast === 'function') showToast('Fehler beim Löschen', 'error');
                 }
             } catch (e) {
                 console.error('Delete error:', e);
-                if (typeof showToast === 'function') showToast('Fehler beim L\u00f6schen', 'error');
+                if (typeof showToast === 'function') showToast('Fehler beim Löschen', 'error');
             }
         },
 
