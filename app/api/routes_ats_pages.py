@@ -40,6 +40,7 @@ async def ats_main(
         select(ATSJob)
         .options(
             selectinload(ATSJob.company),
+            selectinload(ATSJob.contact),
             selectinload(ATSJob.pipeline_entries).selectinload(ATSPipelineEntry.candidate),
         )
         .where(ATSJob.in_pipeline == True)
@@ -151,6 +152,9 @@ async def ats_main(
                 "company": job.company.name if job.company else "",
                 "company_id": str(job.company_id) if job.company_id else None,
                 "company_phone": job.company.phone if job.company else "",
+                "company_email": job.contact.email if job.contact else "",
+                "contact_phone": job.contact.phone if job.contact else "",
+                "contact_name": f"{job.contact.first_name or ''} {job.contact.last_name or ''}".strip() if job.contact else "",
                 "job_title": job.title,
                 "job_id": str(job.id),
                 "location": job.location_city or c.city or "",
