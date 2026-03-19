@@ -453,7 +453,7 @@ body::after {
             </div>
             <div style="display: flex; align-items: center; gap: 6px;">
                 {# Quick-Add Stelle Button #}
-                <div class="pcc-qact" @click="showQuickAddModal = true; qaCompanySearch = ''; qaCompanyResults = []; qaSelectedCompany = null; qaContacts = []; qaSelectedContactId = ''; qaJobTitle = ''; qaJobText = ''; qaError = null"
+                <div class="pcc-qact" @click="showQuickAddModal = true; qaCompanySearch = ''; qaCompanyResults = []; qaSelectedCompany = null; qaContacts = []; qaSelectedContactIds = []; qaJobTitle = ''; qaJobText = ''; qaError = null"
                      style="background: rgba(245,158,11,0.12);" title="Stelle manuell hinzufügen">
                     <svg width="15" height="15" fill="none" stroke="#fbbf24" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
                 </div>
@@ -1242,14 +1242,23 @@ body::after {
                     </template>
                 </div>
 
-                {# ── Ansprechpartner Dropdown ── #}
+                {# ── Ansprechpartner Multi-Select ── #}
                 <template x-if="qaSelectedCompany && qaContacts.length > 0">
                     <div style="margin-bottom: 16px;">
                         <label style="font-size: 12px; font-weight: 600; color: var(--pp-text); margin-bottom: 6px; display: block;">Ansprechpartner</label>
-                        <select x-model="qaSelectedContactId"
-                            style="width: 100%; padding: 10px 12px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.15); border-radius: 10px; color: var(--pp-text); font-size: 13px; outline: none;">
-                            <option value="">— Kein Ansprechpartner —</option>
-                            <template x-for="ct in qaContacts" :key="ct.id">
+                        {# Ausgewählte Kontakte als Chips #}
+                        <template x-for="ct in qaContacts.filter(c => qaSelectedContactIds.includes(c.id))" :key="ct.id">
+                            <div style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.25); border-radius: 8px; margin: 0 6px 6px 0; font-size: 12px; color: var(--pp-text);">
+                                <span x-text="(ct.salutation ? ct.salutation + ' ' : '') + ct.full_name + (ct.position ? ' (' + ct.position + ')' : '')"></span>
+                                <button @click="qaSelectedContactIds = qaSelectedContactIds.filter(id => id !== ct.id)"
+                                    style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 13px; padding: 0; line-height: 1;">✕</button>
+                            </div>
+                        </template>
+                        {# Dropdown zum Hinzufügen #}
+                        <select @change="if ($event.target.value && !qaSelectedContactIds.includes($event.target.value)) { qaSelectedContactIds.push($event.target.value); } $event.target.value = '';"
+                            style="width: 100%; padding: 10px 12px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.15); border-radius: 10px; color: var(--pp-text); font-size: 13px; outline: none; margin-top: 4px;">
+                            <option value="">Ansprechpartner hinzufügen...</option>
+                            <template x-for="ct in qaContacts.filter(c => !qaSelectedContactIds.includes(c.id))" :key="ct.id">
                                 <option :value="ct.id" x-text="ct.full_name + (ct.position ? ' (' + ct.position + ')' : '') + (ct.email ? ' — ' + ct.email : '')"></option>
                             </template>
                         </select>
@@ -1916,7 +1925,7 @@ function pipelineCommandCenter() {
         qaCompanySearching: false,
         qaSelectedCompany: null,
         qaContacts: [],
-        qaSelectedContactId: '',
+        qaSelectedContactIds: [],
         qaJobTitle: '',
         qaJobText: '',
         qaJobParsing: false,
@@ -2489,7 +2498,7 @@ function pipelineCommandCenter() {
                 job_location_city: this.qaSelectedCompany.city,
                 job_priority: 'medium',
             };
-            if (this.qaSelectedContactId) body.use_existing_contact_id = this.qaSelectedContactId;
+            if (this.qaSelectedContactIds.length > 0) body.use_existing_contact_id = this.qaSelectedContactIds[0];
 
             try {
                 const r = await fetch('/api/ats/pipeline/create-from-rawtext', {
