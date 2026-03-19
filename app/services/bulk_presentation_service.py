@@ -741,11 +741,11 @@ def _pick_best_email(raw_row: dict, current_email: str) -> str:
     """Waehlt die beste E-Mail-Adresse aus allen verfuegbaren CSV-Spalten.
 
     Prioritaet:
-    1. Persoenliche E-Mail (vorname.nachname@, vorname@, v.nachname@) — BESTE
-    2. bewerbung@ / karriere@ / recruiting@ — OK
-    3. info@ / kontakt@ / office@ — SCHLECHT, nur als letzter Ausweg
+    1. Persoenliche E-Mail (vorname.nachname@, v.nachname@) — BESTE
+    2. HR-Postfaecher (bewerbung@, karriere@, recruiting@, hr@, personal@, jobs@) — GUT
+    3. Nichts brauchbares → "NEEDS_MANUAL" markieren (Milad sucht die Adresse)
 
-    Prueft alle 3 advertsdata-Spalten: AP-Anzeige, AP-Firma, Firmen-E-Mail
+    VERBOTEN: info@, kontakt@, office@, verkauf@, mail@, service@ — NIEMALS verwenden!
     """
     # Alle verfuegbaren E-Mail-Adressen sammeln
     candidates = []
@@ -754,33 +754,58 @@ def _pick_best_email(raw_row: dict, current_email: str) -> str:
         if email and "@" in email:
             candidates.append(email)
 
-    # Fallback: aktuelle gemappte E-Mail
-    if current_email and current_email not in candidates:
-        candidates.append(current_email.strip().lower())
-
     if not candidates:
         return current_email or ""
 
-    # Generische Prefixe die SCHLECHT sind
-    bad_prefixes = ("info@", "kontakt@", "office@", "mail@", "post@", "service@")
-    ok_prefixes = ("bewerbung@", "karriere@", "recruiting@", "jobs@", "hr@", "personal@")
+    # Verbotene Prefixe — NIEMALS verwenden
+    forbidden_prefixes = ("info@", "kontakt@", "office@", "mail@", "post@",
+                          "service@", "verkauf@", "vertrieb@", "einkauf@",
+                          "buchhaltung@", "empfang@", "zentrale@", "sekretariat@")
+
+    # HR-Postfaecher — GUT (akzeptabel)
+    hr_prefixes = ("bewerbung@", "bewerbungen@", "karriere@", "career@",
+                   "recruiting@", "jobs@", "hr@", "personal@", "people@",
+                   "talent@", "hiring@", "job@", "stellenangebote@")
 
     def email_score(email: str) -> int:
         local = email.split("@")[0]
-        # Persoenlich (vorname.nachname, v.nachname, vorname) = BEST
-        if "." in local and not any(email.startswith(p) for p in bad_prefixes + ok_prefixes):
+        # Verboten = -1 (rausfiltern)
+        if any(email.startswith(p) for p in forbidden_prefixes):
+            return -1
+        # Persoenlich (vorname.nachname, v.nachname) = BEST
+        if "." in local and len(local) > 3:
             return 3
-        if local and not any(email.startswith(p) for p in bad_prefixes + ok_prefixes):
-            # Einzelner Name ohne Punkt (z.B. heinrich@)
+        # HR-Postfach = GUT
+        if any(email.startswith(p) for p in hr_prefixes):
             return 2
-        if any(email.startswith(p) for p in ok_prefixes):
+        # Einzelner Name (z.B. heinrich@, albrecht@) = GUT
+        if local.isalpha() and len(local) > 3:
+            return 2
+        # Abkuerzung + Name (z.B. t.boeger@, ebrunsmann@) = GUT
+        if local and not any(email.startswith(p) for p in forbidden_prefixes):
             return 1
-        if any(email.startswith(p) for p in bad_prefixes):
-            return 0
-        return 1  # Unbekannt = OK
+        return -1  # Unbekannt = verboten
+
+    # Nur erlaubte E-Mails behalten (Score >= 0)
+    valid = [e for e in candidates if email_score(e) >= 0]
+
+    if not valid:
+        # KEINE brauchbare E-Mail gefunden — HR-Postfach raten
+        domain = ""
+        for e in candidates:
+            if "@" in e:
+                domain = e.split("@")[1]
+                break
+        if domain:
+            # Versuche gaengige HR-Adressen zu generieren
+            guesses = [f"bewerbung@{domain}", f"karriere@{domain}", f"jobs@{domain}"]
+            logger.warning(f"_pick_best_email: Nur verbotene Adressen gefunden. "
+                          f"Schlage vor: {guesses[0]} (MUSS VERIFIZIERT WERDEN)")
+            return f"PRUEFEN:{guesses[0]}"
+        return f"PRUEFEN:{current_email}"
 
     # Beste E-Mail waehlen
-    best = max(candidates, key=email_score)
+    best = max(valid, key=email_score)
     if best != current_email:
         logger.info(f"_pick_best_email: {current_email} → {best} (besserer Kontakt)")
     return best
