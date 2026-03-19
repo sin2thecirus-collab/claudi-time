@@ -180,7 +180,7 @@ async def preview_bulk(
     """
     try:
         from app.database import async_session_maker
-        from app.services.candidate_presentation_service import CandidatePresentationService
+        from app.services.candidate_presentation_service import ClientPresentationService
         from app.services.presentation_reply_service import PresentationReplyService
 
         annotated = []
@@ -215,7 +215,7 @@ async def preview_bulk(
                         })
                         continue
 
-                spam = await CandidatePresentationService.check_spam_block(
+                spam = await ClientPresentationService.check_spam_block(
                     db,
                     company_name=row.get("company_name", ""),
                     city=row.get("city", ""),
@@ -223,7 +223,7 @@ async def preview_bulk(
 
                 # Bereits vorgestellt?
                 if not spam["blocked"]:
-                    already = await CandidatePresentationService.check_already_presented(
+                    already = await ClientPresentationService.check_already_presented(
                         db,
                         candidate_id=candidate_id,
                         company_name=row.get("company_name", ""),
@@ -274,7 +274,7 @@ async def process_bulk(
     try:
         # Imports IM try-Block (Railway-Pattern)
         from app.database import async_session_maker
-        from app.services.candidate_presentation_service import CandidatePresentationService
+        from app.services.candidate_presentation_service import ClientPresentationService
         from app.services.company_service import CompanyService
         from app.services.distance_matrix_service import DistanceMatrixService
         from app.models.candidate import Candidate
@@ -284,7 +284,7 @@ async def process_bulk(
 
         # Kandidaten-Daten laden (eigene Session)
         async with async_session_maker() as db:
-            candidate_data = await CandidatePresentationService.extract_candidate_data(db, candidate_id)
+            candidate_data = await ClientPresentationService.extract_candidate_data(db, candidate_id)
             # Koordinaten fuer Drive-Time
             cand_result = await db.execute(
                 select(
@@ -354,7 +354,7 @@ async def process_bulk(
 
                 # 1. Spam-Check (eigene Session)
                 async with async_session_maker() as db:
-                    spam = await CandidatePresentationService.check_spam_block(
+                    spam = await ClientPresentationService.check_spam_block(
                         db, row.get("company_name", ""), row.get("city", "")
                     )
                 if spam["blocked"]:
@@ -363,7 +363,7 @@ async def process_bulk(
 
                 # 1b. Already-presented Check (eigene Session)
                 async with async_session_maker() as db:
-                    already = await CandidatePresentationService.check_already_presented(
+                    already = await ClientPresentationService.check_already_presented(
                         db,
                         candidate_id=candidate_id,
                         company_name=row.get("company_name", ""),
@@ -483,12 +483,12 @@ async def process_bulk(
                     "requirements": [],
                     "description_summary": row.get("job_text", "")[:500],
                 }
-                skills = await CandidatePresentationService.calculate_skills_match(
+                skills = await ClientPresentationService.calculate_skills_match(
                     candidate_data, extracted_data
                 )
 
                 # 5. E-Mail generieren (OpenAI, KEINE DB-Session offen!)
-                email_data = await CandidatePresentationService.generate_presentation_email(
+                email_data = await ClientPresentationService.generate_presentation_email(
                     candidate_data=candidate_data,
                     extracted_job_data={**extracted_data, "contact_name": row.get("contact_name", ""), "contact_salutation": row.get("contact_salutation", "")},
                     skills_comparison=skills.model_dump(),
@@ -518,7 +518,7 @@ async def process_bulk(
                 # 7. Presentation erstellen (neue Session)
                 email_body_html = email_data.get("body_html", "")
                 async with async_session_maker() as db:
-                    presentation = await CandidatePresentationService.create_direct_presentation(
+                    presentation = await ClientPresentationService.create_direct_presentation(
                         db=db,
                         candidate_id=candidate_id,
                         company_id=company_id,
@@ -558,10 +558,10 @@ async def process_bulk(
                 # Bei Erfolg: Status auf "sending" setzen (eigene Session!)
                 if n8n_ok:
                     async with async_session_maker() as db:
-                        from app.models.candidate_presentation import CandidatePresentation
+                        from app.models.client_presentation import ClientPresentation
                         await db.execute(
-                            update(CandidatePresentation)
-                            .where(CandidatePresentation.id == presentation_id)
+                            update(ClientPresentation)
+                            .where(ClientPresentation.id == presentation_id)
                             .values(status="sending")
                         )
                         await db.commit()
