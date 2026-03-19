@@ -364,6 +364,10 @@ async def schedule_interview_endpoint(
         if not cand or not cand.email:
             raise HTTPException(status_code=400, detail="Kandidat hat keine E-Mail — Einladung nicht moeglich")
 
+    # Log was vom Frontend kommt
+    participants_raw = data.interview_participants
+    logger.info(f"[Interview-Endpoint] entry_id={entry_id}, participants empfangen: {participants_raw} (Anzahl: {len(participants_raw) if participants_raw else 0})")
+
     result = await schedule_interview(
         entry_id=entry_id,
         data={
@@ -371,7 +375,7 @@ async def schedule_interview_endpoint(
             "interview_type": data.interview_type,
             "interview_location": data.interview_location,
             "interview_hint": data.interview_hint,
-            "interview_participants": data.interview_participants,
+            "interview_participants": participants_raw,
             "interview_invite_by": data.interview_invite_by,
         },
         db=db,
@@ -384,10 +388,11 @@ async def schedule_interview_endpoint(
 
     # Background-Task: Einladung senden (participants direkt uebergeben als Fallback)
     if data.interview_invite_by == "recruiter":
+        logger.info(f"[Interview-Endpoint] Background-Task starten mit {len(participants_raw) if participants_raw else 0} Teilnehmern")
         background_tasks.add_task(
             send_interview_invite,
             entry_id,
-            participants_override=data.interview_participants,
+            participants_override=participants_raw,
         )
 
     return {

@@ -2320,14 +2320,21 @@ function pipelineCommandCenter() {
                 return;
             }
             this.interviewSaving = true;
+            // _contact_id ist nur Frontend-intern — Backend braucht es nicht, stoert aber auch nicht
+            const cleanParticipants = this.interviewData.participants.map(p => ({
+                anrede: p.anrede || '', vorname: p.vorname || '', nachname: p.nachname || '',
+                email: p.email || '', rolle: p.rolle || ''
+            }));
             const payload = {
                 interview_at: this.interviewData.date + 'T' + this.interviewData.time + ':00',
                 interview_type: this.interviewData.type,
                 interview_location: this.interviewData.type === 'vor_ort' ? this.interviewData.location : null,
                 interview_hint: this.interviewData.type === 'vor_ort' ? this.interviewData.hint : null,
-                interview_participants: this.interviewData.participants,
+                interview_participants: cleanParticipants,
                 interview_invite_by: this.interviewData.invite_by,
             };
+            console.log('[Interview] Payload:', JSON.stringify(payload, null, 2));
+            console.log('[Interview] Participants:', cleanParticipants.length, cleanParticipants);
             try {
                 const r = await fetch('/api/ats/pipeline/entries/' + this.interviewEntry.entry_id + '/interview', {
                     method: 'POST',
