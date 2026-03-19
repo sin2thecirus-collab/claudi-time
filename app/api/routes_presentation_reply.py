@@ -26,6 +26,7 @@ from sqlalchemy import select, delete, desc, text, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.api.routes_presentation import verify_n8n_token
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +59,7 @@ class BlocklistAddRequest(BaseModel):
 # 1. ANTWORT VERARBEITEN (von n8n aufgerufen)
 # ═══════════════════════════════════════════════════════════════
 
-@router.post("/process")
+@router.post("/process", dependencies=[Depends(verify_n8n_token)])
 async def process_reply(req: ProcessReplyRequest):
     """Verarbeitet eine erkannte Antwort auf eine Vorstellungs-E-Mail.
 
@@ -104,7 +105,7 @@ async def process_reply(req: ProcessReplyRequest):
 # 2. CHECK-INBOX — Postfach lesen + Replies erkennen (n8n Cron)
 # ═══════════════════════════════════════════════════════════════
 
-@router.post("/check-inbox")
+@router.post("/check-inbox", dependencies=[Depends(verify_n8n_token)])
 async def check_inbox(minutes: int = Query(default=15, ge=1, le=60)):
     """Liest hamdard@sincirus.com Postfach via Microsoft Graph und erkennt Replies.
 
@@ -213,13 +214,22 @@ async def check_inbox(minutes: int = Query(default=15, ge=1, le=60)):
                 if from_domain in OWN_DOMAINS:
                     continue
 
-                # Bounces ignorieren (werden von n8n Reply & Bounce Monitor behandelt)
+                # Bounces erkennen und Sequenz stoppen
                 is_bounce = any(
                     sig.lower() in from_email.lower() or sig in subject
                     for sig in BOUNCE_SIGNALS
                 )
                 if is_bounce:
-                    logger.debug(f"check-inbox: Bounce ignoriert von {from_email}")
+                    logger.info(f"check-inbox: Bounce erkannt von {from_email}, Subject: {subject[:100]}")
+                    bounce_result = await _handle_bounce(from_email, subject, body_content)
+                    processed += 1
+                    results.append({
+                        "from": from_email,
+                        "subject": subject[:100],
+                        "matched": bounce_result.get("matched", False),
+                        "category": "bounce",
+                        "action_taken": bounce_result.get("action_taken", "none"),
+                    })
                     continue
 
                 # ── Phase 3: Reply verarbeiten ──
@@ -285,7 +295,7 @@ async def check_inbox(minutes: int = Query(default=15, ge=1, le=60)):
 # 3. SEND-PENDING — Verzoegerte Auto-Replies senden (n8n Cron)
 # ═══════════════════════════════════════════════════════════════
 
-@router.post("/send-pending")
+@router.post("/send-pending", dependencies=[Depends(verify_n8n_token)])
 async def send_pending_replies():
     """Sendet alle verzoegerten Auto-Replies deren scheduled_at erreicht ist.
 
@@ -601,6 +611,112 @@ async def remove_from_blocklist(domain: str, db: AsyncSession = Depends(get_db))
 
     await db.commit()
     return {"status": "removed", "domain": domain}
+
+
+# ═══════════════════════════════════════════════════════════════
+# 9. CLEANUP-STALE — Verwaiste Presentations bereinigen (n8n Cron)
+# ═══════════════════════════════════════════════════════════════
+
+@router.post("/cleanup-stale", dependencies=[Depends(verify_n8n_token)])
+async def cleanup_stale_presentations():
+    """Bereinigt verwaiste Presentations:
+
+    1. followup_2 + sequence_active + >14 Tage → no_response
+    2. sent + sequence_active + >21 Tage (kein Follow-Up) → no_response
+    3. sending + >30 Minuten → sent (Callback-Verlust)
+
+    Wird von n8n taeglich aufgerufen.
+
+    Returns:
+        {cleaned_followup2: int, cleaned_sent_stale: int, cleaned_sending: int}
+    """
+    try:
+        from app.database import async_session_maker
+        from app.models.client_presentation import ClientPresentation
+
+        now = datetime.now(timezone.utc)
+        cleaned_followup2 = 0
+        cleaned_sent_stale = 0
+        cleaned_sending = 0
+
+        # ── Block 1: followup_2 + sequence_active + >14 Tage → no_response ──
+        async with async_session_maker() as db:
+            cutoff_14d = now - timedelta(days=14)
+            result = await db.execute(
+                select(ClientPresentation).where(
+                    ClientPresentation.sequence_active == True,
+                    ClientPresentation.status == "followup_2",
+                    ClientPresentation.followup2_sent_at.isnot(None),
+                    ClientPresentation.followup2_sent_at < cutoff_14d,
+                )
+            )
+            stale_fu2 = result.scalars().all()
+            for pres in stale_fu2:
+                pres.status = "no_response"
+                pres.sequence_active = False
+            if stale_fu2:
+                await db.commit()
+            cleaned_followup2 = len(stale_fu2)
+        # Session geschlossen!
+
+        # ── Block 2: sent + sequence_active + >21 Tage (Erstversand ohne Follow-Up) → no_response ──
+        async with async_session_maker() as db:
+            cutoff_21d = now - timedelta(days=21)
+            result = await db.execute(
+                select(ClientPresentation).where(
+                    ClientPresentation.sequence_active == True,
+                    ClientPresentation.status == "sent",
+                    ClientPresentation.created_at < cutoff_21d,
+                )
+            )
+            stale_sent = result.scalars().all()
+            for pres in stale_sent:
+                pres.status = "no_response"
+                pres.sequence_active = False
+            if stale_sent:
+                await db.commit()
+            cleaned_sent_stale = len(stale_sent)
+        # Session geschlossen!
+
+        # ── Block 3: sending + >30 Minuten → sent (Callback-Verlust) ──
+        async with async_session_maker() as db:
+            cutoff_30m = now - timedelta(minutes=30)
+            result = await db.execute(
+                select(ClientPresentation).where(
+                    ClientPresentation.status == "sending",
+                    ClientPresentation.created_at < cutoff_30m,
+                )
+            )
+            stale_sending = result.scalars().all()
+            for pres in stale_sending:
+                pres.status = "sent"
+            if stale_sending:
+                await db.commit()
+            cleaned_sending = len(stale_sending)
+        # Session geschlossen!
+
+        total = cleaned_followup2 + cleaned_sent_stale + cleaned_sending
+        logger.info(
+            f"cleanup-stale: {total} bereinigt "
+            f"(followup2={cleaned_followup2}, sent_stale={cleaned_sent_stale}, sending={cleaned_sending})"
+        )
+
+        return {
+            "cleaned_followup2": cleaned_followup2,
+            "cleaned_sent_stale": cleaned_sent_stale,
+            "cleaned_sending": cleaned_sending,
+            "total": total,
+        }
+
+    except Exception as e:
+        logger.error(f"cleanup-stale fehlgeschlagen: {e}", exc_info=True)
+        return {
+            "error": str(e)[:500],
+            "cleaned_followup2": 0,
+            "cleaned_sent_stale": 0,
+            "cleaned_sending": 0,
+            "total": 0,
+        }
 
 
 # ═══════════════════════════════════════════════════════════════

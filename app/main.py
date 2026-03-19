@@ -80,6 +80,24 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Telegram Webhook Registrierung fehlgeschlagen: {e}")
 
+    # Verwaiste Bulk-Batches aufraeumen (nach Server-Restart)
+    try:
+        from app.database import async_session_maker
+        from sqlalchemy import update, func as sa_func
+        from app.models.presentation_batch import PresentationBatch
+
+        async with async_session_maker() as db:
+            stale = await db.execute(
+                update(PresentationBatch)
+                .where(PresentationBatch.status == "processing")
+                .values(status="failed", updated_at=sa_func.now())
+            )
+            if stale.rowcount > 0:
+                await db.commit()
+                logger.info(f"Startup: {stale.rowcount} verwaiste Bulk-Batches auf 'failed' gesetzt")
+    except Exception as e:
+        logger.warning(f"Startup: Bulk-Batch-Cleanup fehlgeschlagen (nicht kritisch): {e}")
+
     yield
 
     # Shutdown: Migration-Task abbrechen falls noch laeuft

@@ -768,22 +768,10 @@ ORIGINAL-TEXT:
         db.add(presentation)
         await db.flush()
 
-        # Triple-Doku: CompanyCorrespondence erstellen
-        # ACHTUNG: CompanyCorrespondence hat KEIN candidate_id, content, channel, notes Feld!
-        # Nur: company_id, contact_id, direction, subject, body
-        correspondence = CompanyCorrespondence(
-            company_id=company_id,
-            contact_id=contact_id,
-            direction=CorrespondenceDirection.OUTBOUND,
-            subject=email_subject,
-            body=email_body_text[:500],
-        )
-        db.add(correspondence)
-        await db.flush()
-
-        # Link setzen
-        presentation.correspondence_id = correspondence.id
-        await db.flush()
+        # CompanyCorrespondence wird NICHT hier erstellt, sondern erst
+        # wenn n8n den Versand bestaetigt (confirm_sent in presentation_service.py).
+        # Grund: Wenn der E-Mail-Versand scheitert, soll kein falscher
+        # Korrespondenz-Eintrag existieren (war vorher ein Bug).
 
         return presentation
 

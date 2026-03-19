@@ -325,26 +325,10 @@ class PresentationService:
             f"Company={company_id}, An={data['email_to']})"
         )
 
-        # 2. CompanyCorrespondence erstellen (Triple-Dokumentation)
-        if company_id:
-            correspondence = CompanyCorrespondence(
-                company_id=company_id,
-                contact_id=data.get("contact_id"),
-                direction=CorrespondenceDirection.OUTBOUND,
-                subject=data["email_subject"],
-                body=data.get("email_body_text"),
-                sent_at=now,
-            )
-            db.add(correspondence)
-            await db.flush()
-
-            # Correspondence-ID auf Presentation setzen
-            presentation.correspondence_id = correspondence.id
-
-            logger.info(
-                f"CompanyCorrespondence erstellt: {correspondence.id} "
-                f"(Company={company_id})"
-            )
+        # CompanyCorrespondence wird NICHT hier erstellt, sondern erst
+        # wenn n8n den Versand bestaetigt (confirm_sent).
+        # Grund: Wenn der E-Mail-Versand scheitert, soll kein falscher
+        # Korrespondenz-Eintrag existieren.
 
         # 3. presented_at_companies JSONB auf Candidate updaten
         candidate = match.candidate
@@ -791,6 +775,25 @@ class PresentationService:
 
         if n8n_execution_id:
             presentation.n8n_execution_id = n8n_execution_id
+
+        # CompanyCorrespondence ERST JETZT erstellen (nach bestaetigtem Versand).
+        # Verhindert falsche Korrespondenz-Eintraege wenn der E-Mail-Versand scheitert.
+        if presentation.company_id and not presentation.correspondence_id:
+            correspondence = CompanyCorrespondence(
+                company_id=presentation.company_id,
+                contact_id=presentation.contact_id,
+                direction=CorrespondenceDirection.OUTBOUND,
+                subject=presentation.email_subject or "",
+                body=(presentation.email_body_text or "")[:500],
+                sent_at=now,
+            )
+            db.add(correspondence)
+            await db.flush()
+            presentation.correspondence_id = correspondence.id
+            logger.info(
+                f"CompanyCorrespondence erstellt nach Versandbestaetigung: "
+                f"{correspondence.id} (Presentation={presentation_id})"
+            )
 
         db.add(presentation)
         await db.commit()
