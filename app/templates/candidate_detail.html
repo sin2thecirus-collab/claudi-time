@@ -3692,18 +3692,20 @@ function vorstellungenTab() {
         _bulkPollTimer: null,
 
         async loadPresentations() {
+            var self = this;
             try {
                 var resp = await fetch('/api/presentations/direct/candidate/' + candidateId);
                 var data = await resp.json();
-                this.presentations = (data.presentations || []).map(function(p) { p._expanded = false; return p; });
+                self.presentations = (data.presentations || []).map(function(p) { p._expanded = false; return p; });
             } catch(e) {
                 console.error('Vorstellungen laden fehlgeschlagen:', e);
             } finally {
-                this.loading = false;
+                self.loading = false;
             }
         },
 
         async handleCsvUpload(event) {
+            var self = this;
             var file = event.target.files[0];
             if (!file) return;
             var formData = new FormData();
@@ -3714,16 +3716,23 @@ function vorstellungenTab() {
                     method: 'POST',
                     body: formData,
                 });
-                this.csvPreview = await resp.json();
+                if (!resp.ok) {
+                    var errText = await resp.text();
+                    throw new Error('Server: ' + resp.status + ' — ' + errText);
+                }
+                var data = await resp.json();
+                self.csvPreview = data;
+                self.showCsvUpload = true;
             } catch(e) {
                 alert('CSV-Upload fehlgeschlagen: ' + e.message);
             }
         },
 
         async startBulk() {
-            if (!this.csvPreview || this.bulkRunning) return;
-            this.bulkRunning = true;
-            var sendableRows = this.csvPreview.rows.filter(function(r) { return r.can_send; });
+            var self = this;
+            if (!self.csvPreview || self.bulkRunning) return;
+            self.bulkRunning = true;
+            var sendableRows = self.csvPreview.rows.filter(function(r) { return r.can_send; });
             try {
                 var resp = await fetch('/api/presentations/direct/bulk/start', {
                     method: 'POST',
@@ -3731,11 +3740,11 @@ function vorstellungenTab() {
                     body: JSON.stringify({ candidate_id: candidateId, rows: sendableRows }),
                 });
                 var data = await resp.json();
-                this.bulkProgress = { processed: 0, total_rows: data.total_rows };
-                this._pollBulkStatus(data.batch_id);
+                self.bulkProgress = { processed: 0, total_rows: data.total_rows };
+                self._pollBulkStatus(data.batch_id);
             } catch(e) {
                 alert('Bulk-Start fehlgeschlagen: ' + e.message);
-                this.bulkRunning = false;
+                self.bulkRunning = false;
             }
         },
 
