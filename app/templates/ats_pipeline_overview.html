@@ -1556,22 +1556,22 @@ body::after {
             </div>
 
             {# ── Footer ── #}
-            <div style="padding: 16px 28px 20px; border-top: 1px solid rgba(99,102,241,0.08); display: flex; justify-content: flex-end; gap: 10px; background: linear-gradient(180deg, transparent, rgba(99,102,241,0.03)); flex-shrink: 0;">
+            <div style="padding: 18px 28px 22px; border-top: 1px solid rgba(99,102,241,0.08); display: flex; justify-content: flex-end; gap: 12px; background: linear-gradient(180deg, transparent, rgba(99,102,241,0.03)); flex-shrink: 0;">
                 <template x-if="!interviewExisting">
                     <button @click="interviewModal = false"
-                        style="padding: 11px 22px; border-radius: 10px; font-size: 13px; font-weight: 600; border: 1px solid rgba(99,102,241,0.15); background: transparent; color: var(--pp-textMuted); cursor: pointer; transition: all 0.2s;"
-                        @mouseenter="this.style.borderColor='rgba(99,102,241,0.3)'; this.style.color='var(--pp-text)'" @mouseleave="this.style.borderColor='rgba(99,102,241,0.15)'; this.style.color='var(--pp-textMuted)'">
+                        style="padding: 12px 28px; border-radius: 12px; font-size: 14px; font-weight: 600; border: 1px solid rgba(99,102,241,0.2); background: rgba(99,102,241,0.06); color: #94a3b8; cursor: pointer; transition: all 0.2s;"
+                        @mouseenter="this.style.borderColor='rgba(99,102,241,0.4)'; this.style.background='rgba(99,102,241,0.1)'; this.style.color='#e2e8f0'" @mouseleave="this.style.borderColor='rgba(99,102,241,0.2)'; this.style.background='rgba(99,102,241,0.06)'; this.style.color='#94a3b8'">
                         Überspringen
                     </button>
                 </template>
                 <button @click="submitInterview()" :disabled="interviewSaving || !interviewData.date || !interviewData.time"
-                    style="padding: 12px 32px; border-radius: 12px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.25s cubic-bezier(0.4,0,0.2,1); display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 180px;"
-                    :style="(!interviewData.date || !interviewData.time) ? 'background: rgba(99,102,241,0.12); color: #64748b; cursor: not-allowed; border: 1px solid rgba(99,102,241,0.15);' : 'background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; box-shadow: 0 4px 16px rgba(99,102,241,0.4); border: none;'"
+                    style="padding: 12px 32px; border-radius: 12px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.25s cubic-bezier(0.4,0,0.2,1); display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 200px; border: 1px solid transparent;"
+                    :style="(!interviewData.date || !interviewData.time) ? 'background: rgba(99,102,241,0.08); color: #475569; cursor: not-allowed; border-color: rgba(99,102,241,0.12);' : 'background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; box-shadow: 0 4px 16px rgba(99,102,241,0.4); border-color: transparent;'"
                     @mouseenter="if(interviewData.date && interviewData.time) { this.style.transform='translateY(-1px)'; this.style.boxShadow='0 6px 20px rgba(99,102,241,0.5)'; }" @mouseleave="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 16px rgba(99,102,241,0.4)';">
                     <template x-if="interviewSaving">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite;"><path d="M12 2v4m0 12v4m10-10h-4M6 12H2m15.07-5.07l-2.83 2.83M9.76 14.24l-2.83 2.83m11.14 0l-2.83-2.83M9.76 9.76L6.93 6.93"/></svg>
                     </template>
-                    <span x-text="interviewExisting ? 'Aktualisieren' : 'Interview planen'"></span>
+                    <span x-text="interviewExisting ? 'Aktualisieren' : '📅 Interview planen'"></span>
                 </button>
             </div>
         </div>
