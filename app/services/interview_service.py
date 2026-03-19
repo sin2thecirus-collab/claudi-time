@@ -84,7 +84,7 @@ async def schedule_interview(
         from app.models.ats_pipeline import ATSPipelineEntry
         from app.models.ats_activity import ActivityType, ATSActivity
         from sqlalchemy import select
-        from sqlalchemy.orm import selectinload
+        from sqlalchemy.orm import selectinload, attributes
 
         entry = await db.get(ATSPipelineEntry, entry_id)
         if not entry:
@@ -110,6 +110,10 @@ async def schedule_interview(
         entry.interview_hint = data.get("interview_hint")
         entry.interview_participants = data.get("interview_participants")
         entry.interview_invite_by = data.get("interview_invite_by")
+        # JSONB Mutability-Fix: SQLAlchemy erkennt JSONB-Aenderungen sonst nicht
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(entry, "interview_participants")
+        logger.info(f"Interview-Daten gesetzt: participants={entry.interview_participants}, type={entry.interview_type}")
         # invite_sent wird NICHT hier gesetzt — erst nach erfolgreichem Senden im Background-Task
 
         # Activity loggen
@@ -139,8 +143,11 @@ async def schedule_interview(
         return {"success": False, "error": str(e)}
 
 
-async def send_interview_invite(entry_id) -> dict:
+async def send_interview_invite(entry_id, participants_override: list[dict] | None = None) -> dict:
     """Background-Task: Generiert Einladungstext via GPT + erstellt Calendar-Event via Graph.
+
+    participants_override: Falls uebergeben, werden diese Teilnehmer verwendet statt aus DB.
+    Das verhindert Race-Conditions wenn JSONB noch nicht committed ist.
 
     RAILWAY 30s PATTERN: Pro DB-Zugriff eigene Session, API-Calls OHNE offene Session.
     """
@@ -215,7 +222,10 @@ async def send_interview_invite(entry_id) -> dict:
                 "event_id": entry.interview_event_id,
                 "stage": entry.stage.value,
             }
-            participants = entry.interview_participants or []
+            db_participants = entry.interview_participants or []
+            # Override hat Vorrang (direkt aus Request, kein JSONB-Timing-Problem)
+            participants = participants_override if participants_override is not None else db_participants
+            logger.info(f"Interview-Invite: participants={participants} (Anzahl: {len(participants)}, override={participants_override is not None}, db={len(db_participants)})")
         # Session 1 geschlossen!
 
         if not candidate_data.get("email"):
@@ -256,6 +266,7 @@ async def send_interview_invite(entry_id) -> dict:
                 else:
                     parts.append(f"• {name}")
             teilnehmer_str = "\n".join(parts)
+            logger.info(f"Interview-Invite: teilnehmer_str = {teilnehmer_str}")
 
         # Ort-String
         if interview_data["type"] == "digital":

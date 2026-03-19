@@ -382,9 +382,13 @@ async def schedule_interview_endpoint(
 
     await db.commit()
 
-    # Background-Task: Einladung senden
+    # Background-Task: Einladung senden (participants direkt uebergeben als Fallback)
     if data.interview_invite_by == "recruiter":
-        background_tasks.add_task(send_interview_invite, entry_id)
+        background_tasks.add_task(
+            send_interview_invite,
+            entry_id,
+            participants_override=data.interview_participants,
+        )
 
     return {
         "id": str(entry_id),
