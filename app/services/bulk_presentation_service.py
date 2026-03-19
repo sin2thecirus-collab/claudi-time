@@ -570,6 +570,20 @@ async def process_bulk(
                 await _update_batch_row(async_session_maker, batch_id, row_index, "created", str(presentation_id))
                 batch_status["processed"] += 1
 
+                # Live-Fortschritt in DB schreiben (fuer Frontend-Polling)
+                async with async_session_maker() as db:
+                    await db.execute(
+                        update(PresentationBatch)
+                        .where(PresentationBatch.id == batch_id)
+                        .values(
+                            processed=batch_status["processed"],
+                            errors=batch_status["errors"],
+                            skipped=batch_status["skipped"],
+                            updated_at=func.now(),
+                        )
+                    )
+                    await db.commit()
+
                 # 9. Pause zwischen E-Mails (max 10/min fuer SMTP-Sicherheit)
                 await asyncio.sleep(6)
 
