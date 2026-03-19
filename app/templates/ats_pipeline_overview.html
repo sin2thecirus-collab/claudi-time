@@ -1244,7 +1244,7 @@ body::after {
 
                 {# ── Ansprechpartner Multi-Select ── #}
                 <template x-if="qaSelectedCompany && qaContacts.length > 0">
-                    <div style="margin-bottom: 16px;">
+                    <div style="margin-bottom: 16px;" x-data="{qaContactOpen: false}">
                         <label style="font-size: 12px; font-weight: 600; color: var(--pp-text); margin-bottom: 6px; display: block;">Ansprechpartner</label>
                         {# Ausgewählte Kontakte als Chips #}
                         <template x-for="ct in qaContacts.filter(c => qaSelectedContactIds.includes(c.id))" :key="ct.id">
@@ -1254,14 +1254,29 @@ body::after {
                                     style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 13px; padding: 0; line-height: 1;">✕</button>
                             </div>
                         </template>
-                        {# Dropdown zum Hinzufügen #}
-                        <select @change="if ($event.target.value && !qaSelectedContactIds.includes($event.target.value)) { qaSelectedContactIds = [...qaSelectedContactIds, $event.target.value]; } $event.target.value = '';"
-                            style="width: 100%; padding: 10px 12px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.15); border-radius: 10px; color: var(--pp-text); font-size: 13px; outline: none; margin-top: 4px;">
-                            <option value="">Ansprechpartner hinzufügen...</option>
-                            <template x-for="ct in qaContacts.filter(c => !qaSelectedContactIds.includes(c.id))" :key="ct.id">
-                                <option :value="ct.id" x-text="ct.full_name + (ct.position ? ' (' + ct.position + ')' : '') + (ct.email ? ' — ' + ct.email : '')"></option>
-                            </template>
-                        </select>
+                        {# Custom Dropdown (kein <select> — Browser-Bug vermeiden) #}
+                        <div style="position: relative; margin-top: 4px;">
+                            <div @click="qaContactOpen = !qaContactOpen" @click.away="qaContactOpen = false"
+                                style="width: 100%; padding: 10px 12px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.15); border-radius: 10px; color: var(--pp-textMuted); font-size: 13px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+                                <span>Ansprechpartner hinzufügen...</span>
+                                <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" :style="qaContactOpen ? 'transform:rotate(180deg)' : ''"><path d="M1 3l4 4 4-4"/></svg>
+                            </div>
+                            <div x-show="qaContactOpen" x-transition
+                                style="position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--pp-surface, #1e2340); border: 1px solid rgba(99,102,241,0.25); border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,0.5); z-index: 50; max-height: 200px; overflow-y: auto;">
+                                <template x-for="ct in qaContacts.filter(c => !qaSelectedContactIds.includes(c.id))" :key="ct.id">
+                                    <div @click="qaSelectedContactIds = [...qaSelectedContactIds, ct.id]; qaContactOpen = false;"
+                                        style="padding: 10px 14px; cursor: pointer; border-bottom: 1px solid rgba(99,102,241,0.06); transition: background 0.15s;"
+                                        @mouseenter="$el.style.background='rgba(99,102,241,0.08)'" @mouseleave="$el.style.background='transparent'">
+                                        <div style="font-size: 13px; font-weight: 500; color: var(--pp-text);"
+                                             x-text="(ct.salutation ? ct.salutation + ' ' : '') + ct.full_name + (ct.position ? ' (' + ct.position + ')' : '')"></div>
+                                        <div x-show="ct.email" style="font-size: 11px; color: var(--pp-textMuted); margin-top: 2px;" x-text="ct.email"></div>
+                                    </div>
+                                </template>
+                                <template x-if="qaContacts.filter(c => !qaSelectedContactIds.includes(c.id)).length === 0">
+                                    <div style="padding: 12px 14px; font-size: 12px; color: var(--pp-textMuted); text-align: center;">Alle Kontakte ausgewählt</div>
+                                </template>
+                            </div>
+                        </div>
                     </div>
                 </template>
 
