@@ -1307,7 +1307,7 @@ body::after {
    ════════════════════════════════════════════ #}
 <template x-if="interviewModal">
     <div class="pcc-modal-bg" style="z-index: 1200;">
-        <div class="pcc-modal" style="max-width: 560px; width: 95%; border-radius: 20px; overflow: hidden;">
+        <div class="pcc-modal" style="max-width: 560px; width: 95%; border-radius: 20px; overflow: hidden; display: flex; flex-direction: column; max-height: 85vh;">
 
             {# ── Header with accent bar ── #}
             <div style="position: relative; padding: 28px 28px 20px; background: linear-gradient(180deg, rgba(99,102,241,0.08) 0%, transparent 100%);">
@@ -1336,7 +1336,7 @@ body::after {
             </div>
 
             {# ── Body ── #}
-            <div style="padding: 4px 28px 24px; max-height: 62vh; overflow-y: auto;">
+            <div style="padding: 4px 28px 24px; flex: 1; overflow-y: auto; min-height: 0;">
 
                 {# ── Datum + Uhrzeit ── #}
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px;">
@@ -1556,7 +1556,7 @@ body::after {
             </div>
 
             {# ── Footer ── #}
-            <div style="padding: 16px 28px 20px; border-top: 1px solid rgba(99,102,241,0.08); display: flex; justify-content: flex-end; gap: 10px; background: linear-gradient(180deg, transparent, rgba(99,102,241,0.03));">
+            <div style="padding: 16px 28px 20px; border-top: 1px solid rgba(99,102,241,0.08); display: flex; justify-content: flex-end; gap: 10px; background: linear-gradient(180deg, transparent, rgba(99,102,241,0.03)); flex-shrink: 0;">
                 <template x-if="!interviewExisting">
                     <button @click="interviewModal = false"
                         style="padding: 11px 22px; border-radius: 10px; font-size: 13px; font-weight: 600; border: 1px solid rgba(99,102,241,0.15); background: transparent; color: var(--pp-textMuted); cursor: pointer; transition: all 0.2s;"
