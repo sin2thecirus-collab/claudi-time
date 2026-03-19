@@ -65,7 +65,8 @@ FORMATIERUNGS-REGELN:
 - Verwende inline-styles: <p style="margin:0 0 12px 0;">
 - Termindetails als <table> (NICHT als Fliesstext oder ul/li)
 - Gespraechspartner mit Bullet-Points (•) und <br> pro Person
-- subject: "Einladung zum Bewerbungsgespraech — [Firma] — [Jobtitel]"
+- subject: EXAKT dieses Format: "Bewerbungsgespraech [Anrede] [Vorname] [Nachname] — [Firmenname]"
+  Beispiel: "Bewerbungsgespraech Frau Kerstin Angerer — Fahrrad XXL Service GmbH"
 - Schreibe in der Sie-Form, duze NICHT
 - Kein Markdown, kein Code-Block — NUR das JSON-Objekt"""
 
@@ -268,7 +269,9 @@ async def send_interview_invite(entry_id) -> dict:
 
         user_prompt = f"""Erstelle eine Einladungs-E-Mail mit folgenden Daten:
 
-Kandidat: {candidate_data.get('anrede', '')} {candidate_data.get('nachname', '')}
+Kandidat Anrede: {candidate_data.get('anrede', '')}
+Kandidat Vorname: {candidate_data.get('vorname', '')}
+Kandidat Nachname: {candidate_data.get('nachname', '')}
 Firma: {company_data.get('name', 'Unbekannt')}
 Jobtitel: {job_data.get('title', 'Unbekannt')}
 Interview-Nummer: {interview_nr}
@@ -311,7 +314,7 @@ WICHTIG: Es sind {teilnehmer_count} Gespraechspartner — liste ALLE {teilnehmer
             logger.error(f"GPT Einladungstext Fehler: {e}", exc_info=True)
             # Fallback: Einfacher Text ohne GPT
             invite_text = {
-                "subject": f"Einladung zum Bewerbungsgespraech — {company_data.get('name', '')} — {job_data.get('title', '')}",
+                "subject": f"Bewerbungsgespraech {candidate_data.get('anrede', '')} {candidate_data.get('vorname', '')} {candidate_data.get('nachname', '')} — {company_data.get('name', '')}".replace("  ", " ").strip(),
                 "body_html": f"<p>Hallo {candidate_data.get('anrede', '')} {candidate_data.get('nachname', '')},</p>"
                 f"<p>hiermit lade ich Sie im Auftrag der Firma {company_data.get('name', '')} "
                 f"zum Bewerbungsgespraech ein.</p>"
