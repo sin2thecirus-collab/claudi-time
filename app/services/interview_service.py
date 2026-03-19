@@ -118,7 +118,7 @@ async def schedule_interview(
                         if not nachname:
                             continue
                         try:
-                            await company_svc.get_or_create_contact(
+                            contact = await company_svc.get_or_create_contact(
                                 company_id=job.company_id,
                                 first_name=(p.get("vorname") or "").strip() or None,
                                 last_name=nachname,
@@ -127,11 +127,15 @@ async def schedule_interview(
                                 salutation=(p.get("anrede") or "").strip() or None,
                                 position=(p.get("rolle") or "").strip() or None,
                             )
+                            logger.info(f"Kontakt gespeichert/gefunden: {contact.id} — {nachname} fuer Company {job.company_id}")
                         except Exception as ce:
-                            logger.warning(f"Kontakt-Speicherung uebersprungen: {nachname} — {ce}")
-                    logger.info(f"Teilnehmer als CompanyContacts gespeichert: {len(participants_list)} fuer Company {job.company_id}")
+                            logger.error(f"Kontakt-Speicherung fehlgeschlagen: {nachname} — {ce}", exc_info=True)
+                    await db.flush()
+                    logger.info(f"Teilnehmer als CompanyContacts gespeichert/aktualisiert: {len(participants_list)} fuer Company {job.company_id}")
+                else:
+                    logger.warning(f"Teilnehmer-Speicherung: Job {entry.ats_job_id} hat keine company_id")
             except Exception as e:
-                logger.warning(f"Teilnehmer-Speicherung fehlgeschlagen (nicht kritisch): {e}")
+                logger.error(f"Teilnehmer-Speicherung fehlgeschlagen: {e}", exc_info=True)
 
         # Interview-Daten setzen
         entry.interview_at = data.get("interview_at")
