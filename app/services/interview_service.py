@@ -103,12 +103,42 @@ async def schedule_interview(
                 "old_interview_location": entry.interview_location,
             }
 
+        # ── Teilnehmer als CompanyContacts in DB speichern ──
+        participants_list = data.get("interview_participants") or []
+        if participants_list:
+            try:
+                from app.models.ats_job import ATSJob
+                from app.services.company_service import CompanyService
+
+                job = await db.get(ATSJob, entry.ats_job_id)
+                if job and job.company_id:
+                    company_svc = CompanyService(db)
+                    for p in participants_list:
+                        nachname = (p.get("nachname") or "").strip()
+                        if not nachname:
+                            continue
+                        try:
+                            await company_svc.get_or_create_contact(
+                                company_id=job.company_id,
+                                first_name=(p.get("vorname") or "").strip() or None,
+                                last_name=nachname,
+                                email=(p.get("email") or "").strip() or None,
+                                phone=None,
+                                salutation=(p.get("anrede") or "").strip() or None,
+                                position=(p.get("rolle") or "").strip() or None,
+                            )
+                        except Exception as ce:
+                            logger.warning(f"Kontakt-Speicherung uebersprungen: {nachname} — {ce}")
+                    logger.info(f"Teilnehmer als CompanyContacts gespeichert: {len(participants_list)} fuer Company {job.company_id}")
+            except Exception as e:
+                logger.warning(f"Teilnehmer-Speicherung fehlgeschlagen (nicht kritisch): {e}")
+
         # Interview-Daten setzen
         entry.interview_at = data.get("interview_at")
         entry.interview_type = data.get("interview_type")
         entry.interview_location = data.get("interview_location")
         entry.interview_hint = data.get("interview_hint")
-        entry.interview_participants = data.get("interview_participants")
+        entry.interview_participants = participants_list
         entry.interview_invite_by = data.get("interview_invite_by")
         # JSONB Mutability-Fix: SQLAlchemy erkennt JSONB-Aenderungen sonst nicht
         from sqlalchemy.orm.attributes import flag_modified
