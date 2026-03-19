@@ -2319,8 +2319,12 @@ function pipelineCommandCenter() {
                 if (typeof showToast === 'function') showToast('Datum und Uhrzeit sind Pflicht', 'error');
                 return;
             }
+            // Auto-Add: Falls manuelle Felder ausgefuellt sind, automatisch hinzufuegen
+            if (this.ivNewNachname && this.ivNewNachname.trim()) {
+                this.ivAddManual();
+            }
             this.interviewSaving = true;
-            // _contact_id ist nur Frontend-intern — Backend braucht es nicht, stoert aber auch nicht
+            // _contact_id ist nur Frontend-intern — Backend braucht es nicht
             const cleanParticipants = this.interviewData.participants.map(p => ({
                 anrede: p.anrede || '', vorname: p.vorname || '', nachname: p.nachname || '',
                 email: p.email || '', rolle: p.rolle || ''
