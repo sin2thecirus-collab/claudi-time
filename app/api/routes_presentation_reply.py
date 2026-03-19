@@ -791,6 +791,126 @@ async def _log_reply(
 
 
 # ═══════════════════════════════════════════════════════════════
+# HELPER: Bounce verarbeiten → Presentation zuordnen + Sequenz stoppen
+# ═══════════════════════════════════════════════════════════════
+
+async def _handle_bounce(from_email: str, subject: str, body_content: str) -> dict:
+    """Versucht einen Bounce einer Presentation zuzuordnen und stoppt die Sequenz.
+
+    Bounce-E-Mails kommen von MAILER-DAEMON/postmaster, aber der Body enthaelt
+    oft die Original-Empfaenger-Adresse. Wir extrahieren sie und suchen damit.
+
+    Returns:
+        Dict mit matched, action_taken, presentation_id
+    """
+    try:
+        from app.database import async_session_maker
+        from app.models.client_presentation import ClientPresentation
+        from app.services.presentation_reply_service import PresentationReplyService
+
+        # ── Schritt 1: Original-Empfaenger aus Bounce-Body extrahieren ──
+        plain_body = _strip_html(body_content) if body_content else ""
+        bounce_recipient = _extract_bounce_recipient(plain_body, subject)
+
+        if not bounce_recipient:
+            logger.warning(f"_handle_bounce: Konnte keinen Empfaenger aus Bounce extrahieren (from={from_email})")
+            return {"matched": False, "action_taken": "bounce_no_recipient"}
+
+        logger.info(f"_handle_bounce: Bounce-Empfaenger extrahiert: {bounce_recipient}")
+
+        # ── Schritt 2: Presentation finden (eigene Session) ──
+        presentation_data = None
+        async with async_session_maker() as db:
+            presentation_data = await PresentationReplyService.match_reply_to_presentation(
+                db=db,
+                email_from=bounce_recipient,  # Der Original-Empfaenger als "Absender"
+                email_subject=subject,
+            )
+        # Session geschlossen!
+
+        if not presentation_data:
+            logger.info(f"_handle_bounce: Keine Presentation gefunden fuer {bounce_recipient}")
+            return {"matched": False, "action_taken": "bounce_no_match"}
+
+        pres_id = str(presentation_data["id"])
+
+        # ── Schritt 3: Presentation updaten — Sequenz stoppen (eigene Session) ──
+        async with async_session_maker() as db:
+            result = await db.execute(
+                select(ClientPresentation).where(
+                    ClientPresentation.id == presentation_data["id"]
+                )
+            )
+            pres = result.scalar_one_or_none()
+            if pres:
+                pres.sequence_active = False
+                pres.status = "no_response"
+                pres.response_type = "bounce"
+                await db.commit()
+                logger.info(f"_handle_bounce: Sequenz gestoppt fuer Presentation {pres_id} (Bounce an {bounce_recipient})")
+        # Session geschlossen!
+
+        # ── Schritt 4: Reply-Log schreiben (eigene Session) ──
+        async with async_session_maker() as db:
+            await _log_reply(
+                db,
+                email_from=from_email,
+                email_subject=subject,
+                message_id=None,
+                classification="bounce",
+                action_taken="sequence_stopped",
+                presentation_id=pres_id,
+            )
+            await db.commit()
+        # Session geschlossen!
+
+        return {
+            "matched": True,
+            "action_taken": "sequence_stopped",
+            "presentation_id": pres_id,
+            "bounce_recipient": bounce_recipient,
+        }
+
+    except Exception as e:
+        logger.error(f"_handle_bounce fehlgeschlagen: {e}", exc_info=True)
+        return {"matched": False, "action_taken": "bounce_error", "error": str(e)[:200]}
+
+
+def _extract_bounce_recipient(body: str, subject: str) -> str | None:
+    """Extrahiert die Original-Empfaenger-Adresse aus einem Bounce-Body/Subject.
+
+    Bounces enthalten typischerweise die Ziel-Adresse in verschiedenen Formaten:
+    - "The following message to <user@example.com> was undeliverable"
+    - "Delivery to user@example.com failed"
+    """
+    if not body and not subject:
+        return None
+
+    combined = f"{subject}\n{body}" if body else subject
+
+    OWN_DOMAINS = {"sincirus.com", "sincirus-karriere.de", "jobs-sincirus.com"}
+    BOUNCE_SENDERS = {"mailer-daemon", "postmaster"}
+
+    email_pattern = re.compile(r'[\w.+-]+@[\w.-]+\.\w{2,}', re.IGNORECASE)
+    found_emails = email_pattern.findall(combined)
+
+    for email in found_emails:
+        email_lower = email.lower()
+        domain = email_lower.split("@", 1)[1] if "@" in email_lower else ""
+        local_part = email_lower.split("@", 1)[0] if "@" in email_lower else ""
+
+        # Eigene Domains und Bounce-Absender ueberspringen
+        if domain in OWN_DOMAINS:
+            continue
+        if local_part in BOUNCE_SENDERS:
+            continue
+
+        return email_lower
+
+    return None
+
+
+# ═══════════════════════════════════════════════════════════════
 # HELPER: HTML → Plain Text (fuer E-Mail-Body aus Graph API)
 # ═══════════════════════════════════════════════════════════════
 

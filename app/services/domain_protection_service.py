@@ -71,7 +71,14 @@ async def get_domain_limits(db: AsyncSession) -> dict[str, int]:
 
 
 async def get_daily_send_count(db: AsyncSession, domain: str) -> int:
-    """Zaehlt heute gesendete E-Mails fuer eine Domain (inkl. Follow-Ups + Akquise-Mails)."""
+    """Zaehlt heute gesendete E-Mails fuer eine Domain (inkl. Follow-Ups + Akquise-Mails).
+
+    Zaehlt DISTINCT Presentations die heute mindestens einen Send hatten:
+    - Erstversand (created_at >= today)
+    - Follow-Up 1 (followup1_sent_at >= today)
+    - Follow-Up 2 (followup2_sent_at >= today)
+    Keine Doppelzaehlung: Ein Record der heute erstellt UND Follow-Up hatte zaehlt nur 1x.
+    """
     today_start = datetime.now(timezone.utc).replace(
         hour=0, minute=0, second=0, microsecond=0
     )
@@ -81,8 +88,12 @@ async def get_daily_send_count(db: AsyncSession, domain: str) -> int:
             SELECT (
                 SELECT COUNT(*) FROM client_presentations
                 WHERE email_from LIKE :domain_pattern
-                AND created_at >= :today_start
                 AND status != 'cancelled'
+                AND (
+                    created_at >= :today_start
+                    OR followup1_sent_at >= :today_start
+                    OR followup2_sent_at >= :today_start
+                )
             ) + (
                 SELECT COUNT(*) FROM acquisition_emails
                 WHERE from_email LIKE :domain_pattern
