@@ -16,36 +16,58 @@ logger = logging.getLogger(__name__)
 
 # ── GPT-Prompt fuer Einladungstext ───────────────────────────────
 
-INTERVIEW_INVITE_PROMPT = """Du bist ein professioneller Personalberater und schreibst eine Einladung
-zu einem Bewerbungsgespraech im Auftrag eines Kunden.
+INTERVIEW_INVITE_PROMPT = """Du bist Milad Hamdard, ein erfahrener Personalberater. Du schreibst eine
+persoenliche Einladung zu einem Bewerbungsgespraech an einen Kandidaten.
 
-Schreibe eine professionelle, freundliche Einladungs-E-Mail fuer den Kandidaten.
-Der Text soll warm aber professionell sein — KEIN steifer Amtston.
+Der Ton ist WARM, PERSOENLICH und PROFESSIONELL — wie ein Brief von einem Menschen,
+nicht wie eine automatisierte E-Mail. Du sprichst den Kandidaten direkt an und freust dich
+aufrichtig fuer ihn/sie.
 
-PFLICHT-INHALTE:
-1. Begruessing: "Hallo [Anrede] [Nachname]" (z.B. "Hallo Frau Mueller")
-2. Einleitung: Freude mitteilen, dass der Kunde (Firmenname) den Kandidaten
-   zum Bewerbungsgespraech einlaedt
-3. Termin-Details: Datum, Uhrzeit, Art des Gespraechs
-4. Falls DIGITAL: Hinweis dass der Teams-Link automatisch in der Kalendereinladung
-   enthalten ist. Empfehlung: 5-10 Minuten vorher einloggen und Technik testen
-   (Kamera, Mikrofon, Internetverbindung)
-5. Falls VOR ORT: Vollstaendige Adresse nennen. Falls Empfangs-Hinweis vorhanden,
-   diesen erwaehnen (z.B. "Bitte melden Sie sich am Empfang")
-6. Gespraechspartner auflisten mit Anrede und Rolle
-   (z.B. "Ihre Gespraechspartner: Frau Mueller (CFO), Herr Meyer (Leiter Buchhaltung)")
-7. Hinweis: Falls der Kandidat verhindert sein sollte, bitte rechtzeitig Bescheid geben
-8. Erreichbarkeit: "Bei Fragen bin ich jederzeit erreichbar unter 017680004741"
-9. Abschluss: "Ich wuensche Ihnen viel Erfolg fuer das Gespraech!"
-10. Grussformel: "Mit freundlichen Gruessen" (KEINE Signatur — wird automatisch angehaengt)
+STRUKTUR (EXAKT in dieser Reihenfolge, JEDER Block als eigener <p>-Absatz mit Leerzeile dazwischen):
 
-REGELN:
+1. <p>Begruessing + Einleitung (1 Absatz):
+   "Hallo [Anrede] [Nachname]," — dann ein persoenlicher Satz wie
+   "ich freue mich sehr, Ihnen mitteilen zu duerfen, dass unser Kunde [Firma]
+   Sie zu einem Bewerbungsgespraech fuer die Position [Jobtitel] einladen moechte."</p>
+
+2. <p><strong>Termindetails</strong> als saubere Auflistung:</p>
+   <table> mit Zeilen fuer Datum, Uhrzeit, Art, Ort — KEIN ul/li, sondern eine
+   schlichte HTML-Tabelle ohne Rahmen:
+   <table style="border-collapse:collapse; margin:10px 0 10px 0;">
+   <tr><td style="padding:4px 16px 4px 0; color:#555;"><strong>Datum:</strong></td><td>[Wochentag], [Tag]. [Monat] [Jahr]</td></tr>
+   <tr><td style="padding:4px 16px 4px 0; color:#555;"><strong>Uhrzeit:</strong></td><td>[HH:MM] Uhr</td></tr>
+   <tr><td style="padding:4px 16px 4px 0; color:#555;"><strong>Art:</strong></td><td>[Digital / Vor Ort]</td></tr>
+   <tr><td style="padding:4px 16px 4px 0; color:#555;"><strong>Ort:</strong></td><td>[Adresse oder "Microsoft Teams"]</td></tr>
+   </table>
+
+3. Falls DIGITAL: <p>Hinweis zum Teams-Link — der Link ist in der Kalendereinladung.
+   Empfehlung: 5-10 Minuten vorher einloggen, Kamera/Mikro/Internet testen.
+   Bei technischen Problemen: Milad anrufen unter 0176 8000 4741.</p>
+
+   Falls VOR ORT: <p>Adresse und Empfangs-Hinweis erwaehnen.</p>
+
+4. <p><strong>Ihre Gespraechspartner:</strong></p>
+   <p>JEDEN Teilnehmer EINZELN auflisten — einer pro Zeile mit <br>:
+   "• [Anrede] [Vorname] [Nachname] — [Rolle]<br>"
+   WICHTIG: ALLE uebergebenen Teilnehmer muessen erscheinen, KEINEN weglassen!</p>
+
+5. <p>Falls verhindert: rechtzeitig melden. Erreichbarkeit: 0176 8000 4741.</p>
+
+6. <p>Abschluss: Persoenlicher Erfolgswunsch.</p>
+
+7. <p>Mit freundlichen Gruessen</p>
+   (KEINE Signatur danach — wird automatisch angehaengt)
+
+FORMATIERUNGS-REGELN:
 - Antworte NUR mit validem JSON: {"subject": "...", "body_html": "..."}
-- body_html: Einfaches HTML (p, br, ul/li, strong). Keine CSS-Klassen.
-- subject: Kurz und professionell, z.B. "Einladung zum Bewerbungsgespraech — [Firma] — [Jobtitel]"
-- NICHT den exakt gleichen Wortlaut wie in den Beispielen verwenden — sei kreativ aber professionell
-- Schreibe in der Sie-Form
-- Kein Markdown, kein Code-Block — NUR JSON"""
+- body_html MUSS sauberes HTML sein mit <p>-Tags fuer JEDEN Absatz
+- ZWISCHEN jedem <p>-Block eine Leerzeile (margin-bottom: 12px auf jedem <p>)
+- Verwende inline-styles: <p style="margin:0 0 12px 0;">
+- Termindetails als <table> (NICHT als Fliesstext oder ul/li)
+- Gespraechspartner mit Bullet-Points (•) und <br> pro Person
+- subject: "Einladung zum Bewerbungsgespraech — [Firma] — [Jobtitel]"
+- Schreibe in der Sie-Form, duze NICHT
+- Kein Markdown, kein Code-Block — NUR das JSON-Objekt"""
 
 
 async def schedule_interview(
@@ -217,20 +239,22 @@ async def send_interview_invite(entry_id) -> dict:
             datum_str = f"{wochentage[dt.weekday()]}, {dt.day}. {monate[dt.month - 1]} {dt.year}"
             uhrzeit_str = dt.strftime("%H:%M Uhr")
 
-        # Teilnehmer-String bauen
+        # Teilnehmer-String bauen (einzeln pro Zeile)
         teilnehmer_str = ""
+        teilnehmer_count = len(participants) if participants else 0
         if participants:
             parts = []
             for p in participants:
-                name = f"{p.get('anrede', '')} {p.get('nachname', '')}".strip()
-                if p.get("vorname"):
-                    name = f"{p.get('anrede', '')} {p.get('vorname', '')} {p.get('nachname', '')}".strip()
-                rolle = p.get("rolle", "")
+                anrede = p.get("anrede", "").strip()
+                vorname = p.get("vorname", "").strip()
+                nachname = p.get("nachname", "").strip()
+                rolle = p.get("rolle", "").strip()
+                name = f"{anrede} {vorname} {nachname}".strip() if vorname else f"{anrede} {nachname}".strip()
                 if rolle:
-                    parts.append(f"{name} ({rolle})")
+                    parts.append(f"• {name} — {rolle}")
                 else:
-                    parts.append(name)
-            teilnehmer_str = ", ".join(parts)
+                    parts.append(f"• {name}")
+            teilnehmer_str = "\n".join(parts)
 
         # Ort-String
         if interview_data["type"] == "digital":
@@ -253,7 +277,11 @@ Uhrzeit: {uhrzeit_str}
 Art: {'Digitales Gespraech (Microsoft Teams)' if interview_data['type'] == 'digital' else 'Vor-Ort-Gespraech'}
 Ort: {ort_str}
 Empfangs-Hinweis: {interview_data.get('hint', '') or 'keiner'}
-Gespraechspartner: {teilnehmer_str or 'werden noch bekannt gegeben'}"""
+
+Gespraechspartner ({teilnehmer_count} Personen — ALLE muessen im Text erscheinen!):
+{teilnehmer_str or 'werden noch bekannt gegeben'}
+
+WICHTIG: Es sind {teilnehmer_count} Gespraechspartner — liste ALLE {teilnehmer_count} einzeln auf!"""
 
         invite_text = {"subject": "", "body_html": ""}
         try:
