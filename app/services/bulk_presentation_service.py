@@ -181,6 +181,7 @@ async def preview_bulk(
     try:
         from app.database import async_session_maker
         from app.services.candidate_presentation_service import CandidatePresentationService
+        from app.services.presentation_reply_service import PresentationReplyService
 
         annotated = []
         seen_companies: set[tuple[str, str]] = set()
@@ -200,6 +201,19 @@ async def preview_bulk(
                     })
                     continue
                 seen_companies.add(company_key)
+
+                # Blocklist-Check (Empfaenger-Domain gesperrt?)
+                contact_email = row.get("contact_email", "")
+                if contact_email:
+                    domain_blocked = await PresentationReplyService.is_domain_blocked(db, contact_email)
+                    if domain_blocked:
+                        annotated.append({
+                            **row,
+                            "can_send": False,
+                            "skip_reason": "Empfänger-Domain gesperrt",
+                            "level": "blocked",
+                        })
+                        continue
 
                 spam = await CandidatePresentationService.check_spam_block(
                     db,
@@ -230,10 +244,16 @@ async def preview_bulk(
                     "skip_reason": spam["reason"] if spam["blocked"] else None,
                     "level": spam["level"],
                 })
-        return annotated
+
+        # Kosten-Schaetzung
+        estimated_cost_per_row = 0.12  # ~$0.12 pro Zeile (2x Claude Opus Calls)
+        sendable_count = len([r for r in annotated if r.get("can_send")])
+        estimated_cost = round(sendable_count * estimated_cost_per_row, 2)
+
+        return annotated, estimated_cost
     except Exception as e:
         logger.error(f"preview_bulk fehlgeschlagen: {e}")
-        return [{"error": str(e)}]
+        return [{"error": str(e)}], 0.0
 
 
 async def process_bulk(
@@ -339,6 +359,30 @@ async def process_bulk(
                 if spam["blocked"]:
                     await _update_batch_row(async_session_maker, batch_id, row_index, "skipped", None)
                     continue
+
+                # 1b. Already-presented Check (eigene Session)
+                async with async_session_maker() as db:
+                    already = await CandidatePresentationService.check_already_presented(
+                        db,
+                        candidate_id=candidate_id,
+                        company_name=row.get("company_name", ""),
+                        city=row.get("city", ""),
+                    )
+                if already["already_presented"]:
+                    logger.info(f"Zeile {row_index}: Kandidat bereits vorgestellt bei {row.get('company_name', '')}")
+                    await _update_batch_row(async_session_maker, batch_id, row_index, "skipped_already_presented", None)
+                    continue
+
+                # 1c. Blocklist-Check (Empfaenger-Domain gesperrt?)
+                contact_email = row.get("contact_email", "")
+                if contact_email:
+                    async with async_session_maker() as db:
+                        from app.services.presentation_reply_service import PresentationReplyService
+                        domain_blocked = await PresentationReplyService.is_domain_blocked(db, contact_email)
+                    if domain_blocked:
+                        logger.info(f"Zeile {row_index}: Empfaenger-Domain gesperrt ({contact_email})")
+                        await _update_batch_row(async_session_maker, batch_id, row_index, "skipped_domain_blocked", None)
+                        continue
 
                 # 2. Company erstellen/finden (eigene Session)
                 async with async_session_maker() as db:

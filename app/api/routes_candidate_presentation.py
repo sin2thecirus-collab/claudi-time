@@ -467,8 +467,11 @@ async def bulk_upload(
     if not rows:
         raise HTTPException(status_code=400, detail="Keine gueltigen Zeilen in CSV gefunden")
 
+    if len(rows) > 100:
+        raise HTTPException(status_code=400, detail="Maximal 100 Zeilen pro CSV-Upload")
+
     cid = uuid.UUID(candidate_id)
-    annotated = await preview_bulk(async_session_maker, cid, rows)
+    annotated, estimated_cost = await preview_bulk(async_session_maker, cid, rows)
 
     sendable = [r for r in annotated if r.get("can_send")]
     skipped = [r for r in annotated if not r.get("can_send")]
@@ -479,6 +482,7 @@ async def bulk_upload(
         "skipped": len(skipped),
         "rows": annotated,
         "mailboxes": MAILBOXES,
+        "estimated_cost": estimated_cost,
     }
 
 
@@ -495,8 +499,23 @@ async def bulk_start(
     """Startet den Bulk-Versand als Background-Task."""
     from app.models.presentation_batch import PresentationBatch
     from app.services.bulk_presentation_service import process_bulk
+    from sqlalchemy import select
 
     cid = uuid.UUID(req.candidate_id)
+
+    # Parallel-Schutz: Pruefen ob bereits ein Bulk-Versand laeuft
+    existing = await db.execute(
+        select(PresentationBatch).where(
+            PresentationBatch.candidate_id == cid,
+            PresentationBatch.status == "processing",
+        ).limit(1)
+    )
+    if existing.first():
+        raise HTTPException(
+            status_code=409,
+            detail="Es läuft bereits ein Bulk-Versand für diesen Kandidaten",
+        )
+
     batch_id = uuid.uuid4()
 
     # Batch-Record erstellen

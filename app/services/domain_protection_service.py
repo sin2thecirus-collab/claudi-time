@@ -71,17 +71,24 @@ async def get_domain_limits(db: AsyncSession) -> dict[str, int]:
 
 
 async def get_daily_send_count(db: AsyncSession, domain: str) -> int:
-    """Zaehlt heute gesendete E-Mails fuer eine Domain (inkl. Follow-Ups)."""
+    """Zaehlt heute gesendete E-Mails fuer eine Domain (inkl. Follow-Ups + Akquise-Mails)."""
     today_start = datetime.now(timezone.utc).replace(
         hour=0, minute=0, second=0, microsecond=0
     )
 
     result = await db.execute(
         text("""
-            SELECT COUNT(*) FROM client_presentations
-            WHERE email_from LIKE :domain_pattern
-            AND created_at >= :today_start
-            AND status != 'cancelled'
+            SELECT (
+                SELECT COUNT(*) FROM client_presentations
+                WHERE email_from LIKE :domain_pattern
+                AND created_at >= :today_start
+                AND status != 'cancelled'
+            ) + (
+                SELECT COUNT(*) FROM acquisition_emails
+                WHERE from_email LIKE :domain_pattern
+                AND sent_at >= :today_start
+                AND status = 'sent'
+            )
         """),
         {"domain_pattern": f"%@{domain}", "today_start": today_start},
     )

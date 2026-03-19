@@ -936,6 +936,66 @@ ORIGINAL-TEXT:
         return {"blocked": False, "level": "green", "reason": "Cooldown abgelaufen", "last_contacted_at": last_contacted, "has_genuine_reply": False}
 
     # ═══════════════════════════════════════════════════════════════
+    # 6b. ALREADY-PRESENTED CHECK (Kandidat+Firma Duplikat)
+    # ═══════════════════════════════════════════════════════════════
+
+    @staticmethod
+    async def check_already_presented(
+        db: AsyncSession,
+        candidate_id: UUID,
+        company_name: str,
+        city: str = "",
+    ) -> dict:
+        """Prueft ob ein Kandidat dieser Firma bereits vorgestellt wurde.
+
+        Returns:
+            {
+                "already_presented": bool,
+                "reason": str,
+                "presented_at": datetime | None,
+            }
+        """
+        # Firma(en) finden (case-insensitive)
+        company_query = select(Company.id).where(
+            func.lower(Company.name) == company_name.strip().lower()
+        )
+        if city.strip():
+            company_query = company_query.where(
+                func.lower(Company.city) == city.strip().lower()
+            )
+        company_result = await db.execute(company_query)
+        company_ids = [row[0] for row in company_result.all()]
+
+        if not company_ids:
+            return {"already_presented": False, "reason": "", "presented_at": None}
+
+        # Bestehende Vorstellung finden (nicht cancelled)
+        presentation_result = await db.execute(
+            select(ClientPresentation.created_at)
+            .where(
+                and_(
+                    ClientPresentation.candidate_id == candidate_id,
+                    ClientPresentation.company_id.in_(company_ids),
+                    ClientPresentation.status != "cancelled",
+                )
+            )
+            .order_by(ClientPresentation.created_at.desc())
+            .limit(1)
+        )
+        existing = presentation_result.first()
+
+        if existing:
+            presented_at = existing.created_at
+            date_str = presented_at.strftime("%d.%m.%Y") if presented_at else "unbekannt"
+            return {
+                "already_presented": True,
+                "reason": f"Kandidat wurde dieser Firma bereits vorgestellt am {date_str}",
+                "presented_at": presented_at,
+            }
+
+        return {"already_presented": False, "reason": "", "presented_at": None}
+
+    # ═══════════════════════════════════════════════════════════════
     # 7. SEQUENZEN STORNIEREN (bei Kandidat-Statusaenderung)
     # ═══════════════════════════════════════════════════════════════
 
