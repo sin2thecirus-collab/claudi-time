@@ -427,14 +427,53 @@ async def process_bulk(
                     await db.commit()
                 # Session geschlossen!
 
-                # 3. Drive-Time (kein DB noetig, externer API-Call)
+                # 3. Drive-Time (DB-Session schliessen BEVOR Google Maps API-Call!)
                 drive_time = None
                 if cand_coords and cand_coords.lat and cand_coords.lng:
                     try:
-                        # Firma-Koordinaten wuerden hier geladen — vereinfacht: uebersprungen wenn keine Geocoding-Daten
-                        pass
-                    except Exception:
-                        pass
+                        # Firma-Koordinaten aus DB laden (eigene Session)
+                        comp_lat = None
+                        comp_lng = None
+                        comp_plz = None
+                        async with async_session_maker() as db:
+                            from app.models.company import Company
+                            comp_result = await db.execute(
+                                select(
+                                    func.ST_Y(func.ST_GeomFromWKB(Company.location_coords)).label("lat"),
+                                    func.ST_X(func.ST_GeomFromWKB(Company.location_coords)).label("lng"),
+                                    Company.postal_code,
+                                ).where(Company.id == company_id)
+                            )
+                            comp_row = comp_result.first()
+                            if comp_row and comp_row.lat and comp_row.lng:
+                                comp_lat = comp_row.lat
+                                comp_lng = comp_row.lng
+                                comp_plz = comp_row.postal_code
+                        # Session geschlossen BEVOR API-Call!
+
+                        if comp_lat and comp_lng:
+                            dm_service = DistanceMatrixService()
+                            dt_result = await dm_service.get_drive_time(
+                                origin_lat=cand_coords.lat,
+                                origin_lng=cand_coords.lng,
+                                origin_plz=cand_coords.postal_code or "",
+                                dest_lat=comp_lat,
+                                dest_lng=comp_lng,
+                                dest_plz=comp_plz or "",
+                            )
+                            if dt_result.status == "ok" or dt_result.status == "same_plz":
+                                drive_time = {
+                                    "car_min": dt_result.car_min,
+                                    "transit_min": dt_result.transit_min,
+                                    "car_km": dt_result.car_km,
+                                }
+                                logger.info(f"Zeile {row_index}: Fahrzeit berechnet — Auto: {dt_result.car_min}min, OEPNV: {dt_result.transit_min}min")
+                            else:
+                                logger.info(f"Zeile {row_index}: Fahrzeit-Status: {dt_result.status} — uebersprungen")
+                        else:
+                            logger.info(f"Zeile {row_index}: Firma hat keine Koordinaten — Fahrzeit uebersprungen")
+                    except Exception as dt_err:
+                        logger.warning(f"Zeile {row_index}: Fahrzeit-Berechnung fehlgeschlagen: {dt_err}")
 
                 # 4. Skills-Match (OpenAI, KEINE DB-Session offen!)
                 extracted_data = {
@@ -460,7 +499,24 @@ async def process_bulk(
                 # 6. Mailbox bereits oben gewaehlt (Domain-Konsistenz + Kapazitaet)
                 mailbox_counts[mailbox["email"]] = mailbox_counts.get(mailbox["email"], 0) + 1
 
+                # 6b. Profil-PDF generieren (eigene Session, BEVOR n8n-Trigger)
+                pdf_base64 = None
+                pdf_filename = None
+                try:
+                    import base64
+                    from app.services.profile_pdf_service import ProfilePdfService
+                    async with async_session_maker() as pdf_db:
+                        pdf_service = ProfilePdfService(pdf_db)
+                        pdf_bytes = await pdf_service.generate_profile_pdf(candidate_id)
+                        pdf_base64 = base64.b64encode(pdf_bytes).decode("utf-8")
+                        pdf_filename = "Kandidatenprofil.pdf"
+                        logger.info(f"Zeile {row_index}: PDF generiert ({len(pdf_bytes)} bytes)")
+                    # Session geschlossen!
+                except Exception as pdf_err:
+                    logger.warning(f"Zeile {row_index}: PDF-Generierung fehlgeschlagen: {pdf_err} — E-Mail ohne Anhang")
+
                 # 7. Presentation erstellen (neue Session)
+                email_body_html = email_data.get("body_html", "")
                 async with async_session_maker() as db:
                     presentation = await CandidatePresentationService.create_direct_presentation(
                         db=db,
@@ -471,6 +527,7 @@ async def process_bulk(
                         email_from=mailbox["email"],
                         email_subject=email_data["subject"],
                         email_body_text=email_data["body_text"],
+                        email_body_html=email_body_html,
                         mailbox_used=mailbox["email"],
                         source="csv_bulk",
                         extracted_job_data=extracted_data,
@@ -491,9 +548,11 @@ async def process_bulk(
                     email_from=mailbox["email"],
                     email_subject=email_data["subject"],
                     email_body_text=email_data["body_text"],
-                    email_body_html=email_data.get("body_html", ""),
+                    email_body_html=email_body_html,
                     contact_name=row.get("contact_name", ""),
                     source="csv_bulk",
+                    pdf_base64=pdf_base64,
+                    pdf_filename=pdf_filename,
                 )
 
                 # Bei Erfolg: Status auf "sending" setzen (eigene Session!)
@@ -565,6 +624,8 @@ async def _trigger_n8n_for_bulk(
     email_body_html: str = "",
     contact_name: str = "",
     source: str = "csv_bulk",
+    pdf_base64: Optional[str] = None,
+    pdf_filename: Optional[str] = None,
 ) -> bool:
     """Triggert n8n Webhook fuer eine einzelne Bulk-Presentation.
 
@@ -594,9 +655,9 @@ async def _trigger_n8n_for_bulk(
             "email_body_html": email_body_html,
             "email_signature_html": None,
             "mailbox_used": email_from,
-            "pdf_attached": False,
-            "pdf_base64": None,
-            "pdf_filename": None,
+            "pdf_attached": bool(pdf_base64),
+            "pdf_base64": pdf_base64,
+            "pdf_filename": pdf_filename,
             "presentation_mode": "ai_generated",
             "contact_name": contact_name,
             "reply_to": email_from or "hamdard@sincirus.com",
