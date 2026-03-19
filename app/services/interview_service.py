@@ -466,21 +466,17 @@ async def _create_interview_calendar_event(
         {"emailAddress": {"address": candidate_email, "name": candidate_name}, "type": "required"}
     ]
     logger.info(f"[Calendar] Kandidat-Attendee: {candidate_email} ({candidate_name})")
-    logger.info(f"[Calendar] Firma-Participants erhalten: {len(participants)} Stueck: {participants}")
-    added_emails = {candidate_email.lower()}  # Duplikat-Tracking
+    logger.info(f"[Calendar] Firma-Participants erhalten: {len(participants)} Stueck")
     for p in participants:
         email = p.get("email", "").strip()
-        if email and email.lower() not in added_emails:
-            name = f"{p.get('vorname', '')} {p.get('nachname', '')}".strip() or email
+        if email:
+            name = f"{p.get('anrede', '')} {p.get('vorname', '')} {p.get('nachname', '')}".strip() or email
             attendees.append(
                 {"emailAddress": {"address": email, "name": name}, "type": "required"}
             )
-            added_emails.add(email.lower())
             logger.info(f"[Calendar] Firma-Attendee hinzugefuegt: {email} ({name})")
-        elif email and email.lower() in added_emails:
-            logger.info(f"[Calendar] Firma-Attendee UEBERSPRUNGEN (Duplikat-Email): {email}")
         else:
-            logger.info(f"[Calendar] Firma-Teilnehmer OHNE Email: {p.get('nachname', '?')}")
+            logger.info(f"[Calendar] Firma-Teilnehmer OHNE Email (nicht eingeladen): {p.get('nachname', '?')}")
     logger.info(f"[Calendar] Gesamt-Attendees: {len(attendees)}")
     event_payload["attendees"] = attendees
 
