@@ -1330,17 +1330,21 @@ body::after {
                 {# ── Art des Gesprächs ── #}
                 <div style="margin-bottom: 16px;">
                     <label style="font-size: 12px; font-weight: 600; color: var(--pp-text); margin-bottom: 8px; display: block;">Art des Gesprächs</label>
-                    <div style="display: flex; gap: 10px;">
-                        <label @click="interviewData.type = 'digital'"
-                            :style="interviewData.type === 'digital' ? 'background: rgba(99,102,241,0.15); border-color: #6366f1;' : ''"
-                            style="flex: 1; padding: 10px 14px; border: 1px solid rgba(99,102,241,0.15); border-radius: 10px; cursor: pointer; text-align: center; font-size: 13px; color: var(--pp-text); transition: all 0.2s;">
-                            💻 Digital (Teams)
-                        </label>
-                        <label @click="interviewData.type = 'vor_ort'"
-                            :style="interviewData.type === 'vor_ort' ? 'background: rgba(99,102,241,0.15); border-color: #6366f1;' : ''"
-                            style="flex: 1; padding: 10px 14px; border: 1px solid rgba(99,102,241,0.15); border-radius: 10px; cursor: pointer; text-align: center; font-size: 13px; color: var(--pp-text); transition: all 0.2s;">
-                            🏢 Vor Ort
-                        </label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <div @click="interviewData.type = 'digital'"
+                            :style="interviewData.type === 'digital' ? 'background: rgba(59,130,246,0.12); border-color: #3b82f6; box-shadow: 0 0 0 1px rgba(59,130,246,0.3);' : 'background: rgba(99,102,241,0.03);'"
+                            style="padding: 14px 16px; border: 1px solid rgba(99,102,241,0.12); border-radius: 12px; cursor: pointer; transition: all 0.2s; text-align: center;">
+                            <div style="font-size: 22px; margin-bottom: 4px;">💻</div>
+                            <div style="font-size: 13px; font-weight: 600; color: var(--pp-text);">Digital</div>
+                            <div style="font-size: 10px; color: var(--pp-textMuted); margin-top: 2px;">Microsoft Teams</div>
+                        </div>
+                        <div @click="interviewData.type = 'vor_ort'"
+                            :style="interviewData.type === 'vor_ort' ? 'background: rgba(16,185,129,0.12); border-color: #10b981; box-shadow: 0 0 0 1px rgba(16,185,129,0.3);' : 'background: rgba(99,102,241,0.03);'"
+                            style="padding: 14px 16px; border: 1px solid rgba(99,102,241,0.12); border-radius: 12px; cursor: pointer; transition: all 0.2s; text-align: center;">
+                            <div style="font-size: 22px; margin-bottom: 4px;">🏢</div>
+                            <div style="font-size: 13px; font-weight: 600; color: var(--pp-text);">Vor Ort</div>
+                            <div style="font-size: 10px; color: var(--pp-textMuted); margin-top: 2px;">Beim Unternehmen</div>
+                        </div>
                     </div>
                 </div>
 
@@ -1372,44 +1376,64 @@ body::after {
                 <div style="margin-bottom: 16px;">
                     <label style="font-size: 12px; font-weight: 600; color: var(--pp-text); margin-bottom: 8px; display: block;">Teilnehmer seitens der Firma</label>
 
-                    {# Aus Kontakten hinzufuegen #}
+                    {# Aus Kontakten hinzufuegen — Custom Dropdown statt native Select #}
                     <template x-if="interviewContacts.length > 0">
-                        <div style="margin-bottom: 8px;">
-                            <select @change="if ($event.target.value) { ivAddFromContact($event.target.value); $event.target.value = ''; }"
-                                style="width: 100%; padding: 8px 12px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.15); border-radius: 8px; color: var(--pp-text); font-size: 12px; outline: none;">
-                                <option value="">Aus Kontakten hinzufügen...</option>
+                        <div style="margin-bottom: 10px;" x-data="{ ivContactOpen: false }">
+                            <div @click="ivContactOpen = !ivContactOpen" @click.away="ivContactOpen = false"
+                                style="width: 100%; padding: 10px 14px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.15); border-radius: 10px; color: var(--pp-textMuted); font-size: 13px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: border-color 0.2s;"
+                                :style="ivContactOpen ? 'border-color: #6366f1;' : ''">
+                                <span>Aus Kontakten hinzufügen...</span>
+                                <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" :style="ivContactOpen ? 'transform: rotate(180deg);' : ''" style="transition: transform 0.2s;"><path d="M2 4l4 4 4-4"/></svg>
+                            </div>
+                            <div x-show="ivContactOpen" x-transition.opacity
+                                style="margin-top: 4px; background: #1e2340; border: 1px solid rgba(99,102,241,0.25); border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.5); overflow: hidden; z-index: 10; position: relative;">
                                 <template x-for="ct in interviewContacts" :key="ct.id">
-                                    <option :value="ct.id" x-text="(ct.salutation ? ct.salutation + ' ' : '') + ct.full_name + (ct.position ? ' (' + ct.position + ')' : '')"></option>
+                                    <div @click="ivAddFromContact(ct.id); ivContactOpen = false"
+                                        style="padding: 12px 16px; cursor: pointer; border-bottom: 1px solid rgba(99,102,241,0.06); transition: background 0.15s;"
+                                        @mouseenter="$el.style.background='rgba(99,102,241,0.08)'" @mouseleave="$el.style.background='transparent'">
+                                        <div style="font-size: 13px; font-weight: 600; color: var(--pp-text);"
+                                             x-text="(ct.salutation ? ct.salutation + ' ' : '') + ct.full_name"></div>
+                                        <div style="font-size: 11px; color: var(--pp-textMuted); margin-top: 2px;"
+                                             x-text="(ct.position || '') + (ct.position && ct.email ? ' · ' : '') + (ct.email || '')"></div>
+                                    </div>
                                 </template>
-                            </select>
+                            </div>
                         </div>
                     </template>
 
                     {# Hinzugefuegte Teilnehmer Liste #}
                     <template x-for="(p, idx) in interviewData.participants" :key="idx">
-                        <div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: rgba(99,102,241,0.06); border-radius: 8px; margin-bottom: 4px; font-size: 12px; color: var(--pp-text);">
-                            <span style="flex: 1;" x-text="(p.anrede ? p.anrede + ' ' : '') + (p.vorname ? p.vorname + ' ' : '') + p.nachname + (p.rolle ? ' (' + p.rolle + ')' : '') + (p.email ? ' — ' + p.email : '')"></span>
-                            <button @click="ivRemoveParticipant(idx)" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 14px; padding: 2px;">✕</button>
+                        <div style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: rgba(99,102,241,0.06); border: 1px solid rgba(99,102,241,0.08); border-radius: 10px; margin-bottom: 6px;">
+                            <div style="width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, rgba(99,102,241,0.2), rgba(139,92,246,0.2)); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #a5b4fc;"
+                                 x-text="(p.vorname ? p.vorname[0] : '') + (p.nachname ? p.nachname[0] : '')"></div>
+                            <div style="flex: 1; min-width: 0;">
+                                <div style="font-size: 13px; font-weight: 600; color: var(--pp-text);" x-text="(p.anrede ? p.anrede + ' ' : '') + (p.vorname ? p.vorname + ' ' : '') + p.nachname"></div>
+                                <div style="font-size: 11px; color: var(--pp-textMuted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" x-text="(p.rolle || '') + (p.rolle && p.email ? ' · ' : '') + (p.email || '')"></div>
+                            </div>
+                            <button @click="ivRemoveParticipant(idx)" style="width: 24px; height: 24px; border-radius: 6px; background: rgba(239,68,68,0.1); border: none; color: #ef4444; cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center; transition: background 0.2s;"
+                                    @mouseenter="$el.style.background='rgba(239,68,68,0.2)'" @mouseleave="$el.style.background='rgba(239,68,68,0.1)'">✕</button>
                         </div>
                     </template>
 
                     {# Manuell hinzufuegen #}
-                    <div style="margin-top: 8px; padding: 10px; background: rgba(99,102,241,0.03); border: 1px dashed rgba(99,102,241,0.15); border-radius: 8px;">
-                        <div style="font-size: 11px; color: var(--pp-textMuted); margin-bottom: 6px;">Manuell hinzufügen:</div>
-                        <div style="display: grid; grid-template-columns: 80px 1fr 1fr; gap: 6px; margin-bottom: 6px;">
-                            <select x-model="ivNewAnrede" style="padding: 6px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.12); border-radius: 6px; color: var(--pp-text); font-size: 11px; outline: none;">
+                    <div style="margin-top: 10px; padding: 12px 14px; background: rgba(99,102,241,0.03); border: 1px dashed rgba(99,102,241,0.12); border-radius: 10px;">
+                        <div style="font-size: 11px; font-weight: 600; color: var(--pp-textMuted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em;">Manuell hinzufügen</div>
+                        <div style="display: grid; grid-template-columns: 90px 1fr 1fr; gap: 6px; margin-bottom: 6px;">
+                            <select x-model="ivNewAnrede" style="padding: 8px 10px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.12); border-radius: 8px; color: var(--pp-text); font-size: 12px; outline: none; -webkit-appearance: none; appearance: none;">
                                 <option value="">Anrede</option>
                                 <option>Herr</option>
                                 <option>Frau</option>
                             </select>
-                            <input type="text" x-model="ivNewVorname" placeholder="Vorname" style="padding: 6px 8px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.12); border-radius: 6px; color: var(--pp-text); font-size: 11px; outline: none;">
-                            <input type="text" x-model="ivNewNachname" placeholder="Nachname *" style="padding: 6px 8px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.12); border-radius: 6px; color: var(--pp-text); font-size: 11px; outline: none;">
+                            <input type="text" x-model="ivNewVorname" placeholder="Vorname" style="padding: 8px 10px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.12); border-radius: 8px; color: var(--pp-text); font-size: 12px; outline: none;">
+                            <input type="text" x-model="ivNewNachname" placeholder="Nachname *" style="padding: 8px 10px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.12); border-radius: 8px; color: var(--pp-text); font-size: 12px; outline: none;">
                         </div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px;">
-                            <input type="email" x-model="ivNewEmail" placeholder="E-Mail" style="padding: 6px 8px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.12); border-radius: 6px; color: var(--pp-text); font-size: 11px; outline: none;">
-                            <input type="text" x-model="ivNewRolle" placeholder="Rolle (z.B. CFO)" style="padding: 6px 8px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.12); border-radius: 6px; color: var(--pp-text); font-size: 11px; outline: none;">
+                            <input type="email" x-model="ivNewEmail" placeholder="E-Mail" style="padding: 8px 10px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.12); border-radius: 8px; color: var(--pp-text); font-size: 12px; outline: none;">
+                            <input type="text" x-model="ivNewRolle" placeholder="Rolle (z.B. CFO)" style="padding: 8px 10px; background: rgba(99,102,241,0.04); border: 1px solid rgba(99,102,241,0.12); border-radius: 8px; color: var(--pp-text); font-size: 12px; outline: none;">
                             <button @click="ivAddManual()" :disabled="!ivNewNachname.trim()"
-                                style="padding: 6px 12px; background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.3); border-radius: 6px; color: #a5b4fc; font-size: 11px; font-weight: 600; cursor: pointer;">+</button>
+                                style="padding: 8px 14px; background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.25); border-radius: 8px; color: #a5b4fc; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s;"
+                                :style="ivNewNachname.trim() ? 'background: rgba(99,102,241,0.2);' : 'opacity: 0.4; cursor: not-allowed;'"
+                                @mouseenter="if(ivNewNachname.trim()) $el.style.background='rgba(99,102,241,0.3)'" @mouseleave="$el.style.background=ivNewNachname.trim()?'rgba(99,102,241,0.2)':'rgba(99,102,241,0.12)'">+</button>
                         </div>
                     </div>
                 </div>
@@ -1417,24 +1441,28 @@ body::after {
                 {# ── Wer lädt ein? ── #}
                 <div style="margin-bottom: 16px;">
                     <label style="font-size: 12px; font-weight: 600; color: var(--pp-text); margin-bottom: 8px; display: block;">Wer lädt ein?</label>
-                    <div style="display: flex; flex-direction: column; gap: 6px;">
-                        <label @click="if (interviewEntry && interviewEntry.candidate_email) interviewData.invite_by = 'recruiter'"
-                            :style="interviewData.invite_by === 'recruiter' ? 'background: rgba(99,102,241,0.15); border-color: #6366f1;' : ''"
-                            :class="{'opacity-50 pointer-events-none': interviewEntry && !interviewEntry.candidate_email}"
-                            style="padding: 10px 14px; border: 1px solid rgba(99,102,241,0.15); border-radius: 10px; cursor: pointer; font-size: 13px; color: var(--pp-text); transition: all 0.2s;">
-                            📧 Ich — Einladung geht automatisch raus
-                            <template x-if="interviewEntry && !interviewEntry.candidate_email">
-                                <span style="display: block; font-size: 11px; color: #f59e0b; margin-top: 4px;">⚠ Kandidat hat keine E-Mail — Einladung nicht möglich</span>
-                            </template>
-                        </label>
-                        <label @click="interviewData.invite_by = 'kunde'"
-                            :style="interviewData.invite_by === 'kunde' ? 'background: rgba(99,102,241,0.15); border-color: #6366f1;' : ''"
-                            style="padding: 10px 14px; border: 1px solid rgba(99,102,241,0.15); border-radius: 10px; cursor: pointer; font-size: 13px; color: var(--pp-text); transition: all 0.2s;">
-                            🏢 Kunde — nur intern vermerken
-                        </label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <div @click="if (interviewEntry && interviewEntry.candidate_email) interviewData.invite_by = 'recruiter'"
+                            :style="interviewData.invite_by === 'recruiter' ? 'background: rgba(59,130,246,0.12); border-color: #3b82f6; box-shadow: 0 0 0 1px rgba(59,130,246,0.3);' : 'background: rgba(99,102,241,0.03);'"
+                            :class="{'opacity-40': interviewEntry && !interviewEntry.candidate_email}"
+                            style="padding: 14px 16px; border: 1px solid rgba(99,102,241,0.12); border-radius: 12px; cursor: pointer; transition: all 0.2s; text-align: center;">
+                            <div style="font-size: 22px; margin-bottom: 4px;">📧</div>
+                            <div style="font-size: 13px; font-weight: 600; color: var(--pp-text);">Ich lade ein</div>
+                            <div style="font-size: 10px; color: var(--pp-textMuted); margin-top: 2px;">Automatische Einladung</div>
+                        </div>
+                        <div @click="interviewData.invite_by = 'kunde'"
+                            :style="interviewData.invite_by === 'kunde' ? 'background: rgba(245,158,11,0.12); border-color: #f59e0b; box-shadow: 0 0 0 1px rgba(245,158,11,0.3);' : 'background: rgba(99,102,241,0.03);'"
+                            style="padding: 14px 16px; border: 1px solid rgba(99,102,241,0.12); border-radius: 12px; cursor: pointer; transition: all 0.2s; text-align: center;">
+                            <div style="font-size: 22px; margin-bottom: 4px;">🏢</div>
+                            <div style="font-size: 13px; font-weight: 600; color: var(--pp-text);">Kunde lädt ein</div>
+                            <div style="font-size: 10px; color: var(--pp-textMuted); margin-top: 2px;">Nur intern vermerken</div>
+                        </div>
                     </div>
+                    <template x-if="interviewEntry && !interviewEntry.candidate_email && interviewData.invite_by === 'recruiter'">
+                        <div style="margin-top: 8px; padding: 8px 12px; background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.15); border-radius: 8px; font-size: 11px; color: #fcd34d;">⚠ Kandidat hat keine E-Mail — Einladung nicht möglich</div>
+                    </template>
                     <template x-if="interviewExisting && interviewEntry && interviewEntry.interview_invite_sent">
-                        <div style="margin-top: 6px; font-size: 11px; color: #f59e0b;">⚠ Einladung wurde bereits verschickt. Bei Änderung wird eine neue gesendet.</div>
+                        <div style="margin-top: 8px; padding: 8px 12px; background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.15); border-radius: 8px; font-size: 11px; color: #fcd34d;">⚠ Einladung wurde bereits verschickt. Bei Änderung wird eine neue gesendet.</div>
                     </template>
                 </div>
             </div>

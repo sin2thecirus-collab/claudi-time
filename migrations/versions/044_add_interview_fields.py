@@ -19,6 +19,10 @@ depends_on = None
 
 
 def upgrade() -> None:
+    # Neue ActivityType Enum-Werte hinzufuegen
+    op.execute("ALTER TYPE activitytype ADD VALUE IF NOT EXISTS 'interview_scheduled'")
+    op.execute("ALTER TYPE activitytype ADD VALUE IF NOT EXISTS 'interview_cancelled'")
+
     op.add_column(
         "ats_pipeline_entries",
         sa.Column("interview_at", sa.DateTime(timezone=True), nullable=True),
