@@ -329,11 +329,12 @@ async def process_bulk(
                     preferred_domain = await get_domain_for_company(db, row.get("company_name", ""))
                 # Session geschlossen!
 
-                # Mailbox waehlen (Domain-Konsistenz + Kapazitaet)
+                # Mailbox waehlen (Domain-Konsistenz + Round-Robin)
                 mailbox = select_best_mailbox(
                     MAILBOXES,
                     preferred_domain=preferred_domain,
                     exclude_domains=list(exhausted_domains),
+                    mailbox_counts=mailbox_counts,
                 )
                 if not mailbox:
                     logger.warning(f"Zeile {row_index}: Keine Mailbox verfuegbar (alle Domains erschoepft)")
@@ -346,7 +347,7 @@ async def process_bulk(
                 if not capacity["allowed"]:
                     exhausted_domains.add(get_domain_from_email(mailbox["email"]))
                     # Retry mit anderer Domain
-                    mailbox = select_best_mailbox(MAILBOXES, exclude_domains=list(exhausted_domains))
+                    mailbox = select_best_mailbox(MAILBOXES, exclude_domains=list(exhausted_domains), mailbox_counts=mailbox_counts)
                     if not mailbox:
                         await _update_batch_row(async_session_maker, batch_id, row_index, "skipped_domain_limit", None)
                         continue

@@ -168,33 +168,52 @@ def select_best_mailbox(
     mailboxes: list[dict],
     preferred_domain: str | None = None,
     exclude_domains: list[str] | None = None,
+    mailbox_counts: dict[str, int] | None = None,
 ) -> dict | None:
-    """Waehlt das beste Postfach basierend auf Domain-Praeferenz.
+    """Waehlt das beste Postfach mit Round-Robin-Rotation.
+
+    Strategie:
+    1. Domain-Konsistenz: Wenn preferred_domain gesetzt, NUR Postfaecher dieser Domain
+    2. Innerhalb der Domain: Das Postfach mit den WENIGSTEN bisherigen Sends (Round-Robin)
+    3. Fallback: Wenn keine preferred_domain, alle verfuegbaren Domains, wenigste Sends zuerst
 
     Args:
         mailboxes: Liste der verfuegbaren Postfaecher
         preferred_domain: Bevorzugte Domain (Domain-Konsistenz)
         exclude_domains: Domains die ausgeschlossen werden sollen (Limit erreicht)
+        mailbox_counts: Dict {email: anzahl_sends} fuer Round-Robin (optional)
 
     Returns:
         Mailbox-Dict oder None wenn keines verfuegbar.
     """
     exclude = set(exclude_domains or [])
+    counts = mailbox_counts or {}
 
-    # Erst: Bevorzugte Domain
+    def _pick_least_used(candidates: list[dict]) -> dict | None:
+        """Waehlt aus den Kandidaten das Postfach mit den wenigsten Sends."""
+        if not candidates:
+            return None
+        if not counts:
+            return candidates[0]
+        return min(candidates, key=lambda mb: counts.get(mb["email"], 0))
+
+    # Erst: Bevorzugte Domain (Domain-Konsistenz) — Round-Robin innerhalb
     if preferred_domain:
-        for mb in mailboxes:
-            domain = get_domain_from_email(mb["email"])
-            if domain == preferred_domain and domain not in exclude:
-                return mb
+        domain_mailboxes = [
+            mb for mb in mailboxes
+            if get_domain_from_email(mb["email"]) == preferred_domain
+            and get_domain_from_email(mb["email"]) not in exclude
+        ]
+        result = _pick_least_used(domain_mailboxes)
+        if result:
+            return result
 
-    # Fallback: Erste verfuegbare (nicht-ausgeschlossene) Mailbox
-    for mb in mailboxes:
-        domain = get_domain_from_email(mb["email"])
-        if domain not in exclude:
-            return mb
-
-    return None
+    # Fallback: Alle verfuegbaren Domains — Round-Robin ueber alle
+    all_available = [
+        mb for mb in mailboxes
+        if get_domain_from_email(mb["email"]) not in exclude
+    ]
+    return _pick_least_used(all_available)
 
 
 def is_in_sending_window() -> bool:
