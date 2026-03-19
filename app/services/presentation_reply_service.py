@@ -208,77 +208,78 @@ class PresentationReplyService:
 
         Matching-Strategie (Prioritaet):
         1. email_from == email_to einer aktiven Presentation
-        2. Betreff-Matching (Re:/AW: entfernen, dann vergleichen)
+           - Bei mehreren Treffern: Betreff-basierter Tie-Breaker
+             (Kandidatenname oder Original-Betreff im Reply-Betreff)
+           - Fallback: neueste Presentation
+        2. Betreff-Matching als Fallback (Re:/AW: entfernen, dann vergleichen)
 
         Returns:
             Dict mit Presentation-Daten oder None
         """
         try:
             from app.models.client_presentation import ClientPresentation
+            from app.models.candidate import Candidate
             from app.models.company import Company
 
             sender = email_from.strip().lower()
+            reply_subject_clean = _clean_subject(email_subject or "").lower()
+            reply_in_reply_clean = _clean_subject(in_reply_to_subject or "").lower()
 
-            # Strategie 1: E-Mail-Adresse matchen (zuverlaessigster Weg)
+            # ── Gemeinsame Spalten fuer alle Queries ──
+            presentation_columns = [
+                ClientPresentation.id,
+                ClientPresentation.candidate_id,
+                ClientPresentation.company_id,
+                ClientPresentation.contact_id,
+                ClientPresentation.email_to,
+                ClientPresentation.email_from,
+                ClientPresentation.email_subject,
+                ClientPresentation.mailbox_used,
+                ClientPresentation.status,
+                ClientPresentation.sequence_active,
+                ClientPresentation.sequence_step,
+                Company.name.label("company_name"),
+                Company.domain.label("company_domain"),
+                Candidate.first_name.label("candidate_first_name"),
+                Candidate.last_name.label("candidate_last_name"),
+            ]
+
+            # Strategie 1: E-Mail-Adresse matchen — ALLE aktiven laden (kein LIMIT 1)
             result = await db.execute(
-                select(
-                    ClientPresentation.id,
-                    ClientPresentation.candidate_id,
-                    ClientPresentation.company_id,
-                    ClientPresentation.contact_id,
-                    ClientPresentation.email_to,
-                    ClientPresentation.email_from,
-                    ClientPresentation.email_subject,
-                    ClientPresentation.mailbox_used,
-                    ClientPresentation.status,
-                    ClientPresentation.sequence_active,
-                    ClientPresentation.sequence_step,
-                    Company.name.label("company_name"),
-                    Company.domain.label("company_domain"),
-                ).outerjoin(
-                    Company, Company.id == ClientPresentation.company_id
-                ).where(
+                select(*presentation_columns)
+                .outerjoin(Company, Company.id == ClientPresentation.company_id)
+                .outerjoin(Candidate, Candidate.id == ClientPresentation.candidate_id)
+                .where(
                     and_(
                         func.lower(ClientPresentation.email_to) == sender,
                         ClientPresentation.status.in_(["sent", "followup_1", "followup_2", "draft"]),
                     )
-                ).order_by(
-                    ClientPresentation.created_at.desc()
-                ).limit(1)
+                )
+                .order_by(ClientPresentation.created_at.desc())
             )
-            row = result.first()
+            rows = result.all()
+
+            # Bei mehreren Treffern: Betreff-basierter Tie-Breaker
+            row = _pick_best_match(rows, reply_subject_clean, reply_in_reply_clean)
 
             # Strategie 2: Betreff-Matching als Fallback
             if not row and (email_subject or in_reply_to_subject):
                 clean_subject = _clean_subject(in_reply_to_subject or email_subject)
                 if clean_subject and len(clean_subject) > 10:
                     result = await db.execute(
-                        select(
-                            ClientPresentation.id,
-                            ClientPresentation.candidate_id,
-                            ClientPresentation.company_id,
-                            ClientPresentation.contact_id,
-                            ClientPresentation.email_to,
-                            ClientPresentation.email_from,
-                            ClientPresentation.email_subject,
-                            ClientPresentation.mailbox_used,
-                            ClientPresentation.status,
-                            ClientPresentation.sequence_active,
-                            ClientPresentation.sequence_step,
-                            Company.name.label("company_name"),
-                            Company.domain.label("company_domain"),
-                        ).outerjoin(
-                            Company, Company.id == ClientPresentation.company_id
-                        ).where(
+                        select(*presentation_columns)
+                        .outerjoin(Company, Company.id == ClientPresentation.company_id)
+                        .outerjoin(Candidate, Candidate.id == ClientPresentation.candidate_id)
+                        .where(
                             and_(
                                 ClientPresentation.email_subject.ilike(f"%{clean_subject}%"),
                                 ClientPresentation.status.in_(["sent", "followup_1", "followup_2", "draft"]),
                             )
-                        ).order_by(
-                            ClientPresentation.created_at.desc()
-                        ).limit(1)
+                        )
+                        .order_by(ClientPresentation.created_at.desc())
                     )
-                    row = result.first()
+                    rows = result.all()
+                    row = _pick_best_match(rows, reply_subject_clean, reply_in_reply_clean)
 
             if not row:
                 return None
@@ -1155,6 +1156,70 @@ class PresentationReplyService:
 # ═══════════════════════════════════════════════════════════════
 #  HELPER-FUNKTIONEN
 # ═══════════════════════════════════════════════════════════════
+
+def _pick_best_match(rows: list, reply_subject_clean: str, reply_in_reply_clean: str):
+    """Waehlt die beste Presentation aus mehreren Treffern.
+
+    Tie-Breaker-Logik:
+    1. Prueft ob der Reply-Betreff den Kandidaten-Namen enthaelt
+    2. Prueft ob der Reply-Betreff den Original-Betreff der Presentation enthaelt
+    3. Fallback: neueste Presentation (erste in der Liste, da DESC sortiert)
+
+    Bei mehrdeutiger Zuordnung wird eine Warnung geloggt.
+    """
+    if not rows:
+        return None
+
+    if len(rows) == 1:
+        return rows[0]
+
+    # Mehrere Treffer — Tie-Breaker anwenden
+    subject_candidates = reply_subject_clean or reply_in_reply_clean or ""
+
+    if subject_candidates:
+        scored_matches = []
+        for row in rows:
+            score = 0
+
+            # Pruefe Kandidaten-Name im Betreff
+            first_name = (getattr(row, "candidate_first_name", None) or "").strip().lower()
+            last_name = (getattr(row, "candidate_last_name", None) or "").strip().lower()
+            if last_name and len(last_name) >= 2 and last_name in subject_candidates:
+                score += 2
+            if first_name and len(first_name) >= 2 and first_name in subject_candidates:
+                score += 1
+
+            # Pruefe Original-Betreff im Reply-Betreff
+            original_subject = _clean_subject(getattr(row, "email_subject", None) or "").lower()
+            if original_subject and len(original_subject) > 5 and original_subject in subject_candidates:
+                score += 3
+
+            scored_matches.append((score, row))
+
+        # Sortiere nach Score (hoechster zuerst), bei Gleichstand bleibt DESC-Reihenfolge
+        scored_matches.sort(key=lambda x: x[0], reverse=True)
+
+        best_score = scored_matches[0][0]
+        if best_score > 0:
+            # Pruefe ob eindeutig
+            top_matches = [m for m in scored_matches if m[0] == best_score]
+            if len(top_matches) == 1:
+                return top_matches[0][1]
+            else:
+                logger.warning(
+                    f"Mehrdeutige Reply-Zuordnung: {len(top_matches)} Presentations mit gleichem "
+                    f"Tie-Breaker-Score ({best_score}) fuer Betreff '{subject_candidates[:80]}'. "
+                    f"Nehme neueste."
+                )
+                return top_matches[0][1]
+
+    # Kein Tie-Breaker moeglich — Fallback auf neueste
+    logger.warning(
+        f"Mehrdeutige Reply-Zuordnung: {len(rows)} aktive Presentations fuer gleiche "
+        f"E-Mail-Adresse, kein Betreff-Tie-Breaker moeglich. Nehme neueste."
+    )
+    return rows[0]
+
 
 def _clean_subject(subject: str) -> str:
     """Entfernt Re:/AW:/Fwd: Praefixe und Whitespace aus Betreff.
