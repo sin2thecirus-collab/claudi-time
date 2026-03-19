@@ -10,6 +10,7 @@ fuer jede Zeile eine individuelle Presentation mit:
 - Row-Level-Tracking fuer Absturz-Recovery
 """
 
+import asyncio
 import csv
 import io
 import logging
@@ -182,13 +183,47 @@ async def preview_bulk(
         from app.services.candidate_presentation_service import CandidatePresentationService
 
         annotated = []
+        seen_companies: set[tuple[str, str]] = set()
         async with async_session_maker() as db:
             for row in rows:
+                company_key = (
+                    row.get("company_name", "").strip().lower(),
+                    row.get("city", "").strip().lower(),
+                )
+                # CSV-internes Duplikat?
+                if company_key in seen_companies:
+                    annotated.append({
+                        **row,
+                        "can_send": False,
+                        "skip_reason": "Duplikat in CSV (gleiche Firma)",
+                        "level": "red",
+                    })
+                    continue
+                seen_companies.add(company_key)
+
                 spam = await CandidatePresentationService.check_spam_block(
                     db,
                     company_name=row.get("company_name", ""),
                     city=row.get("city", ""),
                 )
+
+                # Bereits vorgestellt?
+                if not spam["blocked"]:
+                    already = await CandidatePresentationService.check_already_presented(
+                        db,
+                        candidate_id=candidate_id,
+                        company_name=row.get("company_name", ""),
+                        city=row.get("city", ""),
+                    )
+                    if already["already_presented"]:
+                        annotated.append({
+                            **row,
+                            "can_send": False,
+                            "skip_reason": already["reason"],
+                            "level": "red",
+                        })
+                        continue
+
                 annotated.append({
                     **row,
                     "can_send": not spam["blocked"],
@@ -235,7 +270,7 @@ async def process_bulk(
                 select(
                     func.ST_Y(func.ST_GeomFromWKB(Candidate.address_coords)).label("lat"),
                     func.ST_X(func.ST_GeomFromWKB(Candidate.address_coords)).label("lng"),
-                    Candidate.plz,
+                    Candidate.postal_code,
                 ).where(Candidate.id == candidate_id)
             )
             cand_coords = cand_result.first()
@@ -252,10 +287,22 @@ async def process_bulk(
         mailbox_index = 0
         mailbox_counts = {mb["email"]: 0 for mb in MAILBOXES}
         exhausted_domains = set()
+        seen_companies: set[tuple[str, str]] = set()
 
         for row in rows:
             row_index = row.get("_row_index", 0)
             try:
+                # CSV-internes Duplikat pruefen
+                company_key = (
+                    row.get("company_name", "").strip().lower(),
+                    row.get("city", "").strip().lower(),
+                )
+                if company_key in seen_companies:
+                    logger.info(f"Zeile {row_index}: CSV-Duplikat uebersprungen ({company_key[0]}, {company_key[1]})")
+                    await _update_batch_row(async_session_maker, batch_id, row_index, "skipped_csv_duplicate", None)
+                    continue
+                seen_companies.add(company_key)
+
                 # 0. Domain-Kapazitaet pruefen (eigene Session)
                 async with async_session_maker() as db:
                     # Domain-Konsistenz: gleiche Domain wie zuvor fuer diese Firma
@@ -389,8 +436,38 @@ async def process_bulk(
                     presentation_id = presentation.id
                 # Session geschlossen!
 
+                # 8. n8n triggern fuer E-Mail-Versand (KEINE DB-Session offen!)
+                n8n_ok = await _trigger_n8n_for_bulk(
+                    presentation_id=str(presentation_id),
+                    candidate_id=str(candidate_id),
+                    company_id=str(company_id),
+                    contact_id=str(contact_id) if contact_id else None,
+                    email_to=contact_email or f"info@{row.get('domain', 'unbekannt.de')}",
+                    email_from=mailbox["email"],
+                    email_subject=email_data["subject"],
+                    email_body_text=email_data["body_text"],
+                    email_body_html=email_data.get("body_html", ""),
+                    contact_name=row.get("contact_name", ""),
+                    source="csv_bulk",
+                )
+
+                # Bei Erfolg: Status auf "sending" setzen (eigene Session!)
+                if n8n_ok:
+                    async with async_session_maker() as db:
+                        from app.models.candidate_presentation import CandidatePresentation
+                        await db.execute(
+                            update(CandidatePresentation)
+                            .where(CandidatePresentation.id == presentation_id)
+                            .values(status="sending")
+                        )
+                        await db.commit()
+                    # Session geschlossen!
+
                 await _update_batch_row(async_session_maker, batch_id, row_index, "created", str(presentation_id))
                 batch_status["processed"] += 1
+
+                # 9. Pause zwischen E-Mails (max 10/min fuer SMTP-Sicherheit)
+                await asyncio.sleep(6)
 
             except Exception as e:
                 logger.error(f"process_bulk Zeile {row_index}: {e}")
@@ -429,6 +506,77 @@ async def process_bulk(
             pass
     finally:
         batch_status["running"] = False
+
+
+async def _trigger_n8n_for_bulk(
+    presentation_id: str,
+    candidate_id: str,
+    company_id: str,
+    contact_id: Optional[str],
+    email_to: str,
+    email_from: str,
+    email_subject: str,
+    email_body_text: str,
+    email_body_html: str = "",
+    contact_name: str = "",
+    source: str = "csv_bulk",
+) -> bool:
+    """Triggert n8n Webhook fuer eine einzelne Bulk-Presentation.
+
+    Pattern: Kein DB-Zugriff hier — nur externer HTTP-Call.
+    Bei Fehler: loggen + False zurueckgeben (naechste Zeile weiterverarbeiten).
+    """
+    try:
+        import httpx
+        from app.config import settings
+
+        if not settings.n8n_webhook_url:
+            logger.warning("_trigger_n8n_for_bulk: n8n_webhook_url nicht konfiguriert")
+            return False
+
+        webhook_url = f"{settings.n8n_webhook_url}/webhook/kunde-vorstellen"
+
+        payload = {
+            "presentation_id": presentation_id,
+            "match_id": None,
+            "candidate_id": candidate_id,
+            "company_id": company_id,
+            "contact_id": contact_id,
+            "email_to": email_to,
+            "email_from": email_from,
+            "email_subject": email_subject,
+            "email_body_text": email_body_text,
+            "email_body_html": email_body_html,
+            "email_signature_html": None,
+            "mailbox_used": email_from,
+            "pdf_attached": False,
+            "pdf_base64": None,
+            "pdf_filename": None,
+            "presentation_mode": "ai_generated",
+            "contact_name": contact_name,
+            "reply_to": email_from or "hamdard@sincirus.com",
+            "email_format": "html" if email_body_html else "plain_text",
+            "source": source,
+            "followup_schedule": {"step2_days": 3, "step3_days": 7},
+            "callback_auth_token": f"Bearer {settings.n8n_api_token}" if settings.n8n_api_token else "",
+        }
+
+        headers = {}
+        if settings.n8n_api_token:
+            headers["Authorization"] = f"Bearer {settings.n8n_api_token}"
+
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.post(webhook_url, json=payload, headers=headers)
+
+        if resp.status_code == 200:
+            logger.info(f"n8n Bulk-Trigger OK fuer Presentation {presentation_id}")
+            return True
+        else:
+            logger.error(f"n8n Bulk-Trigger Fehler: Status={resp.status_code}, Body={resp.text[:300]}")
+            return False
+    except Exception as e:
+        logger.error(f"n8n Bulk-Trigger fehlgeschlagen fuer {presentation_id}: {e}")
+        return False
 
 
 async def _update_batch_row(session_maker, batch_id: UUID, row_index: int, status: str, presentation_id: Optional[str]):
