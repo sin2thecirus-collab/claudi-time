@@ -83,17 +83,31 @@ def _detect_delimiter(text: str) -> str:
 def _build_column_map(headers: list[str]) -> dict[str, str]:
     """Baut ein Mapping von tatsaechlichen CSV-Headern zu internen Feldnamen.
 
-    Versucht zuerst exact-match (case-insensitive), dann stripped match.
+    Strategie: Spezifischere (laengere) Header-Matches zuerst.
+    Bei advertsdata gibt es z.B. 'E-Mail' (Firma) UND 'E-Mail - AP Anzeige' (Kontakt).
+    Wir bevorzugen den spezifischeren Match (AP Anzeige > AP Firma > generisch).
     """
     col_map = {}  # csv_header -> internal_field
-    headers_lower = {h: h.strip().lower() for h in headers}
+    used_fields = set()  # Welche internen Felder schon vergeben sind
 
-    for field_name, aliases in COL_ALIASES.items():
-        aliases_lower = [a.lower() for a in aliases]
-        for original_header, header_lower in headers_lower.items():
-            if header_lower in aliases_lower and original_header not in col_map:
+    # Sortiere Headers: laengere zuerst (spezifischere Matches bevorzugen)
+    headers_sorted = sorted(headers, key=lambda h: -len(h.strip()))
+
+    for original_header in headers_sorted:
+        header_lower = original_header.strip().lower()
+        if not header_lower:
+            continue
+
+        # Finde das erste Feld, dessen Alias matcht und noch nicht vergeben ist
+        for field_name, aliases in COL_ALIASES.items():
+            if field_name in used_fields:
+                continue
+            aliases_lower = [a.lower() for a in aliases]
+            if header_lower in aliases_lower:
                 col_map[original_header] = field_name
+                used_fields.add(field_name)
                 break
+
     return col_map
 
 
