@@ -23,6 +23,31 @@ from app.services.presentation_service import MAILBOXES
 logger = logging.getLogger(__name__)
 
 # ── CSV Column-Mapping (advertsdata-Format) ──
+# Jeder interne Feldname hat eine Liste moeglicher CSV-Spaltennamen (case-insensitive)
+# WICHTIG: advertsdata.com hat AP Firma + AP Anzeige Kontakte — wir bevorzugen AP Anzeige
+COL_ALIASES = {
+    "company_name": ["Unternehmen", "Firma", "Company", "Firmenname", "company_name", "company"],
+    "position": ["Position", "Stelle", "Jobtitel", "Job", "Titel", "position", "job_title"],
+    "job_text": ["Anzeigen-Text", "Anzeigentext", "Stellentext", "Beschreibung", "Job-Text", "job_text", "description", "text"],
+    "contact_salutation": ["Anrede - AP Anzeige", "Kontakt: Anrede", "Anrede", "salutation"],
+    "contact_firstname": ["Vorname - AP Anzeige", "Kontakt: Vorname", "Vorname", "firstname", "first_name"],
+    "contact_lastname": ["Nachname - AP Anzeige", "Kontakt: Nachname", "Nachname", "lastname", "last_name"],
+    "contact_email": ["E-Mail - AP Anzeige", "E-Mail - AP Firma", "E-Mail", "Email", "Mail", "email", "e-mail", "contact_email"],
+    "contact_phone": ["Telefon - AP Anzeige", "Telefon - AP Firma", "Telefon", "Firma Telefonnummer", "Tel", "Phone", "phone", "telefon"],
+    "plz": ["PLZ", "Postleitzahl", "plz", "zip", "postal_code"],
+    "city": ["Einsatzort", "Ort", "Stadt", "City", "city", "ort"],
+    "address": ["Straße und Hausnummer", "Strasse", "Straße", "Adresse", "address", "street"],
+    "domain": ["Internet", "Website", "Domain", "URL", "domain", "website", "url"],
+    # Zusaetzliche advertsdata-Felder (optional)
+    "branche": ["Branche"],
+    "company_size": ["Mitarbeiter (MA) / Unternehmensgröße"],
+    "anzeigenlink": ["Anzeigenlink"],
+    "anzeigenart": ["Anzeigenart"],
+    "beschaeftigungsart": ["Beschäftigungsart"],
+    "contact_function": ["Funktion - AP Anzeige", "Funktion - AP Firma"],
+}
+
+# Legacy exact-match mapping (fuer Rueckwaertskompatibilitaet)
 COL_MAPPING = {
     "Unternehmen": "company_name",
     "Position": "position",
@@ -39,31 +64,90 @@ COL_MAPPING = {
 }
 
 
+def _detect_delimiter(text: str) -> str:
+    """Erkennt den Delimiter automatisch: Tab, Semikolon oder Komma."""
+    first_line = text.split("\n", 1)[0]
+    tab_count = first_line.count("\t")
+    semi_count = first_line.count(";")
+    comma_count = first_line.count(",")
+
+    if tab_count >= semi_count and tab_count >= comma_count and tab_count > 0:
+        return "\t"
+    if semi_count >= comma_count and semi_count > 0:
+        return ";"
+    if comma_count > 0:
+        return ","
+    return "\t"  # Fallback
+
+
+def _build_column_map(headers: list[str]) -> dict[str, str]:
+    """Baut ein Mapping von tatsaechlichen CSV-Headern zu internen Feldnamen.
+
+    Versucht zuerst exact-match (case-insensitive), dann stripped match.
+    """
+    col_map = {}  # csv_header -> internal_field
+    headers_lower = {h: h.strip().lower() for h in headers}
+
+    for field_name, aliases in COL_ALIASES.items():
+        aliases_lower = [a.lower() for a in aliases]
+        for original_header, header_lower in headers_lower.items():
+            if header_lower in aliases_lower and original_header not in col_map:
+                col_map[original_header] = field_name
+                break
+    return col_map
+
+
 def parse_csv(file_bytes: bytes) -> list[dict]:
-    """Parst eine Tab-getrennte CSV-Datei (advertsdata-Format).
+    """Parst eine CSV-Datei (Tab/Semikolon/Komma-getrennt).
+
+    Erkennt automatisch:
+    - Delimiter (Tab, Semikolon, Komma)
+    - Spaltennamen (mehrere Aliase pro Feld, case-insensitive)
 
     Returns:
         Liste von Dicts mit den gemappten Feldern.
     """
     text = _decode_csv(file_bytes)
-    reader = csv.DictReader(io.StringIO(text), delimiter="\t")
+    delimiter = _detect_delimiter(text)
+    logger.info(f"parse_csv: Delimiter erkannt: {repr(delimiter)}")
+
+    reader = csv.DictReader(io.StringIO(text), delimiter=delimiter)
+
+    # Dynamisches Column-Mapping basierend auf tatsaechlichen Headern
+    headers = reader.fieldnames or []
+    col_map = _build_column_map(headers)
+    logger.info(f"parse_csv: Headers={headers}, Mapping={col_map}")
+
+    if not col_map:
+        logger.warning(f"parse_csv: Kein Spalten-Mapping gefunden! Headers: {headers}")
+        return []
 
     rows = []
     for i, raw_row in enumerate(reader):
         mapped = {"_row_index": i}
-        for csv_col, field_name in COL_MAPPING.items():
+        for csv_col, field_name in col_map.items():
             mapped[field_name] = (raw_row.get(csv_col) or "").strip()
+
+        # Fehlende Felder mit leerem String fuellen
+        for field_name in COL_ALIASES:
+            if field_name not in mapped:
+                mapped[field_name] = ""
+
+        # Position aus Anzeigen-Text extrahieren wenn leer
+        # advertsdata hat keine Position-Spalte — der Jobtitel ist die erste Zeile
+        if not mapped.get("position") and mapped.get("job_text"):
+            mapped["position"] = _extract_position_from_text(mapped["job_text"])
 
         # Kontaktname zusammensetzen (Einzelfelder AUCH behalten!)
         first = mapped.get("contact_firstname", "")
         last = mapped.get("contact_lastname", "")
         mapped["contact_name"] = f"{first} {last}".strip()
 
-        # Nur Zeilen mit Firma UND Position
-        if mapped.get("company_name") and mapped.get("position"):
+        # Nur Zeilen mit Firma UND (Position ODER job_text)
+        if mapped.get("company_name") and (mapped.get("position") or mapped.get("job_text")):
             rows.append(mapped)
 
-    logger.info(f"parse_csv: {len(rows)} gueltige Zeilen geparst")
+    logger.info(f"parse_csv: {len(rows)} gueltige Zeilen geparst (Delimiter={repr(delimiter)})")
     return rows
 
 
@@ -365,6 +449,39 @@ async def _update_batch_error(session_maker, batch_id: UUID, row_index: int, err
                 await db.commit()
     except Exception as e:
         logger.warning(f"_update_batch_error fehlgeschlagen: {e}")
+
+
+def _extract_position_from_text(job_text: str) -> str:
+    """Extrahiert den Jobtitel aus dem Anzeigen-Text.
+
+    advertsdata: Erste Zeile / erster Satz ist typischerweise der Jobtitel.
+    Beispiel: "Finanzbuchhalter (m/w/d) {Finanzbuchhalter/in} Friedrich Karl ..."
+    -> "Finanzbuchhalter (m/w/d)"
+
+    Haelt den Titel bei max ~80 Zeichen.
+    """
+    import re
+    text = job_text.strip()
+    if not text:
+        return ""
+
+    # URL am Anfang entfernen (advertsdata hat manchmal www.xyz.de davor)
+    text = re.sub(r'^https?://\S+\s*', '', text)
+    text = re.sub(r'^www\.\S+\s*', '', text)
+
+    # Erste Zeile oder bis zum ersten Punkt/Semikolon nehmen
+    first_line = text.split("\n")[0].strip()
+
+    # Wenn {Berufsbezeichnung} vorkommt, alles danach abschneiden
+    brace_match = re.search(r'\{[^}]+\}', first_line)
+    if brace_match:
+        first_line = first_line[:brace_match.start()].strip()
+
+    # Auf max 80 Zeichen kuerzen (am Wort-Ende)
+    if len(first_line) > 80:
+        first_line = first_line[:80].rsplit(" ", 1)[0] + "..."
+
+    return first_line if first_line else text[:60]
 
 
 def _decode_csv(raw_bytes: bytes) -> str:
