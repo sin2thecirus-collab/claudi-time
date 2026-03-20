@@ -205,6 +205,78 @@ async def send_presentation(req: SendPresentationRequest, db: AsyncSession = Dep
                 detail="Domain ist auf der Blockliste",
             )
 
+        # ── GUARDRAIL 1: Duplikat-Check (gleicher Kandidat + gleiche E-Mail-Adresse) ──
+        # Prueft anhand email_to + candidate_id — E-Mail ist eindeutig, Firmenname nicht.
+        _step = "duplicate_check"
+        from app.models.client_presentation import ClientPresentation as CP_Model
+        from sqlalchemy import select, func, and_
+
+        _dup_by_email = (await db.execute(
+            select(CP_Model.id, CP_Model.email_subject, CP_Model.created_at).where(
+                and_(
+                    CP_Model.candidate_id == candidate_id,
+                    func.lower(CP_Model.email_to) == func.lower(req.email_to),
+                    CP_Model.status != "cancelled",
+                )
+            ).order_by(CP_Model.created_at.desc()).limit(1)
+        )).first()
+
+        if _dup_by_email:
+            raise HTTPException(
+                status_code=409,
+                detail=f"DUPLIKAT: Kandidat wurde bereits an {req.email_to} vorgestellt "
+                       f"am {_dup_by_email[2].strftime('%d.%m.%Y %H:%M')}. "
+                       f"Betreff: '{_dup_by_email[1][:60]}'. "
+                       f"Zuerst bestehende Vorstellung stornieren wenn noetig.",
+            )
+
+        # ── GUARDRAIL 2: Firmen-Cooldown (gleiche E-Mail, anderer Kandidat, letzte 3 Tage) ──
+        _step = "cooldown_check"
+        from datetime import datetime, timedelta, timezone
+        _cooldown_cutoff = datetime.now(timezone.utc) - timedelta(days=3)
+
+        _recent_to_email = (await db.execute(
+            select(CP_Model.candidate_id, CP_Model.email_subject, CP_Model.created_at).where(
+                and_(
+                    func.lower(CP_Model.email_to) == func.lower(req.email_to),
+                    CP_Model.status != "cancelled",
+                    CP_Model.created_at > _cooldown_cutoff,
+                    CP_Model.candidate_id != candidate_id,
+                )
+            ).order_by(CP_Model.created_at.desc()).limit(5)
+        )).all()
+
+        # ── GUARDRAIL 3: Kombi-Mail-Erkennung (anderer Kandidat, gleiche E-Mail, letzte 2 Stunden) ──
+        # Wenn gerade MEHRERE Kandidaten vorgestellt werden, MUSS das eine Kombi-Mail sein.
+        _step = "kombi_mail_check"
+        _kombi_cutoff = datetime.now(timezone.utc) - timedelta(hours=2)
+
+        _kombi_candidates = (await db.execute(
+            select(CP_Model.candidate_id, CP_Model.email_subject, CP_Model.created_at).where(
+                and_(
+                    func.lower(CP_Model.email_to) == func.lower(req.email_to),
+                    CP_Model.status != "cancelled",
+                    CP_Model.created_at > _kombi_cutoff,
+                    CP_Model.candidate_id != candidate_id,
+                )
+            ).order_by(CP_Model.created_at.desc()).limit(5)
+        )).all()
+
+        if _kombi_candidates:
+            raise HTTPException(
+                status_code=409,
+                detail=f"KOMBI-MAIL PFLICHT: An {req.email_to} wurde vor "
+                       f"{len(_kombi_candidates)} Minute(n) bereits ein anderer Kandidat gesendet. "
+                       f"Mehrere Kandidaten an die gleiche Firma MUESSEN in EINER E-Mail gesendet werden. "
+                       f"Nutze den /vorstellen Skill — der macht das automatisch.",
+            )
+
+        if _recent_to_email:
+            logger.warning(
+                f"Cooldown-Warnung: {req.email_to} wurde in den letzten 3 Tagen "
+                f"bereits {len(_recent_to_email)}x mit anderen Kandidaten kontaktiert."
+            )
+
         # Domain-Kapazitaet pruefen
         _step = "import_domain_protection"
         from app.services.domain_protection_service import check_domain_capacity, get_domain_for_company
