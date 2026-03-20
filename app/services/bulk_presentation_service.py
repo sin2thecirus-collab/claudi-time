@@ -153,9 +153,23 @@ def parse_csv(file_bytes: bytes) -> list[dict]:
         if not mapped.get("position") and mapped.get("job_text"):
             mapped["position"] = _extract_position_from_text(mapped["job_text"])
 
-        # Kontaktname zusammensetzen (Einzelfelder AUCH behalten!)
+        # Kontaktname zusammensetzen — BESTE Quelle waehlen
+        # AP-Anzeige hat Prioritaet, aber wenn leer → AP-Firma nehmen
         first = mapped.get("contact_firstname", "")
         last = mapped.get("contact_lastname", "")
+
+        # Wenn AP-Anzeige keinen Vornamen hat, AP-Firma pruefen
+        if not first:
+            first = (raw_row.get("Vorname - AP Firma") or "").strip()
+        if not last:
+            last = (raw_row.get("Nachname - AP Firma") or "").strip()
+
+        # Anrede: AP-Anzeige bevorzugt, sonst AP-Firma
+        if not mapped.get("contact_salutation"):
+            mapped["contact_salutation"] = (raw_row.get("Anrede - AP Firma") or "").strip()
+
+        mapped["contact_firstname"] = first
+        mapped["contact_lastname"] = last
         mapped["contact_name"] = f"{first} {last}".strip()
 
         # Beste E-Mail intelligent auswaehlen (alle 3 Spalten pruefen)
